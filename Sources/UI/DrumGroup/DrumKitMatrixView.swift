@@ -378,6 +378,15 @@ struct DrumKitMatrixView: View {
     @State private var isCaptureOpen = false
     /// "+ FX" picker for the kit bus (AC23 kit FX).
     @State private var isPresentingKitFX = false
+    /// Shared history selection length (AC15/AC16), in steps. ½/1/2/4 bars =
+    /// 8/16/32/64. Applies to EVERY member's window in lockstep.
+    @State private var historyLengthSteps = 16
+    /// Shared scrubber position (AC16): how many bars BACK from the live edge
+    /// the selection window sits. 0 == live (newest). Moves every member's
+    /// window in lockstep.
+    @State private var historyBarsBack = 0
+    /// Last save feedback shown in the history footer.
+    @State private var historySaveMessage: String?
 
     private var model: DrumKitMatrixModel? {
         DrumKitMatrixModel(
@@ -572,6 +581,11 @@ struct DrumKitMatrixView: View {
                 "kitTab": isVisible ? (isCaptureOpen ? "capture" : kitTab.rawValue) : "none",
                 "captureOpen": isVisible && isCaptureOpen,
                 "kitFXChooserVisible": isVisible && isPresentingKitFX,
+                "historyLengthSteps": isVisible && isCaptureOpen ? historyLengthSteps : 0,
+                "historyBarsBack": isVisible && isCaptureOpen ? historyBarsBack : 0,
+                "historyWindow": isVisible && isCaptureOpen
+                    ? (historyBarsBack == 0 ? "live" : "\(historyBarsBack) back")
+                    : "none",
             ]
         )
     }
@@ -1191,59 +1205,359 @@ struct DrumKitMatrixView: View {
         )
     }
 
-    // MARK: - Capture / History body (AC14 header interaction)
+    // MARK: - Capture / History body (AC14/AC15/AC16)
 
-    /// Capture surface — replaces the tab content while the Patterns row stays
-    /// above (AC12/AC14). STUBBED: the full all-parts history scrubber + save-
-    /// as-clip-set content is a later slice; for now this is a styled placeholder
-    /// body with a "Close capture" affordance back to the tabs.
+    /// One 16-step bar = the scrubber's quantum.
+    private static let historyStepsPerBar = 16
+    /// ½ / 1 / 2 / 4 bars, the shared selection-length options (AC16). Reuses
+    /// the single-track clip-history length set so the windows match.
+    private static let historyLengthOptions = PseudoClipState.supportedLengthSteps
+
+    /// Capture surface (AC14/AC15/AC16). Replaces the tab content while the
+    /// Patterns row stays above (AC12). Shows EVERY member's live rolling
+    /// buffer together, a shared scrubber that moves one selection window
+    /// across all parts in lockstep, and a "Save as clip set → slot" action
+    /// that writes each member's windowed selection into one coordinated set.
     @ViewBuilder
     private func captureHistoryBody(_ model: DrumKitMatrixModel) -> some View {
         StudioPanel(title: "Capture · History", eyebrow: "Live buffer · all parts", accent: accent) {
-            VStack(alignment: .leading, spacing: 12) {
-                HStack(spacing: 10) {
-                    Button {
-                        isCaptureOpen = false
-                    } label: {
-                        Label("Close capture", systemImage: "chevron.left")
-                            .studioText(.labelBold)
-                            .foregroundStyle(StudioTheme.text)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
-                            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                                    .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
-                            )
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("kit-capture-close")
-                    .accessibilityLabel("Close capture")
-
-                    Spacer(minLength: 0)
-                }
-
-                Text("Capture replaces the tabs; the Patterns row above stays so a captured clip set can be assigned to a slot.")
-                    .studioText(.body)
-                    .foregroundStyle(StudioTheme.mutedText)
-
-                VStack(alignment: .leading, spacing: 6) {
-                    ForEach(model.rows) { row in
-                        Text(row.partName)
-                            .studioText(.label)
-                            .foregroundStyle(StudioTheme.text)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 7)
-                            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
-                    }
-                }
-
-                Text("All-parts history scrubber + save-as-clip-set arrive in a later slice.")
-                    .studioText(.micro)
-                    .foregroundStyle(StudioTheme.mutedText)
+            VStack(alignment: .leading, spacing: 14) {
+                captureHistoryHeader(model)
+                captureHistoryScrubber(model)
+                captureHistoryParts(model)
+                captureHistoryFooter(model)
             }
         }
+    }
+
+    private func captureHistoryHeader(_ model: DrumKitMatrixModel) -> some View {
+        HStack(spacing: 10) {
+            Button {
+                isCaptureOpen = false
+            } label: {
+                Label("Close capture", systemImage: "chevron.left")
+                    .studioText(.labelBold)
+                    .foregroundStyle(StudioTheme.text)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                            .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+                    )
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("kit-capture-close")
+            .accessibilityLabel("Close capture")
+
+            Spacer(minLength: 0)
+
+            historyLengthControl
+        }
+    }
+
+    /// Shared ½/1/2/4-bar selection-length control (AC16). Applies to every
+    /// member's window at once.
+    private var historyLengthControl: some View {
+        HStack(spacing: 8) {
+            Text("LENGTH")
+                .studioText(.eyebrow)
+                .tracking(0.8)
+                .foregroundStyle(StudioTheme.mutedText)
+
+            HStack(spacing: 4) {
+                ForEach(Self.historyLengthOptions, id: \.self) { option in
+                    historyLengthButton(option)
+                }
+            }
+            .padding(3)
+            .background(
+                Color.white.opacity(StudioOpacity.subtleFill),
+                in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                    .stroke(StudioTheme.border.opacity(0.9), lineWidth: StudioMetrics.borderWidth)
+            )
+        }
+    }
+
+    private func historyLengthButton(_ option: Int) -> some View {
+        let isSelected = historyLengthSteps == option
+        let title = ClipHistoryTransferViewModel.lengthLabel(for: option)
+        return Button {
+            historyLengthSteps = option
+            historySaveMessage = nil
+            postRenderedVisualState(isVisible: true)
+        } label: {
+            Text(title)
+                .studioText(.labelBold)
+                .foregroundStyle(isSelected ? StudioTheme.background : StudioTheme.text.opacity(0.78))
+                .lineLimit(1)
+                .frame(minWidth: 52, minHeight: 26)
+                .padding(.horizontal, 6)
+                .background(
+                    isSelected ? accent : Color.clear,
+                    in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
+                )
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("kit-history-length-\(option)")
+        .accessibilityLabel("Selection length \(title)")
+        .accessibilityValue(isSelected ? "Selected" : "Not selected")
+    }
+
+    /// Shared scrubber/timeline (AC16). « steps the window back through the
+    /// rolling buffer, » steps it toward now, and Live jumps to the newest
+    /// window. The window position is shown ("live" vs "N back"). The same
+    /// window applies to every member row in lockstep.
+    private func captureHistoryScrubber(_ model: DrumKitMatrixModel) -> some View {
+        let maxBack = historyMaxBarsBack(model)
+        let back = min(historyBarsBack, maxBack)
+        let positionLabel = back == 0 ? "live" : "\(back) bar\(back == 1 ? "" : "s") back"
+        return HStack(spacing: 10) {
+            Text("TIMELINE")
+                .studioText(.eyebrow)
+                .tracking(0.8)
+                .foregroundStyle(StudioTheme.mutedText)
+
+            historyScrubButton(
+                systemImage: "chevron.left.2",
+                id: "kit-history-scrub-back",
+                label: "Scrub back in time",
+                enabled: back < maxBack
+            ) {
+                historyScrubBack(model)
+            }
+
+            Text(positionLabel)
+                .studioText(.labelBold)
+                .foregroundStyle(back == 0 ? StudioTheme.background : StudioTheme.text)
+                .lineLimit(1)
+                .frame(minWidth: 88)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(
+                    back == 0 ? accent : Color.white.opacity(StudioOpacity.subtleFill),
+                    in: Capsule()
+                )
+                .overlay(Capsule().stroke(back == 0 ? Color.clear : StudioTheme.border, lineWidth: StudioMetrics.borderWidth))
+                .accessibilityIdentifier("kit-history-window")
+                .accessibilityLabel("History window position")
+                .accessibilityValue(positionLabel)
+
+            historyScrubButton(
+                systemImage: "chevron.right.2",
+                id: "kit-history-scrub-forward",
+                label: "Scrub toward now",
+                enabled: back > 0
+            ) {
+                historyScrubForward()
+            }
+
+            Button {
+                historyJumpToLive()
+            } label: {
+                Label("Live", systemImage: "dot.radiowaves.left.and.right")
+                    .studioText(.labelBold)
+                    .foregroundStyle(back == 0 ? StudioTheme.background : StudioTheme.text)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(
+                        back == 0 ? accent : Color.white.opacity(StudioOpacity.subtleFill),
+                        in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                            .stroke(back == 0 ? Color.clear : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+                    )
+            }
+            .buttonStyle(.plain)
+            .help("Jump the selection window to the live edge (now)")
+            .accessibilityIdentifier("kit-history-live")
+            .accessibilityLabel("Jump to live")
+
+            Spacer(minLength: 0)
+        }
+    }
+
+    private func historyScrubButton(
+        systemImage: String,
+        id: String,
+        label: String,
+        enabled: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(.system(size: 12, weight: .bold))
+                .foregroundStyle(enabled ? StudioTheme.text : StudioTheme.mutedText)
+                .frame(width: 32, height: 30)
+                .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                        .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+                )
+        }
+        .buttonStyle(.plain)
+        .disabled(!enabled)
+        .help(label)
+        .accessibilityIdentifier(id)
+        .accessibilityLabel(label)
+    }
+
+    /// All members' windowed buffers, one compact strip each (AC15). Every
+    /// strip previews the SAME shared window resolved against that member's
+    /// own rolling snapshot, so the parts read together.
+    private func captureHistoryParts(_ model: DrumKitMatrixModel) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("ALL PARTS · SHARED WINDOW")
+                .studioText(.eyebrow)
+                .tracking(0.8)
+                .foregroundStyle(StudioTheme.mutedText)
+
+            ScrollView(.vertical) {
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(model.rows) { row in
+                        DrumKitHistoryPartStrip(
+                            partName: row.partName,
+                            content: historyWindowContent(memberID: row.memberID),
+                            gridSteps: historyLengthSteps,
+                            accent: accent
+                        )
+                    }
+                }
+            }
+            .frame(maxHeight: 260)
+            .scrollIndicators(.never)
+        }
+    }
+
+    private func captureHistoryFooter(_ model: DrumKitMatrixModel) -> some View {
+        let targetSlot = historyTargetSlotIndex(model)
+        return HStack(spacing: 10) {
+            if let message = historySaveMessage {
+                Text(message)
+                    .studioText(.label)
+                    .foregroundStyle(StudioTheme.success)
+            } else {
+                Text("Saves every part's window into one coordinated clip set at the group slot.")
+                    .studioText(.label)
+                    .foregroundStyle(StudioTheme.mutedText)
+            }
+
+            Spacer(minLength: 0)
+
+            Button {
+                saveKitHistoryClipSet(model, slotIndex: targetSlot)
+            } label: {
+                Text("Save as clip set → P\(targetSlot + 1)")
+                    .studioText(.labelBold)
+                    .foregroundStyle(StudioTheme.background)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(accent, in: Capsule())
+            }
+            .buttonStyle(.plain)
+            .help("Save each part's windowed buffer into a coordinated clip set at P\(targetSlot + 1)")
+            .accessibilityIdentifier("kit-history-save")
+            .accessibilityLabel("Save kit history as clip set")
+            .accessibilityValue("Slot \(targetSlot + 1)")
+        }
+    }
+
+    // MARK: - Kit history window math + save (AC15/AC16)
+
+    /// The slot a coordinated save targets: the shared group slot when members
+    /// agree, otherwise the first member's slot.
+    private func historyTargetSlotIndex(_ model: DrumKitMatrixModel) -> Int {
+        model.groupSelectedSlotIndex ?? model.rows.first?.patternSlotIndex ?? 0
+    }
+
+    /// How many whole bars back the scrubber can travel before running out of
+    /// buffer — bounded by the shortest member snapshot so the window stays
+    /// valid for EVERY part in lockstep.
+    private func historyMaxBarsBack(_ model: DrumKitMatrixModel) -> Int {
+        var minMaxSteps = Int.max
+        for row in model.rows {
+            let snapshot = engineController.captureSnapshot(trackID: row.memberID)
+            minMaxSteps = min(minMaxSteps, snapshot.maxSteps)
+        }
+        guard minMaxSteps != Int.max else { return 0 }
+        let usableSteps = max(0, minMaxSteps - historyLengthSteps)
+        return usableSteps / Self.historyStepsPerBar
+    }
+
+    /// Resolve the shared window's start offset into a member snapshot. Offset 0
+    /// is the buffer's oldest step; the live edge is `maxSteps - length`, and
+    /// each bar back subtracts one bar. Clamped so it never underflows.
+    private func historyWindowStartOffset(maxSteps: Int) -> Int {
+        let liveStart = max(0, maxSteps - historyLengthSteps)
+        let back = min(historyBarsBack, historyMaxBarsBackForSteps(maxSteps))
+        return max(0, liveStart - back * Self.historyStepsPerBar)
+    }
+
+    private func historyMaxBarsBackForSteps(_ maxSteps: Int) -> Int {
+        max(0, (maxSteps - historyLengthSteps)) / Self.historyStepsPerBar
+    }
+
+    /// The shared window's content materialized against one member's rolling
+    /// buffer (AC15/AC16). Reuses `PseudoClipState`, the same materializer the
+    /// single-track history uses.
+    private func historyWindowContent(memberID: UUID) -> ClipContent? {
+        let snapshot = engineController.captureSnapshot(trackID: memberID)
+        guard !snapshot.isEmpty else { return nil }
+        return PseudoClipState.materialize(
+            sourceTrackID: memberID,
+            from: snapshot,
+            startStep: historyWindowStartOffset(maxSteps: snapshot.maxSteps),
+            lengthSteps: historyLengthSteps
+        ).noteGrid
+    }
+
+    private func historyScrubBack(_ model: DrumKitMatrixModel) {
+        let maxBack = historyMaxBarsBack(model)
+        guard historyBarsBack < maxBack else { return }
+        historyBarsBack += 1
+        historySaveMessage = nil
+        postRenderedVisualState(isVisible: true)
+    }
+
+    private func historyScrubForward() {
+        guard historyBarsBack > 0 else { return }
+        historyBarsBack -= 1
+        historySaveMessage = nil
+        postRenderedVisualState(isVisible: true)
+    }
+
+    private func historyJumpToLive() {
+        historyBarsBack = 0
+        historySaveMessage = nil
+        postRenderedVisualState(isVisible: true)
+    }
+
+    /// Save the shared window for EVERY member into one coordinated clip set at
+    /// the same pattern slot (AC15). Reuses the single-track save-to-slot path
+    /// (`saveMaterializedClipToPatternSlot`) once per member, targeting the
+    /// identical slot index so the result is one assignable set.
+    private func saveKitHistoryClipSet(_ model: DrumKitMatrixModel, slotIndex: Int) {
+        var savedCount = 0
+        for row in model.rows {
+            guard let content = historyWindowContent(memberID: row.memberID) else { continue }
+            let clipID = session.saveMaterializedClipToPatternSlot(
+                trackID: row.memberID,
+                slotIndex: slotIndex,
+                content: content,
+                name: "Kit Capture P\(slotIndex + 1)"
+            )
+            if clipID != nil { savedCount += 1 }
+        }
+        if savedCount > 0 {
+            historySaveMessage = "Saved \(savedCount) part\(savedCount == 1 ? "" : "s") to P\(slotIndex + 1)"
+        } else {
+            historySaveMessage = "Nothing to capture yet — play the kit first."
+        }
+        postRenderedVisualState(isVisible: true)
     }
 
     /// Group-level 1–16 pattern row, styled like a track's pattern selector.
@@ -1544,6 +1858,14 @@ struct DrumKitMatrixView: View {
             isCaptureOpen = true
         case "close-capture":
             isCaptureOpen = false
+        case "history-scrub-back":
+            if let model { historyScrubBack(model) }
+        case "history-scrub-forward":
+            historyScrubForward()
+        case "history-live":
+            historyJumpToLive()
+        case "history-save":
+            if let model { saveKitHistoryClipSet(model, slotIndex: historyTargetSlotIndex(model)) }
         case "link-on":
             session.setDrumGroupPatternLinked(true, groupID: navigationState.groupID)
         case "link-off":
@@ -1588,6 +1910,13 @@ struct DrumKitMatrixView: View {
                       let slotIndex = Int(rawSlot),
                       (0..<TrackPatternBank.slotCount).contains(slotIndex) {
                 session.setDrumGroupSelectedPatternIndex(slotIndex, groupID: navigationState.groupID)
+            } else if command.hasPrefix("history-length:"),
+                      let rawSteps = command.split(separator: ":").last,
+                      let steps = Int(rawSteps),
+                      Self.historyLengthOptions.contains(steps) {
+                historyLengthSteps = steps
+                historySaveMessage = nil
+                postRenderedVisualState(isVisible: true)
             }
         }
     }
@@ -2384,6 +2713,97 @@ private struct DrumGroupRoutingEditorRow: View {
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
                 .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
         )
+    }
+}
+
+/// One member's strip in the kit history surface (AC15): part name + a compact
+/// note preview of the SHARED window resolved against that part's rolling
+/// buffer. All strips show the same window so the parts read together.
+private struct DrumKitHistoryPartStrip: View {
+    let partName: String
+    let content: ClipContent?
+    let gridSteps: Int
+    let accent: Color
+
+    private var notes: [(pitch: Int, startStep: Int, lengthSteps: Int)] {
+        guard let steps = content?.normalized.noteGridSteps else { return [] }
+        return steps.enumerated().flatMap { stepIndex, step -> [(Int, Int, Int)] in
+            let stepNotes = (step.main?.notes ?? []) + (step.fill?.notes ?? [])
+            return stepNotes.map { ($0.pitch, stepIndex, $0.lengthSteps) }
+        }
+    }
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Text(partName)
+                .studioText(.labelBold)
+                .foregroundStyle(StudioTheme.text)
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .frame(width: 120, alignment: .leading)
+
+            preview
+                .frame(height: 34)
+                .frame(maxWidth: .infinity)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
+                .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+        )
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(partName) history window, \(notes.count) note\(notes.count == 1 ? "" : "s")")
+    }
+
+    @ViewBuilder
+    private var preview: some View {
+        let resolved = max(1, gridSteps)
+        let captured = notes
+        GeometryReader { geometry in
+            let stepWidth = geometry.size.width / CGFloat(resolved)
+            let pitches = captured.map(\.pitch)
+            let low = (pitches.min() ?? 48)
+            let high = max(low + 1, (pitches.max() ?? 72))
+            let span = CGFloat(max(1, high - low))
+
+            ZStack(alignment: .topLeading) {
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                    .fill(Color.white.opacity(StudioOpacity.borderSubtle))
+
+                ForEach(0..<resolved, id: \.self) { step in
+                    if step % 4 == 0 {
+                        Rectangle()
+                            .fill(Color.white.opacity(StudioOpacity.borderSubtle))
+                            .frame(width: 1)
+                            .offset(x: stepWidth * CGFloat(step))
+                    }
+                }
+
+                ForEach(Array(captured.enumerated()), id: \.offset) { _, note in
+                    let yFraction = 1.0 - CGFloat(note.pitch - low) / span
+                    RoundedRectangle(cornerRadius: 2, style: .continuous)
+                        .fill(accent)
+                        .frame(
+                            width: max(stepWidth * CGFloat(max(1, note.lengthSteps)) - 1, 4),
+                            height: 4
+                        )
+                        .offset(
+                            x: stepWidth * CGFloat(min(max(note.startStep, 0), resolved - 1)),
+                            y: max(1, yFraction * (geometry.size.height - 6) + 1)
+                        )
+                }
+
+                if captured.isEmpty {
+                    Text("No notes in window")
+                        .studioText(.micro)
+                        .foregroundStyle(StudioTheme.mutedText)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                }
+            }
+            .clipShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+        }
     }
 }
 
