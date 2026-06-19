@@ -339,7 +339,7 @@ struct ScenesWorkspaceView: View {
     private var insertList: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("INSERTS")
+                Text("FX")
                     .studioText(.eyebrow)
                     .tracking(0.8)
                     .foregroundStyle(StudioTheme.mutedText)
@@ -348,15 +348,35 @@ struct ScenesWorkspaceView: View {
             }
 
             if selectedScene.inserts.isEmpty {
-                StudioPlaceholderTile(title: "Clean Chain", detail: "No inserts")
+                // Compact empty state only (no big "Empty Scene" filler).
+                Text("No FX yet")
+                    .studioText(.label)
+                    .foregroundStyle(StudioTheme.mutedText)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.vertical, 6)
             } else {
-                VStack(spacing: 8) {
+                // A List with `.onMove` gives drag-to-reorder by handle, with no
+                // up/down arrow buttons (bug 135534).
+                List {
                     ForEach(selectedScene.inserts) { insert in
                         insertRow(insert)
+                            .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
+                            .listRowBackground(Color.clear)
+                            .listRowSeparator(.hidden)
                     }
+                    .onMove(perform: moveInserts)
                 }
+                .listStyle(.plain)
+                .scrollContentBackground(.hidden)
+                .frame(height: insertListHeight)
             }
         }
+    }
+
+    private var insertListHeight: CGFloat {
+        let rowHeight: CGFloat = 60
+        let visibleRows = min(max(selectedScene.inserts.count, 1), 6)
+        return CGFloat(visibleRows) * rowHeight
     }
 
     private var addInsertMenu: some View {
@@ -393,65 +413,73 @@ struct ScenesWorkspaceView: View {
                 }
             }
         } label: {
-            Label("Add", systemImage: "plus")
+            // Plus button labelled "FX" (bug 135348), matching the track FX
+            // chain's add affordance.
+            Label("FX", systemImage: "plus")
+                .studioText(.labelBold)
+                .foregroundStyle(StudioTheme.background)
+                .padding(.vertical, 6)
+                .padding(.horizontal, 12)
+                .background(StudioTheme.success, in: Capsule())
         }
-        .buttonStyle(.borderedProminent)
-        .tint(StudioTheme.success)
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .accessibilityLabel("Add FX")
     }
 
     private func insertRow(_ insert: MasterBusInsert) -> some View {
         let isSelected = insert.id == selectedInsertID
-        return VStack(alignment: .leading, spacing: 9) {
-            HStack(alignment: .top, spacing: 10) {
-                Image(systemName: iconName(for: insert.kind))
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(StudioTheme.background)
-                    .frame(width: 28, height: 28)
-                    .background(StudioTheme.amber, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
+        return HStack(spacing: 10) {
+            // Drag handle for reorder (bug 135534: handle, never arrows).
+            Image(systemName: "line.3.horizontal")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(StudioTheme.mutedText)
+                .frame(width: 18)
+                .accessibilityLabel("Reorder \(insert.name)")
 
-                VStack(alignment: .leading, spacing: 3) {
-                    TextField("Insert Name", text: insertNameBinding(insert.id, fallback: insert.name))
-                        .studioText(.bodyEmphasis)
-                        .foregroundStyle(StudioTheme.text)
-                        .textFieldStyle(.plain)
-                        .lineLimit(1)
+            Image(systemName: iconName(for: insert.kind))
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(StudioTheme.background)
+                .frame(width: 24, height: 24)
+                .background(StudioTheme.amber, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
 
-                    Text(insert.kind.summary)
-                        .studioText(.label)
-                        .foregroundStyle(StudioTheme.mutedText)
-                        .lineLimit(1)
-                }
+            VStack(alignment: .leading, spacing: 2) {
+                TextField("FX Name", text: insertNameBinding(insert.id, fallback: insert.name))
+                    .studioText(.labelBold)
+                    .foregroundStyle(StudioTheme.text)
+                    .textFieldStyle(.plain)
+                    .lineLimit(1)
 
-                Spacer(minLength: 4)
-
-                Toggle("Enabled", isOn: binding(for: insert.id, keyPath: \.isEnabled, fallback: insert.isEnabled))
-                    .labelsHidden()
-                    .toggleStyle(.switch)
-                    .controlSize(.small)
-                    .tint(StudioTheme.success)
-            }
-
-            HStack(spacing: 6) {
-                Text(insert.isEnabled ? "Enabled" : "Bypassed")
+                Text(insert.kind.summary)
                     .studioText(.micro)
-                    .tracking(0.8)
-                    .foregroundStyle(insert.isEnabled ? StudioTheme.success : StudioTheme.mutedText)
-
-                Spacer()
-
-                insertMoveButtons(insert)
-
-                Button(role: .destructive) {
-                    session.removeMasterBusInsert(insert.id, from: selectedScene.id)
-                    selectedInsertID = selectedScene.inserts.first(where: { $0.id != insert.id })?.id
-                } label: {
-                    Image(systemName: "trash")
-                }
-                .buttonStyle(.bordered)
-                .help("Remove insert")
+                    .foregroundStyle(StudioTheme.mutedText)
+                    .lineLimit(1)
             }
+
+            Spacer(minLength: 6)
+
+            // Bypass toggle + remove on the SAME line, no "Enabled" text.
+            Toggle("Bypass \(insert.name)", isOn: binding(for: insert.id, keyPath: \.isEnabled, fallback: insert.isEnabled))
+                .labelsHidden()
+                .toggleStyle(.switch)
+                .controlSize(.mini)
+                .tint(StudioTheme.success)
+
+            Button {
+                session.removeMasterBusInsert(insert.id, from: selectedScene.id)
+                selectedInsertID = selectedScene.inserts.first(where: { $0.id != insert.id })?.id
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(StudioTheme.mutedText)
+            }
+            .buttonStyle(.plain)
+            .help("Remove FX")
+            .accessibilityLabel("Remove \(insert.name)")
         }
-        .padding(StudioMetrics.Spacing.compact)
+        .padding(.vertical, 8)
+        .padding(.horizontal, 10)
         // Colour identifies, it never floods (ux-canon rule 12): selection
         // reads from the cyan outline, not a tinted row fill.
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
@@ -459,6 +487,7 @@ struct ScenesWorkspaceView: View {
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
                 .stroke(isSelected ? StudioTheme.cyan : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
         )
+        .opacity(insert.isEnabled ? 1 : 0.55)
         .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
         .onTapGesture {
             selectedInsertID = insert.id
@@ -469,16 +498,6 @@ struct ScenesWorkspaceView: View {
     private var insertEditor: some View {
         if let insert = selectedInsert {
             VStack(alignment: .leading, spacing: 14) {
-                sliderRow(
-                    title: "Wet",
-                    value: binding(for: insert.id, keyPath: \.wetDry, fallback: insert.wetDry),
-                    range: 0...1,
-                    label: "\(Int((insert.wetDry * 100).rounded()))%"
-                )
-
-                Divider()
-                    .overlay(StudioTheme.border)
-
                 kindEditor(insert)
             }
             .padding(StudioMetrics.Spacing.roomy)
@@ -488,7 +507,12 @@ struct ScenesWorkspaceView: View {
                     .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
             )
         } else {
-            StudioPlaceholderTile(title: "No Insert Selected", detail: "Add an insert")
+            // Compact empty state only (no wasted-space filler text).
+            Text("Select FX to edit")
+                .studioText(.label)
+                .foregroundStyle(StudioTheme.mutedText)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.vertical, 6)
         }
     }
 
@@ -647,24 +671,7 @@ struct ScenesWorkspaceView: View {
     private func kindEditor(_ insert: MasterBusInsert) -> some View {
         switch insert.kind {
         case let .nativeFilter(settings):
-            Picker("Mode", selection: filterModeBinding(insertID: insert.id, settings: settings)) {
-                Text("Low Pass").tag(MasterFilterSettings.Mode.lowPass)
-                Text("High Pass").tag(MasterFilterSettings.Mode.highPass)
-            }
-            .pickerStyle(.segmented)
-
-            sliderRow(
-                title: "Cutoff",
-                value: filterCutoffBinding(insertID: insert.id, settings: settings),
-                range: 20...20_000,
-                label: "\(Int(settings.cutoffHz.rounded())) Hz"
-            )
-            sliderRow(
-                title: "Resonance",
-                value: filterResonanceBinding(insertID: insert.id, settings: settings),
-                range: 0...1,
-                label: String(format: "%.2f", settings.resonance)
-            )
+            filterEditor(insert: insert, settings: settings)
 
         case let .nativeBitcrusher(settings):
             Stepper("Bits: \(settings.bitDepth)", value: bitDepthBinding(insertID: insert.id, settings: settings), in: 4...16)
@@ -684,6 +691,61 @@ struct ScenesWorkspaceView: View {
 
         case .auEffect:
             auEffectEditor(insert, scene: selectedScene)
+        }
+    }
+
+    // MARK: - Filter editor (radial controls + curve viz, no wet/dry)
+
+    @ViewBuilder
+    private func filterEditor(insert: MasterBusInsert, settings: MasterFilterSettings) -> some View {
+        let cutoffBinding = filterCutoffBinding(insertID: insert.id, settings: settings)
+        let resonanceBinding = filterResonanceBinding(insertID: insert.id, settings: settings)
+
+        VStack(alignment: .leading, spacing: 16) {
+            Picker("Type", selection: filterModeBinding(insertID: insert.id, settings: settings)) {
+                ForEach(MasterFilterSettings.Mode.allCases, id: \.self) { mode in
+                    Text(mode.displayName).tag(mode)
+                }
+            }
+            .pickerStyle(.segmented)
+
+            SceneFilterCurveView(
+                mode: settings.mode,
+                cutoffHz: settings.cutoffHz,
+                resonance: settings.resonance,
+                accent: StudioTheme.cyan
+            )
+            .frame(height: 120)
+            .frame(maxWidth: .infinity)
+            .background(StudioTheme.background.opacity(0.35), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
+                    .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+            )
+
+            HStack(alignment: .top, spacing: 28) {
+                StudioRotaryKnob(
+                    title: "Cutoff",
+                    value: settings.cutoffHz,
+                    range: 20...20_000,
+                    accent: StudioTheme.cyan,
+                    size: 58,
+                    format: { "\(Int($0.rounded())) Hz" },
+                    onChange: { cutoffBinding.wrappedValue = $0 },
+                    onLiveChange: { cutoffBinding.wrappedValue = $0 }
+                )
+                StudioRotaryKnob(
+                    title: "Resonance",
+                    value: settings.resonance,
+                    range: 0...1,
+                    accent: StudioTheme.amber,
+                    size: 58,
+                    format: { String(format: "%.2f", $0) },
+                    onChange: { resonanceBinding.wrappedValue = $0 },
+                    onLiveChange: { resonanceBinding.wrappedValue = $0 }
+                )
+                Spacer(minLength: 0)
+            }
         }
     }
 
@@ -870,38 +932,10 @@ struct ScenesWorkspaceView: View {
         return settings
     }
 
-    private func insertMoveButtons(_ insert: MasterBusInsert) -> some View {
-        HStack(spacing: 6) {
-            Button {
-                move(insert, by: -1)
-            } label: {
-                Image(systemName: "arrow.up")
-            }
-            .disabled(index(of: insert.id) == 0)
-
-            Button {
-                move(insert, by: 1)
-            } label: {
-                Image(systemName: "arrow.down")
-            }
-            .disabled(index(of: insert.id) == selectedScene.inserts.count - 1)
-        }
-        .buttonStyle(.bordered)
-        .controlSize(.small)
-    }
-
-    private func move(_ insert: MasterBusInsert, by delta: Int) {
-        guard let current = selectedScene.inserts.firstIndex(where: { $0.id == insert.id }) else { return }
-        let next = max(0, min(selectedScene.inserts.count - 1, current + delta))
-        guard current != next else { return }
+    private func moveInserts(from source: IndexSet, to destination: Int) {
         var ids = selectedScene.inserts.map(\.id)
-        ids.remove(at: current)
-        ids.insert(insert.id, at: next)
+        ids.move(fromOffsets: source, toOffset: destination)
         session.reorderMasterBusInserts(ids, in: selectedScene.id)
-    }
-
-    private func index(of insertID: UUID) -> Int {
-        selectedScene.inserts.firstIndex(where: { $0.id == insertID }) ?? 0
     }
 
     private func macroTargets(for scene: MasterBusScene) -> [MasterSceneMacroTarget] {

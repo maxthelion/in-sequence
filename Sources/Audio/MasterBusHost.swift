@@ -1,6 +1,21 @@
 import AVFoundation
 import Foundation
 
+extension MasterFilterSettings.Mode {
+    /// Maps each filter mode to a concrete AVAudioUnitEQ filter type. Low/high
+    /// pass and band pass/notch (band stop) have native DSP; Peak uses the
+    /// parametric band with a resonance-driven gain bump.
+    var avFilterType: AVAudioUnitEQFilterType {
+        switch self {
+        case .lowPass: return .lowPass
+        case .highPass: return .highPass
+        case .bandPass: return .bandPass
+        case .notch: return .bandStop
+        case .peak: return .parametric
+        }
+    }
+}
+
 protocol MasterBusHosting: AnyObject {
     var appliedState: MasterBusState { get }
     var resolvedState: MasterBusState { get }
@@ -344,9 +359,12 @@ final class MasterBusHost: MasterBusHosting {
         let normalized = settings.normalized()
         let band = eq.bands[0]
         band.bypass = wetDry <= 0
-        band.filterType = normalized.mode == .lowPass ? .lowPass : .highPass
+        band.filterType = normalized.mode.avFilterType
         band.frequency = Float(normalized.cutoffHz)
         band.bandwidth = Float(2 - (normalized.resonance * 1.9))
+        if normalized.mode == .peak {
+            band.gain = Float(6 + normalized.resonance * 18)
+        }
     }
 
     @MainActor

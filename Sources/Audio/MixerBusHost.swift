@@ -222,9 +222,12 @@ final class MixerBusHost {
         let normalized = settings.normalized()
         let band = eq.bands[0]
         band.bypass = wetDry <= 0
-        band.filterType = normalized.mode == .lowPass ? .lowPass : .highPass
+        band.filterType = normalized.mode.avFilterType
         band.frequency = Float(normalized.cutoffHz)
         band.bandwidth = Float(2 - (normalized.resonance * 1.9))
+        if normalized.mode == .peak {
+            band.gain = Float(6 + normalized.resonance * 18)
+        }
     }
 
     @MainActor
@@ -496,9 +499,12 @@ final class SendBusHost {
         let normalized = settings.normalized()
         let band = eq.bands[0]
         band.bypass = wetDry <= 0
-        band.filterType = normalized.mode == .lowPass ? .lowPass : .highPass
+        band.filterType = normalized.mode.avFilterType
         band.frequency = Float(normalized.cutoffHz)
         band.bandwidth = Float(2 - (normalized.resonance * 1.9))
+        if normalized.mode == .peak {
+            band.gain = Float(6 + normalized.resonance * 18)
+        }
     }
 
     @MainActor

@@ -990,6 +990,19 @@ struct MasterFilterSettings: Codable, Equatable, Hashable, Sendable {
     enum Mode: String, Codable, CaseIterable, Hashable, Sendable {
         case lowPass
         case highPass
+        case bandPass
+        case notch
+        case peak
+
+        var displayName: String {
+            switch self {
+            case .lowPass: return "Low Pass"
+            case .highPass: return "High Pass"
+            case .bandPass: return "Band Pass"
+            case .notch: return "Notch"
+            case .peak: return "Peak"
+            }
+        }
     }
 
     var mode: Mode

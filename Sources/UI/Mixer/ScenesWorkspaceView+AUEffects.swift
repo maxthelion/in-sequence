@@ -125,3 +125,103 @@ extension ScenesWorkspaceView {
         }
     }
 }
+
+/// Draws the magnitude response shape of the native filter so the user can see
+/// how type + cutoff + resonance reshape the signal. Approximate (visual only),
+/// computed on a log-frequency axis from 20 Hz to 20 kHz.
+struct SceneFilterCurveView: View {
+    let mode: MasterFilterSettings.Mode
+    let cutoffHz: Double
+    let resonance: Double
+    var accent: Color = StudioTheme.cyan
+
+    var body: some View {
+        Canvas { context, size in
+            let inset: CGFloat = 8
+            let plot = CGRect(
+                x: inset,
+                y: inset,
+                width: max(size.width - inset * 2, 1),
+                height: max(size.height - inset * 2, 1)
+            )
+
+            // Cutoff guide line (vertical).
+            let cutoffX = plot.minX + plot.width * CGFloat(normalizedLog(cutoffHz))
+            var guideLine = Path()
+            guideLine.move(to: CGPoint(x: cutoffX, y: plot.minY))
+            guideLine.addLine(to: CGPoint(x: cutoffX, y: plot.maxY))
+            context.stroke(guideLine, with: .color(accent.opacity(0.25)), style: StrokeStyle(lineWidth: 1, dash: [3, 3]))
+
+            // Response curve.
+            let steps = 80
+            var path = Path()
+            for step in 0...steps {
+                let fraction = Double(step) / Double(steps)
+                let magnitude = magnitudeDb(atFraction: fraction)
+                let x = plot.minX + plot.width * CGFloat(fraction)
+                let y = plot.maxY - plot.height * CGFloat(normalizedMagnitude(magnitude))
+                if step == 0 {
+                    path.move(to: CGPoint(x: x, y: y))
+                } else {
+                    path.addLine(to: CGPoint(x: x, y: y))
+                }
+            }
+            context.stroke(path, with: .color(accent), style: StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
+        }
+    }
+
+    // 0 (20 Hz) ... 1 (20 kHz) on a log scale.
+    private func normalizedLog(_ hz: Double) -> Double {
+        let clamped = min(max(hz, 20), 20_000)
+        let lo = log10(20.0)
+        let hi = log10(20_000.0)
+        return (log10(clamped) - lo) / (hi - lo)
+    }
+
+    /// Approximate magnitude in dB at a normalized x position (log-frequency).
+    private func magnitudeDb(atFraction fraction: Double) -> Double {
+        let cutoffFraction = normalizedLog(cutoffHz)
+        let delta = fraction - cutoffFraction
+        // Resonance sharpens the transition and lifts the peak at cutoff.
+        let q = 0.5 + resonance * 8
+        let peak = resonance * 14
+        let slope = 36.0 // dB/decade-ish visual rolloff
+
+        switch mode {
+        case .lowPass:
+            let attenuation = delta > 0 ? -slope * delta * 4 : 0
+            let bump = peakBump(delta: delta, width: 0.06 / q, height: peak)
+            return attenuation + bump
+        case .highPass:
+            let attenuation = delta < 0 ? slope * delta * 4 : 0
+            let bump = peakBump(delta: delta, width: 0.06 / q, height: peak)
+            return attenuation + bump
+        case .bandPass:
+            let width = 0.14 / q
+            return peakBump(delta: delta, width: width, height: 6 + peak) - 24 * (1 - bell(delta: delta, width: width))
+        case .notch:
+            let width = 0.1 / q
+            return -(30 + peak) * bell(delta: delta, width: width)
+        case .peak:
+            let width = 0.12 / q
+            return (8 + peak) * bell(delta: delta, width: width)
+        }
+    }
+
+    private func bell(delta: Double, width: Double) -> Double {
+        let w = max(width, 0.0001)
+        return exp(-(delta * delta) / (2 * w * w))
+    }
+
+    private func peakBump(delta: Double, width: Double, height: Double) -> Double {
+        guard height > 0 else { return 0 }
+        return height * bell(delta: delta, width: width)
+    }
+
+    /// Map dB (-40 ... +18) into 0...1 plot height.
+    private func normalizedMagnitude(_ db: Double) -> Double {
+        let lo = -40.0
+        let hi = 18.0
+        return min(max((db - lo) / (hi - lo), 0), 1)
+    }
+}
