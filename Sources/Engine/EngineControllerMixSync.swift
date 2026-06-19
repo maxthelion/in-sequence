@@ -108,6 +108,39 @@ extension EngineController {
         }
     }
 
+    /// Push every track's authored FX insert chain into the audio graph. The
+    /// graph splices each chain between the track's output source node and its
+    /// dry/sends destinations. Tracks whose chain is unchanged take the
+    /// value-only fast path inside the graph (no engine stop/start).
+    ///
+    /// Called from the document apply path AFTER `syncAudioOutputs` /
+    /// `syncSampleMixers` so each track's output source node is already
+    /// registered (the graph resolves the source via the meter-source
+    /// registration those passes publish).
+    func syncTrackInserts(for documentModel: Project) {
+        let liveIDs = withStateLock { trackRuntime.installedTrackInsertChainIDs }
+        let nextIDs = Set(documentModel.tracks.map(\.id))
+        for removed in liveIDs.subtracting(nextIDs) {
+            mainAudioGraph.teardownTrackInserts(trackID: removed)
+        }
+        for track in documentModel.tracks {
+            mainAudioGraph.setTrackInserts(trackID: track.id, inserts: track.fxInserts)
+        }
+        withStateLock { trackRuntime.installedTrackInsertChainIDs = nextIDs }
+    }
+
+    /// Scoped per-track insert-chain update (add/remove/reorder/bypass). Does
+    /// NOT rebuild the document-model pipeline. The graph applies a value-only
+    /// fast path for bypass-style edits (engine stays running) and only takes
+    /// the topology rebuild path when the node chain actually changes —
+    /// matching the bus/send scoped-FX shape (Performance-Time Mutation Rule).
+    func setTrackInserts(trackID: UUID, inserts: [TrackFXInsert]) {
+        if let index = currentDocumentModel.tracks.firstIndex(where: { $0.id == trackID }) {
+            currentDocumentModel.tracks[index].fxInserts = inserts
+        }
+        mainAudioGraph.setTrackInserts(trackID: trackID, inserts: inserts)
+    }
+
     func installMixerBuses(for documentModel: Project) {
         let effectiveMuteState = Self.effectiveMixerMuteState(for: documentModel)
         withStateLock {

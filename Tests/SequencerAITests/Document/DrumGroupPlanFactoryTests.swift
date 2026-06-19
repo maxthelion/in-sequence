@@ -31,6 +31,18 @@ final class DrumGroupPlanFactoryTests: XCTestCase {
         XCTAssertTrue(plan.members.allSatisfy(\.routesToShared))
     }
 
+    func test_blankDefault_routes_to_dedicatedBus_by_default() {
+        // AC3.4: new drum groups are self-contained mixable units on their own
+        // bus, not straight onto master.
+        XCTAssertEqual(DrumGroupPlan.blankDefault.busRouting, .dedicatedBus)
+    }
+
+    func test_from_kit_routes_to_dedicatedBus_by_default() throws {
+        let kit = try XCTUnwrap(DrumAssetLibrary.factoryKits.first(where: { $0.name == "808" }))
+
+        XCTAssertEqual(DrumGroupPlan.from(kit: kit).busRouting, .dedicatedBus)
+    }
+
     func test_from_kit_mirrors_kit_parts() throws {
         let kit = try XCTUnwrap(DrumAssetLibrary.factoryKits.first(where: { $0.name == "808" }))
 

@@ -186,6 +186,34 @@ extension SequencerDocumentSession {
         return true
     }
 
+    /// Mutate a track's FX insert chain in place, normalise it, then dispatch
+    /// the scoped runtime update carrying the resulting chain (no full
+    /// document-model rebuild — Performance-Time Mutation Rule). `.none`
+    /// snapshot change: FX inserts do not change compiled note data, so no
+    /// note-buffer recompile is needed. Batches defer to the batch record.
+    @discardableResult
+    func mutateTrackFXInserts(
+        trackID: UUID,
+        _ update: (inout [TrackFXInsert]) -> Void
+    ) -> Bool {
+        var resultingInserts: [TrackFXInsert] = []
+        let changed = store.mutateTrack(id: trackID) { track in
+            update(&track.fxInserts)
+            track.fxInserts = TrackFXInsert.normalizedChain(track.fxInserts)
+            resultingInserts = track.fxInserts
+        }
+        guard changed else { return false }
+        if isInBatch {
+            recordBatchChange(.track(trackID))
+            return true
+        }
+        dispatchImpact(
+            .scopedRuntime(update: .trackInserts(trackID: trackID, inserts: resultingInserts)),
+            changed: .none
+        )
+        return true
+    }
+
     @discardableResult
     func setTrackNoteRepeatInterval(_ interval: NoteRepeatInterval, trackID: UUID) -> Bool {
         mutateTrack(id: trackID) { track in

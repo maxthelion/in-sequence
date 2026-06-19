@@ -366,9 +366,6 @@ struct TrackSourceEditorView: View {
             else { return }
             selectedTab = tab
         }
-        .task(id: clipHistoryLiveRefreshKey) {
-            await refreshClipHistoryWhileVisible()
-        }
     }
 
     /// Perform header button (AC22): posts `.trackPerformRequested` with this
@@ -636,7 +633,7 @@ struct TrackSourceEditorView: View {
             } else {
                 ScrollView {
                     VStack(spacing: 6) {
-                        ForEach(effects.prefix(16)) { effect in
+                        ForEach(effects.prefix(AudioEffectChoice.menuDisplayLimit)) { effect in
                             addFXOptionButton(title: effect.displayName, systemName: "slider.horizontal.3") {
                                 session.addFXInsert(trackID: trackID, insert: .auEffect(effect))
                                 isAddFXPresented = false
@@ -843,15 +840,6 @@ struct TrackSourceEditorView: View {
             }
         )
         resetClipHistoryDestinationMode()
-    }
-
-    private var clipHistoryLiveRefreshKey: String {
-        "history-inactive"
-    }
-
-    @MainActor
-    private func refreshClipHistoryWhileVisible() async {
-        return
     }
 
     private func updateClipHistoryLiveSnapshot() {

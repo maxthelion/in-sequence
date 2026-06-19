@@ -313,6 +313,8 @@ final class SequencerDocumentSession {
             engineController.writeStateBlob(blob, for: trackID)
         case let .mix(trackID, mix):
             engineController.setMix(trackID: trackID, mix: mix)
+        case let .trackInserts(trackID, inserts):
+            engineController.setTrackInserts(trackID: trackID, inserts: inserts)
         case let .mixerBusMix(busID, mix):
             engineController.setMixerBusMix(busID: busID, mix: mix)
         case let .mixerBusParameters(busID, bus):

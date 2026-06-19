@@ -175,6 +175,22 @@ final class MainAudioGraph {
     private var managedMasterGainMixers: [AVAudioMixerNode] = []
     private var mixerBusHosts: [UUID: MixerBusHost] = [:]
     private var sendBusHosts: [SendBusID: SendBusHost] = [:]
+    /// Per-track FX insert chains, keyed by trackID. Spliced between a track's
+    /// output source node and its dry/sends destinations in
+    /// `reconnectTrackOutputOnMain`. The source node is resolved via
+    /// `trackMeterSources` (every track subsystem already registers its
+    /// terminal node there at connect time).
+    private var trackInsertChainHosts: [UUID: TrackInsertChainHost] = [:]
+    /// Latest authored chain per track, retained so an AU-load re-entry or a
+    /// source-node (re)registration can rebuild without the document round-trip.
+    private var trackInsertChainsByTrackID: [UUID: [TrackFXInsert]] = [:]
+    /// Counts track insert-chain topology rebuilds (engine stop/rebuild/start).
+    /// Value-only insert changes (e.g. a bypass toggle on an installed chain)
+    /// must not bump this.
+    private(set) var trackInsertChainTopologyInstallCountForTesting = 0
+    /// Injectable factory for AU-effect inserts so tests can drive the AU path
+    /// without touching the real component registry.
+    var trackInsertAUFactoryForTesting: AUAudioUnitFactory?
     private var trackOutputDestinationsForTesting: [ObjectIdentifier: AVAudioNode] = [:]
     private var trackOutputRoutings: [ObjectIdentifier: TrackOutputRouting] = [:]
     private var trackSendNodes: [ObjectIdentifier: TrackSendNodes] = [:]
@@ -306,6 +322,15 @@ final class MainAudioGraph {
         performOnMain {
             self.removeTrackSendNodes(for: node)
             self.engine.disconnectNodeOutput(node)
+        }
+    }
+
+    /// Disconnect a node's inputs without the track-output send-node teardown
+    /// side effect of `disconnectOutput`. Used by `TrackInsertChainHost` to
+    /// detach an insert from its upstream neighbour during a chain rebuild.
+    func disconnectInput(_ node: AVAudioNode) {
+        performOnMain {
+            self.engine.disconnectNodeInput(node)
         }
     }
 
@@ -704,6 +729,114 @@ final class MainAudioGraph {
                 try? self.engine.start()
                 self.isStarted = self.engine.isRunning
             }
+        }
+    }
+
+    /// Install (or update) a track's FX insert chain. The chain is spliced
+    /// between the track's output source node (resolved via the meter-source
+    /// registration each track subsystem already publishes) and its dry/sends
+    /// destinations.
+    ///
+    /// Value-only changes (e.g. a bypass toggle on an already-installed chain)
+    /// configure the installed nodes in place and leave the engine RUNNING —
+    /// matching the send-bus / track-fader scoped paths so continuous edits do
+    /// not stop/reinstall/start the engine per gesture (Performance-Time
+    /// Mutation Rule). A topology change (insert added/removed/reordered, or an
+    /// AU still loading) takes the stop/rebuild/reconnect/start path.
+    func setTrackInserts(trackID: UUID, inserts: [TrackFXInsert]) {
+        performOnMain {
+            // Acquired inside the main-thread closure: holding
+            // graphLock across DispatchQueue.main.sync is a
+            // lock-order deadlock waiting to happen.
+            self.lockGraphLock()
+            defer { self.unlockGraphLock() }
+            self.applyTrackInsertsOnMain(trackID: trackID, inserts: inserts)
+        }
+    }
+
+    /// Re-entry point for `TrackInsertChainHost` AU-load completion. Hops onto
+    /// the graph queue and re-applies the latest authored chain so the freshly
+    /// instantiated AU node wires in. Mirrors the send-bus post-load re-entry.
+    private func rebuildTrackInsertChainAfterLoad(trackID: UUID) {
+        performOnMain {
+            self.lockGraphLock()
+            defer { self.unlockGraphLock() }
+            guard let inserts = self.trackInsertChainsByTrackID[trackID] else { return }
+            self.applyTrackInsertsOnMain(trackID: trackID, inserts: inserts, forceRebuild: true)
+        }
+    }
+
+    @MainActor
+    private func applyTrackInsertsOnMain(trackID: UUID, inserts: [TrackFXInsert], forceRebuild: Bool = false) {
+        self.trackInsertChainsByTrackID[trackID] = inserts
+
+        // No source node registered yet (track not prepared / playing): retain
+        // the authored chain; it installs once the source registers and the
+        // output is (re)connected.
+        guard let source = self.trackMeterSources[trackID], source.engine === self.engine else {
+            return
+        }
+
+        let host = self.trackInsertChainHosts[trackID] ?? self.makeTrackInsertChainHost(trackID: trackID)
+        self.trackInsertChainHosts[trackID] = host
+
+        // Value-only fast path: configure installed nodes in place, leave the
+        // engine running (Performance-Time Mutation Rule — a bypass toggle on
+        // a held chain must not stop/reinstall the engine).
+        if !forceRebuild, !host.needsTopologyChange(for: inserts) {
+            host.configureInstalledNodes(for: inserts)
+            return
+        }
+
+        self.trackInsertChainTopologyInstallCountForTesting += 1
+        let wasRunning = self.engine.isRunning
+        self.removeMasterMeterTapIfNeeded()
+        if wasRunning {
+            self.engine.stop()
+        }
+
+        host.rebuild(inserts: inserts, in: self)
+        if let routing = self.trackOutputRoutings[ObjectIdentifier(source)] {
+            self.reconnectTrackOutputOnMain(routing)
+        }
+
+        self.engine.prepare()
+        self.installMasterMeterTapIfNeeded()
+        if wasRunning {
+            try? self.engine.start()
+            self.isStarted = self.engine.isRunning
+        }
+    }
+
+    @MainActor
+    private func makeTrackInsertChainHost(trackID: UUID) -> TrackInsertChainHost {
+        let factory = trackInsertAUFactoryForTesting ?? AUAudioUnitFactory()
+        return TrackInsertChainHost(
+            trackID: trackID,
+            factory: factory,
+            requestRebuild: { [weak self] trackID in
+                self?.rebuildTrackInsertChainAfterLoad(trackID: trackID)
+            }
+        )
+    }
+
+    /// Tear down a track's FX insert chain (track removed). Safe to call for a
+    /// track with no chain.
+    func teardownTrackInserts(trackID: UUID) {
+        performOnMain {
+            self.lockGraphLock()
+            defer { self.unlockGraphLock() }
+            self.trackInsertChainsByTrackID.removeValue(forKey: trackID)
+            guard let host = self.trackInsertChainHosts.removeValue(forKey: trackID) else { return }
+            host.teardown(from: self)
+        }
+    }
+
+    var trackInsertChainReadoutForTesting: [UUID: Int] {
+        performOnMainReturning {
+            self.lockGraphLock()
+            defer { self.unlockGraphLock() }
+            return self.trackInsertChainHosts.mapValues { $0.topologyRebuildCount }
         }
     }
 
@@ -1362,6 +1495,25 @@ final class MainAudioGraph {
         let dryDestination = routing.busID.flatMap { mixerBusHosts[$0]?.destinationNode() } ?? preMasterMixer
         engine.disconnectNodeOutput(source)
 
+        // Splice the per-track FX insert chain (if any) directly after the
+        // track's output source: source -> [insert chain] -> chainOutput. Every
+        // downstream wire (dry destination + send fanout) then feeds from
+        // `chainOutput`, so sends are post-insert (mirroring a DAW channel
+        // strip). The chain host owns the internal series wiring; here we only
+        // wire the two boundaries. When the chain is empty, `chainOutput`
+        // collapses back to `source` and the geometry is unchanged.
+        let chainOutput: AVAudioNode
+        if let host = trackInsertChainHosts[trackID(for: source)],
+           let chainInput = host.inputNode,
+           let chainTerminal = host.terminalNode
+        {
+            engine.disconnectNodeOutput(chainTerminal)
+            engine.connect(source, to: chainInput, format: nil)
+            chainOutput = chainTerminal
+        } else {
+            chainOutput = source
+        }
+
         var destinations = [connectionPoint(for: dryDestination)]
         let hasActiveSends = routing.sendLevels.clampedSendA > 0 || routing.sendLevels.clampedSendB > 0
         if !hasActiveSends {
@@ -1433,16 +1585,24 @@ final class MainAudioGraph {
 
         if let destination = destinations.first, destinations.count == 1, let node = destination.node {
             engine.connect(
-                source,
+                chainOutput,
                 to: node,
                 fromBus: 0,
                 toBus: destination.bus,
                 format: nil
             )
         } else {
-            engine.connect(source, to: destinations, fromBus: 0, format: nil)
+            engine.connect(chainOutput, to: destinations, fromBus: 0, format: nil)
         }
         trackOutputDestinationsForTesting[ObjectIdentifier(source)] = dryDestination
+    }
+
+    /// Resolve the trackID whose registered meter source is `node`, so the
+    /// insert chain (keyed by trackID) can be located from the output source
+    /// node `reconnectTrackOutput` operates on.
+    @MainActor
+    private func trackID(for node: AVAudioNode) -> UUID {
+        trackMeterSources.first(where: { $0.value === node })?.key ?? UUID()
     }
 
     @MainActor

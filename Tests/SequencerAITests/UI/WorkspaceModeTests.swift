@@ -208,6 +208,41 @@ final class WorkspaceModeTests: XCTestCase {
                        "top-level Scenes must not report scene perform anymore")
     }
 
+    // MARK: - Scoped Track/Kit Perform (AC22 / AC3.2)
+
+    func test_enterScopedPerform_setsScopeAndFlipsToPerform() {
+        let fixture = makeFixture()
+        let t1 = UUID()
+
+        fixture.session.enterScopedPerform(trackIDs: [t1])
+
+        XCTAssertEqual(
+            fixture.session.performTrackScope, [t1],
+            "enterScopedPerform([t1]) must record exactly that track in the scope set"
+        )
+        XCTAssertEqual(
+            fixture.session.workspaceMode, .perform,
+            "enterScopedPerform must flip the global workspace mode to perform"
+        )
+    }
+
+    func test_enterScopedPerform_emptyClearsScope() {
+        let fixture = makeFixture()
+        let t1 = UUID()
+        fixture.session.enterScopedPerform(trackIDs: [t1])
+
+        fixture.session.enterScopedPerform(trackIDs: [])
+
+        XCTAssertTrue(
+            fixture.session.performTrackScope.isEmpty,
+            "enterScopedPerform([]) must clear the scope — empty means unscoped (all tracks)"
+        )
+        XCTAssertEqual(
+            fixture.session.workspaceMode, .perform,
+            "Clearing the scope still enters perform mode"
+        )
+    }
+
     // MARK: - The tracks page observes the global mode
 
     func test_tracksPage_reEvaluatesWhenGlobalModeChanges() throws {
