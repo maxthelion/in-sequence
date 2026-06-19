@@ -423,6 +423,12 @@ struct DrumKitMatrixView: View {
     @State private var historyBarsBack = 0
     /// Last save feedback shown in the history footer.
     @State private var historySaveMessage: String?
+    /// AC15 audition: when true, every member's audition override is set to its
+    /// windowed pseudo-clip so the whole kit plays the selected window as its
+    /// clips. Cleared on toggle-off, capture close, and after a save.
+    @State private var isAuditioningCapture = false
+    /// Whether the save-slot picker (P1–P16) popover is shown (AC15 save).
+    @State private var isPresentingSaveSlotPicker = false
     /// AC21 accordion: which part row is expanded inline (nil == all compact).
     /// Transient UI state; expanding does not change link/pattern state.
     @State private var expandedPartID: UUID?
@@ -572,6 +578,7 @@ struct DrumKitMatrixView: View {
             postRenderedVisualState(isVisible: true)
         }
         .onDisappear {
+            stopKitAudition()
             postRenderedVisualState(isVisible: false)
         }
         .onChange(of: barPage) {
@@ -584,6 +591,10 @@ struct DrumKitMatrixView: View {
             postRenderedVisualState(isVisible: true)
         }
         .onChange(of: isCaptureOpen) {
+            if !isCaptureOpen {
+                stopKitAudition()
+                isPresentingSaveSlotPicker = false
+            }
             postRenderedVisualState(isVisible: true)
         }
         .onChange(of: isPresentingRoutingEditor) {
@@ -640,6 +651,8 @@ struct DrumKitMatrixView: View {
                 "historyWindow": isVisible && isCaptureOpen
                     ? (historyBarsBack == 0 ? "live" : "\(historyBarsBack) back")
                     : "none",
+                "historyAuditioning": isVisible && isCaptureOpen && isAuditioningCapture,
+                "historySaveSlotPickerVisible": isVisible && isCaptureOpen && isPresentingSaveSlotPicker,
                 "rowExpanded": isVisible && expandedIndex != nil,
                 "expandedPartIndex": isVisible ? (expandedIndex ?? -1) : -1,
                 "expandedRowTab": isVisible && expandedIndex != nil ? expandedRowTab.rawValue : "none",
@@ -1311,8 +1324,40 @@ struct DrumKitMatrixView: View {
 
             Spacer(minLength: 0)
 
+            captureAuditionButton(model)
+
             historyLengthControl
         }
+    }
+
+    /// Shared Preview/Audition toggle (AC15). When ON, sets every member's
+    /// audition override to its windowed pseudo-clip so the whole kit plays the
+    /// selected window as its clips; when OFF, clears every override. Reuses
+    /// `engineController.setAuditionOverride(_:for:)` per member.
+    private func captureAuditionButton(_ model: DrumKitMatrixModel) -> some View {
+        let on = isAuditioningCapture
+        return Button {
+            toggleKitAudition(model)
+        } label: {
+            Label(on ? "Auditioning" : "Audition", systemImage: on ? "stop.fill" : "play.fill")
+                .studioText(.labelBold)
+                .foregroundStyle(on ? StudioTheme.background : StudioTheme.text)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(
+                    on ? StudioTheme.success : Color.white.opacity(StudioOpacity.subtleFill),
+                    in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                        .stroke(on ? Color.clear : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+                )
+        }
+        .buttonStyle(.plain)
+        .help("Audition: play the selected window as the clips for every part")
+        .accessibilityIdentifier("kit-history-audition")
+        .accessibilityLabel("Audition kit history")
+        .accessibilityValue(on ? "On" : "Off")
     }
 
     /// Shared ½/1/2/4-bar selection-length control (AC16). Applies to every
@@ -1347,6 +1392,7 @@ struct DrumKitMatrixView: View {
         return Button {
             historyLengthSteps = option
             historySaveMessage = nil
+            refreshKitAuditionIfActive()
             postRenderedVisualState(isVisible: true)
         } label: {
             Text(title)
@@ -1480,24 +1526,7 @@ struct DrumKitMatrixView: View {
             ScrollView(.vertical) {
                 VStack(alignment: .leading, spacing: 8) {
                     ForEach(model.rows) { row in
-                        HStack(spacing: 10) {
-                            Text(row.partName)
-                                .studioText(.labelBold)
-                                .foregroundStyle(StudioTheme.text)
-                                .lineLimit(1)
-                                .truncationMode(.tail)
-                                .frame(width: 120, alignment: .leading)
-
-                            ClipHistoryPianoRollPreview(
-                                content: historyWindowContent(memberID: row.memberID),
-                                gridSteps: historyLengthSteps,
-                                liveFillStepIndex: nil,
-                                accent: accent,
-                                isTransportRunning: engineController.isRunning
-                            )
-                            .frame(height: 56)
-                            .frame(maxWidth: .infinity)
-                        }
+                        captureHistoryPartRow(row)
                     }
                 }
             }
@@ -1506,9 +1535,33 @@ struct DrumKitMatrixView: View {
         }
     }
 
+    /// One part's longer-history row: the full rolling buffer drawn as a piano
+    /// roll, with the length-defined save-window highlighted via the reused
+    /// `ClipHistoryPianoRollPreview.selectionRange`.
+    private func captureHistoryPartRow(_ row: DrumKitMatrixModel.Row) -> some View {
+        HStack(spacing: 10) {
+            Text(row.partName)
+                .studioText(.labelBold)
+                .foregroundStyle(StudioTheme.text)
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .frame(width: 120, alignment: .leading)
+
+            ClipHistoryPianoRollPreview(
+                content: historyFullBufferContent(memberID: row.memberID),
+                gridSteps: historyDisplayedGridSteps(memberID: row.memberID),
+                liveFillStepIndex: nil,
+                accent: accent,
+                isTransportRunning: engineController.isRunning,
+                selectionRange: historySelectionRange(memberID: row.memberID)
+            )
+            .frame(height: 56)
+            .frame(maxWidth: .infinity)
+        }
+    }
+
     private func captureHistoryFooter(_ model: DrumKitMatrixModel) -> some View {
-        let targetSlot = historyTargetSlotIndex(model)
-        return HStack(spacing: 10) {
+        HStack(spacing: 10) {
             if let message = historySaveMessage {
                 Text(message)
                     .studioText(.label)
@@ -1518,9 +1571,9 @@ struct DrumKitMatrixView: View {
             Spacer(minLength: 0)
 
             Button {
-                saveKitHistoryClipSet(model, slotIndex: targetSlot)
+                isPresentingSaveSlotPicker.toggle()
             } label: {
-                Text("Save as clip set → P\(targetSlot + 1)")
+                Label("Save capture", systemImage: "tray.and.arrow.down")
                     .studioText(.labelBold)
                     .foregroundStyle(StudioTheme.background)
                     .padding(.horizontal, 12)
@@ -1528,11 +1581,72 @@ struct DrumKitMatrixView: View {
                     .background(accent, in: Capsule())
             }
             .buttonStyle(.plain)
-            .help("Save each part's windowed buffer into a coordinated clip set at P\(targetSlot + 1)")
+            .help("Save each part's windowed selection into a chosen pattern slot as one coordinated clip set")
             .accessibilityIdentifier("kit-history-save")
-            .accessibilityLabel("Save kit history as clip set")
-            .accessibilityValue("Slot \(targetSlot + 1)")
+            .accessibilityLabel("Save kit capture")
+            .popover(isPresented: $isPresentingSaveSlotPicker, arrowEdge: .bottom) {
+                captureSaveSlotPicker(model)
+            }
         }
+    }
+
+    /// Save-slot picker (AC15): a 4×4 grid of P1–P16 slot buttons. Picking a
+    /// slot saves each part's windowed selection into that slot as one
+    /// coordinated clip set. Occupied slots read with the accent border so the
+    /// user can see what is already assigned.
+    private func captureSaveSlotPicker(_ model: DrumKitMatrixModel) -> some View {
+        let occupied = model.occupiedSlotIndexes
+        return VStack(alignment: .leading, spacing: 10) {
+            Text("Save capture to slot")
+                .studioText(.labelBold)
+                .foregroundStyle(StudioTheme.text)
+            Text("Each part's selection saves into the chosen slot as one clip set.")
+                .studioText(.micro)
+                .foregroundStyle(StudioTheme.mutedText)
+
+            LazyVGrid(columns: captureSaveSlotColumns, spacing: 6) {
+                ForEach(0..<TrackPatternBank.slotCount, id: \.self) { slotIndex in
+                    captureSaveSlotButton(model, slotIndex: slotIndex, isOccupied: occupied.contains(slotIndex))
+                }
+            }
+        }
+        .padding(StudioMetrics.Spacing.comfortable)
+        .frame(width: 280)
+        .background(StudioTheme.stageFill)
+    }
+
+    private var captureSaveSlotColumns: [GridItem] {
+        Array(repeating: GridItem(.flexible(), spacing: 6), count: 4)
+    }
+
+    private func captureSaveSlotButton(
+        _ model: DrumKitMatrixModel,
+        slotIndex: Int,
+        isOccupied: Bool
+    ) -> some View {
+        let title = "P\(slotIndex + 1)"
+        return Button {
+            isPresentingSaveSlotPicker = false
+            saveKitHistoryClipSet(model, slotIndex: slotIndex)
+        } label: {
+            Text(title)
+                .studioText(.labelBold)
+                .foregroundStyle(StudioTheme.text)
+                .frame(maxWidth: .infinity, minHeight: 34)
+                .background(
+                    Color.white.opacity(StudioOpacity.subtleFill),
+                    in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                        .stroke(isOccupied ? accent : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+                )
+        }
+        .buttonStyle(.plain)
+        .help(isOccupied ? "\(title) (occupied) — save the capture here" : "Save the capture into \(title)")
+        .accessibilityIdentifier("kit-history-save-slot-\(slotIndex + 1)")
+        .accessibilityLabel("Save capture to \(title)")
+        .accessibilityValue(isOccupied ? "Occupied" : "Empty")
     }
 
     // MARK: - Kit history window math + save (AC15/AC16)
@@ -1584,11 +1698,62 @@ struct DrumKitMatrixView: View {
         ).noteGrid
     }
 
+    /// How many steps of a member's rolling buffer to display behind the
+    /// selection window — the longer history. Capped so the row stays readable;
+    /// matched to what the single-track Recent Output covers (8 cells × the
+    /// per-cell step count).
+    private static let historyDisplayedBufferCap =
+        ClipHistoryTransferViewModel.sourceCellCount * ClipHistoryTransferViewModel.stepsPerCell
+
+    /// Number of buffer steps shown for a member: the snapshot's available
+    /// steps, capped to keep the row readable.
+    private func historyDisplayedBufferSteps(maxSteps: Int) -> Int {
+        max(historyLengthSteps, min(maxSteps, Self.historyDisplayedBufferCap))
+    }
+
+    /// The FULL displayed buffer for a member (the longer history), materialized
+    /// against the tail of its rolling snapshot. Reuses `PseudoClipState`, the
+    /// same materializer the windowed selection uses.
+    private func historyFullBufferContent(memberID: UUID) -> ClipContent? {
+        let snapshot = engineController.captureSnapshot(trackID: memberID)
+        guard !snapshot.isEmpty else { return nil }
+        let displayed = historyDisplayedBufferSteps(maxSteps: snapshot.maxSteps)
+        let bufferStart = max(0, snapshot.maxSteps - displayed)
+        return PseudoClipState.materialize(
+            sourceTrackID: memberID,
+            from: snapshot,
+            startStep: bufferStart,
+            lengthSteps: displayed
+        ).noteGrid
+    }
+
+    /// The save-window's step columns within the DISPLAYED buffer for a member:
+    /// `[windowStart, windowStart + length)` re-based onto the shown buffer so
+    /// the highlight lines up with `historyFullBufferContent`.
+    private func historySelectionRange(memberID: UUID) -> Range<Int> {
+        let snapshot = engineController.captureSnapshot(trackID: memberID)
+        guard !snapshot.isEmpty else { return 0..<historyLengthSteps }
+        let displayed = historyDisplayedBufferSteps(maxSteps: snapshot.maxSteps)
+        let bufferStart = max(0, snapshot.maxSteps - displayed)
+        let windowStart = historyWindowStartOffset(maxSteps: snapshot.maxSteps)
+        let relativeStart = max(0, windowStart - bufferStart)
+        let relativeEnd = min(displayed, relativeStart + historyLengthSteps)
+        return relativeStart..<max(relativeStart, relativeEnd)
+    }
+
+    /// Number of grid columns the full-buffer preview should draw for a member.
+    private func historyDisplayedGridSteps(memberID: UUID) -> Int {
+        let snapshot = engineController.captureSnapshot(trackID: memberID)
+        guard !snapshot.isEmpty else { return historyLengthSteps }
+        return historyDisplayedBufferSteps(maxSteps: snapshot.maxSteps)
+    }
+
     private func historyScrubBack(_ model: DrumKitMatrixModel) {
         let maxBack = historyMaxBarsBack(model)
         guard historyBarsBack < maxBack else { return }
         historyBarsBack += 1
         historySaveMessage = nil
+        refreshKitAuditionIfActive()
         postRenderedVisualState(isVisible: true)
     }
 
@@ -1596,13 +1761,79 @@ struct DrumKitMatrixView: View {
         guard historyBarsBack > 0 else { return }
         historyBarsBack -= 1
         historySaveMessage = nil
+        refreshKitAuditionIfActive()
         postRenderedVisualState(isVisible: true)
     }
 
     private func historyJumpToLive() {
         historyBarsBack = 0
         historySaveMessage = nil
+        refreshKitAuditionIfActive()
         postRenderedVisualState(isVisible: true)
+    }
+
+    // MARK: - Kit capture audition (AC15)
+
+    private func toggleKitAudition(_ model: DrumKitMatrixModel) {
+        if isAuditioningCapture {
+            stopKitAudition(model)
+        } else {
+            startKitAudition(model)
+        }
+    }
+
+    /// Set every member's audition override to its windowed pseudo-clip so the
+    /// whole kit plays the selected window as its clips.
+    private func startKitAudition(_ model: DrumKitMatrixModel) {
+        for row in model.rows {
+            applyMemberAuditionOverride(memberID: row.memberID)
+        }
+        isAuditioningCapture = true
+        postRenderedVisualState(isVisible: true)
+    }
+
+    /// Clear every member's audition override.
+    private func stopKitAudition(_ model: DrumKitMatrixModel) {
+        for row in model.rows {
+            engineController.setAuditionOverride(nil, for: row.memberID)
+        }
+        isAuditioningCapture = false
+        postRenderedVisualState(isVisible: true)
+    }
+
+    /// Clear all overrides without needing the model (capture close / disappear).
+    private func stopKitAudition() {
+        guard isAuditioningCapture else { return }
+        if let model {
+            for row in model.rows {
+                engineController.setAuditionOverride(nil, for: row.memberID)
+            }
+        }
+        isAuditioningCapture = false
+    }
+
+    /// Re-apply overrides for the current window when the selection moves while
+    /// auditioning, so the playing clips track the scrubber/length.
+    private func refreshKitAuditionIfActive() {
+        guard isAuditioningCapture, let model else { return }
+        for row in model.rows {
+            applyMemberAuditionOverride(memberID: row.memberID)
+        }
+    }
+
+    private func applyMemberAuditionOverride(memberID: UUID) {
+        let snapshot = engineController.captureSnapshot(trackID: memberID)
+        guard !snapshot.isEmpty else {
+            engineController.setAuditionOverride(nil, for: memberID)
+            return
+        }
+        let state = PseudoClipState.materialize(
+            sourceTrackID: memberID,
+            from: snapshot,
+            startStep: historyWindowStartOffset(maxSteps: snapshot.maxSteps),
+            lengthSteps: historyLengthSteps
+        )
+        engineController.setAuditionOverride(state, for: memberID)
     }
 
     /// Save the shared window for EVERY member into one coordinated clip set at
@@ -1626,6 +1857,7 @@ struct DrumKitMatrixView: View {
         } else {
             historySaveMessage = "Nothing to capture yet — play the kit first."
         }
+        stopKitAudition()
         postRenderedVisualState(isVisible: true)
     }
 
@@ -2471,6 +2703,16 @@ struct DrumKitMatrixView: View {
             historyJumpToLive()
         case "history-save":
             if let model { saveKitHistoryClipSet(model, slotIndex: historyTargetSlotIndex(model)) }
+        case "history-audition-on":
+            if let model { startKitAudition(model) }
+        case "history-audition-off":
+            if let model { stopKitAudition(model) }
+        case "history-save-open":
+            isPresentingSaveSlotPicker = true
+            postRenderedVisualState(isVisible: true)
+        case "history-save-close":
+            isPresentingSaveSlotPicker = false
+            postRenderedVisualState(isVisible: true)
         case "link-on":
             session.setDrumGroupPatternLinked(true, groupID: navigationState.groupID)
         case "link-off":
@@ -2553,12 +2795,20 @@ struct DrumKitMatrixView: View {
                       let slotIndex = Int(rawSlot),
                       (0..<TrackPatternBank.slotCount).contains(slotIndex) {
                 session.setDrumGroupSelectedPatternIndex(slotIndex, groupID: navigationState.groupID)
+            } else if command.hasPrefix("save-slot:"),
+                      let rawSlot = command.split(separator: ":").last,
+                      let slotIndex = Int(rawSlot),
+                      (0..<TrackPatternBank.slotCount).contains(slotIndex),
+                      let model {
+                isPresentingSaveSlotPicker = false
+                saveKitHistoryClipSet(model, slotIndex: slotIndex)
             } else if command.hasPrefix("history-length:"),
                       let rawSteps = command.split(separator: ":").last,
                       let steps = Int(rawSteps),
                       Self.historyLengthOptions.contains(steps) {
                 historyLengthSteps = steps
                 historySaveMessage = nil
+                refreshKitAuditionIfActive()
                 postRenderedVisualState(isVisible: true)
             }
         }
