@@ -1274,7 +1274,7 @@ struct PhraseWorkspaceView: View {
         let resolvedValue = displayedPhrase.resolvedValue(for: selectedLayer, trackID: trackID, stepIndex: 0)
         let toggledValue = toggledBooleanValue(resolvedValue, for: selectedLayer)
 
-        if PhrasePerformTimingPolicy.usesQuantisedBooleanArming(
+        if PhrasePerformTimingPolicy.usesQuantisedLayerArming(
             layerID: selectedLayer.id,
             latchMode: phraseLatchMode,
             sessionArmingActive: session.isQuantisedPerformToggleArmingActive
@@ -1339,6 +1339,21 @@ struct PhraseWorkspaceView: View {
             currentIndex = 0
         }
         let nextValue = PhraseCellValue.index((currentIndex + 1) % TrackPatternBank.slotCount)
+
+        if PhrasePerformTimingPolicy.usesQuantisedLayerArming(
+            layerID: selectedLayer.id,
+            latchMode: phraseLatchMode,
+            sessionArmingActive: session.isQuantisedPerformToggleArmingActive
+        ) {
+            session.toggleQuantisedPatternIndex(
+                trackIDs: [trackID],
+                basisPhrase: displayedPhrase,
+                layer: selectedLayer,
+                stepIndex: 0,
+                lengthBars: phraseLatchLengthBars
+            )
+            return
+        }
 
         let nextCell: PhraseCell
         switch currentCell {
@@ -1573,7 +1588,7 @@ struct PhraseWorkspaceView: View {
             phrase.resolvedValue(for: layer, trackID: seedTrackID, stepIndex: 0),
             for: layer
         )
-        if PhrasePerformTimingPolicy.usesQuantisedBooleanArming(
+        if PhrasePerformTimingPolicy.usesQuantisedLayerArming(
             layerID: layer.id,
             latchMode: phraseLatchMode,
             sessionArmingActive: session.isQuantisedPerformToggleArmingActive
@@ -1588,6 +1603,14 @@ struct PhraseWorkspaceView: View {
                 )
             } else if layer.id == TrackPerformLayerMode.fill.phraseLayerID {
                 session.toggleQuantisedFillFlag(
+                    trackIDs: globalApplyScopeTrackIDs,
+                    basisPhrase: phrase,
+                    layer: layer,
+                    stepIndex: 0,
+                    lengthBars: phraseLatchLengthBars
+                )
+            } else if layer.id == TrackPerformLayerMode.pattern.phraseLayerID {
+                session.toggleQuantisedPatternIndex(
                     trackIDs: globalApplyScopeTrackIDs,
                     basisPhrase: phrase,
                     layer: layer,

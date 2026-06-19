@@ -187,7 +187,7 @@ enum TrackPerformLayerMode: String, CaseIterable, Equatable, Hashable, Identifia
 }
 
 enum PhrasePerformTimingPolicy {
-    static func usesQuantisedBooleanArming(
+    static func usesQuantisedLayerArming(
         layerID: String,
         latchMode: TrackPerformLatchMode,
         sessionArmingActive: Bool
@@ -197,8 +197,10 @@ enum PhrasePerformTimingPolicy {
             && (
                 layerID == TrackPerformLayerMode.mute.phraseLayerID
                 || layerID == TrackPerformLayerMode.fill.phraseLayerID
+                || layerID == TrackPerformLayerMode.pattern.phraseLayerID
             )
     }
+
 }
 
 /// One selectable cell in the performance layer matrix. Plain layers are one

@@ -26,6 +26,7 @@ final class EngineControllerQuantisedToggleTests: XCTestCase {
         let secondTrackID = UUID(uuidString: "bbbbbbbb-cccc-dddd-eeee-ffffffffffff")!
         let firstClipID = UUID(uuidString: "11111111-2222-3333-4444-555555555555")!
         let secondClipID = UUID(uuidString: "22222222-3333-4444-5555-666666666666")!
+        let alternateFirstClipID = UUID(uuidString: "33333333-4444-5555-6666-777777777777")!
         let tracks = [
             quantiseTestTrack(id: firstTrackID, name: "First"),
             quantiseTestTrack(id: secondTrackID, name: "Second"),
@@ -33,6 +34,7 @@ final class EngineControllerQuantisedToggleTests: XCTestCase {
         let clips = [
             quantiseTestClip(id: firstClipID, mainPitch: 60, fillPitch: 72),
             quantiseTestClip(id: secondClipID, mainPitch: 64, fillPitch: 76),
+            quantiseTestClip(id: alternateFirstClipID, mainPitch: 67, fillPitch: 79),
         ]
         let layers = PhraseLayerDefinition.defaultSet(for: tracks)
         let phrase = PhraseModel.default(
@@ -42,7 +44,10 @@ final class EngineControllerQuantisedToggleTests: XCTestCase {
             clipPool: clips
         )
         let patternBanks = [
-            TrackPatternBank(trackID: firstTrackID, slots: [TrackPatternSlot(slotIndex: 0, sourceRef: .clip(firstClipID))]),
+            TrackPatternBank(trackID: firstTrackID, slots: [
+                TrackPatternSlot(slotIndex: 0, sourceRef: .clip(firstClipID)),
+                TrackPatternSlot(slotIndex: 1, sourceRef: .clip(alternateFirstClipID)),
+            ]),
             TrackPatternBank(trackID: secondTrackID, slots: [TrackPatternSlot(slotIndex: 0, sourceRef: .clip(secondClipID))]),
         ]
         let project = Project(
@@ -265,6 +270,42 @@ final class EngineControllerQuantisedToggleTests: XCTestCase {
         XCTAssertTrue(fixture.controller.quantisedFillFlagOverridesForTesting.isEmpty)
     }
 
+    func test_patternCommitUsesNewSlotFromTheBoundaryTickUntilSnapshotConfirmation() {
+        let fixture = makeFixture()
+        startForManualTicks(fixture.controller)
+        defer { fixture.controller.stop() }
+
+        var committedBatches: [[QuantisedToggleChange]] = []
+        fixture.controller.quantisedToggleCommittedHandler = { committedBatches.append($0) }
+
+        XCTAssertEqual(playedPitches(fixture, tick: 0), [60, 64])
+        fixture.controller.armQuantisedToggle(.pattern(
+            trackID: fixture.trackID,
+            slotIndex: 1,
+            basisPhraseID: fixture.phraseID,
+            lengthBars: nil,
+            startTick: nil
+        ))
+
+        XCTAssertEqual(playedPitches(fixture, tick: 1), [60, 64])
+        XCTAssertEqual(playedPitches(fixture, tick: 2), [60, 64])
+        XCTAssertEqual(playedPitches(fixture, tick: 3), [60, 64])
+
+        XCTAssertEqual(playedPitches(fixture, tick: 4), [64, 67])
+        XCTAssertEqual(committedBatches, [[.pattern(
+            trackID: fixture.trackID,
+            slotIndex: 1,
+            basisPhraseID: fixture.phraseID,
+            lengthBars: nil,
+            startTick: 4
+        )]])
+        XCTAssertEqual(fixture.controller.quantisedPatternSlotOverridesForTesting, [fixture.trackID: 1])
+
+        XCTAssertEqual(playedPitches(fixture, tick: 5), [64, 67])
+        fixture.controller.confirmQuantisedPatternApplied(trackIDs: [fixture.trackID])
+        XCTAssertTrue(fixture.controller.quantisedPatternSlotOverridesForTesting.isEmpty)
+    }
+
     // MARK: - Transport stop
 
     func test_stopClearsArmedChangesOverridesAndCues() {
@@ -280,6 +321,7 @@ final class EngineControllerQuantisedToggleTests: XCTestCase {
         XCTAssertTrue(fixture.controller.quantisedPendingChanges.isEmpty)
         XCTAssertTrue(fixture.controller.quantisedMuteOverridesForTesting.isEmpty)
         XCTAssertTrue(fixture.controller.quantisedFillFlagOverridesForTesting.isEmpty)
+        XCTAssertTrue(fixture.controller.quantisedPatternSlotOverridesForTesting.isEmpty)
         XCTAssertTrue(fixture.controller.quantisedFillCueActiveTrackIDs.isEmpty)
     }
 
@@ -346,6 +388,20 @@ final class EngineControllerQuantisedToggleTests: XCTestCase {
         )
         XCTAssertEqual(otherTrackCued.map(\.pitch), [60],
                        "the cue set is per-track — other tracks stay on the main lane")
+
+        state = GeneratedSourceEvaluationState()
+        let withPatternOverride = EngineController.resolvedStepNotes(
+            for: fixture.trackID,
+            in: snapshot,
+            phraseID: snapshot.selectedPhraseID,
+            stepIndex: 0,
+            chordContext: nil,
+            quantisedPatternSlotOverrides: [fixture.trackID: 1],
+            state: &state,
+            rng: &rng
+        )
+        XCTAssertEqual(withPatternOverride.map(\.pitch), [67],
+                       "the pattern slot override is per-track and affects the source slot immediately")
     }
 }
 

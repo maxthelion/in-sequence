@@ -202,6 +202,20 @@ done declaration for the whole feature.
   latch path; Pattern and scalar layers remain immediate pending an explicit
   product decision about scheduled non-boolean layer semantics.
 
+## Implemented In Sixteenth Slice
+
+- Phrase-local Latch/Q:BAR now treats Pattern as a capturable phrase-layer
+  change alongside Mute and Fill Flag.
+- The quantised scheduler carries live pattern-slot overrides so the boundary
+  tick resolves the newly selected pattern slot immediately, before the
+  main-side perform overlay publish catches up.
+- Length-limited Pattern commits stage bar-shaped phrase cells, matching the
+  existing Mute and Fill Flag length behavior.
+- Layers and Global Apply route Pattern cells/options through the quantised
+  latch path when Latch + Q:BAR is active.
+- Scalar layers remain immediate for now because the current built-in scalar
+  phrase layers are not all compiled into a single runtime override target.
+
 ## Verified
 
 - `docs/roadmap/perform-mode-phrase-layer-capture/acceptance-verification.md`
@@ -299,6 +313,20 @@ done declaration for the whole feature.
   passed with direct `xcodebuild`.
 - After the fifteenth slice, the app target built with direct `xcodebuild`
   using `/tmp/seqai-phrase-perform-build`.
+- After the sixteenth slice, `xcodebuild test
+  -only-testing:SequencerAITests/QuantisedToggleSchedulerTests` passed with
+  direct `xcodebuild`.
+- After the sixteenth slice, `xcodebuild test
+  -only-testing:SequencerAITests/EngineControllerQuantisedToggleTests` passed
+  with direct `xcodebuild`.
+- After the sixteenth slice, `xcodebuild test
+  -only-testing:SequencerAITests/SequencerDocumentSessionQuantisedToggleTests`
+  passed with direct `xcodebuild`.
+- After the sixteenth slice, `xcodebuild test
+  -only-testing:SequencerAITests/PhrasePerformTimingPolicyTests` passed with
+  direct `xcodebuild`.
+- After the sixteenth slice, the app target built with direct `xcodebuild`
+  using `/tmp/seqai-phrase-perform-build`.
 
 ## Still Not Done
 
@@ -308,11 +336,10 @@ done declaration for the whole feature.
 - Scenes is now in the phrase-local A/B/crossfader tab and stores single phrase
   values for scene A, scene B, and crossfader. Per-bar/continuous scene values
   and macro automation have not been implemented.
-- Moment and Latch behavior is partially engine-backed for phrase-local Mute
-  changes. Length-limited Mute now commits at the bar boundary and stages a
-  bar-shaped phrase cell across the configured bar span. General phrase-cell
-  quantized execution and length-limited behavior for other layers still need
-  engine-level handling.
+- Moment and Latch behavior is engine-backed for phrase-local Mute, Fill Flag,
+  and Pattern changes. Length-limited commits stage bar-shaped phrase cells
+  across the configured bar span. Scalar phrase-layer latch timing still needs
+  a runtime target decision before it should be scheduled.
 - Playback snapshot agreement is proven for pattern, mute, fill, repeat/loop,
   and scene state, but it still needs interactive runtime evidence while the app
   is playing.

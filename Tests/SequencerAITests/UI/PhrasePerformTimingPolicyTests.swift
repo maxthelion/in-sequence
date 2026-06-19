@@ -2,8 +2,8 @@ import XCTest
 @testable import SequencerAI
 
 final class PhrasePerformTimingPolicyTests: XCTestCase {
-    func test_momentNeverUsesQuantisedBooleanArming() {
-        XCTAssertFalse(PhrasePerformTimingPolicy.usesQuantisedBooleanArming(
+    func test_momentNeverUsesQuantisedLayerArming() {
+        XCTAssertFalse(PhrasePerformTimingPolicy.usesQuantisedLayerArming(
             layerID: "mute",
             latchMode: .momentary,
             sessionArmingActive: true
@@ -11,28 +11,34 @@ final class PhrasePerformTimingPolicyTests: XCTestCase {
     }
 
     func test_latchRequiresActiveSessionArming() {
-        XCTAssertFalse(PhrasePerformTimingPolicy.usesQuantisedBooleanArming(
+        XCTAssertFalse(PhrasePerformTimingPolicy.usesQuantisedLayerArming(
             layerID: "mute",
             latchMode: .latched,
             sessionArmingActive: false
         ))
     }
 
-    func test_latchWithActiveSessionArmingUsesQuantisedBooleanLayersOnly() {
-        XCTAssertTrue(PhrasePerformTimingPolicy.usesQuantisedBooleanArming(
+    func test_latchWithActiveSessionArmingUsesQuantisedBoundaryLayersOnly() {
+        XCTAssertTrue(PhrasePerformTimingPolicy.usesQuantisedLayerArming(
             layerID: "mute",
             latchMode: .latched,
             sessionArmingActive: true
         ))
 
-        XCTAssertTrue(PhrasePerformTimingPolicy.usesQuantisedBooleanArming(
+        XCTAssertTrue(PhrasePerformTimingPolicy.usesQuantisedLayerArming(
             layerID: "fill-flag",
             latchMode: .latched,
             sessionArmingActive: true
         ))
 
-        XCTAssertFalse(PhrasePerformTimingPolicy.usesQuantisedBooleanArming(
+        XCTAssertTrue(PhrasePerformTimingPolicy.usesQuantisedLayerArming(
             layerID: "pattern",
+            latchMode: .latched,
+            sessionArmingActive: true
+        ))
+
+        XCTAssertFalse(PhrasePerformTimingPolicy.usesQuantisedLayerArming(
+            layerID: "volume",
             latchMode: .latched,
             sessionArmingActive: true
         ))

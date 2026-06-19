@@ -46,6 +46,10 @@ final class SequencerDocumentSessionQuantisedToggleTests: XCTestCase {
         TrackPerformLayerMode.fill.phraseLayerID!
     }
 
+    private var patternLayerID: String {
+        TrackPerformLayerMode.pattern.phraseLayerID!
+    }
+
     // MARK: - The Q setting
 
     func test_performQuantiseDefaultsToBar() {
@@ -115,6 +119,27 @@ final class SequencerDocumentSessionQuantisedToggleTests: XCTestCase {
         )
 
         session.toggleQuantisedFillFlag(trackIDs: [trackID], basisPhrase: phrase, layer: layer, stepIndex: 0)
+        XCTAssertTrue(engine.quantisedPendingChanges.isEmpty)
+    }
+
+    func test_toggleQuantisedPatternArmsTheNextPatternValuePerTrack() {
+        let (session, engine, _) = makeSession()
+        session.workspaceMode = .perform
+        startEngineForManualTicks(engine)
+        defer { engine.stop() }
+
+        let phrase = session.store.selectedPhrase
+        let layer = session.store.layer(id: patternLayerID)!
+        let trackID = session.store.tracks[0].id
+
+        session.toggleQuantisedPatternIndex(trackIDs: [trackID], basisPhrase: phrase, layer: layer, stepIndex: 0)
+        XCTAssertEqual(
+            engine.quantisedPendingChanges,
+            [.pattern(trackID: trackID, slotIndex: 1, basisPhraseID: phrase.id, lengthBars: nil, startTick: nil)],
+            "P1 arms P2 — the next pattern value resolved at arm time"
+        )
+
+        session.toggleQuantisedPatternIndex(trackIDs: [trackID], basisPhrase: phrase, layer: layer, stepIndex: 0)
         XCTAssertTrue(engine.quantisedPendingChanges.isEmpty)
     }
 
@@ -277,6 +302,36 @@ final class SequencerDocumentSessionQuantisedToggleTests: XCTestCase {
         XCTAssertTrue(engine.quantisedPendingChanges.isEmpty)
     }
 
+    func test_committedPatternStagesTheOverlayCellAndRetiresTheEngineOverride() {
+        let (session, engine, _) = makeSession()
+        session.workspaceMode = .perform
+        startEngineForManualTicks(engine)
+        defer { engine.stop() }
+
+        let phrase = session.store.selectedPhrase
+        let trackID = session.store.tracks[0].id
+
+        engine.armQuantisedToggle(.pattern(
+            trackID: trackID,
+            slotIndex: 1,
+            basisPhraseID: phrase.id,
+            lengthBars: nil,
+            startTick: nil
+        ))
+
+        for tick in UInt64(0)...16 {
+            engine.processTick(tickIndex: tick, now: TimeInterval(tick) / 10)
+        }
+
+        XCTAssertTrue(session.phrasePerformOverlay.isDirty)
+        XCTAssertEqual(
+            session.performOverlayCell(phraseID: phrase.id, layerID: patternLayerID, trackID: trackID),
+            .single(.index(1))
+        )
+        XCTAssertTrue(engine.quantisedPatternSlotOverridesForTesting.isEmpty)
+        XCTAssertTrue(engine.quantisedPendingChanges.isEmpty)
+    }
+
     func test_committedLengthLimitedFillFlagCanSpanMultiplePhraseBars() throws {
         let (session, engine, _) = makeSession()
         defer { SequencerDocumentSessionRegistry.unregister(session) }
@@ -313,6 +368,44 @@ final class SequencerDocumentSessionQuantisedToggleTests: XCTestCase {
             .bool(false)
         ])
         XCTAssertTrue(engine.quantisedFillFlagOverridesForTesting.isEmpty)
+    }
+
+    func test_committedLengthLimitedPatternCanSpanMultiplePhraseBars() throws {
+        let (session, engine, _) = makeSession()
+        defer { SequencerDocumentSessionRegistry.unregister(session) }
+        session.workspaceMode = .perform
+
+        let phraseID = session.store.selectedPhrase.id
+        XCTAssertTrue(session.setPhraseBarCount(4, phraseID: phraseID))
+        let phrase = try XCTUnwrap(session.store.phrases.first(where: { $0.id == phraseID }))
+        let trackID = session.store.tracks[0].id
+
+        session.applyCommittedQuantisedToggles([
+            .pattern(
+                trackID: trackID,
+                slotIndex: 2,
+                basisPhraseID: phrase.id,
+                lengthBars: 2,
+                startTick: 16
+            )
+        ])
+
+        let staged = try XCTUnwrap(session.performOverlayCell(
+            phraseID: phrase.id,
+            layerID: patternLayerID,
+            trackID: trackID
+        ))
+        guard case let .bars(values) = staged else {
+            return XCTFail("Expected two-bar pattern latch to stage a bar-shaped phrase cell, got \(staged)")
+        }
+
+        XCTAssertEqual(values, [
+            .index(0),
+            .index(2),
+            .index(2),
+            .index(0)
+        ])
+        XCTAssertTrue(engine.quantisedPatternSlotOverridesForTesting.isEmpty)
     }
 
     // MARK: - Leaving the quantise context cancels arms

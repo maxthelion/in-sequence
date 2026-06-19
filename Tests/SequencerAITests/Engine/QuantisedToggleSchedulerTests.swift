@@ -40,6 +40,21 @@ final class QuantisedToggleSchedulerTests: XCTestCase {
         )
     }
 
+    private func patternChange(
+        _ trackID: UUID,
+        slotIndex: Int = 3,
+        lengthBars: Int? = nil,
+        startTick: UInt64? = nil
+    ) -> QuantisedToggleChange {
+        .pattern(
+            trackID: trackID,
+            slotIndex: slotIndex,
+            basisPhraseID: phraseID,
+            lengthBars: lengthBars,
+            startTick: startTick
+        )
+    }
+
     func test_armedChangeCommitsOnlyOnTheBarBoundaryTick() {
         let scheduler = QuantisedToggleScheduler()
         XCTAssertEqual(scheduler.armOrCancel(muteChange(trackA)), .armed)
@@ -103,6 +118,23 @@ final class QuantisedToggleSchedulerTests: XCTestCase {
 
         scheduler.confirmFillFlagApplied(trackIDs: [trackA])
         XCTAssertTrue(scheduler.activeFillFlagOverrides().isEmpty)
+    }
+
+    func test_patternUsesIndependentKeyAndCommitsWithBoundaryTick() {
+        let scheduler = QuantisedToggleScheduler()
+        XCTAssertEqual(scheduler.armOrCancel(patternChange(trackA, slotIndex: 5, lengthBars: 2)), .armed)
+        XCTAssertEqual(scheduler.armOrCancel(muteChange(trackA)), .armed,
+                       "pattern changes must not collide with mute on the same track")
+
+        let committed = scheduler.commitAtBarBoundary(upcomingTick: 16, ticksPerBar: 16)
+        XCTAssertEqual(committed, [
+            patternChange(trackA, slotIndex: 5, lengthBars: 2, startTick: 16),
+            muteChange(trackA)
+        ])
+        XCTAssertEqual(scheduler.activePatternSlotOverrides(), [trackA: 5])
+
+        scheduler.confirmPatternApplied(trackIDs: [trackA])
+        XCTAssertTrue(scheduler.activePatternSlotOverrides().isEmpty)
     }
 
     func test_groupCommit_changesArmedInTheSameWindowLandTogetherInArmOrder() {
@@ -187,6 +219,7 @@ final class QuantisedToggleSchedulerTests: XCTestCase {
         XCTAssertTrue(scheduler.armedChanges().isEmpty)
         XCTAssertTrue(scheduler.activeMuteOverrides().isEmpty)
         XCTAssertTrue(scheduler.activeFillFlagOverrides().isEmpty)
+        XCTAssertTrue(scheduler.activePatternSlotOverrides().isEmpty)
         XCTAssertTrue(scheduler.activeFillCueTrackIDs(atTick: 16).isEmpty)
     }
 

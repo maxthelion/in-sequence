@@ -1069,6 +1069,13 @@ final class EngineController: RouterDispatcher {
         quantisedToggleScheduler.confirmFillFlagApplied(trackIDs: trackIDs)
     }
 
+    /// Main confirms committed pattern changes are encoded in an installed
+    /// playback snapshot (the session staged the document record), retiring
+    /// the live tick-path slot overrides.
+    func confirmQuantisedPatternApplied(trackIDs: [UUID]) {
+        quantisedToggleScheduler.confirmPatternApplied(trackIDs: trackIDs)
+    }
+
     /// Full reset for document replacement: armed changes, live overrides,
     /// and cue bars all refer to state that no longer exists.
     func resetQuantisedToggles() {
@@ -1108,6 +1115,10 @@ final class EngineController: RouterDispatcher {
 
     var quantisedFillFlagOverridesForTesting: [UUID: Bool] {
         quantisedToggleScheduler.activeFillFlagOverrides()
+    }
+
+    var quantisedPatternSlotOverridesForTesting: [UUID: Int] {
+        quantisedToggleScheduler.activePatternSlotOverrides()
     }
 
     func quantisedFillCueIsActiveForTesting(trackID: UUID, atTick tick: UInt64) -> Bool {
@@ -1622,6 +1633,7 @@ final class EngineController: RouterDispatcher {
         }
         let quantisedMuteOverrides = quantisedToggleScheduler.activeMuteOverrides()
         let quantisedFillFlagOverrides = quantisedToggleScheduler.activeFillFlagOverrides()
+        let quantisedPatternSlotOverrides = quantisedToggleScheduler.activePatternSlotOverrides()
         let quantisedFillCueTrackIDs = quantisedToggleScheduler.activeFillCueTrackIDs(atTick: upcomingStep)
         publishQuantisedFillCueActiveTrackIDs(quantisedFillCueTrackIDs)
 
@@ -1668,6 +1680,7 @@ final class EngineController: RouterDispatcher {
                     chordContext: harmonicSidechainChord,
                     trackFillPreview: trackFillPreview,
                     quantisedFillFlagOverrides: quantisedFillFlagOverrides,
+                    quantisedPatternSlotOverrides: quantisedPatternSlotOverrides,
                     quantisedFillCueTrackIDs: quantisedFillCueTrackIDs,
                     state: &state,
                     rng: &rng
@@ -2246,6 +2259,7 @@ final class EngineController: RouterDispatcher {
         chordContext: Chord?,
         trackFillPreview: TrackFillPreviewPlaybackSnapshot = .inactive,
         quantisedFillFlagOverrides: [UUID: Bool] = [:],
+        quantisedPatternSlotOverrides: [UUID: Int] = [:],
         quantisedFillCueTrackIDs: Set<UUID> = [],
         state: inout GeneratedSourceEvaluationState,
         rng: inout R
@@ -2260,7 +2274,9 @@ final class EngineController: RouterDispatcher {
             return []
         }
 
-        switch program.slotProgram(at: resolved.slotIndex) {
+        let effectiveSlotIndex = quantisedPatternSlotOverrides[trackID] ?? resolved.slotIndex
+
+        switch program.slotProgram(at: effectiveSlotIndex) {
         case let .generator(generatorID, modifierGeneratorID, modifierBypassed):
             guard let generator = playbackSnapshot.generatorEntry(id: generatorID) else {
                 return []

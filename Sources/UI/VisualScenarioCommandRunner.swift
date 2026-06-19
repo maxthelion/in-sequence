@@ -404,6 +404,9 @@ enum VisualScenarioCommandRunner {
             case let .fillFlag(_, enabled, _, lengthBars, _):
                 let suffix = lengthBars.map { "-\($0)b" } ?? ""
                 return "\(trackName):\(enabled ? "fill-on" : "fill-off")\(suffix)"
+            case let .pattern(_, slotIndex, _, lengthBars, _):
+                let suffix = lengthBars.map { "-\($0)b" } ?? ""
+                return "\(trackName):pattern-p\(slotIndex + 1)\(suffix)"
             case .fillCue:
                 return "\(trackName):fill-cue"
             }
