@@ -144,6 +144,18 @@ final class SamplerFilterNode: SamplerFilterControlling {
             band.filterType = .parametric
             band.gain = -40
             band.bandwidth = notchBandwidth(for: resolved.resonance)
+        case .peak:
+            // Peak (bell): resonance drives a positive parametric gain bump.
+            band.filterType = .parametric
+            band.gain = Float(3 + resolved.resonance * 21)
+            band.bandwidth = bandwidth(for: resolved.poles)
+        case .comb, .formant:
+            // v1: comb/formant fall back to a resonant band-pass coefficient
+            // path on AVAudioUnitEQ. The TYPE is still selectable and persists;
+            // a custom AUAudioUnit DSP will give these their own character later.
+            band.filterType = .bandPass
+            band.gain = Float(resolved.resonance * 18)
+            band.bandwidth = bandwidth(for: resolved.poles)
         }
 
         band.frequency = Float(resolved.cutoffHz)
