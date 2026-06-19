@@ -273,15 +273,23 @@ struct DrumKitMatrixView: View {
         return maxLength
     }
 
-    /// Number of 16-step bar pages, at least one.
+    /// Number of 16-step bar pages, at least one. Delegates the page math to
+    /// the testable `DrumKitBarPaging` value type.
     func barPageCount(_ model: DrumKitMatrixModel) -> Int {
-        let length = longestRowLength(model)
-        return max(1, (length + Self.stepsPerBar - 1) / Self.stepsPerBar)
+        DrumKitBarPaging.pageCount(
+            length: longestRowLength(model),
+            stepsPerBar: Self.stepsPerBar
+        )
     }
 
-    /// `barPage` clamped to the valid range for the current model.
+    /// `barPage` clamped to the valid range for the current model. Delegates the
+    /// clamp to the testable `DrumKitBarPaging` value type.
     func clampedPage(_ model: DrumKitMatrixModel) -> Int {
-        min(max(0, barPage), barPageCount(model) - 1)
+        DrumKitBarPaging.clampedPage(
+            barPage,
+            length: longestRowLength(model),
+            stepsPerBar: Self.stepsPerBar
+        )
     }
 
     var body: some View {

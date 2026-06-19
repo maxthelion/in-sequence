@@ -362,6 +362,7 @@
 		AFEC910ED207BA5E8F1AADA9 /* Project+TrackMacros.swift in Sources */ = {isa = PBXBuildFile; fileRef = 773F90C630CF113A01EEBE27 /* Project+TrackMacros.swift */; };
 		B000D5EB702358C868EC0B3D /* StudioMixerStripScaffoldTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA6431E6B6A4CF15606A414B /* StudioMixerStripScaffoldTests.swift */; };
 		B04D33E65E6D0FF3E2FBD89E /* SamplerFilterSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = E47991C72ED92062FA4C7B60 /* SamplerFilterSettings.swift */; };
+		B07691102FFDA395586952C6 /* DrumKitBarPagingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73D06272D8B9F1C30243D81C /* DrumKitBarPagingTests.swift */; };
 		B09365E9EF3326B7CEA39839 /* GeneratorDisplaySupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D96304AF6465BA172C1C420 /* GeneratorDisplaySupport.swift */; };
 		B1E6C92D0B6E2A233808A1D0 /* SlicerSourceWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 686BCD83DAE9CA8DE8722088 /* SlicerSourceWidget.swift */; };
 		B1E9D2674C7F45983E382984 /* TrackMacroApplier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54005765D1EB6C8DDA9716C9 /* TrackMacroApplier.swift */; };
@@ -442,6 +443,7 @@
 		DA02706ECF2CCEC26CBFBF56 /* SequencerDocumentSession+TrackFillPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4A3000A160BF728ABCD79BF /* SequencerDocumentSession+TrackFillPreview.swift */; };
 		DA8DA0B05D01495ECF2345A8 /* ClipHistoryLiveCaptureTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C45E686A3EBB622C3AB8321 /* ClipHistoryLiveCaptureTests.swift */; };
 		DC2CFAD50AB377CAFD671F7E /* EventQueueTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06E46194FEA5AACB3D0FAE57 /* EventQueueTests.swift */; };
+		DC586E7E7B2D680758D13EC0 /* DrumKitBarPaging.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5094C28BB94A84B673323567 /* DrumKitBarPaging.swift */; };
 		DCBC4082D377C6AC0E8DF994 /* TrackPatternBankCodableTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18CD1A530C413842E775B627 /* TrackPatternBankCodableTests.swift */; };
 		DCE90760D458C6ECB991ADEC /* TrackFanOutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8089D62FCED221080CD45F1 /* TrackFanOutTests.swift */; };
 		DCEA5182138E0D1A74DB5F4C /* ScalesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD744CCDFC9A3A90E909A8B9 /* ScalesTests.swift */; };
@@ -989,6 +991,7 @@
 		503FF741CA25DB9D10C56103 /* clip-history-modal-v1.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = "clip-history-modal-v1.html"; sourceTree = "<group>"; };
 		504C02764C11DD2D00AF554C /* PhrasePerformTimingPolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhrasePerformTimingPolicyTests.swift; sourceTree = "<group>"; };
 		505DB05B6A386A905B050B9D /* 2026-06-19-kit-matrix-steps.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2026-06-19-kit-matrix-steps.md"; sourceTree = "<group>"; };
+		5094C28BB94A84B673323567 /* DrumKitBarPaging.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DrumKitBarPaging.swift; sourceTree = "<group>"; };
 		50ED56D271B145418277C59E /* 2026-04-21-single-destination-ui.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2026-04-21-single-destination-ui.md"; sourceTree = "<group>"; };
 		516D8F17D3FBB41335AAD779 /* WaveformDownsampler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaveformDownsampler.swift; sourceTree = "<group>"; };
 		51B1DE8DA383F55FD07F4E79 /* send-effects-empty-buses.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "send-effects-empty-buses.png"; sourceTree = "<group>"; };
@@ -1193,6 +1196,7 @@
 		738C8F17B50171BC7386273C /* PitchContext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PitchContext.swift; sourceTree = "<group>"; };
 		73939CA6CD87373673D1904C /* StarterSamples */ = {isa = PBXFileReference; lastKnownFileType = folder; name = StarterSamples; path = Resources/StarterSamples; sourceTree = SOURCE_ROOT; };
 		73BC72D67F31FECDC89028F0 /* notes.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = notes.md; sourceTree = "<group>"; };
+		73D06272D8B9F1C30243D81C /* DrumKitBarPagingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DrumKitBarPagingTests.swift; sourceTree = "<group>"; };
 		73E46AC9A8152C166CE53DC6 /* StudioMetrics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudioMetrics.swift; sourceTree = "<group>"; };
 		740232E7A28E9E93314C7569 /* ux-rethink-2.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "ux-rethink-2.md"; sourceTree = "<group>"; };
 		7462C6723AFA28CA6D9D26CB /* matrix-navigation-and-layers.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = "matrix-navigation-and-layers.html"; sourceTree = "<group>"; };
@@ -3318,6 +3322,7 @@
 				622B9F916CB752F29555DFE9 /* ClipEditorLayerMappingTests.swift */,
 				A42BB4B17A414AE2D7787DBB /* DestinationSummaryTests.swift */,
 				9B0A83F64B6822F0BB72917E /* DrumGroupRoutingEditorDraftTests.swift */,
+				73D06272D8B9F1C30243D81C /* DrumKitBarPagingTests.swift */,
 				D607B232B0B516E5513AA5A6 /* DrumKitMatrixEditingTests.swift */,
 				FCD533A941618127A11B133C /* DrumTrackKitFirstRoutingTests.swift */,
 				76A702DE836B35158C5C1BFB /* LibraryAssetCatalogTests.swift */,
@@ -3370,6 +3375,7 @@
 				F0A66C09FE881E5045D6383E /* AddDrumGroupSheet.swift */,
 				4A74E571140956A0BFF1DAE3 /* DrumGroupRoutingEditor.swift */,
 				3373C55484625FEECE75F6E1 /* DrumGroupRoutingEditorDraft.swift */,
+				5094C28BB94A84B673323567 /* DrumKitBarPaging.swift */,
 				1EC45C756B141A5ADE0C1121 /* DrumKitMatrixModel.swift */,
 				918DBB45085601B0AF83C6E9 /* DrumKitMatrixRowView.swift */,
 				878E4A2B8B32080B2995489F /* DrumKitMatrixView.swift */,
@@ -5430,6 +5436,7 @@
 				587305FC4D7FA3EA0687F6CD /* DrumAssetLibraryTests.swift in Sources */,
 				97A4BC6A4B8C2546532589A5 /* DrumGroupPlanFactoryTests.swift in Sources */,
 				4C502EC9F75B041D4B426F6E /* DrumGroupRoutingEditorDraftTests.swift in Sources */,
+				B07691102FFDA395586952C6 /* DrumKitBarPagingTests.swift in Sources */,
 				8D0B106010F26E003C81D25D /* DrumKitCodableTests.swift in Sources */,
 				BFF0D973ADDFD788FE262C31 /* DrumKitMatrixEditingTests.swift in Sources */,
 				743AE55BB5D3D1D5BEE76EA6 /* DrumKitSampleResolutionTests.swift in Sources */,
@@ -5664,6 +5671,7 @@
 				2720F26AB6241BB8CE8ADF55 /* DrumGroupRoutingEditor.swift in Sources */,
 				C927FBE07413B30C4223FC85 /* DrumGroupRoutingEditorDraft.swift in Sources */,
 				02C0F4C53521C6D94C3D643F /* DrumKit.swift in Sources */,
+				DC586E7E7B2D680758D13EC0 /* DrumKitBarPaging.swift in Sources */,
 				FDC6FBA9681F486A2167D26B /* DrumKitMatrixModel.swift in Sources */,
 				9EB2F73B92C6C955FD92B57E /* DrumKitMatrixRowView.swift in Sources */,
 				DDDC959121787742E061AA41 /* DrumKitMatrixView+Accordion.swift in Sources */,
