@@ -100,6 +100,34 @@ extension SequencerDocumentSession {
         }
     }
 
+    /// Fill flag in phrase Perform with Q:BAR. Unlike the runtime-only fill
+    /// cue, this is a phrase-layer change: commit at the boundary, stage the
+    /// overlay record, and make it capturable with the phrase.
+    func toggleQuantisedFillFlag(
+        trackIDs: [UUID],
+        basisPhrase: PhraseModel,
+        layer: PhraseLayerDefinition,
+        stepIndex: Int,
+        lengthBars: Int? = nil
+    ) {
+        for trackID in trackIDs {
+            let currentValue = basisPhrase.resolvedValue(for: layer, trackID: trackID, stepIndex: stepIndex)
+            let targetEnabled: Bool
+            if case let .bool(isEnabled) = currentValue.normalized(for: layer) {
+                targetEnabled = !isEnabled
+            } else {
+                targetEnabled = true
+            }
+            engineController.armQuantisedToggle(.fillFlag(
+                trackID: trackID,
+                enabled: targetEnabled,
+                basisPhraseID: basisPhrase.id,
+                lengthBars: lengthBars.map { max(1, $0) },
+                startTick: nil
+            ))
+        }
+    }
+
     /// Boundary commit mirror (installed as the engine's committed handler):
     /// the engine already applied the changes on the tick path; this stages
     /// the document record for mute changes through the phrase perform
@@ -107,11 +135,14 @@ extension SequencerDocumentSession {
     /// then retires the engine's live overrides. Fill cues are runtime-only
     /// and need no document record.
     func applyCommittedQuantisedToggles(_ changes: [QuantisedToggleChange]) {
-        guard let muteLayerID = TrackPerformLayerMode.mute.phraseLayerID else {
+        guard let muteLayerID = TrackPerformLayerMode.mute.phraseLayerID,
+              let fillLayerID = TrackPerformLayerMode.fill.phraseLayerID
+        else {
             return
         }
 
         var committedMuteTrackIDs: [UUID] = []
+        var committedFillTrackIDs: [UUID] = []
         for change in changes {
             switch change {
             case let .mute(trackID, muted, basisPhraseID):
@@ -132,18 +163,39 @@ extension SequencerDocumentSession {
                     startTick: startTick
                 )
                 committedMuteTrackIDs.append(trackID)
+            case let .fillFlag(trackID, enabled, basisPhraseID, lengthBars, startTick):
+                if let lengthBars {
+                    stageLengthLimitedBooleanCell(
+                        value: enabled,
+                        trackID: trackID,
+                        basisPhraseID: basisPhraseID,
+                        layerID: fillLayerID,
+                        lengthBars: lengthBars,
+                        startTick: startTick
+                    )
+                } else {
+                    stagePhrasePerformCell(
+                        .single(.bool(enabled)),
+                        layerID: fillLayerID,
+                        trackIDs: [trackID],
+                        basisPhraseID: basisPhraseID
+                    )
+                }
+                committedFillTrackIDs.append(trackID)
             case .fillCue:
                 continue
             }
         }
 
-        guard !committedMuteTrackIDs.isEmpty else {
-            return
+        if !committedMuteTrackIDs.isEmpty {
+            // The staging above published a snapshot that encodes the mutes;
+            // installed synchronously, so the overrides can retire without a
+            // window where neither source carries the value.
+            engineController.confirmQuantisedMuteApplied(trackIDs: committedMuteTrackIDs)
         }
-        // The staging above published a snapshot that encodes the mutes;
-        // installed synchronously, so the overrides can retire without a
-        // window where neither source carries the value.
-        engineController.confirmQuantisedMuteApplied(trackIDs: committedMuteTrackIDs)
+        if !committedFillTrackIDs.isEmpty {
+            engineController.confirmQuantisedFillFlagApplied(trackIDs: committedFillTrackIDs)
+        }
     }
 
     private func stageLengthLimitedMute(
@@ -154,11 +206,29 @@ extension SequencerDocumentSession {
         lengthBars: Int,
         startTick: UInt64?
     ) {
+        stageLengthLimitedBooleanCell(
+            value: muted,
+            trackID: trackID,
+            basisPhraseID: basisPhraseID,
+            layerID: layerID,
+            lengthBars: lengthBars,
+            startTick: startTick
+        )
+    }
+
+    private func stageLengthLimitedBooleanCell(
+        value: Bool,
+        trackID: UUID,
+        basisPhraseID: UUID,
+        layerID: String,
+        lengthBars: Int,
+        startTick: UInt64?
+    ) {
         guard let phrase = store.phrases.first(where: { $0.id == basisPhraseID }),
               let layer = store.layer(id: layerID)
         else {
             stagePhrasePerformCell(
-                .single(.bool(muted)),
+                .single(.bool(value)),
                 layerID: layerID,
                 trackIDs: [trackID],
                 basisPhraseID: basisPhraseID
@@ -186,7 +256,7 @@ extension SequencerDocumentSession {
             return
         }
         for barIndex in startBarIndex..<endBarIndex {
-            barValues[barIndex] = .bool(muted)
+            barValues[barIndex] = .bool(value)
         }
 
         stagePhrasePerformCell(

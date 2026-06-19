@@ -42,6 +42,10 @@ final class SequencerDocumentSessionQuantisedToggleTests: XCTestCase {
         TrackPerformLayerMode.mute.phraseLayerID!
     }
 
+    private var fillLayerID: String {
+        TrackPerformLayerMode.fill.phraseLayerID!
+    }
+
     // MARK: - The Q setting
 
     func test_performQuantiseDefaultsToBar() {
@@ -90,6 +94,27 @@ final class SequencerDocumentSessionQuantisedToggleTests: XCTestCase {
 
         // Tap-while-armed cancels.
         session.toggleQuantisedMute(trackIDs: [trackID], basisPhrase: phrase, layer: layer, stepIndex: 0)
+        XCTAssertTrue(engine.quantisedPendingChanges.isEmpty)
+    }
+
+    func test_toggleQuantisedFillFlagArmsTheInverseOfTheResolvedValuePerTrack() {
+        let (session, engine, _) = makeSession()
+        session.workspaceMode = .perform
+        startEngineForManualTicks(engine)
+        defer { engine.stop() }
+
+        let phrase = session.store.selectedPhrase
+        let layer = session.store.layer(id: fillLayerID)!
+        let trackID = session.store.tracks[0].id
+
+        session.toggleQuantisedFillFlag(trackIDs: [trackID], basisPhrase: phrase, layer: layer, stepIndex: 0)
+        XCTAssertEqual(
+            engine.quantisedPendingChanges,
+            [.fillFlag(trackID: trackID, enabled: true, basisPhraseID: phrase.id, lengthBars: nil, startTick: nil)],
+            "an inactive fill flag arms 'enabled' — the inverse of the value resolved at arm time"
+        )
+
+        session.toggleQuantisedFillFlag(trackIDs: [trackID], basisPhrase: phrase, layer: layer, stepIndex: 0)
         XCTAssertTrue(engine.quantisedPendingChanges.isEmpty)
     }
 
@@ -220,6 +245,74 @@ final class SequencerDocumentSessionQuantisedToggleTests: XCTestCase {
             .bool(false)
         ])
         XCTAssertTrue(engine.quantisedMuteOverridesForTesting.isEmpty)
+    }
+
+    func test_committedFillFlagStagesTheOverlayCellAndRetiresTheEngineOverride() {
+        let (session, engine, _) = makeSession()
+        session.workspaceMode = .perform
+        startEngineForManualTicks(engine)
+        defer { engine.stop() }
+
+        let phrase = session.store.selectedPhrase
+        let trackID = session.store.tracks[0].id
+
+        engine.armQuantisedToggle(.fillFlag(
+            trackID: trackID,
+            enabled: true,
+            basisPhraseID: phrase.id,
+            lengthBars: nil,
+            startTick: nil
+        ))
+
+        for tick in UInt64(0)...16 {
+            engine.processTick(tickIndex: tick, now: TimeInterval(tick) / 10)
+        }
+
+        XCTAssertTrue(session.phrasePerformOverlay.isDirty)
+        XCTAssertEqual(
+            session.performOverlayCell(phraseID: phrase.id, layerID: fillLayerID, trackID: trackID),
+            .single(.bool(true))
+        )
+        XCTAssertTrue(engine.quantisedFillFlagOverridesForTesting.isEmpty)
+        XCTAssertTrue(engine.quantisedPendingChanges.isEmpty)
+    }
+
+    func test_committedLengthLimitedFillFlagCanSpanMultiplePhraseBars() throws {
+        let (session, engine, _) = makeSession()
+        defer { SequencerDocumentSessionRegistry.unregister(session) }
+        session.workspaceMode = .perform
+
+        let phraseID = session.store.selectedPhrase.id
+        XCTAssertTrue(session.setPhraseBarCount(4, phraseID: phraseID))
+        let phrase = try XCTUnwrap(session.store.phrases.first(where: { $0.id == phraseID }))
+        let trackID = session.store.tracks[0].id
+
+        session.applyCommittedQuantisedToggles([
+            .fillFlag(
+                trackID: trackID,
+                enabled: true,
+                basisPhraseID: phrase.id,
+                lengthBars: 2,
+                startTick: 16
+            )
+        ])
+
+        let staged = try XCTUnwrap(session.performOverlayCell(
+            phraseID: phrase.id,
+            layerID: fillLayerID,
+            trackID: trackID
+        ))
+        guard case let .bars(values) = staged else {
+            return XCTFail("Expected two-bar fill latch to stage a bar-shaped phrase cell, got \(staged)")
+        }
+
+        XCTAssertEqual(values, [
+            .bool(false),
+            .bool(true),
+            .bool(true),
+            .bool(false)
+        ])
+        XCTAssertTrue(engine.quantisedFillFlagOverridesForTesting.isEmpty)
     }
 
     // MARK: - Leaving the quantise context cancels arms

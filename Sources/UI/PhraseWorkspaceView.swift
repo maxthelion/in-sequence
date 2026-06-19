@@ -1274,18 +1274,28 @@ struct PhraseWorkspaceView: View {
         let resolvedValue = displayedPhrase.resolvedValue(for: selectedLayer, trackID: trackID, stepIndex: 0)
         let toggledValue = toggledBooleanValue(resolvedValue, for: selectedLayer)
 
-        if PhrasePerformTimingPolicy.usesQuantisedMuteArming(
+        if PhrasePerformTimingPolicy.usesQuantisedBooleanArming(
             layerID: selectedLayer.id,
             latchMode: phraseLatchMode,
             sessionArmingActive: session.isQuantisedPerformToggleArmingActive
         ) {
-            session.toggleQuantisedMute(
-                trackIDs: [trackID],
-                basisPhrase: displayedPhrase,
-                layer: selectedLayer,
-                stepIndex: 0,
-                lengthBars: phraseLatchLengthBars
-            )
+            if selectedLayer.id == TrackPerformLayerMode.mute.phraseLayerID {
+                session.toggleQuantisedMute(
+                    trackIDs: [trackID],
+                    basisPhrase: displayedPhrase,
+                    layer: selectedLayer,
+                    stepIndex: 0,
+                    lengthBars: phraseLatchLengthBars
+                )
+            } else if selectedLayer.id == TrackPerformLayerMode.fill.phraseLayerID {
+                session.toggleQuantisedFillFlag(
+                    trackIDs: [trackID],
+                    basisPhrase: displayedPhrase,
+                    layer: selectedLayer,
+                    stepIndex: 0,
+                    lengthBars: phraseLatchLengthBars
+                )
+            }
             return
         }
 
@@ -1563,18 +1573,28 @@ struct PhraseWorkspaceView: View {
             phrase.resolvedValue(for: layer, trackID: seedTrackID, stepIndex: 0),
             for: layer
         )
-        if PhrasePerformTimingPolicy.usesQuantisedMuteArming(
+        if PhrasePerformTimingPolicy.usesQuantisedBooleanArming(
             layerID: layer.id,
             latchMode: phraseLatchMode,
             sessionArmingActive: session.isQuantisedPerformToggleArmingActive
         ) {
-            session.toggleQuantisedMute(
-                trackIDs: globalApplyScopeTrackIDs,
-                basisPhrase: phrase,
-                layer: layer,
-                stepIndex: 0,
-                lengthBars: phraseLatchLengthBars
-            )
+            if layer.id == TrackPerformLayerMode.mute.phraseLayerID {
+                session.toggleQuantisedMute(
+                    trackIDs: globalApplyScopeTrackIDs,
+                    basisPhrase: phrase,
+                    layer: layer,
+                    stepIndex: 0,
+                    lengthBars: phraseLatchLengthBars
+                )
+            } else if layer.id == TrackPerformLayerMode.fill.phraseLayerID {
+                session.toggleQuantisedFillFlag(
+                    trackIDs: globalApplyScopeTrackIDs,
+                    basisPhrase: phrase,
+                    layer: layer,
+                    stepIndex: 0,
+                    lengthBars: phraseLatchLengthBars
+                )
+            }
             return
         }
 

@@ -85,6 +85,16 @@ final class EngineControllerQuantisedToggleTests: XCTestCase {
         .mute(trackID: fixture.trackID, muted: muted, basisPhraseID: fixture.phraseID)
     }
 
+    private func fillFlagFirstTrack(_ fixture: Fixture, enabled: Bool = true) -> QuantisedToggleChange {
+        .fillFlag(
+            trackID: fixture.trackID,
+            enabled: enabled,
+            basisPhraseID: fixture.phraseID,
+            lengthBars: nil,
+            startTick: nil
+        )
+    }
+
     // MARK: - Arming
 
     func test_armIsRejectedWhileTransportIsStopped() {
@@ -225,6 +235,36 @@ final class EngineControllerQuantisedToggleTests: XCTestCase {
         XCTAssertFalse(fixture.controller.hasQuantisedPendingFillCue(for: fixture.trackID))
     }
 
+    func test_fillFlagCommitUsesFillLaneFromTheBoundaryTickUntilSnapshotConfirmation() {
+        let fixture = makeFixture()
+        startForManualTicks(fixture.controller)
+        defer { fixture.controller.stop() }
+
+        var committedBatches: [[QuantisedToggleChange]] = []
+        fixture.controller.quantisedToggleCommittedHandler = { committedBatches.append($0) }
+
+        XCTAssertEqual(playedPitches(fixture, tick: 0), [60, 64])
+        fixture.controller.armQuantisedToggle(fillFlagFirstTrack(fixture))
+
+        XCTAssertEqual(playedPitches(fixture, tick: 1), [60, 64])
+        XCTAssertEqual(playedPitches(fixture, tick: 2), [60, 64])
+        XCTAssertEqual(playedPitches(fixture, tick: 3), [60, 64])
+
+        XCTAssertEqual(playedPitches(fixture, tick: 4), [64, 72])
+        XCTAssertEqual(committedBatches, [[.fillFlag(
+            trackID: fixture.trackID,
+            enabled: true,
+            basisPhraseID: fixture.phraseID,
+            lengthBars: nil,
+            startTick: 4
+        )]])
+        XCTAssertEqual(fixture.controller.quantisedFillFlagOverridesForTesting, [fixture.trackID: true])
+
+        XCTAssertEqual(playedPitches(fixture, tick: 5), [64, 72])
+        fixture.controller.confirmQuantisedFillFlagApplied(trackIDs: [fixture.trackID])
+        XCTAssertTrue(fixture.controller.quantisedFillFlagOverridesForTesting.isEmpty)
+    }
+
     // MARK: - Transport stop
 
     func test_stopClearsArmedChangesOverridesAndCues() {
@@ -239,6 +279,7 @@ final class EngineControllerQuantisedToggleTests: XCTestCase {
 
         XCTAssertTrue(fixture.controller.quantisedPendingChanges.isEmpty)
         XCTAssertTrue(fixture.controller.quantisedMuteOverridesForTesting.isEmpty)
+        XCTAssertTrue(fixture.controller.quantisedFillFlagOverridesForTesting.isEmpty)
         XCTAssertTrue(fixture.controller.quantisedFillCueActiveTrackIDs.isEmpty)
     }
 
@@ -273,6 +314,24 @@ final class EngineControllerQuantisedToggleTests: XCTestCase {
             rng: &rng
         )
         XCTAssertEqual(withCue.map(\.pitch), [72])
+
+        state = GeneratedSourceEvaluationState()
+        let withFillFlagOverrideOff = EngineController.resolvedStepNotes(
+            for: fixture.trackID,
+            in: snapshot,
+            phraseID: snapshot.selectedPhraseID,
+            stepIndex: 0,
+            chordContext: nil,
+            quantisedFillFlagOverrides: [fixture.trackID: false],
+            quantisedFillCueTrackIDs: [fixture.trackID],
+            state: &state,
+            rng: &rng
+        )
+        XCTAssertEqual(
+            withFillFlagOverrideOff.map(\.pitch),
+            [60],
+            "an explicit fill-flag override wins over a runtime fill cue"
+        )
 
         state = GeneratedSourceEvaluationState()
         let otherTrackCued = EngineController.resolvedStepNotes(

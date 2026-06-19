@@ -187,14 +187,17 @@ enum TrackPerformLayerMode: String, CaseIterable, Equatable, Hashable, Identifia
 }
 
 enum PhrasePerformTimingPolicy {
-    static func usesQuantisedMuteArming(
+    static func usesQuantisedBooleanArming(
         layerID: String,
         latchMode: TrackPerformLatchMode,
         sessionArmingActive: Bool
     ) -> Bool {
         latchMode == .latched
             && sessionArmingActive
-            && layerID == TrackPerformLayerMode.mute.phraseLayerID
+            && (
+                layerID == TrackPerformLayerMode.mute.phraseLayerID
+                || layerID == TrackPerformLayerMode.fill.phraseLayerID
+            )
     }
 }
 

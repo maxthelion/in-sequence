@@ -25,6 +25,21 @@ final class QuantisedToggleSchedulerTests: XCTestCase {
         )
     }
 
+    private func fillFlagChange(
+        _ trackID: UUID,
+        enabled: Bool = true,
+        lengthBars: Int? = nil,
+        startTick: UInt64? = nil
+    ) -> QuantisedToggleChange {
+        .fillFlag(
+            trackID: trackID,
+            enabled: enabled,
+            basisPhraseID: phraseID,
+            lengthBars: lengthBars,
+            startTick: startTick
+        )
+    }
+
     func test_armedChangeCommitsOnlyOnTheBarBoundaryTick() {
         let scheduler = QuantisedToggleScheduler()
         XCTAssertEqual(scheduler.armOrCancel(muteChange(trackA)), .armed)
@@ -73,6 +88,21 @@ final class QuantisedToggleSchedulerTests: XCTestCase {
         XCTAssertEqual(scheduler.armOrCancel(.fillCue(trackID: trackA)), .armed,
                        "a fill cue must not collide with the armed mute on the same track")
         XCTAssertEqual(scheduler.armedChanges().count, 2)
+    }
+
+    func test_fillFlagSharesFillKeyAndCommitsWithBoundaryTick() {
+        let scheduler = QuantisedToggleScheduler()
+        XCTAssertEqual(scheduler.armOrCancel(fillFlagChange(trackA, lengthBars: 2)), .armed)
+        XCTAssertEqual(scheduler.armOrCancel(.fillCue(trackID: trackA)), .cancelled,
+                       "capturable fill flag and runtime fill cue share the per-track fill arm slot")
+
+        XCTAssertEqual(scheduler.armOrCancel(fillFlagChange(trackA, lengthBars: 2)), .armed)
+        let committed = scheduler.commitAtBarBoundary(upcomingTick: 16, ticksPerBar: 16)
+        XCTAssertEqual(committed, [fillFlagChange(trackA, lengthBars: 2, startTick: 16)])
+        XCTAssertEqual(scheduler.activeFillFlagOverrides(), [trackA: true])
+
+        scheduler.confirmFillFlagApplied(trackIDs: [trackA])
+        XCTAssertTrue(scheduler.activeFillFlagOverrides().isEmpty)
     }
 
     func test_groupCommit_changesArmedInTheSameWindowLandTogetherInArmOrder() {
@@ -156,6 +186,7 @@ final class QuantisedToggleSchedulerTests: XCTestCase {
         scheduler.resetRuntime()
         XCTAssertTrue(scheduler.armedChanges().isEmpty)
         XCTAssertTrue(scheduler.activeMuteOverrides().isEmpty)
+        XCTAssertTrue(scheduler.activeFillFlagOverrides().isEmpty)
         XCTAssertTrue(scheduler.activeFillCueTrackIDs(atTick: 16).isEmpty)
     }
 

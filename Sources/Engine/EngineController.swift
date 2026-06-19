@@ -1062,6 +1062,13 @@ final class EngineController: RouterDispatcher {
         quantisedToggleScheduler.confirmMuteApplied(trackIDs: trackIDs)
     }
 
+    /// Main confirms committed fill-flag changes are encoded in an installed
+    /// playback snapshot (the session staged the document record), retiring
+    /// the live tick-path overrides.
+    func confirmQuantisedFillFlagApplied(trackIDs: [UUID]) {
+        quantisedToggleScheduler.confirmFillFlagApplied(trackIDs: trackIDs)
+    }
+
     /// Full reset for document replacement: armed changes, live overrides,
     /// and cue bars all refer to state that no longer exists.
     func resetQuantisedToggles() {
@@ -1097,6 +1104,10 @@ final class EngineController: RouterDispatcher {
 
     var quantisedMuteOverridesForTesting: [UUID: Bool] {
         quantisedToggleScheduler.activeMuteOverrides()
+    }
+
+    var quantisedFillFlagOverridesForTesting: [UUID: Bool] {
+        quantisedToggleScheduler.activeFillFlagOverrides()
     }
 
     func quantisedFillCueIsActiveForTesting(trackID: UUID, atTick tick: UInt64) -> Bool {
@@ -1610,6 +1621,7 @@ final class EngineController: RouterDispatcher {
             quantisedToggleCommittedHandler?(committedQuantisedChanges)
         }
         let quantisedMuteOverrides = quantisedToggleScheduler.activeMuteOverrides()
+        let quantisedFillFlagOverrides = quantisedToggleScheduler.activeFillFlagOverrides()
         let quantisedFillCueTrackIDs = quantisedToggleScheduler.activeFillCueTrackIDs(atTick: upcomingStep)
         publishQuantisedFillCueActiveTrackIDs(quantisedFillCueTrackIDs)
 
@@ -1655,6 +1667,7 @@ final class EngineController: RouterDispatcher {
                     stepIndex: stepInPhrase,
                     chordContext: harmonicSidechainChord,
                     trackFillPreview: trackFillPreview,
+                    quantisedFillFlagOverrides: quantisedFillFlagOverrides,
                     quantisedFillCueTrackIDs: quantisedFillCueTrackIDs,
                     state: &state,
                     rng: &rng
@@ -2232,6 +2245,7 @@ final class EngineController: RouterDispatcher {
         stepIndex: Int,
         chordContext: Chord?,
         trackFillPreview: TrackFillPreviewPlaybackSnapshot = .inactive,
+        quantisedFillFlagOverrides: [UUID: Bool] = [:],
         quantisedFillCueTrackIDs: Set<UUID> = [],
         state: inout GeneratedSourceEvaluationState,
         rng: inout R
@@ -2279,9 +2293,10 @@ final class EngineController: RouterDispatcher {
                 return []
             }
 
-            let effectiveFillEnabled = resolved.fillEnabled
-                || trackFillPreview.isActive(for: trackID)
-                || quantisedFillCueTrackIDs.contains(trackID)
+            let effectiveFillEnabled = quantisedFillFlagOverrides[trackID]
+                ?? (resolved.fillEnabled
+                    || trackFillPreview.isActive(for: trackID)
+                    || quantisedFillCueTrackIDs.contains(trackID))
             let sourceNotes = GeneratedSourceEvaluator.resolveClipStep(
                 for: clip,
                 stepIndex: resolved.sourceStepIndex,

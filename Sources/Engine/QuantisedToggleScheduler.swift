@@ -22,6 +22,7 @@ struct QuantisedToggleKey: Equatable, Hashable, Sendable {
 enum QuantisedToggleChange: Equatable, Hashable, Sendable {
     case mute(trackID: UUID, muted: Bool, basisPhraseID: UUID)
     case lengthLimitedMute(trackID: UUID, muted: Bool, basisPhraseID: UUID, lengthBars: Int, startTick: UInt64?)
+    case fillFlag(trackID: UUID, enabled: Bool, basisPhraseID: UUID, lengthBars: Int?, startTick: UInt64?)
     case fillCue(trackID: UUID)
 
     var trackID: UUID {
@@ -29,6 +30,8 @@ enum QuantisedToggleChange: Equatable, Hashable, Sendable {
         case let .mute(trackID, _, _):
             return trackID
         case let .lengthLimitedMute(trackID, _, _, _, _):
+            return trackID
+        case let .fillFlag(trackID, _, _, _, _):
             return trackID
         case let .fillCue(trackID):
             return trackID
@@ -41,6 +44,8 @@ enum QuantisedToggleChange: Equatable, Hashable, Sendable {
             return QuantisedToggleKey(kind: .mute, trackID: trackID)
         case let .lengthLimitedMute(trackID, _, _, _, _):
             return QuantisedToggleKey(kind: .mute, trackID: trackID)
+        case let .fillFlag(trackID, _, _, _, _):
+            return QuantisedToggleKey(kind: .fillCue, trackID: trackID)
         case let .fillCue(trackID):
             return QuantisedToggleKey(kind: .fillCue, trackID: trackID)
         }
@@ -82,6 +87,7 @@ final class QuantisedToggleScheduler: @unchecked Sendable {
     /// Commit order matches arm order, so handlers observe a stable sequence.
     private var armedKeyOrder: [QuantisedToggleKey] = []
     private var muteOverridesByTrackID: [UUID: Bool] = [:]
+    private var fillFlagOverridesByTrackID: [UUID: Bool] = [:]
     private var fillCueExpiryTickByTrackID: [UUID: UInt64] = [:]
 
     // MARK: - Main-side arming
@@ -129,6 +135,16 @@ final class QuantisedToggleScheduler: @unchecked Sendable {
         }
     }
 
+    /// Main confirms committed fill-flag changes are encoded in an installed
+    /// playback snapshot; the live override can retire.
+    func confirmFillFlagApplied(trackIDs: [UUID]) {
+        lock.lock()
+        defer { lock.unlock() }
+        for trackID in trackIDs {
+            fillFlagOverridesByTrackID.removeValue(forKey: trackID)
+        }
+    }
+
     /// Full reset for transport stop / document replacement: armed changes
     /// can no longer reach a boundary, overrides have no snapshot to retire
     /// against, and cues lose their timeline.
@@ -138,6 +154,7 @@ final class QuantisedToggleScheduler: @unchecked Sendable {
         armedByKey.removeAll()
         armedKeyOrder.removeAll()
         muteOverridesByTrackID.removeAll()
+        fillFlagOverridesByTrackID.removeAll()
         fillCueExpiryTickByTrackID.removeAll()
     }
 
@@ -177,6 +194,15 @@ final class QuantisedToggleScheduler: @unchecked Sendable {
                     lengthBars: max(1, lengthBars),
                     startTick: upcomingTick
                 ))
+            case let .fillFlag(trackID, enabled, basisPhraseID, lengthBars, _):
+                fillFlagOverridesByTrackID[trackID] = enabled
+                committed.append(.fillFlag(
+                    trackID: trackID,
+                    enabled: enabled,
+                    basisPhraseID: basisPhraseID,
+                    lengthBars: lengthBars.map { max(1, $0) },
+                    startTick: upcomingTick
+                ))
             case let .fillCue(trackID):
                 fillCueExpiryTickByTrackID[trackID] = upcomingTick &+ barLength
                 committed.append(change)
@@ -191,6 +217,14 @@ final class QuantisedToggleScheduler: @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
         return muteOverridesByTrackID
+    }
+
+    /// Fill-flag values the tick path must hear instead of the layer snapshot's,
+    /// until main confirms the staged document record.
+    func activeFillFlagOverrides() -> [UUID: Bool] {
+        lock.lock()
+        defer { lock.unlock() }
+        return fillFlagOverridesByTrackID
     }
 
     /// Tracks whose cued fill bar covers `tick`.

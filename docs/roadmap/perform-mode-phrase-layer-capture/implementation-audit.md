@@ -189,6 +189,19 @@ done declaration for the whole feature.
 - This closes a stale evidence gap around whether the phrase Scenes surface is
   merely stored or actually reaches runtime playback state.
 
+## Implemented In Fifteenth Slice
+
+- Phrase-local Latch/Q:BAR now treats Fill Flag as a capturable phrase-layer
+  change rather than only a runtime one-bar cue.
+- The quantised scheduler carries live fill-flag overrides so the boundary tick
+  hears the new Fill value immediately, then the session stages the overlay cell
+  and retires the override.
+- Length-limited Fill Flag commits stage bar-shaped phrase cells, matching the
+  existing length-limited Mute behavior.
+- Layers and Global Apply route both Mute and Fill through the quantised boolean
+  latch path; Pattern and scalar layers remain immediate pending an explicit
+  product decision about scheduled non-boolean layer semantics.
+
 ## Verified
 
 - `docs/roadmap/perform-mode-phrase-layer-capture/acceptance-verification.md`
@@ -272,6 +285,20 @@ done declaration for the whole feature.
 - After the fourteenth slice, `xcodebuild test
   -only-testing:SequencerAITests/EngineControllerPhraseNavigationTests` passed
   with direct `xcodebuild`.
+- After the fifteenth slice, `xcodebuild test
+  -only-testing:SequencerAITests/PhrasePerformTimingPolicyTests` passed with
+  direct `xcodebuild`.
+- After the fifteenth slice, `xcodebuild test
+  -only-testing:SequencerAITests/QuantisedToggleSchedulerTests` passed with
+  direct `xcodebuild`.
+- After the fifteenth slice, `xcodebuild test
+  -only-testing:SequencerAITests/EngineControllerQuantisedToggleTests` passed
+  with direct `xcodebuild`.
+- After the fifteenth slice, `xcodebuild test
+  -only-testing:SequencerAITests/SequencerDocumentSessionQuantisedToggleTests`
+  passed with direct `xcodebuild`.
+- After the fifteenth slice, the app target built with direct `xcodebuild`
+  using `/tmp/seqai-phrase-perform-build`.
 
 ## Still Not Done
 

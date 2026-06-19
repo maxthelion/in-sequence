@@ -401,6 +401,9 @@ enum VisualScenarioCommandRunner {
                 return "\(trackName):\(muted ? "mute-on" : "mute-off")"
             case let .lengthLimitedMute(_, muted, _, lengthBars, _):
                 return "\(trackName):\(muted ? "mute-on" : "mute-off")-\(lengthBars)b"
+            case let .fillFlag(_, enabled, _, lengthBars, _):
+                let suffix = lengthBars.map { "-\($0)b" } ?? ""
+                return "\(trackName):\(enabled ? "fill-on" : "fill-off")\(suffix)"
             case .fillCue:
                 return "\(trackName):fill-cue"
             }
