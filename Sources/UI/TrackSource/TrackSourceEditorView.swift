@@ -1,35 +1,44 @@
 import SwiftUI
 
 enum TrackSourceEditorTab: String, CaseIterable, Identifiable {
-    case source
-    case modifiers
-    case history
-    case routing
+    case stepsClip = "steps-clip"
+    case sound
+    case fx
+    case macros
+    case mixer
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
-        case .source:
-            return "Source"
-        case .modifiers:
-            return "Modifier"
-        case .history:
-            return "History"
-        case .routing:
-            return "Routing"
+        case .stepsClip:
+            return "Steps/Clip"
+        case .sound:
+            return "Sound"
+        case .fx:
+            return "FX"
+        case .macros:
+            return "Macros"
+        case .mixer:
+            return "Mixer"
         }
     }
 
-    /// The ROUTING tab is SETUP-only: perform mode dropped the destination
-    /// concern, so the tab is absent there.
-    func isAvailable(in mode: WorkspaceMode) -> Bool {
-        switch self {
-        case .routing:
-            return mode == .setup
-        case .source, .modifiers, .history:
-            return true
+    static func tab(forVisualCommand rawValue: String) -> TrackSourceEditorTab? {
+        switch rawValue {
+        case "source":
+            return .stepsClip
+        case "routing":
+            return .mixer
+        case "steps", "stepsClip", "steps-clip":
+            return .stepsClip
+        default:
+            return TrackSourceEditorTab(rawValue: rawValue)
         }
+    }
+
+    func isAvailable(in mode: WorkspaceMode) -> Bool {
+        true
     }
 }
 
@@ -85,7 +94,7 @@ struct TrackSourceEditorView: View {
     let accent: Color
     let stepGridWorkspaceModel: TrackStepGridWorkspaceModel
 
-    @State private var selectedTab: TrackSourceEditorTab = .source
+    @State private var selectedTab: TrackSourceEditorTab = .stepsClip
     @State private var sourcePickerStep: TrackSourceContainedSourcePickerStep?
     @State private var modifierPickerStep: TrackSourceContainedModifierPickerStep?
     @State private var macroSlotPickerRequest: MacroSlotPickerRequest?
@@ -272,14 +281,16 @@ struct TrackSourceEditorView: View {
 
                 Group {
                     switch selectedTab {
-                    case .source:
+                    case .stepsClip:
                         sourceTab
-                    case .modifiers:
-                        modifiersTab
-                    case .history:
-                        clipHistoryTab
-                    case .routing:
-                        routingTab
+                    case .sound:
+                        soundTab
+                    case .fx:
+                        fxTab
+                    case .macros:
+                        macrosTab
+                    case .mixer:
+                        mixerTab
                     }
                 }
             }
@@ -311,31 +322,18 @@ struct TrackSourceEditorView: View {
             sourcePickerStep = nil
             modifierPickerStep = nil
             resetClipHistoryDestinationMode()
-            if selectedTab == .history {
-                resetClipHistoryModel()
-            }
         }
         .onChange(of: selectedTab) { _, newValue in
-            if newValue != .source {
+            if newValue != .stepsClip {
                 sourcePickerStep = nil
             }
-            if newValue != .modifiers {
+            if newValue != .stepsClip {
                 modifierPickerStep = nil
             }
-            if newValue == .history, historyDisplayState.isAvailable {
-                refreshClipHistoryModel()
-            } else {
-                resetClipHistoryModel()
-            }
+            resetClipHistoryModel()
         }
         .onChange(of: track.id) { _, _ in
             session.clearTrackFillPreview(reason: .selectedTrackChanged)
-            if selectedTab == .history {
-                resetClipHistoryModel()
-                if historyDisplayState.isAvailable {
-                    refreshClipHistoryModel()
-                }
-            }
         }
         .onAppear {
             syncStepGridCoordinator()
@@ -347,17 +345,14 @@ struct TrackSourceEditorView: View {
             session.clearTrackFillPreview(reason: .editorClosed)
         }
         .onChange(of: session.workspaceMode) { _, newMode in
-            // ROUTING is setup-only; if the global mode flips to perform while
-            // it is open, fall back to the source tab so the dropped tab is
-            // never left selected.
             if !selectedTab.isAvailable(in: newMode) {
-                selectedTab = .source
+                selectedTab = .stepsClip
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .trackSourceEditorVisualCommand)) { notification in
             guard let command = notification.object as? String,
                   command.hasPrefix("select-tab:"),
-                  let tab = TrackSourceEditorTab(rawValue: String(command.dropFirst("select-tab:".count))),
+                  let tab = TrackSourceEditorTab.tab(forVisualCommand: String(command.dropFirst("select-tab:".count))),
                   tab.isAvailable(in: session.workspaceMode)
             else { return }
             selectedTab = tab
@@ -372,10 +367,9 @@ struct TrackSourceEditorView: View {
             selectedTab: $selectedTab,
             sourceState: sourceDisplayState,
             modifierState: modifierDisplayState,
-            historyState: historyDisplayState,
             routingState: TrackSourceRoutingDisplayState(
-                isAvailable: TrackSourceEditorTab.routing.isAvailable(in: session.workspaceMode),
-                pillSummary: routingPathSummary.pillSummary
+                pillSummary: routingPathSummary.pillSummary,
+                soundBadgeTitle: routingPathSummary.instrumentLabel
             ),
             accent: accent
         )
@@ -542,10 +536,70 @@ struct TrackSourceEditorView: View {
     }
 
     @ViewBuilder
-    private var routingTab: some View {
+    private var soundTab: some View {
         TrackRoutingTabContent(
             document: $document,
             summary: routingPathSummary,
+            mode: .sound,
+            accent: accent
+        )
+    }
+
+    @ViewBuilder
+    private var fxTab: some View {
+        TrackSourceSelectedWellBody(accent: StudioTheme.violet, isEmpty: false) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("FX")
+                    .studioText(.bodyBold)
+                    .foregroundStyle(StudioTheme.text)
+                Text("Per-track insert chain arrives in the FX slice.")
+                    .studioText(.body)
+                    .foregroundStyle(StudioTheme.mutedText)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(StudioMetrics.Spacing.standard)
+        }
+    }
+
+    @ViewBuilder
+    private var macrosTab: some View {
+        TrackSourceSelectedWellBody(accent: StudioTheme.amber, isEmpty: false) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Macros")
+                    .studioText(.bodyBold)
+                    .foregroundStyle(StudioTheme.text)
+                macrosTabList
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(StudioMetrics.Spacing.standard)
+        }
+    }
+
+    @ViewBuilder
+    private var macrosTabList: some View {
+        if orderedMacros.isEmpty {
+            Text("No macros assigned.")
+                .studioText(.body)
+                .foregroundStyle(StudioTheme.mutedText)
+        } else {
+            ForEach(orderedMacros, id: \.id) { binding in
+                Text(macroLabel(binding))
+                    .studioText(.labelBold)
+                    .foregroundStyle(StudioTheme.text)
+            }
+        }
+    }
+
+    private func macroLabel(_ binding: TrackMacroBinding) -> String {
+        "M\(binding.slotIndex + 1) · \(binding.displayName)"
+    }
+
+    @ViewBuilder
+    private var mixerTab: some View {
+        TrackRoutingTabContent(
+            document: $document,
+            summary: routingPathSummary,
+            mode: .mixer,
             accent: accent
         )
     }
@@ -653,33 +707,15 @@ struct TrackSourceEditorView: View {
     }
 
     private var clipHistoryLiveRefreshKey: String {
-        guard selectedTab == .history, historyDisplayState.isAvailable else {
-            return "history-inactive"
-        }
-        return "history-\(track.id.uuidString)-\(selectedPatternIndex)"
+        "history-inactive"
     }
 
     @MainActor
     private func refreshClipHistoryWhileVisible() async {
-        guard selectedTab == .history, historyDisplayState.isAvailable else {
-            return
-        }
-
-        if clipHistoryModel?.trackID != track.id {
-            refreshClipHistoryModel()
-        }
-
-        while !Task.isCancelled {
-            updateClipHistoryLiveSnapshot()
-            try? await Task.sleep(for: .milliseconds(250))
-        }
+        return
     }
 
     private func updateClipHistoryLiveSnapshot() {
-        guard selectedTab == .history, historyDisplayState.isAvailable else {
-            return
-        }
-
         guard let model = clipHistoryModel else {
             refreshClipHistoryModel()
             return
@@ -1209,4 +1245,3 @@ final class ClipHistoryTransferViewModel {
         return endStep <= liveStart || startStep >= liveEnd
     }
 }
-

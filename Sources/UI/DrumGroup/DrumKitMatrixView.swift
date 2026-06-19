@@ -854,8 +854,8 @@ private struct DrumKitMatrixRowView: View {
     let onOpenPart: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            rowHeader
+        HStack(alignment: .center, spacing: 10) {
+            nameColumn
             stepRegion
         }
         .padding(StudioMetrics.Spacing.compact)
@@ -866,8 +866,10 @@ private struct DrumKitMatrixRowView: View {
         )
     }
 
-    private var rowHeader: some View {
-        HStack(spacing: 8) {
+    /// Part name + badges as a fixed-width column to the LEFT of the step grid,
+    /// rather than stacked on top, so more part rows are visible at once.
+    private var nameColumn: some View {
+        VStack(alignment: .leading, spacing: 4) {
             Button(action: onOpenPart) {
                 HStack(spacing: 5) {
                     Text(row.partName)
@@ -896,10 +898,9 @@ private struct DrumKitMatrixRowView: View {
                     .help("This part is on \(row.patternBadge), diverging from the group.")
             }
 
-            Spacer(minLength: 0)
-
             readOnlyBadge
         }
+        .frame(width: 132, alignment: .leading)
     }
 
     @ViewBuilder
