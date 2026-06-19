@@ -55,6 +55,8 @@ enum VisualScenarioCommandRunner {
     private static var libraryFixtureState = "none"
     private static var slicerFixtureState = "none"
     private static var slicerLayerState = SliceTrackClipLayer.steps.rawValue
+    private static var slicerTabState = "source"
+    private static var audioInputTabState = "source"
     private static var drumGroupRoutingEditorRenderedState = false
     private static var drumGroupRoutingEditorMode = "none"
     private static var drumGroupRoutingEditorCanApply = false
@@ -508,6 +510,7 @@ enum VisualScenarioCommandRunner {
         trackSourceTab=\(trackSourceTabState)
         slicerFixture=\(slicerFixtureState)
         slicerLayer=\(slicerLayerState)
+        slicerTab=\(slicerTabState)
         slicerSampleName=\(selectedSlicer.sampleName)
         slicerSliceCount=\(selectedSlicer.sliceCount)
         slicerClipStepCount=\(selectedSlicer.clipStepCount)
@@ -633,6 +636,7 @@ enum VisualScenarioCommandRunner {
         audioInputRouteState=\(selectedAudioInputRuntime.map(audioInputRouteStateLabel) ?? "none")
         audioInputMonitorMode=\(selectedAudioInputRuntime.map(audioInputMonitorModeLabel) ?? "none")
         audioInputActiveMonitorMode=\(selectedAudioInputRuntime.map(audioInputActiveMonitorModeLabel) ?? "none")
+        audioInputTab=\(audioInputTabState)
         audioInputIsSilent=\(selectedAudioInputRuntime?.isSilent ?? true)
         audioInputCanArm=\((selectedAudioInputRuntime?.routeState ?? .silentUnavailable) == .available)
         audioInputLivePeak=\(selectedAudioInputRuntime?.liveLevel.peak ?? 0)
@@ -1285,6 +1289,12 @@ enum VisualScenarioCommandRunner {
            SliceTrackClipLayer(rawValue: rawLayer) != nil {
             slicerLayerState = rawLayer
             postRepeatedVisualCommand(name: .sliceTrackWorkspaceVisualCommand, object: "layer:\(rawLayer)")
+        }
+
+        if let rawTab = command["slicerTab"],
+           ["source", "slice", "fx", "macros", "mixer"].contains(rawTab) {
+            slicerTabState = rawTab
+            postRepeatedVisualCommand(name: .sliceTrackWorkspaceVisualCommand, object: "tab:\(rawTab)")
         }
     }
 
@@ -2153,7 +2163,8 @@ enum VisualScenarioCommandRunner {
     ) {
         guard command["audioInputState"] != nil ||
               command["audioInputFixture"] != nil ||
-              command["audioInputAvailableChannels"] != nil
+              command["audioInputAvailableChannels"] != nil ||
+              command["audioInputTab"] != nil
         else { return }
 
         let requestedAudioInputState = command["audioInputState"] ?? command["audioInputFixture"]
@@ -2234,6 +2245,12 @@ enum VisualScenarioCommandRunner {
             section.wrappedValue = .tracks
         default:
             break
+        }
+
+        if let rawTab = command["audioInputTab"],
+           ["source", "fx", "macros", "mixer"].contains(rawTab) {
+            audioInputTabState = rawTab
+            postRepeatedVisualCommand(name: .audioInputTrackWorkspaceVisualCommand, object: "tab:\(rawTab)")
         }
     }
 

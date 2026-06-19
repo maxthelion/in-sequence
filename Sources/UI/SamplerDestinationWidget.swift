@@ -448,7 +448,7 @@ struct SamplerDestinationWidget: View {
     }
 }
 
-private struct SamplerParameterKnob: View {
+struct SamplerParameterKnob: View {
     let label: String
     let normalizedValue: Double
     let displayText: String

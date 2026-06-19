@@ -67,76 +67,164 @@ struct SliceInspectorView: View {
 
 struct SliceSamplePlayerParametersView: View {
     let markerIndex: Int
+    let sampleName: String
+    let sliceDetail: String
+    let waveformBuckets: [Float]
     @Binding var mode: SliceTriggerStepMode
     @Binding var parameters: SliceTriggerStepParameters
 
+    private let knobColumns = Array(repeating: GridItem(.flexible(), spacing: 12), count: 3)
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text("Parameters")
-                    .studioText(.subtitle)
-                    .foregroundStyle(StudioTheme.text)
-
-                Spacer()
-
-                Text(markerIndex == 0 ? "Whole Sample" : "S\(markerIndex)")
-                    .studioText(.labelBold)
-                    .foregroundStyle(StudioTheme.violet)
-            }
-
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(spacing: 10) {
-                    Text("Mode")
-                        .studioText(.eyebrow)
-                        .foregroundStyle(StudioTheme.mutedText)
-                        .frame(width: 72, alignment: .leading)
-
-                    Picker("Mode", selection: $mode) {
-                        Text("Single").tag(SliceTriggerStepMode.single)
-                        Text("Run").tag(SliceTriggerStepMode.runFromHere)
-                    }
-                    .pickerStyle(.segmented)
-                }
-
-                parameterRow(title: "Gain", value: gainBinding, range: -24...12) { value in
-                    String(format: "%+.1f dB", value)
-                }
-                parameterRow(title: "Pitch", value: pitchBinding, range: -12...12) { value in
-                    String(format: "%+.0f st", value)
-                }
-                parameterRow(title: "Start", value: startPercent, range: 0...99) { value in
-                    "\(Int(value.rounded()))%"
-                }
-                parameterRow(title: "End", value: endPercent, range: 1...100) { value in
-                    "\(Int(value.rounded()))%"
-                }
-                parameterRow(title: "Pan", value: panBinding, range: -1...1) { value in
-                    String(format: "%+.2f", value)
-                }
-                parameterRow(title: "Filter", value: filterBinding, range: 0...1) { value in
-                    "\(Int((value * 100).rounded()))%"
-                }
-                parameterRow(title: "Attack", value: attackBinding, range: 0...100) { value in
-                    "\(Int(value.rounded())) ms"
-                }
-                parameterRow(title: "Release", value: releaseBinding, range: 0...200) { value in
-                    "\(Int(value.rounded())) ms"
-                }
-
-                HStack(spacing: 10) {
-                    booleanButton(title: "Reverse", isOn: reverseBinding)
-                    booleanButton(title: "Choke", isOn: chokeBinding)
-                }
-            }
+        VStack(alignment: .leading, spacing: 0) {
+            header
+            divider
+            waveformSection
+            divider
+            knobSection
+            divider
+            playbackSection
         }
-        .padding(StudioMetrics.Spacing.standard)
-        // Colour identifies, it never floods (ux-canon rule 12): the panel is
-        // neutral; the violet lives in its outline.
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
                 .stroke(StudioTheme.violet.opacity(StudioOpacity.mediumStroke), lineWidth: StudioMetrics.borderWidth)
         )
+    }
+
+    private var header: some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(sampleName)
+                    .studioText(.subtitle)
+                    .foregroundStyle(StudioTheme.text)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+
+                Text("\(markerIndex == 0 ? "Whole Sample" : "S\(markerIndex)") • \(sliceDetail)")
+                    .studioText(.label)
+                    .foregroundStyle(StudioTheme.mutedText)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+            }
+
+            Spacer(minLength: 8)
+
+            StudioCircleIconButton(
+                systemName: "play.fill",
+                size: StudioMetrics.ControlSize.medium,
+                help: "Preview slice",
+                action: {}
+            )
+            .disabled(true)
+        }
+        .padding(StudioMetrics.Spacing.standard)
+    }
+
+    private var waveformSection: some View {
+        WaveformView(buckets: waveformBuckets)
+            .frame(height: 60)
+            .padding(StudioMetrics.Spacing.snug)
+            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip))
+            .overlay(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip).stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth))
+            .padding(StudioMetrics.Spacing.comfortable)
+    }
+
+    private var knobSection: some View {
+        LazyVGrid(columns: knobColumns, alignment: .leading, spacing: 16) {
+            SamplerParameterKnob(
+                label: "Start",
+                normalizedValue: parameters.startTrim,
+                displayText: percentLabel(parameters.startTrim)
+            ) { normalized in
+                updateStartTrim(normalized)
+            }
+
+            SamplerParameterKnob(
+                label: "Length",
+                normalizedValue: lengthNormalized,
+                displayText: percentLabel(lengthNormalized)
+            ) { normalized in
+                updateLength(normalized)
+            }
+
+            SamplerParameterKnob(
+                label: "Gain",
+                normalizedValue: normalizedGain,
+                displayText: gainLabel(parameters.gain)
+            ) { normalized in
+                updateDouble(\.gain, value: gainFromNormalized(normalized))
+            }
+
+            SamplerParameterKnob(
+                label: "Pitch",
+                normalizedValue: normalizedPitch,
+                displayText: pitchLabel(parameters.pitch)
+            ) { normalized in
+                updateDouble(\.pitch, value: pitchFromNormalized(normalized))
+            }
+
+            SamplerParameterKnob(
+                label: "Filter",
+                normalizedValue: parameters.filter,
+                displayText: percentLabel(parameters.filter)
+            ) { normalized in
+                updateDouble(\.filter, value: normalized)
+            }
+
+            SamplerParameterKnob(
+                label: "Pan",
+                normalizedValue: normalizedPan,
+                displayText: panLabel(parameters.pan)
+            ) { normalized in
+                updateDouble(\.pan, value: panFromNormalized(normalized))
+            }
+
+            SamplerParameterKnob(
+                label: "Attack",
+                normalizedValue: parameters.attackMs / 100,
+                displayText: msLabel(parameters.attackMs)
+            ) { normalized in
+                updateDouble(\.attackMs, value: Self.clamp(normalized, to: 0...1) * 100)
+            }
+
+            SamplerParameterKnob(
+                label: "Release",
+                normalizedValue: parameters.releaseMs / 200,
+                displayText: msLabel(parameters.releaseMs)
+            ) { normalized in
+                updateDouble(\.releaseMs, value: Self.clamp(normalized, to: 0...1) * 200)
+            }
+        }
+        .padding(StudioMetrics.Spacing.comfortable)
+    }
+
+    private var playbackSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            optionRow(
+                title: "Mode",
+                options: SliceTriggerStepMode.allCases,
+                selection: mode,
+                titleForOption: { option in
+                    switch option {
+                    case .single: return "Single"
+                    case .runFromHere: return "Run"
+                    }
+                },
+                onSelect: { mode = $0 }
+            )
+
+            HStack(spacing: 10) {
+                booleanButton(title: "Reverse", isOn: reverseBinding)
+                booleanButton(title: "Choke", isOn: chokeBinding)
+            }
+        }
+        .padding(StudioMetrics.Spacing.comfortable)
+    }
+
+    private var divider: some View {
+        Divider()
+            .overlay(StudioTheme.border.opacity(0.7))
     }
 
     private var gainBinding: Binding<Double> { parameterBinding(\.gain) }
@@ -148,50 +236,56 @@ struct SliceSamplePlayerParametersView: View {
     private var reverseBinding: Binding<Bool> { parameterBinding(\.reverse) }
     private var chokeBinding: Binding<Bool> { parameterBinding(\.choke) }
 
-    private var startPercent: Binding<Double> {
-        Binding(
-            get: { parameters.startTrim * 100 },
-            set: { value in
-                var next = parameters
-                let maxStart = max(0, 1 - next.endTrim - 0.01)
-                next.startTrim = min(max(value / 100, 0), maxStart)
-                parameters = next.clamped
-            }
-        )
+    private var lengthNormalized: Double {
+        max(0.01, 1 - parameters.startTrim - parameters.endTrim)
     }
 
-    private var endPercent: Binding<Double> {
-        Binding(
-            get: { (1 - parameters.endTrim) * 100 },
-            set: { value in
-                var next = parameters
-                let endRatio = min(max(value / 100, next.startTrim + 0.01), 1)
-                next.endTrim = min(max(1 - endRatio, 0), 0.99)
-                parameters = next.clamped
-            }
-        )
+    private var normalizedGain: Double {
+        Self.clamp((parameters.gain + 24) / 36, to: 0...1)
     }
 
-    private func parameterRow(
+    private var normalizedPitch: Double {
+        Self.clamp((parameters.pitch + 12) / 24, to: 0...1)
+    }
+
+    private var normalizedPan: Double {
+        Self.clamp((parameters.pan + 1) / 2, to: 0...1)
+    }
+
+    private func optionRow<Option: Hashable & Sendable>(
         title: String,
-        value: Binding<Double>,
-        range: ClosedRange<Double>,
-        formatter: @escaping (Double) -> String
+        options: [Option],
+        selection: Option,
+        titleForOption: @escaping (Option) -> String,
+        onSelect: @escaping (Option) -> Void
     ) -> some View {
-        HStack(spacing: 10) {
-            Text(title)
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title.uppercased())
                 .studioText(.eyebrow)
+                .tracking(0.8)
                 .foregroundStyle(StudioTheme.mutedText)
-                .frame(width: 72, alignment: .leading)
 
-            Slider(value: value, in: range)
-
-            Text(formatter(value.wrappedValue))
-                .studioText(.labelBold)
-                .foregroundStyle(StudioTheme.text)
-                .frame(width: 58, alignment: .trailing)
-                .lineLimit(1)
-                .minimumScaleFactor(0.75)
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 74), spacing: 8)], alignment: .leading, spacing: 8) {
+                ForEach(Array(options.enumerated()), id: \.offset) { _, option in
+                    Button(titleForOption(option)) {
+                        onSelect(option)
+                    }
+                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    .foregroundStyle(selection == option ? StudioTheme.text : StudioTheme.mutedText)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .frame(maxWidth: .infinity)
+                    .background(
+                        (selection == option ? StudioTheme.violet.opacity(0.18) : Color.white.opacity(StudioOpacity.subtleFill)),
+                        in: Capsule()
+                    )
+                    .overlay(
+                        Capsule()
+                            .stroke(selection == option ? StudioTheme.violet.opacity(0.7) : StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
+                    )
+                    .buttonStyle(.plain)
+                }
+            }
         }
     }
 
@@ -216,6 +310,62 @@ struct SliceSamplePlayerParametersView: View {
             )
         }
         .buttonStyle(.plain)
+    }
+
+    private func percentLabel(_ normalized: Double) -> String {
+        "\(Int((Self.clamp(normalized, to: 0...1) * 100).rounded()))%"
+    }
+
+    private func gainLabel(_ value: Double) -> String {
+        String(format: "%+.1f", value)
+    }
+
+    private func pitchLabel(_ value: Double) -> String {
+        String(format: "%+.0f", value)
+    }
+
+    private func panLabel(_ value: Double) -> String {
+        String(format: "%+.1f", value)
+    }
+
+    private func msLabel(_ value: Double) -> String {
+        "\(Int(value.rounded()))"
+    }
+
+    private func gainFromNormalized(_ normalized: Double) -> Double {
+        (Self.clamp(normalized, to: 0...1) * 36) - 24
+    }
+
+    private func pitchFromNormalized(_ normalized: Double) -> Double {
+        (Self.clamp(normalized, to: 0...1) * 24) - 12
+    }
+
+    private func panFromNormalized(_ normalized: Double) -> Double {
+        (Self.clamp(normalized, to: 0...1) * 2) - 1
+    }
+
+    private func updateStartTrim(_ normalized: Double) {
+        var next = parameters
+        let maxStart = max(0, 1 - next.endTrim - 0.01)
+        next.startTrim = min(max(normalized, 0), maxStart)
+        parameters = next.clamped
+    }
+
+    private func updateLength(_ normalized: Double) {
+        var next = parameters
+        let length = Self.clamp(normalized, to: 0.01...1)
+        next.endTrim = min(max(1 - next.startTrim - length, 0), 0.99)
+        parameters = next.clamped
+    }
+
+    private static func clamp(_ value: Double, to range: ClosedRange<Double>) -> Double {
+        min(max(value, range.lowerBound), range.upperBound)
+    }
+
+    private func updateDouble(_ keyPath: WritableKeyPath<SliceTriggerStepParameters, Double>, value: Double) {
+        var next = parameters
+        next[keyPath: keyPath] = value
+        parameters = next.clamped
     }
 
     private func parameterBinding(_ keyPath: WritableKeyPath<SliceTriggerStepParameters, Double>) -> Binding<Double> {

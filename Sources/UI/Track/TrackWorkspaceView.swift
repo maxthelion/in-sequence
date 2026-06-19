@@ -148,6 +148,7 @@ struct TrackWorkspaceView: View {
 
                 if track.trackType == .audioInput {
                     AudioInputRuntimePanel(
+                        document: $document,
                         track: track,
                         runtime: engineController.audioInputRuntime(for: track.id),
                         accent: sourceAccent
@@ -246,17 +247,18 @@ struct TrackWorkspaceView: View {
 
     @ViewBuilder
     private var trackNameEditor: some View {
+        let nameStyle: StudioTypography = (track.trackType == .audioInput || track.trackType == .slice) ? .title : .display
         if isEditingSelectedTrackName {
             TextField("Track Name", text: $draftTrackName)
                 .textFieldStyle(.roundedBorder)
                 .focused($trackNameFieldFocused)
-                .studioText(.display)
+                .studioText(nameStyle)
                 .onSubmit {
                     commitTrackName()
                 }
         } else {
             Text(track.name)
-                .studioText(.display)
+                .studioText(nameStyle)
                 .foregroundStyle(StudioTheme.text)
                 .lineLimit(1)
                 .truncationMode(.tail)
@@ -451,6 +453,7 @@ extension Notification.Name {
     static let trackPerformCaptureRenderedVisualState = Notification.Name("SequencerAITrackPerformCaptureRenderedVisualState")
     static let trackSourceEditorVisualCommand = Notification.Name("SequencerAITrackSourceEditorVisualCommand")
     static let sliceTrackWorkspaceVisualCommand = Notification.Name("SequencerAISliceTrackWorkspaceVisualCommand")
+    static let audioInputTrackWorkspaceVisualCommand = Notification.Name("SequencerAIAudioInputTrackWorkspaceVisualCommand")
     static let workspaceDetailVisualCommand = Notification.Name("SequencerAIWorkspaceDetailVisualCommand")
     static let scenesWorkspaceVisualCommand = Notification.Name("SequencerAIScenesWorkspaceVisualCommand")
 }
@@ -471,13 +474,42 @@ private extension Color {
     }
 }
 
+private enum AudioInputTrackDetailTab: String, CaseIterable, Identifiable {
+    case source
+    case fx
+    case macros
+    case mixer
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .source: return "Source"
+        case .fx: return "FX"
+        case .macros: return "Macros"
+        case .mixer: return "Mixer"
+        }
+    }
+
+    var subtitle: String {
+        switch self {
+        case .source: return "live or playback"
+        case .fx: return "insert chain"
+        case .macros: return "M1-M8"
+        case .mixer: return "bus + sends"
+        }
+    }
+}
+
 private struct AudioInputRuntimePanel: View {
+    @Binding var document: SeqAIDocument
     @Environment(SequencerDocumentSession.self) private var session
     @Environment(EngineController.self) private var engineController
     let track: StepSequenceTrack
     let runtime: EngineController.AudioInputTrackRuntime?
     let accent: Color
 
+    @State private var selectedTab: AudioInputTrackDetailTab = .source
     @State private var recordQuantize: EngineController.AudioInputRecordQuantize = .bar
     @State private var micAccess = AVCaptureDevice.authorizationStatus(for: .audio)
 
@@ -499,6 +531,29 @@ private struct AudioInputRuntimePanel: View {
 
     private var isArmedOrRecording: Bool {
         runtime?.armState == .armed || runtime?.armState == .recording
+    }
+
+    private var selectedPatternIndex: Int {
+        session.store.selectedPatternIndex(for: track.id)
+    }
+
+    private var occupiedPatternSlots: Set<Int> {
+        let bank = session.store.patternBank(for: track.id)
+        return Set(bank.slots.compactMap { slot in
+            guard let clip = session.store.clipEntry(id: slot.sourceRef.clipID),
+                  !clipIsEmpty(clip.content)
+            else {
+                return nil
+            }
+            return slot.slotIndex
+        })
+    }
+
+    private var selectedPatternIndexBinding: Binding<Int> {
+        Binding(
+            get: { session.store.selectedPatternIndex(for: track.id) },
+            set: { session.setSelectedPatternIndex($0, for: track.id) }
+        )
     }
 
     private var armButtonTitle: String {
@@ -523,94 +578,506 @@ private struct AudioInputRuntimePanel: View {
     }
 
     var body: some View {
-        StudioPanel(title: "Audio Input", accent: accent) {
-            VStack(alignment: .leading, spacing: 16) {
-                HStack(alignment: .bottom, spacing: 12) {
-                    Button {
-                        if isArmedOrRecording {
-                            session.cancelAudioInputArm(trackID: track.id)
-                        } else {
-                            session.armAudioInputTrack(trackID: track.id, quantize: recordQuantize)
-                        }
-                    } label: {
-                        Label(armButtonTitle, systemImage: isArmedOrRecording ? "stop.circle.fill" : "record.circle")
-                            .studioText(.labelBold)
-                            .frame(minWidth: 96)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(isArmedOrRecording ? StudioTheme.amber : accent)
-                    .disabled(!canArmInput && !isArmedOrRecording)
-                    .help(armHelp)
+        VStack(alignment: .leading, spacing: 10) {
+            StudioPanel(title: "Pattern", accent: accent, showsHeader: false) {
+                TrackPatternSlotPalette(
+                    selectedSlot: selectedPatternIndexBinding,
+                    occupiedSlots: occupiedPatternSlots,
+                    bypassState: .notApplicable,
+                    onBypassToggle: { _ in }
+                )
+            }
 
-                    statusLabel
+            audioInputTabBar
 
-                    Spacer(minLength: 12)
-
-                    StudioSegmentedControl(
-                        title: "Length",
-                        selection: recordBarsBinding,
-                        segments: StepSequenceTrack.allowedRecordBarLengths.sorted().map {
-                            StudioSegment(title: "\($0)", value: $0)
-                        },
-                        accent: accent
-                    )
-                    .frame(width: 150)
-
-                    StudioSegmentedControl(
-                        title: "Start",
-                        selection: $recordQuantize,
-                        segments: [
-                            StudioSegment(title: "Bar", value: .bar),
-                            StudioSegment(title: "Phrase", value: .phrase),
-                        ],
-                        accent: accent
-                    )
-                    .frame(width: 140)
-
-                    StudioSegmentedControl(
-                        title: "Monitor",
-                        selection: monitorBinding,
-                        segments: [
-                            StudioSegment(title: "Live", value: .input),
-                            // "Buffer" = the captured take; selectable only
-                            // once one exists (live is the only option
-                            // before that).
-                            StudioSegment(title: "Buffer", value: .loop, isEnabled: runtime?.hasRecordedLoop == true),
-                        ],
-                        accent: StudioTheme.amber
-                    )
-                    .frame(width: 140)
-
-                    StudioSegmentedControl(
-                        title: "Mode",
-                        selection: channelModeBinding,
-                        segments: [
-                            StudioSegment(title: "Mono", value: false),
-                            StudioSegment(title: "Stereo", value: true, isEnabled: availableChannels >= 1),
-                        ],
-                        accent: StudioTheme.cyan
-                    )
-                    .frame(width: 130)
-
-                    inputChannelPicker
+            Group {
+                switch selectedTab {
+                case .source:
+                    sourceTab
+                case .fx:
+                    fxTab
+                case .macros:
+                    macrosTab
+                case .mixer:
+                    mixerTab
                 }
-                .disabled(runtime == nil)
-
-                AudioInputSignalPanel(runtime: runtime, accent: runtime?.isSilent == true ? StudioTheme.mutedText : accent)
             }
         }
         .onAppear {
             refreshMicAccessStatus()
-            // Ask the OS directly — the system prompt is the only gate the
-            // user should ever see. (Harness/test runs are excluded inside
-            // the request helper, so unattended captures never block.)
-            Task { await requestMicrophoneAccessIfNeeded() }
         }
         // The user grants/revokes in System Settings and comes back: TCC
         // state changed behind our back, so re-read it whenever the app
         // becomes active again (a cached "denied" otherwise sticks forever).
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             refreshMicAccessStatus()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .audioInputTrackWorkspaceVisualCommand)) { notification in
+            guard let command = notification.object as? String else { return }
+            applyVisualCommand(command)
+        }
+    }
+
+    private var audioInputTabBar: some View {
+        HStack(spacing: 6) {
+            ForEach(AudioInputTrackDetailTab.allCases) { tab in
+                Button {
+                    selectedTab = tab
+                } label: {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(tab.title.uppercased())
+                            .studioText(.eyebrowBold)
+                            .foregroundStyle(selectedTab == tab ? StudioTheme.text : StudioTheme.mutedText)
+                        Text(tab.subtitle)
+                            .studioText(.micro)
+                            .foregroundStyle(StudioTheme.mutedText)
+                            .lineLimit(1)
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 46, alignment: .leading)
+                    .padding(.horizontal, 12)
+                    .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                            .stroke(selectedTab == tab ? accent.opacity(StudioOpacity.ghostStroke) : StudioTheme.border, lineWidth: selectedTab == tab ? 1.5 : 1)
+                    )
+                    .overlay(alignment: .bottom) {
+                        Rectangle()
+                            .fill(selectedTab == tab ? accent : Color.clear)
+                            .frame(height: 2)
+                            .padding(.horizontal, 10)
+                    }
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    private var sourceTab: some View {
+        StudioPanel(title: "Source", accent: accent, showsHeader: false) {
+            VStack(alignment: .leading, spacing: 16) {
+                HStack(alignment: .center, spacing: 12) {
+                    StudioSegmentedControl(
+                        title: "Mode",
+                        selection: monitorBinding,
+                        segments: [
+                            StudioSegment(title: "Live", value: .input),
+                            StudioSegment(title: "Playback", value: .loop, isEnabled: runtime?.hasRecordedLoop == true),
+                        ],
+                        accent: accent
+                    )
+                    .frame(width: 210)
+
+                    statusLabel
+
+                    Spacer()
+                }
+
+                switch monitorMode {
+                case .input:
+                    liveSourceContent
+                case .loop:
+                    playbackSourceContent
+                }
+            }
+        }
+    }
+
+    private var liveSourceContent: some View {
+        HStack(alignment: .top, spacing: 14) {
+            inputCard
+                .frame(width: 300)
+
+            recordCard
+                .frame(minWidth: 0, maxWidth: .infinity)
+
+            writeTargetCard
+                .frame(width: 280)
+        }
+    }
+
+    private var inputCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .center) {
+                Text("Audio Channel")
+                    .studioText(.eyebrowBold)
+                    .foregroundStyle(StudioTheme.mutedText)
+                Spacer()
+                Button("Configure") {}
+                    .buttonStyle(.borderless)
+                    .studioText(.microEmphasis)
+                    .foregroundStyle(StudioTheme.mutedText)
+                    .disabled(true)
+                    .help("Project-wide audio channel configuration is not yet modeled.")
+            }
+
+            inputChannelPicker
+
+            StudioSegmentedControl(
+                title: "Channel Mode",
+                selection: channelModeBinding,
+                segments: [
+                    StudioSegment(title: "Mono", value: false),
+                    StudioSegment(title: "Stereo", value: true, isEnabled: availableChannels >= 1),
+                ],
+                accent: StudioTheme.cyan
+            )
+
+            AudioInputLevelMeters(level: runtime?.liveLevel ?? .silent, accent: runtime?.isSilent == true ? StudioTheme.mutedText : accent)
+                .frame(height: 92)
+                .padding(10)
+                .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
+                        .stroke(StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
+                )
+        }
+        .padding(StudioMetrics.Spacing.standard)
+        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
+                .stroke(StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
+        )
+    }
+
+    private var recordCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Record")
+                .studioText(.eyebrowBold)
+                .foregroundStyle(StudioTheme.mutedText)
+
+            HStack(spacing: 10) {
+                Button {
+                    if isArmedOrRecording {
+                        session.cancelAudioInputArm(trackID: track.id)
+                    } else {
+                        session.armAudioInputTrack(trackID: track.id, quantize: recordQuantize)
+                    }
+                } label: {
+                    Label(armButtonTitle, systemImage: isArmedOrRecording ? "stop.circle.fill" : "record.circle")
+                        .studioText(.labelBold)
+                        .frame(minWidth: 112)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(isArmedOrRecording ? StudioTheme.amber : accent)
+                .disabled(!canArmInput && !isArmedOrRecording)
+                .help(armHelp)
+            }
+
+            HStack(alignment: .top, spacing: 14) {
+                StudioSegmentedControl(
+                    title: "Start",
+                    selection: $recordQuantize,
+                    segments: [
+                        StudioSegment(title: "Next Bar", value: .bar),
+                        StudioSegment(title: "Next Phrase", value: .phrase),
+                    ],
+                    accent: accent
+                )
+
+                StudioSegmentedControl(
+                    title: "Length",
+                    selection: recordBarsBinding,
+                    segments: StepSequenceTrack.allowedRecordBarLengths.sorted().map {
+                        StudioSegment(title: "\($0)", value: $0)
+                    },
+                    accent: accent
+                )
+            }
+        }
+        .padding(StudioMetrics.Spacing.standard)
+        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
+                .stroke(StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
+        )
+    }
+
+    private var writeTargetCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Write Target")
+                .studioText(.eyebrowBold)
+                .foregroundStyle(StudioTheme.mutedText)
+
+            writeTargetOption(title: "Rolling capture", subtitle: "Replace the live buffer.", isSelected: true, isEnabled: true)
+            writeTargetOption(title: "Replace saved buffer", subtitle: "Future saved take.", isSelected: false, isEnabled: false)
+            writeTargetOption(title: "New saved buffer", subtitle: "Name after capture.", isSelected: false, isEnabled: false)
+        }
+        .padding(StudioMetrics.Spacing.standard)
+        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
+                .stroke(StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
+        )
+    }
+
+    private func writeTargetOption(title: String, subtitle: String, isSelected: Bool, isEnabled: Bool) -> some View {
+        Button {} label: {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .studioText(.labelBold)
+                    .foregroundStyle(isEnabled ? StudioTheme.text : StudioTheme.mutedText.opacity(0.55))
+                Text(subtitle)
+                    .studioText(.micro)
+                    .foregroundStyle(StudioTheme.mutedText)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(10)
+            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                    .stroke(isSelected ? accent : StudioTheme.border.opacity(0.8), lineWidth: isSelected ? 1.5 : StudioMetrics.borderWidth)
+            )
+        }
+        .buttonStyle(.plain)
+        .disabled(!isEnabled)
+    }
+
+    private var playbackSourceContent: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .bottom, spacing: 12) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(runtime?.hasRecordedLoop == true ? "Rolling capture" : "No captured buffer")
+                        .studioText(.subtitle)
+                        .foregroundStyle(StudioTheme.text)
+                    Text("Selected pattern playback")
+                        .studioText(.micro)
+                        .foregroundStyle(StudioTheme.mutedText)
+                }
+
+                Spacer()
+
+                Button("Choose...") {}
+                    .buttonStyle(.borderless)
+                    .studioText(.microEmphasis)
+                    .disabled(true)
+                    .help("Saved buffer selection is not yet modeled.")
+            }
+
+            AudioInputSignalPanel(
+                runtime: runtime,
+                accent: runtime?.isSilent == true ? StudioTheme.mutedText : accent,
+                showsTitle: false
+            )
+        }
+    }
+
+    private var fxTab: some View {
+        StudioPanel(title: "FX", accent: StudioTheme.violet, showsHeader: false) {
+            HStack(spacing: 12) {
+                Button {
+                } label: {
+                    Label("+ FX", systemImage: "plus")
+                }
+                .buttonStyle(.bordered)
+                .disabled(true)
+
+                Text("Per-track audio channel inserts are reserved for the track-detail FX chain.")
+                    .studioText(.body)
+                    .foregroundStyle(StudioTheme.mutedText)
+            }
+        }
+    }
+
+    private var macrosTab: some View {
+        StudioPanel(title: "Macros", accent: StudioTheme.cyan, showsHeader: false) {
+            if track.macros.isEmpty {
+                StudioPlaceholderTile(title: "No Macros", detail: "Assign M1-M8 controls from routable parameters.", accent: StudioTheme.cyan)
+            } else {
+                MacroKnobRow(document: $document, trackID: track.id)
+            }
+        }
+    }
+
+    private var mixerTab: some View {
+        StudioPanel(title: "Mixer", accent: StudioTheme.success, showsHeader: false) {
+            audioChannelMixerContent
+        }
+    }
+
+    private var audioChannelMixerContent: some View {
+        HStack(alignment: .top, spacing: 14) {
+            audioChannelLevelCard
+                .frame(minWidth: 280, maxWidth: .infinity)
+
+            audioChannelOutputCard
+                .frame(width: 240)
+
+            audioChannelSendsCard
+                .frame(width: 220)
+        }
+        .padding(StudioMetrics.Spacing.standard)
+    }
+
+    private var audioChannelLevelCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 10) {
+                Text("Channel")
+                    .studioText(.eyebrowBold)
+                    .foregroundStyle(StudioTheme.mutedText)
+
+                Spacer()
+
+                Button {
+                    session.toggleTrackMute(trackID: track.id)
+                } label: {
+                    Label(track.mix.isMuted ? "Muted" : "Mute", systemImage: track.mix.isMuted ? "speaker.slash.fill" : "speaker.slash")
+                }
+                .buttonStyle(.bordered)
+                .tint(StudioTheme.amber)
+
+                Button {
+                    session.setTrackSoloed(!track.mix.isSoloed, trackID: track.id)
+                } label: {
+                    Label(track.mix.isSoloed ? "Soloed" : "Solo", systemImage: "headphones")
+                }
+                .buttonStyle(.bordered)
+                .tint(StudioTheme.amber)
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Text("LEVEL")
+                        .studioText(.micro)
+                        .tracking(0.8)
+                        .foregroundStyle(StudioTheme.mutedText)
+                    Spacer()
+                    Text(StudioLevelFormat.dBLabel(forLinear: track.mix.clampedLevel))
+                        .studioText(.microEmphasis)
+                        .foregroundStyle(StudioTheme.text)
+                }
+
+                Slider(value: mixBinding(\.level, range: 0...1), in: 0...1)
+                    .tint(StudioTheme.cyan)
+            }
+
+            StudioSlideControl(
+                value: track.mix.clampedPan,
+                accent: StudioTheme.violet,
+                leadingLabel: "PAN",
+                trailingLabel: StudioSlideControlModel.panLabel(for: track.mix.clampedPan),
+                help: "\(track.name) pan",
+                onChange: { setMixValue(\.pan, value: $0, range: -1...1) },
+                onEnd: {}
+            )
+        }
+        .padding(StudioMetrics.Spacing.standard)
+        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
+                .stroke(StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
+        )
+    }
+
+    private var audioChannelOutputCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Output")
+                .studioText(.eyebrowBold)
+                .foregroundStyle(StudioTheme.mutedText)
+
+            Menu {
+                Button("Master") {
+                    session.setTrackOutputBus(trackID: track.id, busID: nil)
+                }
+                ForEach(session.store.buses) { bus in
+                    Button(bus.name) {
+                        session.setTrackOutputBus(trackID: track.id, busID: bus.id)
+                    }
+                }
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "arrow.triangle.branch")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(StudioTheme.mutedText)
+                    Text(MixerRoutingDisplayModel.outputTitle(for: track, buses: session.store.buses))
+                        .studioText(.labelBold)
+                        .foregroundStyle(StudioTheme.text)
+                    Spacer()
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundStyle(StudioTheme.mutedText)
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 9)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                        .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+                )
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(StudioMetrics.Spacing.standard)
+        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
+                .stroke(StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
+        )
+    }
+
+    private var audioChannelSendsCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Sends")
+                .studioText(.eyebrowBold)
+                .foregroundStyle(StudioTheme.mutedText)
+
+            HStack(spacing: 18) {
+                audioChannelSendKnob(title: "A", value: track.mix.sendA, keyPath: \.sendA, accent: StudioTheme.cyan)
+                audioChannelSendKnob(title: "B", value: track.mix.sendB, keyPath: \.sendB, accent: StudioTheme.violet)
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .padding(StudioMetrics.Spacing.standard)
+        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
+                .stroke(StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
+        )
+    }
+
+    private func audioChannelSendKnob(
+        title: String,
+        value: Double,
+        keyPath: WritableKeyPath<TrackMixSettings, Double>,
+        accent: Color
+    ) -> some View {
+        StudioRotaryKnob(
+            title: title,
+            value: MixerSendDisplayModel.clamped(value),
+            range: TrackMixSettings.sendRange,
+            accent: accent,
+            size: 42,
+            format: { MixerSendDisplayModel.percentLabel(for: $0) },
+            onChange: { setMixValue(keyPath, value: $0, range: TrackMixSettings.sendRange) },
+            onLiveChange: { setMixValue(keyPath, value: $0, range: TrackMixSettings.sendRange) }
+        )
+    }
+
+    private func mixBinding(
+        _ keyPath: WritableKeyPath<TrackMixSettings, Double>,
+        range: ClosedRange<Double>
+    ) -> Binding<Double> {
+        Binding(
+            get: { track.mix[keyPath: keyPath] },
+            set: { setMixValue(keyPath, value: $0, range: range) }
+        )
+    }
+
+    private func setMixValue(
+        _ keyPath: WritableKeyPath<TrackMixSettings, Double>,
+        value: Double,
+        range: ClosedRange<Double>
+    ) {
+        var mix = track.mix
+        mix[keyPath: keyPath] = min(max(value, range.lowerBound), range.upperBound)
+        session.setTrackMix(trackID: track.id, mix: mix)
+    }
+
+    private func applyVisualCommand(_ command: String) {
+        let tabPrefix = "tab:"
+        if command.hasPrefix(tabPrefix),
+           let tab = AudioInputTrackDetailTab(rawValue: String(command.dropFirst(tabPrefix.count))) {
+            selectedTab = tab
         }
     }
 
@@ -646,18 +1113,6 @@ private struct AudioInputRuntimePanel: View {
         }
     }
 
-    private func requestMicrophoneAccessIfNeeded() async {
-        micAccess = AVCaptureDevice.authorizationStatus(for: .audio)
-        guard micAccess == .notDetermined else { return }
-        // The capture harness must never trigger a system permission dialog.
-        guard !VisualScenarioCommandRunner.isConfigured else { return }
-        let granted = await AVCaptureDevice.requestAccess(for: .audio)
-        micAccess = granted ? .authorized : .denied
-        if granted {
-            engineController.microphoneAccessChanged()
-        }
-    }
-
     private var channelRequirementLabel: String {
         let required = (runtime?.selectedInputChannel ?? track.inputChannel).requiredChannelCount
         return "\(required) CHANNEL\(required == 1 ? "" : "S")"
@@ -675,36 +1130,46 @@ private struct AudioInputRuntimePanel: View {
             : AudioInputChannel.monoOptions(channelCount: availableChannels)
 
         return VStack(alignment: .leading, spacing: 6) {
-            Text("INPUT")
-                .studioText(.eyebrow)
-                .foregroundStyle(StudioTheme.mutedText)
-
             Menu {
-                ForEach(Array(options.enumerated()), id: \.offset) { _, option in
-                    Button(option.label) {
-                        session.setAudioInputChannel(trackID: track.id, channel: option)
+                if options.isEmpty {
+                    Button("No inputs available") {}
+                        .disabled(true)
+                } else {
+                    ForEach(Array(options.enumerated()), id: \.offset) { _, option in
+                        Button(option.label) {
+                            session.setAudioInputChannel(trackID: track.id, channel: option)
+                        }
                     }
                 }
             } label: {
-                HStack(spacing: 6) {
-                    Text(selectedChannel.label)
-                        .studioText(.labelBold)
-                        .foregroundStyle(StudioTheme.text)
-                        .lineLimit(1)
+                HStack(spacing: 8) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Audio Channel A")
+                            .studioText(.labelBold)
+                            .foregroundStyle(StudioTheme.text)
+                            .lineLimit(1)
+                        Text("\(selectedChannel.label) · \(channelRequirementLabel.lowercased())")
+                            .studioText(.micro)
+                            .foregroundStyle(StudioTheme.mutedText)
+                            .lineLimit(1)
+                    }
+
+                    Spacer(minLength: 8)
+
                     Image(systemName: "chevron.down")
                         .font(.system(size: 9, weight: .bold))
-                        .foregroundStyle(StudioTheme.mutedText)
+                        .foregroundStyle(StudioTheme.text.opacity(0.75))
                 }
-                .padding(.horizontal, 10)
-                .frame(minWidth: 92, minHeight: 30)
+                .padding(.horizontal, 11)
+                .padding(.vertical, 8)
+                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
                 .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
-                        .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+                        .stroke(StudioTheme.border.opacity(0.95), lineWidth: StudioMetrics.borderWidth)
                 )
             }
             .menuStyle(.borderlessButton)
-            .disabled(options.isEmpty)
             .help(options.isEmpty ? "The interface reports no usable inputs" : "Choose the device input")
         }
     }
@@ -752,6 +1217,7 @@ private struct AudioInputRuntimePanel: View {
 private struct AudioInputSignalPanel: View {
     let runtime: EngineController.AudioInputTrackRuntime?
     let accent: Color
+    var showsTitle = true
 
     private var level: AudioInputLevelSnapshot {
         runtime?.liveLevel ?? .silent
@@ -796,17 +1262,19 @@ private struct AudioInputSignalPanel: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 10) {
-                Text(title.uppercased())
-                    .studioText(.eyebrow)
-                    .foregroundStyle(StudioTheme.mutedText)
-
-                Spacer()
-
-                if runtime?.armState == .recording {
-                    Text(progress.formatted(.percent.precision(.fractionLength(0))))
+            if showsTitle {
+                HStack(spacing: 10) {
+                    Text(title.uppercased())
                         .studioText(.eyebrow)
-                        .foregroundStyle(accent)
+                        .foregroundStyle(StudioTheme.mutedText)
+
+                    Spacer()
+
+                    if runtime?.armState == .recording {
+                        Text(progress.formatted(.percent.precision(.fractionLength(0))))
+                            .studioText(.eyebrow)
+                            .foregroundStyle(accent)
+                    }
                 }
             }
 

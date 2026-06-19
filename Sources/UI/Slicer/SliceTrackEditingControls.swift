@@ -17,7 +17,11 @@ enum SliceTrackLane: String, CaseIterable, Identifiable {
 
 enum SliceTrackClipLayer: String, CaseIterable, Identifiable {
     case steps
+    case sliceIndex
     case velocity
+    case playbackDirection
+    case noteRepeat
+    case gate
     case chance
 
     var id: String { rawValue }
@@ -25,8 +29,21 @@ enum SliceTrackClipLayer: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .steps: return "Steps"
+        case .sliceIndex: return "Slice"
         case .velocity: return "Velocity"
+        case .playbackDirection: return "Direction"
+        case .noteRepeat: return "Repeat"
+        case .gate: return "Gate"
         case .chance: return "Chance"
+        }
+    }
+
+    var isStepDragEditable: Bool {
+        switch self {
+        case .steps, .noteRepeat, .gate:
+            return false
+        case .sliceIndex, .velocity, .playbackDirection, .chance:
+            return true
         }
     }
 }
@@ -323,9 +340,9 @@ struct SliceStepStrip: View {
                             isSelected: selectedStepIndexes.contains(absoluteIndex),
                             content: contentProvider(absoluteIndex, state),
                             onTap: { onTap(absoluteIndex) },
-                            onDrag: activeLayer == .steps ? nil : { value in
+                            onDrag: activeLayer.isStepDragEditable ? { value in
                                 onValueDrag?(absoluteIndex, value)
-                            },
+                            } : nil,
                             onSelect: { onSelect(absoluteIndex) }
                         )
                     }

@@ -84,10 +84,14 @@ CAPTURES=$(cat <<'TABLE'
 23a-track-slicer-populated|workspace=track,selectedTrackType=slice,slicerFixture=populated,slicerSliceCount=8,slicerClipStepCount=16,slicerClipActiveStepCount=8,slicerLayer=steps|slicerFixture=populated;slicerLayer=steps;workspaceScroll=top;transport=stop
 23b-track-slicer-velocity-layer|workspace=track,selectedTrackType=slice,slicerFixture=populated,slicerSliceCount=8,slicerLayer=velocity|slicerFixture=populated;slicerLayer=velocity;workspaceScroll=bottom;transport=stop
 23c-track-slicer-chance-layer|workspace=track,selectedTrackType=slice,slicerFixture=populated,slicerSliceCount=8,slicerLayer=chance|slicerFixture=populated;slicerLayer=chance;workspaceScroll=bottom;transport=stop
+23d-track-slicer-source-tab|workspace=track,selectedTrackType=slice,slicerFixture=populated,slicerTab=source|slicerFixture=populated;slicerLayer=steps;slicerTab=source;workspaceScroll=bottom;transport=stop
+23e-track-slicer-slice-tab|workspace=track,selectedTrackType=slice,slicerFixture=populated,slicerTab=slice|slicerFixture=populated;slicerLayer=steps;slicerTab=slice;workspaceScroll=bottom;transport=stop
 24-audio-idle|workspace=track,selectedTrackType=audioInput|audioInputFixture=idle;audioInputAvailableChannels=0;transport=stop
 25-audio-live|workspace=track,audioInputArmState=idle|audioInputState=live;transport=stop
 26-audio-recording|workspace=track,audioInputArmState=recording|audioInputState=recording;transport=stop
 27-audio-loop-ready|workspace=track,audioInputArmState=hasLoop|audioInputState=completed;transport=stop
+27a-audio-source-tab|workspace=track,audioInputTab=source|audioInputState=live;audioInputTab=source;transport=stop
+27b-audio-mixer-tab|workspace=track,audioInputArmState=hasLoop,audioInputTab=mixer|audioInputState=completed;audioInputTab=mixer;transport=stop
 28-drum-part|workspace=track,drumPartHeaderVisible=true,drumTrackDefaultView=partEditor|drumPartHeaderFixture=kit;drumPartHeaderSelectedIndex=2;drumPartHeaderDiveIn=true;transport=stop
 28b-drum-track-default-kit|workspace=track,drumPartHeaderVisible=true,drumTrackDefaultView=kitMatrix,drumKitMatrixRenderedVisible=true|drumPartHeaderFixture=kit;drumPartHeaderSelectedIndex=2;transport=stop
 29-drum-kit-matrix|workspace=track,drumKitMatrixRenderedVisible=true,drumTrackDefaultView=kitMatrix,drumKitMatrixRenderedGroupPatternSlot=mixed|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixDisplayStepCount=16;transport=stop
