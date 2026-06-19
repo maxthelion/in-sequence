@@ -2089,6 +2089,7 @@ struct DrumKitMatrixView: View {
                         commitTap(row: row, stepIndex: index)
                     }
                 )
+                .frame(maxWidth: .infinity)
             }
         case let .readOnly(_, detail, _):
             Text(detail)
@@ -2584,7 +2585,12 @@ private struct DrumKitMatrixRowView<DetailPanel: View>: View {
             if isExpanded {
                 detailPanel()
             } else {
+                // Always fill the remaining row width so every layer renders the
+                // same full-width 16-column grid. Without this the value-bar
+                // (velocity/chance) cells let the LazyVGrid collapse to its
+                // intrinsic width and the row looks squashed.
                 stepRegion
+                    .frame(maxWidth: .infinity)
             }
         }
         .padding(StudioMetrics.Spacing.compact)
