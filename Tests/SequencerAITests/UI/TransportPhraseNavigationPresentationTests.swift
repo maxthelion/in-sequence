@@ -103,7 +103,6 @@ final class TransportPhraseNavigationPresentationTests: XCTestCase {
         PhraseModel(
             id: UUID(),
             name: name,
-            slotIndex: slotIndex,
             lengthBars: lengthBars,
             stepsPerBar: stepsPerBar,
             cells: []
