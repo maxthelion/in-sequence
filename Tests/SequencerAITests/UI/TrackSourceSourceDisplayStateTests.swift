@@ -4,23 +4,28 @@ import XCTest
 @testable import SequencerAI
 
 final class TrackSourceSourceDisplayStateTests: XCTestCase {
-    func test_editorTabsKeepHistoryAsTabPeer() {
+    func test_editorTabsUseSingleTrackDetailGrammar() {
         XCTAssertEqual(
             TrackSourceEditorTab.allCases.map(\.title),
-            ["Source", "Modifier", "History", "Routing"]
+            ["Steps/Clip", "Sound", "FX", "Macros", "Mixer"]
         )
-        XCTAssertEqual(TrackSourceEditorTab.history.id, "history")
-        XCTAssertEqual(TrackSourceEditorTab.routing.id, "routing")
+        XCTAssertEqual(TrackSourceEditorTab.stepsClip.id, "steps-clip")
+        XCTAssertEqual(TrackSourceEditorTab.sound.id, "sound")
+        XCTAssertEqual(TrackSourceEditorTab.mixer.id, "mixer")
     }
 
-    func test_routingTabIsSetupOnly() {
-        XCTAssertTrue(TrackSourceEditorTab.routing.isAvailable(in: .setup))
-        XCTAssertFalse(TrackSourceEditorTab.routing.isAvailable(in: .perform))
-        // The constantly-touched tabs stay present in both modes.
-        for tab in [TrackSourceEditorTab.source, .modifiers, .history] {
+    func test_detailTabsStayAvailableInSetupAndPerform() {
+        for tab in TrackSourceEditorTab.allCases {
             XCTAssertTrue(tab.isAvailable(in: .setup))
             XCTAssertTrue(tab.isAvailable(in: .perform))
         }
+    }
+
+    func test_visualCommandAliasesMapLegacySourceAndRoutingNames() {
+        XCTAssertEqual(TrackSourceEditorTab.tab(forVisualCommand: "source"), .stepsClip)
+        XCTAssertEqual(TrackSourceEditorTab.tab(forVisualCommand: "routing"), .mixer)
+        XCTAssertEqual(TrackSourceEditorTab.tab(forVisualCommand: "steps-clip"), .stepsClip)
+        XCTAssertEqual(TrackSourceEditorTab.tab(forVisualCommand: "sound"), .sound)
     }
 
     @MainActor
@@ -973,11 +978,13 @@ private struct ClipHistoryEvidenceSurface: View {
     var body: some View {
         ClipHistoryEvidenceShell {
             TrackSourceSlotWellTabBar(
-                selectedTab: .constant(.history),
+                selectedTab: .constant(.stepsClip),
                 sourceState: sourceState,
                 modifierState: .empty,
-                historyState: .liveCapture,
-                routingState: TrackSourceRoutingDisplayState(isAvailable: true, pillSummary: "AU Instrument → Master"),
+                routingState: TrackSourceRoutingDisplayState(
+                    pillSummary: "AU Instrument → Master",
+                    soundBadgeTitle: "AU Instrument"
+                ),
                 accent: StudioTheme.cyan
             )
 
@@ -1018,11 +1025,13 @@ private struct ClipHistoryDestinationEvidenceSurface: View {
             }
 
             TrackSourceSlotWellTabBar(
-                selectedTab: .constant(.history),
+                selectedTab: .constant(.stepsClip),
                 sourceState: .occupiedGenerator,
                 modifierState: .empty,
-                historyState: .liveCapture,
-                routingState: TrackSourceRoutingDisplayState(isAvailable: true, pillSummary: "AU Instrument → Master"),
+                routingState: TrackSourceRoutingDisplayState(
+                    pillSummary: "AU Instrument → Master",
+                    soundBadgeTitle: "AU Instrument"
+                ),
                 accent: StudioTheme.cyan
             )
 
@@ -1083,11 +1092,13 @@ private struct ClipHistoryUnavailableEvidenceSurface: View {
     var body: some View {
         ClipHistoryEvidenceShell {
             TrackSourceSlotWellTabBar(
-                selectedTab: .constant(.history),
+                selectedTab: .constant(.stepsClip),
                 sourceState: sourceState,
                 modifierState: .empty,
-                historyState: historyState,
-                routingState: TrackSourceRoutingDisplayState(isAvailable: true, pillSummary: "AU Instrument → Master"),
+                routingState: TrackSourceRoutingDisplayState(
+                    pillSummary: "AU Instrument → Master",
+                    soundBadgeTitle: "AU Instrument"
+                ),
                 accent: StudioTheme.cyan
             )
 

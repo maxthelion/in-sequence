@@ -3,6 +3,67 @@ import SwiftUI
 /// Matrix-wide step layer. The same layer set the single-track step editor
 /// offers for note-grid clips (`ClipEditorMode`): on/off triggers, velocity,
 /// and chance. Macro lanes are per-track bindings and stay single-track only.
+/// Kit-altitude tab bar (track-view IA, AC13/AC23). The tabs operate at
+/// KIT-BUS scope, distinct from the per-part FX/Macros/Mixer reached by
+/// diving into a single part. Capture + Perform are header buttons, NOT tabs.
+enum DrumKitTab: String, CaseIterable, Identifiable {
+    case matrix
+    case fx
+    case macros
+    case mixer
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .matrix:
+            return "Matrix"
+        case .fx:
+            return "FX"
+        case .macros:
+            return "Macros"
+        case .mixer:
+            return "Mixer"
+        }
+    }
+}
+
+/// Mini-tabs inside an EXPANDED part row (AC21). Mirrors the single-track
+/// detail tab order (Steps/Clip · Sound · FX · Macros · Mixer) but renders
+/// inline, scoped to the row's member track id — the user never leaves the
+/// kit matrix.
+enum DrumKitRowTab: String, CaseIterable, Identifiable {
+    case stepsClip
+    case sound
+    case fx
+    case macros
+    case mixer
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .stepsClip:
+            return "Steps/Clip"
+        case .sound:
+            return "Sound"
+        case .fx:
+            return "FX"
+        case .macros:
+            return "Macros"
+        case .mixer:
+            return "Mixer"
+        }
+    }
+}
+
+/// Identifiable wrapper so a member track id can drive `.sheet(item:)` for the
+/// expanded row's "+ FX" picker (UUID is not Identifiable on its own).
+private struct ExpandedFXTarget: Identifiable {
+    let memberID: UUID
+    var id: UUID { memberID }
+}
+
 enum DrumKitMatrixLayer: String, CaseIterable, Identifiable {
     case steps
     case velocity
@@ -149,6 +210,9 @@ struct DrumKitMatrixModel: Equatable {
     var staleMemberCount: Int
     /// Pattern slots where at least one member holds a non-empty source.
     var occupiedSlotIndexes: Set<Int>
+    /// The group's explicit pattern-link intent (AC17). Linking gangs pattern
+    /// slot selection only; mute/fill/macros stay per-part.
+    var isPatternLinked: Bool
 
     var memberCountLabel: String {
         "\(rows.count) part\(rows.count == 1 ? "" : "s")"
@@ -162,6 +226,13 @@ struct DrumKitMatrixModel: Equatable {
     var groupSelectedSlotIndex: Int? {
         guard let first = rows.first?.patternSlotIndex else { return nil }
         return rows.allSatisfy { $0.patternSlotIndex == first } ? first : nil
+    }
+
+    /// Structural divergence (AC20): the kit intends to be linked, but members
+    /// sit on different pattern slots, so the link is effectively broken until
+    /// re-linked. This is the condition that surfaces the one-click "Re-link".
+    var isLinkBroken: Bool {
+        isPatternLinked && groupSelectedSlotIndex == nil && rows.count > 1
     }
 
     init?(
@@ -199,6 +270,7 @@ struct DrumKitMatrixModel: Equatable {
         self.originatingPartID = originatingPartID
         self.displayStepCount = resolvedDisplayStepCount
         self.staleMemberCount = staleMemberCount
+        self.isPatternLinked = group.isPatternLinked
         self.rows = orderedMembers.map { track in
             let patternSlotIndex = selectedPhrase.patternIndex(for: track.id, layers: layers)
             let patternBank = Self.patternBank(
@@ -327,16 +399,50 @@ struct DrumKitMatrixView: View {
     let onBack: () -> Void
     let onSelectPart: (UUID) -> Void
 
-    @State private var displayStepCount = 16
+    /// Fixed 16-step grid; paging across bars replaces the old 16/32 toggle.
+    private static let stepsPerBar = 16
+    /// Which 16-step bar window is visible for every row in lockstep.
+    @State private var barPage = 0
     @State private var selectedLayer: DrumKitMatrixLayer = .steps
     @State private var isPresentingRoutingEditor = false
     @State private var isPresentingTemplateChooser = false
+    /// Which kit-bus tab is shown (Matrix · FX · Macros · Mixer). Ignored while
+    /// `isCaptureOpen` is true — Capture replaces the tab body (AC14 header).
+    @State private var kitTab: DrumKitTab = .matrix
+    /// Capture surface replaces the tab content; the Patterns row stays visible
+    /// above it so a captured set can be assigned to a slot (AC12/AC14).
+    @State private var isCaptureOpen = false
+    /// "+ FX" picker for the kit bus (AC23 kit FX).
+    @State private var isPresentingKitFX = false
+    /// Shared history selection length (AC15/AC16), in steps. ½/1/2/4 bars =
+    /// 8/16/32/64. Applies to EVERY member's window in lockstep.
+    @State private var historyLengthSteps = 16
+    /// Shared scrubber position (AC16): how many bars BACK from the live edge
+    /// the selection window sits. 0 == live (newest). Moves every member's
+    /// window in lockstep.
+    @State private var historyBarsBack = 0
+    /// Last save feedback shown in the history footer.
+    @State private var historySaveMessage: String?
+    /// AC15 audition: when true, every member's audition override is set to its
+    /// windowed pseudo-clip so the whole kit plays the selected window as its
+    /// clips. Cleared on toggle-off, capture close, and after a save.
+    @State private var isAuditioningCapture = false
+    /// Whether the save-slot picker (P1–P16) popover is shown (AC15 save).
+    @State private var isPresentingSaveSlotPicker = false
+    /// AC21 accordion: which part row is expanded inline (nil == all compact).
+    /// Transient UI state; expanding does not change link/pattern state.
+    @State private var expandedPartID: UUID?
+    /// Selected mini-tab inside the expanded row's inline detail panel.
+    @State private var expandedRowTab: DrumKitRowTab = .stepsClip
+    /// "+ FX" picker target for the expanded part's per-track FX chain (AC21
+    /// FX mini-tab). nil when closed. Wrapped so it can drive `.sheet(item:)`.
+    @State private var expandedFXTarget: ExpandedFXTarget?
 
     private var model: DrumKitMatrixModel? {
         DrumKitMatrixModel(
             groupID: navigationState.groupID,
             originatingPartID: navigationState.originatingPartID,
-            displayStepCount: displayStepCount,
+            displayStepCount: Self.stepsPerBar,
             tracks: session.store.tracks,
             trackGroups: session.store.trackGroups,
             layers: session.store.layers,
@@ -351,12 +457,58 @@ struct DrumKitMatrixView: View {
         Color(hex: model?.colorHex ?? "") ?? StudioTheme.success
     }
 
+    /// The kit's own bus, resolved from its members' `outputBusID` (kits route
+    /// to a dedicated bus by default). The first member with a resolvable bus
+    /// wins; nil means the kit is on Master / unrouted, in which case the FX
+    /// and Mixer tabs show an explanatory empty state. (AC23 kit-bus scope.)
+    private func kitBus(_ model: DrumKitMatrixModel) -> MixerBus? {
+        let buses = session.store.buses
+        let tracksByID = Dictionary(
+            uniqueKeysWithValues: session.store.tracks.map { ($0.id, $0) }
+        )
+        for row in model.rows {
+            guard let busID = tracksByID[row.memberID]?.outputBusID,
+                  let bus = buses.first(where: { $0.id == busID })
+            else { continue }
+            return bus
+        }
+        return nil
+    }
+
+    /// Longest editable/read-only row length, in steps, across the kit. Drives
+    /// how many 16-step bar pages the pager offers.
+    private func longestRowLength(_ model: DrumKitMatrixModel) -> Int {
+        var maxLength = Self.stepsPerBar
+        for row in model.rows {
+            switch row.content {
+            case let .editable(_, lengthSteps, steps):
+                maxLength = max(maxLength, max(lengthSteps, steps.count))
+            case let .readOnly(_, _, steps):
+                maxLength = max(maxLength, steps.count)
+            case .generator:
+                break
+            }
+        }
+        return maxLength
+    }
+
+    /// Number of 16-step bar pages, at least one.
+    private func barPageCount(_ model: DrumKitMatrixModel) -> Int {
+        let length = longestRowLength(model)
+        return max(1, (length + Self.stepsPerBar - 1) / Self.stepsPerBar)
+    }
+
+    /// `barPage` clamped to the valid range for the current model.
+    private func clampedPage(_ model: DrumKitMatrixModel) -> Int {
+        min(max(0, barPage), barPageCount(model) - 1)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             header
 
             if let model {
-                matrixContent(model)
+                kitBody(model)
             } else {
                 unavailableState
             }
@@ -419,16 +571,30 @@ struct DrumKitMatrixView: View {
                     .background(StudioTheme.stageFill)
             }
         }
+        .sheet(isPresented: $isPresentingKitFX) {
+            kitFXChooserSheet
+        }
         .onAppear {
             postRenderedVisualState(isVisible: true)
         }
         .onDisappear {
+            stopKitAudition()
             postRenderedVisualState(isVisible: false)
         }
-        .onChange(of: displayStepCount) {
+        .onChange(of: barPage) {
             postRenderedVisualState(isVisible: true)
         }
         .onChange(of: selectedLayer) {
+            postRenderedVisualState(isVisible: true)
+        }
+        .onChange(of: kitTab) {
+            postRenderedVisualState(isVisible: true)
+        }
+        .onChange(of: isCaptureOpen) {
+            if !isCaptureOpen {
+                stopKitAudition()
+                isPresentingSaveSlotPicker = false
+            }
             postRenderedVisualState(isVisible: true)
         }
         .onChange(of: isPresentingRoutingEditor) {
@@ -451,6 +617,16 @@ struct DrumKitMatrixView: View {
 
     private func postRenderedVisualState(isVisible: Bool) {
         let groupSlot = model?.groupSelectedSlotIndex
+        let expandedIndex: Int? = {
+            guard let model, let expandedPartID else { return nil }
+            return model.rows.firstIndex { $0.memberID == expandedPartID }
+        }()
+        let expandedSourceMode: String = {
+            guard isVisible, let model, let expandedPartID,
+                  let row = model.rows.first(where: { $0.memberID == expandedPartID })
+            else { return "none" }
+            return row.sourceMode.rawValue
+        }()
         NotificationCenter.default.post(
             name: .drumKitMatrixRenderedVisualState,
             object: nil,
@@ -458,11 +634,29 @@ struct DrumKitMatrixView: View {
                 "visible": isVisible,
                 "routingEditorVisible": isVisible && isPresentingRoutingEditor,
                 "templateChooserVisible": isVisible && isPresentingTemplateChooser,
-                "displayStepCount": displayStepCount,
+                "displayStepCount": Self.stepsPerBar,
+                "barPage": isVisible ? (model.map(clampedPage) ?? 0) : 0,
+                "barPageCount": isVisible ? (model.map(barPageCount) ?? 1) : 1,
                 "layer": isVisible ? selectedLayer.rawValue : "none",
                 "groupPatternSlot": isVisible ? (groupSlot.map { "\($0 + 1)" } ?? "mixed") : "none",
+                "patternLinked": isVisible && (model?.isPatternLinked ?? false),
+                "patternLinkBroken": isVisible && (model?.isLinkBroken ?? false),
                 "groupName": isVisible ? model?.groupName ?? "none" : "none",
                 "memberCount": isVisible ? model?.rows.count ?? 0 : 0,
+                "kitTab": isVisible ? (isCaptureOpen ? "capture" : kitTab.rawValue) : "none",
+                "captureOpen": isVisible && isCaptureOpen,
+                "kitFXChooserVisible": isVisible && isPresentingKitFX,
+                "historyLengthSteps": isVisible && isCaptureOpen ? historyLengthSteps : 0,
+                "historyBarsBack": isVisible && isCaptureOpen ? historyBarsBack : 0,
+                "historyWindow": isVisible && isCaptureOpen
+                    ? (historyBarsBack == 0 ? "live" : "\(historyBarsBack) back")
+                    : "none",
+                "historyAuditioning": isVisible && isCaptureOpen && isAuditioningCapture,
+                "historySaveSlotPickerVisible": isVisible && isCaptureOpen && isPresentingSaveSlotPicker,
+                "rowExpanded": isVisible && expandedIndex != nil,
+                "expandedPartIndex": isVisible ? (expandedIndex ?? -1) : -1,
+                "expandedRowTab": isVisible && expandedIndex != nil ? expandedRowTab.rawValue : "none",
+                "expandedSourceMode": expandedSourceMode,
             ]
         )
     }
@@ -499,22 +693,20 @@ struct DrumKitMatrixView: View {
                         .truncationMode(.tail)
                 }
 
-                Text("\(model?.memberCountLabel ?? "No parts") · \(displayStepCount) steps")
+                Text("\(model?.memberCountLabel ?? "No parts") · 16 steps/bar")
                     .studioText(.eyebrowBold)
                     .foregroundStyle(StudioTheme.mutedText)
             }
             .frame(minWidth: 180, maxWidth: .infinity, alignment: .leading)
 
-            stepDisplayPicker
-
-            headerActionButton(title: "Apply Template…", systemImage: "square.grid.2x2") {
-                isPresentingTemplateChooser = true
-            }
-            .help("Apply a pattern template into the selected group pattern slot")
-
-            headerActionButton(title: "Edit Routing", systemImage: "slider.horizontal.3") {
+            headerSecondaryButton(title: "Routing", systemImage: "slider.horizontal.3") {
                 isPresentingRoutingEditor = true
             }
+            .help("Edit the kit's trigger routing and destinations")
+
+            captureButton
+
+            performButton
         }
         .padding(StudioMetrics.Spacing.standard)
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.section, style: .continuous))
@@ -540,12 +732,21 @@ struct DrumKitMatrixView: View {
         .background(accent, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
     }
 
-    private var stepDisplayPicker: some View {
-        HStack(spacing: 4) {
-            stepDisplayButton(16)
-            stepDisplayButton(32)
+    /// Neutral header chip (Routing). Distinct from the accent-filled
+    /// `headerActionButton` so Capture/Perform read as the primary header pair.
+    private func headerSecondaryButton(
+        title: String,
+        systemImage: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Label(title, systemImage: systemImage)
+                .studioText(.labelBold)
         }
-        .padding(StudioMetrics.Spacing.hairline)
+        .buttonStyle(.plain)
+        .foregroundStyle(StudioTheme.text)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
@@ -553,39 +754,218 @@ struct DrumKitMatrixView: View {
         )
     }
 
-    private func stepDisplayButton(_ count: Int) -> some View {
+    /// Capture header button (AC13/AC14). Toggles the history surface that
+    /// replaces the tab content while the Patterns row stays visible. When
+    /// open it reads as selected (accent fill).
+    private var captureButton: some View {
         Button {
-            displayStepCount = count
+            isCaptureOpen.toggle()
         } label: {
-            Text("\(count)")
+            Label("Capture", systemImage: "smallcircle.filled.circle")
                 .studioText(.labelBold)
-                .frame(width: 34, height: 28)
-                .foregroundStyle(displayStepCount == count ? StudioTheme.background : StudioTheme.mutedText)
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(isCaptureOpen ? StudioTheme.background : StudioTheme.text)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
+        .background(
+            isCaptureOpen ? accent : Color.white.opacity(StudioOpacity.subtleFill),
+            in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                .stroke(isCaptureOpen ? Color.clear : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+        )
+        .help("Capture: open the kit history surface to save a coordinated clip set")
+        .accessibilityIdentifier("kit-capture")
+        .accessibilityLabel("Capture kit history")
+        .accessibilityValue(isCaptureOpen ? "Open" : "Closed")
+    }
+
+    /// Perform header button (AC13/AC22). Posts `.drumKitPerformRequested` with
+    /// the group id; the coordinator (WorkspaceDetailView) enters the reused
+    /// tracks-perform surface scoped to the kit's member tracks — no bespoke
+    /// perform surface.
+    private var performButton: some View {
+        Button {
+            NotificationCenter.default.post(
+                name: .drumKitPerformRequested,
+                object: navigationState.groupID
+            )
+        } label: {
+            Label("Perform", systemImage: "play.fill")
+                .studioText(.labelBold)
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(StudioTheme.background)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
+        .background(accent, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+        .help("Perform: open the phrase perform UI scoped to the whole kit")
+        .accessibilityIdentifier("kit-perform")
+        .accessibilityLabel("Perform kit")
+    }
+
+    /// Bar pager: one button per 16-step bar (1–16, 17–32, …), shown only when
+    /// the kit's longest row spans more than one bar. Selecting a page moves the
+    /// visible 16-step window for every part row in lockstep.
+    @ViewBuilder
+    private func barPager(_ model: DrumKitMatrixModel) -> some View {
+        let pageCount = barPageCount(model)
+        if pageCount > 1 {
+            let current = clampedPage(model)
+            HStack(spacing: 6) {
+                Text("BAR")
+                    .studioText(.eyebrow)
+                    .tracking(0.8)
+                    .foregroundStyle(StudioTheme.mutedText)
+
+                HStack(spacing: 4) {
+                    ForEach(0..<pageCount, id: \.self) { page in
+                        barPageButton(page, isSelected: page == current)
+                    }
+                }
+                .padding(3)
                 .background(
-                    (displayStepCount == count ? accent : Color.clear),
-                    in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                    Color.white.opacity(StudioOpacity.subtleFill),
+                    in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                        .stroke(StudioTheme.border.opacity(0.9), lineWidth: StudioMetrics.borderWidth)
+                )
+            }
+        }
+    }
+
+    private func barPageButton(_ page: Int, isSelected: Bool) -> some View {
+        let lower = page * Self.stepsPerBar + 1
+        let upper = (page + 1) * Self.stepsPerBar
+        let title = "\(lower)–\(upper)"
+
+        return Button {
+            barPage = page
+        } label: {
+            Text(title)
+                .studioText(.labelBold)
+                .foregroundStyle(isSelected ? StudioTheme.background : StudioTheme.text.opacity(0.78))
+                .lineLimit(1)
+                .frame(minWidth: 56, minHeight: 28)
+                .padding(.horizontal, 8)
+                .background(
+                    isSelected ? accent : Color.clear,
+                    in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
                 )
         }
         .buttonStyle(.plain)
-        .help("\(count)-step display")
+        .help("Show steps \(title)")
+        .accessibilityLabel("Bar \(title)")
+        .accessibilityValue(isSelected ? "Selected" : "Not selected")
+    }
+
+    /// Kit page layout (AC12/AC13/AC14): persistent Patterns row, then either
+    /// the Capture history surface (replaces the tabs) or the kit tab bar +
+    /// selected tab body. The Patterns row is ALWAYS above and stays visible
+    /// across every tab and during Capture.
+    @ViewBuilder
+    private func kitBody(_ model: DrumKitMatrixModel) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            if !model.rows.isEmpty {
+                persistentPatternsRow(model)
+            }
+
+            if isCaptureOpen {
+                captureHistoryBody(model)
+            } else {
+                kitTabBar
+                selectedKitTabBody(model)
+            }
+        }
+    }
+
+    /// Persistent Patterns row, framed as its own panel so it reads as a fixed
+    /// assignment surface above the tab bar (AC12).
+    private func persistentPatternsRow(_ model: DrumKitMatrixModel) -> some View {
+        StudioPanel(title: "Patterns", accent: accent) {
+            groupPatternRow(model)
+        }
+    }
+
+    /// Matrix · FX · Macros · Mixer (AC13). Hidden while Capture is open.
+    private var kitTabBar: some View {
+        HStack(spacing: 4) {
+            ForEach(DrumKitTab.allCases) { tab in
+                kitTabButton(tab)
+            }
+        }
+        .padding(3)
+        .background(
+            Color.white.opacity(StudioOpacity.subtleFill),
+            in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                .stroke(StudioTheme.border.opacity(0.9), lineWidth: StudioMetrics.borderWidth)
+        )
+    }
+
+    private func kitTabButton(_ tab: DrumKitTab) -> some View {
+        let isSelected = kitTab == tab
+        return Button {
+            kitTab = tab
+        } label: {
+            Text(tab.title)
+                .studioText(.labelBold)
+                .foregroundStyle(isSelected ? StudioTheme.background : StudioTheme.text.opacity(0.78))
+                .lineLimit(1)
+                .frame(minWidth: 72, minHeight: 30)
+                .padding(.horizontal, 10)
+                .background(
+                    isSelected ? accent : Color.clear,
+                    in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
+                )
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("kit-tab-\(tab.rawValue)")
+        .accessibilityLabel("Kit tab \(tab.title)")
+        .accessibilityValue(isSelected ? "Selected" : "Not selected")
     }
 
     @ViewBuilder
-    private func matrixContent(_ model: DrumKitMatrixModel) -> some View {
+    private func selectedKitTabBody(_ model: DrumKitMatrixModel) -> some View {
+        switch kitTab {
+        case .matrix:
+            matrixTabBody(model)
+        case .fx:
+            kitFXTabBody(model)
+        case .macros:
+            kitMacrosTabBody(model)
+        case .mixer:
+            kitMixerTabBody(model)
+        }
+    }
+
+    /// Matrix tab: the existing matrix content, minus the group pattern row
+    /// (which now lives in the persistent Patterns row above). (AC23)
+    @ViewBuilder
+    private func matrixTabBody(_ model: DrumKitMatrixModel) -> some View {
         StudioPanel(title: "Kit Matrix", accent: accent) {
             VStack(alignment: .leading, spacing: 12) {
-                if !model.rows.isEmpty {
-                    groupPatternRow(model)
-                }
-
                 HStack(spacing: 10) {
                     layerSelector
+
+                    barPager(model)
 
                     Spacer(minLength: 0)
 
                     if model.hasPatternMismatch {
                         mismatchBadge
                     }
+
+                    headerActionButton(title: "Apply Template…", systemImage: "square.grid.2x2") {
+                        isPresentingTemplateChooser = true
+                    }
+                    .help("Apply a pattern template into the selected group pattern slot")
                 }
 
                 if model.staleMemberCount > 0 {
@@ -601,6 +981,886 @@ struct DrumKitMatrixView: View {
         }
     }
 
+    // MARK: - Kit FX tab (AC23: insert chain on the kit's own bus)
+
+    /// FX tab: the insert chain on the kit's dedicated bus, so the inserts
+    /// process every part together. Reuses the existing per-bus insert model
+    /// (`MixerBusInsert`) + session mutations (`addMixerBusInsert` etc.).
+    @ViewBuilder
+    private func kitFXTabBody(_ model: DrumKitMatrixModel) -> some View {
+        StudioPanel(title: "Kit FX", eyebrow: kitFXEyebrow(model), accent: accent) {
+            if let bus = kitBus(model) {
+                KitBusFXChainView(
+                    inserts: bus.inserts,
+                    accent: accent,
+                    onAddFX: { isPresentingKitFX = true },
+                    onRemove: { insertID in
+                        session.removeMixerBusInsert(insertID, busID: bus.id)
+                    },
+                    onMove: { source, destination in
+                        moveKitBusInserts(bus: bus, from: source, to: destination)
+                    },
+                    onSetBypassed: { insertID, bypassed in
+                        session.updateMixerBusInsert(insertID, busID: bus.id) { insert in
+                            insert.isEnabled = !bypassed
+                        }
+                    }
+                )
+            } else {
+                kitBusUnavailableState
+            }
+        }
+    }
+
+    private func kitFXEyebrow(_ model: DrumKitMatrixModel) -> String {
+        if let bus = kitBus(model) {
+            return "Insert chain on \(bus.name) (whole kit)"
+        }
+        return "Kit bus unavailable"
+    }
+
+    /// `List.onMove` gives index-based moves; the bus session API reorders by an
+    /// explicit id list, so translate the move into the new ordering.
+    private func moveKitBusInserts(bus: MixerBus, from source: IndexSet, to destination: Int) {
+        var ids = bus.inserts.map(\.id)
+        ids.move(fromOffsets: source, toOffset: destination)
+        session.reorderMixerBusInserts(ids, busID: bus.id)
+    }
+
+    private var kitBusUnavailableState: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("This kit is not on a dedicated bus")
+                .studioText(.bodyEmphasis)
+                .foregroundStyle(StudioTheme.text)
+            Text("Route the kit to its own bus (Routing) to add kit-wide FX.")
+                .studioText(.body)
+                .foregroundStyle(StudioTheme.mutedText)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(StudioMetrics.Spacing.loose)
+    }
+
+    /// "+ FX" picker for the kit bus, mirroring the per-track Add FX sheet but
+    /// committing a `MixerBusInsert` to the kit's bus (AC23).
+    @ViewBuilder
+    private var kitFXChooserSheet: some View {
+        if let model, let bus = kitBus(model) {
+            let effects = engineController.availableAudioEffects
+            let busID = bus.id
+            StudioModal(
+                title: "Add Kit FX",
+                accent: accent,
+                minWidth: 360,
+                onClose: { isPresentingKitFX = false }
+            ) {
+                VStack(alignment: .leading, spacing: 8) {
+                    kitFXOptionButton(title: "Filter", systemName: "line.3.horizontal.decrease.circle") {
+                        session.addMixerBusInsert(.filter(), busID: busID)
+                        isPresentingKitFX = false
+                    }
+                    kitFXOptionButton(title: "Bitcrusher", systemName: "waveform.path.ecg") {
+                        session.addMixerBusInsert(.bitcrusher(), busID: busID)
+                        isPresentingKitFX = false
+                    }
+                }
+
+                Divider()
+                    .overlay(StudioTheme.border)
+
+                Text("AU Effect")
+                    .studioText(.micro)
+                    .tracking(0.8)
+                    .foregroundStyle(StudioTheme.mutedText)
+
+                if effects.isEmpty {
+                    Text("No AU effects found")
+                        .studioText(.body)
+                        .foregroundStyle(StudioTheme.mutedText)
+                } else {
+                    ScrollView {
+                        VStack(spacing: 6) {
+                            ForEach(effects.prefix(16)) { effect in
+                                kitFXOptionButton(title: effect.displayName, systemName: "slider.horizontal.3") {
+                                    session.addMixerBusInsert(.auEffect(effect), busID: busID)
+                                    isPresentingKitFX = false
+                                }
+                            }
+                        }
+                    }
+                    .frame(maxHeight: 220)
+                    .scrollContentBackground(.hidden)
+                }
+            }
+            .presentationBackground(.clear)
+            .environment(\.colorScheme, .dark)
+        } else {
+            Text("Kit bus unavailable")
+                .studioText(.body)
+                .foregroundStyle(StudioTheme.mutedText)
+                .padding(StudioMetrics.Spacing.page)
+                .background(StudioTheme.stageFill)
+        }
+    }
+
+    private func kitFXOptionButton(
+        title: String,
+        systemName: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: 10) {
+                Image(systemName: systemName)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(accent)
+                Text(title)
+                    .studioText(.labelBold)
+                    .foregroundStyle(StudioTheme.text)
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 9)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                    .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Kit Macros tab (AC23: M1–M8 across the kit / bus)
+
+    /// Macros tab: a styled M1–M8 surface reusing `AUMacroSlotKnob`. It mirrors
+    /// the originating part's macro bindings as a representative kit view.
+    /// STUBBED: full cross-part / bus macro wiring (sweeping one parameter
+    /// across every part at once) is a later slice; the knobs render the kit's
+    /// default mappings but do not yet drive every part — see report.
+    @ViewBuilder
+    private func kitMacrosTabBody(_ model: DrumKitMatrixModel) -> some View {
+        StudioPanel(title: "Kit Macros", eyebrow: "M1–M8 across the whole kit / its bus", accent: accent) {
+            let slots = kitMacroSlots(model)
+            LazyVGrid(columns: Self.macroColumns, alignment: .leading, spacing: 14) {
+                ForEach(slots) { slot in
+                    AUMacroSlotKnob(
+                        slotIndex: slot.slotIndex,
+                        binding: slot.binding,
+                        value: nil,
+                        onAssign: {},
+                        onChange: { _ in }
+                    )
+                }
+            }
+            .padding(.vertical, 4)
+        }
+    }
+
+    private static let macroColumns = Array(
+        repeating: GridItem(.flexible(), spacing: 14),
+        count: 4
+    )
+
+    /// Eight slots (M1–M8) seeded from the originating part's macro bindings so
+    /// the kit view reflects the seeded drum-part defaults (M1 dir / M2 len /
+    /// M3 cutoff). Unbound slots render as assignable knobs.
+    private func kitMacroSlots(_ model: DrumKitMatrixModel) -> [MacroSlot] {
+        let originating = session.store.tracks.first { $0.id == model.originatingPartID }
+        let bindings = originating?.macros ?? []
+        return (0..<8).map { slotIndex in
+            MacroSlot(
+                slotIndex: slotIndex,
+                binding: bindings.first { $0.slotIndex == slotIndex }
+            )
+        }
+    }
+
+    // MARK: - Kit Mixer tab (AC23: bus output + sends + per-part levels)
+
+    /// Mixer tab: the kit bus output (→ its destination) and a per-part level
+    /// row each (reusing `session.setTrackMix`). Send A/B and bus output
+    /// routing are shown as the bus summary; full bus-strip editing is reachable
+    /// from the global Mixer — see report for what is real vs summarized.
+    @ViewBuilder
+    private func kitMixerTabBody(_ model: DrumKitMatrixModel) -> some View {
+        StudioPanel(title: "Kit Mixer", eyebrow: "Bus output + per-part levels", accent: accent) {
+            VStack(alignment: .leading, spacing: 14) {
+                kitBusOutputRow(model)
+
+                Text("PER-PART LEVELS")
+                    .studioText(.eyebrow)
+                    .tracking(0.8)
+                    .foregroundStyle(StudioTheme.mutedText)
+
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(model.rows) { row in
+                        kitPartLevelRow(row)
+                    }
+                }
+            }
+        }
+    }
+
+    private func kitBusOutputRow(_ model: DrumKitMatrixModel) -> some View {
+        let bus = kitBus(model)
+        let outputTitle = bus.map { "→ \($0.name) → Master" } ?? "→ Master"
+        return HStack(spacing: 10) {
+            Text("BUS OUTPUT")
+                .studioText(.eyebrow)
+                .tracking(0.8)
+                .foregroundStyle(StudioTheme.mutedText)
+
+            Text(outputTitle)
+                .studioText(.labelBold)
+                .foregroundStyle(StudioTheme.text)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(accent.opacity(StudioOpacity.hoverFill), in: Capsule())
+
+            Spacer(minLength: 0)
+
+            kitSendBadge("A")
+            kitSendBadge("B")
+        }
+    }
+
+    private func kitSendBadge(_ label: String) -> some View {
+        Text("Send \(label)")
+            .studioText(.label)
+            .foregroundStyle(StudioTheme.mutedText)
+            .padding(.horizontal, 9)
+            .padding(.vertical, 5)
+            .background(Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
+            .overlay(
+                Capsule().stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+            )
+    }
+
+    private func kitPartLevelRow(_ row: DrumKitMatrixModel.Row) -> some View {
+        let track = session.store.tracks.first { $0.id == row.memberID }
+        let level = track?.mix.level ?? 0
+        let percent = Int((level * 100).rounded())
+        return HStack(spacing: 12) {
+            Text(row.partName)
+                .studioText(.labelBold)
+                .foregroundStyle(StudioTheme.text)
+                .lineLimit(1)
+                .frame(width: 120, alignment: .leading)
+
+            Slider(
+                value: kitPartLevelBinding(memberID: row.memberID, track: track),
+                in: 0...1
+            )
+            .tint(accent)
+
+            Text("\(percent)%")
+                .studioText(.micro)
+                .foregroundStyle(StudioTheme.mutedText)
+                .frame(width: 44, alignment: .trailing)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
+                .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+        )
+    }
+
+    private func kitPartLevelBinding(memberID: UUID, track: StepSequenceTrack?) -> Binding<Double> {
+        Binding(
+            get: { track?.mix.level ?? 0 },
+            set: { newValue in
+                guard var mix = session.store.tracks.first(where: { $0.id == memberID })?.mix else { return }
+                mix.level = newValue
+                session.setTrackMix(trackID: memberID, mix: mix)
+            }
+        )
+    }
+
+    // MARK: - Capture / History body (AC14/AC15/AC16)
+
+    /// One 16-step bar = the scrubber's quantum.
+    private static let historyStepsPerBar = 16
+    /// ½ / 1 / 2 / 4 bars, the shared selection-length options (AC16). Reuses
+    /// the single-track clip-history length set so the windows match.
+    private static let historyLengthOptions = PseudoClipState.supportedLengthSteps
+
+    /// Capture surface (AC14/AC15/AC16). Replaces the tab content while the
+    /// Patterns row stays above (AC12). Shows EVERY member's live rolling
+    /// buffer together, a shared scrubber that moves one selection window
+    /// across all parts in lockstep, and a "Save as clip set → slot" action
+    /// that writes each member's windowed selection into one coordinated set.
+    @ViewBuilder
+    private func captureHistoryBody(_ model: DrumKitMatrixModel) -> some View {
+        StudioPanel(title: "Capture · History", accent: accent) {
+            VStack(alignment: .leading, spacing: 14) {
+                captureHistoryHeader(model)
+                captureHistoryScrubber(model)
+                captureHistoryParts(model)
+                captureHistoryFooter(model)
+            }
+        }
+    }
+
+    private func captureHistoryHeader(_ model: DrumKitMatrixModel) -> some View {
+        HStack(spacing: 10) {
+            Button {
+                isCaptureOpen = false
+            } label: {
+                Label("Close capture", systemImage: "chevron.left")
+                    .studioText(.labelBold)
+                    .foregroundStyle(StudioTheme.text)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                            .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+                    )
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("kit-capture-close")
+            .accessibilityLabel("Close capture")
+
+            Spacer(minLength: 0)
+
+            captureAuditionButton(model)
+
+            historyLengthControl
+        }
+    }
+
+    /// Shared Preview/Audition toggle (AC15). When ON, sets every member's
+    /// audition override to its windowed pseudo-clip so the whole kit plays the
+    /// selected window as its clips; when OFF, clears every override. Reuses
+    /// `engineController.setAuditionOverride(_:for:)` per member.
+    private func captureAuditionButton(_ model: DrumKitMatrixModel) -> some View {
+        let on = isAuditioningCapture
+        return Button {
+            toggleKitAudition(model)
+        } label: {
+            Label(on ? "Auditioning" : "Audition", systemImage: on ? "stop.fill" : "play.fill")
+                .studioText(.labelBold)
+                .foregroundStyle(on ? StudioTheme.background : StudioTheme.text)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(
+                    on ? StudioTheme.success : Color.white.opacity(StudioOpacity.subtleFill),
+                    in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                        .stroke(on ? Color.clear : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+                )
+        }
+        .buttonStyle(.plain)
+        .help("Audition: play the selected window as the clips for every part")
+        .accessibilityIdentifier("kit-history-audition")
+        .accessibilityLabel("Audition kit history")
+        .accessibilityValue(on ? "On" : "Off")
+    }
+
+    /// Shared ½/1/2/4-bar selection-length control (AC16). Applies to every
+    /// member's window at once.
+    private var historyLengthControl: some View {
+        HStack(spacing: 8) {
+            Text("LENGTH")
+                .studioText(.eyebrow)
+                .tracking(0.8)
+                .foregroundStyle(StudioTheme.mutedText)
+
+            HStack(spacing: 4) {
+                ForEach(Self.historyLengthOptions, id: \.self) { option in
+                    historyLengthButton(option)
+                }
+            }
+            .padding(3)
+            .background(
+                Color.white.opacity(StudioOpacity.subtleFill),
+                in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                    .stroke(StudioTheme.border.opacity(0.9), lineWidth: StudioMetrics.borderWidth)
+            )
+        }
+    }
+
+    private func historyLengthButton(_ option: Int) -> some View {
+        let isSelected = historyLengthSteps == option
+        let title = ClipHistoryTransferViewModel.lengthLabel(for: option)
+        return Button {
+            historyLengthSteps = option
+            historySaveMessage = nil
+            refreshKitAuditionIfActive()
+            postRenderedVisualState(isVisible: true)
+        } label: {
+            Text(title)
+                .studioText(.labelBold)
+                .foregroundStyle(isSelected ? StudioTheme.background : StudioTheme.text.opacity(0.78))
+                .lineLimit(1)
+                .frame(minWidth: 52, minHeight: 26)
+                .padding(.horizontal, 6)
+                .background(
+                    isSelected ? accent : Color.clear,
+                    in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
+                )
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("kit-history-length-\(option)")
+        .accessibilityLabel("Selection length \(title)")
+        .accessibilityValue(isSelected ? "Selected" : "Not selected")
+    }
+
+    /// Shared scrubber/timeline (AC16). « steps the window back through the
+    /// rolling buffer, » steps it toward now, and Live jumps to the newest
+    /// window. The window position is shown ("live" vs "N back"). The same
+    /// window applies to every member row in lockstep.
+    private func captureHistoryScrubber(_ model: DrumKitMatrixModel) -> some View {
+        let maxBack = historyMaxBarsBack(model)
+        let back = min(historyBarsBack, maxBack)
+        return HStack(spacing: 10) {
+            Text("HISTORY")
+                .studioText(.eyebrow)
+                .tracking(0.8)
+                .foregroundStyle(StudioTheme.mutedText)
+
+            historyScrubButton(
+                systemImage: "chevron.left.2",
+                id: "kit-history-scrub-back",
+                label: "Scrub back in time",
+                enabled: back < maxBack
+            ) {
+                historyScrubBack(model)
+            }
+
+            historyScrubButton(
+                systemImage: "chevron.right.2",
+                id: "kit-history-scrub-forward",
+                label: "Scrub toward now",
+                enabled: back > 0
+            ) {
+                historyScrubForward()
+            }
+
+            Button {
+                historyJumpToLive()
+            } label: {
+                Label("Live", systemImage: "dot.radiowaves.left.and.right")
+                    .studioText(.labelBold)
+                    .foregroundStyle(back == 0 ? StudioTheme.background : StudioTheme.text)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(
+                        back == 0 ? accent : Color.white.opacity(StudioOpacity.subtleFill),
+                        in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                            .stroke(back == 0 ? Color.clear : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+                    )
+            }
+            .buttonStyle(.plain)
+            .help("Jump the selection window to the live edge (now)")
+            .accessibilityIdentifier("kit-history-live")
+            .accessibilityLabel("Jump to live")
+
+            if back > 0 {
+                Text("◂ \(back) bar\(back == 1 ? "" : "s") back")
+                    .studioText(.label)
+                    .foregroundStyle(StudioTheme.mutedText)
+                    .accessibilityIdentifier("kit-history-window")
+                    .accessibilityLabel("History window position")
+            }
+
+            Spacer(minLength: 0)
+        }
+    }
+
+    private func historyScrubButton(
+        systemImage: String,
+        id: String,
+        label: String,
+        enabled: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(.system(size: 12, weight: .bold))
+                .foregroundStyle(enabled ? StudioTheme.text : StudioTheme.mutedText)
+                .frame(width: 32, height: 30)
+                .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                        .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+                )
+        }
+        .buttonStyle(.plain)
+        .disabled(!enabled)
+        .help(label)
+        .accessibilityIdentifier(id)
+        .accessibilityLabel(label)
+    }
+
+    /// All members' windowed buffers, one compact strip each (AC15). Every
+    /// strip previews the SAME shared window resolved against that member's
+    /// own rolling snapshot, so the parts read together.
+    /// The length-defined window that will be written into the pattern — the
+    /// preview of what Save captures, distinct from the History scrubber above
+    /// (which navigates the rolling buffer). Reuses the single-track
+    /// `ClipHistoryPianoRollPreview` per part rather than a bespoke strip.
+    private func captureHistoryParts(_ model: DrumKitMatrixModel) -> some View {
+        let targetSlot = historyTargetSlotIndex(model)
+        let lengthLabel = ClipHistoryTransferViewModel.lengthLabel(for: historyLengthSteps)
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Text("SELECTION → P\(targetSlot + 1)")
+                    .studioText(.eyebrow)
+                    .tracking(0.8)
+                    .foregroundStyle(StudioTheme.mutedText)
+                Text("\(lengthLabel) that saves into the pattern")
+                    .studioText(.micro)
+                    .foregroundStyle(StudioTheme.mutedText)
+            }
+
+            ScrollView(.vertical) {
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(model.rows) { row in
+                        captureHistoryPartRow(row)
+                    }
+                }
+            }
+            .frame(maxHeight: 260)
+            .scrollIndicators(.never)
+        }
+    }
+
+    /// One part's longer-history row: the full rolling buffer drawn as a piano
+    /// roll, with the length-defined save-window highlighted via the reused
+    /// `ClipHistoryPianoRollPreview.selectionRange`.
+    private func captureHistoryPartRow(_ row: DrumKitMatrixModel.Row) -> some View {
+        HStack(spacing: 10) {
+            Text(row.partName)
+                .studioText(.labelBold)
+                .foregroundStyle(StudioTheme.text)
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .frame(width: 120, alignment: .leading)
+
+            ClipHistoryPianoRollPreview(
+                content: historyFullBufferContent(memberID: row.memberID),
+                gridSteps: historyDisplayedGridSteps(memberID: row.memberID),
+                liveFillStepIndex: nil,
+                accent: accent,
+                isTransportRunning: engineController.isRunning,
+                selectionRange: historySelectionRange(memberID: row.memberID)
+            )
+            .frame(height: 56)
+            .frame(maxWidth: .infinity)
+        }
+    }
+
+    private func captureHistoryFooter(_ model: DrumKitMatrixModel) -> some View {
+        HStack(spacing: 10) {
+            if let message = historySaveMessage {
+                Text(message)
+                    .studioText(.label)
+                    .foregroundStyle(StudioTheme.success)
+            }
+
+            Spacer(minLength: 0)
+
+            Button {
+                isPresentingSaveSlotPicker.toggle()
+            } label: {
+                Label("Save capture", systemImage: "tray.and.arrow.down")
+                    .studioText(.labelBold)
+                    .foregroundStyle(StudioTheme.background)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(accent, in: Capsule())
+            }
+            .buttonStyle(.plain)
+            .help("Save each part's windowed selection into a chosen pattern slot as one coordinated clip set")
+            .accessibilityIdentifier("kit-history-save")
+            .accessibilityLabel("Save kit capture")
+            .popover(isPresented: $isPresentingSaveSlotPicker, arrowEdge: .bottom) {
+                captureSaveSlotPicker(model)
+            }
+        }
+    }
+
+    /// Save-slot picker (AC15): a 4×4 grid of P1–P16 slot buttons. Picking a
+    /// slot saves each part's windowed selection into that slot as one
+    /// coordinated clip set. Occupied slots read with the accent border so the
+    /// user can see what is already assigned.
+    private func captureSaveSlotPicker(_ model: DrumKitMatrixModel) -> some View {
+        let occupied = model.occupiedSlotIndexes
+        return VStack(alignment: .leading, spacing: 10) {
+            Text("Save capture to slot")
+                .studioText(.labelBold)
+                .foregroundStyle(StudioTheme.text)
+            Text("Each part's selection saves into the chosen slot as one clip set.")
+                .studioText(.micro)
+                .foregroundStyle(StudioTheme.mutedText)
+
+            LazyVGrid(columns: captureSaveSlotColumns, spacing: 6) {
+                ForEach(0..<TrackPatternBank.slotCount, id: \.self) { slotIndex in
+                    captureSaveSlotButton(model, slotIndex: slotIndex, isOccupied: occupied.contains(slotIndex))
+                }
+            }
+        }
+        .padding(StudioMetrics.Spacing.comfortable)
+        .frame(width: 280)
+        .background(StudioTheme.stageFill)
+    }
+
+    private var captureSaveSlotColumns: [GridItem] {
+        Array(repeating: GridItem(.flexible(), spacing: 6), count: 4)
+    }
+
+    private func captureSaveSlotButton(
+        _ model: DrumKitMatrixModel,
+        slotIndex: Int,
+        isOccupied: Bool
+    ) -> some View {
+        let title = "P\(slotIndex + 1)"
+        return Button {
+            isPresentingSaveSlotPicker = false
+            saveKitHistoryClipSet(model, slotIndex: slotIndex)
+        } label: {
+            Text(title)
+                .studioText(.labelBold)
+                .foregroundStyle(StudioTheme.text)
+                .frame(maxWidth: .infinity, minHeight: 34)
+                .background(
+                    Color.white.opacity(StudioOpacity.subtleFill),
+                    in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                        .stroke(isOccupied ? accent : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+                )
+        }
+        .buttonStyle(.plain)
+        .help(isOccupied ? "\(title) (occupied) — save the capture here" : "Save the capture into \(title)")
+        .accessibilityIdentifier("kit-history-save-slot-\(slotIndex + 1)")
+        .accessibilityLabel("Save capture to \(title)")
+        .accessibilityValue(isOccupied ? "Occupied" : "Empty")
+    }
+
+    // MARK: - Kit history window math + save (AC15/AC16)
+
+    /// The slot a coordinated save targets: the shared group slot when members
+    /// agree, otherwise the first member's slot.
+    private func historyTargetSlotIndex(_ model: DrumKitMatrixModel) -> Int {
+        model.groupSelectedSlotIndex ?? model.rows.first?.patternSlotIndex ?? 0
+    }
+
+    /// How many whole bars back the scrubber can travel before running out of
+    /// buffer — bounded by the shortest member snapshot so the window stays
+    /// valid for EVERY part in lockstep.
+    private func historyMaxBarsBack(_ model: DrumKitMatrixModel) -> Int {
+        var minMaxSteps = Int.max
+        for row in model.rows {
+            let snapshot = engineController.captureSnapshot(trackID: row.memberID)
+            minMaxSteps = min(minMaxSteps, snapshot.maxSteps)
+        }
+        guard minMaxSteps != Int.max else { return 0 }
+        let usableSteps = max(0, minMaxSteps - historyLengthSteps)
+        return usableSteps / Self.historyStepsPerBar
+    }
+
+    /// Resolve the shared window's start offset into a member snapshot. Offset 0
+    /// is the buffer's oldest step; the live edge is `maxSteps - length`, and
+    /// each bar back subtracts one bar. Clamped so it never underflows.
+    private func historyWindowStartOffset(maxSteps: Int) -> Int {
+        let liveStart = max(0, maxSteps - historyLengthSteps)
+        let back = min(historyBarsBack, historyMaxBarsBackForSteps(maxSteps))
+        return max(0, liveStart - back * Self.historyStepsPerBar)
+    }
+
+    private func historyMaxBarsBackForSteps(_ maxSteps: Int) -> Int {
+        max(0, (maxSteps - historyLengthSteps)) / Self.historyStepsPerBar
+    }
+
+    /// The shared window's content materialized against one member's rolling
+    /// buffer (AC15/AC16). Reuses `PseudoClipState`, the same materializer the
+    /// single-track history uses.
+    private func historyWindowContent(memberID: UUID) -> ClipContent? {
+        let snapshot = engineController.captureSnapshot(trackID: memberID)
+        guard !snapshot.isEmpty else { return nil }
+        return PseudoClipState.materialize(
+            sourceTrackID: memberID,
+            from: snapshot,
+            startStep: historyWindowStartOffset(maxSteps: snapshot.maxSteps),
+            lengthSteps: historyLengthSteps
+        ).noteGrid
+    }
+
+    /// How many steps of a member's rolling buffer to display behind the
+    /// selection window — the longer history. Capped so the row stays readable;
+    /// matched to what the single-track Recent Output covers (8 cells × the
+    /// per-cell step count).
+    private static let historyDisplayedBufferCap =
+        ClipHistoryTransferViewModel.sourceCellCount * ClipHistoryTransferViewModel.stepsPerCell
+
+    /// Number of buffer steps shown for a member: the snapshot's available
+    /// steps, capped to keep the row readable.
+    private func historyDisplayedBufferSteps(maxSteps: Int) -> Int {
+        max(historyLengthSteps, min(maxSteps, Self.historyDisplayedBufferCap))
+    }
+
+    /// The FULL displayed buffer for a member (the longer history), materialized
+    /// against the tail of its rolling snapshot. Reuses `PseudoClipState`, the
+    /// same materializer the windowed selection uses.
+    private func historyFullBufferContent(memberID: UUID) -> ClipContent? {
+        let snapshot = engineController.captureSnapshot(trackID: memberID)
+        guard !snapshot.isEmpty else { return nil }
+        let displayed = historyDisplayedBufferSteps(maxSteps: snapshot.maxSteps)
+        let bufferStart = max(0, snapshot.maxSteps - displayed)
+        return PseudoClipState.materialize(
+            sourceTrackID: memberID,
+            from: snapshot,
+            startStep: bufferStart,
+            lengthSteps: displayed
+        ).noteGrid
+    }
+
+    /// The save-window's step columns within the DISPLAYED buffer for a member:
+    /// `[windowStart, windowStart + length)` re-based onto the shown buffer so
+    /// the highlight lines up with `historyFullBufferContent`.
+    private func historySelectionRange(memberID: UUID) -> Range<Int> {
+        let snapshot = engineController.captureSnapshot(trackID: memberID)
+        guard !snapshot.isEmpty else { return 0..<historyLengthSteps }
+        let displayed = historyDisplayedBufferSteps(maxSteps: snapshot.maxSteps)
+        let bufferStart = max(0, snapshot.maxSteps - displayed)
+        let windowStart = historyWindowStartOffset(maxSteps: snapshot.maxSteps)
+        let relativeStart = max(0, windowStart - bufferStart)
+        let relativeEnd = min(displayed, relativeStart + historyLengthSteps)
+        return relativeStart..<max(relativeStart, relativeEnd)
+    }
+
+    /// Number of grid columns the full-buffer preview should draw for a member.
+    private func historyDisplayedGridSteps(memberID: UUID) -> Int {
+        let snapshot = engineController.captureSnapshot(trackID: memberID)
+        guard !snapshot.isEmpty else { return historyLengthSteps }
+        return historyDisplayedBufferSteps(maxSteps: snapshot.maxSteps)
+    }
+
+    private func historyScrubBack(_ model: DrumKitMatrixModel) {
+        let maxBack = historyMaxBarsBack(model)
+        guard historyBarsBack < maxBack else { return }
+        historyBarsBack += 1
+        historySaveMessage = nil
+        refreshKitAuditionIfActive()
+        postRenderedVisualState(isVisible: true)
+    }
+
+    private func historyScrubForward() {
+        guard historyBarsBack > 0 else { return }
+        historyBarsBack -= 1
+        historySaveMessage = nil
+        refreshKitAuditionIfActive()
+        postRenderedVisualState(isVisible: true)
+    }
+
+    private func historyJumpToLive() {
+        historyBarsBack = 0
+        historySaveMessage = nil
+        refreshKitAuditionIfActive()
+        postRenderedVisualState(isVisible: true)
+    }
+
+    // MARK: - Kit capture audition (AC15)
+
+    private func toggleKitAudition(_ model: DrumKitMatrixModel) {
+        if isAuditioningCapture {
+            stopKitAudition(model)
+        } else {
+            startKitAudition(model)
+        }
+    }
+
+    /// Set every member's audition override to its windowed pseudo-clip so the
+    /// whole kit plays the selected window as its clips.
+    private func startKitAudition(_ model: DrumKitMatrixModel) {
+        for row in model.rows {
+            applyMemberAuditionOverride(memberID: row.memberID)
+        }
+        isAuditioningCapture = true
+        postRenderedVisualState(isVisible: true)
+    }
+
+    /// Clear every member's audition override.
+    private func stopKitAudition(_ model: DrumKitMatrixModel) {
+        for row in model.rows {
+            engineController.setAuditionOverride(nil, for: row.memberID)
+        }
+        isAuditioningCapture = false
+        postRenderedVisualState(isVisible: true)
+    }
+
+    /// Clear all overrides without needing the model (capture close / disappear).
+    private func stopKitAudition() {
+        guard isAuditioningCapture else { return }
+        if let model {
+            for row in model.rows {
+                engineController.setAuditionOverride(nil, for: row.memberID)
+            }
+        }
+        isAuditioningCapture = false
+    }
+
+    /// Re-apply overrides for the current window when the selection moves while
+    /// auditioning, so the playing clips track the scrubber/length.
+    private func refreshKitAuditionIfActive() {
+        guard isAuditioningCapture, let model else { return }
+        for row in model.rows {
+            applyMemberAuditionOverride(memberID: row.memberID)
+        }
+    }
+
+    private func applyMemberAuditionOverride(memberID: UUID) {
+        let snapshot = engineController.captureSnapshot(trackID: memberID)
+        guard !snapshot.isEmpty else {
+            engineController.setAuditionOverride(nil, for: memberID)
+            return
+        }
+        let state = PseudoClipState.materialize(
+            sourceTrackID: memberID,
+            from: snapshot,
+            startStep: historyWindowStartOffset(maxSteps: snapshot.maxSteps),
+            lengthSteps: historyLengthSteps
+        )
+        engineController.setAuditionOverride(state, for: memberID)
+    }
+
+    /// Save the shared window for EVERY member into one coordinated clip set at
+    /// the same pattern slot (AC15). Reuses the single-track save-to-slot path
+    /// (`saveMaterializedClipToPatternSlot`) once per member, targeting the
+    /// identical slot index so the result is one assignable set.
+    private func saveKitHistoryClipSet(_ model: DrumKitMatrixModel, slotIndex: Int) {
+        var savedCount = 0
+        for row in model.rows {
+            guard let content = historyWindowContent(memberID: row.memberID) else { continue }
+            let clipID = session.saveMaterializedClipToPatternSlot(
+                trackID: row.memberID,
+                slotIndex: slotIndex,
+                content: content,
+                name: "Kit Capture P\(slotIndex + 1)"
+            )
+            if clipID != nil { savedCount += 1 }
+        }
+        if savedCount > 0 {
+            historySaveMessage = "Saved \(savedCount) part\(savedCount == 1 ? "" : "s") to P\(slotIndex + 1)"
+        } else {
+            historySaveMessage = "Nothing to capture yet — play the kit first."
+        }
+        stopKitAudition()
+        postRenderedVisualState(isVisible: true)
+    }
+
     /// Group-level 1–16 pattern row, styled like a track's pattern selector.
     /// Selecting slot N fans the existing per-track pattern switch out to
     /// every member; a mixed state (no selected slot) renders when members
@@ -613,16 +1873,16 @@ struct DrumKitMatrixView: View {
                     .tracking(0.8)
                     .foregroundStyle(StudioTheme.mutedText)
 
-                if model.groupSelectedSlotIndex == nil {
-                    Text("MIXED")
-                        .studioText(.microEmphasis)
-                        .tracking(0.6)
-                        .foregroundStyle(StudioTheme.background)
-                        .padding(.horizontal, 7)
-                        .padding(.vertical, 3)
-                        .background(StudioTheme.amber, in: Capsule())
-                        .help("Members are on different pattern slots. Selecting a slot realigns every part.")
+                linkToggle(model)
+
+                if model.isLinkBroken {
+                    mixedBadge
+                    reLinkButton
+                } else if model.groupSelectedSlotIndex == nil && model.rows.count > 1 {
+                    mixedBadge
                 }
+
+                Spacer(minLength: 0)
             }
 
             TrackPatternSlotPalette(
@@ -632,6 +1892,78 @@ struct DrumKitMatrixView: View {
                 onBypassToggle: { _ in }
             )
         }
+    }
+
+    /// Explicit pattern-link toggle (AC17). Linked ⛓ gangs slot selection only;
+    /// mute/fill/macros stay per-part. The pill reflects and flips the group's
+    /// persisted `isPatternLinked`.
+    private func linkToggle(_ model: DrumKitMatrixModel) -> some View {
+        let linked = model.isPatternLinked
+        let title = linked ? "Linked" : "Unlinked"
+        let symbol = linked ? "link" : "link.badge.plus"
+        return Button {
+            session.setDrumGroupPatternLinked(!linked, groupID: navigationState.groupID)
+        } label: {
+            HStack(spacing: 5) {
+                Image(systemName: symbol)
+                    .font(.system(size: 10, weight: .bold))
+                Text(title)
+                    .studioText(.microEmphasis)
+                    .tracking(0.6)
+            }
+            .foregroundStyle(linked ? StudioTheme.background : StudioTheme.text)
+            .padding(.horizontal, 9)
+            .padding(.vertical, 4)
+            .background(
+                linked ? accent : Color.white.opacity(StudioOpacity.subtleFill),
+                in: Capsule()
+            )
+            .overlay(
+                Capsule().stroke(linked ? Color.clear : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+            )
+        }
+        .buttonStyle(.plain)
+        .help(linked
+            ? "Linked: selecting a group pattern switches every part to that slot. Mute, fill, and macros stay per-part."
+            : "Unlinked: each part keeps its own pattern slot.")
+        .accessibilityIdentifier("kit-link-toggle")
+        .accessibilityLabel("Pattern linking")
+        .accessibilityValue(linked ? "Linked" : "Unlinked")
+    }
+
+    private var mixedBadge: some View {
+        Text("MIXED")
+            .studioText(.microEmphasis)
+            .tracking(0.6)
+            .foregroundStyle(StudioTheme.background)
+            .padding(.horizontal, 7)
+            .padding(.vertical, 3)
+            .background(StudioTheme.amber, in: Capsule())
+            .help("Members are on different pattern slots. Re-link realigns every part.")
+    }
+
+    /// One-click re-link (AC20). Re-gangs every member to the representative
+    /// slot and restores the link; no modal, no pattern fork.
+    private var reLinkButton: some View {
+        Button {
+            session.reLinkDrumGroupPattern(groupID: navigationState.groupID)
+        } label: {
+            HStack(spacing: 5) {
+                Image(systemName: "arrow.triangle.merge")
+                    .font(.system(size: 10, weight: .bold))
+                Text("Re-link")
+                    .studioText(.microEmphasis)
+                    .tracking(0.6)
+            }
+            .foregroundStyle(StudioTheme.background)
+            .padding(.horizontal, 9)
+            .padding(.vertical, 4)
+            .background(accent, in: Capsule())
+        }
+        .buttonStyle(.plain)
+        .help("Re-link: switch every part back to a shared pattern slot.")
+        .accessibilityIdentifier("kit-relink")
+        .accessibilityLabel("Re-link kit patterns")
     }
 
     private func groupPatternSlotBinding(_ model: DrumKitMatrixModel) -> Binding<Int> {
@@ -730,28 +2062,566 @@ struct DrumKitMatrixView: View {
     }
 
     private func matrixRows(_ model: DrumKitMatrixModel) -> some View {
-        ScrollView(.vertical) {
+        let pageOffset = clampedPage(model) * Self.stepsPerBar
+        return ScrollView(.vertical) {
             VStack(alignment: .leading, spacing: 10) {
                 ForEach(model.rows) { row in
                     DrumKitMatrixRowView(
                         row: row,
                         layer: selectedLayer,
-                        displayStepCount: displayStepCount,
+                        pageOffset: pageOffset,
+                        stepsPerBar: Self.stepsPerBar,
                         accent: accent,
+                        isExpanded: expandedPartID == row.memberID,
                         onTapStep: { stepIndex in
                             commitTap(row: row, stepIndex: stepIndex)
                         },
                         onDragStep: { stepIndex, fraction in
                             commitDrag(row: row, stepIndex: stepIndex, fraction: fraction)
                         },
-                        onOpenPart: {
-                            onSelectPart(row.memberID)
+                        onToggleExpand: {
+                            toggleExpand(memberID: row.memberID)
+                        },
+                        detailPanel: {
+                            expandedRowDetail(row)
                         }
                     )
                 }
             }
         }
         .scrollIndicators(.never)
+    }
+
+    /// Toggle a row's inline accordion (AC21). Resets the mini-tab to Steps/Clip
+    /// on a fresh expand so the row always opens on the same surface.
+    private func toggleExpand(memberID: UUID) {
+        if expandedPartID == memberID {
+            expandedPartID = nil
+        } else {
+            expandedPartID = memberID
+            expandedRowTab = .stepsClip
+        }
+        postRenderedVisualState(isVisible: true)
+    }
+
+    // MARK: - Inline expanded-row detail panel (AC21)
+
+    /// The inline detail panel that opens to the RIGHT of the part name when a
+    /// row is expanded. Reuses the single-track detail surfaces, scoped to the
+    /// member's track id: mini-tab bar + selected tab body + "Open full editor".
+    /// Kept compact: each tab body is its own helper so the type-checker never
+    /// faces one giant view-builder expression.
+    @ViewBuilder
+    private func expandedRowDetail(_ row: DrumKitMatrixModel.Row) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            expandedRowHeader(row)
+            expandedRowTabBar
+            expandedRowTabBody(row)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .sheet(item: $expandedFXTarget) { target in
+            expandedFXChooserSheet(memberID: target.memberID)
+        }
+    }
+
+    private func expandedRowHeader(_ row: DrumKitMatrixModel.Row) -> some View {
+        HStack(spacing: 10) {
+            Text("\(row.partName) — inline part controls")
+                .studioText(.labelBold)
+                .foregroundStyle(StudioTheme.text)
+                .lineLimit(1)
+
+            Spacer(minLength: 0)
+
+            Button {
+                onSelectPart(row.memberID)
+            } label: {
+                Label("Open full editor", systemImage: "arrow.up.forward.square")
+                    .studioText(.labelBold)
+                    .foregroundStyle(StudioTheme.text)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                            .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+                    )
+            }
+            .buttonStyle(.plain)
+            .help("Dive into the full single-track detail for \(row.partName)")
+            .accessibilityIdentifier("kit-row-open-full")
+            .accessibilityLabel("Open full editor for \(row.partName)")
+        }
+    }
+
+    private var expandedRowTabBar: some View {
+        HStack(spacing: 4) {
+            ForEach(DrumKitRowTab.allCases) { tab in
+                expandedRowTabButton(tab)
+            }
+        }
+        .padding(3)
+        .background(
+            Color.white.opacity(StudioOpacity.subtleFill),
+            in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                .stroke(StudioTheme.border.opacity(0.9), lineWidth: StudioMetrics.borderWidth)
+        )
+    }
+
+    private func expandedRowTabButton(_ tab: DrumKitRowTab) -> some View {
+        let isSelected = expandedRowTab == tab
+        return Button {
+            expandedRowTab = tab
+            postRenderedVisualState(isVisible: true)
+        } label: {
+            Text(tab.title)
+                .studioText(.labelBold)
+                .foregroundStyle(isSelected ? StudioTheme.background : StudioTheme.text.opacity(0.78))
+                .lineLimit(1)
+                .frame(minWidth: 64, minHeight: 28)
+                .padding(.horizontal, 8)
+                .background(
+                    isSelected ? accent : Color.clear,
+                    in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
+                )
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("kit-row-tab-\(tab.rawValue)")
+        .accessibilityLabel("Row tab \(tab.title)")
+        .accessibilityValue(isSelected ? "Selected" : "Not selected")
+    }
+
+    @ViewBuilder
+    private func expandedRowTabBody(_ row: DrumKitMatrixModel.Row) -> some View {
+        switch expandedRowTab {
+        case .stepsClip:
+            expandedStepsClipTab(row)
+        case .sound:
+            expandedSoundTab(row)
+        case .fx:
+            expandedFXTab(row)
+        case .macros:
+            expandedMacrosTab(row)
+        case .mixer:
+            expandedMixerTab(row)
+        }
+    }
+
+    private func memberTrack(_ memberID: UUID) -> StepSequenceTrack? {
+        session.store.tracks.first { $0.id == memberID }
+    }
+
+    // MARK: Steps/Clip mini-tab (Clip ↔ Generator switch + grid / generator)
+
+    /// Steps/Clip mini-tab (AC21). A Clip↔Generator switch for THIS member's
+    /// active pattern slot, then the 16-step grid (clip) or a generator picker
+    /// (+ modifier affordance) when in generator mode. Editing step content is
+    /// allowed and does not change link state (AC19).
+    @ViewBuilder
+    private func expandedStepsClipTab(_ row: DrumKitMatrixModel.Row) -> some View {
+        let pageOffset = model.map { clampedPage($0) * Self.stepsPerBar } ?? 0
+        VStack(alignment: .leading, spacing: 10) {
+            sourceModeSwitch(row)
+
+            switch row.sourceMode {
+            case .clip:
+                expandedStepGrid(row: row, pageOffset: pageOffset)
+            case .generator:
+                expandedGeneratorBody(row)
+            }
+        }
+    }
+
+    private func sourceModeSwitch(_ row: DrumKitMatrixModel.Row) -> some View {
+        HStack(spacing: 8) {
+            Text("SOURCE")
+                .studioText(.eyebrow)
+                .tracking(0.8)
+                .foregroundStyle(StudioTheme.mutedText)
+
+            HStack(spacing: 4) {
+                sourceModeButton(row, mode: .clip)
+                sourceModeButton(row, mode: .generator)
+            }
+            .padding(3)
+            .background(
+                Color.white.opacity(StudioOpacity.subtleFill),
+                in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                    .stroke(StudioTheme.border.opacity(0.9), lineWidth: StudioMetrics.borderWidth)
+            )
+
+            Spacer(minLength: 0)
+        }
+    }
+
+    private func sourceModeButton(_ row: DrumKitMatrixModel.Row, mode: TrackSourceMode) -> some View {
+        let isSelected = row.sourceMode == mode
+        return Button {
+            setMemberSourceMode(row: row, mode: mode)
+        } label: {
+            Text(mode.label)
+                .studioText(.labelBold)
+                .foregroundStyle(isSelected ? StudioTheme.background : StudioTheme.text.opacity(0.78))
+                .lineLimit(1)
+                .frame(minWidth: 64, minHeight: 26)
+                .padding(.horizontal, 8)
+                .background(
+                    isSelected ? accent : Color.clear,
+                    in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
+                )
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("kit-row-source-\(mode.rawValue)")
+        .accessibilityLabel("Source mode \(mode.label)")
+        .accessibilityValue(isSelected ? "Selected" : "Not selected")
+    }
+
+    /// Switch THIS member's active pattern slot between clip and generator
+    /// sources. Picks the first compatible pool entry; if none exists, the
+    /// switch sets the slot's mode via an empty source ref so the UI still
+    /// reflects the choice.
+    private func setMemberSourceMode(row: DrumKitMatrixModel.Row, mode: TrackSourceMode) {
+        guard row.sourceMode != mode else { return }
+        let slotIndex = row.patternSlotIndex
+        guard let track = memberTrack(row.memberID) else { return }
+        switch mode {
+        case .clip:
+            if let clip = session.store.clipPool.first(where: { $0.trackType == track.trackType }) {
+                session.assignClipSource(clip.id, to: row.memberID, slotIndex: slotIndex)
+            } else if let clip = session.store.clipPool.first {
+                session.assignClipSource(clip.id, to: row.memberID, slotIndex: slotIndex)
+            }
+        case .generator:
+            if let generator = session.store.generatorPool.first(where: { $0.trackType == track.trackType }) {
+                session.assignGeneratorSource(generator.id, to: row.memberID, slotIndex: slotIndex)
+            } else if let generator = session.store.generatorPool.first {
+                session.assignGeneratorSource(generator.id, to: row.memberID, slotIndex: slotIndex)
+            }
+        }
+        postRenderedVisualState(isVisible: true)
+    }
+
+    @ViewBuilder
+    private func expandedStepGrid(row: DrumKitMatrixModel.Row, pageOffset: Int) -> some View {
+        switch row.content {
+        case let .editable(_, _, steps):
+            let states = (0..<Self.stepsPerBar).map { local -> StepVisualState in
+                let absolute = pageOffset + local
+                guard steps.indices.contains(absolute) else { return .off }
+                return ClipNoteGridStepEditing.visualState(for: steps[absolute], lane: .main)
+            }
+            VStack(alignment: .leading, spacing: 8) {
+                if let model { barPager(model) }
+                StepGridView(
+                    stepStates: states,
+                    indexOffset: pageOffset,
+                    contentProvider: { index, _ in
+                        expandedCellContent(steps: steps, index: index)
+                    },
+                    onValueDrag: selectedLayer == .steps ? nil : { index, fraction in
+                        commitDrag(row: row, stepIndex: index, fraction: fraction)
+                    },
+                    advanceStep: { index in
+                        commitTap(row: row, stepIndex: index)
+                    }
+                )
+                .frame(maxWidth: .infinity)
+            }
+        case let .readOnly(_, detail, _):
+            Text(detail)
+                .studioText(.body)
+                .foregroundStyle(StudioTheme.mutedText)
+        case .generator:
+            EmptyView()
+        }
+    }
+
+    private func expandedCellContent(steps: [ClipStep], index: Int) -> StepCellContent {
+        guard steps.indices.contains(index) else {
+            return selectedLayer == .steps ? .toggle : .valueBar(fraction: 0)
+        }
+        switch selectedLayer {
+        case .steps:
+            return .toggle
+        case .velocity:
+            return .valueBar(
+                fraction: ClipNoteGridStepEditing.velocityValue(for: steps[index], lane: .main) / 127.0
+            )
+        case .chance:
+            return .valueBar(
+                fraction: ClipNoteGridStepEditing.chanceValue(for: steps[index], lane: .main)
+            )
+        }
+    }
+
+    @ViewBuilder
+    private func expandedGeneratorBody(_ row: DrumKitMatrixModel.Row) -> some View {
+        let detail: String = {
+            if case let .generator(d) = row.content { return d }
+            return "Generator"
+        }()
+        let modifierName = memberModifierName(row.memberID)
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Text(detail)
+                    .studioText(.labelBold)
+                    .foregroundStyle(StudioTheme.background)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(accent, in: Capsule())
+                Text("generator")
+                    .studioText(.label)
+                    .foregroundStyle(StudioTheme.mutedText)
+                Spacer(minLength: 0)
+            }
+
+            HStack(spacing: 8) {
+                Text("MODIFIER")
+                    .studioText(.eyebrow)
+                    .tracking(0.8)
+                    .foregroundStyle(StudioTheme.mutedText)
+
+                if let modifierName {
+                    Text(modifierName)
+                        .studioText(.label)
+                        .foregroundStyle(StudioTheme.text)
+                        .padding(.horizontal, 9)
+                        .padding(.vertical, 4)
+                        .background(Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
+                    Button {
+                        session.setPatternModifierGeneratorID(nil, for: row.memberID, slotIndex: row.patternSlotIndex)
+                        postRenderedVisualState(isVisible: true)
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(StudioTheme.mutedText)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Remove modifier")
+                    .accessibilityLabel("Remove modifier")
+                } else {
+                    Button {
+                        addMemberModifier(row)
+                    } label: {
+                        Label("Add modifier", systemImage: "plus")
+                            .studioText(.label)
+                            .foregroundStyle(StudioTheme.text)
+                            .padding(.horizontal, 9)
+                            .padding(.vertical, 4)
+                            .background(Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
+                            .overlay(Capsule().stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("kit-row-add-modifier")
+                    .accessibilityLabel("Add generator modifier")
+                }
+
+                Spacer(minLength: 0)
+            }
+        }
+    }
+
+    private func memberModifierName(_ memberID: UUID) -> String? {
+        guard let bank = session.store.patternBanksByTrackID[memberID],
+              let track = memberTrack(memberID) else { return nil }
+        let slotIndex = session.store.selectedPhrase.patternIndex(for: track.id, layers: session.store.layers)
+        guard let modifierID = bank.slot(at: slotIndex).sourceRef.modifierGeneratorID,
+              let generator = session.store.generatorPool.first(where: { $0.id == modifierID })
+        else { return nil }
+        return generator.name
+    }
+
+    /// Attach the first modifier-capable generator as a modifier on the member's
+    /// active slot (AC21: the generator can carry a modifier).
+    private func addMemberModifier(_ row: DrumKitMatrixModel.Row) {
+        guard let track = memberTrack(row.memberID) else { return }
+        let candidate = session.store.generatorPool.first { $0.trackType == track.trackType }
+            ?? session.store.generatorPool.first
+        guard let modifier = candidate else { return }
+        session.setPatternModifierGeneratorID(modifier.id, for: row.memberID, slotIndex: row.patternSlotIndex)
+        postRenderedVisualState(isVisible: true)
+    }
+
+    // MARK: Sound mini-tab (mini sampler + in-sampler filter for the member)
+
+    /// Sound mini-tab (AC21). Reuses `SamplerDestinationWidget` bound to THIS
+    /// member's track id, so the mini sampler + in-sampler filter edit the real
+    /// member sound (a drum part's filter stays inside the sampler, not FX).
+    @ViewBuilder
+    private func expandedSoundTab(_ row: DrumKitMatrixModel.Row) -> some View {
+        let memberID = row.memberID
+        SamplerDestinationWidget(
+            destination: Binding(
+                get: { memberTrack(memberID)?.destination ?? .none },
+                set: { session.setEditedDestination($0, for: memberID) }
+            ),
+            library: AudioSampleLibrary.shared,
+            sampleEngine: engineController.sampleEngineSink,
+            trackID: memberID,
+            filterSettings: Binding(
+                get: { memberTrack(memberID)?.filter ?? .init() },
+                set: { session.setFilterSettings($0, for: memberID) }
+            ),
+            onManageMacros: {
+                expandedRowTab = .macros
+                postRenderedVisualState(isVisible: true)
+            },
+            onRemove: {}
+        )
+    }
+
+    // MARK: FX mini-tab (per-track insert chain for the member)
+
+    /// FX mini-tab (AC21). Reuses `TrackFXChainView` bound to THIS member's
+    /// per-track insert chain — real add/remove/reorder/bypass.
+    @ViewBuilder
+    private func expandedFXTab(_ row: DrumKitMatrixModel.Row) -> some View {
+        let memberID = row.memberID
+        let inserts = memberTrack(memberID)?.fxInserts ?? []
+        TrackFXChainView(
+            inserts: inserts,
+            accent: accent,
+            onAddFX: { expandedFXTarget = ExpandedFXTarget(memberID: memberID) },
+            onRemove: { insertID in
+                session.removeFXInsert(trackID: memberID, insertID: insertID)
+            },
+            onMove: { source, destination in
+                session.moveFXInsert(trackID: memberID, from: source, to: destination)
+            },
+            onSetBypassed: { insertID, bypassed in
+                session.setFXInsertBypassed(trackID: memberID, insertID: insertID, bypassed: bypassed)
+            }
+        )
+    }
+
+    /// "+ FX" picker for an expanded member's per-track chain. Mirrors the
+    /// single-track Add FX sheet, committing a `TrackFXInsert` to the member.
+    @ViewBuilder
+    private func expandedFXChooserSheet(memberID: UUID) -> some View {
+        let effects = engineController.availableAudioEffects
+        StudioModal(
+            title: "Add FX",
+            accent: accent,
+            minWidth: 360,
+            onClose: { expandedFXTarget = nil }
+        ) {
+            VStack(alignment: .leading, spacing: 8) {
+                kitFXOptionButton(title: "Filter", systemName: "line.3.horizontal.decrease.circle") {
+                    session.addFXInsert(trackID: memberID, insert: .filter())
+                    expandedFXTarget = nil
+                }
+                kitFXOptionButton(title: "Bitcrusher", systemName: "waveform.path.ecg") {
+                    session.addFXInsert(trackID: memberID, insert: .bitcrusher())
+                    expandedFXTarget = nil
+                }
+            }
+
+            Divider()
+                .overlay(StudioTheme.border)
+
+            Text("AU Effect")
+                .studioText(.micro)
+                .tracking(0.8)
+                .foregroundStyle(StudioTheme.mutedText)
+
+            if effects.isEmpty {
+                Text("No AU effects found")
+                    .studioText(.body)
+                    .foregroundStyle(StudioTheme.mutedText)
+            } else {
+                ScrollView {
+                    VStack(spacing: 6) {
+                        ForEach(effects.prefix(16)) { effect in
+                            kitFXOptionButton(title: effect.displayName, systemName: "slider.horizontal.3") {
+                                session.addFXInsert(trackID: memberID, insert: .auEffect(effect))
+                                expandedFXTarget = nil
+                            }
+                        }
+                    }
+                }
+                .frame(maxHeight: 220)
+                .scrollContentBackground(.hidden)
+            }
+        }
+        .presentationBackground(.clear)
+        .environment(\.colorScheme, .dark)
+    }
+
+    // MARK: Macros mini-tab (M1–M8 slots for the member)
+
+    /// Macros mini-tab (AC21). Renders THIS member's real M1–M8 slot bindings
+    /// via `AUMacroSlotKnob`. Value changes write through the real session
+    /// mutation (`setMacroLayerDefault`); assigning a NEW slot opens the full
+    /// editor (the AU-parameter picker is impractical inline) — see report.
+    @ViewBuilder
+    private func expandedMacrosTab(_ row: DrumKitMatrixModel.Row) -> some View {
+        let memberID = row.memberID
+        let slots = memberMacroSlots(memberID)
+        let fallbacks = memberMacroFallbackValues(memberID)
+        VStack(alignment: .leading, spacing: 8) {
+            LazyVGrid(columns: Self.macroColumns, alignment: .leading, spacing: 12) {
+                ForEach(slots) { slot in
+                    AUMacroSlotKnob(
+                        slotIndex: slot.slotIndex,
+                        binding: slot.binding,
+                        value: slot.binding.flatMap { fallbacks[$0.id] },
+                        onAssign: { onSelectPart(memberID) },
+                        onChange: { newValue in
+                            guard let binding = slot.binding else { return }
+                            session.setMacroLayerDefault(value: newValue, bindingID: binding.id, trackID: memberID)
+                        },
+                        onRemove: slot.binding.map { binding in
+                            { session.removeAUMacroSlot(bindingID: binding.id, trackID: memberID) }
+                        }
+                    )
+                }
+            }
+            Text("Drum-part macro defaults. Assign new slots in the full editor.")
+                .studioText(.label)
+                .foregroundStyle(StudioTheme.mutedText)
+        }
+    }
+
+    private func memberMacroSlots(_ memberID: UUID) -> [MacroSlot] {
+        let bindings = (memberTrack(memberID)?.macros ?? []).sorted { $0.slotIndex < $1.slotIndex }
+        return (0..<8).map { slotIndex in
+            MacroSlot(slotIndex: slotIndex, binding: bindings.first { $0.slotIndex == slotIndex })
+        }
+    }
+
+    private func memberMacroFallbackValues(_ memberID: UUID) -> [UUID: Double] {
+        var result: [UUID: Double] = [:]
+        let layers = session.store.layers
+        for binding in memberTrack(memberID)?.macros ?? [] {
+            let layerID = "macro-\(memberID.uuidString)-\(binding.id.uuidString)"
+            if let layer = layers.first(where: { $0.id == layerID }),
+               case let .scalar(v) = layer.defaults[memberID] {
+                result[binding.id] = v
+            } else {
+                result[binding.id] = binding.descriptor.defaultValue
+            }
+        }
+        return result
+    }
+
+    // MARK: Mixer mini-tab (member level + bus summary)
+
+    /// Mixer mini-tab (AC21). The member's real level slider (writes via
+    /// `setTrackMix`) plus the kit-bus output summary.
+    @ViewBuilder
+    private func expandedMixerTab(_ row: DrumKitMatrixModel.Row) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            kitPartLevelRow(row)
+            if let model {
+                kitBusOutputRow(model)
+            }
+        }
     }
 
     /// Commit a cell tap for a row through `ensureClipAndMutate`, with the
@@ -807,9 +2677,12 @@ struct DrumKitMatrixView: View {
     private func applyVisualCommand(_ command: String) {
         switch command {
         case "display-16":
-            displayStepCount = 16
+            // Legacy 16/32 toggle removed; map to the first bar page so the
+            // external QA command runner stays compatible.
+            barPage = 0
         case "display-32":
-            displayStepCount = 32
+            // Legacy: second bar (17–32) now that the grid is fixed at 16.
+            barPage = 1
         case "open-routing":
             isPresentingRoutingEditor = true
         case "close-routing":
@@ -818,10 +2691,92 @@ struct DrumKitMatrixView: View {
             isPresentingTemplateChooser = true
         case "close-template-chooser":
             isPresentingTemplateChooser = false
+        case "open-capture":
+            isCaptureOpen = true
+        case "close-capture":
+            isCaptureOpen = false
+        case "history-scrub-back":
+            if let model { historyScrubBack(model) }
+        case "history-scrub-forward":
+            historyScrubForward()
+        case "history-live":
+            historyJumpToLive()
+        case "history-save":
+            if let model { saveKitHistoryClipSet(model, slotIndex: historyTargetSlotIndex(model)) }
+        case "history-audition-on":
+            if let model { startKitAudition(model) }
+        case "history-audition-off":
+            if let model { stopKitAudition(model) }
+        case "history-save-open":
+            isPresentingSaveSlotPicker = true
+            postRenderedVisualState(isVisible: true)
+        case "history-save-close":
+            isPresentingSaveSlotPicker = false
+            postRenderedVisualState(isVisible: true)
+        case "link-on":
+            session.setDrumGroupPatternLinked(true, groupID: navigationState.groupID)
+        case "link-off":
+            session.setDrumGroupPatternLinked(false, groupID: navigationState.groupID)
+        case "relink":
+            session.reLinkDrumGroupPattern(groupID: navigationState.groupID)
+        case "open-kit-fx-chooser":
+            isPresentingKitFX = true
+        case "close-kit-fx-chooser":
+            isPresentingKitFX = false
+        case "tab-matrix":
+            isCaptureOpen = false
+            kitTab = .matrix
+        case "tab-fx":
+            isCaptureOpen = false
+            kitTab = .fx
+        case "tab-macros":
+            isCaptureOpen = false
+            kitTab = .macros
+        case "tab-mixer":
+            isCaptureOpen = false
+            kitTab = .mixer
+        case "collapse-row":
+            expandedPartID = nil
+            postRenderedVisualState(isVisible: true)
+        case "row-tab-steps":
+            expandedRowTab = .stepsClip
+            postRenderedVisualState(isVisible: true)
+        case "row-tab-sound":
+            expandedRowTab = .sound
+            postRenderedVisualState(isVisible: true)
+        case "row-tab-fx":
+            expandedRowTab = .fx
+            postRenderedVisualState(isVisible: true)
+        case "row-tab-macros":
+            expandedRowTab = .macros
+            postRenderedVisualState(isVisible: true)
+        case "row-tab-mixer":
+            expandedRowTab = .mixer
+            postRenderedVisualState(isVisible: true)
+        case "source-clip":
+            if let model, let memberID = expandedPartID,
+               let row = model.rows.first(where: { $0.memberID == memberID }) {
+                setMemberSourceMode(row: row, mode: .clip)
+            }
+        case "source-generator":
+            if let model, let memberID = expandedPartID,
+               let row = model.rows.first(where: { $0.memberID == memberID }) {
+                setMemberSourceMode(row: row, mode: .generator)
+            }
         case "back":
             onBack()
         default:
-            if command.hasPrefix("select-index:"),
+            if command.hasPrefix("expand-part:"),
+               let rawIndex = command.split(separator: ":").last,
+               let index = Int(rawIndex),
+               let model,
+               model.rows.indices.contains(index) {
+                expandedPartID = model.rows[index].memberID
+                expandedRowTab = .stepsClip
+                isCaptureOpen = false
+                kitTab = .matrix
+                postRenderedVisualState(isVisible: true)
+            } else if command.hasPrefix("select-index:"),
                let rawIndex = command.split(separator: ":").last,
                let index = Int(rawIndex),
                let model,
@@ -830,45 +2785,96 @@ struct DrumKitMatrixView: View {
             } else if command.hasPrefix("layer:"),
                       let layer = DrumKitMatrixLayer(rawValue: String(command.dropFirst("layer:".count))) {
                 selectedLayer = layer
+            } else if command.hasPrefix("bar:"),
+                      let rawPage = command.split(separator: ":").last,
+                      let page = Int(rawPage),
+                      page >= 0 {
+                barPage = page
             } else if command.hasPrefix("pattern:"),
                       let rawSlot = command.split(separator: ":").last,
                       let slotIndex = Int(rawSlot),
                       (0..<TrackPatternBank.slotCount).contains(slotIndex) {
                 session.setDrumGroupSelectedPatternIndex(slotIndex, groupID: navigationState.groupID)
+            } else if command.hasPrefix("save-slot:"),
+                      let rawSlot = command.split(separator: ":").last,
+                      let slotIndex = Int(rawSlot),
+                      (0..<TrackPatternBank.slotCount).contains(slotIndex),
+                      let model {
+                isPresentingSaveSlotPicker = false
+                saveKitHistoryClipSet(model, slotIndex: slotIndex)
+            } else if command.hasPrefix("history-length:"),
+                      let rawSteps = command.split(separator: ":").last,
+                      let steps = Int(rawSteps),
+                      Self.historyLengthOptions.contains(steps) {
+                historyLengthSteps = steps
+                historySaveMessage = nil
+                refreshKitAuditionIfActive()
+                postRenderedVisualState(isVisible: true)
             }
         }
     }
 }
 
-/// One part row: header (part name + chevron, navigates to the part
-/// workspace) above the SAME full-size step grid the single-track editor
-/// renders. Generator-backed and non-note-grid rows show their badge and
-/// read-only cells.
-private struct DrumKitMatrixRowView: View {
+/// One part row. Compact: part name + chevron column (left) and the SAME
+/// full-size step grid (right). EXPANDED (AC21): the right area becomes the
+/// inline detail panel (mini-tabs) — the row grows vertically while every other
+/// row stays compact. Generator-backed and non-note-grid rows show their badge
+/// and read-only cells when compact.
+private struct DrumKitMatrixRowView<DetailPanel: View>: View {
     let row: DrumKitMatrixModel.Row
     let layer: DrumKitMatrixLayer
-    let displayStepCount: Int
+    /// Absolute step index of the first visible cell (selected bar × 16).
+    let pageOffset: Int
+    /// Fixed grid width — always 16 columns.
+    let stepsPerBar: Int
     let accent: Color
+    /// Whether this row's inline accordion detail panel is open (AC21).
+    let isExpanded: Bool
+    /// Receives the ABSOLUTE step index (pageOffset + grid column).
     let onTapStep: (Int) -> Void
     let onDragStep: (Int, Double) -> Void
-    let onOpenPart: () -> Void
+    /// Toggle the inline accordion for this row (the name button / chevron).
+    let onToggleExpand: () -> Void
+    /// The inline detail panel content (mini-tabs), owned by the parent so it
+    /// can reach `session`/`engineController` for the member's real controls.
+    @ViewBuilder let detailPanel: () -> DetailPanel
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            rowHeader
-            stepRegion
+        HStack(alignment: isExpanded ? .top : .center, spacing: 10) {
+            nameColumn
+            if isExpanded {
+                detailPanel()
+            } else {
+                // Always fill the remaining row width so every layer renders the
+                // same full-width 16-column grid. Without this the value-bar
+                // (velocity/chance) cells let the LazyVGrid collapse to its
+                // intrinsic width and the row looks squashed.
+                stepRegion
+                    .frame(maxWidth: .infinity)
+            }
         }
         .padding(StudioMetrics.Spacing.compact)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+        .background(
+            (isExpanded ? accent.opacity(0.06) : Color.white.opacity(StudioOpacity.subtleFill)),
+            in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
+        )
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                .stroke(row.isDivergentPattern ? StudioTheme.amber.opacity(StudioOpacity.mediumStroke) : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+                .stroke(
+                    isExpanded
+                        ? accent.opacity(StudioOpacity.mediumStroke)
+                        : (row.isDivergentPattern ? StudioTheme.amber.opacity(StudioOpacity.mediumStroke) : StudioTheme.border),
+                    lineWidth: StudioMetrics.borderWidth
+                )
         )
     }
 
-    private var rowHeader: some View {
-        HStack(spacing: 8) {
-            Button(action: onOpenPart) {
+    /// Part name + badges as a fixed-width column to the LEFT of the step grid /
+    /// detail panel. The name button toggles the inline accordion (AC21); the
+    /// full dive-in stays available as "Open full editor" inside the panel.
+    private var nameColumn: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Button(action: onToggleExpand) {
                 HStack(spacing: 5) {
                     Text(row.partName)
                         .studioText(.labelBold)
@@ -876,15 +2882,16 @@ private struct DrumKitMatrixRowView: View {
                         .lineLimit(1)
                         .truncationMode(.tail)
 
-                    Image(systemName: "chevron.right")
+                    Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
                         .font(.system(size: 9, weight: .bold))
-                        .foregroundStyle(StudioTheme.mutedText)
+                        .foregroundStyle(isExpanded ? accent : StudioTheme.mutedText)
                 }
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .help("Open \(row.partName)")
-            .accessibilityLabel("Open \(row.partName)")
+            .help(isExpanded ? "Collapse \(row.partName)" : "Expand \(row.partName) inline")
+            .accessibilityIdentifier(isExpanded ? "kit-row-collapse" : "kit-row-expand")
+            .accessibilityLabel(isExpanded ? "Collapse \(row.partName)" : "Expand \(row.partName)")
 
             if row.isDivergentPattern {
                 Text(row.patternBadge)
@@ -896,10 +2903,9 @@ private struct DrumKitMatrixRowView: View {
                     .help("This part is on \(row.patternBadge), diverging from the group.")
             }
 
-            Spacer(minLength: 0)
-
             readOnlyBadge
         }
+        .frame(width: 132, alignment: .leading)
     }
 
     @ViewBuilder
@@ -933,13 +2939,14 @@ private struct DrumKitMatrixRowView: View {
     @ViewBuilder
     private var stepRegion: some View {
         switch row.content {
-        case let .editable(_, lengthSteps, steps):
-            let visibleCount = min(displayStepCount, lengthSteps)
-            let visibleSteps = Array(steps.prefix(visibleCount))
+        case let .editable(_, _, steps):
+            // Always a 16-cell window starting at the selected bar. The grid's
+            // `indexOffset` makes every closure index and cell label ABSOLUTE,
+            // so tap/drag commit through the full-length step array unchanged.
+            let states = windowedEditableStates(steps: steps)
             StepGridView(
-                stepStates: visibleSteps.map {
-                    ClipNoteGridStepEditing.visualState(for: $0, lane: .main)
-                },
+                stepStates: states,
+                indexOffset: pageOffset,
                 contentProvider: { index, _ in
                     cellContent(steps: steps, index: index)
                 },
@@ -952,21 +2959,35 @@ private struct DrumKitMatrixRowView: View {
             )
 
         case .generator:
-            readOnlyGrid(states: Array(repeating: StepVisualState.off, count: min(displayStepCount, 16)))
+            readOnlyGrid(states: Array(repeating: StepVisualState.off, count: stepsPerBar))
 
         case let .readOnly(_, _, pattern):
-            let visibleCount = min(displayStepCount, max(1, pattern.count))
-            readOnlyGrid(
-                states: (0..<visibleCount).map { index in
-                    pattern.indices.contains(index) && pattern[index] ? .on : .off
-                }
-            )
+            readOnlyGrid(states: windowedReadOnlyStates(pattern: pattern))
+        }
+    }
+
+    /// 16 visual states for the current bar window over `steps`, padding cells
+    /// past the row's length with `.off`.
+    private func windowedEditableStates(steps: [ClipStep]) -> [StepVisualState] {
+        (0..<stepsPerBar).map { local in
+            let absolute = pageOffset + local
+            guard steps.indices.contains(absolute) else { return .off }
+            return ClipNoteGridStepEditing.visualState(for: steps[absolute], lane: .main)
+        }
+    }
+
+    /// 16 read-only states for the current bar window over a boolean pattern.
+    private func windowedReadOnlyStates(pattern: [Bool]) -> [StepVisualState] {
+        (0..<stepsPerBar).map { local in
+            let absolute = pageOffset + local
+            return pattern.indices.contains(absolute) && pattern[absolute] ? .on : .off
         }
     }
 
     private func readOnlyGrid(states: [StepVisualState]) -> some View {
         StepGridView(
             stepStates: states,
+            indexOffset: pageOffset,
             advanceStep: { _ in }
         )
         .allowsHitTesting(false)
@@ -989,6 +3010,146 @@ private struct DrumKitMatrixRowView: View {
                 fraction: ClipNoteGridStepEditing.chanceValue(for: steps[index], lane: .main)
             )
         }
+    }
+}
+
+/// Kit-bus FX insert chain (AC23). The same grammar as the per-track FX chain
+/// (drag handle reorder, bypass + ✕ on one line, "+ FX" button, compact empty
+/// state — no "Enabled"/"Empty" filler), but it edits the kit bus's
+/// `MixerBusInsert` chain so the inserts process the whole kit at once.
+private struct KitBusFXChainView: View {
+    let inserts: [MixerBusInsert]
+    let accent: Color
+    let onAddFX: () -> Void
+    let onRemove: (UUID) -> Void
+    let onMove: (IndexSet, Int) -> Void
+    let onSetBypassed: (UUID, Bool) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            if inserts.isEmpty {
+                emptyState
+            } else {
+                chainList
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var emptyState: some View {
+        HStack(spacing: 12) {
+            Text("No inserts yet.")
+                .studioText(.body)
+                .foregroundStyle(StudioTheme.mutedText)
+            Spacer(minLength: 0)
+            addFXButton
+        }
+    }
+
+    private var chainList: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            List {
+                ForEach(inserts) { insert in
+                    insertRow(insert)
+                        .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                }
+                .onMove(perform: onMove)
+            }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .frame(height: listHeight)
+
+            HStack {
+                Spacer(minLength: 0)
+                addFXButton
+            }
+        }
+    }
+
+    private var listHeight: CGFloat {
+        let rowHeight: CGFloat = 56
+        let visibleRows = min(inserts.count, 5)
+        return CGFloat(visibleRows) * rowHeight
+    }
+
+    private func insertRow(_ insert: MixerBusInsert) -> some View {
+        let icon = TrackFXChainView.iconName(for: insert.kind)
+        let subtitle = insert.kind.summary
+        let bypassed = !insert.isEnabled
+        return HStack(spacing: 10) {
+            Image(systemName: "line.3.horizontal")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(StudioTheme.mutedText)
+                .frame(width: 18)
+                .accessibilityLabel("Reorder \(insert.name)")
+
+            Image(systemName: icon)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(StudioTheme.background)
+                .frame(width: 22, height: 22)
+                .background(accent, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(insert.name)
+                    .studioText(.labelBold)
+                    .foregroundStyle(StudioTheme.text)
+                    .lineLimit(1)
+                Text(subtitle)
+                    .studioText(.micro)
+                    .foregroundStyle(StudioTheme.mutedText)
+                    .lineLimit(1)
+            }
+
+            Spacer(minLength: 6)
+
+            Toggle("Bypass \(insert.name)", isOn: bypassBinding(insert))
+                .labelsHidden()
+                .toggleStyle(.switch)
+                .controlSize(.mini)
+                .tint(StudioTheme.success)
+
+            Button {
+                onRemove(insert.id)
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(StudioTheme.mutedText)
+            }
+            .buttonStyle(.plain)
+            .help("Remove insert")
+            .accessibilityLabel("Remove \(insert.name)")
+        }
+        .padding(.vertical, 8)
+        .padding(.horizontal, 10)
+        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
+                .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+        )
+        .opacity(bypassed ? 0.55 : 1)
+    }
+
+    private var addFXButton: some View {
+        Button(action: onAddFX) {
+            Label("FX", systemImage: "plus")
+                .studioText(.labelBold)
+                .foregroundStyle(StudioTheme.background)
+                .padding(.vertical, 8)
+                .padding(.horizontal, 12)
+                .background(accent, in: Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Add kit FX insert")
+        .accessibilityIdentifier("kit-add-fx")
+    }
+
+    private func bypassBinding(_ insert: MixerBusInsert) -> Binding<Bool> {
+        Binding(
+            get: { insert.isEnabled },
+            set: { isActive in onSetBypassed(insert.id, !isActive) }
+        )
     }
 }
 

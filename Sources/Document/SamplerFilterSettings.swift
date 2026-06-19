@@ -8,6 +8,9 @@ enum SamplerFilterType: String, Codable, CaseIterable, Sendable {
     case highpass
     case bandpass
     case notch
+    case peak
+    case comb
+    case formant
 }
 
 // MARK: - SamplerFilterPoles

@@ -1,35 +1,44 @@
 import SwiftUI
 
 enum TrackSourceEditorTab: String, CaseIterable, Identifiable {
-    case source
-    case modifiers
-    case history
-    case routing
+    case stepsClip = "steps-clip"
+    case sound
+    case fx
+    case macros
+    case mixer
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
-        case .source:
-            return "Source"
-        case .modifiers:
-            return "Modifier"
-        case .history:
-            return "History"
-        case .routing:
-            return "Routing"
+        case .stepsClip:
+            return "Steps/Clip"
+        case .sound:
+            return "Sound"
+        case .fx:
+            return "FX"
+        case .macros:
+            return "Macros"
+        case .mixer:
+            return "Mixer"
         }
     }
 
-    /// The ROUTING tab is SETUP-only: perform mode dropped the destination
-    /// concern, so the tab is absent there.
-    func isAvailable(in mode: WorkspaceMode) -> Bool {
-        switch self {
-        case .routing:
-            return mode == .setup
-        case .source, .modifiers, .history:
-            return true
+    static func tab(forVisualCommand rawValue: String) -> TrackSourceEditorTab? {
+        switch rawValue {
+        case "source":
+            return .stepsClip
+        case "routing":
+            return .mixer
+        case "steps", "stepsClip", "steps-clip":
+            return .stepsClip
+        default:
+            return TrackSourceEditorTab(rawValue: rawValue)
         }
+    }
+
+    func isAvailable(in mode: WorkspaceMode) -> Bool {
+        true
     }
 }
 
@@ -85,12 +94,13 @@ struct TrackSourceEditorView: View {
     let accent: Color
     let stepGridWorkspaceModel: TrackStepGridWorkspaceModel
 
-    @State private var selectedTab: TrackSourceEditorTab = .source
+    @State private var selectedTab: TrackSourceEditorTab = .stepsClip
     @State private var sourcePickerStep: TrackSourceContainedSourcePickerStep?
     @State private var modifierPickerStep: TrackSourceContainedModifierPickerStep?
     @State private var macroSlotPickerRequest: MacroSlotPickerRequest?
     @State private var clipHistoryModel: ClipHistoryTransferViewModel?
     @State private var clipHistoryToast: String?
+    @State private var isAddFXPresented = false
 
     private var clipHistoryDestinationMode: Bool {
         clipHistoryModel?.isSaveArmed == true
@@ -247,39 +257,46 @@ struct TrackSourceEditorView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            StudioPanel(title: "Pattern", accent: accent) {
-                VStack(alignment: .leading, spacing: 10) {
-                    TrackPatternSlotPalette(
-                        selectedSlot: selectedPatternIndexBinding,
-                        occupiedSlots: occupiedPatternSlots,
-                        bypassState: .notApplicable,
-                        onBypassToggle: { _ in },
-                        destinationMode: clipHistoryDestinationMode
-                            ? TrackPatternSlotPalette.DestinationMode(
-                                pendingReplaceSlot: pendingClipHistoryReplaceSlot,
-                                accent: StudioTheme.success
-                            )
-                            : nil,
-                        onDestinationSelect: selectClipHistoryDestination
-                    )
+            StudioPanel(
+                title: "Pattern",
+                accent: accent,
+                content: {
+                    VStack(alignment: .leading, spacing: 10) {
+                        TrackPatternSlotPalette(
+                            selectedSlot: selectedPatternIndexBinding,
+                            occupiedSlots: occupiedPatternSlots,
+                            bypassState: .notApplicable,
+                            onBypassToggle: { _ in },
+                            destinationMode: clipHistoryDestinationMode
+                                ? TrackPatternSlotPalette.DestinationMode(
+                                    pendingReplaceSlot: pendingClipHistoryReplaceSlot,
+                                    accent: StudioTheme.success
+                                )
+                                : nil,
+                            onDestinationSelect: selectClipHistoryDestination
+                        )
 
-                    clipHistoryDestinationRow
-                }
-            }
+                        clipHistoryDestinationRow
+                    }
+                },
+                accessory: { performButton }
+            )
 
             VStack(alignment: .leading, spacing: 0) {
                 trackSourceHeader
 
                 Group {
                     switch selectedTab {
-                    case .source:
+                    case .stepsClip:
                         sourceTab
-                    case .modifiers:
-                        modifiersTab
-                    case .history:
-                        clipHistoryTab
-                    case .routing:
-                        routingTab
+                    case .sound:
+                        soundTab
+                    case .fx:
+                        fxTab
+                    case .macros:
+                        macrosTab
+                    case .mixer:
+                        mixerTab
                     }
                 }
             }
@@ -296,6 +313,9 @@ struct TrackSourceEditorView: View {
             }
             .presentationBackground(.clear)
         }
+        .sheet(isPresented: $isAddFXPresented) {
+            addFXSheet
+        }
         .overlay(alignment: .bottomTrailing) {
             if let clipHistoryToast {
                 Text(clipHistoryToast)
@@ -311,31 +331,18 @@ struct TrackSourceEditorView: View {
             sourcePickerStep = nil
             modifierPickerStep = nil
             resetClipHistoryDestinationMode()
-            if selectedTab == .history {
-                resetClipHistoryModel()
-            }
         }
         .onChange(of: selectedTab) { _, newValue in
-            if newValue != .source {
+            if newValue != .stepsClip {
                 sourcePickerStep = nil
             }
-            if newValue != .modifiers {
+            if newValue != .stepsClip {
                 modifierPickerStep = nil
             }
-            if newValue == .history, historyDisplayState.isAvailable {
-                refreshClipHistoryModel()
-            } else {
-                resetClipHistoryModel()
-            }
+            resetClipHistoryModel()
         }
         .onChange(of: track.id) { _, _ in
             session.clearTrackFillPreview(reason: .selectedTrackChanged)
-            if selectedTab == .history {
-                resetClipHistoryModel()
-                if historyDisplayState.isAvailable {
-                    refreshClipHistoryModel()
-                }
-            }
         }
         .onAppear {
             syncStepGridCoordinator()
@@ -347,17 +354,14 @@ struct TrackSourceEditorView: View {
             session.clearTrackFillPreview(reason: .editorClosed)
         }
         .onChange(of: session.workspaceMode) { _, newMode in
-            // ROUTING is setup-only; if the global mode flips to perform while
-            // it is open, fall back to the source tab so the dropped tab is
-            // never left selected.
             if !selectedTab.isAvailable(in: newMode) {
-                selectedTab = .source
+                selectedTab = .stepsClip
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .trackSourceEditorVisualCommand)) { notification in
             guard let command = notification.object as? String,
                   command.hasPrefix("select-tab:"),
-                  let tab = TrackSourceEditorTab(rawValue: String(command.dropFirst("select-tab:".count))),
+                  let tab = TrackSourceEditorTab.tab(forVisualCommand: String(command.dropFirst("select-tab:".count))),
                   tab.isAvailable(in: session.workspaceMode)
             else { return }
             selectedTab = tab
@@ -367,15 +371,37 @@ struct TrackSourceEditorView: View {
         }
     }
 
+    /// Perform header button (AC22): posts `.trackPerformRequested` with this
+    /// track's id. The coordinator (WorkspaceDetailView) enters the reused
+    /// tracks-perform surface scoped to this single track — no bespoke surface.
+    private var performButton: some View {
+        Button {
+            NotificationCenter.default.post(
+                name: .trackPerformRequested,
+                object: track.id
+            )
+        } label: {
+            Label("Perform", systemImage: "play.fill")
+                .studioText(.labelBold)
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(StudioTheme.background)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
+        .background(accent, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+        .help("Perform: open the phrase perform UI scoped to this track")
+        .accessibilityIdentifier("track-perform")
+        .accessibilityLabel("Perform track")
+    }
+
     private var trackSourceHeader: some View {
         TrackSourceSlotWellTabBar(
             selectedTab: $selectedTab,
             sourceState: sourceDisplayState,
             modifierState: modifierDisplayState,
-            historyState: historyDisplayState,
             routingState: TrackSourceRoutingDisplayState(
-                isAvailable: TrackSourceEditorTab.routing.isAvailable(in: session.workspaceMode),
-                pillSummary: routingPathSummary.pillSummary
+                pillSummary: routingPathSummary.pillSummary,
+                soundBadgeTitle: routingPathSummary.instrumentLabel
             ),
             accent: accent
         )
@@ -542,10 +568,177 @@ struct TrackSourceEditorView: View {
     }
 
     @ViewBuilder
-    private var routingTab: some View {
+    private var soundTab: some View {
         TrackRoutingTabContent(
             document: $document,
             summary: routingPathSummary,
+            mode: .sound,
+            accent: accent
+        )
+    }
+
+    @ViewBuilder
+    private var fxTab: some View {
+        // ENGINE TODO: the chain is persisted + fully editable here, but the
+        // inserts do not yet process audio. Wiring `track.fxInserts` (respecting
+        // order + bypass) into the per-track audio graph — reusing the existing
+        // AU-effect host path used for bus/master/scene inserts — is a follow-up.
+        TrackSourceSelectedWellBody(accent: StudioTheme.violet, isEmpty: false) {
+            TrackFXChainView(
+                inserts: track.fxInserts,
+                accent: StudioTheme.violet,
+                onAddFX: { isAddFXPresented = true },
+                onRemove: { insertID in
+                    session.removeFXInsert(trackID: track.id, insertID: insertID)
+                },
+                onMove: { source, destination in
+                    session.moveFXInsert(trackID: track.id, from: source, to: destination)
+                },
+                onSetBypassed: { insertID, bypassed in
+                    session.setFXInsertBypassed(trackID: track.id, insertID: insertID, bypassed: bypassed)
+                }
+            )
+        }
+    }
+
+    private var addFXSheet: some View {
+        let effects = engineController.availableAudioEffects
+        let trackID = track.id
+        return StudioModal(
+            title: "Add FX",
+            accent: StudioTheme.violet,
+            minWidth: 360,
+            onClose: { isAddFXPresented = false }
+        ) {
+            VStack(alignment: .leading, spacing: 8) {
+                addFXOptionButton(title: "Filter", systemName: "line.3.horizontal.decrease.circle") {
+                    session.addFXInsert(trackID: trackID, insert: .filter())
+                    isAddFXPresented = false
+                }
+                addFXOptionButton(title: "Bitcrusher", systemName: "waveform.path.ecg") {
+                    session.addFXInsert(trackID: trackID, insert: .bitcrusher())
+                    isAddFXPresented = false
+                }
+            }
+
+            Divider()
+                .overlay(StudioTheme.border)
+
+            Text("AU Effect")
+                .studioText(.micro)
+                .tracking(0.8)
+                .foregroundStyle(StudioTheme.mutedText)
+
+            if effects.isEmpty {
+                Text("No AU effects found")
+                    .studioText(.body)
+                    .foregroundStyle(StudioTheme.mutedText)
+            } else {
+                ScrollView {
+                    VStack(spacing: 6) {
+                        ForEach(effects.prefix(16)) { effect in
+                            addFXOptionButton(title: effect.displayName, systemName: "slider.horizontal.3") {
+                                session.addFXInsert(trackID: trackID, insert: .auEffect(effect))
+                                isAddFXPresented = false
+                            }
+                        }
+                    }
+                }
+                .frame(maxHeight: 220)
+                .scrollContentBackground(.hidden)
+            }
+        }
+        .presentationBackground(.clear)
+        .environment(\.colorScheme, .dark)
+    }
+
+    private func addFXOptionButton(
+        title: String,
+        systemName: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: 10) {
+                Image(systemName: systemName)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(StudioTheme.violet)
+                Text(title)
+                    .studioText(.labelBold)
+                    .foregroundStyle(StudioTheme.text)
+                    .lineLimit(1)
+                Spacer(minLength: 0)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, 9)
+            .padding(.horizontal, 12)
+            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                    .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    @ViewBuilder
+    private var macrosTab: some View {
+        TrackSourceSelectedWellBody(accent: StudioTheme.amber, isEmpty: false) {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Macros")
+                    .studioText(.bodyBold)
+                    .foregroundStyle(StudioTheme.text)
+                Text("M1–M8 slot assignments. Drag to set, right-click to change or remove.")
+                    .studioText(.body)
+                    .foregroundStyle(StudioTheme.mutedText)
+                macroSlotGrid
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(StudioMetrics.Spacing.standard)
+        }
+    }
+
+    private let macroSlotColumns = [
+        GridItem(.adaptive(minimum: 58, maximum: 72), spacing: 10, alignment: .top)
+    ]
+
+    @ViewBuilder
+    private var macroSlotGrid: some View {
+        LazyVGrid(columns: macroSlotColumns, alignment: .leading, spacing: 12) {
+            ForEach(clipMacroSlots) { slot in
+                macroSlotKnob(for: slot)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func macroSlotKnob(for slot: MacroSlot) -> some View {
+        let binding = slot.binding
+        let slotValue = binding.flatMap { macroFallbackValues[$0.id] }
+        AUMacroSlotKnob(
+            slotIndex: slot.slotIndex,
+            binding: binding,
+            value: slotValue,
+            onAssign: { prepareAndPresentMacroSlotPicker(slotIndex: slot.slotIndex) },
+            onChange: { newValue in
+                guard let binding else { return }
+                session.setMacroLayerDefault(
+                    value: newValue,
+                    bindingID: binding.id,
+                    trackID: track.id
+                )
+            },
+            onRemove: binding.map { binding in
+                { session.removeAUMacroSlot(bindingID: binding.id, trackID: track.id) }
+            }
+        )
+    }
+
+    @ViewBuilder
+    private var mixerTab: some View {
+        TrackRoutingTabContent(
+            document: $document,
+            summary: routingPathSummary,
+            mode: .mixer,
             accent: accent
         )
     }
@@ -653,33 +846,15 @@ struct TrackSourceEditorView: View {
     }
 
     private var clipHistoryLiveRefreshKey: String {
-        guard selectedTab == .history, historyDisplayState.isAvailable else {
-            return "history-inactive"
-        }
-        return "history-\(track.id.uuidString)-\(selectedPatternIndex)"
+        "history-inactive"
     }
 
     @MainActor
     private func refreshClipHistoryWhileVisible() async {
-        guard selectedTab == .history, historyDisplayState.isAvailable else {
-            return
-        }
-
-        if clipHistoryModel?.trackID != track.id {
-            refreshClipHistoryModel()
-        }
-
-        while !Task.isCancelled {
-            updateClipHistoryLiveSnapshot()
-            try? await Task.sleep(for: .milliseconds(250))
-        }
+        return
     }
 
     private func updateClipHistoryLiveSnapshot() {
-        guard selectedTab == .history, historyDisplayState.isAvailable else {
-            return
-        }
-
         guard let model = clipHistoryModel else {
             refreshClipHistoryModel()
             return
@@ -1209,4 +1384,3 @@ final class ClipHistoryTransferViewModel {
         return endStep <= liveStart || startStep >= liveEnd
     }
 }
-

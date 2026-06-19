@@ -74,12 +74,12 @@ CAPTURES=$(cat <<'TABLE'
 15-tracks-perform-mute|workspace=tracks,trackPerformLayerMode=mute|tracksMode=perform;trackPerformTrackCount=8;trackPerformLayer=mute;transport=stop
 16-tracks-perform-fill|workspace=tracks,trackPerformLayerMode=fill|tracksMode=perform;trackPerformTrackCount=8;trackPerformLayer=fill;transport=stop
 17-tracks-perform-note-repeat|workspace=tracks,trackPerformLayerMode=noteRepeat|tracksMode=perform;trackPerformTrackCount=8;trackPerformLayer=noteRepeat;transport=stop
-18-track-source-clip|workspace=track|trackFillSource=clip;trackSourceTab=source;transport=stop
-19-track-source-generator|workspace=track|trackFillSource=generator;trackSourceTab=source;transport=stop
+18-track-detail-steps-clip|workspace=track|trackFillSource=clip;trackSourceTab=steps-clip;transport=stop
+19-track-detail-sound|workspace=track|trackFillSource=generator;trackSourceTab=sound;transport=stop
 20-track-fill-preview-active|workspace=track,selectedTrackFillPreviewActive=true|trackFillSource=clip;trackFillPreview=on;transport=stop
-21-track-modifier-tab|workspace=track,trackSourceTab=modifiers|trackFillSource=clip;trackFillPreview=off;trackSourceTab=modifiers;transport=stop
-22-track-history-tab|workspace=track,trackSourceTab=history|trackFillSource=generator;trackSourceTab=history;transport=stop
-22b-track-routing-tab|workspace=track,trackSourceTab=routing|trackFillSource=clip;trackSourceTab=routing;workspaceMode=setup;transport=stop
+21-track-macros-tab|workspace=track,trackSourceTab=macros|trackFillSource=clip;trackFillPreview=off;trackSourceTab=macros;transport=stop
+22-track-detail-fx|workspace=track,trackSourceTab=fx|trackFillSource=generator;trackSourceTab=fx;transport=stop
+22b-track-detail-mixer|workspace=track,trackSourceTab=mixer|trackFillSource=clip;trackSourceTab=mixer;workspaceMode=setup;transport=stop
 23-track-slicer|workspace=track,selectedTrackType=slice|addTrack=slice;transport=stop
 23a-track-slicer-populated|workspace=track,selectedTrackType=slice,slicerFixture=populated,slicerSliceCount=8,slicerClipStepCount=16,slicerClipActiveStepCount=8,slicerLayer=steps|slicerFixture=populated;slicerLayer=steps;workspaceScroll=top;transport=stop
 23b-track-slicer-velocity-layer|workspace=track,selectedTrackType=slice,slicerFixture=populated,slicerSliceCount=8,slicerLayer=velocity|slicerFixture=populated;slicerLayer=velocity;workspaceScroll=bottom;transport=stop

@@ -46,7 +46,7 @@ extension Project {
             }
 
             let emptyPattern = Array(repeating: false, count: 16)
-            let track = StepSequenceTrack(
+            var track = StepSequenceTrack(
                 name: member.trackName,
                 trackType: .monoMelodic,
                 voiceTag: member.tag,
@@ -57,6 +57,10 @@ extension Project {
                 velocity: StepSequenceTrack.default.velocity,
                 gateLength: StepSequenceTrack.default.gateLength
             )
+            // Seed the editable per-type default macro template for new drum
+            // parts only (M1 sample direction, M2 length, M3 filter cutoff).
+            // Existing tracks are never retroactively mutated on load.
+            track.macros = Self.defaultMacroBindings(forVoiceTag: member.tag, trackID: track.id)
             let clip = ClipPoolEntry(
                 id: UUID(),
                 name: member.trackName,
@@ -74,6 +78,16 @@ extension Project {
         tracks.append(contentsOf: newTracks)
         patternBanks.append(contentsOf: newBanks)
         let memberIDs = newTracks.map(\.id)
+
+        // By default a drum group routes its members to their own dedicated
+        // mixer bus (named after the group), keeping the kit a self-contained
+        // mixable unit. `.master` leaves members on the master bus.
+        if case .dedicatedBus = plan.busRouting {
+            let busID = addMixerBus(name: plan.name, color: plan.color)
+            for memberID in memberIDs {
+                setTrackOutputBus(trackID: memberID, busID: busID)
+            }
+        }
         let usesSharedMIDI: Bool = {
             guard case .some(.midi) = plan.sharedDestination else {
                 return false
@@ -103,6 +117,9 @@ extension Project {
         )
         selectedTrackID = newTracks.first?.id ?? selectedTrackID
         syncPhrasesWithTracks()
+        // Build phrase layers for the seeded default macro bindings so their
+        // live values resolve and they show up in the macros tab.
+        syncMacroLayers()
 
         if let templateID = plan.templateID, let template = templateLookup(templateID) {
             applyPatternTemplate(template, toGroup: groupID, slotIndex: 0)

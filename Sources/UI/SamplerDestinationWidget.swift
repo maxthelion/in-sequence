@@ -204,18 +204,17 @@ struct SamplerDestinationWidget: View {
 
     private var filterSection: some View {
         VStack(alignment: .leading, spacing: 12) {
+            FilterCurveView(settings: filterSettings)
+                .frame(height: 64)
+                .padding(StudioMetrics.Spacing.snug)
+                .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip))
+                .overlay(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip).stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth))
+
             optionRow(
                 title: "Filter Type",
                 options: SamplerFilterType.allCases,
                 selection: filterSettings.type,
-                titleForOption: { option in
-                    switch option {
-                    case .lowpass: return "LP"
-                    case .highpass: return "HP"
-                    case .bandpass: return "BP"
-                    case .notch: return "Notch"
-                    }
-                },
+                titleForOption: Self.filterTypeLabel,
                 onSelect: onTypeChanged
             )
 
@@ -374,6 +373,20 @@ struct SamplerDestinationWidget: View {
         destination = .sample(sampleID: id, settings: next.clamped())
     }
 
+    // MARK: - Filter type label
+
+    static func filterTypeLabel(_ option: SamplerFilterType) -> String {
+        switch option {
+        case .lowpass: return "LP"
+        case .highpass: return "HP"
+        case .bandpass: return "BP"
+        case .notch: return "Notch"
+        case .peak: return "Peak"
+        case .comb: return "Comb"
+        case .formant: return "Formant"
+        }
+    }
+
     // MARK: - Filter change handlers
 
     func onCutoffChanged(_ hz: Double) {
@@ -520,6 +533,109 @@ struct SamplerParameterKnob: View {
                 displayValue = newValue.clamped(to: 0...1)
             }
         }
+    }
+}
+
+/// A simple frequency-response visualization for the sampler filter.
+///
+/// Draws a normalized magnitude curve across the audible band (20 Hz–20 kHz on
+/// a log axis) whose shape reflects the filter type, cutoff and resonance. This
+/// is an illustrative response, not a measured one.
+private struct FilterCurveView: View {
+    let settings: SamplerFilterSettings
+
+    private let sampleCount = 96
+
+    var body: some View {
+        Canvas { context, size in
+            let path = curvePath(in: size)
+
+            // Fill under the curve.
+            var fill = path
+            fill.addLine(to: CGPoint(x: size.width, y: size.height))
+            fill.addLine(to: CGPoint(x: 0, y: size.height))
+            fill.closeSubpath()
+            context.fill(fill, with: .color(StudioTheme.cyan.opacity(0.14)))
+
+            // Stroke the curve.
+            context.stroke(
+                path,
+                with: .color(StudioTheme.cyan),
+                style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round)
+            )
+        }
+    }
+
+    private func curvePath(in size: CGSize) -> Path {
+        var path = Path()
+        guard size.width > 0, size.height > 0 else { return path }
+
+        for index in 0...sampleCount {
+            let fraction = Double(index) / Double(sampleCount)
+            let magnitude = magnitude(atNormalizedFrequency: fraction)
+            let x = CGFloat(fraction) * size.width
+            let y = CGFloat(1 - magnitude) * size.height
+            let point = CGPoint(x: x, y: y)
+            if index == 0 {
+                path.move(to: point)
+            } else {
+                path.addLine(to: point)
+            }
+        }
+        return path
+    }
+
+    /// Normalized response magnitude in 0...1 at a normalized (log) frequency
+    /// position `x` (0 = 20 Hz, 1 = 20 kHz).
+    private func magnitude(atNormalizedFrequency x: Double) -> Double {
+        let cutoffX = normalizedFrequency(settings.cutoffHz)
+        let resonance = settings.resonance.clamped(to: 0...1)
+        // Steepness of the transition; resonance sharpens the slope.
+        let width = 0.10 + (1 - resonance) * 0.18
+        let peak = resonance * 0.45 // resonant bump height
+
+        switch settings.type {
+        case .lowpass:
+            let roll = sigmoid((cutoffX - x) / width)
+            let bump = peakBump(x, center: cutoffX, height: peak, width: 0.05)
+            return clamp01(roll * 0.85 + bump)
+        case .highpass:
+            let roll = sigmoid((x - cutoffX) / width)
+            let bump = peakBump(x, center: cutoffX, height: peak, width: 0.05)
+            return clamp01(roll * 0.85 + bump)
+        case .bandpass, .comb, .formant:
+            let band = peakBump(x, center: cutoffX, height: 0.85, width: width)
+            let bump = peakBump(x, center: cutoffX, height: peak, width: 0.04)
+            return clamp01(band + bump)
+        case .notch:
+            let dip = peakBump(x, center: cutoffX, height: 0.85 - peak * 0.3, width: width * 0.8)
+            return clamp01(0.85 - dip)
+        case .peak:
+            let base = 0.45
+            let bump = peakBump(x, center: cutoffX, height: 0.4 + peak, width: width)
+            return clamp01(base + bump)
+        }
+    }
+
+    private func normalizedFrequency(_ hz: Double) -> Double {
+        let clamped = min(max(hz, 20), 20_000)
+        let minLog = log10(20.0)
+        let maxLog = log10(20_000.0)
+        return (log10(clamped) - minLog) / (maxLog - minLog)
+    }
+
+    private func sigmoid(_ value: Double) -> Double {
+        1 / (1 + exp(-value * 6))
+    }
+
+    private func peakBump(_ x: Double, center: Double, height: Double, width: Double) -> Double {
+        let safeWidth = max(width, 0.0001)
+        let d = (x - center) / safeWidth
+        return height * exp(-d * d)
+    }
+
+    private func clamp01(_ value: Double) -> Double {
+        min(max(value, 0), 1)
     }
 }
 

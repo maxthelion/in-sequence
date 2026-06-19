@@ -128,7 +128,7 @@ final class SamplerFilterSettingsTests: XCTestCase {
     // MARK: - SamplerFilterType cases
 
     func test_filterType_allCasesCount() {
-        XCTAssertEqual(SamplerFilterType.allCases.count, 4)
+        XCTAssertEqual(SamplerFilterType.allCases.count, 7)
     }
 
     // MARK: - SamplerFilterPoles cases

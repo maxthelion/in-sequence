@@ -311,6 +311,87 @@ final class ProjectAddDrumGroupTests: XCTestCase {
         )
     }
 
+    func test_new_drum_part_seeds_default_macro_template_m1_direction_m2_length_m3_cutoff() {
+        var project = Project.empty
+
+        let groupID = project.addDrumGroup(plan: .blankDefault, library: testLibrary)
+
+        guard let groupID, let group = project.trackGroups.first(where: { $0.id == groupID }),
+              let firstMemberID = group.memberIDs.first,
+              let track = project.tracks.first(where: { $0.id == firstMemberID })
+        else {
+            return XCTFail("expected a populated drum group")
+        }
+
+        let bySlot = Dictionary(uniqueKeysWithValues: track.macros.map { ($0.slotIndex, $0) })
+        XCTAssertEqual(bySlot[0]?.source, .builtin(.sampleStart), "M1 should be sample direction (sampleStart)")
+        XCTAssertEqual(bySlot[1]?.source, .builtin(.sampleLength), "M2 should be sample length")
+        XCTAssertEqual(bySlot[2]?.source, .builtin(.samplerFilterCutoff), "M3 should be filter cutoff")
+        XCTAssertEqual(track.macros.count, 3, "exactly three seeded slots, all editable/removable")
+
+        // Each seeded binding has a backing phrase layer so its value resolves.
+        for binding in track.macros {
+            let layerID = "macro-\(track.id.uuidString)-\(binding.id.uuidString)"
+            XCTAssertTrue(project.layers.contains { $0.id == layerID }, "missing macro layer for slot \(binding.slotIndex)")
+        }
+    }
+
+    func test_default_routing_creates_dedicated_bus_named_after_group_and_routes_members() {
+        var project = Project.empty
+        let busCountBefore = project.buses.count
+        var plan = DrumGroupPlan.from(kit: DrumKitFixtures.factoryKit(named: "808"))
+        plan.name = "My Kit"
+
+        let groupID = project.addDrumGroup(plan: plan, library: testLibrary)
+
+        guard let groupID, let group = project.trackGroups.first(where: { $0.id == groupID }) else {
+            return XCTFail("expected a new group")
+        }
+        XCTAssertEqual(project.buses.count, busCountBefore + 1, "default routing creates exactly one bus")
+        guard let newBus = project.buses.last else {
+            return XCTFail("expected a new bus")
+        }
+        XCTAssertEqual(newBus.name, "My Kit", "the dedicated bus is named after the group")
+        for memberID in group.memberIDs {
+            let track = project.tracks.first { $0.id == memberID }
+            XCTAssertEqual(track?.outputBusID, newBus.id, "every member routes to the dedicated bus")
+        }
+        XCTAssertEqual(Set(project.trackIDsRouted(to: newBus.id)), Set(group.memberIDs))
+    }
+
+    func test_master_routing_creates_no_bus_and_leaves_members_on_master() {
+        var project = Project.empty
+        let busCountBefore = project.buses.count
+        var plan = DrumGroupPlan.from(kit: DrumKitFixtures.factoryKit(named: "808"))
+        plan.busRouting = .master
+
+        let groupID = project.addDrumGroup(plan: plan, library: testLibrary)
+
+        guard let groupID, let group = project.trackGroups.first(where: { $0.id == groupID }) else {
+            return XCTFail("expected a new group")
+        }
+        XCTAssertEqual(project.buses.count, busCountBefore, "Master routing creates no bus")
+        for memberID in group.memberIDs {
+            let track = project.tracks.first { $0.id == memberID }
+            XCTAssertNil(track?.outputBusID, "Master-routed members have no output bus")
+        }
+    }
+
+    func test_blankDefault_routes_to_a_dedicated_bus_by_default() {
+        var project = Project.empty
+
+        let groupID = project.addDrumGroup(plan: .blankDefault, library: testLibrary)
+
+        guard let groupID, let group = project.trackGroups.first(where: { $0.id == groupID }),
+              let firstMemberID = group.memberIDs.first,
+              let track = project.tracks.first(where: { $0.id == firstMemberID })
+        else {
+            return XCTFail("expected a populated group")
+        }
+        XCTAssertNotNil(track.outputBusID, "the default routing is a dedicated bus, not Master")
+        XCTAssertEqual(project.mixerBus(id: track.outputBusID!)?.name, "Drum Group")
+    }
+
     private var testLibrary: AudioSampleLibrary {
         AudioSampleLibrary(libraryRoot: libraryRoot)
     }

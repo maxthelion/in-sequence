@@ -457,4 +457,109 @@ final class DrumKitMatrixEditingTests: XCTestCase {
             template.patterns["snare"]
         )
     }
+
+    // MARK: - Explicit pattern linking (AC17, AC19, AC20)
+
+    func test_newDrumGroup_defaultsLinked() throws {
+        let (session, _) = makeSession()
+        let groupID = makeDrumGroup(in: session)
+        XCTAssertEqual(matrixModel(session, groupID: groupID)?.isPatternLinked, true)
+    }
+
+    func test_linkToggle_flipsExplicitFlag_andGangsSlotSelection() throws {
+        let (session, _) = makeSession()
+        let groupID = makeDrumGroup(in: session)
+        let memberIDs = try XCTUnwrap(
+            session.store.trackGroups.first(where: { $0.id == groupID })?.memberIDs
+        )
+
+        session.setDrumGroupPatternLinked(false, groupID: groupID)
+        XCTAssertEqual(session.store.trackGroups.first(where: { $0.id == groupID })?.isPatternLinked, false)
+        session.setDrumGroupPatternLinked(true, groupID: groupID)
+        XCTAssertEqual(session.store.trackGroups.first(where: { $0.id == groupID })?.isPatternLinked, true)
+
+        // While linked, selecting the group slot gangs every member together.
+        session.setDrumGroupSelectedPatternIndex(3, groupID: groupID)
+        let exported = session.store.exportToProject()
+        for memberID in memberIDs {
+            XCTAssertEqual(exported.selectedPatternIndex(for: memberID), 3)
+        }
+    }
+
+    func test_linking_doesNotGangMute() throws {
+        let (session, _) = makeSession()
+        let groupID = makeDrumGroup(in: session)
+        let memberIDs = try XCTUnwrap(
+            session.store.trackGroups.first(where: { $0.id == groupID })?.memberIDs
+        )
+
+        // Mute one part while linked, then gang the slot. Mute stays per-part.
+        session.setTrackMuted(true, trackID: memberIDs[0])
+        session.setDrumGroupSelectedPatternIndex(2, groupID: groupID)
+
+        let exported = session.store.exportToProject()
+        XCTAssertEqual(exported.tracks.first(where: { $0.id == memberIDs[0] })?.mix.isMuted, true)
+        XCTAssertEqual(exported.tracks.first(where: { $0.id == memberIDs[1] })?.mix.isMuted, false)
+        XCTAssertEqual(exported.tracks.first(where: { $0.id == memberIDs[2] })?.mix.isMuted, false)
+        // Slots still ganged.
+        for memberID in memberIDs {
+            XCTAssertEqual(exported.selectedPatternIndex(for: memberID), 2)
+        }
+    }
+
+    func test_editingStepContent_doesNotBreakLink() throws {
+        let (session, _) = makeSession()
+        let groupID = makeDrumGroup(in: session)
+        let model = try XCTUnwrap(matrixModel(session, groupID: groupID))
+        let row = try XCTUnwrap(model.rows.first)
+        XCTAssertEqual(model.isPatternLinked, true)
+        XCTAssertNotNil(model.groupSelectedSlotIndex)
+
+        // Edit one part's step content in the shared slot (AC19).
+        guard case let .editable(_, lengthSteps, steps) = row.content else {
+            return XCTFail("expected editable row")
+        }
+        let edit = try XCTUnwrap(
+            DrumKitMatrixStepEdit.tappedContent(
+                layer: .steps,
+                stepIndex: 5,
+                lengthSteps: lengthSteps,
+                steps: steps,
+                defaultNote: row.defaultNote
+            )
+        )
+        commitMatrixEdit(session, row: row, content: edit)
+
+        let after = try XCTUnwrap(matrixModel(session, groupID: groupID))
+        XCTAssertEqual(after.isPatternLinked, true, "Editing step content keeps linking")
+        XCTAssertNotNil(after.groupSelectedSlotIndex, "All parts still share the slot")
+        XCTAssertFalse(after.isLinkBroken)
+    }
+
+    func test_structuralDivergence_flipsToMixed_andRelinkRestores() throws {
+        let (session, _) = makeSession()
+        let groupID = makeDrumGroup(in: session)
+        let memberIDs = try XCTUnwrap(
+            session.store.trackGroups.first(where: { $0.id == groupID })?.memberIDs
+        )
+        XCTAssertEqual(matrixModel(session, groupID: groupID)?.isLinkBroken, false)
+
+        // Move one member to a different slot (structural divergence, AC20).
+        session.setSelectedPatternIndex(4, for: memberIDs[1])
+        let diverged = try XCTUnwrap(matrixModel(session, groupID: groupID))
+        XCTAssertTrue(diverged.isPatternLinked, "Intent stays linked")
+        XCTAssertNil(diverged.groupSelectedSlotIndex, "Members are mixed")
+        XCTAssertTrue(diverged.isLinkBroken, "Mixed while linked surfaces re-link")
+
+        // One-click re-link re-gangs everyone to the representative slot.
+        session.reLinkDrumGroupPattern(groupID: groupID)
+        let relinked = try XCTUnwrap(matrixModel(session, groupID: groupID))
+        XCTAssertFalse(relinked.isLinkBroken)
+        XCTAssertNotNil(relinked.groupSelectedSlotIndex)
+        let exported = session.store.exportToProject()
+        let representative = exported.selectedPatternIndex(for: memberIDs[0])
+        for memberID in memberIDs {
+            XCTAssertEqual(exported.selectedPatternIndex(for: memberID), representative)
+        }
+    }
 }

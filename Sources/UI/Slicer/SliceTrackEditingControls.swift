@@ -16,34 +16,40 @@ enum SliceTrackLane: String, CaseIterable, Identifiable {
 }
 
 enum SliceTrackClipLayer: String, CaseIterable, Identifiable {
+    // NOTE: the `steps`, `velocity`, `chance` raw values are load-bearing —
+    // the QA visual scenarios (`slicerLayer=steps|velocity|chance`) and the
+    // step-grid coordinator map onto them. `steps` is the slice-index layer.
     case steps
-    case sliceIndex
     case velocity
-    case playbackDirection
+    case direction
     case noteRepeat
     case gate
     case chance
 
     var id: String { rawValue }
 
+    /// The display label shown in the step-layer selector above the steps.
     var title: String {
         switch self {
-        case .steps: return "Steps"
-        case .sliceIndex: return "Slice"
+        case .steps: return "Slice Index"
         case .velocity: return "Velocity"
-        case .playbackDirection: return "Direction"
-        case .noteRepeat: return "Repeat"
+        case .direction: return "Direction"
+        case .noteRepeat: return "Note Repeat"
         case .gate: return "Gate"
         case .chance: return "Chance"
         }
     }
 
-    var isStepDragEditable: Bool {
+    /// Layers whose per-step value is fully wired into the engine clip model
+    /// (slice index, velocity, chance). The remaining layers are part of the
+    /// step grammar but are not yet backed by a per-step engine parameter, so
+    /// they render the strip read-only with a NOTE.
+    var isEngineBacked: Bool {
         switch self {
-        case .steps, .noteRepeat, .gate:
-            return false
-        case .sliceIndex, .velocity, .playbackDirection, .chance:
+        case .steps, .velocity, .chance:
             return true
+        case .direction, .noteRepeat, .gate:
+            return false
         }
     }
 }
@@ -56,33 +62,31 @@ struct SliceLayerTabRow: View {
     var body: some View {
         HStack(spacing: 8) {
             ForEach(SliceTrackClipLayer.allCases) { layer in
-                Button {
-                    onSelectLayer(layer)
-                } label: {
-                    Text(layer.title)
-                        .studioText(.labelBold)
-                        .foregroundStyle(selectedLayer == layer ? StudioTheme.background : StudioTheme.text)
-                        .padding(.horizontal, 13)
-                        .padding(.vertical, 8)
-                        .background(
-                            selectedLayer == layer
-                                ? accent
-                                : Color.white.opacity(StudioOpacity.subtleFill),
-                            in: Capsule()
-                        )
-                        .overlay(
-                            Capsule()
-                                .stroke(
-                                    selectedLayer == layer
-                                        ? Color.clear
-                                        : StudioTheme.border.opacity(0.8),
-                                    lineWidth: StudioMetrics.borderWidth
-                                )
-                        )
-                }
-                .buttonStyle(.plain)
+                layerButton(layer)
             }
         }
+    }
+
+    @ViewBuilder
+    private func layerButton(_ layer: SliceTrackClipLayer) -> some View {
+        let isSelected = (selectedLayer == layer)
+        let textColor: Color = isSelected ? StudioTheme.background : StudioTheme.text
+        let fillColor: Color = isSelected ? accent : Color.white.opacity(StudioOpacity.subtleFill)
+        let strokeColor: Color = isSelected ? Color.clear : StudioTheme.border.opacity(0.8)
+        Button {
+            onSelectLayer(layer)
+        } label: {
+            Text(layer.title)
+                .studioText(.labelBold)
+                .foregroundStyle(textColor)
+                .padding(.horizontal, 13)
+                .padding(.vertical, 8)
+                .background(fillColor, in: Capsule())
+                .overlay(
+                    Capsule().stroke(strokeColor, lineWidth: StudioMetrics.borderWidth)
+                )
+        }
+        .buttonStyle(.plain)
     }
 }
 
@@ -340,9 +344,9 @@ struct SliceStepStrip: View {
                             isSelected: selectedStepIndexes.contains(absoluteIndex),
                             content: contentProvider(absoluteIndex, state),
                             onTap: { onTap(absoluteIndex) },
-                            onDrag: activeLayer.isStepDragEditable ? { value in
+                            onDrag: activeLayer == .steps ? nil : { value in
                                 onValueDrag?(absoluteIndex, value)
-                            } : nil,
+                            },
                             onSelect: { onSelect(absoluteIndex) }
                         )
                     }
@@ -699,5 +703,403 @@ enum SliceBoundaryEditing {
 
         sliceSet.markers[index - 1].endFrame = boundary
         sliceSet.markers[index].startFrame = boundary
+    }
+}
+
+// MARK: - Lower tab bar (Source · Slice · FX · Macros · Mixer)
+
+enum SliceTrackLowerTab: String, CaseIterable, Identifiable {
+    case source
+    case slice
+    case fx
+    case macros
+    case mixer
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .source: return "Source"
+        case .slice: return "Slice"
+        case .fx: return "FX"
+        case .macros: return "Macros"
+        case .mixer: return "Mixer"
+        }
+    }
+
+    var subtitle: String {
+        switch self {
+        case .source: return "sample + markers"
+        case .slice: return "range + sampler"
+        case .fx: return "insert chain"
+        case .macros: return "M1–M8"
+        case .mixer: return "bus + sends"
+        }
+    }
+}
+
+struct SliceLowerTabBar: View {
+    let selectedTab: SliceTrackLowerTab
+    let accent: Color
+    let onSelect: (SliceTrackLowerTab) -> Void
+
+    private let columns = Array(repeating: GridItem(.flexible(), spacing: 8), count: 5)
+
+    var body: some View {
+        LazyVGrid(columns: columns, spacing: 8) {
+            ForEach(SliceTrackLowerTab.allCases) { tab in
+                tabButton(tab)
+            }
+        }
+        .padding(.bottom, 8)
+    }
+
+    private func tabButton(_ tab: SliceTrackLowerTab) -> some View {
+        let isSelected = tab == selectedTab
+        return Button {
+            onSelect(tab)
+        } label: {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(tab.title)
+                    .studioText(.labelBold)
+                    .foregroundStyle(isSelected ? StudioTheme.background : StudioTheme.text)
+                Text(tab.subtitle)
+                    .studioText(.micro)
+                    .foregroundStyle(isSelected ? StudioTheme.background.opacity(0.8) : StudioTheme.mutedText)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 9)
+            .background(
+                isSelected ? accent : Color.white.opacity(StudioOpacity.subtleFill),
+                in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                    .stroke(isSelected ? Color.clear : StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("slice-lower-tab-\(tab.rawValue)")
+        .accessibilityLabel("\(tab.title) tab")
+    }
+}
+
+// MARK: - Source tab content (three states)
+
+enum SliceSourceState: Equatable {
+    case empty
+    case unsliced
+    case sliced
+}
+
+struct SliceSourceTabContent: View {
+    let state: SliceSourceState
+    let sampleName: String?
+    let sliceCount: Int
+    let detectionLabel: String
+    let accent: Color
+    let onChooseSample: () -> Void
+    let onRemoveSample: () -> Void
+    let onOpenSliceModal: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .center, spacing: 10) {
+                Text("Source")
+                    .studioText(.bodyBold)
+                    .foregroundStyle(StudioTheme.text)
+                Spacer()
+                Text(statusText)
+                    .studioText(.labelBold)
+                    .foregroundStyle(StudioTheme.mutedText)
+            }
+
+            switch state {
+            case .empty:
+                emptyState
+            case .unsliced:
+                unslicedState
+            case .sliced:
+                slicedState
+            }
+        }
+    }
+
+    private var statusText: String {
+        switch state {
+        case .empty: return "No sample"
+        case .unsliced: return "Sample present · unsliced"
+        case .sliced: return "Sample present · \(sliceCount) slice\(sliceCount == 1 ? "" : "s")"
+        }
+    }
+
+    private var emptyState: some View {
+        well {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("No sample")
+                    .studioText(.subtitle)
+                    .foregroundStyle(StudioTheme.text)
+                Text("Choose a sample before slice markers, steps, or slice controls become useful.")
+                    .studioText(.body)
+                    .foregroundStyle(StudioTheme.mutedText)
+                Button {
+                    onChooseSample()
+                } label: {
+                    Label("Choose Sample", systemImage: "waveform")
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(accent)
+            }
+        }
+    }
+
+    private var unslicedState: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            sampleRow
+            well {
+                HStack(spacing: 10) {
+                    Button {
+                        onOpenSliceModal()
+                    } label: {
+                        Label("Slice Sample", systemImage: "scissors")
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(StudioTheme.violet)
+
+                    Text("Unsliced")
+                        .studioText(.labelBold)
+                        .foregroundStyle(StudioTheme.amber)
+                    Spacer()
+                }
+            }
+        }
+    }
+
+    private var slicedState: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            sampleRow
+            well {
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(spacing: 8) {
+                        Text("\(sliceCount) slice\(sliceCount == 1 ? "" : "s")")
+                            .studioText(.labelBold)
+                            .foregroundStyle(StudioTheme.success)
+                        Text(detectionLabel)
+                            .studioText(.label)
+                            .foregroundStyle(StudioTheme.mutedText)
+                        Spacer()
+                    }
+                    HStack(spacing: 10) {
+                        Button {
+                            onOpenSliceModal()
+                        } label: {
+                            Label("Edit Slices", systemImage: "slider.horizontal.3")
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(StudioTheme.violet)
+
+                        Button {
+                            onOpenSliceModal()
+                        } label: {
+                            Label("Re-slice", systemImage: "arrow.triangle.2.circlepath")
+                        }
+                        .buttonStyle(.bordered)
+                        Spacer()
+                    }
+                }
+            }
+        }
+    }
+
+    private var sampleRow: some View {
+        well {
+            HStack(spacing: 10) {
+                Text(sampleName ?? "Sample")
+                    .studioText(.subtitle)
+                    .foregroundStyle(StudioTheme.text)
+                    .lineLimit(1)
+                Spacer()
+                Button(role: .destructive) {
+                    onRemoveSample()
+                } label: {
+                    Label("Remove Sample", systemImage: "trash")
+                }
+                .buttonStyle(.bordered)
+            }
+        }
+    }
+
+    private func well<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        content()
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(StudioMetrics.Spacing.standard)
+            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
+                    .stroke(StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
+            )
+    }
+}
+
+// MARK: - Slice tab sampler card (drum-part sampler grammar)
+
+/// The Slice tab squashes "where the slice is in the source" and the
+/// sampler/playback settings into one card that reads like the drum-part
+/// sampler (`SamplerDestinationWidget`): title row, compact range preview,
+/// browse/audition, parameter dials, reverse/choke + voice chips. The per-slice
+/// values are the real engine-backed `SliceTriggerStepParameters` for the
+/// selected step; voice mode is the real track-wide `SlicerVoiceMode`.
+struct SliceSamplerCard: View {
+    let sampleName: String
+    let markerIndex: Int
+    let buckets: [Float]
+    let marker: SliceMarker
+    let sampleLengthFrames: Int64
+    @Binding var voiceMode: SlicerVoiceMode
+    @Binding var mode: SliceTriggerStepMode
+    @Binding var parameters: SliceTriggerStepParameters
+    let onAudition: () -> Void
+    let onBrowse: (Int) -> Void
+
+    private var sliceTitle: String {
+        markerIndex == 0 ? "Whole" : "S\(markerIndex)"
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            header
+            divider
+            browseRow
+            divider
+            SliceSamplePlayerParametersView(
+                markerIndex: markerIndex,
+                sampleName: sampleName,
+                sliceDetail: rangeDetail,
+                waveformBuckets: previewBuckets,
+                mode: $mode,
+                parameters: $parameters
+            )
+            divider
+            voiceRow
+        }
+        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
+                .stroke(StudioTheme.violet.opacity(StudioOpacity.mediumStroke), lineWidth: StudioMetrics.borderWidth)
+        )
+        .frame(maxWidth: 560, alignment: .leading)
+    }
+
+    private var header: some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("\(sampleName) \(sliceTitle)")
+                    .studioText(.subtitle)
+                    .foregroundStyle(StudioTheme.text)
+                    .lineLimit(1)
+                Text(rangeDetail)
+                    .studioText(.label)
+                    .foregroundStyle(StudioTheme.mutedText)
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 8)
+            StudioCircleIconButton(
+                systemName: "play.fill",
+                size: StudioMetrics.ControlSize.medium,
+                help: "Audition this slice",
+                action: onAudition
+            )
+        }
+        .padding(StudioMetrics.Spacing.standard)
+    }
+
+    private var rangeDetail: String {
+        let length = max(0, marker.endFrame - marker.startFrame)
+        return "\(sliceTitle) · \(length) frames"
+    }
+
+    private var rangePreview: some View {
+        WaveformView(buckets: previewBuckets, fillColor: StudioTheme.success, inactiveColor: StudioTheme.border.opacity(0.6))
+            .frame(height: 60)
+            .padding(StudioMetrics.Spacing.snug)
+            .background(StudioTheme.inset, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip))
+            .overlay(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip).stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth))
+            .padding(.horizontal, StudioMetrics.Spacing.comfortable)
+            .padding(.vertical, StudioMetrics.Spacing.snug)
+    }
+
+    private var previewBuckets: [Float] {
+        guard !buckets.isEmpty, sampleLengthFrames > 0 else {
+            return buckets
+        }
+        let lower = Int((Double(marker.startFrame) / Double(sampleLengthFrames)) * Double(buckets.count))
+        let upper = Int((Double(marker.endFrame) / Double(sampleLengthFrames)) * Double(buckets.count))
+        let clampedLower = min(max(lower, 0), buckets.count - 1)
+        let clampedUpper = min(max(upper, clampedLower + 1), buckets.count)
+        return Array(buckets[clampedLower..<clampedUpper])
+    }
+
+    private var browseRow: some View {
+        HStack(spacing: 8) {
+            StudioCircleIconButton(
+                systemName: "chevron.left",
+                help: "Previous slice"
+            ) {
+                onBrowse(-1)
+            }
+            Spacer()
+            Text("Browse slice")
+                .studioText(.label)
+                .foregroundStyle(StudioTheme.mutedText)
+            Spacer()
+            StudioCircleIconButton(
+                systemName: "chevron.right",
+                help: "Next slice"
+            ) {
+                onBrowse(1)
+            }
+        }
+        .padding(.horizontal, StudioMetrics.Spacing.comfortable)
+        .padding(.vertical, StudioMetrics.Spacing.snug)
+    }
+
+    private var voiceRow: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("PLAYBACK")
+                .studioText(.eyebrow)
+                .tracking(0.8)
+                .foregroundStyle(StudioTheme.mutedText)
+
+            HStack(spacing: 8) {
+                ForEach(SlicerVoiceMode.allCases, id: \.self) { voice in
+                    voiceChip(voice)
+                }
+                Spacer()
+            }
+        }
+        .padding(StudioMetrics.Spacing.comfortable)
+    }
+
+    private func voiceChip(_ voice: SlicerVoiceMode) -> some View {
+        let isSelected = voiceMode == voice
+        return Button {
+            voiceMode = voice
+        } label: {
+            Text(voice == .mono ? "Mono" : "Poly")
+                .studioText(.labelBold)
+                .foregroundStyle(isSelected ? StudioTheme.background : StudioTheme.text)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 7)
+                .background(isSelected ? StudioTheme.violet : Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
+                .overlay(Capsule().stroke(isSelected ? Color.clear : StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var divider: some View {
+        Divider().overlay(StudioTheme.border.opacity(0.7))
     }
 }

@@ -18,6 +18,31 @@ extension Project {
         }
     }
 
+    /// Editable per-type default macro template, seeded at track creation.
+    ///
+    /// These are *initial values* the user can edit or remove afterwards — they
+    /// are not a fixed mapping. Drum parts land with three pre-mapped slots:
+    /// - M1 (slot 0): sample direction (the source-buffer start/position macro)
+    /// - M2 (slot 1): sample length
+    /// - M3 (slot 2): filter cutoff
+    ///
+    /// There is no dedicated "sample direction" parameter in the model; the
+    /// `sampleStart` built-in (normalised position into the source buffer) is the
+    /// real case that expresses sample direction/position, so it is used for M1.
+    static func defaultMacroBindings(forVoiceTag tag: VoiceTag?, trackID: UUID) -> [TrackMacroBinding] {
+        // Voice tag presence marks a drum part; melodic tracks get no template.
+        guard tag != nil else {
+            return []
+        }
+        let kinds: [BuiltinMacroKind] = [.sampleStart, .sampleLength, .samplerFilterCutoff]
+        return kinds.enumerated().map { slotIndex, kind in
+            TrackMacroBinding(
+                descriptor: TrackMacroDescriptor.builtin(trackID: trackID, kind: kind),
+                slotIndex: slotIndex
+            )
+        }
+    }
+
     /// True if the destination kind should carry sampler built-in macros.
     private static func isSamplerKind(_ destination: Destination) -> Bool {
         switch destination.kind {

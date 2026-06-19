@@ -343,12 +343,19 @@ struct ClipHistoryPreviewLayout: Equatable {
     }
 }
 
-private struct ClipHistoryPianoRollPreview: View {
+/// The canonical clip-history live-buffer piano roll. Reused by the kit capture
+/// surface (one per part) so kit history shares the single-track grammar instead
+/// of a bespoke strip.
+struct ClipHistoryPianoRollPreview: View {
     let content: ClipContent?
     let gridSteps: Int
     let liveFillStepIndex: Int?
     let accent: Color
     var isTransportRunning = true
+    /// When set, an accent-bordered rectangle is drawn around these step
+    /// columns over the buffer — the save-window highlight used by the kit
+    /// capture surface. Default nil keeps the single-track caller unchanged.
+    var selectionRange: Range<Int>? = nil
 
     private var notes: [ClipNote] {
         clipNotes(from: content)
@@ -418,6 +425,21 @@ private struct ClipHistoryPianoRollPreview: View {
                             x: stepWidth * CGFloat(layout.clampedStep(note.startStep)) + 1,
                             y: laneHeight * CGFloat(yIndex) + 1.5
                         )
+                }
+
+                if let selectionRange, !selectionRange.isEmpty {
+                    let clampedLower = min(max(selectionRange.lowerBound, 0), resolvedLength)
+                    let clampedUpper = min(max(selectionRange.upperBound, clampedLower), resolvedLength)
+                    let selectionWidth = max(stepWidth * CGFloat(clampedUpper - clampedLower), 2)
+                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous)
+                        .stroke(accent, lineWidth: 2)
+                        .background(
+                            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous)
+                                .fill(accent.opacity(StudioOpacity.hoverFill))
+                        )
+                        .frame(width: selectionWidth)
+                        .frame(maxHeight: .infinity)
+                        .offset(x: stepWidth * CGFloat(clampedLower))
                 }
 
                 if notes.isEmpty {

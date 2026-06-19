@@ -371,10 +371,14 @@ struct AddDrumGroupSheet: View {
     private var routingSection: some View {
         StudioPanel(
             title: "Routing",
-            eyebrow: "Step 3 — optional shared destination for the group",
+            eyebrow: "Step 3 — output bus and optional shared destination",
             accent: StudioTheme.success
         ) {
             VStack(alignment: .leading, spacing: 12) {
+                busRoutingPicker
+
+                Divider().overlay(StudioTheme.border)
+
                 Toggle(
                     "Add shared destination",
                     isOn: Binding(
@@ -397,6 +401,72 @@ struct AddDrumGroupSheet: View {
                 }
             }
         }
+    }
+
+    /// Output-bus routing for the group. A new drum group routes to its own
+    /// dedicated bus (named after the group) by default; Master is offered as a
+    /// non-default alternative.
+    private var busRoutingPicker: some View {
+        let newBusTitle = "New bus: \(busNamePreview)"
+        let isDedicated = plan.busRouting == .dedicatedBus
+
+        return VStack(alignment: .leading, spacing: StudioMetrics.Spacing.snug) {
+            HStack(spacing: StudioMetrics.Spacing.snug) {
+                Text("OUTPUT")
+                    .studioText(.eyebrow)
+                    .tracking(0.8)
+                    .foregroundStyle(StudioTheme.mutedText)
+
+                busRoutingChip(title: newBusTitle, isSelected: isDedicated) {
+                    plan.busRouting = .dedicatedBus
+                }
+
+                busRoutingChip(title: "Master", isSelected: !isDedicated) {
+                    plan.busRouting = .master
+                }
+
+                Spacer(minLength: 0)
+            }
+
+            Text(isDedicated
+                ? "Recommended — the kit gets its own mixer bus you can process as one unit."
+                : "Parts route straight to Master.")
+                .studioText(.label)
+                .foregroundStyle(StudioTheme.mutedText)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    /// The name the dedicated bus will take — the group name, falling back to a
+    /// stable label when the user has cleared it.
+    private var busNamePreview: String {
+        let trimmed = plan.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? "Drum Group" : trimmed
+    }
+
+    private func busRoutingChip(title: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .studioText(.labelBold)
+                .foregroundStyle(isSelected ? StudioTheme.background : StudioTheme.mutedText)
+                .lineLimit(1)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 7)
+                .background(
+                    isSelected ? StudioTheme.success : Color.white.opacity(StudioOpacity.subtleFill),
+                    in: Capsule()
+                )
+                .overlay(
+                    Capsule()
+                        .stroke(
+                            isSelected ? Color.clear : StudioTheme.border,
+                            lineWidth: StudioMetrics.borderWidth
+                        )
+                )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Output \(title)")
+        .accessibilityValue(isSelected ? "Selected" : "Not selected")
     }
 
     private func destinationSummaryRow(for destination: Destination) -> some View {
@@ -465,6 +535,7 @@ struct AddDrumGroupSheet: View {
         selectedKitID = kit?.id
         let preservedSharedDestination = plan.sharedDestination
         let preservedTemplateID = plan.templateID
+        let preservedBusRouting = plan.busRouting
 
         if let kit {
             plan = DrumGroupPlan.from(kit: kit, templateID: preservedTemplateID)
@@ -477,6 +548,7 @@ struct AddDrumGroupSheet: View {
             )
         }
         plan.sharedDestination = preservedSharedDestination
+        plan.busRouting = preservedBusRouting
     }
 
     private func appendBlankPart() {
