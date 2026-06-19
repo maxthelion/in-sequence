@@ -327,7 +327,10 @@ struct DrumKitMatrixView: View {
     let onBack: () -> Void
     let onSelectPart: (UUID) -> Void
 
-    @State private var displayStepCount = 16
+    /// Fixed 16-step grid; paging across bars replaces the old 16/32 toggle.
+    private static let stepsPerBar = 16
+    /// Which 16-step bar window is visible for every row in lockstep.
+    @State private var barPage = 0
     @State private var selectedLayer: DrumKitMatrixLayer = .steps
     @State private var isPresentingRoutingEditor = false
     @State private var isPresentingTemplateChooser = false
@@ -336,7 +339,7 @@ struct DrumKitMatrixView: View {
         DrumKitMatrixModel(
             groupID: navigationState.groupID,
             originatingPartID: navigationState.originatingPartID,
-            displayStepCount: displayStepCount,
+            displayStepCount: Self.stepsPerBar,
             tracks: session.store.tracks,
             trackGroups: session.store.trackGroups,
             layers: session.store.layers,
@@ -349,6 +352,34 @@ struct DrumKitMatrixView: View {
 
     private var accent: Color {
         Color(hex: model?.colorHex ?? "") ?? StudioTheme.success
+    }
+
+    /// Longest editable/read-only row length, in steps, across the kit. Drives
+    /// how many 16-step bar pages the pager offers.
+    private func longestRowLength(_ model: DrumKitMatrixModel) -> Int {
+        var maxLength = Self.stepsPerBar
+        for row in model.rows {
+            switch row.content {
+            case let .editable(_, lengthSteps, steps):
+                maxLength = max(maxLength, max(lengthSteps, steps.count))
+            case let .readOnly(_, _, steps):
+                maxLength = max(maxLength, steps.count)
+            case .generator:
+                break
+            }
+        }
+        return maxLength
+    }
+
+    /// Number of 16-step bar pages, at least one.
+    private func barPageCount(_ model: DrumKitMatrixModel) -> Int {
+        let length = longestRowLength(model)
+        return max(1, (length + Self.stepsPerBar - 1) / Self.stepsPerBar)
+    }
+
+    /// `barPage` clamped to the valid range for the current model.
+    private func clampedPage(_ model: DrumKitMatrixModel) -> Int {
+        min(max(0, barPage), barPageCount(model) - 1)
     }
 
     var body: some View {
@@ -425,7 +456,7 @@ struct DrumKitMatrixView: View {
         .onDisappear {
             postRenderedVisualState(isVisible: false)
         }
-        .onChange(of: displayStepCount) {
+        .onChange(of: barPage) {
             postRenderedVisualState(isVisible: true)
         }
         .onChange(of: selectedLayer) {
@@ -458,7 +489,9 @@ struct DrumKitMatrixView: View {
                 "visible": isVisible,
                 "routingEditorVisible": isVisible && isPresentingRoutingEditor,
                 "templateChooserVisible": isVisible && isPresentingTemplateChooser,
-                "displayStepCount": displayStepCount,
+                "displayStepCount": Self.stepsPerBar,
+                "barPage": isVisible ? (model.map(clampedPage) ?? 0) : 0,
+                "barPageCount": isVisible ? (model.map(barPageCount) ?? 1) : 1,
                 "layer": isVisible ? selectedLayer.rawValue : "none",
                 "groupPatternSlot": isVisible ? (groupSlot.map { "\($0 + 1)" } ?? "mixed") : "none",
                 "groupName": isVisible ? model?.groupName ?? "none" : "none",
@@ -499,13 +532,11 @@ struct DrumKitMatrixView: View {
                         .truncationMode(.tail)
                 }
 
-                Text("\(model?.memberCountLabel ?? "No parts") · \(displayStepCount) steps")
+                Text("\(model?.memberCountLabel ?? "No parts") · 16 steps/bar")
                     .studioText(.eyebrowBold)
                     .foregroundStyle(StudioTheme.mutedText)
             }
             .frame(minWidth: 180, maxWidth: .infinity, alignment: .leading)
-
-            stepDisplayPicker
 
             headerActionButton(title: "Apply Template…", systemImage: "square.grid.2x2") {
                 isPresentingTemplateChooser = true
@@ -540,34 +571,61 @@ struct DrumKitMatrixView: View {
         .background(accent, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
     }
 
-    private var stepDisplayPicker: some View {
-        HStack(spacing: 4) {
-            stepDisplayButton(16)
-            stepDisplayButton(32)
+    /// Bar pager: one button per 16-step bar (1–16, 17–32, …), shown only when
+    /// the kit's longest row spans more than one bar. Selecting a page moves the
+    /// visible 16-step window for every part row in lockstep.
+    @ViewBuilder
+    private func barPager(_ model: DrumKitMatrixModel) -> some View {
+        let pageCount = barPageCount(model)
+        if pageCount > 1 {
+            let current = clampedPage(model)
+            HStack(spacing: 6) {
+                Text("BAR")
+                    .studioText(.eyebrow)
+                    .tracking(0.8)
+                    .foregroundStyle(StudioTheme.mutedText)
+
+                HStack(spacing: 4) {
+                    ForEach(0..<pageCount, id: \.self) { page in
+                        barPageButton(page, isSelected: page == current)
+                    }
+                }
+                .padding(3)
+                .background(
+                    Color.white.opacity(StudioOpacity.subtleFill),
+                    in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                        .stroke(StudioTheme.border.opacity(0.9), lineWidth: StudioMetrics.borderWidth)
+                )
+            }
         }
-        .padding(StudioMetrics.Spacing.hairline)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
-        )
     }
 
-    private func stepDisplayButton(_ count: Int) -> some View {
-        Button {
-            displayStepCount = count
+    private func barPageButton(_ page: Int, isSelected: Bool) -> some View {
+        let lower = page * Self.stepsPerBar + 1
+        let upper = (page + 1) * Self.stepsPerBar
+        let title = "\(lower)–\(upper)"
+
+        return Button {
+            barPage = page
         } label: {
-            Text("\(count)")
+            Text(title)
                 .studioText(.labelBold)
-                .frame(width: 34, height: 28)
-                .foregroundStyle(displayStepCount == count ? StudioTheme.background : StudioTheme.mutedText)
+                .foregroundStyle(isSelected ? StudioTheme.background : StudioTheme.text.opacity(0.78))
+                .lineLimit(1)
+                .frame(minWidth: 56, minHeight: 28)
+                .padding(.horizontal, 8)
                 .background(
-                    (displayStepCount == count ? accent : Color.clear),
-                    in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                    isSelected ? accent : Color.clear,
+                    in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
                 )
         }
         .buttonStyle(.plain)
-        .help("\(count)-step display")
+        .help("Show steps \(title)")
+        .accessibilityLabel("Bar \(title)")
+        .accessibilityValue(isSelected ? "Selected" : "Not selected")
     }
 
     @ViewBuilder
@@ -580,6 +638,8 @@ struct DrumKitMatrixView: View {
 
                 HStack(spacing: 10) {
                     layerSelector
+
+                    barPager(model)
 
                     Spacer(minLength: 0)
 
@@ -730,13 +790,15 @@ struct DrumKitMatrixView: View {
     }
 
     private func matrixRows(_ model: DrumKitMatrixModel) -> some View {
-        ScrollView(.vertical) {
+        let pageOffset = clampedPage(model) * Self.stepsPerBar
+        return ScrollView(.vertical) {
             VStack(alignment: .leading, spacing: 10) {
                 ForEach(model.rows) { row in
                     DrumKitMatrixRowView(
                         row: row,
                         layer: selectedLayer,
-                        displayStepCount: displayStepCount,
+                        pageOffset: pageOffset,
+                        stepsPerBar: Self.stepsPerBar,
                         accent: accent,
                         onTapStep: { stepIndex in
                             commitTap(row: row, stepIndex: stepIndex)
@@ -807,9 +869,12 @@ struct DrumKitMatrixView: View {
     private func applyVisualCommand(_ command: String) {
         switch command {
         case "display-16":
-            displayStepCount = 16
+            // Legacy 16/32 toggle removed; map to the first bar page so the
+            // external QA command runner stays compatible.
+            barPage = 0
         case "display-32":
-            displayStepCount = 32
+            // Legacy: second bar (17–32) now that the grid is fixed at 16.
+            barPage = 1
         case "open-routing":
             isPresentingRoutingEditor = true
         case "close-routing":
@@ -830,6 +895,11 @@ struct DrumKitMatrixView: View {
             } else if command.hasPrefix("layer:"),
                       let layer = DrumKitMatrixLayer(rawValue: String(command.dropFirst("layer:".count))) {
                 selectedLayer = layer
+            } else if command.hasPrefix("bar:"),
+                      let rawPage = command.split(separator: ":").last,
+                      let page = Int(rawPage),
+                      page >= 0 {
+                barPage = page
             } else if command.hasPrefix("pattern:"),
                       let rawSlot = command.split(separator: ":").last,
                       let slotIndex = Int(rawSlot),
@@ -847,8 +917,12 @@ struct DrumKitMatrixView: View {
 private struct DrumKitMatrixRowView: View {
     let row: DrumKitMatrixModel.Row
     let layer: DrumKitMatrixLayer
-    let displayStepCount: Int
+    /// Absolute step index of the first visible cell (selected bar × 16).
+    let pageOffset: Int
+    /// Fixed grid width — always 16 columns.
+    let stepsPerBar: Int
     let accent: Color
+    /// Receives the ABSOLUTE step index (pageOffset + grid column).
     let onTapStep: (Int) -> Void
     let onDragStep: (Int, Double) -> Void
     let onOpenPart: () -> Void
@@ -934,13 +1008,14 @@ private struct DrumKitMatrixRowView: View {
     @ViewBuilder
     private var stepRegion: some View {
         switch row.content {
-        case let .editable(_, lengthSteps, steps):
-            let visibleCount = min(displayStepCount, lengthSteps)
-            let visibleSteps = Array(steps.prefix(visibleCount))
+        case let .editable(_, _, steps):
+            // Always a 16-cell window starting at the selected bar. The grid's
+            // `indexOffset` makes every closure index and cell label ABSOLUTE,
+            // so tap/drag commit through the full-length step array unchanged.
+            let states = windowedEditableStates(steps: steps)
             StepGridView(
-                stepStates: visibleSteps.map {
-                    ClipNoteGridStepEditing.visualState(for: $0, lane: .main)
-                },
+                stepStates: states,
+                indexOffset: pageOffset,
                 contentProvider: { index, _ in
                     cellContent(steps: steps, index: index)
                 },
@@ -953,21 +1028,35 @@ private struct DrumKitMatrixRowView: View {
             )
 
         case .generator:
-            readOnlyGrid(states: Array(repeating: StepVisualState.off, count: min(displayStepCount, 16)))
+            readOnlyGrid(states: Array(repeating: StepVisualState.off, count: stepsPerBar))
 
         case let .readOnly(_, _, pattern):
-            let visibleCount = min(displayStepCount, max(1, pattern.count))
-            readOnlyGrid(
-                states: (0..<visibleCount).map { index in
-                    pattern.indices.contains(index) && pattern[index] ? .on : .off
-                }
-            )
+            readOnlyGrid(states: windowedReadOnlyStates(pattern: pattern))
+        }
+    }
+
+    /// 16 visual states for the current bar window over `steps`, padding cells
+    /// past the row's length with `.off`.
+    private func windowedEditableStates(steps: [ClipStep]) -> [StepVisualState] {
+        (0..<stepsPerBar).map { local in
+            let absolute = pageOffset + local
+            guard steps.indices.contains(absolute) else { return .off }
+            return ClipNoteGridStepEditing.visualState(for: steps[absolute], lane: .main)
+        }
+    }
+
+    /// 16 read-only states for the current bar window over a boolean pattern.
+    private func windowedReadOnlyStates(pattern: [Bool]) -> [StepVisualState] {
+        (0..<stepsPerBar).map { local in
+            let absolute = pageOffset + local
+            return pattern.indices.contains(absolute) && pattern[absolute] ? .on : .off
         }
     }
 
     private func readOnlyGrid(states: [StepVisualState]) -> some View {
         StepGridView(
             stepStates: states,
+            indexOffset: pageOffset,
             advanceStep: { _ in }
         )
         .allowsHitTesting(false)
