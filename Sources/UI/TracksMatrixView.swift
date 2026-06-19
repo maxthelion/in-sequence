@@ -818,7 +818,6 @@ struct TracksMatrixView: View {
     @ViewBuilder
     private func collapsedKitCell(section: GroupedTrackSection, selectedTrackID: UUID) -> some View {
         let representativeTrackID = section.members.first?.id
-        let isFocused = representativeTrackID.map { id in section.members.contains { $0.id == id && $0.id == selectedTrackID } } ?? false
         LazyVGrid(columns: columns, spacing: 14) {
             CollapsedKitCell(
                 group: section.group,
