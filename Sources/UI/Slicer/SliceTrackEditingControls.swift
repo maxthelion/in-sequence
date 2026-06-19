@@ -62,33 +62,31 @@ struct SliceLayerTabRow: View {
     var body: some View {
         HStack(spacing: 8) {
             ForEach(SliceTrackClipLayer.allCases) { layer in
-                Button {
-                    onSelectLayer(layer)
-                } label: {
-                    Text(layer.title)
-                        .studioText(.labelBold)
-                        .foregroundStyle(selectedLayer == layer ? StudioTheme.background : StudioTheme.text)
-                        .padding(.horizontal, 13)
-                        .padding(.vertical, 8)
-                        .background(
-                            selectedLayer == layer
-                                ? accent
-                                : Color.white.opacity(StudioOpacity.subtleFill),
-                            in: Capsule()
-                        )
-                        .overlay(
-                            Capsule()
-                                .stroke(
-                                    selectedLayer == layer
-                                        ? Color.clear
-                                        : StudioTheme.border.opacity(0.8),
-                                    lineWidth: StudioMetrics.borderWidth
-                                )
-                        )
-                }
-                .buttonStyle(.plain)
+                layerButton(layer)
             }
         }
+    }
+
+    @ViewBuilder
+    private func layerButton(_ layer: SliceTrackClipLayer) -> some View {
+        let isSelected = (selectedLayer == layer)
+        let textColor: Color = isSelected ? StudioTheme.background : StudioTheme.text
+        let fillColor: Color = isSelected ? accent : Color.white.opacity(StudioOpacity.subtleFill)
+        let strokeColor: Color = isSelected ? Color.clear : StudioTheme.border.opacity(0.8)
+        Button {
+            onSelectLayer(layer)
+        } label: {
+            Text(layer.title)
+                .studioText(.labelBold)
+                .foregroundStyle(textColor)
+                .padding(.horizontal, 13)
+                .padding(.vertical, 8)
+                .background(fillColor, in: Capsule())
+                .overlay(
+                    Capsule().stroke(strokeColor, lineWidth: StudioMetrics.borderWidth)
+                )
+        }
+        .buttonStyle(.plain)
     }
 }
 
