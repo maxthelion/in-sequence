@@ -1,36 +1,6 @@
 import AVFoundation
 import SwiftUI
 
-private enum SlicerTrackDetailTab: String, CaseIterable, Identifiable {
-    case source
-    case slice
-    case fx
-    case macros
-    case mixer
-
-    var id: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .source: return "Source"
-        case .slice: return "Slice"
-        case .fx: return "FX"
-        case .macros: return "Macros"
-        case .mixer: return "Mixer"
-        }
-    }
-
-    var subtitle: String {
-        switch self {
-        case .source: return "sample + slicing"
-        case .slice: return "range + sampler"
-        case .fx: return "inserts"
-        case .macros: return "controls"
-        case .mixer: return "bus + sends"
-        }
-    }
-}
-
 struct SliceTrackWorkspaceView: View {
     @Binding var document: SeqAIDocument
     @Environment(EngineController.self) private var engineController
@@ -43,6 +13,9 @@ struct SliceTrackWorkspaceView: View {
     @State private var selectedStepIndex = 0
     @State private var selectedLayer: SliceTrackClipLayer = .steps
     @State private var selectedLane: SliceTrackLane = .normal
+    @State private var selectedLowerTab: SliceTrackLowerTab = .source
+    // Zoom/scroll only live inside the slicing modal now — the default
+    // playback waveform is always full-frame (zoom 1, scroll 0).
     @State private var waveformZoom = 1.0
     @State private var waveformScroll = 0.0
     @State private var analysisDraft: SliceSet?
@@ -51,8 +24,18 @@ struct SliceTrackWorkspaceView: View {
     @State private var analysisBars = 2
     @State private var analysisMessage: String?
     @State private var isPresentingAddLoop = false
-    @State private var isPresentingSlicingModal = false
-    @State private var selectedDetailTab: SlicerTrackDetailTab = .source
+    @State private var isPresentingSliceModal = false
+    @State private var isAddFXPresented = false
+    @State private var macroSlotPickerRequest: MacroSlotPickerRequest?
+
+    private struct MacroSlotPickerRequest: Identifiable {
+        let slotIndex: Int
+        var id: Int { slotIndex }
+    }
+
+    private let macroSlotColumns = [
+        GridItem(.adaptive(minimum: 58, maximum: 72), spacing: 10, alignment: .top)
+    ]
 
     private var track: StepSequenceTrack {
         session.store.selectedTrack
@@ -126,9 +109,39 @@ struct SliceTrackWorkspaceView: View {
     }
 
     var body: some View {
-        mainColumn
-            .frame(minWidth: 0, maxWidth: .infinity, alignment: .topLeading)
-            .layoutPriority(1)
+        VStack(alignment: .leading, spacing: 18) {
+            topControlsPanel
+
+            waveformPanel
+
+            stepSequencePanel
+
+            lowerTabs
+        }
+        .frame(minWidth: 0, maxWidth: .infinity, alignment: .topLeading)
+        .sheet(isPresented: $isPresentingAddLoop) {
+            addLoopSheet
+                .presentationBackground(.clear)
+        }
+        .sheet(isPresented: $isPresentingSliceModal) {
+            sliceModal
+                .presentationBackground(.clear)
+        }
+        .sheet(isPresented: $isAddFXPresented) {
+            addFXSheet
+        }
+        .sheet(item: $macroSlotPickerRequest) { request in
+            SingleMacroSlotPickerSheet(
+                slotIndex: request.slotIndex,
+                currentBindingAddresses: currentAUMacroAddresses,
+                readParameters: {
+                    engineController.audioInstrumentHost(for: track.id)?.parameterReadout()
+                }
+            ) { descriptor in
+                assignMacro(descriptor, to: request.slotIndex)
+            }
+            .presentationBackground(.clear)
+        }
         .onChange(of: clipContent.stepCount) { _, stepCount in
             selectedPage = min(selectedPage, pageCount(for: stepCount) - 1)
             selectedStepIndex = min(selectedStepIndex, max(0, stepCount - 1))
@@ -152,74 +165,76 @@ struct SliceTrackWorkspaceView: View {
         }
     }
 
-    private var mainColumn: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            StudioPanel(title: "Pattern", accent: accent, showsHeader: false) {
-                patternControls
-            }
+    // MARK: - Top grammar (above the editor)
 
-            if let sample = currentSample, let sliceSet = displayedSliceSet {
-                StudioPanel(title: "Playback", accent: accent, showsHeader: false) {
-                    playbackWaveformSection(sample: sample, sliceSet: sliceSet)
-                }
-            } else {
-                missingSampleState
-            }
+    // Standard track-detail top grammar: pattern slots, lane (Normal/Fill),
+    // clip length. This mirrors `TrackSourceEditorView` rather than the old
+    // bespoke slicer split.
+    private var topControlsPanel: some View {
+        StudioPanel(title: "Pattern", accent: accent) {
+            VStack(alignment: .leading, spacing: 12) {
+                TrackPatternSlotPalette(
+                    selectedSlot: selectedPatternIndexBinding,
+                    occupiedSlots: occupiedPatternSlots,
+                    bypassState: .notApplicable,
+                    onBypassToggle: { _ in }
+                )
 
-            if currentSample != nil {
-                StudioPanel(title: "Steps", accent: accent, showsHeader: false) {
-                    clipControls
-                }
-            }
+                HStack(spacing: 18) {
+                    controlGroup(title: "Lane") {
+                        HStack(spacing: 8) {
+                            ForEach(SliceTrackLane.allCases) { lane in
+                                layerButton(title: lane.title, isSelected: selectedLane == lane, isEnabled: lane == .normal) {
+                                    selectedLane = lane
+                                }
+                            }
+                        }
+                    }
 
-            slicerTabBar
-            slicerTabContent
-        }
-        .sheet(isPresented: $isPresentingAddLoop) {
-            addLoopSheet
-                .presentationBackground(.clear)
-        }
-        .sheet(isPresented: $isPresentingSlicingModal) {
-            slicingSheet
-                .presentationBackground(.clear)
-        }
-    }
+                    Spacer()
 
-    private var patternControls: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            TrackPatternSlotPalette(
-                selectedSlot: selectedPatternIndexBinding,
-                occupiedSlots: occupiedPatternSlots,
-                bypassState: .notApplicable,
-                onBypassToggle: { _ in }
-            )
-
-            HStack(spacing: 14) {
-                controlGroup(title: "Lane") {
-                    HStack(spacing: 8) {
-                        ForEach(SliceTrackLane.allCases) { lane in
-                            layerButton(title: lane.title, isSelected: selectedLane == lane, isEnabled: lane == .normal) {
-                                selectedLane = lane
+                    controlGroup(title: "Length") {
+                        HStack(spacing: 8) {
+                            ForEach([16, 32, 64, 128], id: \.self) { length in
+                                lengthButton(length)
                             }
                         }
                     }
                 }
-
-                Spacer()
-
-                controlGroup(title: "Length") {
-                    HStack(spacing: 8) {
-                        ForEach([16, 32, 64, 128], id: \.self) { length in
-                            lengthButton(length)
-                        }
-                    }
-                }
             }
         }
     }
 
-    private func playbackWaveformSection(sample: AudioSample, sliceSet: SliceSet) -> some View {
+    // MARK: - Full-width playback waveform (default view)
+
+    @ViewBuilder
+    private var waveformPanel: some View {
+        if let sample = currentSample, let sliceSet = displayedSliceSet {
+            playbackWaveform(sample: sample, sliceSet: sliceSet)
+        } else {
+            missingSampleState
+        }
+    }
+
+    private func playbackWaveform(sample: AudioSample, sliceSet: SliceSet) -> some View {
         VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .center, spacing: 12) {
+                Text(sample.name)
+                    .studioText(.subtitle)
+                    .foregroundStyle(StudioTheme.text)
+                    .lineLimit(1)
+
+                Spacer()
+
+                Text("Markers selectable · zoom & slicing in Source")
+                    .studioText(.label)
+                    .foregroundStyle(StudioTheme.mutedText)
+                    .lineLimit(1)
+            }
+
+            // Default playback view: the waveform spans the full content width,
+            // slice markers render IN it and are selectable. No zoom/scroll —
+            // those live in the slicing modal off the Source tab.
             SliceTrackWaveformEditor(
                 buckets: waveformBuckets(sample: sample),
                 sliceSet: sliceSet,
@@ -232,7 +247,8 @@ struct SliceTrackWorkspaceView: View {
                 onMoveWholeEnd: { moveWholeBoundary(isStart: false, to: $0, sample: sample) },
                 onMoveSliceBoundary: { moveSliceBoundary(markerID: $0, to: $1, sample: sample) }
             )
-            .frame(height: 148)
+            .frame(height: 196)
+            .frame(maxWidth: .infinity)
             .background(StudioTheme.inset, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
@@ -247,337 +263,33 @@ struct SliceTrackWorkspaceView: View {
         }
     }
 
-    private var slicerTabBar: some View {
-        HStack(spacing: 6) {
-            ForEach(SlicerTrackDetailTab.allCases) { tab in
-                Button {
-                    selectedDetailTab = tab
-                } label: {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(tab.title.uppercased())
-                            .studioText(.eyebrowBold)
-                            .foregroundStyle(selectedDetailTab == tab ? StudioTheme.text : StudioTheme.mutedText)
-                        Text(tab.subtitle)
-                            .studioText(.micro)
-                            .foregroundStyle(StudioTheme.mutedText)
-                            .lineLimit(1)
-                    }
-                    .frame(maxWidth: .infinity, minHeight: 46, alignment: .leading)
-                    .padding(.horizontal, 12)
-                    .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                            .stroke(selectedDetailTab == tab ? accent.opacity(StudioOpacity.ghostStroke) : StudioTheme.border, lineWidth: selectedDetailTab == tab ? 1.5 : 1)
-                    )
-                    .overlay(alignment: .bottom) {
-                        Rectangle()
-                            .fill(selectedDetailTab == tab ? accent : Color.clear)
-                            .frame(height: 2)
-                            .padding(.horizontal, 10)
-                    }
-                }
-                .buttonStyle(.plain)
-            }
-        }
-    }
+    // MARK: - Step sequence (beneath the waveform, above the lower tabs)
 
     @ViewBuilder
-    private var slicerTabContent: some View {
-        switch selectedDetailTab {
-        case .source:
-            sourceTab
-        case .slice:
-            sliceTab
-        case .fx:
-            fxTab
-        case .macros:
-            macrosTab
-        case .mixer:
-            mixerTab
-        }
-    }
-
-    private var sourceTab: some View {
-        StudioPanel(title: "Source", accent: accent, showsHeader: false) {
-            VStack(alignment: .leading, spacing: 14) {
-                if let sample = currentSample, let sliceSet = currentSliceSet {
-                    sampleSummaryCard(sample: sample, sliceSet: sliceSet)
-
-                    HStack(spacing: 10) {
-                        Button {
-                            isPresentingSlicingModal = true
-                        } label: {
-                            Label(sliceSet.userSliceCount > 0 ? "Edit Slices..." : "Slice...", systemImage: "waveform.badge.magnifyingglass")
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .tint(accent)
-
-                        Button(role: .destructive) {
-                            removeSample()
-                        } label: {
-                            Label("Remove Sample", systemImage: "xmark.circle")
-                        }
-                        .buttonStyle(.bordered)
-
-                        Spacer()
-                    }
-                } else {
-                    missingSampleState
-                }
+    private var stepSequencePanel: some View {
+        if currentSample != nil {
+            VStack(alignment: .leading, spacing: 12) {
+                sliceLayerSelector
+                sliceStepEditor
             }
         }
     }
 
-    private func sampleSummaryCard(sample: AudioSample, sliceSet: SliceSet) -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: "waveform.path.ecg.rectangle")
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(StudioTheme.background)
-                .frame(width: 30, height: 30)
-                .background(StudioTheme.cyan, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(sample.name)
-                    .studioText(.subtitle)
-                    .foregroundStyle(StudioTheme.text)
-                    .lineLimit(1)
-                Text(sampleDetailText(sample: sample, sliceSet: sliceSet))
+    // The step-layer selector sits directly above the steps, consistent with
+    // other step editors. Slice Index / Velocity / Chance are engine-backed;
+    // Direction / Note Repeat / Gate are real selectable layers shown read-only
+    // until per-step engine params land (see NOTE in the strip).
+    private var sliceLayerSelector: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 10) {
+                Text("Step Layer")
+                    .studioText(.eyebrow)
+                    .foregroundStyle(StudioTheme.mutedText)
+                Text("Same step row, different slicer values.")
                     .studioText(.label)
                     .foregroundStyle(StudioTheme.mutedText)
-                    .lineLimit(1)
             }
 
-            Spacer()
-        }
-        .padding(StudioMetrics.Spacing.standard)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                .stroke(StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
-        )
-    }
-
-    private var sliceTab: some View {
-        StudioPanel(title: "Slice", eyebrow: selectedStepTitle, accent: StudioTheme.violet, showsHeader: false) {
-            if currentSample == nil {
-                StudioPlaceholderTile(title: "No Sample", detail: "Choose a loop in Source before editing slices.", accent: StudioTheme.violet)
-            } else {
-                selectedStepControls
-                    .frame(width: 340)
-            }
-        }
-    }
-
-    private var selectedSliceSourcePanel: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Source Range")
-                .studioText(.subtitle)
-                .foregroundStyle(StudioTheme.text)
-
-            if let sample = currentSample, let marker = selectedAssignedMarker ?? selectedMarker {
-                let lengthFrames = sampleLengthFrames(sample: sample)
-                HStack(spacing: 12) {
-                    sourceRangeStat(title: "Start", value: framePercentLabel(marker.startFrame, lengthFrames: lengthFrames))
-                    sourceRangeStat(title: "End", value: framePercentLabel(marker.endFrame, lengthFrames: lengthFrames))
-                    sourceRangeStat(title: "Length", value: frameLengthLabel(marker, sample: sample))
-                }
-
-                SlicerWaveformView(
-                    buckets: waveformBuckets(sample: sample),
-                    sliceSet: displayedSliceSet ?? currentSliceSet ?? SliceSet.empty,
-                    sampleLengthFrames: lengthFrames,
-                    selectedMarkerID: marker.id,
-                    onBoundaryMove: nil
-                )
-                .frame(height: 82)
-                .padding(StudioMetrics.Spacing.snug)
-                .background(StudioTheme.inset, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
-                        .stroke(StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
-                )
-            } else {
-                Text("Select a step or waveform marker to inspect its source range.")
-                    .studioText(.body)
-                    .foregroundStyle(StudioTheme.mutedText)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-        .padding(StudioMetrics.Spacing.standard)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                .stroke(StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
-        )
-    }
-
-    private func sourceRangeStat(title: String, value: String) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(title.uppercased())
-                .studioText(.eyebrow)
-                .foregroundStyle(StudioTheme.mutedText)
-            Text(value)
-                .studioText(.labelBold)
-                .foregroundStyle(StudioTheme.text)
-                .lineLimit(1)
-                .minimumScaleFactor(0.75)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 8)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
-                .stroke(StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
-        )
-    }
-
-    private var fxTab: some View {
-        StudioPanel(title: "FX", accent: StudioTheme.violet, showsHeader: false) {
-            HStack(spacing: 12) {
-                Button {
-                } label: {
-                    Label("+ FX", systemImage: "plus")
-                }
-                .buttonStyle(.bordered)
-                .disabled(true)
-
-                Text("Per-track slicer inserts are reserved for the track-detail FX chain.")
-                    .studioText(.body)
-                    .foregroundStyle(StudioTheme.mutedText)
-            }
-        }
-    }
-
-    private var macrosTab: some View {
-        StudioPanel(title: "Macros", accent: StudioTheme.cyan, showsHeader: false) {
-            if track.macros.isEmpty {
-                StudioPlaceholderTile(title: "No Macros", detail: "Assign M1-M8 controls from routable parameters.", accent: StudioTheme.cyan)
-            } else {
-                MacroKnobRow(document: $document, trackID: track.id)
-            }
-        }
-    }
-
-    private var mixerTab: some View {
-        StudioPanel(title: "Mixer", accent: StudioTheme.success, showsHeader: false) {
-            TrackRoutingTabContent(
-                document: $document,
-                summary: TrackRoutingPathSummary.make(
-                    destinationSummary: DestinationSummary.make(
-                        for: session.store.resolvedDestination(for: track.id),
-                        in: session.store,
-                        trackID: track.id
-                    ),
-                    outputTitle: MixerRoutingDisplayModel.outputTitle(for: track, buses: session.store.buses),
-                    mix: track.mix
-                ),
-                accent: StudioTheme.success
-            )
-        }
-    }
-
-    private func sampleWaveformSection(sample: AudioSample, sliceSet: SliceSet) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            waveformShell(sample: sample, sliceSet: sliceSet)
-
-            if let analysisMessage {
-                Text(analysisMessage)
-                    .studioText(.label)
-                    .foregroundStyle(StudioTheme.amber)
-            }
-        }
-    }
-
-    private func waveformShell(sample: AudioSample, sliceSet: SliceSet) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .center, spacing: 14) {
-                Text(sample.name)
-                    .studioText(.subtitle)
-                    .foregroundStyle(StudioTheme.text)
-                    .lineLimit(1)
-
-                Spacer()
-
-                Button {
-                    toggleAnalysis(sample: sample)
-                } label: {
-                    Label(analysisDraft == nil ? "Auto Detect" : "Hide Detect", systemImage: "waveform.badge.magnifyingglass")
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(StudioTheme.violet)
-            }
-
-            if analysisDraft != nil {
-                autoDetectControls(sample: sample)
-            }
-
-            SliceTrackWaveformEditor(
-                buckets: waveformBuckets(sample: sample),
-                sliceSet: sliceSet,
-                sampleLengthFrames: sampleLengthFrames(sample: sample),
-                selectedMarkerID: selectedMarker?.id,
-                zoom: waveformZoom,
-                scroll: waveformScroll,
-                onSelectMarker: selectMarker,
-                onMoveWholeStart: { moveWholeBoundary(isStart: true, to: $0, sample: sample) },
-                onMoveWholeEnd: { moveWholeBoundary(isStart: false, to: $0, sample: sample) },
-                onMoveSliceBoundary: { moveSliceBoundary(markerID: $0, to: $1, sample: sample) }
-            )
-            .frame(height: 188)
-            .background(StudioTheme.inset, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                    .stroke(StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
-            )
-
-            HStack(spacing: 12) {
-                Label("Zoom", systemImage: "plus.magnifyingglass")
-                    .studioText(.label)
-                    .foregroundStyle(StudioTheme.mutedText)
-                Slider(value: $waveformZoom, in: 1...8)
-                    .frame(maxWidth: 220)
-                Label("Scroll", systemImage: "arrow.left.and.right")
-                    .studioText(.label)
-                    .foregroundStyle(StudioTheme.mutedText)
-                Slider(value: $waveformScroll, in: 0...1)
-                    .disabled(waveformZoom <= 1.01)
-            }
-        }
-        .padding(StudioMetrics.Spacing.comfortable)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                .stroke(StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
-        )
-    }
-
-    private var clipControls: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            layerRow
-            sliceStepEditor
-        }
-    }
-
-    @ViewBuilder
-    private var layerRow: some View {
-        if let coordinator = stepGridCoordinator,
-           coordinator.shouldShowRotaryRow,
-           let currentClip,
-           let activeLayer = selectedLayer.stepGridLayer {
-            StepLayerRotaryRow(
-                controls: coordinator.rotaryControls(in: currentClip, track: track),
-                activeLayer: activeLayer,
-                suppressActiveLayerHighlight: selectedLayer == .steps,
-                accent: accent,
-                onSelectLayer: selectRotaryLayer,
-                onWriteValue: { layer, value in
-                    writeRotaryValue(value, layer: layer, coordinator: coordinator)
-                }
-            )
-        } else if stepGridCoordinator?.isSelectionActive == true {
-            StepLayerRotaryEmptyState()
-        } else {
             SliceLayerTabRow(selectedLayer: selectedLayer, accent: accent) { layer in
                 selectedLayer = layer
             }
@@ -661,77 +373,310 @@ struct SliceTrackWorkspaceView: View {
         }
     }
 
-    private var rightColumn: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            // No loop means no sample-player voices: the panel disappears
-            // instead of explaining itself (ux-canon rule 3).
-            if currentSample != nil {
-                StudioPanel(title: "Sample Player", eyebrow: selectedStepTitle, accent: StudioTheme.success) {
-                    samplePlayerPanel
-                }
+    // MARK: - Lower tabs (Source · Slice · FX · Macros · Mixer)
+
+    private var lowerTabs: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            SliceLowerTabBar(selectedTab: selectedLowerTab, accent: accent) { tab in
+                selectedLowerTab = tab
             }
 
-            if session.store.routesSourced(from: track.id).isEmpty == false {
-                StudioPanel(
-                    title: "Routing",
-                    eyebrow: "\(session.store.routesSourced(from: track.id).count) outbound project route\(session.store.routesSourced(from: track.id).count == 1 ? "" : "s")",
-                    accent: StudioTheme.violet
-                ) {
-                    RoutesListView(document: $document)
+            Group {
+                switch selectedLowerTab {
+                case .source:
+                    sourceTabBody
+                case .slice:
+                    sliceTabBody
+                case .fx:
+                    fxTabBody
+                case .macros:
+                    macrosTabBody
+                case .mixer:
+                    mixerTabBody
                 }
             }
-        }
-    }
-
-    private var samplePlayerPanel: some View {
-        selectedStepControls
-    }
-
-    // The panel is hidden entirely when no loop is attached; guidance lives
-    // in tooltips, not on the surface (ux-canon rule 3).
-    @ViewBuilder
-    private var selectedStepControls: some View {
-        if currentSliceSet?.userSliceCount ?? 0 == 0 {
-            samplePlayerEmptyState(
-                title: "No slices yet",
-                help: "Run Auto Detect on the loop and apply the proposal to create slices."
-            )
-        } else if let assigned = selectedAssignedMarker,
-                  let markerIndex = currentSliceSet?.markers.firstIndex(where: { $0.id == assigned.id }) {
-            SliceSamplePlayerParametersView(
-                markerIndex: markerIndex,
-                sampleName: currentSample?.name ?? "Sample",
-                sliceDetail: selectedSliceDetail(marker: assigned),
-                waveformBuckets: selectedSliceWaveformBuckets(marker: assigned),
-                mode: Binding(
-                    get: { selectedStepMode },
-                    set: { assignStepMode($0) }
-                ),
-                parameters: Binding(
-                    get: { selectedStepParameters },
-                    set: { assignStepParameters($0) }
-                )
-            )
-        } else {
-            samplePlayerEmptyState(
-                title: "No assigned slice",
-                help: "Select a step with a slice, or choose a waveform slice for the selected step."
-            )
-        }
-    }
-
-    private func samplePlayerEmptyState(title: String, help: String) -> some View {
-        Text(title)
-            .studioText(.bodyBold)
-            .foregroundStyle(StudioTheme.mutedText)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(StudioMetrics.Spacing.standard)
-            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+            .padding(StudioMetrics.Spacing.roomy)
+            .frame(maxWidth: .infinity, alignment: .topLeading)
+            .background(Color.white.opacity(StudioOpacity.subtleFill))
+            .overlay(alignment: .top) {
+                Rectangle()
+                    .fill(accent)
+                    .frame(height: 3)
+            }
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
                     .stroke(StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
             )
-            .help(help)
+            .clipShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+        }
+    }
+
+    // MARK: Source tab (sample + markers + slicing modal entry)
+
+    @ViewBuilder
+    private var sourceTabBody: some View {
+        SliceSourceTabContent(
+            state: sourceState,
+            sampleName: currentSample?.name,
+            sliceCount: currentSliceSet?.userSliceCount ?? 0,
+            detectionLabel: currentSliceSet.map { Self.detectionLabel(for: $0.mode) } ?? "—",
+            accent: accent,
+            onChooseSample: { isPresentingAddLoop = true },
+            onRemoveSample: removeSample,
+            onOpenSliceModal: { isPresentingSliceModal = true }
+        )
+    }
+
+    private var sourceState: SliceSourceState {
+        guard currentSample != nil else { return .empty }
+        return (currentSliceSet?.userSliceCount ?? 0) > 0 ? .sliced : .unsliced
+    }
+
+    // MARK: Slice tab (drum-part sampler grammar for the selected slice)
+
+    @ViewBuilder
+    private var sliceTabBody: some View {
+        if currentSample == nil {
+            sliceTabPlaceholder("No sample", "Choose a sample in the Source tab first.")
+        } else if (currentSliceSet?.userSliceCount ?? 0) == 0 {
+            sliceTabPlaceholder("No slices yet", "Open the slicing modal from Source to create slices.")
+        } else if let assigned = selectedAssignedMarker,
+                  let markerIndex = currentSliceSet?.markers.firstIndex(where: { $0.id == assigned.id }) {
+            SliceSamplerCard(
+                sampleName: currentSample?.name ?? "Slice",
+                markerIndex: markerIndex,
+                buckets: currentSample.map { waveformBuckets(sample: $0) } ?? [],
+                marker: assigned,
+                sampleLengthFrames: currentSample.map { sampleLengthFrames(sample: $0) } ?? 0,
+                voiceMode: voiceModeBinding,
+                mode: Binding(get: { selectedStepMode }, set: { assignStepMode($0) }),
+                parameters: Binding(get: { selectedStepParameters }, set: { assignStepParameters($0) }),
+                onAudition: { auditionSelectedSlice() },
+                onBrowse: { delta in browseSlice(delta) }
+            )
+        } else {
+            sliceTabPlaceholder(
+                "No assigned slice",
+                "Select a step with a slice, or tap a marker in the waveform."
+            )
+        }
+    }
+
+    private func sliceTabPlaceholder(_ title: String, _ help: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .studioText(.bodyBold)
+                .foregroundStyle(StudioTheme.text)
+            Text(help)
+                .studioText(.body)
+                .foregroundStyle(StudioTheme.mutedText)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    // MARK: FX / Macros / Mixer (reuse the broader track-detail surfaces)
+
+    @ViewBuilder
+    private var fxTabBody: some View {
+        // ENGINE TODO (shared with melodic track detail): the chain persists and
+        // is fully editable, but inserts do not yet process slicer audio.
+        TrackFXChainView(
+            inserts: track.fxInserts,
+            accent: StudioTheme.violet,
+            onAddFX: { isAddFXPresented = true },
+            onRemove: { insertID in
+                session.removeFXInsert(trackID: track.id, insertID: insertID)
+            },
+            onMove: { source, destination in
+                session.moveFXInsert(trackID: track.id, from: source, to: destination)
+            },
+            onSetBypassed: { insertID, bypassed in
+                session.setFXInsertBypassed(trackID: track.id, insertID: insertID, bypassed: bypassed)
+            }
+        )
+    }
+
+    @ViewBuilder
+    private var macrosTabBody: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Macros")
+                .studioText(.bodyBold)
+                .foregroundStyle(StudioTheme.text)
+            Text("M1–M8 slot assignments. Drag to set, right-click to change or remove.")
+                .studioText(.body)
+                .foregroundStyle(StudioTheme.mutedText)
+            LazyVGrid(columns: macroSlotColumns, alignment: .leading, spacing: 12) {
+                ForEach(clipMacroSlots) { slot in
+                    macroSlotKnob(for: slot)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var mixerTabBody: some View {
+        TrackRoutingTabContent(
+            document: $document,
+            summary: routingPathSummary,
+            mode: .mixer,
+            accent: accent
+        )
+
+        if session.store.routesSourced(from: track.id).isEmpty == false {
+            RoutesListView(document: $document)
+                .padding(.top, StudioMetrics.Spacing.standard)
+        }
+    }
+
+    // MARK: - Slicing modal (zoom / scroll / normalize / detection / markers)
+
+    private var sliceModal: some View {
+        StudioModal(
+            title: "Slice Source",
+            subtitle: "Zoom, scroll, normalize, detection, and detailed marker edits.",
+            accent: StudioTheme.violet,
+            minWidth: 760,
+            onClose: { isPresentingSliceModal = false }
+        ) {
+            if let sample = currentSample, let sliceSet = displayedSliceSet {
+                ScrollView {
+                    sliceModalBody(sample: sample, sliceSet: sliceSet)
+                }
+                .frame(maxHeight: 560)
+            } else {
+                StudioPlaceholderTile(
+                    title: "No Sample",
+                    detail: "Choose a sample before slicing.",
+                    accent: StudioTheme.violet
+                )
+            }
+        }
+        .environment(\.colorScheme, .dark)
+    }
+
+    private func sliceModalBody(sample: AudioSample, sliceSet: SliceSet) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            SliceTrackWaveformEditor(
+                buckets: waveformBuckets(sample: sample),
+                sliceSet: sliceSet,
+                sampleLengthFrames: sampleLengthFrames(sample: sample),
+                selectedMarkerID: selectedMarker?.id,
+                zoom: waveformZoom,
+                scroll: waveformScroll,
+                onSelectMarker: selectMarker,
+                onMoveWholeStart: { moveWholeBoundary(isStart: true, to: $0, sample: sample) },
+                onMoveWholeEnd: { moveWholeBoundary(isStart: false, to: $0, sample: sample) },
+                onMoveSliceBoundary: { moveSliceBoundary(markerID: $0, to: $1, sample: sample) }
+            )
+            .frame(height: 210)
+            .frame(maxWidth: .infinity)
+            .background(StudioTheme.inset, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
+                    .stroke(StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
+            )
+
+            SlicerControlField(title: "View") {
+                HStack(spacing: 12) {
+                    Label("Zoom", systemImage: "plus.magnifyingglass")
+                        .studioText(.label)
+                        .foregroundStyle(StudioTheme.mutedText)
+                    Slider(value: $waveformZoom, in: 1...8)
+                    Label("Scroll", systemImage: "arrow.left.and.right")
+                        .studioText(.label)
+                        .foregroundStyle(StudioTheme.mutedText)
+                    Slider(value: $waveformScroll, in: 0...1)
+                        .disabled(waveformZoom <= 1.01)
+                }
+            }
+
+            SlicerControlField(title: "Detection") {
+                autoDetectControls(sample: sample)
+            }
+
+            SlicerControlField(title: "Sample") {
+                HStack(spacing: 10) {
+                    Button {
+                        normalizeWhole(sample: sample)
+                    } label: {
+                        Label("Normalize", systemImage: "waveform.path")
+                    }
+                    .buttonStyle(.bordered)
+
+                    Button(role: .destructive) {
+                        removeSample()
+                        isPresentingSliceModal = false
+                    } label: {
+                        Label("Remove Sample", systemImage: "trash")
+                    }
+                    .buttonStyle(.bordered)
+
+                    Spacer()
+                }
+            }
+        }
+    }
+
+    // MARK: - Slice browsing / voice mode / audition / remove
+
+    private var voiceModeBinding: Binding<SlicerVoiceMode> {
+        Binding(
+            get: { currentSettings.voiceMode },
+            set: { newMode in
+                var next = currentSettings
+                next.voiceMode = newMode
+                if let sliceSet = currentSliceSet {
+                    session.setSlicerDestination(sliceSet: sliceSet, settings: next, for: track.id)
+                }
+            }
+        )
+    }
+
+    private func browseSlice(_ delta: Int) {
+        guard let steps = sliceTriggerSteps,
+              let sliceCount = currentSliceSet?.userSliceCount,
+              sliceCount > 0
+        else {
+            return
+        }
+        let current = selectedSliceIndex(steps: steps)
+        // Slice indices: 0 == whole; 1...sliceCount are the user slices.
+        let next = min(max(current + delta, 1), sliceCount)
+        assignSliceIndex(next, steps: steps)
+    }
+
+    private func auditionSelectedSlice() {
+        guard let sample = currentSample,
+              let marker = selectedAssignedMarker
+        else {
+            return
+        }
+        audition(marker: marker, sample: sample)
+    }
+
+    private func removeSample() {
+        session.setSlicerDestination(
+            sliceSet: SliceSet(sampleID: nil, markers: [], mode: .manual),
+            settings: currentSettings,
+            for: track.id
+        )
+        analysisDraft = nil
+        analysisMessage = nil
+    }
+
+    private func normalizeWhole(sample: AudioSample) {
+        mutateCurrentSliceSet(sample: sample) { set in
+            set.normalize(sampleLengthFrames: sampleLengthFrames(sample: sample))
+        }
+        analysisMessage = "Markers normalized"
+    }
+
+    static func detectionLabel(for mode: SliceMode) -> String {
+        switch mode {
+        case .transient: return "Transient detection"
+        case .grid: return "Grid detection"
+        case .manual: return "Manual markers"
+        }
     }
 
     // An empty slicer is just a plus card; choosing a loop attaches it in
@@ -778,142 +723,11 @@ struct SliceTrackWorkspaceView: View {
         }
     }
 
-    private var slicingSheet: some View {
-        StudioModal(
-            title: "Slice Source",
-            subtitle: "Edit the source window, detection, and slice markers.",
-            minWidth: 720,
-            onClose: { isPresentingSlicingModal = false }
-        ) {
-            if let sample = currentSample, let sliceSet = displayedSliceSet {
-                VStack(alignment: .leading, spacing: 14) {
-                    HStack(spacing: 10) {
-                        Button {
-                            toggleAnalysis(sample: sample)
-                        } label: {
-                            Label(analysisDraft == nil ? "Auto Detect" : "Hide Detect", systemImage: "waveform.badge.magnifyingglass")
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .tint(StudioTheme.violet)
-
-                        Button {
-                        } label: {
-                            Label("Normalize", systemImage: "waveform")
-                        }
-                        .buttonStyle(.bordered)
-                        .disabled(true)
-                        .help("Source normalization is reserved for the destructive sample editor.")
-
-                        Spacer()
-
-                        Button("Done") {
-                            isPresentingSlicingModal = false
-                        }
-                        .buttonStyle(.bordered)
-                    }
-
-                    if analysisDraft != nil {
-                        autoDetectControls(sample: sample)
-                    }
-
-                    SliceTrackWaveformEditor(
-                        buckets: waveformBuckets(sample: sample),
-                        sliceSet: sliceSet,
-                        sampleLengthFrames: sampleLengthFrames(sample: sample),
-                        selectedMarkerID: selectedMarker?.id,
-                        zoom: waveformZoom,
-                        scroll: waveformScroll,
-                        onSelectMarker: selectMarker,
-                        onMoveWholeStart: { moveWholeBoundary(isStart: true, to: $0, sample: sample) },
-                        onMoveWholeEnd: { moveWholeBoundary(isStart: false, to: $0, sample: sample) },
-                        onMoveSliceBoundary: { moveSliceBoundary(markerID: $0, to: $1, sample: sample) }
-                    )
-                    .frame(height: 260)
-                    .background(StudioTheme.inset, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                            .stroke(StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
-                    )
-
-                    HStack(spacing: 12) {
-                        Label("Zoom", systemImage: "plus.magnifyingglass")
-                            .studioText(.label)
-                            .foregroundStyle(StudioTheme.mutedText)
-                        Slider(value: $waveformZoom, in: 1...8)
-                            .frame(maxWidth: 240)
-                        Label("Scroll", systemImage: "arrow.left.and.right")
-                            .studioText(.label)
-                            .foregroundStyle(StudioTheme.mutedText)
-                        Slider(value: $waveformScroll, in: 0...1)
-                            .disabled(waveformZoom <= 1.01)
-                    }
-
-                    if let analysisMessage {
-                        Text(analysisMessage)
-                            .studioText(.label)
-                            .foregroundStyle(StudioTheme.amber)
-                    }
-                }
-            } else {
-                StudioPlaceholderTile(title: "No Sample", detail: "Choose a loop before opening the slice editor.", accent: accent)
-            }
-        }
-    }
-
-    private func sampleDetailText(sample: AudioSample, sliceSet: SliceSet) -> String {
-        let length = sample.lengthSeconds.map { String(format: "%.2fs", $0) } ?? "--"
-        return "\(sample.category.displayName) • \(length) • \(sliceStatusText(for: sliceSet))"
-    }
-
-    private func sliceStatusText(for sliceSet: SliceSet) -> String {
-        let count = sliceSet.userSliceCount
-        if count == 0 {
-            return "not sliced"
-        }
-        return "\(count) slice\(count == 1 ? "" : "s")"
-    }
-
-    private func framePercentLabel(_ frame: Int64, lengthFrames: Int64) -> String {
-        guard lengthFrames > 0 else { return "0%" }
-        let percent = (Double(frame) / Double(lengthFrames)) * 100
-        return "\(Int(percent.rounded()))%"
-    }
-
-    private func frameLengthLabel(_ marker: SliceMarker, sample: AudioSample) -> String {
-        guard let seconds = seconds(for: marker, sample: sample) else {
-            return "--"
-        }
-        return String(format: "%.2fs", seconds)
-    }
-
-    private func seconds(for marker: SliceMarker, sample: AudioSample) -> Double? {
-        guard let url = try? sample.fileRef.resolve(libraryRoot: AudioSampleLibrary.shared.libraryRoot),
-              let file = try? AVAudioFile(forReading: url),
-              file.processingFormat.sampleRate > 0
-        else {
-            return nil
-        }
-        return Double(max(0, marker.endFrame - marker.startFrame)) / file.processingFormat.sampleRate
-    }
-
-    private func removeSample() {
-        session.setEditedDestination(.slicer(sliceSetID: SliceSet.emptyID, settings: currentSettings), for: track.id)
-        selectedStepIndex = 0
-        analysisDraft = nil
-        analysisMessage = nil
-    }
-
     private func applyVisualCommand(_ command: String) {
         let layerPrefix = "layer:"
         if command.hasPrefix(layerPrefix),
            let layer = SliceTrackClipLayer(rawValue: String(command.dropFirst(layerPrefix.count))) {
             selectedLayer = layer
-        }
-
-        let tabPrefix = "tab:"
-        if command.hasPrefix(tabPrefix),
-           let tab = SlicerTrackDetailTab(rawValue: String(command.dropFirst(tabPrefix.count))) {
-            selectedDetailTab = tab
         }
     }
 
@@ -1003,6 +817,178 @@ struct SliceTrackWorkspaceView: View {
         .onChange(of: analysisMode) { _, _ in refreshAutoSlicesIfNeeded(sample: sample) }
         .onChange(of: analysisSensitivity) { _, _ in refreshAutoSlicesIfNeeded(sample: sample) }
         .onChange(of: analysisBars) { _, _ in refreshAutoSlicesIfNeeded(sample: sample) }
+    }
+
+    // MARK: - Routing / macros / FX support (reused from the melodic detail)
+
+    private var routingPathSummary: TrackRoutingPathSummary {
+        TrackRoutingPathSummary.make(
+            destinationSummary: DestinationSummary.make(
+                for: session.store.resolvedDestination(for: track.id),
+                in: session.store,
+                trackID: track.id
+            ),
+            outputTitle: MixerRoutingDisplayModel.outputTitle(for: track, buses: session.store.buses),
+            mix: track.mix
+        )
+    }
+
+    private var orderedMacros: [TrackMacroBinding] {
+        track.macros.sorted { $0.slotIndex < $1.slotIndex }
+    }
+
+    private var macroFallbackValues: [UUID: Double] {
+        var result: [UUID: Double] = [:]
+        let trackID = track.id
+        let layers = session.store.layers
+        for binding in orderedMacros {
+            let layerID = "macro-\(trackID.uuidString)-\(binding.id.uuidString)"
+            if let layer = layers.first(where: { $0.id == layerID }),
+               case let .scalar(value) = layer.defaults[trackID] {
+                result[binding.id] = value
+            } else {
+                result[binding.id] = binding.descriptor.defaultValue
+            }
+        }
+        return result
+    }
+
+    private var clipMacroSlots: [MacroSlot] {
+        (0..<8).map { slotIndex in
+            MacroSlot(
+                slotIndex: slotIndex,
+                binding: orderedMacros.first(where: { $0.slotIndex == slotIndex })
+            )
+        }
+    }
+
+    private var currentAUMacroAddresses: Set<UInt64> {
+        Set(orderedMacros.compactMap { binding in
+            if case let .auParameter(address, _) = binding.source {
+                return address
+            }
+            return nil
+        })
+    }
+
+    private var canAssignAUMacros: Bool {
+        if case .auInstrument = session.store.resolvedDestination(for: track.id).withoutTransientState {
+            return true
+        }
+        return false
+    }
+
+    @ViewBuilder
+    func macroSlotKnob(for slot: MacroSlot) -> some View {
+        let binding = slot.binding
+        let slotValue = binding.flatMap { macroFallbackValues[$0.id] }
+        AUMacroSlotKnob(
+            slotIndex: slot.slotIndex,
+            binding: binding,
+            value: slotValue,
+            onAssign: { prepareAndPresentMacroSlotPicker(slotIndex: slot.slotIndex) },
+            onChange: { newValue in
+                guard let binding else { return }
+                session.setMacroLayerDefault(
+                    value: newValue,
+                    bindingID: binding.id,
+                    trackID: track.id
+                )
+            },
+            onRemove: binding.map { binding in
+                { session.removeAUMacroSlot(bindingID: binding.id, trackID: track.id) }
+            }
+        )
+    }
+
+    private func prepareAndPresentMacroSlotPicker(slotIndex: Int) {
+        guard canAssignAUMacros else { return }
+        engineController.prepareAudioUnit(for: track.id)
+        macroSlotPickerRequest = MacroSlotPickerRequest(slotIndex: slotIndex)
+    }
+
+    private func assignMacro(_ parameter: AUParameterDescriptor, to slotIndex: Int) {
+        let descriptor = TrackMacroDescriptor(auParameter: parameter)
+        _ = session.assignAUMacroToSlot(descriptor, to: track.id, slotIndex: slotIndex)
+    }
+
+    var addFXSheet: some View {
+        let effects = engineController.availableAudioEffects
+        let trackID = track.id
+        return StudioModal(
+            title: "Add FX",
+            accent: StudioTheme.violet,
+            minWidth: 360,
+            onClose: { isAddFXPresented = false }
+        ) {
+            VStack(alignment: .leading, spacing: 8) {
+                addFXOptionButton(title: "Filter", systemName: "line.3.horizontal.decrease.circle") {
+                    session.addFXInsert(trackID: trackID, insert: .filter())
+                    isAddFXPresented = false
+                }
+                addFXOptionButton(title: "Bitcrusher", systemName: "waveform.path.ecg") {
+                    session.addFXInsert(trackID: trackID, insert: .bitcrusher())
+                    isAddFXPresented = false
+                }
+            }
+
+            Divider()
+                .overlay(StudioTheme.border)
+
+            Text("AU Effect")
+                .studioText(.micro)
+                .tracking(0.8)
+                .foregroundStyle(StudioTheme.mutedText)
+
+            if effects.isEmpty {
+                Text("No AU effects found")
+                    .studioText(.body)
+                    .foregroundStyle(StudioTheme.mutedText)
+            } else {
+                ScrollView {
+                    VStack(spacing: 6) {
+                        ForEach(effects.prefix(16)) { effect in
+                            addFXOptionButton(title: effect.displayName, systemName: "slider.horizontal.3") {
+                                session.addFXInsert(trackID: trackID, insert: .auEffect(effect))
+                                isAddFXPresented = false
+                            }
+                        }
+                    }
+                }
+                .frame(maxHeight: 220)
+                .scrollContentBackground(.hidden)
+            }
+        }
+        .presentationBackground(.clear)
+        .environment(\.colorScheme, .dark)
+    }
+
+    private func addFXOptionButton(
+        title: String,
+        systemName: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: 10) {
+                Image(systemName: systemName)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(StudioTheme.violet)
+                Text(title)
+                    .studioText(.labelBold)
+                    .foregroundStyle(StudioTheme.text)
+                    .lineLimit(1)
+                Spacer(minLength: 0)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, 9)
+            .padding(.horizontal, 12)
+            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                    .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+            )
+        }
+        .buttonStyle(.plain)
     }
 }
 
@@ -1099,34 +1085,48 @@ private extension SliceTrackWorkspaceView {
             }
             return .sliceLabel(index: sliceIndex, label: sliceIndex == 0 ? "All" : "S\(sliceIndex)")
 
-        case .sliceIndex, .velocity, .playbackDirection, .chance:
-            guard let currentClip, let coordinator, let layer = selectedLayer.stepGridLayer else {
+        case .velocity, .chance:
+            guard let currentClip, let coordinator else {
                 return .valueBar(fraction: 0)
             }
             return coordinator.cellContent(
                 for: stepIndex,
                 in: currentClip,
-                layer: layer,
+                layer: selectedLayer.stepGridLayer,
                 track: track
             )
 
-        case .noteRepeat:
-            return .optionLabel(text: "-")
+        case .direction, .noteRepeat, .gate:
+            // Real selectable layers in the step grammar, but not yet backed by
+            // a per-step engine parameter. Show the on/off state read-only so
+            // the layer row + step strip stay consistent with other layers.
+            guard case .on = state else {
+                return .optionLabel(text: "")
+            }
+            return .optionLabel(text: placeholderLayerLabel(for: selectedLayer))
+        }
+    }
 
-        case .gate:
-            return .optionLabel(text: "-")
+    func placeholderLayerLabel(for layer: SliceTrackClipLayer) -> String {
+        switch layer {
+        case .direction: return "Fwd"
+        case .noteRepeat: return "1x"
+        case .gate: return "100%"
+        default: return ""
         }
     }
 
     func writeSliceStepValue(_ value: Double, at stepIndex: Int, coordinator: StepGridCoordinator?) {
-        guard let coordinator, let layer = selectedLayer.stepGridLayer else {
+        // Only engine-backed layers accept value writes; the others are
+        // read-only previews until their per-step params land.
+        guard selectedLayer.isEngineBacked, let coordinator else {
             return
         }
         selectedStepIndex = min(max(stepIndex, 0), max(0, clipContent.stepCount - 1))
         _ = coordinator.writeAbsoluteValue(
             value,
             stepIndex: stepIndex,
-            layer: layer,
+            layer: selectedLayer.stepGridLayer,
             track: track
         )
     }
@@ -1159,11 +1159,9 @@ private extension SliceTrackWorkspaceView {
         let coordinator = stepGridWorkspaceModel.coordinator(
             for: clipID,
             clipMutator: session,
-            editableLayers: [.sliceIndex, .velocity, .sliceMode, .chance]
+            editableLayers: [.velocity, .chance]
         )
-        if let layer = selectedLayer.stepGridLayer {
-            coordinator.updateActiveLayer(layer)
-        }
+        coordinator.updateActiveLayer(selectedLayer.stepGridLayer)
     }
 
     func pageCount(for stepCount: Int) -> Int {
@@ -1201,7 +1199,7 @@ private extension SliceTrackWorkspaceView {
     }
 
     func controlGroup<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 5) {
+        VStack(alignment: .leading, spacing: 8) {
             Text(title)
                 .studioText(.eyebrow)
                 .foregroundStyle(StudioTheme.mutedText)
@@ -1221,45 +1219,6 @@ private extension SliceTrackWorkspaceView {
             return Array(repeating: 0, count: 256)
         }
         return WaveformDownsampler.downsample(url: url, bucketCount: 256)
-    }
-
-    func selectedSliceWaveformBuckets(marker: SliceMarker) -> [Float] {
-        guard let sample = currentSample else {
-            return Array(repeating: 0, count: 64)
-        }
-        let fullBuckets = waveformBuckets(sample: sample)
-        let sampleLength = max(1, sampleLengthFrames(sample: sample))
-        let startRatio = min(max(Double(marker.startFrame) / Double(sampleLength), 0), 1)
-        let endRatio = min(max(Double(marker.endFrame) / Double(sampleLength), startRatio), 1)
-        let startIndex = min(max(Int((startRatio * Double(fullBuckets.count)).rounded(.down)), 0), max(0, fullBuckets.count - 1))
-        let endIndex = min(max(Int((endRatio * Double(fullBuckets.count)).rounded(.up)), startIndex + 1), fullBuckets.count)
-        let sliceBuckets = Array(fullBuckets[startIndex..<endIndex])
-        return resampledBuckets(sliceBuckets, count: 64)
-    }
-
-    func selectedSliceDetail(marker: SliceMarker) -> String {
-        guard let sample = currentSample else {
-            return "Slice"
-        }
-        let lengthFrames = sampleLengthFrames(sample: sample)
-        let start = framePercentLabel(marker.startFrame, lengthFrames: lengthFrames)
-        let end = framePercentLabel(marker.endFrame, lengthFrames: lengthFrames)
-        let length = frameLengthLabel(marker, sample: sample)
-        return "\(start)-\(end) • \(length)"
-    }
-
-    func resampledBuckets(_ buckets: [Float], count: Int) -> [Float] {
-        guard count > 0 else { return [] }
-        guard !buckets.isEmpty else { return Array(repeating: 0, count: count) }
-        guard buckets.count != count else { return buckets }
-
-        return (0..<count).map { index in
-            let start = Int((Double(index) / Double(count)) * Double(buckets.count))
-            let end = max(start + 1, Int((Double(index + 1) / Double(count)) * Double(buckets.count)))
-            let clampedEnd = min(end, buckets.count)
-            let window = buckets[start..<clampedEnd]
-            return window.max() ?? 0
-        }
     }
 
     func sampleLengthFrames(sample: AudioSample) -> Int64 {
@@ -1472,33 +1431,27 @@ private extension SliceTrackClipLayer {
         switch stepGridLayer {
         case .trigger:
             self = .steps
-        case .sliceIndex:
-            self = .sliceIndex
         case .velocity:
             self = .velocity
-        case .sliceMode:
-            self = .playbackDirection
         case .chance:
             self = .chance
-        case .macro, .chord:
+        case .macro, .sliceIndex, .sliceMode, .chord:
             return nil
         }
     }
 
-    var stepGridLayer: StepGridLayer? {
+    var stepGridLayer: StepGridLayer {
         switch self {
         case .steps:
             return .trigger
-        case .sliceIndex:
-            return .sliceIndex
         case .velocity:
             return .velocity
-        case .playbackDirection:
-            return .sliceMode
-        case .noteRepeat, .gate:
-            return nil
         case .chance:
             return .chance
+        // Non-engine-backed layers have no step-grid counterpart yet; they map
+        // to `.trigger` for display only (writes are gated by `isEngineBacked`).
+        case .direction, .noteRepeat, .gate:
+            return .trigger
         }
     }
 }
