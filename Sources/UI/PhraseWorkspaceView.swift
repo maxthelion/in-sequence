@@ -935,6 +935,52 @@ struct PhraseWorkspaceView: View {
             if let mode = TrackPerformLayerMode.allCases.first(where: { $0.phraseLayerID == selectedLayerID }) {
                 performanceLayerSelection.select(mode, variantLabel: nil)
             }
+            return
+        }
+
+        if command.hasPrefix("tab:") {
+            let rawTab = String(command.dropFirst("tab:".count))
+            if let tab = PhraseWorkspaceTab(rawValue: rawTab) {
+                phraseTab = tab
+                if tab != .layers {
+                    isPresentingPerformanceLayerSelection = false
+                }
+                postRenderedMatrixVisualState(isVisible: true)
+            }
+            return
+        }
+
+        if command.hasPrefix("cell-tool:") {
+            let rawTool = String(command.dropFirst("cell-tool:".count))
+            if let tool = PhraseCellTool(rawValue: rawTool) {
+                phraseCellTool = tool
+                postRenderedMatrixVisualState(isVisible: true)
+            }
+            return
+        }
+
+        if command == "global-apply-track-selector:open" {
+            phraseTab = .globalApply
+            isPresentingGlobalApplyTrackSelector = true
+            postRenderedMatrixVisualState(isVisible: true)
+            return
+        }
+
+        if command == "global-apply-track-selector:close" {
+            isPresentingGlobalApplyTrackSelector = false
+            postRenderedMatrixVisualState(isVisible: true)
+            return
+        }
+
+        if command == "phrase-capture:open" {
+            isPresentingPhraseCapture = session.phrasePerformOverlay.hasLiveCopy
+            postRenderedMatrixVisualState(isVisible: true)
+            return
+        }
+
+        if command == "phrase-capture:close" {
+            isPresentingPhraseCapture = false
+            postRenderedMatrixVisualState(isVisible: true)
         }
     }
 
@@ -960,6 +1006,10 @@ struct PhraseWorkspaceView: View {
                 "performLayerMode": isVisible ? performanceLayerSelection.mode.rawValue : "none",
                 "performLayerSelectorVisible": isVisible && isPresentingPerformanceLayerSelection,
                 "performLayerVariant": isVisible ? performanceLayerSelection.variantLabel ?? "none" : "none",
+                "workspaceTab": isVisible ? phraseTab.rawValue : "none",
+                "cellTool": isVisible ? phraseCellTool.rawValue : "none",
+                "globalApplyTrackSelectorVisible": isVisible && isPresentingGlobalApplyTrackSelector,
+                "captureVisible": isVisible && isPresentingPhraseCapture,
             ]
         )
     }

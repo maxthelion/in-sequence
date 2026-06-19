@@ -23,9 +23,22 @@ case "$output_dir" in
 esac
 export PEEKABOO_OUTPUT_DIR="$output_dir"
 
+fixture_path="${SEQUENCER_AI_QA_FIXTURE:-docs/roadmap/song-mode-phrase-looping/fixtures/transport-phrase-navigation.seqai}"
+case "$fixture_path" in
+  /*) fixture_source_path="$fixture_path" ;;
+  *) fixture_source_path="$REPO_ROOT/$fixture_path" ;;
+esac
+runtime_fixture_path="${SEQUENCER_AI_QA_RUNTIME_FIXTURE:-${TMPDIR:-/tmp}/sequencer-ai-visual-fixtures/qa-surface-coverage-fixture.seqai}"
+
 bundle_id="ai.sequencer.SequencerAI"
 app_command_dir="$HOME/Library/Containers/$bundle_id/Data/tmp/sequencer-ai-visual-commands"
-command_file="${SEQUENCER_AI_VISUAL_COMMAND_FILE:-$app_command_dir/qa-surface-coverage-command.env}"
+command_file_from_env=false
+if [ -n "${SEQUENCER_AI_VISUAL_COMMAND_FILE:-}" ]; then
+  command_file="$SEQUENCER_AI_VISUAL_COMMAND_FILE"
+  command_file_from_env=true
+else
+  command_file="$app_command_dir/qa-surface-coverage-command.env"
+fi
 case "$command_file" in
   /*) ;;
   *) command_file="$REPO_ROOT/$command_file" ;;
@@ -49,13 +62,14 @@ CAPTURES=$(cat <<'TABLE'
 05b-scenes-edit-content|workspace=scenes,scenesMode=browseEdit,sceneEditorFixture=content|scenesMode=browseEdit;sceneEditorFixture=content;transport=stop
 06-scenes-perform|workspace=scenes,scenesMode=perform|scenesMode=perform;transport=stop
 07-library|workspace=library|workspace=library;transport=stop
-08-phrase-mute-layer|workspace=phrase,phraseMatrixSelectedLayerID=mute|phraseMatrixTrackCount=6;phraseMatrixPhraseCount=6;phraseMatrixLayerID=mute;transport=stop
-09-phrase-transpose-layer|workspace=phrase,phraseMatrixSelectedLayerID=transpose|phraseMatrixTrackCount=6;phraseMatrixPhraseCount=6;phraseMatrixEnsureDefaultLayers=true;phraseMatrixLayerID=transpose;transport=stop
-10-phrase-controls-open|workspace=phrase,phraseControlsOpenIndex=0|phraseMatrixTrackCount=6;phraseMatrixPhraseCount=6;phraseControlsOpenIndex=0;transport=stop
-11-phrase-perform-overlay|workspace=tracks,tracksMode=perform|tracksMode=perform;trackPerformTrackCount=6;phrasePerformOverlay=dirtyOneCell;transport=stop
-11a-phrase-perform-capture|workspace=tracks,tracksMode=perform,phrasePerformOverlayDirty=true|tracksMode=perform;trackPerformTrackCount=6;phrasePerformOverlay=dirtyOneCell;phrasePerformCapture=open;transport=stop
-12-phrase-layer-selector-open|workspace=phrase,phrasePerformLayerSelectorVisible=true|phraseMatrixTrackCount=6;phraseMatrixPhraseCount=6;phrasePerformLayerSelector=open;transport=stop
-13-phrase-volume-layer|workspace=phrase,phrasePerformLayerMode=volume|phraseMatrixTrackCount=6;phraseMatrixPhraseCount=6;phrasePerformLayer=volume;transport=stop
+08-phrase-layers-pattern|workspace=phrase,phraseWorkspaceTab=layers,phraseMatrixSelectedLayerID=pattern,phraseCellTool=value|phraseMatrixTrackCount=8;phraseMatrixPhraseCount=8;phraseWorkspaceTab=layers;phraseCellTool=value;phraseMatrixLayerID=pattern;transport=stop
+09-phrase-layers-mute|workspace=phrase,phraseWorkspaceTab=layers,phraseMatrixSelectedLayerID=mute|phraseMatrixTrackCount=8;phraseMatrixPhraseCount=8;phraseWorkspaceTab=layers;phraseMatrixLayerID=mute;transport=stop
+10-phrase-layers-automation-tool|workspace=phrase,phraseWorkspaceTab=layers,phraseCellTool=automation|phraseMatrixTrackCount=8;phraseMatrixPhraseCount=8;phraseWorkspaceTab=layers;phraseCellTool=automation;phraseMatrixLayerID=pattern;transport=stop
+11-phrase-layer-selector-open|workspace=phrase,phraseWorkspaceTab=layers,phrasePerformLayerSelectorVisible=true|phraseMatrixTrackCount=8;phraseMatrixPhraseCount=8;phraseWorkspaceTab=layers;phrasePerformLayerSelector=open;transport=stop
+12-phrase-scenes|workspace=phrase,phraseWorkspaceTab=scenes|phraseMatrixTrackCount=8;phraseMatrixPhraseCount=8;phraseWorkspaceTab=scenes;transport=stop
+13-phrase-global-apply|workspace=phrase,phraseWorkspaceTab=globalApply|phraseMatrixTrackCount=8;phraseMatrixPhraseCount=8;phraseWorkspaceTab=globalApply;transport=stop
+13a-phrase-global-apply-track-selector|workspace=phrase,phraseWorkspaceTab=globalApply,phraseGlobalApplyTrackSelectorVisible=true|phraseMatrixTrackCount=8;phraseMatrixPhraseCount=8;phraseWorkspaceTab=globalApply;phraseGlobalApplyTrackSelector=open;transport=stop
+13b-phrase-perform-capture|workspace=phrase,workspaceMode=perform,phraseCaptureVisible=true|phraseMatrixTrackCount=8;phraseMatrixPhraseCount=8;workspaceMode=perform;phraseWorkspaceTab=layers;phraseCapture=open;transport=stop
 14-tracks-perform-layer-selector|workspace=tracks,trackPerformLayerSelectorVisible=true|tracksMode=perform;trackPerformTrackCount=8;trackPerformLayerSelector=open;transport=stop
 15-tracks-perform-mute|workspace=tracks,trackPerformLayerMode=mute|tracksMode=perform;trackPerformTrackCount=8;trackPerformLayer=mute;transport=stop
 16-tracks-perform-fill|workspace=tracks,trackPerformLayerMode=fill|tracksMode=perform;trackPerformTrackCount=8;trackPerformLayer=fill;transport=stop
@@ -169,21 +183,20 @@ $payload"
   capture_state "$pid" "$name"
 }
 
-# New-document handling without coordinate clicks: if the launch shows the
-# Open panel, send Cmd+N via System Events instead of clicking a guessed point.
-ensure_new_document_keyboard() {
+ensure_document_window() {
   local pid="$1"
-  "$PEEKABOO_BIN" app switch --to "$APP_NAME" --no-remote >/dev/null || true
-  sleep 0.5
+  local deadline=$((SECONDS + 10))
+  local title=""
+  while [ "$SECONDS" -lt "$deadline" ]; do
+    title="$(window_json "$pid" | jq -r '.data.windows[0].window_title // ""')"
+    if [ -n "$title" ] && [ "$title" != "Open" ]; then
+      return 0
+    fi
+    sleep 0.5
+  done
 
-  local title
-  title="$(window_json "$pid" | jq -r '.data.windows[0].window_title')"
-  if [ "$title" = "Open" ]; then
-    osascript -e 'tell application "System Events" to keystroke "n" using command down'
-    sleep 1
-  fi
-
-  wait_for_window_title "$pid" "Untitled"
+  echo "Timed out waiting for a document window; last title was '$title'." >&2
+  return 1
 }
 
 write_notes() {
@@ -199,8 +212,8 @@ write_notes() {
     echo "there are no coordinate clicks. The capture list is the CAPTURES table"
     echo "at the top of the script — one row per screenshot."
     echo
-    echo "Fixture documents: set SEQUENCER_AI_NEW_DOCUMENT_FIXTURE to a JSON"
-    echo "Project file before launching to start from canned project state."
+    echo "Fixture document: ${runtime_fixture_path}"
+    echo "Set SEQUENCER_AI_QA_FIXTURE to override the source fixture."
     echo
     echo "Not yet covered (no runner command exists): contained source/modifier"
     echo "picker steps, route editor sheet, AU preset/macro sheets (need a live"
@@ -215,15 +228,22 @@ cleanup() {
   write_visual_command "transport=stop
 noteRepeatAction=release" 2>/dev/null || true
   sleep 2
-  (pgrep -x "$APP_NAME" 2>/dev/null || true) | while read -r leftover_pid; do
-    kill "$leftover_pid" 2>/dev/null || true
-  done
-  sleep 1
-  (pgrep -x "$APP_NAME" 2>/dev/null || true) | while read -r leftover_pid; do
-    kill -9 "$leftover_pid" 2>/dev/null || true
-  done
-  launchctl unsetenv SEQUENCER_AI_VISUAL_COMMAND_FILE >/dev/null 2>&1 || true
-  defaults delete "$bundle_id" VisualScenarioCommandFile >/dev/null 2>&1 || true
+  if [ -n "${pid:-}" ]; then
+    kill "$pid" 2>/dev/null || true
+    sleep 1
+    kill -9 "$pid" 2>/dev/null || true
+  elif [ -n "${launched_pid:-}" ]; then
+    kill "$launched_pid" 2>/dev/null || true
+    sleep 1
+    kill -9 "$launched_pid" 2>/dev/null || true
+  fi
+  if [ "$command_file_from_env" != true ]; then
+    launchctl unsetenv SEQUENCER_AI_VISUAL_COMMAND_FILE >/dev/null 2>&1 || true
+    launchctl unsetenv SEQUENCER_AI_NEW_DOCUMENT_FIXTURE >/dev/null 2>&1 || true
+  fi
+  if [ "$command_file_from_env" != true ]; then
+    defaults delete "$bundle_id" VisualScenarioCommandFile >/dev/null 2>&1 || true
+  fi
   write_notes
 }
 trap cleanup EXIT
@@ -233,52 +253,40 @@ trap cleanup EXIT
 # ---------------------------------------------------------------------------
 
 mkdir -p "$output_dir"
-mkdir -p "$app_command_dir"
+mkdir -p "$(dirname "$command_file")"
+mkdir -p "$(dirname "$runtime_fixture_path")"
 rm -f "$command_file" "$status_file"
+cp "$fixture_source_path" "$runtime_fixture_path"
 
-# Kill every existing instance via pgrep (peekaboo's app list can come back
-# empty under AX/TCC pressure, which previously left a stale instance alive
-# and competing for the command/status files). Escalate to -9: a beachballed
-# instance never services SIGTERM.
-for _ in 1 2 3 4 5 6 7 8 9 10; do
-  existing_pids="$(pgrep -x "$APP_NAME" || true)"
-  [ -z "$existing_pids" ] && break
-  for existing_pid in $existing_pids; do
-    kill "$existing_pid" 2>/dev/null || true
-  done
-  sleep 1
-  for existing_pid in $existing_pids; do
-    kill -9 "$existing_pid" 2>/dev/null || true
-  done
-done
-if pgrep -x "$APP_NAME" >/dev/null; then
-  echo "Could not terminate existing $APP_NAME instances." >&2
-  exit 2
+if [ "$command_file_from_env" != true ]; then
+  launchctl setenv SEQUENCER_AI_VISUAL_COMMAND_FILE "$command_file" >/dev/null
+  launchctl setenv SEQUENCER_AI_NEW_DOCUMENT_FIXTURE "$runtime_fixture_path" >/dev/null
+  defaults write "$bundle_id" VisualScenarioCommandFile "$command_file"
 fi
-
-launchctl setenv SEQUENCER_AI_VISUAL_COMMAND_FILE "$command_file" >/dev/null
-defaults write "$bundle_id" VisualScenarioCommandFile "$command_file"
 export SEQUENCER_AI_VISUAL_COMMAND_FILE="$command_file"
+export SEQUENCER_AI_NEW_DOCUMENT_FIXTURE="$runtime_fixture_path"
 
-(cd "$REPO_ROOT" && scripts/open-latest-build.sh) >"$output_dir/app-open.log" 2>&1
-sleep 2
-
-pid="$(latest_app_pid)"
-if [ -z "$pid" ]; then
-  echo "No $APP_NAME process found." >&2
+app_path="$(
+  cd "$REPO_ROOT"
+  scripts/open-latest-build.sh --print 2>"$output_dir/app-open.log"
+)"
+printf 'app_path=%s\n' "$app_path" >>"$output_dir/app-open.log"
+app_executable="$app_path/Contents/MacOS/$APP_NAME"
+if [ ! -x "$app_executable" ]; then
+  echo "App executable not found at $app_executable" >&2
   exit 2
 fi
+"$app_executable" "$runtime_fixture_path" >>"$output_dir/app-open.log" 2>&1 &
+launched_pid="$!"
+sleep 3
 
-# Exactly one instance may be driving; a second one would race the
-# command/status protocol and corrupt every wait.
-instance_count="$(pgrep -x "$APP_NAME" | wc -l | tr -d ' ')"
-if [ "$instance_count" != "1" ]; then
-  echo "Expected exactly one $APP_NAME instance, found ${instance_count}." >&2
-  exit 2
-fi
+pid="$launched_pid"
+ensure_document_window "$pid"
 
-keep_only_pid "$pid"
-ensure_new_document_keyboard "$pid"
+write_visual_command "windowFrame=$WB
+workspace=phrase
+transport=stop"
+wait_for_status "workspace" "phrase" 15
 
 while IFS= read -r row; do
   [ -n "$row" ] || continue

@@ -40,6 +40,10 @@ enum VisualScenarioCommandRunner {
     private static var phrasePerformLayerMode = TrackPerformLayerMode.pattern.rawValue
     private static var phrasePerformLayerSelectorVisible = false
     private static var phrasePerformLayerVariant = "none"
+    private static var phraseWorkspaceTab = "layers"
+    private static var phraseCellTool = "value"
+    private static var phraseGlobalApplyTrackSelectorVisible = false
+    private static var phraseCaptureVisible = false
     private static var trackPerformLayerMode = TrackPerformLayerMode.pattern.rawValue
     private static var trackPerformLayerSelectorVisible = false
     private static var trackPerformLayerVariant = "none"
@@ -191,6 +195,10 @@ enum VisualScenarioCommandRunner {
                 phrasePerformLayerMode = userInfo["performLayerMode"] as? String ?? TrackPerformLayerMode.pattern.rawValue
                 phrasePerformLayerSelectorVisible = userInfo["performLayerSelectorVisible"] as? Bool ?? false
                 phrasePerformLayerVariant = userInfo["performLayerVariant"] as? String ?? "none"
+                phraseWorkspaceTab = userInfo["workspaceTab"] as? String ?? "layers"
+                phraseCellTool = userInfo["cellTool"] as? String ?? "value"
+                phraseGlobalApplyTrackSelectorVisible = userInfo["globalApplyTrackSelectorVisible"] as? Bool ?? false
+                phraseCaptureVisible = userInfo["captureVisible"] as? Bool ?? false
             }
         }
         NotificationCenter.default.addObserver(
@@ -535,6 +543,10 @@ enum VisualScenarioCommandRunner {
         phrasePerformLayerMode=\(phrasePerformLayerMode)
         phrasePerformLayerSelectorVisible=\(phrasePerformLayerSelectorVisible)
         phrasePerformLayerVariant=\(phrasePerformLayerVariant)
+        phraseWorkspaceTab=\(phraseWorkspaceTab)
+        phraseCellTool=\(phraseCellTool)
+        phraseGlobalApplyTrackSelectorVisible=\(phraseGlobalApplyTrackSelectorVisible)
+        phraseCaptureVisible=\(phraseCaptureVisible)
         masterGain=\(session.store.masterBus.masterOutputGain)
         firstTrackSendA=\(session.store.tracks.first?.mix.sendA ?? 0)
         firstTrackSendB=\(session.store.tracks.first?.mix.sendB ?? 0)
@@ -841,7 +853,11 @@ enum VisualScenarioCommandRunner {
               command["phraseMatrixLayerIndex"] != nil ||
               command["phrasePerformLayerSelector"] != nil ||
               command["phrasePerformLayer"] != nil ||
-              command["phrasePerformLayerVariant"] != nil
+              command["phrasePerformLayerVariant"] != nil ||
+              command["phraseWorkspaceTab"] != nil ||
+              command["phraseCellTool"] != nil ||
+              command["phraseGlobalApplyTrackSelector"] != nil ||
+              command["phraseCapture"] != nil
         else { return }
 
         section.wrappedValue = .phrase
@@ -911,6 +927,32 @@ enum VisualScenarioCommandRunner {
                 phrasePerformLayerSelectorVisible = false
                 posts.append("select-layer:\(layer.rawValue)")
             }
+        }
+
+        if let rawTab = command["phraseWorkspaceTab"] {
+            posts.append("tab:\(rawTab)")
+        }
+
+        if let rawTool = command["phraseCellTool"] {
+            posts.append("cell-tool:\(rawTool)")
+        }
+
+        switch command["phraseGlobalApplyTrackSelector"] {
+        case "open", "visible", "true":
+            posts.append("global-apply-track-selector:open")
+        case "close", "hidden", "false":
+            posts.append("global-apply-track-selector:close")
+        default:
+            break
+        }
+
+        switch command["phraseCapture"] {
+        case "open", "visible", "true":
+            posts.append("phrase-capture:open")
+        case "close", "hidden", "false":
+            posts.append("phrase-capture:close")
+        default:
+            break
         }
 
         // The command may arrive in the same runloop tick that switches the
