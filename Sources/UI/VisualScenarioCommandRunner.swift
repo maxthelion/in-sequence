@@ -1235,7 +1235,7 @@ enum VisualScenarioCommandRunner {
         }
     }
 
-    /// Drives the Source/Modifier/History/Routing tab on the track editor
+    /// Drives the Steps/Clip/Sound/FX/Macros/Mixer tab on the track editor
     /// without coordinate clicks. Posts repeatedly because the editor view may
     /// not exist yet right after the section switch. The ROUTING tab is
     /// setup-only; the editor's own guard ignores a `routing` selection while
@@ -1245,7 +1245,7 @@ enum VisualScenarioCommandRunner {
         section: Binding<WorkspaceSection>
     ) {
         guard let rawTab = command["trackSourceTab"],
-              TrackSourceEditorTab(rawValue: rawTab) != nil
+              TrackSourceEditorTab.tab(forVisualCommand: rawTab) != nil
         else { return }
 
         section.wrappedValue = .track

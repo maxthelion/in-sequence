@@ -91,67 +91,67 @@ enum TrackSourceHistoryDisplayState: Equatable {
     }
 }
 
-/// Tab-bar presentation for the (setup-only) ROUTING tab. When unavailable
-/// (perform mode), the pill is omitted from the bar entirely.
+/// Tab-bar presentation shared by the SOUND and MIXER tabs.
 struct TrackSourceRoutingDisplayState: Equatable {
-    let isAvailable: Bool
-    /// One-glance path summary shown under the ROUTING label, e.g.
+    /// One-glance path summary shown under the MIXER label, e.g.
     /// "Clap kit → Bus A".
     let pillSummary: String
+    let soundBadgeTitle: String
 }
 
 struct TrackSourceSlotWellTabBar: View {
     @Binding var selectedTab: TrackSourceEditorTab
     let sourceState: TrackSourceSourceDisplayState
     let modifierState: TrackSourceModifierDisplayState
-    let historyState: TrackSourceHistoryDisplayState
     let routingState: TrackSourceRoutingDisplayState
     let accent: Color
 
     var body: some View {
         HStack(spacing: 4) {
             slotButton(
-                tab: .source,
-                title: "Source",
+                tab: .stepsClip,
+                title: "Steps/Clip",
                 badgeTitle: sourceState.badgeTitle,
                 accentPresentation: sourceAccentPresentation
             )
 
             slotButton(
-                tab: .modifiers,
-                title: "Modifier",
+                tab: .sound,
+                title: "Sound",
+                badgeTitle: routingState.soundBadgeTitle,
+                accentPresentation: TrackSourceSlotWellTabAccentPresentation(badge: .success, selected: .success)
+            )
+
+            slotButton(
+                tab: .fx,
+                title: "FX",
+                badgeTitle: "Insert",
+                accentPresentation: TrackSourceSlotWellTabAccentPresentation(badge: .violet, selected: .violet)
+            )
+
+            slotButton(
+                tab: .macros,
+                title: "Macros",
                 badgeTitle: modifierState.badgeTitle,
                 accentPresentation: modifierAccentPresentation
             )
 
-            slotButton(
-                tab: .history,
-                title: "History",
-                badgeTitle: historyState.badgeTitle,
-                accentPresentation: historyAccentPresentation
-            )
-
-            if routingState.isAvailable {
-                routingButton
-            }
+            mixerButton
         }
         .padding(.horizontal, 10)
     }
 
-    /// The ROUTING pill carries the path summary inline (no badge) so the
-    /// whole instrument → destination path reads at a glance with the tab
-    /// closed.
-    private var routingButton: some View {
-        let isSelected = selectedTab == .routing
+    private var mixerButton: some View {
+        let isSelected = selectedTab == .mixer
         let selectedAccent = StudioTheme.success
 
         return Button {
-            selectedTab = .routing
+            selectedTab = .mixer
         } label: {
             VStack(spacing: 0) {
                 HStack(alignment: .center, spacing: 8) {
                     VStack(alignment: .leading, spacing: 1) {
-                        Text("ROUTING")
+                        Text("MIXER")
                             .studioText(.eyebrowBold)
                             .foregroundStyle(isSelected ? StudioTheme.text : StudioTheme.mutedText)
                             .tracking(0.8)
@@ -185,7 +185,7 @@ struct TrackSourceSlotWellTabBar: View {
             .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
         }
         .buttonStyle(.plain)
-        .accessibilityIdentifier("track-routing-tab")
+        .accessibilityIdentifier("track-mixer-tab")
         .accessibilityValue(routingState.pillSummary)
     }
 
@@ -246,12 +246,6 @@ struct TrackSourceSlotWellTabBar: View {
 
     private var modifierAccentPresentation: TrackSourceSlotWellTabAccentPresentation {
         TrackSourceSlotWellTabAccentPresentation.modifier(for: modifierState)
-    }
-
-    private var historyAccentPresentation: TrackSourceSlotWellTabAccentPresentation {
-        historyState.isAvailable
-            ? TrackSourceSlotWellTabAccentPresentation(badge: .success, selected: .success)
-            : TrackSourceSlotWellTabAccentPresentation(badge: .border, selected: .border)
     }
 
     private func badge(title: String, accent: Color) -> some View {

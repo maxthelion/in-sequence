@@ -17,9 +17,15 @@ import SwiftUI
 /// built here; assignment registers against the existing per-track macro
 /// bindings, which already feed the macro layer model.
 struct TrackRoutingTabContent: View {
+    enum Mode {
+        case sound
+        case mixer
+    }
+
     @Binding var document: SeqAIDocument
     @Environment(SequencerDocumentSession.self) private var session
     let summary: TrackRoutingPathSummary
+    let mode: Mode
     let accent: Color
 
     private var track: StepSequenceTrack { session.store.selectedTrack }
@@ -27,15 +33,32 @@ struct TrackRoutingTabContent: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            pathSummaryHeader
-
-            // INSTRUMENT + FX chain + per-param macro-assign live in the
-            // existing destination editor (re-homed here verbatim).
-            TrackDestinationEditor(document: $document)
-
-            destinationRow
+            switch mode {
+            case .sound:
+                soundSourceWell
+            case .mixer:
+                mixerWell
+            }
         }
         .padding(StudioMetrics.Spacing.standard)
+    }
+
+    private var soundSourceWell: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("SOUND SOURCE")
+                .studioText(.eyebrow)
+                .tracking(0.8)
+                .foregroundStyle(StudioTheme.mutedText)
+
+            TrackDestinationEditor(document: $document)
+        }
+    }
+
+    private var mixerWell: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            pathSummaryHeader
+            destinationRow
+        }
     }
 
     // MARK: - Path summary (INSTRUMENT → FX → DEST)
@@ -88,7 +111,7 @@ struct TrackRoutingTabContent: View {
 
     private var destinationRow: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("DESTINATION & SENDS")
+            Text("MIXER & FX")
                 .studioText(.eyebrow)
                 .tracking(0.8)
                 .foregroundStyle(StudioTheme.mutedText)
