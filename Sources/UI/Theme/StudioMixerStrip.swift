@@ -6,20 +6,21 @@ import SwiftUI
 enum StudioMixerStripMetrics {
     /// One narrow width for all ordinary strips.
     static let stripWidth: CGFloat = 142
-    /// The master column keeps extra room for its meter scale.
-    static let masterWidth: CGFloat = 190
+    /// The master column keeps a little extra room for its meter scale, but
+    /// no more than it needs — it was noticeably wider than the channels.
+    static let masterWidth: CGFloat = 164
 
     /// Fixed slot heights. A strip type that has nothing for a slot renders
     /// an empty slot of the same height, keeping neighbours aligned.
     static let headerHeight: CGFloat = 38
     static let processingHeight: CGFloat = 128
     static let levelsHeight: CGFloat = 172
-    static let panHeight: CGFloat = 30
+    static let panHeight: CGFloat = 56
     static let actionsHeight: CGFloat = 30
     static let footerHeight: CGFloat = 34
 
     static let faderSize = CGSize(width: 36, height: 150)
-    static let masterFaderWidth: CGFloat = 72
+    static let masterFaderWidth: CGFloat = 58
 
     static let slotSpacing: CGFloat = 10
     static let stripPadding: CGFloat = StudioMetrics.Spacing.comfortable

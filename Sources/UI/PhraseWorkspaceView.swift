@@ -219,10 +219,12 @@ struct PhraseWorkspaceView: View {
                     .foregroundStyle(StudioTheme.text)
                     .lineLimit(1)
 
-                Text(phraseShellDetail)
-                    .studioText(.body)
-                    .foregroundStyle(StudioTheme.mutedText)
-                    .lineLimit(2)
+                if let detail = phraseShellDetail {
+                    Text(detail)
+                        .studioText(.body)
+                        .foregroundStyle(StudioTheme.mutedText)
+                        .lineLimit(2)
+                }
             }
 
             Spacer(minLength: 12)
@@ -247,9 +249,12 @@ struct PhraseWorkspaceView: View {
         return session.workspaceMode == .perform ? "\(phraseName) / Perform Copy" : "\(phraseName) / Edit Baseline"
     }
 
-    private var phraseShellDetail: String {
+    private var phraseShellDetail: String? {
+        // Bug 20260619-213241: drop the perform-copy descriptive copy so the
+        // shell collapses onto the layer-selector row. Setup mode keeps a short
+        // hint that perform writes are disabled.
         if session.workspaceMode == .perform {
-            return "Changes stage in a temporary phrase copy. Capture chooses where the live phrase copy is saved."
+            return nil
         }
         return "Perform is off. Phrase edits write to the baseline; Capture and Discard stay visible but inactive."
     }
@@ -795,11 +800,11 @@ struct PhraseWorkspaceView: View {
                         .font(.system(size: 10, weight: .bold))
                         .foregroundStyle(StudioTheme.mutedText)
                 }
+                .frame(width: 220)
             }
             .buttonStyle(.plain)
             .padding(.horizontal, 10)
             .padding(.vertical, 8)
-            .frame(maxWidth: .infinity)
             .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
@@ -812,8 +817,9 @@ struct PhraseWorkspaceView: View {
                 .frame(width: 104)
             phraseCellToolButton(.automation)
                 .frame(width: 132)
+
+            Spacer(minLength: 0)
         }
-        .frame(maxWidth: .infinity)
     }
 
     private func phraseCellToolButton(_ tool: PhraseCellTool) -> some View {
@@ -1381,11 +1387,11 @@ struct PhraseWorkspaceView: View {
 
             if isPresentingGlobalApplyTrackSelector {
                 globalApplyTrackSelector
-            }
-
-            LazyVGrid(columns: globalApplyColumns, alignment: .leading, spacing: 10) {
-                ForEach(globalApplyOptions) { option in
-                    globalApplyActionCell(option)
+            } else {
+                LazyVGrid(columns: globalApplyColumns, alignment: .leading, spacing: 10) {
+                    ForEach(globalApplyOptions) { option in
+                        globalApplyActionCell(option)
+                    }
                 }
             }
         }
@@ -1488,45 +1494,154 @@ struct PhraseWorkspaceView: View {
         .accessibilityIdentifier("phrase-global-apply-track-selector")
     }
 
+    /// The resolved value across the scoped tracks for a layer, plus whether
+    /// every scoped track currently agrees on it (unanimous) or diverges.
+    private func globalApplyConsensus(for layer: PhraseLayerDefinition) -> (value: PhraseCellValue, isDivergent: Bool) {
+        let phrase = selectedPhraseForEditing
+        let values = globalApplyScopeTrackIDs.map { trackID in
+            phrase.resolvedValue(for: layer, trackID: trackID, stepIndex: 0).normalized(for: layer)
+        }
+        guard let first = values.first else {
+            return (.bool(false), false)
+        }
+        let isDivergent = values.contains { $0 != first }
+        return (first, isDivergent)
+    }
+
+    /// Write a value to every scoped track through the perform overlay path
+    /// (setPhraseCell routes to the transient copy while Perform is on).
+    private func setGlobalApplyValue(_ value: PhraseCellValue, layer: PhraseLayerDefinition) {
+        session.setPhraseCell(
+            .single(value),
+            layerID: layer.id,
+            trackIDs: globalApplyScopeTrackIDs,
+            phraseID: selectedPhraseForEditing.id
+        )
+    }
+
+    @ViewBuilder
     private func globalApplyActionCell(_ option: PerformanceLayerOption) -> some View {
+        if let layerID = option.mode.phraseLayerID,
+           let layer = layers.first(where: { $0.id == layerID }) {
+            globalApplyInteractiveCell(option, layer: layer)
+        } else {
+            EmptyView()
+        }
+    }
+
+    private func globalApplyInteractiveCell(
+        _ option: PerformanceLayerOption,
+        layer: PhraseLayerDefinition
+    ) -> some View {
         let accent = option.mode.selectorAccent
-        return Button {
-            applyGlobalOption(option)
-        } label: {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 6) {
-                    Image(systemName: option.mode.symbolName)
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundStyle(accent)
-                    Spacer(minLength: 0)
-                    Text(globalApplyPreview(option))
-                        .studioText(.microEmphasis)
-                        .tracking(0.7)
-                        .foregroundStyle(StudioTheme.text)
-                }
+        let consensus = globalApplyConsensus(for: layer)
+        // Divergence is surfaced with a tinted fill + amber outline so the
+        // performer can see the scoped tracks disagree on this value.
+        let outline = consensus.isDivergent ? StudioTheme.amber : accent
+        let fill = consensus.isDivergent ? StudioTheme.amber.opacity(StudioOpacity.subtleFill) : Color.clear
 
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                Image(systemName: option.mode.symbolName)
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(accent)
                 Spacer(minLength: 0)
+                if consensus.isDivergent {
+                    Text("MIXED")
+                        .studioText(.micro)
+                        .tracking(0.7)
+                        .foregroundStyle(StudioTheme.amber)
+                }
+            }
 
-                Text(option.title.uppercased())
-                    .studioText(.labelBold)
+            Text(option.title.uppercased())
+                .studioText(.labelBold)
+                .foregroundStyle(StudioTheme.text)
+                .lineLimit(1)
+                .minimumScaleFactor(0.62)
+
+            Spacer(minLength: 0)
+
+            globalApplyCellControl(option, layer: layer, value: consensus.value, accent: accent)
+        }
+        .padding(StudioMetrics.Spacing.compact)
+        .frame(maxWidth: .infinity, minHeight: 82, alignment: .topLeading)
+        .background(fill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                .stroke(outline, lineWidth: consensus.isDivergent ? 2 : StudioMetrics.borderWidth)
+        )
+        .accessibilityIdentifier("phrase-global-apply-cell-\(layer.id)")
+    }
+
+    @ViewBuilder
+    private func globalApplyCellControl(
+        _ option: PerformanceLayerOption,
+        layer: PhraseLayerDefinition,
+        value: PhraseCellValue,
+        accent: Color
+    ) -> some View {
+        switch layer.valueType {
+        case .boolean:
+            let isOn: Bool = {
+                if case let .bool(on) = value { return on }
+                return false
+            }()
+            Button {
+                // applyGlobalOption flips the boolean and honours quantised arming.
+                applyGlobalOption(option)
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: isOn ? "checkmark.circle.fill" : "circle")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(isOn ? accent : StudioTheme.mutedText)
+                    Text(isOn ? "On" : "Off")
+                        .studioText(.microEmphasis)
+                        .foregroundStyle(StudioTheme.text)
+                    Spacer(minLength: 0)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        case .patternIndex, .scalar:
+            HStack(spacing: 6) {
+                Text(valueLabel(value, layer: layer))
+                    .studioText(.microEmphasis)
                     .foregroundStyle(StudioTheme.text)
                     .lineLimit(1)
-                    .minimumScaleFactor(0.62)
-
-                Text("Apply to \(globalApplyScopeCount) track\(globalApplyScopeCount == 1 ? "" : "s")")
-                    .studioText(.micro)
-                    .foregroundStyle(StudioTheme.mutedText)
-                    .lineLimit(1)
+                Spacer(minLength: 0)
+                StudioStepperButtons(
+                    symbols: ("chevron.up", "chevron.down"),
+                    upHelp: "Increase \(layer.name)",
+                    downHelp: "Decrease \(layer.name)",
+                    onUp: { applyGlobalOption(option) },
+                    onDown: { setGlobalApplyValue(decrementedValue(value, for: layer), layer: layer) }
+                )
             }
-            .padding(StudioMetrics.Spacing.compact)
-            .frame(maxWidth: .infinity, minHeight: 82, alignment: .topLeading)
-            .background(Color.clear, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-                    .stroke(accent, lineWidth: StudioMetrics.borderWidth)
-            )
         }
-        .buttonStyle(.plain)
+    }
+
+    /// Reverse of `cycledValue` for stepper-down: walks the value backward and
+    /// wraps for indexed/scalar layers.
+    private func decrementedValue(_ value: PhraseCellValue, for layer: PhraseLayerDefinition) -> PhraseCellValue {
+        switch layer.valueType {
+        case .boolean:
+            return toggledBooleanValue(value, for: layer)
+        case .patternIndex:
+            if case let .index(index) = value.normalized(for: layer) {
+                let next = (index - 1 + TrackPatternBank.slotCount) % TrackPatternBank.slotCount
+                return .index(next)
+            }
+            return .index(0)
+        case .scalar:
+            let current = scalarValue(for: value, layer: layer)
+            let step = (layer.maxValue - layer.minValue) / 4
+            let next = current - step
+            if next < layer.minValue {
+                return .scalar(layer.maxValue)
+            }
+            return .scalar(next)
+        }
     }
 
     private var phraseLocalPerformanceLayerOptions: [PerformanceLayerOption] {
@@ -1565,18 +1680,6 @@ struct PhraseWorkspaceView: View {
 
     private func selectAllGlobalApplyTracks() {
         globalApplyScope.clear()
-    }
-
-    private func globalApplyPreview(_ option: PerformanceLayerOption) -> String {
-        guard let layerID = option.mode.phraseLayerID,
-              let layer = layers.first(where: { $0.id == layerID }),
-              let seedTrackID = globalApplyScopeTrackIDs.first
-        else {
-            return "Ready"
-        }
-
-        let value = selectedPhraseForEditing.resolvedValue(for: layer, trackID: seedTrackID, stepIndex: 0)
-        return valueLabel(cycledValue(value, for: layer), layer: layer)
     }
 
     private func applyGlobalOption(_ option: PerformanceLayerOption) {

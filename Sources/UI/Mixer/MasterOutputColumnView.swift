@@ -32,17 +32,9 @@ struct MasterOutputColumnView: View {
             masterOutputSection
         } pan: {
             // The A/B blend is the master's side-to-side row, aligned with
-            // the channel pan rows.
-            StudioSlideControl(
-                value: crossfaderValue,
-                range: 0...1,
-                fillStyle: .fromLeading,
-                accent: StudioTheme.amber,
-                leadingLabel: "A",
-                trailingLabel: "B",
-                help: "Scene A B blend",
-                onChange: { engineController.setLiveMasterCrossfader($0) }
-            )
+            // the channel pan rows. Scene names sit above the slider (not as
+            // end labels) so longer scene names stay readable.
+            abBlendControl
         } actions: {
             clipActionsRow
         } footer: {
@@ -92,6 +84,35 @@ struct MasterOutputColumnView: View {
             }
         }
         .frame(maxHeight: .infinity, alignment: .center)
+    }
+
+    private var abBlendControl: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 6) {
+                Text(sceneA.name)
+                    .studioText(.micro)
+                    .tracking(0.6)
+                    .foregroundStyle(StudioTheme.amber)
+                    .lineLimit(1)
+                Spacer(minLength: 6)
+                Text(sceneB.name)
+                    .studioText(.micro)
+                    .tracking(0.6)
+                    .foregroundStyle(StudioTheme.amber)
+                    .lineLimit(1)
+            }
+
+            StudioSlideControl(
+                value: crossfaderValue,
+                range: 0...1,
+                fillStyle: .fromLeading,
+                accent: StudioTheme.amber,
+                help: "Scene A B blend",
+                onChange: { engineController.setLiveMasterCrossfader($0) }
+            )
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("master-crossfader")
     }
 
     private var masterInsertSection: some View {
@@ -148,23 +169,11 @@ struct MasterOutputColumnView: View {
                     .tracking(0.8)
                     .foregroundStyle(StudioTheme.mutedText)
 
-                let effects = engineController.availableAudioEffects
-                if effects.isEmpty {
-                    StudioEmptyListRow(message: "No AU effects found")
-                        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
-                } else {
-                    ScrollView {
-                        VStack(spacing: 6) {
-                            ForEach(effects.prefix(16)) { effect in
-                                addFXButton(title: effect.displayName, systemName: "slider.horizontal.3") {
-                                    session.addMasterOutputInsert(.auEffect(effect))
-                                    isAddFXPresented = false
-                                }
-                            }
-                        }
+                AUEffectPickerList(effects: engineController.availableAudioEffects) { effect in
+                    addFXButton(title: effect.displayName, systemName: "slider.horizontal.3") {
+                        session.addMasterOutputInsert(.auEffect(effect))
+                        isAddFXPresented = false
                     }
-                    .frame(maxHeight: 220)
-                    .scrollContentBackground(.hidden)
                 }
         }
         .presentationBackground(.clear)
@@ -324,43 +333,47 @@ private struct MasterOutputFaderMeter: View {
     let onChange: (Double) -> Void
     let onEnd: () -> Void
 
+    private var thumbDiameter: CGFloat { 18 }
+
     var body: some View {
         GeometryReader { proxy in
             let height = proxy.size.height
             let position = MasterOutputGainScale.position(forGain: gain)
-            let filledHeight = max(8, height * position)
+            let usableHeight = max(0, height - thumbDiameter)
+            let thumbCenterY = thumbDiameter / 2 + (1 - CGFloat(position)) * usableHeight
 
             ZStack(alignment: .bottom) {
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
-                    .fill(StudioTheme.inset)
-
+                // Live L/R meter lanes fill the trough.
                 HStack(alignment: .bottom, spacing: 4) {
                     meterLane(peak: meterState.leftPeakDBFS)
-                    Spacer(minLength: 26)
+                    Spacer(minLength: 16)
                     meterLane(peak: meterState.rightPeakDBFS)
                 }
                 .padding(.horizontal, 8)
                 .padding(.vertical, 8)
 
-                // Flat variant: one solid fill block instead of two stacked
-                // translucent fills.
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
-                    .fill(StudioTheme.cyan.opacity(StudioOpacity.accentFill))
-                    .frame(width: 30, height: filledHeight)
+                // The same draggable blue slide control as the channel faders.
+                Capsule(style: .continuous)
+                    .fill(StudioTheme.border.opacity(StudioOpacity.softStroke))
+                    .frame(width: 4)
+                    .padding(.vertical, thumbDiameter / 2)
 
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
-                    .stroke(StudioTheme.cyan.opacity(StudioOpacity.ghostStroke), lineWidth: StudioMetrics.borderWidth)
-                    .frame(width: 30)
+                Capsule(style: .continuous)
+                    .fill(StudioTheme.cyan)
+                    .frame(width: 4, height: max(0, usableHeight * CGFloat(position)))
+                    .offset(y: -thumbDiameter / 2)
 
+                // Unity (0 dB) reference tick.
                 Rectangle()
                     .fill(StudioTheme.amber)
                     .frame(width: 30, height: 2)
-                    .offset(y: -height * MasterOutputGainScale.unityPosition + 1)
+                    .offset(y: -usableHeight * MasterOutputGainScale.unityPosition - thumbDiameter / 2 + 1)
 
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous)
-                    .fill(StudioTheme.text)
-                    .frame(width: 30, height: 6)
-                    .offset(y: -filledHeight + 10)
+                Circle()
+                    .fill(StudioTheme.cyan)
+                    .overlay(Circle().stroke(StudioTheme.inset, lineWidth: 2))
+                    .frame(width: thumbDiameter, height: thumbDiameter)
+                    .offset(y: -(height - thumbCenterY) + thumbDiameter / 2)
             }
             .animation(.linear(duration: 0.05), value: meterState.leftPeakDBFS)
             .animation(.linear(duration: 0.05), value: meterState.rightPeakDBFS)
@@ -369,7 +382,8 @@ private struct MasterOutputFaderMeter: View {
                 DragGesture(minimumDistance: 0)
                     .onChanged { value in
                         onBegin()
-                        let normalized = 1 - min(max(value.location.y / max(height, 1), 0), 1)
+                        let travel = value.location.y - thumbDiameter / 2
+                        let normalized = 1 - min(max(travel / max(usableHeight, 1), 0), 1)
                         onChange(MasterOutputGainScale.gain(forPosition: normalized))
                     }
                     .onEnded { _ in

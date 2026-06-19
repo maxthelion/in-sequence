@@ -836,23 +836,16 @@ struct SliceSourceTabContent: View {
         }
     }
 
+    // No-loop scenario: skip the verbose prose and show a single compact
+    // add affordance (one clear "+"/Add Loop plus tile).
     private var emptyState: some View {
-        well {
-            VStack(alignment: .leading, spacing: 10) {
-                Text("No sample")
-                    .studioText(.subtitle)
-                    .foregroundStyle(StudioTheme.text)
-                Text("Choose a sample before slice markers, steps, or slice controls become useful.")
-                    .studioText(.body)
-                    .foregroundStyle(StudioTheme.mutedText)
-                Button {
-                    onChooseSample()
-                } label: {
-                    Label("Choose Sample", systemImage: "waveform")
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(accent)
-            }
+        StudioAddCard(
+            label: "Add Loop",
+            accent: accent,
+            minHeight: 120,
+            help: "Choose a break loop to slice"
+        ) {
+            onChooseSample()
         }
     }
 

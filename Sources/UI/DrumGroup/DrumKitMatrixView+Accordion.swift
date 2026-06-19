@@ -432,23 +432,11 @@ extension DrumKitMatrixView {
                 .tracking(0.8)
                 .foregroundStyle(StudioTheme.mutedText)
 
-            if effects.isEmpty {
-                Text("No AU effects found")
-                    .studioText(.body)
-                    .foregroundStyle(StudioTheme.mutedText)
-            } else {
-                ScrollView {
-                    VStack(spacing: 6) {
-                        ForEach(effects.prefix(AudioEffectChoice.menuDisplayLimit)) { effect in
-                            kitFXOptionButton(title: effect.displayName, systemName: "slider.horizontal.3") {
-                                session.addFXInsert(trackID: memberID, insert: .auEffect(effect))
-                                expandedFXTarget = nil
-                            }
-                        }
-                    }
+            AUEffectPickerList(effects: effects) { effect in
+                kitFXOptionButton(title: effect.displayName, systemName: "slider.horizontal.3") {
+                    session.addFXInsert(trackID: memberID, insert: .auEffect(effect))
+                    expandedFXTarget = nil
                 }
-                .frame(maxHeight: 220)
-                .scrollContentBackground(.hidden)
             }
         }
         .presentationBackground(.clear)

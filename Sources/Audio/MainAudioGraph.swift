@@ -293,6 +293,16 @@ final class MainAudioGraph {
         }
     }
 
+    /// Snaps every meter (master + all channel strips) to silence. Called
+    /// when the transport stops so meters drop to zero instead of freezing
+    /// on their last value. Touches only the meter publishers (no graph
+    /// nodes, no graphLock), so it is safe on the main/engine thread.
+    func resetMetersToSilence() {
+        // The master publisher rides the bank as an auxiliary, so this one
+        // call zeros it alongside the channel strips.
+        channelMeterBank.resetAllToSilence()
+    }
+
     func attach(_ node: AVAudioNode) {
         performOnMain {
             guard node.engine == nil else { return }
@@ -2102,6 +2112,31 @@ final class MasterMeterPublisher {
             return
         }
         displayState.isClipLatched = false
+    }
+
+    /// Snaps the meter to silence immediately (no release envelope) — used
+    /// when the transport stops so frozen peaks drop to zero at once instead
+    /// of decaying. The clip latch is preserved (clearing it is a separate
+    /// user action). Safe on any thread; the @Observable mutation hops to
+    /// main, matching `clearClip()`/`publishPendingToMain()`.
+    func resetToSilence() {
+        _ = transport.snapshot() // drain any pending peaks
+        guard Thread.isMainThread else {
+            DispatchQueue.main.async { [weak self] in
+                self?.resetToSilence()
+            }
+            return
+        }
+        let cleared = MasterMeterDisplayState(
+            leftPeakDBFS: MasterMeterDisplayState.silenceDBFS,
+            rightPeakDBFS: MasterMeterDisplayState.silenceDBFS,
+            leftPeakHoldDBFS: MasterMeterDisplayState.silenceDBFS,
+            rightPeakHoldDBFS: MasterMeterDisplayState.silenceDBFS,
+            isClipLatched: displayState.isClipLatched
+        )
+        if cleared != displayState {
+            displayState = cleared
+        }
     }
 
     static func dbFS(amplitude: Double) -> Double {

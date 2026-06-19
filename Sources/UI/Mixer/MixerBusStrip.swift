@@ -121,7 +121,7 @@ struct MixerBusStrip: View {
 
     private var processingSlot: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("INSERTS")
+            Text("FX")
                 .studioText(.micro)
                 .tracking(0.8)
                 .foregroundStyle(StudioTheme.mutedText)
@@ -259,23 +259,11 @@ struct MixerBusStrip: View {
                     .tracking(0.8)
                     .foregroundStyle(StudioTheme.mutedText)
 
-                let effects = engineController.availableAudioEffects
-                if effects.isEmpty {
-                    StudioEmptyListRow(message: "No AU effects found")
-                        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
-                } else {
-                    ScrollView {
-                        VStack(spacing: 6) {
-                            ForEach(effects.prefix(16)) { effect in
-                                addFXButton(title: effect.displayName, systemName: "slider.horizontal.3") {
-                                    session.addMixerBusInsert(.auEffect(effect), busID: bus.id)
-                                    isAddFXPresented = false
-                                }
-                            }
-                        }
+                AUEffectPickerList(effects: engineController.availableAudioEffects) { effect in
+                    addFXButton(title: effect.displayName, systemName: "slider.horizontal.3") {
+                        session.addMixerBusInsert(.auEffect(effect), busID: bus.id)
+                        isAddFXPresented = false
                     }
-                    .frame(maxHeight: 220)
-                    .scrollContentBackground(.hidden)
                 }
         }
         .presentationBackground(.clear)

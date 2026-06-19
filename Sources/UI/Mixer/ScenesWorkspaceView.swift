@@ -6,6 +6,10 @@ struct SceneMacroTargetPickerRequest: Identifiable, Equatable {
     let slotIndex: Int
 }
 
+struct AddInsertPickerRequest: Identifiable, Equatable {
+    let id = UUID()
+}
+
 struct ScenePerformSlotPickerRequest: Identifiable, Equatable {
     enum Slot: String, Equatable {
         case a
@@ -40,6 +44,7 @@ struct ScenesWorkspaceView: View {
     @State private var auMacroSlotPickerRequest: SceneAUMacroSlotPickerRequest?
     @State var sceneMacroTargetPickerRequest: SceneMacroTargetPickerRequest?
     @State var scenePerformSlotPickerRequest: ScenePerformSlotPickerRequest?
+    @State private var addInsertPickerRequest: AddInsertPickerRequest?
 
     private let sceneColumns = Array(
         repeating: GridItem(.flexible(minimum: 112, maximum: 190), spacing: 12),
@@ -118,6 +123,10 @@ struct ScenesWorkspaceView: View {
             scenePerformSlotPickerSheet(request)
                 .presentationBackground(.clear)
         }
+        .sheet(item: $addInsertPickerRequest) { request in
+            addInsertPickerSheet(request)
+                .presentationBackground(.clear)
+        }
     }
 
     @ViewBuilder
@@ -191,18 +200,12 @@ struct ScenesWorkspaceView: View {
                 scene.macroBindings = [
                     MasterSceneMacroBinding(
                         slotIndex: 0,
-                        name: "Wet",
-                        target: .insertWetDry(insertID: filter.id),
-                        authoredValue: filter.wetDry
-                    ),
-                    MasterSceneMacroBinding(
-                        slotIndex: 1,
                         name: "Cutoff",
                         target: .filterCutoff(insertID: filter.id),
                         authoredValue: 3_200
                     ),
                     MasterSceneMacroBinding(
-                        slotIndex: 2,
+                        slotIndex: 1,
                         name: "Drive",
                         target: .bitcrusherDrive(insertID: bitcrusher.id),
                         authoredValue: 0.35
@@ -321,7 +324,7 @@ struct ScenesWorkspaceView: View {
     private var sceneEditorHeader: some View {
         HStack(alignment: .center, spacing: 14) {
             TextField("Scene Name", text: sceneNameBinding(selectedScene.id, fallback: selectedScene.name))
-                .studioText(.display)
+                .studioText(.title)
                 .foregroundStyle(StudioTheme.text)
                 .textFieldStyle(.plain)
                 .frame(minWidth: 180, maxWidth: 420, alignment: .leading)
@@ -338,22 +341,24 @@ struct ScenesWorkspaceView: View {
 
     private var insertList: some View {
         VStack(alignment: .leading, spacing: 12) {
+            // The + FX button is the only header affordance: no redundant "FX"
+            // eyebrow (bug 212650).
             HStack {
-                Text("FX")
-                    .studioText(.eyebrow)
-                    .tracking(0.8)
-                    .foregroundStyle(StudioTheme.mutedText)
                 Spacer()
-                addInsertMenu
+                addInsertButton
             }
 
             if selectedScene.inserts.isEmpty {
-                // Compact empty state only (no big "Empty Scene" filler).
-                Text("No FX yet")
-                    .studioText(.label)
-                    .foregroundStyle(StudioTheme.mutedText)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.vertical, 6)
+                // Empty state is a plus tile that opens the same add picker as
+                // the + FX button (bug 212730), not filler text.
+                StudioAddCard(
+                    label: "Add FX",
+                    accent: StudioTheme.success,
+                    minHeight: 96,
+                    help: "Add FX"
+                ) {
+                    presentAddInsertPicker()
+                }
             } else {
                 // A List with `.onMove` gives drag-to-reorder by handle, with no
                 // up/down arrow buttons (bug 135534).
@@ -379,42 +384,12 @@ struct ScenesWorkspaceView: View {
         return CGFloat(visibleRows) * rowHeight
     }
 
-    private var addInsertMenu: some View {
-        Menu {
-            Button {
-                let insert = MasterBusInsert.filter()
-                selectedInsertID = insert.id
-                session.addMasterBusInsert(insert, to: selectedScene.id)
-            } label: {
-                Label("Filter", systemImage: "line.3.horizontal.decrease.circle")
-            }
-
-            Button {
-                let insert = MasterBusInsert.bitcrusher()
-                selectedInsertID = insert.id
-                session.addMasterBusInsert(insert, to: selectedScene.id)
-            } label: {
-                Label("Bitcrusher", systemImage: "waveform.path.ecg")
-            }
-
-            let effects = engineController.availableAudioEffects
-            if effects.isEmpty {
-                Button("No AU effects found") {}
-                    .disabled(true)
-            } else {
-                Menu("AU Effect") {
-                    ForEach(effects.prefix(16)) { effect in
-                        Button(effect.displayName) {
-                            let insert = MasterBusInsert.auEffect(effect)
-                            selectedInsertID = insert.id
-                            session.addMasterBusInsert(insert, to: selectedScene.id)
-                        }
-                    }
-                }
-            }
+    // Direct + FX button (bug 135348): a plain Button, never a dropdown. It
+    // opens the add-FX picker sheet.
+    private var addInsertButton: some View {
+        Button {
+            presentAddInsertPicker()
         } label: {
-            // Plus button labelled "FX" (bug 135348), matching the track FX
-            // chain's add affordance.
             Label("FX", systemImage: "plus")
                 .studioText(.labelBold)
                 .foregroundStyle(StudioTheme.background)
@@ -422,10 +397,70 @@ struct ScenesWorkspaceView: View {
                 .padding(.horizontal, 12)
                 .background(StudioTheme.success, in: Capsule())
         }
-        .menuStyle(.borderlessButton)
-        .menuIndicator(.hidden)
+        .buttonStyle(.plain)
         .fixedSize()
+        .help("Add FX")
         .accessibilityLabel("Add FX")
+    }
+
+    private func presentAddInsertPicker() {
+        addInsertPickerRequest = AddInsertPickerRequest()
+    }
+
+    private func addInsert(_ insert: MasterBusInsert) {
+        selectedInsertID = insert.id
+        session.addMasterBusInsert(insert, to: selectedScene.id)
+        addInsertPickerRequest = nil
+    }
+
+    @ViewBuilder
+    private func addInsertPickerSheet(_ request: AddInsertPickerRequest) -> some View {
+        StudioModal(
+            title: "Add FX",
+            minWidth: 360,
+            minHeight: 220,
+            onClose: { addInsertPickerRequest = nil }
+        ) {
+            VStack(alignment: .leading, spacing: 8) {
+                addInsertOptionButton(title: "Filter", systemImage: "line.3.horizontal.decrease.circle") {
+                    addInsert(MasterBusInsert.filter())
+                }
+                addInsertOptionButton(title: "Bitcrusher", systemImage: "waveform.path.ecg") {
+                    addInsert(MasterBusInsert.bitcrusher())
+                }
+
+                Text("AU EFFECTS")
+                    .studioText(.eyebrow)
+                    .tracking(0.8)
+                    .foregroundStyle(StudioTheme.mutedText)
+                    .padding(.top, 8)
+
+                // Full, scrollable, searchable list — no longer capped at 16.
+                AUEffectPickerList(effects: engineController.availableAudioEffects) { effect in
+                    addInsertOptionButton(title: effect.displayName, systemImage: "slider.horizontal.3") {
+                        addInsert(MasterBusInsert.auEffect(effect))
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        }
+    }
+
+    private func addInsertOptionButton(title: String, systemImage: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Label(title, systemImage: systemImage)
+                .studioText(.labelBold)
+                .foregroundStyle(StudioTheme.text)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.vertical, 10)
+                .padding(.horizontal, 12)
+                .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
+                        .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+                )
+        }
+        .buttonStyle(.plain)
     }
 
     private func insertRow(_ insert: MasterBusInsert) -> some View {
@@ -701,13 +736,12 @@ struct ScenesWorkspaceView: View {
         let cutoffBinding = filterCutoffBinding(insertID: insert.id, settings: settings)
         let resonanceBinding = filterResonanceBinding(insertID: insert.id, settings: settings)
 
+        let modeBinding = filterModeBinding(insertID: insert.id, settings: settings)
+
         VStack(alignment: .leading, spacing: 16) {
-            Picker("Type", selection: filterModeBinding(insertID: insert.id, settings: settings)) {
-                ForEach(MasterFilterSettings.Mode.allCases, id: \.self) { mode in
-                    Text(mode.displayName).tag(mode)
-                }
-            }
-            .pickerStyle(.segmented)
+            // Custom studio segmented control (bug 212622): mirrors the kit
+            // tab-chip pattern, replacing the Aqua `.segmented` Picker.
+            filterModeSegmentedControl(selection: modeBinding)
 
             SceneFilterCurveView(
                 mode: settings.mode,
@@ -747,6 +781,46 @@ struct ScenesWorkspaceView: View {
                 Spacer(minLength: 0)
             }
         }
+    }
+
+    // Custom studio segmented control for the filter type, styled like the
+    // drum-kit tab chips (flat, rounded, accent-filled selection).
+    private func filterModeSegmentedControl(selection: Binding<MasterFilterSettings.Mode>) -> some View {
+        HStack(spacing: 4) {
+            ForEach(MasterFilterSettings.Mode.allCases, id: \.self) { mode in
+                filterModeChip(mode, selection: selection)
+            }
+        }
+        .padding(3)
+        .background(
+            Color.white.opacity(StudioOpacity.subtleFill),
+            in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                .stroke(StudioTheme.border.opacity(0.9), lineWidth: StudioMetrics.borderWidth)
+        )
+    }
+
+    private func filterModeChip(_ mode: MasterFilterSettings.Mode, selection: Binding<MasterFilterSettings.Mode>) -> some View {
+        let isSelected = selection.wrappedValue == mode
+        return Button {
+            selection.wrappedValue = mode
+        } label: {
+            Text(mode.displayName)
+                .studioText(.labelBold)
+                .foregroundStyle(isSelected ? StudioTheme.background : StudioTheme.text.opacity(0.78))
+                .lineLimit(1)
+                .frame(maxWidth: .infinity, minHeight: 30)
+                .padding(.horizontal, 10)
+                .background(
+                    isSelected ? StudioTheme.cyan : Color.clear,
+                    in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
+                )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Filter type \(mode.displayName)")
+        .accessibilityValue(isSelected ? "Selected" : "Not selected")
     }
 
     private func sliderRow(title: String, value: Binding<Double>, range: ClosedRange<Double>, label: String) -> some View {
@@ -941,7 +1015,8 @@ struct ScenesWorkspaceView: View {
     private func macroTargets(for scene: MasterBusScene) -> [MasterSceneMacroTarget] {
         var targets: [MasterSceneMacroTarget] = []
         for insert in scene.inserts {
-            targets.append(.insertWetDry(insertID: insert.id))
+            // Wet/dry is fully removed from the filter (bug 135652): it is no
+            // longer an assignable macro target.
             switch insert.kind {
             case .nativeFilter:
                 targets.append(.filterCutoff(insertID: insert.id))
