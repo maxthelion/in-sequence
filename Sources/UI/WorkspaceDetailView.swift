@@ -29,11 +29,30 @@ struct WorkspaceDetailView: View {
                     break
                 }
             }
+            // Scoped Track/Kit Perform (AC22): a Perform button on a single
+            // track or a kit posts here. We reuse the existing tracks-perform
+            // surface — set the perform scope, flip to perform mode, and
+            // navigate to the tracks page. No bespoke perform surface.
+            .onReceive(NotificationCenter.default.publisher(for: .trackPerformRequested)) { notification in
+                guard let trackID = notification.object as? UUID else { return }
+                enterScopedPerform(trackIDs: [trackID])
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .drumKitPerformRequested)) { notification in
+                guard let groupID = notification.object as? TrackGroupID else { return }
+                let memberIDs = session.store.tracksInGroup(groupID).map(\.id)
+                guard !memberIDs.isEmpty else { return }
+                enterScopedPerform(trackIDs: memberIDs)
+            }
             // Bold-flat pass: the stage IS the window ground — no rounded stage
             // plate, no outline; controls sit directly on the one near-black
             // ground like the reference.
             .background(StudioTheme.stageFill)
         }
+    }
+
+    private func enterScopedPerform(trackIDs: [UUID]) {
+        session.enterScopedPerform(trackIDs: trackIDs)
+        section = .tracks
     }
 
     @ViewBuilder

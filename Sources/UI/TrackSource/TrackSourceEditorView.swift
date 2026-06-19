@@ -257,25 +257,30 @@ struct TrackSourceEditorView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            StudioPanel(title: "Pattern", accent: accent) {
-                VStack(alignment: .leading, spacing: 10) {
-                    TrackPatternSlotPalette(
-                        selectedSlot: selectedPatternIndexBinding,
-                        occupiedSlots: occupiedPatternSlots,
-                        bypassState: .notApplicable,
-                        onBypassToggle: { _ in },
-                        destinationMode: clipHistoryDestinationMode
-                            ? TrackPatternSlotPalette.DestinationMode(
-                                pendingReplaceSlot: pendingClipHistoryReplaceSlot,
-                                accent: StudioTheme.success
-                            )
-                            : nil,
-                        onDestinationSelect: selectClipHistoryDestination
-                    )
+            StudioPanel(
+                title: "Pattern",
+                accent: accent,
+                content: {
+                    VStack(alignment: .leading, spacing: 10) {
+                        TrackPatternSlotPalette(
+                            selectedSlot: selectedPatternIndexBinding,
+                            occupiedSlots: occupiedPatternSlots,
+                            bypassState: .notApplicable,
+                            onBypassToggle: { _ in },
+                            destinationMode: clipHistoryDestinationMode
+                                ? TrackPatternSlotPalette.DestinationMode(
+                                    pendingReplaceSlot: pendingClipHistoryReplaceSlot,
+                                    accent: StudioTheme.success
+                                )
+                                : nil,
+                            onDestinationSelect: selectClipHistoryDestination
+                        )
 
-                    clipHistoryDestinationRow
-                }
-            }
+                        clipHistoryDestinationRow
+                    }
+                },
+                accessory: { performButton }
+            )
 
             VStack(alignment: .leading, spacing: 0) {
                 trackSourceHeader
@@ -364,6 +369,29 @@ struct TrackSourceEditorView: View {
         .task(id: clipHistoryLiveRefreshKey) {
             await refreshClipHistoryWhileVisible()
         }
+    }
+
+    /// Perform header button (AC22): posts `.trackPerformRequested` with this
+    /// track's id. The coordinator (WorkspaceDetailView) enters the reused
+    /// tracks-perform surface scoped to this single track — no bespoke surface.
+    private var performButton: some View {
+        Button {
+            NotificationCenter.default.post(
+                name: .trackPerformRequested,
+                object: track.id
+            )
+        } label: {
+            Label("Perform", systemImage: "play.fill")
+                .studioText(.labelBold)
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(StudioTheme.background)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
+        .background(accent, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+        .help("Perform: open the phrase perform UI scoped to this track")
+        .accessibilityIdentifier("track-perform")
+        .accessibilityLabel("Perform track")
     }
 
     private var trackSourceHeader: some View {

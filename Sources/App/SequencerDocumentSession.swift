@@ -64,6 +64,22 @@ final class SequencerDocumentSession {
         }
     }
 
+    /// Scoped Track/Kit Perform (AC22): when non-empty, the tracks-perform
+    /// surface shows ONLY these track ids — a single track (track scope) or a
+    /// drum kit's member tracks (kit scope). Empty means "all tracks", which is
+    /// the unscoped project-wide behaviour the surface had before, so existing
+    /// flows are unchanged. Session-only UI state, never flushed to the
+    /// document. The Perform buttons set this then navigate into perform.
+    var performTrackScope: Set<UUID> = []
+
+    /// Enter the reused tracks-perform surface scoped to `trackIDs` (AC22).
+    /// Sets the scope set (empty clears the scope) and flips the global mode to
+    /// perform; the caller drives the section switch to `.tracks`.
+    func enterScopedPerform(trackIDs: [UUID]) {
+        performTrackScope = Set(trackIDs)
+        workspaceMode = .perform
+    }
+
     /// Debounce interval used for `scheduleFlushToDocument`.
     /// Injectable for tests to avoid real-time waits.
     let debounceInterval: Duration

@@ -166,9 +166,20 @@ struct TracksMatrixView: View {
         editingPhrase.id
     }
 
+    /// Scoped Track/Kit Perform (AC22): when non-empty, only these track ids are
+    /// shown so the reused perform surface presents a single track / one kit.
+    /// Empty means unscoped (the whole project), preserving prior behaviour.
+    private var performScope: Set<UUID> {
+        session.performTrackScope
+    }
+
+    private func isInScope(_ trackID: UUID) -> Bool {
+        performScope.isEmpty || performScope.contains(trackID)
+    }
+
     private var groupedSections: [GroupedTrackSection] {
         session.store.trackGroups.compactMap { group in
-            let members = session.store.tracksInGroup(group.id)
+            let members = session.store.tracksInGroup(group.id).filter { isInScope($0.id) }
             guard !members.isEmpty else {
                 return nil
             }
@@ -177,7 +188,7 @@ struct TracksMatrixView: View {
     }
 
     private var ungroupedTracks: [StepSequenceTrack] {
-        session.store.tracks.filter { $0.groupID == nil }
+        session.store.tracks.filter { $0.groupID == nil && isInScope($0.id) }
     }
 
     var body: some View {
@@ -292,6 +303,9 @@ struct TracksMatrixView: View {
             if !isNowPerforming {
                 isPresentingPerformLayerSelection = false
                 cleanupPerformRuntime()
+                // Leaving perform also drops any scoped Track/Kit Perform set
+                // (AC22) so the next entry starts unscoped (whole project).
+                session.performTrackScope = []
             }
         }
         .onChange(of: performLayerSelection.mode) { oldValue, newValue in
@@ -323,12 +337,71 @@ struct TracksMatrixView: View {
             basisPhrasePill
             Spacer()
             if isPerforming {
+                if !performScope.isEmpty {
+                    performScopeChip
+                }
                 performSelectionSummary
                 if performLayerSelection.mode != .noteRepeat {
                     performLatchModeControl
                 }
             }
         }
+    }
+
+    /// Scoped Track/Kit Perform (AC22): names the active scope and lets the
+    /// player drop back to the whole project without leaving perform.
+    private var performScopeChip: some View {
+        HStack(spacing: 8) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text("PERFORM SCOPE")
+                    .studioText(.micro)
+                    .tracking(0.8)
+                    .foregroundStyle(StudioTheme.mutedText)
+                Text(performScopeText)
+                    .studioText(.labelBold)
+                    .foregroundStyle(StudioTheme.cyan)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+            }
+
+            Button {
+                session.performTrackScope = []
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(StudioTheme.text)
+                    .frame(width: 24, height: 24)
+                    .background(Color.white.opacity(StudioOpacity.subtleFill), in: Circle())
+                    .overlay(Circle().stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth))
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("perform-scope-clear")
+            .help("Perform all tracks")
+        }
+        .frame(width: 170, alignment: .leading)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                .stroke(StudioTheme.cyan.opacity(StudioOpacity.accentStroke), lineWidth: StudioMetrics.borderWidth)
+        )
+        .accessibilityIdentifier("perform-scope")
+    }
+
+    private var performScopeText: String {
+        let scopedGroup = session.store.trackGroups.first { group in
+            let memberIDs = Set(session.store.tracksInGroup(group.id).map(\.id))
+            return !memberIDs.isEmpty && memberIDs == performScope
+        }
+        if let scopedGroup {
+            return scopedGroup.name
+        }
+        if performScope.count == 1,
+           let trackID = performScope.first,
+           let track = session.store.tracks.first(where: { $0.id == trackID }) {
+            return track.name
+        }
+        return "\(performScope.count) tracks"
     }
 
     // One layer changer for both modes: the perform-mode selector button is

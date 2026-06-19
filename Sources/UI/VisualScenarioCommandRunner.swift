@@ -264,6 +264,40 @@ enum VisualScenarioCommandRunner {
             session.performQuantise = quantise
         }
 
+        // Scoped Track Perform (AC22): enter the reused tracks-perform surface
+        // scoped to a single track. `selected` scopes the currently selected
+        // track; a UUID scopes that explicit track.
+        if let rawTrack = command["performScopeTrack"] {
+            let trackID = rawTrack == "selected"
+                ? session.store.selectedTrackID
+                : UUID(uuidString: rawTrack)
+            if let trackID, session.store.tracks.contains(where: { $0.id == trackID }) {
+                session.enterScopedPerform(trackIDs: [trackID])
+                section.wrappedValue = .tracks
+            }
+        }
+
+        // Scoped Kit Perform (AC22): enter the reused tracks-perform surface
+        // scoped to a drum group's member tracks. `selected` resolves the group
+        // of the currently selected track; a UUID scopes that explicit group.
+        if let rawGroup = command["performScopeKit"] {
+            let groupID: TrackGroupID? = rawGroup == "selected"
+                ? session.store.tracks.first(where: { $0.id == session.store.selectedTrackID })?.groupID
+                : UUID(uuidString: rawGroup)
+            if let groupID {
+                let memberIDs = session.store.tracksInGroup(groupID).map(\.id)
+                if !memberIDs.isEmpty {
+                    session.enterScopedPerform(trackIDs: memberIDs)
+                    section.wrappedValue = .tracks
+                }
+            }
+        }
+
+        // Clear any scoped perform back to the whole project (AC22).
+        if command["clearPerformScope"] == "true" {
+            session.performTrackScope = []
+        }
+
         if let rawWindowFrame = command["windowFrame"] {
             applyWindowFrame(rawWindowFrame)
         }
@@ -494,6 +528,7 @@ enum VisualScenarioCommandRunner {
         workspaceMode=\(session.workspaceMode.rawValue)
         tracksMode=\(session.workspaceMode.tracksModeValue.rawValue)
         quantise=\(session.performQuantise.rawValue)
+        performScopeCount=\(session.performTrackScope.count)
         quantisePending=\(quantisePendingStatus(session: session, engineController: engineController))
         quantiseFillCueActive=\(quantiseFillCueActiveStatus(session: session, engineController: engineController))
         transport=\(engineController.isRunning ? "play" : "stop")

@@ -769,9 +769,10 @@ struct DrumKitMatrixView: View {
         .accessibilityValue(isCaptureOpen ? "Open" : "Closed")
     }
 
-    /// Perform header button (AC13). Scoped phrase-perform for the whole kit is
-    /// a later slice; for now this posts a notification so QA can observe the
-    /// intent without a bespoke surface (see spec AC22).
+    /// Perform header button (AC13/AC22). Posts `.drumKitPerformRequested` with
+    /// the group id; the coordinator (WorkspaceDetailView) enters the reused
+    /// tracks-perform surface scoped to the kit's member tracks — no bespoke
+    /// perform surface.
     private var performButton: some View {
         Button {
             NotificationCenter.default.post(
@@ -787,7 +788,7 @@ struct DrumKitMatrixView: View {
         .padding(.horizontal, 10)
         .padding(.vertical, 7)
         .background(accent, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
-        .help("Perform: open the phrase perform UI scoped to the whole kit (coming soon)")
+        .help("Perform: open the phrase perform UI scoped to the whole kit")
         .accessibilityIdentifier("kit-perform")
         .accessibilityLabel("Perform kit")
     }
