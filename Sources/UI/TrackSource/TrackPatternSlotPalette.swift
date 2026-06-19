@@ -84,13 +84,7 @@ struct TrackPatternSlotPalette: View {
                 )
             }
             .buttonStyle(.plain)
-            .accessibilityLabel(
-                destinationMode != nil
-                    ? "Save capture to slot \(slotIndex + 1)"
-                    : bypassApplicable
-                    ? (isBypassed ? "Slot \(slotIndex + 1), clip source" : "Slot \(slotIndex + 1), generator source")
-                    : "Slot \(slotIndex + 1)"
-            )
+            .accessibilityLabel(slotAccessibilityLabel(slotIndex: slotIndex, isBypassed: isBypassed, bypassApplicable: bypassApplicable))
 
             if bypassApplicable && destinationMode == nil {
                 Button {
@@ -108,6 +102,19 @@ struct TrackPatternSlotPalette: View {
                 .accessibilityLabel(isBypassed ? "Switch slot \(slotIndex + 1) to generator source" : "Switch slot \(slotIndex + 1) to clip source")
             }
         }
+    }
+
+    private func slotAccessibilityLabel(slotIndex: Int, isBypassed: Bool, bypassApplicable: Bool) -> String {
+        let slotNumber = slotIndex + 1
+        if destinationMode != nil {
+            return "Save capture to slot \(slotNumber)"
+        }
+        if bypassApplicable {
+            return isBypassed
+                ? "Slot \(slotNumber), clip source"
+                : "Slot \(slotNumber), generator source"
+        }
+        return "Slot \(slotNumber)"
     }
 
     /// Colour identifies, it never floods (ux-canon rule 12): a slot pad is

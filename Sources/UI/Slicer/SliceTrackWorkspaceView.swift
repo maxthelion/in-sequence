@@ -735,6 +735,7 @@ struct SliceTrackWorkspaceView: View {
         guard let url = try? sample.fileRef.resolve(libraryRoot: AudioSampleLibrary.shared.libraryRoot),
               let file = try? AVAudioFile(forReading: url)
         else {
+            analysisMessage = "Could not load \(sample.name)."
             return
         }
 
@@ -947,7 +948,7 @@ struct SliceTrackWorkspaceView: View {
             } else {
                 ScrollView {
                     VStack(spacing: 6) {
-                        ForEach(effects.prefix(16)) { effect in
+                        ForEach(effects.prefix(AudioEffectChoice.menuDisplayLimit)) { effect in
                             addFXOptionButton(title: effect.displayName, systemName: "slider.horizontal.3") {
                                 session.addFXInsert(trackID: trackID, insert: .auEffect(effect))
                                 isAddFXPresented = false
@@ -1406,6 +1407,7 @@ private extension SliceTrackWorkspaceView {
         guard let url = try? sample.fileRef.resolve(libraryRoot: AudioSampleLibrary.shared.libraryRoot),
               marker.endFrame > marker.startFrame
         else {
+            analysisMessage = "Could not audition \(sample.name)."
             return
         }
         _ = engineController.sampleEngineSink.playSlice(

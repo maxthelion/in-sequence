@@ -22,13 +22,12 @@ extension Project {
     ///
     /// These are *initial values* the user can edit or remove afterwards — they
     /// are not a fixed mapping. Drum parts land with three pre-mapped slots:
-    /// - M1 (slot 0): sample direction (the source-buffer start/position macro)
+    /// - M1 (slot 0): sample start (normalised position into the source buffer)
     /// - M2 (slot 1): sample length
     /// - M3 (slot 2): filter cutoff
     ///
-    /// There is no dedicated "sample direction" parameter in the model; the
-    /// `sampleStart` built-in (normalised position into the source buffer) is the
-    /// real case that expresses sample direction/position, so it is used for M1.
+    /// M1 maps to the `sampleStart` built-in (normalised position into the
+    /// source buffer); it is shown to the user as "Sample Start".
     static func defaultMacroBindings(forVoiceTag tag: VoiceTag?, trackID: UUID) -> [TrackMacroBinding] {
         // Voice tag presence marks a drum part; melodic tracks get no template.
         guard tag != nil else {

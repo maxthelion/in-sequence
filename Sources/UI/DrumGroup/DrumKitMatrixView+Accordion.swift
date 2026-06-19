@@ -439,7 +439,7 @@ extension DrumKitMatrixView {
             } else {
                 ScrollView {
                     VStack(spacing: 6) {
-                        ForEach(effects.prefix(16)) { effect in
+                        ForEach(effects.prefix(AudioEffectChoice.menuDisplayLimit)) { effect in
                             kitFXOptionButton(title: effect.displayName, systemName: "slider.horizontal.3") {
                                 session.addFXInsert(trackID: memberID, insert: .auEffect(effect))
                                 expandedFXTarget = nil

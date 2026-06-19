@@ -104,7 +104,7 @@ extension DrumKitMatrixView {
                 } else {
                     ScrollView {
                         VStack(spacing: 6) {
-                            ForEach(effects.prefix(16)) { effect in
+                            ForEach(effects.prefix(AudioEffectChoice.menuDisplayLimit)) { effect in
                                 kitFXOptionButton(title: effect.displayName, systemName: "slider.horizontal.3") {
                                     session.addMixerBusInsert(.auEffect(effect), busID: busID)
                                     isPresentingKitFX = false
@@ -164,20 +164,44 @@ extension DrumKitMatrixView {
     @ViewBuilder
     func kitMacrosTabBody(_ model: DrumKitMatrixModel) -> some View {
         StudioPanel(title: "Kit Macros", eyebrow: "M1–M8 across the whole kit / its bus", accent: accent) {
-            let slots = kitMacroSlots(model)
-            LazyVGrid(columns: Self.macroColumns, alignment: .leading, spacing: 14) {
-                ForEach(slots) { slot in
-                    AUMacroSlotKnob(
-                        slotIndex: slot.slotIndex,
-                        binding: slot.binding,
-                        value: nil,
-                        onAssign: {},
-                        onChange: { _ in }
-                    )
+            VStack(alignment: .leading, spacing: 12) {
+                kitNotYetFunctionalBadge("Kit-wide macro sweeps coming soon")
+
+                let slots = kitMacroSlots(model)
+                LazyVGrid(columns: Self.macroColumns, alignment: .leading, spacing: 14) {
+                    ForEach(slots) { slot in
+                        AUMacroSlotKnob(
+                            slotIndex: slot.slotIndex,
+                            binding: slot.binding,
+                            value: nil,
+                            onAssign: {},
+                            onChange: { _ in }
+                        )
+                    }
                 }
+                .padding(.vertical, 4)
+                .opacity(0.55)
+                .allowsHitTesting(false)
             }
-            .padding(.vertical, 4)
         }
+    }
+
+    /// Small "not yet functional" affordance for stubbed kit surfaces. Reads as
+    /// a preview rather than a finished control, without building the feature.
+    func kitNotYetFunctionalBadge(_ text: String) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: "clock.badge")
+                .font(.system(size: 10, weight: .semibold))
+            Text(text)
+                .studioText(.micro)
+        }
+        .foregroundStyle(StudioTheme.mutedText)
+        .padding(.horizontal, 9)
+        .padding(.vertical, 5)
+        .background(Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
+        .overlay(
+            Capsule().stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+        )
     }
 
     static let macroColumns = Array(
@@ -186,7 +210,7 @@ extension DrumKitMatrixView {
     )
 
     /// Eight slots (M1–M8) seeded from the originating part's macro bindings so
-    /// the kit view reflects the seeded drum-part defaults (M1 dir / M2 len /
+    /// the kit view reflects the seeded drum-part defaults (M1 start / M2 len /
     /// M3 cutoff). Unbound slots render as assignable knobs.
     func kitMacroSlots(_ model: DrumKitMatrixModel) -> [MacroSlot] {
         let originating = session.store.tracks.first { $0.id == model.originatingPartID }
@@ -248,16 +272,24 @@ extension DrumKitMatrixView {
         }
     }
 
+    /// Decorative Send A/B badge. The kit-bus send routing is not wired yet, so
+    /// it reads as a dimmed "soon" affordance rather than a finished control.
     func kitSendBadge(_ label: String) -> some View {
-        Text("Send \(label)")
-            .studioText(.label)
-            .foregroundStyle(StudioTheme.mutedText)
-            .padding(.horizontal, 9)
-            .padding(.vertical, 5)
-            .background(Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
-            .overlay(
-                Capsule().stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
-            )
+        HStack(spacing: 4) {
+            Text("Send \(label)")
+                .studioText(.label)
+            Text("soon")
+                .studioText(.micro)
+                .foregroundStyle(StudioTheme.mutedText.opacity(0.7))
+        }
+        .foregroundStyle(StudioTheme.mutedText.opacity(0.6))
+        .padding(.horizontal, 9)
+        .padding(.vertical, 5)
+        .background(Color.white.opacity(StudioOpacity.subtleFill * 0.6), in: Capsule())
+        .overlay(
+            Capsule().stroke(StudioTheme.border.opacity(0.6), style: StrokeStyle(lineWidth: StudioMetrics.borderWidth, dash: [3, 3]))
+        )
+        .help("Kit-bus sends are not yet functional")
     }
 
     func kitPartLevelRow(_ row: DrumKitMatrixModel.Row) -> some View {

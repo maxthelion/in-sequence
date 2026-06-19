@@ -550,17 +550,19 @@ struct SlicerSourceWidget: View {
     }
 
     private func sliceDurationLabel(marker: SliceMarker, sample: AudioSample) -> String {
-        let frameRate = sampleFrameRate(sample: sample)
-        guard frameRate > 0 else { return "--" }
+        guard let frameRate = sampleFrameRate(sample: sample), frameRate > 0 else { return "--" }
         let seconds = Double(max(0, marker.endFrame - marker.startFrame)) / frameRate
         return String(format: "%.2fs", seconds)
     }
 
-    private func sampleFrameRate(sample: AudioSample) -> Double {
+    /// Source-file sample rate, or nil when the file can't be resolved/opened.
+    /// The duration label is the only consumer and renders "--" on nil, so the
+    /// failure propagates rather than fabricating a default rate.
+    private func sampleFrameRate(sample: AudioSample) -> Double? {
         guard let url = try? sample.fileRef.resolve(libraryRoot: library.libraryRoot),
               let file = try? AVAudioFile(forReading: url)
         else {
-            return 44_100
+            return nil
         }
         return file.processingFormat.sampleRate
     }
@@ -569,6 +571,7 @@ struct SlicerSourceWidget: View {
         guard let url = try? sample.fileRef.resolve(libraryRoot: library.libraryRoot),
               marker.endFrame > marker.startFrame
         else {
+            analysisMessage = "Could not audition \(sample.name)."
             return
         }
         _ = sampleEngine.playSlice(

@@ -58,7 +58,7 @@ extension Project {
                 gateLength: StepSequenceTrack.default.gateLength
             )
             // Seed the editable per-type default macro template for new drum
-            // parts only (M1 sample direction, M2 length, M3 filter cutoff).
+            // parts only (M1 sample start, M2 length, M3 filter cutoff).
             // Existing tracks are never retroactively mutated on load.
             track.macros = Self.defaultMacroBindings(forVoiceTag: member.tag, trackID: track.id)
             let clip = ClipPoolEntry(

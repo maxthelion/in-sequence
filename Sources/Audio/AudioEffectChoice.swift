@@ -36,6 +36,10 @@ struct AudioEffectChoice: Codable, Equatable, Hashable, Identifiable, Sendable {
         )
     }
 
+    /// Cap on how many effect choices the inline "+FX" menus render before the
+    /// list is truncated. Shared so every FX chooser uses the same limit.
+    static let menuDisplayLimit = 16
+
     static let testEffect = AudioEffectChoice(
         name: "Test Effect",
         manufacturerName: "Codex",
