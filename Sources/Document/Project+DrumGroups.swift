@@ -78,6 +78,16 @@ extension Project {
         tracks.append(contentsOf: newTracks)
         patternBanks.append(contentsOf: newBanks)
         let memberIDs = newTracks.map(\.id)
+
+        // By default a drum group routes its members to their own dedicated
+        // mixer bus (named after the group), keeping the kit a self-contained
+        // mixable unit. `.master` leaves members on the master bus.
+        if case .dedicatedBus = plan.busRouting {
+            let busID = addMixerBus(name: plan.name, color: plan.color)
+            for memberID in memberIDs {
+                setTrackOutputBus(trackID: memberID, busID: busID)
+            }
+        }
         let usesSharedMIDI: Bool = {
             guard case .some(.midi) = plan.sharedDestination else {
                 return false
