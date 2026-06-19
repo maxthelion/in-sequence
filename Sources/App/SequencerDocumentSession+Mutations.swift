@@ -771,6 +771,9 @@ extension SequencerDocumentSession {
             return
         }
         store.setSelectedPhraseID(id)
+        if workspaceMode == .perform {
+            _ = phrasePerformOverlay.begin(basisPhraseID: id)
+        }
         guard store.revision > revision else { return }
         if isInBatch {
             recordBatchChange(.selectedPhrase)
@@ -792,6 +795,9 @@ extension SequencerDocumentSession {
         }
         store.setSelectedPhraseID(phraseID)
         store.setSelectedTrackID(trackID)
+        if workspaceMode == .perform {
+            _ = phrasePerformOverlay.begin(basisPhraseID: phraseID)
+        }
 
         guard store.revision > revision else {
             return
@@ -899,6 +905,16 @@ extension SequencerDocumentSession {
     }
 
     @discardableResult
+    func beginPhrasePerformOverlay(basisPhraseID: UUID) -> Bool {
+        let changed = phrasePerformOverlay.begin(basisPhraseID: basisPhraseID)
+        guard changed else {
+            return false
+        }
+        publishPhrasePerformOverlayChange(phraseID: basisPhraseID)
+        return true
+    }
+
+    @discardableResult
     func stagePhrasePerformSceneState(
         _ state: PhraseSceneState,
         basisPhraseID: UUID
@@ -939,8 +955,7 @@ extension SequencerDocumentSession {
 
     @discardableResult
     func capturePhrasePerformOverlay(to targetPhraseID: UUID) -> Bool {
-        guard phrasePerformOverlay.isDirty,
-              let basisPhraseID = phrasePerformOverlay.basisPhraseID,
+        guard let basisPhraseID = phrasePerformOverlay.basisPhraseID,
               let basisPhrase = store.phrases.first(where: { $0.id == basisPhraseID }),
               let targetIndex = store.phrases.firstIndex(where: { $0.id == targetPhraseID })
         else {
@@ -961,8 +976,7 @@ extension SequencerDocumentSession {
 
     @discardableResult
     func capturePhrasePerformOverlayToNewPhrase() -> UUID? {
-        guard phrasePerformOverlay.isDirty,
-              let basisPhraseID = phrasePerformOverlay.basisPhraseID,
+        guard let basisPhraseID = phrasePerformOverlay.basisPhraseID,
               let basisPhrase = store.phrases.first(where: { $0.id == basisPhraseID })
         else {
             return nil

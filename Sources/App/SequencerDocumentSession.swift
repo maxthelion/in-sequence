@@ -45,6 +45,9 @@ final class SequencerDocumentSession {
             if oldValue != workspaceMode, workspaceMode == .setup {
                 engineController.cancelAllQuantisedToggles()
             }
+            if oldValue != workspaceMode, workspaceMode == .perform {
+                beginPhrasePerformOverlay(basisPhraseID: store.selectedPhraseID)
+            }
         }
     }
 

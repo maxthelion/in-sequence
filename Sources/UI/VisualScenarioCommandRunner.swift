@@ -519,7 +519,7 @@ enum VisualScenarioCommandRunner {
         phrasePerformOverlayBasisPhraseName=\(phrasePerformOverlayBasisName ?? "none")
         stagedCellCount=\(session.phrasePerformOverlay.stagedCellCount)
         phrasePerformOverlayCanSaveBack=\(canSavePhrasePerformOverlay)
-        phrasePerformOverlayCanRevert=\(session.workspaceMode == .perform)
+        phrasePerformOverlayCanRevert=\(session.phrasePerformOverlay.hasLiveCopy)
         phraseMatrixRenderedVisible=\(phraseMatrixRenderedVisible)
         phraseMatrixPageIndex=\(phraseMatrixPageIndex)
         phraseMatrixPageCount=\(phraseMatrixPageCount)

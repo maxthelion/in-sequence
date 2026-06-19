@@ -1038,7 +1038,7 @@ struct TracksMatrixView: View {
         }
 
         if command == "open-phrase-capture" {
-            isPresentingPhraseCapture = session.phrasePerformOverlay.isDirty
+            isPresentingPhraseCapture = session.phrasePerformOverlay.hasLiveCopy
             return
         }
 
@@ -1264,14 +1264,14 @@ struct PhrasePerformCaptureSheet: View {
 
     var body: some View {
         StudioModal(
-            title: "Save Modified Phrase",
-            subtitle: "\(stagedCellCount) edit\(stagedCellCount == 1 ? "" : "s") on \(basisName)",
+            title: "Save Phrase Copy",
+            subtitle: "\(stagedCellCount) change\(stagedCellCount == 1 ? "" : "s") on \(basisName)",
             accent: StudioTheme.amber,
             minWidth: 500,
             onClose: onCancel
         ) {
             VStack(alignment: .leading, spacing: 16) {
-                Text("Choose where in the phrase matrix this modified phrase should be saved.")
+                Text("Choose where in the phrase matrix this live phrase copy should be saved.")
                     .studioText(.body)
                     .foregroundStyle(StudioTheme.mutedText)
 

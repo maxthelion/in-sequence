@@ -19,6 +19,10 @@ struct PhrasePerformOverlayState: Equatable, Sendable {
         basisPhraseID != nil && (!cellsByKey.isEmpty || sceneState != nil)
     }
 
+    var hasLiveCopy: Bool {
+        basisPhraseID != nil
+    }
+
     var stagedCellCount: Int {
         cellsByKey.count
     }
@@ -83,6 +87,22 @@ struct PhrasePerformOverlayState: Equatable, Sendable {
             changed = true
         }
         return changed
+    }
+
+    @discardableResult
+    mutating func begin(basisPhraseID nextBasisPhraseID: UUID) -> Bool {
+        if isDirty, basisPhraseID != nextBasisPhraseID {
+            return false
+        }
+
+        guard basisPhraseID != nextBasisPhraseID else {
+            return false
+        }
+
+        basisPhraseID = nextBasisPhraseID
+        cellsByKey.removeAll()
+        sceneState = nil
+        return true
     }
 
     mutating func stageSceneState(

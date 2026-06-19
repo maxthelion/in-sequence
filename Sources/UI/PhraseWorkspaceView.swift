@@ -249,7 +249,7 @@ struct PhraseWorkspaceView: View {
 
     private var phraseShellDetail: String {
         if session.workspaceMode == .perform {
-            return "Changes stage in a temporary phrase copy. Capture chooses where that modified phrase is saved."
+            return "Changes stage in a temporary phrase copy. Capture chooses where the live phrase copy is saved."
         }
         return "Perform is off. Phrase edits write to the baseline; Capture and Discard stay visible but inactive."
     }
@@ -405,7 +405,7 @@ struct PhraseWorkspaceView: View {
     private var phrasePerformActionAvailability: PhrasePerformActionAvailabilityPresentation {
         PhrasePerformActionAvailabilityPresentation(
             isPerformMode: session.workspaceMode == .perform,
-            isDirty: session.phrasePerformOverlay.isDirty
+            hasLiveCopy: session.phrasePerformOverlay.hasLiveCopy
         )
     }
 

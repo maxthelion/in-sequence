@@ -109,19 +109,19 @@ struct PhraseLayerSelectorPresentation: Equatable {
 
 struct PhrasePerformActionAvailabilityPresentation: Equatable {
     let isPerformMode: Bool
-    let isDirty: Bool
+    let hasLiveCopy: Bool
 
     var canCapture: Bool {
-        isPerformMode && isDirty
+        isPerformMode && hasLiveCopy
     }
 
     var canDiscard: Bool {
-        isPerformMode
+        isPerformMode && hasLiveCopy
     }
 
     var captureHelp: String {
         canCapture
-            ? "Choose where to save the modified phrase"
+            ? "Choose where to save the live phrase copy"
             : "Turn Perform on and make changes before capture"
     }
 

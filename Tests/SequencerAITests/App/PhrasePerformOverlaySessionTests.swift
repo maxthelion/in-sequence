@@ -71,6 +71,29 @@ final class PhrasePerformOverlaySessionTests: XCTestCase {
         )
     }
 
+    func test_enteringPerformModeBeginsCleanLivePhraseCopy() {
+        let fixture = makeSession()
+        defer { fixture.unregister() }
+
+        fixture.session.workspaceMode = .perform
+
+        XCTAssertTrue(fixture.session.phrasePerformOverlay.hasLiveCopy)
+        XCTAssertFalse(fixture.session.phrasePerformOverlay.isDirty)
+        XCTAssertEqual(fixture.session.phrasePerformOverlay.basisPhraseID, fixture.phrases[0].id)
+    }
+
+    func test_cleanPerformCopyFollowsSelectedPhraseUntilDirty() {
+        let fixture = makeSession()
+        defer { fixture.unregister() }
+
+        fixture.session.workspaceMode = .perform
+        fixture.session.setSelectedPhraseID(fixture.phrases[1].id)
+
+        XCTAssertTrue(fixture.session.phrasePerformOverlay.hasLiveCopy)
+        XCTAssertFalse(fixture.session.phrasePerformOverlay.isDirty)
+        XCTAssertEqual(fixture.session.phrasePerformOverlay.basisPhraseID, fixture.phrases[1].id)
+    }
+
     func test_automationStyleCellReplacementInPerformModeStagesOverlay() {
         let fixture = makeSession()
         defer { fixture.unregister() }
@@ -405,6 +428,25 @@ final class PhrasePerformOverlaySessionTests: XCTestCase {
             .single(.bool(true))
         )
         XCTAssertEqual(fixture.session.store.selectedPhraseID, newPhraseID)
+    }
+
+    func test_captureCleanPerformCopyToNewPhraseDuplicatesBasisPhrase() throws {
+        let fixture = makeSession()
+        defer { fixture.unregister() }
+
+        fixture.session.workspaceMode = .perform
+
+        let newPhraseID = try XCTUnwrap(fixture.session.capturePhrasePerformOverlayToNewPhrase())
+        let capturedPhrase = try XCTUnwrap(fixture.session.store.phrases.first { $0.id == newPhraseID })
+
+        XCTAssertFalse(fixture.session.phrasePerformOverlay.hasLiveCopy)
+        XCTAssertFalse(fixture.session.phrasePerformOverlay.isDirty)
+        XCTAssertEqual(capturedPhrase.name, "Phrase C")
+        XCTAssertEqual(
+            capturedPhrase.cell(for: fixture.muteLayerID, trackID: fixture.trackID),
+            fixture.phrases[0].cell(for: fixture.muteLayerID, trackID: fixture.trackID)
+        )
+        XCTAssertEqual(capturedPhrase.sceneState, fixture.phrases[0].sceneState)
     }
 
     func test_performOverlayCellAndStagedCountReflectStagedEditsForDirtyRingAndCounter() {

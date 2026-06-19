@@ -114,7 +114,7 @@ final class PhraseMatrixLayoutPresentationTests: XCTestCase {
     func test_phrasePerformActionsAreDisabledWhenPerformIsOff() {
         let presentation = PhrasePerformActionAvailabilityPresentation(
             isPerformMode: false,
-            isDirty: true
+            hasLiveCopy: true
         )
 
         XCTAssertFalse(presentation.canCapture)
@@ -123,28 +123,28 @@ final class PhraseMatrixLayoutPresentationTests: XCTestCase {
         XCTAssertEqual(presentation.discardHelp, "Turn Perform on before discarding a live phrase copy")
     }
 
-    func test_phrasePerformActionsAllowDiscardingCleanLiveCopy() {
+    func test_phrasePerformActionsAllowCapturingAndDiscardingCleanLiveCopy() {
         let presentation = PhrasePerformActionAvailabilityPresentation(
             isPerformMode: true,
-            isDirty: false
-        )
-
-        XCTAssertFalse(presentation.canCapture)
-        XCTAssertTrue(presentation.canDiscard)
-        XCTAssertEqual(presentation.captureHelp, "Turn Perform on and make changes before capture")
-        XCTAssertEqual(presentation.discardHelp, "Discard the live phrase copy and return to the phrase baseline")
-    }
-
-    func test_phrasePerformActionsAllowCaptureAndDiscardWhenDirty() {
-        let presentation = PhrasePerformActionAvailabilityPresentation(
-            isPerformMode: true,
-            isDirty: true
+            hasLiveCopy: true
         )
 
         XCTAssertTrue(presentation.canCapture)
         XCTAssertTrue(presentation.canDiscard)
-        XCTAssertEqual(presentation.captureHelp, "Choose where to save the modified phrase")
+        XCTAssertEqual(presentation.captureHelp, "Choose where to save the live phrase copy")
         XCTAssertEqual(presentation.discardHelp, "Discard the live phrase copy and return to the phrase baseline")
+    }
+
+    func test_phrasePerformActionsDisableCaptureWhenPerformHasNoLiveCopy() {
+        let presentation = PhrasePerformActionAvailabilityPresentation(
+            isPerformMode: true,
+            hasLiveCopy: false
+        )
+
+        XCTAssertFalse(presentation.canCapture)
+        XCTAssertFalse(presentation.canDiscard)
+        XCTAssertEqual(presentation.captureHelp, "Turn Perform on and make changes before capture")
+        XCTAssertEqual(presentation.discardHelp, "Turn Perform on before discarding a live phrase copy")
     }
 }
 
