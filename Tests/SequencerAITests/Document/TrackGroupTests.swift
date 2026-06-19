@@ -19,6 +19,7 @@ final class TrackGroupTests: XCTestCase {
         XCTAssertEqual(decoded.channelMapping, [:])
         XCTAssertFalse(decoded.mute)
         XCTAssertFalse(decoded.solo)
+        XCTAssertTrue(decoded.isPatternLinked)
     }
 
     func test_full_track_group_round_trips() throws {
@@ -35,7 +36,8 @@ final class TrackGroupTests: XCTestCase {
             noteMapping: [memberA: 0, memberB: 2],
             channelMapping: [memberA: 0, memberB: 1],
             mute: true,
-            solo: true
+            solo: true,
+            isPatternLinked: false
         )
 
         let data = try JSONEncoder().encode(group)
@@ -66,6 +68,7 @@ final class TrackGroupTests: XCTestCase {
         XCTAssertEqual(decoded.channelMapping, [:])
         XCTAssertFalse(decoded.mute)
         XCTAssertFalse(decoded.solo)
+        XCTAssertTrue(decoded.isPatternLinked, "Older documents default to linked")
     }
 
     func test_older_track_group_documents_decode_mapping_contract_defaults() throws {

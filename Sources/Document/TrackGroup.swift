@@ -19,6 +19,14 @@ struct TrackGroup: Codable, Equatable, Identifiable, Sendable {
     var channelMapping: [UUID: UInt8]
     var mute: Bool
     var solo: Bool
+    /// Explicit pattern-slot linking (track-view IA, AC17). When `true`,
+    /// selecting the group pattern gangs PATTERN SLOT SELECTION across every
+    /// member — they switch slots together. It gangs slot selection ONLY; mute,
+    /// fill, and macros stay per-part. Defaults to `true` so existing kits keep
+    /// today's ganged group-pattern behaviour. Structural divergence of a member
+    /// (different slot, AC20) surfaces a "mixed" state that one-click re-link
+    /// resolves; the flag itself remains the user's explicit intent.
+    var isPatternLinked: Bool
 
     private enum CodingKeys: String, CodingKey {
         case id
@@ -31,6 +39,7 @@ struct TrackGroup: Codable, Equatable, Identifiable, Sendable {
         case channelMapping
         case mute
         case solo
+        case isPatternLinked
     }
 
     init(
@@ -43,7 +52,8 @@ struct TrackGroup: Codable, Equatable, Identifiable, Sendable {
         noteMapping: [UUID: Int] = [:],
         channelMapping: [UUID: UInt8] = [:],
         mute: Bool = false,
-        solo: Bool = false
+        solo: Bool = false,
+        isPatternLinked: Bool = true
     ) {
         self.id = id
         self.name = name
@@ -55,6 +65,7 @@ struct TrackGroup: Codable, Equatable, Identifiable, Sendable {
         self.channelMapping = channelMapping
         self.mute = mute
         self.solo = solo
+        self.isPatternLinked = isPatternLinked
     }
 
     init(from decoder: Decoder) throws {
@@ -69,5 +80,8 @@ struct TrackGroup: Codable, Equatable, Identifiable, Sendable {
         channelMapping = try container.decodeIfPresent([UUID: UInt8].self, forKey: .channelMapping) ?? [:]
         mute = try container.decodeIfPresent(Bool.self, forKey: .mute) ?? false
         solo = try container.decodeIfPresent(Bool.self, forKey: .solo) ?? false
+        // Backward-compat: older documents predate explicit linking; default to
+        // linked so they keep today's ganged group-pattern behaviour.
+        isPatternLinked = try container.decodeIfPresent(Bool.self, forKey: .isPatternLinked) ?? true
     }
 }

@@ -174,6 +174,9 @@ struct DrumKitMatrixModel: Equatable {
     var staleMemberCount: Int
     /// Pattern slots where at least one member holds a non-empty source.
     var occupiedSlotIndexes: Set<Int>
+    /// The group's explicit pattern-link intent (AC17). Linking gangs pattern
+    /// slot selection only; mute/fill/macros stay per-part.
+    var isPatternLinked: Bool
 
     var memberCountLabel: String {
         "\(rows.count) part\(rows.count == 1 ? "" : "s")"
@@ -187,6 +190,13 @@ struct DrumKitMatrixModel: Equatable {
     var groupSelectedSlotIndex: Int? {
         guard let first = rows.first?.patternSlotIndex else { return nil }
         return rows.allSatisfy { $0.patternSlotIndex == first } ? first : nil
+    }
+
+    /// Structural divergence (AC20): the kit intends to be linked, but members
+    /// sit on different pattern slots, so the link is effectively broken until
+    /// re-linked. This is the condition that surfaces the one-click "Re-link".
+    var isLinkBroken: Bool {
+        isPatternLinked && groupSelectedSlotIndex == nil && rows.count > 1
     }
 
     init?(
@@ -224,6 +234,7 @@ struct DrumKitMatrixModel: Equatable {
         self.originatingPartID = originatingPartID
         self.displayStepCount = resolvedDisplayStepCount
         self.staleMemberCount = staleMemberCount
+        self.isPatternLinked = group.isPatternLinked
         self.rows = orderedMembers.map { track in
             let patternSlotIndex = selectedPhrase.patternIndex(for: track.id, layers: layers)
             let patternBank = Self.patternBank(
@@ -554,6 +565,8 @@ struct DrumKitMatrixView: View {
                 "barPageCount": isVisible ? (model.map(barPageCount) ?? 1) : 1,
                 "layer": isVisible ? selectedLayer.rawValue : "none",
                 "groupPatternSlot": isVisible ? (groupSlot.map { "\($0 + 1)" } ?? "mixed") : "none",
+                "patternLinked": isVisible && (model?.isPatternLinked ?? false),
+                "patternLinkBroken": isVisible && (model?.isLinkBroken ?? false),
                 "groupName": isVisible ? model?.groupName ?? "none" : "none",
                 "memberCount": isVisible ? model?.rows.count ?? 0 : 0,
                 "kitTab": isVisible ? (isCaptureOpen ? "capture" : kitTab.rawValue) : "none",
@@ -1245,16 +1258,16 @@ struct DrumKitMatrixView: View {
                     .tracking(0.8)
                     .foregroundStyle(StudioTheme.mutedText)
 
-                if model.groupSelectedSlotIndex == nil {
-                    Text("MIXED")
-                        .studioText(.microEmphasis)
-                        .tracking(0.6)
-                        .foregroundStyle(StudioTheme.background)
-                        .padding(.horizontal, 7)
-                        .padding(.vertical, 3)
-                        .background(StudioTheme.amber, in: Capsule())
-                        .help("Members are on different pattern slots. Selecting a slot realigns every part.")
+                linkToggle(model)
+
+                if model.isLinkBroken {
+                    mixedBadge
+                    reLinkButton
+                } else if model.groupSelectedSlotIndex == nil && model.rows.count > 1 {
+                    mixedBadge
                 }
+
+                Spacer(minLength: 0)
             }
 
             TrackPatternSlotPalette(
@@ -1264,6 +1277,78 @@ struct DrumKitMatrixView: View {
                 onBypassToggle: { _ in }
             )
         }
+    }
+
+    /// Explicit pattern-link toggle (AC17). Linked ⛓ gangs slot selection only;
+    /// mute/fill/macros stay per-part. The pill reflects and flips the group's
+    /// persisted `isPatternLinked`.
+    private func linkToggle(_ model: DrumKitMatrixModel) -> some View {
+        let linked = model.isPatternLinked
+        let title = linked ? "Linked" : "Unlinked"
+        let symbol = linked ? "link" : "link.badge.plus"
+        return Button {
+            session.setDrumGroupPatternLinked(!linked, groupID: navigationState.groupID)
+        } label: {
+            HStack(spacing: 5) {
+                Image(systemName: symbol)
+                    .font(.system(size: 10, weight: .bold))
+                Text(title)
+                    .studioText(.microEmphasis)
+                    .tracking(0.6)
+            }
+            .foregroundStyle(linked ? StudioTheme.background : StudioTheme.text)
+            .padding(.horizontal, 9)
+            .padding(.vertical, 4)
+            .background(
+                linked ? accent : Color.white.opacity(StudioOpacity.subtleFill),
+                in: Capsule()
+            )
+            .overlay(
+                Capsule().stroke(linked ? Color.clear : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+            )
+        }
+        .buttonStyle(.plain)
+        .help(linked
+            ? "Linked: selecting a group pattern switches every part to that slot. Mute, fill, and macros stay per-part."
+            : "Unlinked: each part keeps its own pattern slot.")
+        .accessibilityIdentifier("kit-link-toggle")
+        .accessibilityLabel("Pattern linking")
+        .accessibilityValue(linked ? "Linked" : "Unlinked")
+    }
+
+    private var mixedBadge: some View {
+        Text("MIXED")
+            .studioText(.microEmphasis)
+            .tracking(0.6)
+            .foregroundStyle(StudioTheme.background)
+            .padding(.horizontal, 7)
+            .padding(.vertical, 3)
+            .background(StudioTheme.amber, in: Capsule())
+            .help("Members are on different pattern slots. Re-link realigns every part.")
+    }
+
+    /// One-click re-link (AC20). Re-gangs every member to the representative
+    /// slot and restores the link; no modal, no pattern fork.
+    private var reLinkButton: some View {
+        Button {
+            session.reLinkDrumGroupPattern(groupID: navigationState.groupID)
+        } label: {
+            HStack(spacing: 5) {
+                Image(systemName: "arrow.triangle.merge")
+                    .font(.system(size: 10, weight: .bold))
+                Text("Re-link")
+                    .studioText(.microEmphasis)
+                    .tracking(0.6)
+            }
+            .foregroundStyle(StudioTheme.background)
+            .padding(.horizontal, 9)
+            .padding(.vertical, 4)
+            .background(accent, in: Capsule())
+        }
+        .buttonStyle(.plain)
+        .help("Re-link: switch every part back to a shared pattern slot.")
+        .accessibilityIdentifier("kit-relink")
+        .accessibilityLabel("Re-link kit patterns")
     }
 
     private func groupPatternSlotBinding(_ model: DrumKitMatrixModel) -> Binding<Int> {
@@ -1459,6 +1544,12 @@ struct DrumKitMatrixView: View {
             isCaptureOpen = true
         case "close-capture":
             isCaptureOpen = false
+        case "link-on":
+            session.setDrumGroupPatternLinked(true, groupID: navigationState.groupID)
+        case "link-off":
+            session.setDrumGroupPatternLinked(false, groupID: navigationState.groupID)
+        case "relink":
+            session.reLinkDrumGroupPattern(groupID: navigationState.groupID)
         case "open-kit-fx-chooser":
             isPresentingKitFX = true
         case "close-kit-fx-chooser":
