@@ -98,6 +98,9 @@ extension EngineController {
         var effectiveMutedBusIDs: Set<UUID> = []
         var lastDestinationByOutputKey: [AudioOutputKey: Destination] = [:]
         var liveSampleTrackIDs: Set<UUID> = []
+        /// Tracks whose FX insert chain is currently installed in the audio
+        /// graph. Used to tear down chains for tracks that leave the document.
+        var installedTrackInsertChainIDs: Set<UUID> = []
         var pipelineShape: [PipelineEntry] = []
 
         func resetSinks() {

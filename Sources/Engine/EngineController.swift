@@ -1511,6 +1511,10 @@ final class EngineController: RouterDispatcher {
                 syncAudioInputRuntimes(for: documentModel)
                 syncAudioInputRouting(for: documentModel)
             }
+            // After syncAudioOutputs / buildPipeline: every track's output
+            // source node is registered, so the graph can resolve each track
+            // and splice its FX insert chain.
+            syncTrackInserts(for: documentModel)
         } catch {
             NSLog("EngineController apply failed: \(error)")
         }
