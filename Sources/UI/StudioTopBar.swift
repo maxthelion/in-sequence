@@ -3,6 +3,7 @@ import SwiftUI
 struct StudioTopBar: View {
     @Binding var section: WorkspaceSection
     @Binding var document: SeqAIDocument
+    @Environment(SequencerDocumentSession.self) private var session
 
     private let buildIdentity = BuildIdentity.current
 
@@ -42,7 +43,7 @@ struct StudioTopBar: View {
                         HStack(spacing: 8) {
                             Image(systemName: sectionValue.systemImage)
                                 .font(.system(size: 12, weight: .semibold))
-                            Text(sectionValue.title.uppercased())
+                            Text(buttonTitle(for: sectionValue).uppercased())
                                 .font(.system(size: 12, weight: .semibold, design: .rounded))
                                 .tracking(0.9)
                                 .lineLimit(1)
@@ -100,5 +101,14 @@ struct StudioTopBar: View {
 
     private func buttonStroke(for sectionValue: WorkspaceSection) -> Color {
         section == sectionValue ? StudioTheme.cyan : StudioTheme.border
+    }
+
+    private func buttonTitle(for sectionValue: WorkspaceSection) -> String {
+        switch sectionValue {
+        case .phrase:
+            return session.store.selectedPhrase.name
+        default:
+            return sectionValue.title
+        }
     }
 }

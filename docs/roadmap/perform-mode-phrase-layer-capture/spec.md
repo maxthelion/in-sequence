@@ -34,6 +34,16 @@ right concept.
 - Shows progress toward the next phrase boundary.
 - Does not expose top-level Capture or Perform as global app modes.
 
+### Top-Level Navigation
+
+- Song is a top-level workspace for choosing, cueing, and arranging phrases.
+- The current phrase is a separate top-level workspace item, labelled with the
+  selected phrase name where practical.
+- Opening a phrase from Song switches into that selected phrase workspace.
+- Song must not be collapsed into a generic `Phrase` workspace.
+- The current phrase workspace must not contain the all-phrases arrangement
+  matrix.
+
 ### Phrase Shell
 
 - Selecting/opening a phrase shows phrase-local controls.
@@ -126,6 +136,10 @@ Reviewers should fail the build if any of these are true:
 
 - The app shows both old global Perform/Capture controls and new phrase-local
   Perform/Capture controls.
+- The top-level navigation collapses Song and the selected phrase into one
+  generic Phrase page.
+- The selected phrase workspace still renders all phrase rows instead of only
+  the selected phrase's layer values.
 - Capture Phrase still contains Capture Clip.
 - Capture Phrase still reviews individual changed cells instead of only asking
   for a phrase destination.

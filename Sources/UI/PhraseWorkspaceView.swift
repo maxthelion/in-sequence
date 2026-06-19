@@ -109,7 +109,7 @@ struct PhraseWorkspaceView: View {
                     if isPresentingPerformanceLayerSelection {
                         performanceLayerSelectionSurface
                     } else {
-                        matrix
+                        selectedPhraseLayerMatrix
                     }
                 case .scenes:
                     phraseScenesSurface
@@ -749,9 +749,6 @@ struct PhraseWorkspaceView: View {
     private var layerBar: some View {
         HStack(spacing: gridSpacing) {
             Color.clear
-                .frame(width: phraseColumnWidth, height: 44)
-
-            Color.clear
                 .frame(width: matrixGutterWidth, height: 44)
 
             layerSelectorRegion
@@ -759,9 +756,6 @@ struct PhraseWorkspaceView: View {
 
             Color.clear
                 .frame(width: matrixGutterWidth, height: 44)
-
-            Color.clear
-                .frame(width: actionColumnWidth, height: 44)
         }
     }
 
@@ -1175,15 +1169,12 @@ struct PhraseWorkspaceView: View {
         .accessibilityIdentifier(direction == .previous ? "phrase-matrix-page-previous" : "phrase-matrix-page-next")
     }
 
-    private var matrix: some View {
+    private var selectedPhraseLayerMatrix: some View {
         ScrollView([.horizontal, .vertical]) {
             VStack(alignment: .leading, spacing: gridSpacing) {
                 let activeLayer = activeMatrixLayer
                 let accent = activeLayerAccent
                 HStack(spacing: gridSpacing) {
-                    Color.clear
-                        .frame(width: phraseColumnWidth, height: 52)
-
                     trackPageArrow(.previous)
                         .frame(width: matrixGutterWidth, height: 52)
 
@@ -1209,104 +1200,58 @@ struct PhraseWorkspaceView: View {
 
                     trackPageArrow(.next)
                         .frame(width: matrixGutterWidth, height: 52)
-
-                    Color.clear
-                        .frame(width: actionColumnWidth, height: 52)
                 }
 
-                let selectedPhraseID = session.store.selectedPhraseID
+                let displayedPhrase = selectedPhraseForEditing
                 let selectedTrackID = session.store.selectedTrackID
-                ForEach(Array(phrases.enumerated()), id: \.element.id) { index, phrase in
-                    let displayedPhrase = session.phraseWithPerformOverlay(phrase)
-                    VStack(alignment: .leading, spacing: 6) {
-                        // A fixed row height lets every cell stretch to the
-                        // same bounds, keeping the strip aligned (ux-canon 9).
-                        HStack(alignment: .top, spacing: gridSpacing) {
-                            PhraseMatrixPhraseCell(
-                                phrase: phrase,
-                                isSelected: selectedPhraseID == phrase.id,
-                                isPlaying: PhraseButtonControlPresentation.isPlayingBadgeVisible(
-                                    phraseID: phrase.id,
-                                    engineIsRunning: engineController.isRunning,
-                                    currentPhraseID: engineController.currentPhraseID
-                                ),
-                                isQueued: engineController.queuedPhraseID == phrase.id,
-                                onSelect: {
-                                    session.setSelectedPhraseID(phrase.id)
-                                },
-                                onChangeBarCount: { nextBarCount in
-                                    session.setPhraseBarCount(nextBarCount, phraseID: phrase.id)
-                                },
-                                onChangeRepeatCount: { nextRepeatCount in
-                                    session.setPhraseRepeatCount(nextRepeatCount, phraseID: phrase.id)
-                                }
-                            )
-                            .frame(width: phraseColumnWidth)
+                HStack(alignment: .top, spacing: gridSpacing) {
+                    PhraseMatrixGutterCell()
+                        .frame(width: matrixGutterWidth)
 
-                            PhraseMatrixGutterCell()
-                                .frame(width: matrixGutterWidth)
-
-                            ForEach(Array(visibleTrackSlots.enumerated()), id: \.offset) { _, track in
+                    ForEach(Array(visibleTrackSlots.enumerated()), id: \.offset) { _, track in
+                        Group {
+                            if let track {
                                 Group {
-                                    if let track {
-                                        Group {
-                                            if let activeLayer {
-                                                PhraseGridCell(
-                                                    layer: activeLayer,
-                                                    cell: displayedPhrase.cell(for: activeLayer.id, trackID: track.id),
-                                                    phrase: displayedPhrase,
-                                                    track: track,
-                                                    isSelected: phrase.id == selectedPhraseID && track.id == selectedTrackID,
-                                                    accent: accent
-                                                )
-                                            } else {
-                                                PhrasePerformancePlaceholderCell(
-                                                    selection: performanceLayerSelection,
-                                                    phrase: displayedPhrase,
-                                                    track: track,
-                                                    isSelected: phrase.id == selectedPhraseID && track.id == selectedTrackID,
-                                                    accent: accent
-                                                )
-                                            }
-                                        }
-                                        .contentShape(Rectangle())
-                                        .gesture(
-                                            TapGesture()
-                                                .onEnded {
-                                                    handleSingleTap(on: phrase.id, trackID: track.id)
-                                                }
-                                        )
-                                        .simultaneousGesture(
-                                            scalarDragGesture(phrase: displayedPhrase, track: track, layer: activeLayer)
+                                    if let activeLayer {
+                                        PhraseGridCell(
+                                            layer: activeLayer,
+                                            cell: displayedPhrase.cell(for: activeLayer.id, trackID: track.id),
+                                            phrase: displayedPhrase,
+                                            track: track,
+                                            isSelected: track.id == selectedTrackID,
+                                            accent: accent
                                         )
                                     } else {
-                                        PhraseGridEmptyCell()
+                                        PhrasePerformancePlaceholderCell(
+                                            selection: performanceLayerSelection,
+                                            phrase: displayedPhrase,
+                                            track: track,
+                                            isSelected: track.id == selectedTrackID,
+                                            accent: accent
+                                        )
                                     }
                                 }
-                                .frame(width: trackColumnWidth)
+                                .contentShape(Rectangle())
+                                .gesture(
+                                    TapGesture()
+                                        .onEnded {
+                                            handleSingleTap(on: displayedPhrase.id, trackID: track.id)
+                                        }
+                                )
+                                .simultaneousGesture(
+                                    scalarDragGesture(phrase: displayedPhrase, track: track, layer: activeLayer)
+                                )
+                            } else {
+                                PhraseGridEmptyCell()
                             }
-
-                            PhraseMatrixGutterCell()
-                                .frame(width: matrixGutterWidth)
-
-                            PhraseRowActions(
-                                canRemove: phrases.count > 1,
-                                onInsertBelow: {
-                                    session.insertPhrase(below: phrase.id)
-                                },
-                                onDuplicate: {
-                                    session.duplicatePhrase(id: phrase.id)
-                                },
-                                onRemove: {
-                                    session.removePhrase(id: phrase.id)
-                                }
-                            )
-                            .frame(width: actionColumnWidth)
                         }
-                        .frame(height: PhraseMatrixLayoutPresentation.matrixRowHeight)
-
+                        .frame(width: trackColumnWidth)
                     }
+
+                    PhraseMatrixGutterCell()
+                        .frame(width: matrixGutterWidth)
                 }
+                .frame(height: PhraseMatrixLayoutPresentation.matrixRowHeight)
             }
             .padding(.vertical, 2)
         }
@@ -1703,7 +1648,7 @@ struct PhraseWorkspaceView: View {
 
                 StudioCircleIconButton(
                     systemName: "xmark",
-                    help: "Return to phrase rows"
+                    help: "Return to phrase layer matrix"
                 ) {
                     isPresentingPerformanceLayerSelection = false
                     postRenderedMatrixVisualState(isVisible: true)
@@ -1764,6 +1709,138 @@ struct PhraseWorkspaceView: View {
         }
         isPresentingPerformanceLayerSelection = false
         postRenderedMatrixVisualState(isVisible: true)
+    }
+}
+
+struct SongWorkspaceView: View {
+    let onOpenPhrase: () -> Void
+    @Environment(SequencerDocumentSession.self) private var session
+    @Environment(EngineController.self) private var engineController
+
+    private var phrases: [PhraseModel] {
+        session.store.phrases
+    }
+
+    private var selectedPhrase: PhraseModel {
+        session.store.selectedPhrase
+    }
+
+    private var songColumns: [GridItem] {
+        Array(repeating: GridItem(.flexible(minimum: 118, maximum: 168), spacing: 10), count: 8)
+    }
+
+    var body: some View {
+        StudioPanel(title: "Song", accent: StudioTheme.cyan, showsHeader: false) {
+            VStack(alignment: .leading, spacing: 16) {
+                songHeader
+                phraseGrid
+            }
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 10)
+        .accessibilityIdentifier("song-workspace")
+    }
+
+    private var songHeader: some View {
+        HStack(alignment: .center, spacing: 10) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("SONG")
+                    .studioText(.microEmphasis)
+                    .tracking(0.9)
+                    .foregroundStyle(StudioTheme.cyan)
+                Text("Choose the phrase that opens in the phrase workspace.")
+                    .studioText(.body)
+                    .foregroundStyle(StudioTheme.mutedText)
+                    .lineLimit(2)
+            }
+
+            Spacer(minLength: 12)
+
+            songActionButton("Add Phrase", systemName: "plus") {
+                session.insertPhrase(below: selectedPhrase.id)
+            }
+
+            songActionButton("Duplicate", systemName: "plus.square.on.square") {
+                session.duplicatePhrase(id: selectedPhrase.id)
+            }
+
+            songActionButton("Delete", systemName: "trash", disabled: phrases.count <= 1) {
+                session.removePhrase(id: selectedPhrase.id)
+            }
+
+            songActionButton("Open \(selectedPhrase.name)", systemName: "square.split.2x2") {
+                onOpenPhrase()
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
+                .stroke(StudioTheme.cyan.opacity(StudioOpacity.mediumStroke), lineWidth: StudioMetrics.borderWidth)
+        )
+    }
+
+    private var phraseGrid: some View {
+        ScrollView([.vertical]) {
+            LazyVGrid(columns: songColumns, alignment: .leading, spacing: 10) {
+                ForEach(phrases) { phrase in
+                    PhraseMatrixPhraseCell(
+                        phrase: phrase,
+                        isSelected: phrase.id == session.store.selectedPhraseID,
+                        isPlaying: PhraseButtonControlPresentation.isPlayingBadgeVisible(
+                            phraseID: phrase.id,
+                            engineIsRunning: engineController.isRunning,
+                            currentPhraseID: engineController.currentPhraseID
+                        ),
+                        isQueued: engineController.queuedPhraseID == phrase.id,
+                        onSelect: {
+                            session.setSelectedPhraseID(phrase.id)
+                            onOpenPhrase()
+                        },
+                        onChangeBarCount: { nextBarCount in
+                            session.setPhraseBarCount(nextBarCount, phraseID: phrase.id)
+                        },
+                        onChangeRepeatCount: { nextRepeatCount in
+                            session.setPhraseRepeatCount(nextRepeatCount, phraseID: phrase.id)
+                        }
+                    )
+                    .frame(minHeight: PhraseMatrixLayoutPresentation.matrixRowHeight)
+                }
+            }
+            .padding(.vertical, 2)
+        }
+        .scrollIndicators(.never)
+        .frame(minHeight: 280)
+        .accessibilityIdentifier("song-phrase-grid")
+    }
+
+    private func songActionButton(
+        _ title: String,
+        systemName: String,
+        disabled: Bool = false,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: 7) {
+                Image(systemName: systemName)
+                    .font(.system(size: 11, weight: .bold))
+                Text(title)
+                    .studioText(.labelBold)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+            }
+            .foregroundStyle(disabled ? StudioTheme.mutedText.opacity(StudioOpacity.inheritedContent) : StudioTheme.text)
+            .padding(.horizontal, 10)
+            .frame(height: 34)
+            .background(Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
+            .overlay(
+                Capsule()
+                    .stroke(disabled ? StudioTheme.border.opacity(StudioOpacity.ghostStroke) : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+            )
+        }
+        .buttonStyle(.plain)
+        .disabled(disabled)
     }
 }
 

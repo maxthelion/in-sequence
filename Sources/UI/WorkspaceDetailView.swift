@@ -39,6 +39,10 @@ struct WorkspaceDetailView: View {
     @ViewBuilder
     private var workspace: some View {
         switch section {
+        case .song:
+            SongWorkspaceView {
+                section = .phrase
+            }
         case .phrase:
             PhraseWorkspaceView(
                 document: $document,

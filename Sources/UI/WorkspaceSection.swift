@@ -1,6 +1,7 @@
 import Foundation
 
 enum WorkspaceSection: String, CaseIterable, Hashable {
+    case song
     case phrase
     case tracks
     case track
@@ -10,6 +11,8 @@ enum WorkspaceSection: String, CaseIterable, Hashable {
 
     var title: String {
         switch self {
+        case .song:
+            return "Song"
         case .phrase:
             return "Phrase"
         case .tracks:
@@ -27,6 +30,8 @@ enum WorkspaceSection: String, CaseIterable, Hashable {
 
     var systemImage: String {
         switch self {
+        case .song:
+            return "list.bullet.rectangle"
         case .phrase:
             return "square.split.2x2"
         case .tracks:
