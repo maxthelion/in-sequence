@@ -1279,7 +1279,7 @@ struct DrumKitMatrixView: View {
     /// that writes each member's windowed selection into one coordinated set.
     @ViewBuilder
     private func captureHistoryBody(_ model: DrumKitMatrixModel) -> some View {
-        StudioPanel(title: "Capture · History", eyebrow: "Live buffer · all parts", accent: accent) {
+        StudioPanel(title: "Capture · History", accent: accent) {
             VStack(alignment: .leading, spacing: 14) {
                 captureHistoryHeader(model)
                 captureHistoryScrubber(model)
@@ -1373,9 +1373,8 @@ struct DrumKitMatrixView: View {
     private func captureHistoryScrubber(_ model: DrumKitMatrixModel) -> some View {
         let maxBack = historyMaxBarsBack(model)
         let back = min(historyBarsBack, maxBack)
-        let positionLabel = back == 0 ? "live" : "\(back) bar\(back == 1 ? "" : "s") back"
         return HStack(spacing: 10) {
-            Text("TIMELINE")
+            Text("HISTORY")
                 .studioText(.eyebrow)
                 .tracking(0.8)
                 .foregroundStyle(StudioTheme.mutedText)
@@ -1388,22 +1387,6 @@ struct DrumKitMatrixView: View {
             ) {
                 historyScrubBack(model)
             }
-
-            Text(positionLabel)
-                .studioText(.labelBold)
-                .foregroundStyle(back == 0 ? StudioTheme.background : StudioTheme.text)
-                .lineLimit(1)
-                .frame(minWidth: 88)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .background(
-                    back == 0 ? accent : Color.white.opacity(StudioOpacity.subtleFill),
-                    in: Capsule()
-                )
-                .overlay(Capsule().stroke(back == 0 ? Color.clear : StudioTheme.border, lineWidth: StudioMetrics.borderWidth))
-                .accessibilityIdentifier("kit-history-window")
-                .accessibilityLabel("History window position")
-                .accessibilityValue(positionLabel)
 
             historyScrubButton(
                 systemImage: "chevron.right.2",
@@ -1435,6 +1418,14 @@ struct DrumKitMatrixView: View {
             .help("Jump the selection window to the live edge (now)")
             .accessibilityIdentifier("kit-history-live")
             .accessibilityLabel("Jump to live")
+
+            if back > 0 {
+                Text("◂ \(back) bar\(back == 1 ? "" : "s") back")
+                    .studioText(.label)
+                    .foregroundStyle(StudioTheme.mutedText)
+                    .accessibilityIdentifier("kit-history-window")
+                    .accessibilityLabel("History window position")
+            }
 
             Spacer(minLength: 0)
         }
@@ -1468,22 +1459,45 @@ struct DrumKitMatrixView: View {
     /// All members' windowed buffers, one compact strip each (AC15). Every
     /// strip previews the SAME shared window resolved against that member's
     /// own rolling snapshot, so the parts read together.
+    /// The length-defined window that will be written into the pattern — the
+    /// preview of what Save captures, distinct from the History scrubber above
+    /// (which navigates the rolling buffer). Reuses the single-track
+    /// `ClipHistoryPianoRollPreview` per part rather than a bespoke strip.
     private func captureHistoryParts(_ model: DrumKitMatrixModel) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("ALL PARTS · SHARED WINDOW")
-                .studioText(.eyebrow)
-                .tracking(0.8)
-                .foregroundStyle(StudioTheme.mutedText)
+        let targetSlot = historyTargetSlotIndex(model)
+        let lengthLabel = ClipHistoryTransferViewModel.lengthLabel(for: historyLengthSteps)
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Text("SELECTION → P\(targetSlot + 1)")
+                    .studioText(.eyebrow)
+                    .tracking(0.8)
+                    .foregroundStyle(StudioTheme.mutedText)
+                Text("\(lengthLabel) that saves into the pattern")
+                    .studioText(.micro)
+                    .foregroundStyle(StudioTheme.mutedText)
+            }
 
             ScrollView(.vertical) {
                 VStack(alignment: .leading, spacing: 8) {
                     ForEach(model.rows) { row in
-                        DrumKitHistoryPartStrip(
-                            partName: row.partName,
-                            content: historyWindowContent(memberID: row.memberID),
-                            gridSteps: historyLengthSteps,
-                            accent: accent
-                        )
+                        HStack(spacing: 10) {
+                            Text(row.partName)
+                                .studioText(.labelBold)
+                                .foregroundStyle(StudioTheme.text)
+                                .lineLimit(1)
+                                .truncationMode(.tail)
+                                .frame(width: 120, alignment: .leading)
+
+                            ClipHistoryPianoRollPreview(
+                                content: historyWindowContent(memberID: row.memberID),
+                                gridSteps: historyLengthSteps,
+                                liveFillStepIndex: nil,
+                                accent: accent,
+                                isTransportRunning: engineController.isRunning
+                            )
+                            .frame(height: 56)
+                            .frame(maxWidth: .infinity)
+                        }
                     }
                 }
             }
@@ -1499,10 +1513,6 @@ struct DrumKitMatrixView: View {
                 Text(message)
                     .studioText(.label)
                     .foregroundStyle(StudioTheme.success)
-            } else {
-                Text("Saves every part's window into one coordinated clip set at the group slot.")
-                    .studioText(.label)
-                    .foregroundStyle(StudioTheme.mutedText)
             }
 
             Spacer(minLength: 0)
@@ -3372,97 +3382,6 @@ private struct DrumGroupRoutingEditorRow: View {
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
                 .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
         )
-    }
-}
-
-/// One member's strip in the kit history surface (AC15): part name + a compact
-/// note preview of the SHARED window resolved against that part's rolling
-/// buffer. All strips show the same window so the parts read together.
-private struct DrumKitHistoryPartStrip: View {
-    let partName: String
-    let content: ClipContent?
-    let gridSteps: Int
-    let accent: Color
-
-    private var notes: [(pitch: Int, startStep: Int, lengthSteps: Int)] {
-        guard let steps = content?.normalized.noteGridSteps else { return [] }
-        return steps.enumerated().flatMap { stepIndex, step -> [(Int, Int, Int)] in
-            let stepNotes = (step.main?.notes ?? []) + (step.fill?.notes ?? [])
-            return stepNotes.map { ($0.pitch, stepIndex, $0.lengthSteps) }
-        }
-    }
-
-    var body: some View {
-        HStack(spacing: 10) {
-            Text(partName)
-                .studioText(.labelBold)
-                .foregroundStyle(StudioTheme.text)
-                .lineLimit(1)
-                .truncationMode(.tail)
-                .frame(width: 120, alignment: .leading)
-
-            preview
-                .frame(height: 34)
-                .frame(maxWidth: .infinity)
-        }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 8)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
-        )
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(partName) history window, \(notes.count) note\(notes.count == 1 ? "" : "s")")
-    }
-
-    @ViewBuilder
-    private var preview: some View {
-        let resolved = max(1, gridSteps)
-        let captured = notes
-        GeometryReader { geometry in
-            let stepWidth = geometry.size.width / CGFloat(resolved)
-            let pitches = captured.map(\.pitch)
-            let low = (pitches.min() ?? 48)
-            let high = max(low + 1, (pitches.max() ?? 72))
-            let span = CGFloat(max(1, high - low))
-
-            ZStack(alignment: .topLeading) {
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                    .fill(Color.white.opacity(StudioOpacity.borderSubtle))
-
-                ForEach(0..<resolved, id: \.self) { step in
-                    if step % 4 == 0 {
-                        Rectangle()
-                            .fill(Color.white.opacity(StudioOpacity.borderSubtle))
-                            .frame(width: 1)
-                            .offset(x: stepWidth * CGFloat(step))
-                    }
-                }
-
-                ForEach(Array(captured.enumerated()), id: \.offset) { _, note in
-                    let yFraction = 1.0 - CGFloat(note.pitch - low) / span
-                    RoundedRectangle(cornerRadius: 2, style: .continuous)
-                        .fill(accent)
-                        .frame(
-                            width: max(stepWidth * CGFloat(max(1, note.lengthSteps)) - 1, 4),
-                            height: 4
-                        )
-                        .offset(
-                            x: stepWidth * CGFloat(min(max(note.startStep, 0), resolved - 1)),
-                            y: max(1, yFraction * (geometry.size.height - 6) + 1)
-                        )
-                }
-
-                if captured.isEmpty {
-                    Text("No notes in window")
-                        .studioText(.micro)
-                        .foregroundStyle(StudioTheme.mutedText)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-                }
-            }
-            .clipShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
-        }
     }
 }
 

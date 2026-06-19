@@ -343,7 +343,10 @@ struct ClipHistoryPreviewLayout: Equatable {
     }
 }
 
-private struct ClipHistoryPianoRollPreview: View {
+/// The canonical clip-history live-buffer piano roll. Reused by the kit capture
+/// surface (one per part) so kit history shares the single-track grammar instead
+/// of a bespoke strip.
+struct ClipHistoryPianoRollPreview: View {
     let content: ClipContent?
     let gridSteps: Int
     let liveFillStepIndex: Int?
