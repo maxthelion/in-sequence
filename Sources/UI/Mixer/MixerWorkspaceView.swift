@@ -163,7 +163,7 @@ struct MixerWorkspaceView: View {
     private func sendInsertList(_ sendBus: SendBusState, accent: Color) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text("INSERTS")
+                Text("FX")
                     .studioText(.micro)
                     .tracking(0.8)
                     .foregroundStyle(StudioTheme.mutedText)
@@ -174,19 +174,15 @@ struct MixerWorkspaceView: View {
             }
 
             if sendBus.inserts.isEmpty {
+                // Bare plus tile — no descriptive text (matches the Scenes
+                // +FX treatment from batch 1).
                 Button {
                     addSendFXRequest = SendBusAddFXRequest(busID: sendBus.id)
                 } label: {
-                    VStack(alignment: .leading, spacing: 7) {
-                        Label("Empty Chain", systemImage: "plus")
-                            .studioText(.labelBold)
-                            .foregroundStyle(StudioTheme.text)
-                        Text("Add an insert to \(sendBus.name)")
-                            .studioText(.micro)
-                            .foregroundStyle(StudioTheme.mutedText)
-                    }
-                    .frame(maxWidth: .infinity, minHeight: 64, alignment: .leading)
-                    .padding(StudioMetrics.Spacing.compact)
+                    Image(systemName: "plus")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(accent)
+                        .frame(maxWidth: .infinity, minHeight: 44)
                 }
                 .buttonStyle(.plain)
                 .background(StudioTheme.inset, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
@@ -194,6 +190,8 @@ struct MixerWorkspaceView: View {
                     RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
                         .stroke(accent.opacity(StudioOpacity.softStroke), style: StrokeStyle(lineWidth: StudioMetrics.borderWidth, dash: [5, 5]))
                 )
+                .help("Add FX to \(sendBus.name)")
+                .accessibilityLabel("Add FX to \(sendBus.name)")
             } else {
                 VStack(spacing: 7) {
                     ForEach(sendBus.inserts) { insert in
@@ -407,22 +405,10 @@ struct MixerWorkspaceView: View {
                     .tracking(0.8)
                     .foregroundStyle(StudioTheme.mutedText)
 
-                let effects = engineController.availableAudioEffects
-                if effects.isEmpty {
-                    StudioEmptyListRow(message: "No AU effects found")
-                        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
-                } else {
-                    ScrollView {
-                        VStack(spacing: 6) {
-                            ForEach(effects.prefix(16)) { effect in
-                                addSendFXChoice(title: effect.displayName, systemName: "slider.horizontal.3", busID: busID) {
-                                    .auEffect(effect)
-                                }
-                            }
-                        }
+                AUEffectPickerList(effects: engineController.availableAudioEffects) { effect in
+                    addSendFXChoice(title: effect.displayName, systemName: "slider.horizontal.3", busID: busID) {
+                        .auEffect(effect)
                     }
-                    .frame(maxHeight: 220)
-                    .scrollContentBackground(.hidden)
                 }
             }
         }

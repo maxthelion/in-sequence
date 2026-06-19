@@ -274,7 +274,17 @@ private struct MixerChannelStrip: View {
             isHighlighted: isSelected,
             dimsContent: isEffectivelyMuted && !track.mix.isMuted
         ) {
-            MixerStripHeader(title: track.name, caption: destinationLabel)
+            MixerStripHeader(title: track.name, caption: destinationLabel) {
+                MixerStripActionButton(
+                    title: "",
+                    systemName: "slider.horizontal.3",
+                    accent: StudioTheme.cyan,
+                    minWidth: 20,
+                    action: onSelect
+                )
+                .help("Edit track")
+                .accessibilityLabel("\(track.name) edit")
+            }
         } processing: {
             sendsSection
         } levels: {
@@ -287,15 +297,18 @@ private struct MixerChannelStrip: View {
                 onEnd: { commitLevel() }
             )
         } pan: {
-            StudioSlideControl(
+            StudioRotaryKnob(
+                title: "PAN",
                 value: displayedPan,
+                range: -1...1,
                 accent: StudioTheme.violet,
-                leadingLabel: "PAN",
-                trailingLabel: StudioSlideControlModel.panLabel(for: displayedPan),
-                help: "\(track.name) pan",
-                onChange: { updatePan($0) },
-                onEnd: { commitPan() }
+                size: 34,
+                format: { StudioSlideControlModel.panLabel(for: $0) },
+                onChange: { _ in commitPan() },
+                onLiveChange: { updatePan($0) }
             )
+            .frame(maxWidth: .infinity)
+            .help("\(track.name) pan")
         } actions: {
             actionsRow
         } footer: {
@@ -361,16 +374,6 @@ private struct MixerChannelStrip: View {
             }
             .help(track.mix.isSoloed ? "Unsolo" : "Solo")
             .accessibilityLabel("\(track.name) solo")
-
-            MixerStripActionButton(
-                title: "",
-                systemName: "slider.horizontal.3",
-                accent: StudioTheme.cyan,
-                minWidth: 20,
-                action: onSelect
-            )
-            .help("Edit track")
-            .accessibilityLabel("\(track.name) edit")
         }
     }
 
@@ -490,13 +493,18 @@ private struct MixerChannelStrip: View {
 
 /// Small, uniform strip header: every strip kind titles itself with the same
 /// compact type so channel names read as one row.
-struct MixerStripHeader: View {
+struct MixerStripHeader<Leading: View>: View {
     let title: String
     var caption: String? = nil
     var accentDot: Color? = nil
+    @ViewBuilder var leading: Leading
 
     var body: some View {
         HStack(spacing: 7) {
+            // Per-strip action affordance (e.g. the channel "edit" button)
+            // sits to the left of the name instead of crowding the footer row.
+            leading
+
             if let accentDot {
                 Circle()
                     .fill(accentDot)
@@ -518,6 +526,12 @@ struct MixerStripHeader: View {
             Spacer(minLength: 0)
         }
         .frame(maxHeight: .infinity, alignment: .center)
+    }
+}
+
+extension MixerStripHeader where Leading == EmptyView {
+    init(title: String, caption: String? = nil, accentDot: Color? = nil) {
+        self.init(title: title, caption: caption, accentDot: accentDot) { EmptyView() }
     }
 }
 

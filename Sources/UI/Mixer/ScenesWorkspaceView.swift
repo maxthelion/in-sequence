@@ -421,35 +421,26 @@ struct ScenesWorkspaceView: View {
             minHeight: 220,
             onClose: { addInsertPickerRequest = nil }
         ) {
-            let effects = Array(engineController.availableAudioEffects.prefix(16))
-            ScrollView {
-                VStack(alignment: .leading, spacing: 8) {
-                    addInsertOptionButton(title: "Filter", systemImage: "line.3.horizontal.decrease.circle") {
-                        addInsert(MasterBusInsert.filter())
-                    }
-                    addInsertOptionButton(title: "Bitcrusher", systemImage: "waveform.path.ecg") {
-                        addInsert(MasterBusInsert.bitcrusher())
-                    }
+            VStack(alignment: .leading, spacing: 8) {
+                addInsertOptionButton(title: "Filter", systemImage: "line.3.horizontal.decrease.circle") {
+                    addInsert(MasterBusInsert.filter())
+                }
+                addInsertOptionButton(title: "Bitcrusher", systemImage: "waveform.path.ecg") {
+                    addInsert(MasterBusInsert.bitcrusher())
+                }
 
-                    if effects.isEmpty {
-                        Text("No AU effects found")
-                            .studioText(.label)
-                            .foregroundStyle(StudioTheme.mutedText)
-                            .padding(.top, 4)
-                    } else {
-                        Text("AU EFFECTS")
-                            .studioText(.eyebrow)
-                            .tracking(0.8)
-                            .foregroundStyle(StudioTheme.mutedText)
-                            .padding(.top, 8)
-                        ForEach(effects) { effect in
-                            addInsertOptionButton(title: effect.displayName, systemImage: "slider.horizontal.3") {
-                                addInsert(MasterBusInsert.auEffect(effect))
-                            }
-                        }
+                Text("AU EFFECTS")
+                    .studioText(.eyebrow)
+                    .tracking(0.8)
+                    .foregroundStyle(StudioTheme.mutedText)
+                    .padding(.top, 8)
+
+                // Full, scrollable, searchable list — no longer capped at 16.
+                AUEffectPickerList(effects: engineController.availableAudioEffects) { effect in
+                    addInsertOptionButton(title: effect.displayName, systemImage: "slider.horizontal.3") {
+                        addInsert(MasterBusInsert.auEffect(effect))
                     }
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }

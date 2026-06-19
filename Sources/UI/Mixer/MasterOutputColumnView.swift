@@ -32,17 +32,9 @@ struct MasterOutputColumnView: View {
             masterOutputSection
         } pan: {
             // The A/B blend is the master's side-to-side row, aligned with
-            // the channel pan rows.
-            StudioSlideControl(
-                value: crossfaderValue,
-                range: 0...1,
-                fillStyle: .fromLeading,
-                accent: StudioTheme.amber,
-                leadingLabel: "A",
-                trailingLabel: "B",
-                help: "Scene A B blend",
-                onChange: { engineController.setLiveMasterCrossfader($0) }
-            )
+            // the channel pan rows. Scene names sit above the slider (not as
+            // end labels) so longer scene names stay readable.
+            abBlendControl
         } actions: {
             clipActionsRow
         } footer: {
@@ -92,6 +84,35 @@ struct MasterOutputColumnView: View {
             }
         }
         .frame(maxHeight: .infinity, alignment: .center)
+    }
+
+    private var abBlendControl: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 6) {
+                Text(sceneA.name)
+                    .studioText(.micro)
+                    .tracking(0.6)
+                    .foregroundStyle(StudioTheme.amber)
+                    .lineLimit(1)
+                Spacer(minLength: 6)
+                Text(sceneB.name)
+                    .studioText(.micro)
+                    .tracking(0.6)
+                    .foregroundStyle(StudioTheme.amber)
+                    .lineLimit(1)
+            }
+
+            StudioSlideControl(
+                value: crossfaderValue,
+                range: 0...1,
+                fillStyle: .fromLeading,
+                accent: StudioTheme.amber,
+                help: "Scene A B blend",
+                onChange: { engineController.setLiveMasterCrossfader($0) }
+            )
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("master-crossfader")
     }
 
     private var masterInsertSection: some View {
@@ -148,23 +169,11 @@ struct MasterOutputColumnView: View {
                     .tracking(0.8)
                     .foregroundStyle(StudioTheme.mutedText)
 
-                let effects = engineController.availableAudioEffects
-                if effects.isEmpty {
-                    StudioEmptyListRow(message: "No AU effects found")
-                        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
-                } else {
-                    ScrollView {
-                        VStack(spacing: 6) {
-                            ForEach(effects.prefix(16)) { effect in
-                                addFXButton(title: effect.displayName, systemName: "slider.horizontal.3") {
-                                    session.addMasterOutputInsert(.auEffect(effect))
-                                    isAddFXPresented = false
-                                }
-                            }
-                        }
+                AUEffectPickerList(effects: engineController.availableAudioEffects) { effect in
+                    addFXButton(title: effect.displayName, systemName: "slider.horizontal.3") {
+                        session.addMasterOutputInsert(.auEffect(effect))
+                        isAddFXPresented = false
                     }
-                    .frame(maxHeight: 220)
-                    .scrollContentBackground(.hidden)
                 }
         }
         .presentationBackground(.clear)
@@ -337,7 +346,7 @@ private struct MasterOutputFaderMeter: View {
                 // Live L/R meter lanes fill the trough.
                 HStack(alignment: .bottom, spacing: 4) {
                     meterLane(peak: meterState.leftPeakDBFS)
-                    Spacer(minLength: 26)
+                    Spacer(minLength: 16)
                     meterLane(peak: meterState.rightPeakDBFS)
                 }
                 .padding(.horizontal, 8)
