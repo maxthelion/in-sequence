@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Track Matrix IA Wireframe</title>
+  <style>
+    :root {
+      --bg:#f4f4f4; --panel:#fff; --ink:#202020; --muted:#6c6c6c; --line:#707070;
+      --stub:#dedede; --accent:#1f6feb; --selected:#d7e7ff; --pending:#fff3c4;
+      --success:#dff3df; --changed:#ffe1c6; --error:#ffd6d6; --kit:#b8860b;
+    }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--bg); color:var(--ink); font:14px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+    button { font:inherit; border:2px solid var(--line); background:var(--panel); padding:7px 10px; min-height:34px; cursor:pointer; }
+    button.primary { border-color:var(--accent); background:var(--selected); font-weight:700; }
+    button.stub { border-style:dashed; background:var(--stub); color:var(--muted); }
+    .app { width:min(1320px, calc(100vw - 32px)); margin:16px auto; border:2px solid var(--line); background:var(--panel); min-height:calc(100vh - 32px); }
+    .top { display:grid; grid-template-columns:230px 1fr 220px; gap:12px; padding:14px; border-bottom:2px solid var(--line); align-items:center; }
+    .brand { font-size:20px; font-weight:800; }
+    .transport,.row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    .nav { display:flex; gap:8px; padding:12px 14px; border-bottom:2px solid var(--line); }
+    .nav button.active { background:var(--selected); border-color:var(--accent); }
+    .body { padding:18px 22px 28px; }
+    h1,h2,h3 { margin:0; }
+    h1 { font-size:22px; }
+    h2 { font-size:16px; margin-bottom:10px; }
+    h3 { font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin:14px 0 8px; }
+    .hint { color:var(--muted); font-size:12px; line-height:1.4; }
+    .pill { border:2px solid var(--line); padding:5px 9px; background:var(--panel); min-width:40px; text-align:center; }
+    .pill.on { border-color:var(--accent); background:var(--selected); font-weight:700; }
+    .pill.kit { border-color:var(--kit); background:#fbf2dc; color:#7a5b06; font-weight:700; }
+    .pill.warn { border-color:#b8860b; background:var(--pending); border-style:dashed; }
+
+    .hdr { display:flex; align-items:center; justify-content:space-between; gap:14px; margin-bottom:14px; }
+    .hdr .left { display:flex; align-items:center; gap:12px; }
+
+    /* ===== EDIT mode: track list ===== */
+    .tracklist { border:2px solid var(--line); }
+    .trow { display:grid; grid-template-columns:1fr 90px 220px; gap:10px; align-items:center; border-bottom:2px solid var(--line); padding:9px 12px; background:var(--panel); cursor:pointer; }
+    .trow:last-child { border-bottom:none; }
+    .trow:hover { background:var(--selected); }
+    .trow .tname b { font-size:14px; }
+    .trow .tname .sub { font-size:11px; color:var(--muted); }
+    .tag { font-size:10px; border:1px solid var(--line); padding:2px 7px; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; justify-self:start; }
+    .slotrow { display:flex; gap:5px; justify-content:flex-end; }
+    .slotrow .slot { min-width:30px; padding:3px 6px; font-size:11px; }
+    .slotrow .slot.on { background:var(--success); border-color:#2c8a2c; font-weight:700; }
+
+    /* drum group block */
+    .group { border:2px solid var(--line); border-left:6px solid var(--kit); background:#fbf2dc; margin:14px 0; }
+    .group .ghdr { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 12px; border-bottom:2px solid var(--kit); }
+    .group .ghdr .left { display:flex; align-items:center; gap:10px; }
+    .group .ghdr h2 { margin:0; font-size:15px; color:#7a5b06; }
+    .group .members { background:var(--panel); }
+    .group .prow { display:grid; grid-template-columns:24px 1fr 90px 220px; gap:10px; align-items:center; border-bottom:1px solid var(--line); padding:8px 12px; cursor:pointer; }
+    .group .prow:last-child { border-bottom:none; }
+    .group .prow:hover { background:var(--selected); }
+    .group .prow .pdot { color:var(--kit); font-size:16px; text-align:center; }
+
+    .addrow { display:flex; gap:10px; margin-top:14px; }
+
+    /* ===== PERFORM mode: action bar + card grid ===== */
+    .actionbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; padding:12px; border:2px solid var(--line); background:#fafafa; margin-bottom:16px; }
+    .actionbar .seg { display:flex; flex-direction:column; gap:2px; border:2px solid var(--line); background:var(--panel); padding:6px 10px; min-width:120px; }
+    .actionbar .seg.on { border-color:var(--accent); background:var(--selected); }
+    .actionbar .seg .k { font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); }
+    .actionbar .seg .v { font-weight:700; }
+    .actionbar .spacer { flex:1; }
+
+    .cardgrid { display:grid; grid-template-columns:repeat(8,1fr); gap:10px; }
+    .card { border:2px solid var(--line); padding:8px; min-height:150px; display:flex; flex-direction:column; gap:8px; cursor:pointer; background:var(--panel); }
+    .card:hover { border-color:var(--accent); }
+    .card.kitcell { grid-column:span 2; border-color:var(--kit); border-width:3px; background:#fbf2dc; }
+    .card .chead { display:flex; align-items:center; justify-content:space-between; gap:6px; }
+    .card .chead b { font-size:12px; }
+    .card .ctype { font-size:10px; color:var(--muted); text-transform:uppercase; }
+    .card .mc { display:grid; grid-template-columns:repeat(4,1fr); gap:3px; }
+    .card .mc span { height:13px; border:1px solid var(--line); background:#fff; }
+    .card .mc span.on { background:var(--accent); border-color:var(--accent); }
+    .card .mute { margin-top:auto; display:flex; gap:5px; }
+    .card .mute .mbtn { flex:1; font-size:10px; border:2px solid var(--line); background:var(--panel); padding:3px; text-align:center; }
+    .card .mute .mbtn.muted { background:var(--error); border-color:#b00; }
+    .card.kitcell .kitline { font-size:11px; color:#7a5b06; }
+    .card.kitcell .kparts { display:grid; grid-template-columns:repeat(3,1fr); gap:4px; margin-top:2px; }
+    .card.kitcell .kparts span { font-size:9px; border:1px solid var(--kit); background:#fff; padding:2px 0; text-align:center; color:#7a5b06; }
+
+    .note { border-left:4px solid var(--accent); background:var(--selected); padding:8px 10px; font-size:12px; margin:12px 0; }
+    .note.open { border-left-color:#b8860b; background:var(--pending); }
+
+    .section { display:none; }
+    .section.active { display:block; }
+    .statebar { display:flex; gap:6px; flex-wrap:wrap; padding:10px 22px; border-bottom:2px solid var(--line); background:#fafafa; }
+    .statebar small { width:100%; color:var(--muted); }
+    .toast { position:fixed; bottom:16px; left:50%; transform:translateX(-50%); background:var(--ink); color:white; padding:8px 12px; display:none; }
+    .toast.show { display:block; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="top">
+      <div class="brand">Track Matrix</div>
+      <div class="transport">
+        <button class="stub">▶</button><span class="pill">120 BPM</span>
+        <span class="pill">Song · Free</span><span class="pill">Stopped</span>
+      </div>
+      <div class="row" style="justify-content:flex-end">
+        <button class="primary" id="setupBtn" onclick="setPrototypeState('edit')">Setup</button>
+        <button id="performBtn" onclick="setPrototypeState('perform')">Perform ▸</button>
+      </div>
+    </div>
+    <div class="nav">
+      <button class="stub">Phrase</button><button class="active">Tracks</button>
+      <button class="stub">Mixer</button><button class="stub">Scenes</button><button class="stub">Library</button>
+    </div>
+
+    <!-- prototype state switcher (not part of the product chrome) -->
+    <div class="statebar">
+      <small>Wireframe states — the TOP-LEVEL track matrix, the altitude above the kit matrix and the single-track detail. Edit lists tracks + drum groups; Perform shows the card grid with the kit either collapsed to one cell or expanded to its parts.</small>
+      <button onclick="setPrototypeState('edit')">Edit · tracks &amp; groups</button>
+      <button onclick="setPrototypeState('perform')">Perform · cards</button>
+      <button onclick="setPrototypeState('kit-collapsed')">Perform · kit collapsed</button>
+      <button onclick="setPrototypeState('kit-expanded')">Perform · kit expanded</button>
+    </div>
+
+    <div class="body">
+
+      <!-- ===================== EDIT ===================== -->
+      <section id="secEdit" class="section">
+        <div class="hdr">
+          <div class="left"><h1>Tracks</h1><span class="hint">Setup — arrange tracks &amp; drum groups</span></div>
+          <div class="row">
+            <button class="stub" onclick="toast('History via Capture at track / kit altitude (#2, decided)')">History ▸</button>
+            <span class="pill on">Setup</span>
+          </div>
+        </div>
+
+        <div class="note">Clicking a normal track row opens the single-track detail (Steps / Sound / FX / Macros / Mixer). Clicking a drum part opens the part editor; the group header opens the kit matrix.</div>
+
+        <!-- ungrouped tracks -->
+        <div class="tracklist">
+          <div class="trow" onclick="toast('Bass → single-track detail (Steps / Sound / FX / Macros / Mixer)')">
+            <div class="tname"><b>Bass</b><div class="sub">internal sampler</div></div>
+            <span class="tag">mono</span>
+            <div class="slotrow"><span class="pill slot on">P1</span><span class="pill slot">P2</span><span class="pill slot">P3</span><span class="pill slot">P4</span></div>
+          </div>
+          <div class="trow" onclick="toast('Lead → single-track detail (Steps / Sound / FX / Macros / Mixer)')">
+            <div class="tname"><b>Lead</b><div class="sub">AU instrument</div></div>
+            <span class="tag">poly</span>
+            <div class="slotrow"><span class="pill slot">P1</span><span class="pill slot on">P2</span><span class="pill slot">P3</span><span class="pill slot">P4</span></div>
+          </div>
+          <div class="trow" onclick="toast('Pad → single-track detail (Steps / Sound / FX / Macros / Mixer)')">
+            <div class="tname"><b>Pad</b><div class="sub">AU instrument</div></div>
+            <span class="tag">poly</span>
+            <div class="slotrow"><span class="pill slot on">P1</span><span class="pill slot">P2</span><span class="pill slot">P3</span><span class="pill slot">P4</span></div>
+          </div>
+        </div>
+
+        <!-- drum group -->
+        <div class="group">
+          <div class="ghdr">
+            <div class="left">
+              <span style="color:var(--kit);font-size:18px">▦</span>
+              <h2>808 Bones</h2>
+              <span class="hint">drum group · 6 parts · routes to its OWN bus</span>
+              <span class="pill kit" style="min-width:0">own bus</span>
+            </div>
+            <div class="row">
+              <button class="stub" style="min-height:30px" onclick="toast('808 Bones → kit matrix (all 6 parts together)')">Open Kit ▦</button>
+            </div>
+          </div>
+          <div class="members" id="groupMembers"></div>
+        </div>
+
+        <div class="addrow">
+          <button class="stub" onclick="toast('add a new track (mono / poly / slice)')">+ Add Track</button>
+          <button class="stub" onclick="toast('add a new drum group — routes to its own bus by default')">+ Add Drum Group</button>
+        </div>
+      </section>
+
+      <!-- ===================== PERFORM (cards) ===================== -->
+      <section id="secPerform" class="section">
+        <div class="hdr">
+          <div class="left"><h1>Tracks</h1><span id="performSub" class="hint">Perform — live card grid</span></div>
+          <div class="row"><span class="pill on">Perform</span></div>
+        </div>
+
+        <!-- action bar (mirrors capture 03) -->
+        <div class="actionbar">
+          <div class="seg on" onclick="toast('Track Layer = what the cells drive (Pattern selected)')">
+            <span class="k">Track Layer</span><span class="v">Pattern ▾</span>
+          </div>
+          <span class="pill" onclick="toast('Basis Phrase — Phrase A')">Basis Phrase · Phrase A</span>
+          <button onclick="toast('edit the perform set / card layout')">Edit Set</button>
+          <div class="spacer"></div>
+          <span class="pill" id="momPill" onclick="toggleHold('mom')">Mom</span>
+          <span class="pill" id="latchPill" onclick="toggleHold('latch')">Latch</span>
+          <button class="primary" onclick="toast('Perform — momentary / latch triggers go live')">Perform</button>
+        </div>
+
+        <div class="note" id="performNote">Each card shows a small pattern preview + per-card mute. Clicking a normal card opens that track's single-track detail; clicking the kit cell opens the kit matrix.</div>
+
+        <div class="note" id="kitNote" style="display:none">Decided (#4): the collapsed kit cell appears when the kit pattern is LINKED (one cell drives the whole kit); UNLINKED it expands inline to its part cells. Linked ↔ collapsed, unlinked ↔ expanded. Shown in the track/perform matrix and Song mode; Scenes deferred.</div>
+
+        <div class="cardgrid" id="cardGrid"></div>
+      </section>
+
+    </div>
+  </div>
+  <div id="toast" class="toast"></div>
+
+  <script>
+    // ungrouped tracks
+    const TRACKS = [
+      { name:"Bass", type:"mono",  on:[0],   slot:"P1" },
+      { name:"Lead", type:"poly",  on:[1],   slot:"P2" },
+      { name:"Pad",  type:"poly",  on:[0],   slot:"P1" },
+    ];
+    // drum parts (members of 808 Bones)
+    const PARTS = [
+      { name:"Kick",  tag:"kick",  on:[0],   slot:"P1" },
+      { name:"Snare", tag:"snare", on:[1],   slot:"P1" },
+      { name:"Clap",  tag:"clap",  on:[2],   slot:"P1" },
+      { name:"HH",    tag:"hat",   on:[3],   slot:"P1" },
+      { name:"Perc",  tag:"perc",  on:[0],   slot:"P1" },
+    ];
+
+    // ---- EDIT: drum group member rows ----
+    function buildGroupMembers() {
+      const el = document.getElementById("groupMembers"); el.innerHTML = "";
+      PARTS.forEach(p => {
+        const r = document.createElement("div"); r.className = "prow";
+        r.onclick = () => toast(p.name + " → part editor (Steps / Sound / FX / Macros / Mixer)");
+        let slots = '<div class="slotrow">';
+        ["P1","P2","P3","P4"].forEach(s => slots += '<span class="pill slot'+(s===p.slot?" on":"")+'">'+s+'</span>');
+        slots += '</div>';
+        r.innerHTML = '<div class="pdot">•</div>' +
+          '<div class="tname"><b>'+p.name+'</b><div class="sub">mini sampler</div></div>' +
+          '<span class="tag">slice</span>' + slots;
+        el.appendChild(r);
+      });
+    }
+
+    function miniCells(onIdx) {
+      let s = '<div class="mc">';
+      for (let i=0;i<4;i++) s += '<span class="'+(onIdx.includes(i)?"on":"")+'"></span>';
+      return s + '</div>';
+    }
+
+    function trackCard(t) {
+      return '<div class="card" onclick="toast(\''+t.name+' → single-track detail (Steps / Sound / FX / Macros / Mixer)\')">' +
+        '<div class="chead"><b>'+t.name+'</b><span class="ctype">'+t.type+'</span></div>' +
+        miniCells(t.on) +
+        '<div class="hint" style="font-size:10px">'+t.slot+'</div>' +
+        '<div class="mute"><span class="mbtn">M</span><span class="mbtn">S</span></div>' +
+        '</div>';
+    }
+
+    function partCard(p) {
+      return '<div class="card" style="border-color:var(--kit)" onclick="toast(\''+p.name+' → part editor (Steps / Sound / FX / Macros / Mixer)\')">' +
+        '<div class="chead"><b>'+p.name+'</b><span class="ctype">'+p.tag+'</span></div>' +
+        miniCells(p.on) +
+        '<div class="hint" style="font-size:10px;color:#7a5b06">808 · '+p.slot+'</div>' +
+        '<div class="mute"><span class="mbtn">M</span><span class="mbtn">S</span></div>' +
+        '</div>';
+    }
+
+    function kitCell(collapsed) {
+      // collapsed = single gold cell with Expand; otherwise an inline header strip with Collapse handled by expanded parts
+      return '<div class="card kitcell" onclick="toast(\'808 Bones → kit matrix (per-part performance)\')">' +
+        '<div class="chead"><b>▦ 808 Bones</b>' +
+          '<button class="stub" style="min-height:24px;padding:2px 7px" onclick="event.stopPropagation();setPrototypeState(\'kit-expanded\')">Expand ▸</button>' +
+        '</div>' +
+        '<div class="kitline">6 parts · linked · own bus</div>' +
+        miniCells([0]) +
+        '<div class="kparts"><span>Kick</span><span>Snr</span><span>Clap</span><span>HH</span><span>Perc</span><span>+</span></div>' +
+        '<div class="mute"><span class="mbtn">M</span><span class="mbtn">S</span></div>' +
+        '</div>';
+    }
+
+    function expandedKitHeaderCard() {
+      return '<div class="card kitcell" style="grid-column:span 2">' +
+        '<div class="chead"><b>▦ 808 Bones · expanded</b>' +
+          '<button class="stub" style="min-height:24px;padding:2px 7px" onclick="event.stopPropagation();setPrototypeState(\'kit-collapsed\')">Collapse ◂</button>' +
+        '</div>' +
+        '<div class="kitline">unlinked · per-part performance · own bus</div>' +
+        '<div class="hint" style="font-size:10px;color:#7a5b06;margin-top:auto">6 part cells follow ▾</div>' +
+        '</div>';
+    }
+
+    function buildCards(mode) {
+      const el = document.getElementById("cardGrid"); el.innerHTML = "";
+      let html = "";
+      // Bass first
+      html += trackCard(TRACKS[0]);
+
+      if (mode === "perform") {
+        // plain 8-card grid: kit appears as 5 part cards inline + 2 melodic
+        html += partCard(PARTS[0]) + partCard(PARTS[1]) + partCard(PARTS[2]) + partCard(PARTS[3]) + partCard(PARTS[4]);
+        html += trackCard(TRACKS[1]) + trackCard(TRACKS[2]);
+      } else if (mode === "kit-collapsed") {
+        html += kitCell(true);                 // one gold cell (spans 2)
+        html += trackCard(TRACKS[1]) + trackCard(TRACKS[2]);
+      } else if (mode === "kit-expanded") {
+        html += expandedKitHeaderCard();       // spans 2, with Collapse
+        PARTS.forEach(p => html += partCard(p));
+        html += trackCard(TRACKS[1]) + trackCard(TRACKS[2]);
+      }
+      el.innerHTML = html;
+    }
+
+    let mom=false, latch=false;
+    function toggleHold(which) {
+      if (which==="mom") { mom=!mom; if(mom) latch=false; }
+      else { latch=!latch; if(latch) mom=false; }
+      document.getElementById("momPill").className = "pill"+(mom?" on":"");
+      document.getElementById("latchPill").className = "pill"+(latch?" on":"");
+    }
+
+    function setPrototypeState(state) {
+      const isEdit = state === "edit";
+      document.getElementById("secEdit").classList.toggle("active", isEdit);
+      document.getElementById("secPerform").classList.toggle("active", !isEdit);
+      document.getElementById("setupBtn").className = isEdit ? "primary" : "";
+      document.getElementById("performBtn").className = isEdit ? "" : "primary";
+
+      if (isEdit) { buildGroupMembers(); return; }
+
+      const sub = { perform:"Perform — live card grid (kit shown as part cards)",
+                    "kit-collapsed":"Perform — kit collapsed to one cell (linked)",
+                    "kit-expanded":"Perform — kit expanded to 6 part cells (unlinked)" };
+      document.getElementById("performSub").textContent = sub[state] || sub.perform;
+      // kit open-question note only when the kit is collapsed/expanded
+      document.getElementById("kitNote").style.display = (state==="perform") ? "none" : "";
+      buildCards(state);
+    }
+
+    let toastTimer;
+    function toast(msg){ const t=document.getElementById("toast"); t.textContent=msg; t.classList.add("show"); clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove("show"),2600); }
+
+    setPrototypeState("edit");
+  </script>
+</body>
+</html>

@@ -1,0 +1,476 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sound &amp; FX / Filter IA Wireframe</title>
+  <style>
+    :root {
+      --bg:#f4f4f4; --panel:#fff; --ink:#202020; --muted:#6c6c6c; --line:#707070;
+      --stub:#dedede; --accent:#1f6feb; --selected:#d7e7ff; --pending:#fff3c4;
+      --success:#dff3df; --changed:#ffe1c6; --error:#ffd6d6;
+    }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--bg); color:var(--ink); font:14px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+    button { font:inherit; border:2px solid var(--line); background:var(--panel); padding:8px 10px; min-height:36px; cursor:pointer; }
+    button.primary { border-color:var(--accent); background:var(--selected); font-weight:700; }
+    button.stub { border-style:dashed; background:var(--stub); color:var(--muted); }
+    .app { width:min(1320px, calc(100vw - 32px)); margin:16px auto; border:2px solid var(--line); background:var(--panel); min-height:calc(100vh - 32px); }
+    .top { display:grid; grid-template-columns:230px 1fr 220px; gap:12px; padding:14px; border-bottom:2px solid var(--line); align-items:center; }
+    .brand { font-size:20px; font-weight:800; }
+    .transport,.row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    .nav { display:flex; gap:8px; padding:12px 14px; border-bottom:2px solid var(--line); }
+    .nav button.active { background:var(--selected); border-color:var(--accent); }
+    .body { padding:18px 22px 28px; }
+    h1,h2,h3 { margin:0; }
+    h1 { font-size:22px; }
+    h2 { font-size:16px; margin-bottom:10px; }
+    h3 { font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin:16px 0 8px; }
+    .hint { color:var(--muted); font-size:12px; line-height:1.4; }
+    .pill { border:2px solid var(--line); padding:5px 9px; background:var(--panel); min-width:48px; text-align:center; }
+    .pill.on { border-color:var(--accent); background:var(--selected); font-weight:700; }
+    .pill.green { border-color:#2c8a2c; background:var(--success); }
+
+    .hdr { display:flex; align-items:center; gap:14px; justify-content:space-between; margin-bottom:14px; }
+    .hdr .left { display:flex; align-items:center; gap:12px; }
+    .kitcrumb { display:flex; align-items:center; gap:8px; }
+
+    /* tab bar */
+    .tabbar { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:6px; }
+    .tabbar button { text-align:left; display:flex; flex-direction:column; gap:2px; align-items:flex-start; }
+    .tabbar button .lbl { font-weight:700; }
+    .tabbar button .sub { font-size:11px; color:var(--muted); }
+    .tabbar button.active { background:var(--selected); border-color:var(--accent); }
+    .tabbody { border:2px solid var(--line); border-top-width:4px; border-top-color:var(--accent); padding:16px; margin-top:8px; }
+
+    .section { display:none; }
+    .section.active { display:block; }
+
+    /* wells */
+    .well { border:2px solid var(--line); padding:12px; background:var(--panel); margin-bottom:12px; }
+    .well.dashed { border-style:dashed; background:var(--stub); color:var(--muted); }
+    .two { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+
+    /* radial knob (reused + label below for a richer plugin look) */
+    .knob { width:62px; height:62px; border-radius:50%; border:2px solid var(--line); display:grid; place-items:center; font-size:11px; text-align:center; background:var(--panel); }
+    .knob.assigned { border-color:var(--accent); background:var(--selected); }
+    /* a more "instrument" radial: ring + pointer drawn with conic-gradient + svg */
+    .dial { display:flex; flex-direction:column; align-items:center; gap:6px; font-size:11px; width:78px; }
+    .dial .ring { position:relative; width:64px; height:64px; }
+    .dial .ring svg { width:64px; height:64px; display:block; }
+    .dial .val { font-weight:700; font-size:12px; }
+    .dial .cap { color:var(--muted); letter-spacing:.06em; text-transform:uppercase; font-size:10px; }
+    .dials { display:flex; gap:6px; flex-wrap:wrap; }
+
+    /* filter-type selector chips (replaces the plain segmented control) */
+    .types { display:flex; gap:6px; flex-wrap:wrap; }
+    .types .ftype { min-width:0; padding:6px 10px; font-size:12px; display:flex; flex-direction:column; align-items:center; gap:3px; }
+    .types .ftype .ic { font-size:14px; line-height:1; }
+    .types .ftype.on { border-color:var(--accent); background:var(--selected); font-weight:700; }
+
+    /* curve viz */
+    .curve { height:90px; border:2px solid var(--line); background:linear-gradient(180deg,#fff,#eef3ff); position:relative; }
+    .curve.big { height:160px; }
+    .curve svg { position:absolute; inset:0; width:100%; height:100%; }
+    .curve .axis { color:var(--muted); font-size:10px; position:absolute; bottom:3px; }
+
+    /* sampler + filter layout */
+    .sampler { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+
+    /* fx chain */
+    .fxrow { display:grid; grid-template-columns:28px 1fr auto auto; gap:10px; align-items:center; border:2px solid var(--line); padding:8px 10px; background:var(--panel); margin-bottom:8px; }
+    .fxrow.dragging { border-color:var(--accent); background:var(--selected); }
+    .fxrow .handle { cursor:grab; color:var(--muted); font-size:18px; text-align:center; user-select:none; }
+    .fxrow .name b { display:block; }
+    .fxrow .name span { font-size:11px; color:var(--muted); }
+    .toggle { width:46px; height:26px; border:2px solid var(--line); border-radius:14px; position:relative; background:var(--panel); cursor:pointer; }
+    .toggle.on { background:var(--selected); border-color:var(--accent); }
+    .toggle::after { content:""; position:absolute; top:2px; left:2px; width:18px; height:18px; border-radius:50%; background:var(--line); }
+    .toggle.on::after { left:auto; right:2px; background:var(--accent); }
+    .x { width:30px; min-height:30px; padding:0; }
+    .fxempty { border:2px dashed var(--line); background:var(--stub); color:var(--muted); padding:10px 12px; font-size:12px; display:flex; align-items:center; gap:8px; }
+
+    /* before/after contrast strip */
+    .contrast { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:12px; }
+    .contrast .col { border:2px solid var(--line); padding:12px; }
+    .contrast .col.before { border-style:dashed; background:#fafafa; }
+    .contrast h4 { margin:0 0 8px; font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); }
+    .uglyseg { display:flex; border:2px solid var(--line); }
+    .uglyseg span { flex:1; text-align:center; padding:6px; font-size:11px; border-right:1px solid var(--line); color:var(--muted); }
+    .uglyseg span:last-child { border-right:none; }
+    .uglyseg span.on { background:#ddd; color:var(--ink); }
+    .uglyslider { height:8px; background:linear-gradient(90deg,var(--accent) 60%, #ddd 60%); border:2px solid var(--line); margin:8px 0; }
+
+    .note { border-left:4px solid var(--accent); background:var(--selected); padding:8px 10px; font-size:12px; margin:10px 0; }
+    .note.open { border-left-color:#b8860b; background:var(--pending); }
+
+    .statebar { display:flex; gap:6px; flex-wrap:wrap; padding:10px 22px; border-bottom:2px solid var(--line); background:#fafafa; }
+    .statebar small { width:100%; color:var(--muted); }
+    .statebar button.active { border-color:var(--accent); background:var(--selected); font-weight:700; }
+    .toast { position:fixed; bottom:16px; left:50%; transform:translateX(-50%); background:var(--ink); color:white; padding:8px 12px; display:none; }
+    .toast.show { display:block; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="top">
+      <div class="brand">Sound &amp; FX</div>
+      <div class="transport">
+        <button class="stub">▶</button>
+        <span class="pill">120 BPM</span>
+        <span class="pill">Song · Free</span>
+        <span class="pill">Stopped</span>
+      </div>
+      <div class="row" style="justify-content:flex-end">
+        <button class="primary">Setup</button>
+        <button onclick="toast('opens Perform scoped to this track')">Perform ▸</button>
+      </div>
+    </div>
+    <div class="nav">
+      <button class="stub">Phrase</button>
+      <button class="active">Tracks</button>
+      <button class="stub">Mixer</button>
+      <button class="stub">Scenes</button>
+      <button class="stub">Library</button>
+    </div>
+
+    <!-- prototype state switcher (not part of the product chrome) -->
+    <div class="statebar">
+      <small>Wireframe — deep-dive on Sound &amp; FX, consolidating three FX/filter bug fixes (135652 filter redesign · 135534 FX-row tidy · 135348 +FX button / no Empty filler). Light grayscale, inline SVG only.</small>
+      <button id="sbSound" onclick="setPrototypeState('sound')">Sound (drum part)</button>
+      <button id="sbFx" onclick="setPrototypeState('fx-chain')">FX chain (per-track)</button>
+      <button id="sbFilter" onclick="setPrototypeState('filter-plugin')">Filter plugin</button>
+    </div>
+
+    <div class="body">
+      <div class="hdr">
+        <div class="left">
+          <div class="kitcrumb">
+            <button class="stub">‹</button>
+            <h1 id="title">Clap</h1>
+            <span class="hint" id="subtitle">3 of 6 · Kit 808 Bones</span>
+          </div>
+        </div>
+        <div class="row">
+          <span class="pill green">Kit: 808 Bones</span>
+          <button class="stub">Back to Kit ▦</button>
+        </div>
+      </div>
+
+      <!-- mini tab bar so the three surfaces read as one track-detail deep dive -->
+      <div class="tabbar">
+        <button id="tabSound" onclick="setPrototypeState('sound')"><span class="lbl">Sound</span><span class="sub">mini sampler + in-sampler filter</span></button>
+        <button id="tabFx" onclick="setPrototypeState('fx-chain')"><span class="lbl">FX</span><span class="sub">per-track insert chain</span></button>
+        <button id="tabFilter" onclick="setPrototypeState('filter-plugin')"><span class="lbl">Filter plugin</span><span class="sub">redesigned detail view</span></button>
+      </div>
+
+      <div class="tabbody">
+
+        <!-- ============ SOUND ============ -->
+        <section id="secSound" class="section">
+          <h2>Sound <span class="hint">— the drum part's mini sampler; the filter lives INSIDE it.</span></h2>
+
+          <div class="note">
+            <b>Decision (this pass):</b> the drum-part filter lives in the mini sampler — it is part of <i>Sound</i>, not the FX chain.
+            Per-track FX (see the FX state) is a separate, new model concept. The two do not share storage.
+          </div>
+
+          <div class="well">
+            <h3>Mini sampler</h3>
+            <div class="sampler">
+              <!-- LEFT: sample controls as radial knobs -->
+              <div>
+                <div class="row" style="justify-content:space-between">
+                  <b>808 Bones — Clap.wav</b>
+                  <button class="stub x" title="swap sample" onclick="toast('swap sample')">↺</button>
+                </div>
+                <div class="curve" title="waveform" style="height:64px;margin:10px 0;background:linear-gradient(180deg,#fff,#f0f0f0)">
+                  <svg viewBox="0 0 100 100" preserveAspectRatio="none">
+                    <polyline points="0,50 6,20 12,80 18,40 24,62 30,30 36,70 42,48 48,55 54,18 60,82 66,44 72,58 78,36 84,66 90,50 96,52 100,50" fill="none" stroke="#9aa" stroke-width="2"/>
+                    <line x1="14" y1="0" x2="14" y2="100" stroke="#1f6feb" stroke-width="2" stroke-dasharray="3,3"/>
+                  </svg>
+                </div>
+                <h3 style="margin-top:4px">Sample</h3>
+                <div class="dials" id="sampleDials"></div>
+              </div>
+
+              <!-- RIGHT: in-sampler filter (no wet/dry) -->
+              <div>
+                <div class="row" style="justify-content:space-between">
+                  <b>Filter <span class="hint">(in the sampler this pass)</span></b>
+                  <button class="pill on" onclick="setPrototypeState('filter-plugin')">Open plugin ▸</button>
+                </div>
+                <div class="curve" title="filter curve" id="soundCurve" style="margin-top:8px">
+                  <svg viewBox="0 0 100 100" preserveAspectRatio="none" id="soundCurveSvg"></svg>
+                </div>
+                <h3>Type <span class="hint">(many types — same as the plugin)</span></h3>
+                <div class="types" id="soundTypes"></div>
+                <h3>Controls <span class="hint">— radial, no wet/dry</span></h3>
+                <div class="dials" id="filterDials"></div>
+              </div>
+            </div>
+          </div>
+          <div class="hint"><i>bug 135652</i> — radial controls, more filter types, curve viz, no wet/dry, all kept inside the sampler.</div>
+        </section>
+
+        <!-- ============ FX CHAIN ============ -->
+        <section id="secFx" class="section">
+          <div class="row" style="justify-content:space-between">
+            <h2>FX <span class="hint">— per-track insert chain (a NEW model concept)</span></h2>
+            <button class="primary" onclick="addFx()">+ FX</button>
+          </div>
+          <div class="note">
+            <b>Decision:</b> tracks get their own insert FX. Bug cleanups baked in:
+            drag handle (⠿) to reorder instead of up/down arrows · bypass toggle + remove ✕ on the same line ·
+            no "Enabled" text · a "+ FX" button instead of an "Insert" dropdown · a compact empty state, no big "Empty Scene" filler.
+            <i>(bugs 135534, 135348)</i>
+          </div>
+
+          <h3>Insert chain · signal flow top → bottom</h3>
+          <div id="fxList"></div>
+
+          <!-- compact empty state (shown when list emptied) -->
+          <div class="fxempty" id="fxEmpty" style="display:none">
+            <span>No inserts.</span>
+            <button class="primary" style="min-height:30px;padding:4px 10px" onclick="addFx()">+ FX</button>
+          </div>
+
+          <div class="contrast">
+            <div class="col before">
+              <h4>Before (current)</h4>
+              <div class="hint">"Insert" dropdown · up/down arrows · "Enabled" label on its own line · big "Empty Scene" filler box wasting the right pane.</div>
+            </div>
+            <div class="col">
+              <h4>After (this wireframe)</h4>
+              <div class="hint">"+ FX" button · drag handle reorder · bypass + ✕ on one line · compact one-line empty state.</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============ FILTER PLUGIN ============ -->
+        <section id="secFilter" class="section">
+          <div class="row" style="justify-content:space-between">
+            <h2>Filter <span class="hint">— redesigned plugin detail (same plugin whether opened from the sampler or an FX slot)</span></h2>
+            <span class="pill on" id="fpTypeLabel">Low Pass</span>
+          </div>
+
+          <div class="well">
+            <h3>Filter curve</h3>
+            <div class="curve big" title="filter response">
+              <svg viewBox="0 0 100 100" preserveAspectRatio="none" id="fpCurveSvg"></svg>
+              <span class="axis" style="left:6px">20 Hz</span>
+              <span class="axis" style="right:6px">20 kHz</span>
+            </div>
+
+            <h3>Type</h3>
+            <div class="types" id="fpTypes"></div>
+
+            <h3>Controls <span class="hint">— radial, no wet/dry</span></h3>
+            <div class="dials" id="fpDials"></div>
+          </div>
+
+          <div class="contrast">
+            <div class="col before">
+              <h4>Before (current — ugly)</h4>
+              <div class="hint">Wet / Dry slider</div>
+              <div class="uglyslider"></div>
+              <div class="hint">Plain segmented "Low Pass / High Pass"</div>
+              <div class="uglyseg"><span class="on">Low Pass</span><span>High Pass</span></div>
+              <div class="hint" style="margin-top:8px">Cutoff</div><div class="uglyslider"></div>
+              <div class="hint">Resonance</div><div class="uglyslider"></div>
+              <div class="hint" style="margin-top:8px">No curve. Only 2 types. Linear sliders. Wet/dry that nobody wants.</div>
+            </div>
+            <div class="col">
+              <h4>After (this wireframe)</h4>
+              <div class="hint">Large filter-curve viz up top · 7 filter types as labelled chips · radial cutoff / resonance / drive / slope · NO wet/dry. <i>(bug 135652)</i></div>
+            </div>
+          </div>
+        </section>
+
+      </div>
+    </div>
+  </div>
+  <div id="toast" class="toast"></div>
+
+  <script>
+    /* ---------- data ---------- */
+    const FILTER_TYPES = [
+      { id:"lp", name:"Low Pass",  ic:"╲" },
+      { id:"hp", name:"High Pass", ic:"╱" },
+      { id:"bp", name:"Band Pass", ic:"⋀" },
+      { id:"no", name:"Notch",     ic:"⋁" },
+      { id:"pk", name:"Peak",      ic:"⌃" },
+      { id:"cb", name:"Comb",      ic:"⋔" },
+      { id:"fo", name:"Formant",   ic:"ʘ" },
+    ];
+    let currentType = "lp";
+
+    const SAMPLE_DIALS = [
+      { cap:"DIR",   val:"fwd",  amt:0.30, on:true },
+      { cap:"LENGTH",val:"62%",  amt:0.62, on:true },
+      { cap:"START", val:"0%",   amt:0.0,  on:false },
+      { cap:"GAIN",  val:"0 dB", amt:0.5,  on:false },
+    ];
+    const FILTER_DIALS = [
+      { cap:"CUTOFF", val:"12k",  amt:0.78, on:true },
+      { cap:"RES",    val:"0.20", amt:0.20, on:false },
+    ];
+    const PLUGIN_DIALS = [
+      { cap:"CUTOFF", val:"12k",  amt:0.78, on:true },
+      { cap:"RES",    val:"0.20", amt:0.20, on:false },
+      { cap:"DRIVE",  val:"+3dB", amt:0.40, on:false },
+      { cap:"SLOPE",  val:"24dB", amt:0.66, on:false },
+    ];
+
+    let FX = [
+      { name:"Filter",      sub:"Low Pass · 12 kHz", on:true },
+      { name:"Bit Crusher", sub:"12-bit",            on:true },
+      { name:"Reverb",      sub:"Hall · 1.8 s",      on:false },
+    ];
+
+    /* ---------- radial dial (inline SVG ring + pointer) ---------- */
+    function dialMarkup(d) {
+      // amt 0..1 → angle from -135deg to +135deg
+      const a0 = -135, a1 = 135;
+      const ang = (a0 + (a1 - a0) * d.amt) * Math.PI / 180;
+      const cx = 32, cy = 32, r = 24;
+      const px = cx + Math.sin(ang) * r;
+      const py = cy - Math.cos(ang) * r;
+      const stroke = d.on ? "#1f6feb" : "#707070";
+      const fill = d.on ? "#d7e7ff" : "#fff";
+      // arc track from a0 to current
+      return `
+        <div class="ring">
+          <svg viewBox="0 0 64 64">
+            <circle cx="32" cy="32" r="24" fill="${fill}" stroke="${stroke}" stroke-width="2"/>
+            <line x1="32" y1="32" x2="${px.toFixed(1)}" y2="${py.toFixed(1)}" stroke="${stroke}" stroke-width="3"/>
+            <circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="3" fill="${stroke}"/>
+          </svg>
+        </div>
+        <span class="val">${d.val}</span>
+        <span class="cap">${d.cap}</span>`;
+    }
+    function renderDials(elId, list) {
+      const el = document.getElementById(elId); el.innerHTML = "";
+      list.forEach(d => {
+        const w = document.createElement("div"); w.className = "dial";
+        w.innerHTML = dialMarkup(d);
+        el.appendChild(w);
+      });
+    }
+
+    /* ---------- filter type chips ---------- */
+    function renderTypes(elId, onClick) {
+      const el = document.getElementById(elId); el.innerHTML = "";
+      FILTER_TYPES.forEach(t => {
+        const b = document.createElement("button");
+        b.className = "ftype" + (t.id === currentType ? " on" : "");
+        b.innerHTML = `<span class="ic">${t.ic}</span>${t.name}`;
+        b.onclick = () => onClick(t.id);
+        el.appendChild(b);
+      });
+    }
+
+    /* ---------- curve viz per type (inline SVG polyline) ---------- */
+    const CURVES = {
+      lp: "0,28 50,28 66,30 78,58 100,96",
+      hp: "0,96 22,58 34,30 50,28 100,28",
+      bp: "0,92 32,90 50,22 68,90 100,92",
+      no: "0,28 38,30 50,92 62,30 100,28",
+      pk: "0,52 36,50 50,16 64,50 100,52",
+      cb: "0,30 12,80 24,30 36,80 48,30 60,80 72,30 84,80 100,30",
+      fo: "0,70 18,30 32,72 48,26 64,74 80,34 100,68",
+    };
+    function renderCurve(svgId, typeId) {
+      const svg = document.getElementById(svgId);
+      svg.innerHTML =
+        `<polyline points="0,98 100,98" fill="none" stroke="#cfd8e8" stroke-width="1"/>` +
+        `<polyline points="${CURVES[typeId]}" fill="none" stroke="#1f6feb" stroke-width="3"/>`;
+    }
+
+    function setType(id) {
+      currentType = id;
+      const t = FILTER_TYPES.find(x => x.id === id);
+      // refresh both filter surfaces + plugin label
+      renderTypes("soundTypes", setType);
+      renderTypes("fpTypes", setType);
+      renderCurve("soundCurveSvg", id);
+      renderCurve("fpCurveSvg", id);
+      document.getElementById("fpTypeLabel").textContent = t.name;
+      toast("Filter type → " + t.name);
+    }
+
+    /* ---------- FX chain (drag to reorder, bypass, remove) ---------- */
+    let dragIndex = null;
+    function renderFx() {
+      const el = document.getElementById("fxList"); el.innerHTML = "";
+      document.getElementById("fxEmpty").style.display = FX.length ? "none" : "";
+      FX.forEach((fx, i) => {
+        const row = document.createElement("div");
+        row.className = "fxrow" + (fx.on ? "" : "");
+        row.style.opacity = fx.on ? "1" : ".6";
+        row.draggable = true;
+        row.innerHTML = `
+          <div class="handle" title="drag to reorder">⠿</div>
+          <div class="name"><b>${fx.name}</b><span>${fx.on ? fx.sub : "bypassed"}</span></div>
+          <div class="toggle ${fx.on ? "on" : ""}" title="bypass"></div>
+          <button class="x" title="remove">✕</button>`;
+        row.querySelector(".toggle").onclick = () => { FX[i].on = !FX[i].on; renderFx(); };
+        row.querySelector(".x").onclick = () => { FX.splice(i,1); renderFx(); };
+        row.ondragstart = () => { dragIndex = i; row.classList.add("dragging"); };
+        row.ondragend = () => row.classList.remove("dragging");
+        row.ondragover = (e) => e.preventDefault();
+        row.ondrop = (e) => {
+          e.preventDefault();
+          if (dragIndex === null || dragIndex === i) return;
+          const [moved] = FX.splice(dragIndex, 1);
+          FX.splice(i, 0, moved);
+          dragIndex = null; renderFx();
+          toast("reordered → " + moved.name);
+        };
+        el.appendChild(row);
+      });
+    }
+    function addFx() {
+      const pool = ["Delay","Chorus","Saturator","EQ-3","Compressor","Phaser"];
+      const pick = pool[FX.length % pool.length];
+      FX.push({ name:pick, sub:"new insert", on:true });
+      renderFx();
+      toast("added " + pick + " (would open FX browser)");
+    }
+
+    /* ---------- state switcher ---------- */
+    function setPrototypeState(state) {
+      const secs = { "sound":"secSound", "fx-chain":"secFx", "filter-plugin":"secFilter" };
+      const tabs = { "sound":"tabSound", "fx-chain":"tabFx", "filter-plugin":"tabFilter" };
+      const sbs  = { "sound":"sbSound",  "fx-chain":"sbFx",  "filter-plugin":"sbFilter" };
+      Object.values(secs).forEach(id => document.getElementById(id).classList.remove("active"));
+      Object.values(tabs).forEach(id => document.getElementById(id).classList.remove("active"));
+      Object.values(sbs).forEach(id => document.getElementById(id).classList.remove("active"));
+      document.getElementById(secs[state]).classList.add("active");
+      document.getElementById(tabs[state]).classList.add("active");
+      document.getElementById(sbs[state]).classList.add("active");
+    }
+
+    /* ---------- toast ---------- */
+    let toastTimer;
+    function toast(msg) {
+      const t = document.getElementById("toast");
+      t.textContent = msg; t.classList.add("show");
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => t.classList.remove("show"), 2600);
+    }
+
+    /* ---------- init ---------- */
+    renderDials("sampleDials", SAMPLE_DIALS);
+    renderDials("filterDials", FILTER_DIALS);
+    renderDials("fpDials", PLUGIN_DIALS);
+    renderTypes("soundTypes", setType);
+    renderTypes("fpTypes", setType);
+    renderCurve("soundCurveSvg", currentType);
+    renderCurve("fpCurveSvg", currentType);
+    renderFx();
+    setPrototypeState("sound");
+  </script>
+</body>
+</html>

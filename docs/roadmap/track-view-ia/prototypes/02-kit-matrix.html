@@ -1,0 +1,506 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kit Matrix IA Wireframe</title>
+  <style>
+    :root {
+      --bg:#f4f4f4; --panel:#fff; --ink:#202020; --muted:#6c6c6c; --line:#707070;
+      --stub:#dedede; --accent:#1f6feb; --selected:#d7e7ff; --pending:#fff3c4;
+      --success:#dff3df; --changed:#ffe1c6; --error:#ffd6d6; --kit:#b8860b;
+    }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--bg); color:var(--ink); font:14px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+    button { font:inherit; border:2px solid var(--line); background:var(--panel); padding:7px 10px; min-height:34px; cursor:pointer; }
+    button.primary { border-color:var(--accent); background:var(--selected); font-weight:700; }
+    button.stub { border-style:dashed; background:var(--stub); color:var(--muted); }
+    .app { width:min(1320px, calc(100vw - 32px)); margin:16px auto; border:2px solid var(--line); background:var(--panel); min-height:calc(100vh - 32px); }
+    .top { display:grid; grid-template-columns:230px 1fr 220px; gap:12px; padding:14px; border-bottom:2px solid var(--line); align-items:center; }
+    .brand { font-size:20px; font-weight:800; }
+    .transport,.row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    .nav { display:flex; gap:8px; padding:12px 14px; border-bottom:2px solid var(--line); }
+    .nav button.active { background:var(--selected); border-color:var(--accent); }
+    .body { padding:18px 22px 28px; }
+    h1,h2,h3 { margin:0; }
+    h1 { font-size:22px; }
+    h3 { font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin:14px 0 8px; }
+    .hint { color:var(--muted); font-size:12px; line-height:1.4; }
+    .pill { border:2px solid var(--line); padding:5px 9px; background:var(--panel); min-width:40px; text-align:center; }
+    .pill.on { border-color:var(--accent); background:var(--selected); font-weight:700; }
+    .pill.kit { border-color:var(--kit); background:#fbf2dc; color:#7a5b06; font-weight:700; }
+    .pill.warn { border-color:#b8860b; background:var(--pending); border-style:dashed; }
+
+    .kithdr { display:flex; align-items:center; justify-content:space-between; gap:14px; border:2px solid var(--line); border-left:6px solid var(--kit); padding:12px 14px; margin-bottom:14px; }
+    .kithdr .left { display:flex; align-items:center; gap:12px; }
+
+    .grouprow { display:grid; grid-template-columns:150px 1fr; gap:10px; align-items:center; margin:8px 0 4px; }
+    .slots { display:flex; gap:6px; flex-wrap:wrap; }
+    .slots .slot { min-width:36px; }
+    .slots .slot.on { background:var(--success); border-color:#2c8a2c; font-weight:700; }
+
+    .layerbar { display:flex; gap:8px; align-items:center; margin:14px 0 8px; }
+
+    .kittabs { display:flex; gap:8px; margin:4px 0 16px; border-bottom:2px solid var(--line); }
+    .kittabs button { position:relative; top:2px; }
+    .kittabs button.active { background:var(--selected); border-color:var(--accent); border-bottom-color:var(--selected); font-weight:700; }
+    .macgrid { display:grid; grid-template-columns:repeat(8,1fr); gap:10px; align-items:start; }
+    .macgrid .cell { display:flex; flex-direction:column; align-items:center; gap:6px; font-size:11px; text-align:center; }
+    .levels { display:grid; grid-template-columns:repeat(6,1fr); gap:10px; }
+    .levels .lv { display:flex; flex-direction:column; align-items:center; gap:6px; font-size:11px; }
+    .levels .fader { width:14px; height:70px; border:2px solid var(--line); background:linear-gradient(0deg,var(--accent) var(--f,55%), #fff var(--f,55%)); }
+    .well { border:2px solid var(--line); padding:12px; background:var(--panel); }
+
+    /* matrix: name LEFT of each row */
+    .matrix { border:2px solid var(--line); }
+    .mrow { display:grid; grid-template-columns:150px 1fr; border-bottom:2px solid var(--line); }
+    .mrow:last-child { border-bottom:none; }
+    .mname { border-right:2px solid var(--line); padding:8px 10px; background:#fafafa; display:flex; flex-direction:column; gap:4px; justify-content:center; cursor:pointer; }
+    .mname b { font-size:13px; }
+    .mname .meta { display:flex; gap:6px; align-items:center; }
+    .mname .tag { font-size:10px; border:1px solid var(--line); padding:1px 5px; color:var(--muted); }
+    .mname:hover { background:var(--selected); }
+    .mname .top { display:flex; align-items:center; justify-content:space-between; gap:6px; }
+    .mname .chev { color:var(--muted); font-size:12px; }
+
+    /* inline expanded part panel — accordion: detail sits to the RIGHT of the name */
+    .mrow.expanded { background:#f7faff; }
+    .mrow.expanded .mname { justify-content:flex-start; padding-top:12px; border-right-color:var(--accent); }
+    .mdetail { padding:10px 12px; border-left:3px solid var(--accent); min-width:0; }
+    .srcmode { display:flex; gap:6px; align-items:center; margin-bottom:8px; }
+    .esteps { display:grid; grid-template-columns:repeat(16,1fr); gap:4px; margin-top:8px; }
+    .rowexpand { grid-column:1 / -1; border-top:3px solid var(--accent); background:#f7faff; padding:12px 14px; }
+    .minitabs { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px; }
+    .minitabs button { min-height:30px; padding:5px 10px; }
+    .minitabs button.active { background:var(--selected); border-color:var(--accent); font-weight:700; }
+    .ebody { border:2px solid var(--line); background:var(--panel); padding:12px; }
+    .knob { width:54px; height:54px; border-radius:50%; border:2px solid var(--line); display:grid; place-items:center; font-size:10px; text-align:center; background:var(--panel); }
+    .knob.assigned { border-color:var(--accent); background:var(--selected); }
+    .fxrow { display:grid; grid-template-columns:24px 1fr auto auto; gap:8px; align-items:center; border:2px solid var(--line); padding:6px 8px; background:var(--panel); margin-bottom:6px; }
+    .fxrow .handle { cursor:grab; color:var(--muted); text-align:center; }
+    .toggle { width:42px; height:24px; border:2px solid var(--line); border-radius:13px; position:relative; background:var(--panel); }
+    .toggle.on { background:var(--selected); border-color:var(--accent); }
+    .msteps { display:grid; grid-template-columns:repeat(16,1fr); gap:4px; padding:8px; }
+    .step { height:30px; border:2px solid var(--line); display:grid; place-items:center; background:var(--panel); font-size:10px; color:#bbb; }
+    .step.on { background:var(--accent); border-color:var(--accent); }
+    .step.vel { background:linear-gradient(0deg,var(--accent) var(--v,50%), #fff var(--v,50%)); border-color:var(--accent); color:transparent; }
+
+    .barpager { display:flex; gap:6px; justify-content:flex-end; margin-top:10px; align-items:center; }
+    .note { border-left:4px solid var(--accent); background:var(--selected); padding:8px 10px; font-size:12px; margin:10px 0; }
+    .note.open { border-left-color:#b8860b; background:var(--pending); }
+
+    /* collapsed cell view */
+    .matrixview { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
+    .trkcard { border:2px solid var(--line); padding:10px; min-height:96px; }
+    .trkcard.kitcell { border-color:var(--kit); border-width:3px; background:#fbf2dc; }
+    .trkcard h4 { margin:0 0 6px; font-size:13px; }
+    .minislots { display:flex; gap:4px; }
+    .minislots span { flex:1; height:14px; border:1px solid var(--line); background:#fff; }
+    .minislots span.on { background:var(--accent); border-color:var(--accent); }
+
+    /* history view */
+    .histrow { display:grid; grid-template-columns:150px 1fr; gap:10px; align-items:center; border:2px solid var(--line); padding:8px; margin-bottom:6px; }
+    .histstrip { display:flex; gap:2px; }
+    .histstrip span { flex:1; height:22px; border:1px solid var(--line); background:#fff; }
+    .histstrip span.on { background:var(--accent); border-color:var(--accent); }
+    .histstrip span.win { box-shadow:inset 0 0 0 2px var(--accent); background:var(--selected); }
+    .histstrip span.on.win { background:var(--accent); box-shadow:inset 0 0 0 2px #0b3c8f; }
+
+    .scrub { display:flex; gap:8px; align-items:center; }
+    .timeline { flex:1; height:30px; border:2px solid var(--line); position:relative;
+      background:repeating-linear-gradient(90deg,#fff 0 22px,#eee 22px 24px); }
+    .timeline .window { position:absolute; top:-2px; bottom:-2px; width:26%; border:2px solid var(--accent); background:rgba(31,111,235,.18); }
+    .recent { display:grid; grid-template-columns:repeat(16,1fr); gap:4px; }
+    .recent .slot { border:2px solid var(--line); min-height:32px; display:grid; place-items:center; font-size:10px; color:var(--muted); background:#fafafa; }
+    .recent .slot.filled { background:var(--success); border-color:#2c8a2c; color:var(--ink); }
+
+    .section { display:none; }
+    .section.active { display:block; }
+    .statebar { display:flex; gap:6px; flex-wrap:wrap; padding:10px 22px; border-bottom:2px solid var(--line); background:#fafafa; }
+    .statebar small { width:100%; color:var(--muted); }
+    .toast { position:fixed; bottom:16px; left:50%; transform:translateX(-50%); background:var(--ink); color:white; padding:8px 12px; display:none; }
+    .toast.show { display:block; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="top">
+      <div class="brand">Kit Matrix</div>
+      <div class="transport">
+        <button class="stub">▶</button><span class="pill">120 BPM</span>
+        <span class="pill">Song · Free</span><span class="pill">Stopped</span>
+      </div>
+      <div class="row" style="justify-content:flex-end">
+        <button class="primary">Setup</button>
+        <button onclick="toast('Track Perform scoped to the WHOLE kit — phrase-style overlay')">Perform ▸</button>
+      </div>
+    </div>
+    <div class="nav">
+      <button class="stub">Phrase</button><button class="active">Tracks</button>
+      <button class="stub">Mixer</button><button class="stub">Scenes</button><button class="stub">Library</button>
+    </div>
+
+    <div class="statebar">
+      <small>Wireframe states — kit altitude. Patterns are always visible above the tabs (Matrix · FX · Macros · Mixer). Capture + Perform sit in the header; Capture opens History, replacing the tabs while patterns stay for assigning.</small>
+      <button onclick="setPrototypeState('linked')">Matrix · Linked</button>
+      <button onclick="setPrototypeState('unlinked')">Matrix · Unlinked</button>
+      <button onclick="setPrototypeState('velocity')">Layer · Velocity</button>
+      <button onclick="setPrototypeState('expanded')">Row expanded</button>
+      <button onclick="setPrototypeState('fx')">Kit FX</button>
+      <button onclick="setPrototypeState('macros')">Kit Macros</button>
+      <button onclick="setPrototypeState('mixer')">Kit Mixer</button>
+      <button onclick="setPrototypeState('history')">Capture → History</button>
+      <button onclick="setPrototypeState('collapsed')">Collapsed cell</button>
+    </div>
+
+    <div class="body">
+
+      <!-- shared kit header + tab bar (hidden in the collapsed/track-matrix view) -->
+      <div id="kitChrome">
+        <div class="kithdr">
+          <div class="left">
+            <button class="stub">‹ Back</button>
+            <h1>● 808 Bones</h1>
+            <span class="hint" id="kitMeta">6 parts · 16 steps · 2 bars</span>
+          </div>
+          <div class="row">
+            <button id="kitCapture" onclick="setPrototypeState('history')">⦿ Capture</button>
+            <button class="primary" onclick="toast('Kit Perform — phrase-style perform scoped to the WHOLE kit (proto 04, kit state)')">Perform ▸</button>
+          </div>
+        </div>
+
+        <!-- PATTERNS: always visible, above the tabs; kept during Capture for assigning -->
+        <div id="kitPatterns">
+          <div class="grouprow">
+            <div class="row"><span class="hint">Patterns</span></div>
+            <div class="row" style="justify-content:space-between">
+              <div class="slots" id="groupSlots"></div>
+              <button class="pill kit" id="linkToggle" onclick="toggleLink()">⛓ Linked</button>
+            </div>
+          </div>
+          <div class="note" id="linkNote">Decided (#3): linking is explicit (this toggle) and locks pattern slot only — all parts switch slots together. Mute / fill / macros stay per-part.</div>
+        </div>
+
+        <div class="kittabs" id="kitTabBar">
+          <button id="ktMatrix" onclick="setPrototypeState('linked')">Matrix</button>
+          <button id="ktFx" onclick="setPrototypeState('fx')">FX</button>
+          <button id="ktMacros" onclick="setPrototypeState('macros')">Macros</button>
+          <button id="ktMixer" onclick="setPrototypeState('mixer')">Mixer</button>
+        </div>
+      </div>
+
+      <!-- MATRIX (linked / unlinked / velocity share this) -->
+      <section id="secMatrix" class="section">
+        <div class="note">Step count is fixed at 16 with a bar pager (no 16/32 toggle). Part name sits to the LEFT of each row so more parts fit. Both reuse the normal-track step primitives. <i>(bugs 140108, 135941)</i></div>
+
+        <div class="layerbar">
+          <span class="hint">Layer</span>
+          <button class="pill on" id="lSteps" onclick="setLayer('steps')">Steps</button>
+          <button class="pill" id="lVel" onclick="setLayer('velocity')">Velocity</button>
+          <button class="pill" id="lChance" onclick="setLayer('chance')">Chance</button>
+          <span class="pill warn" id="mismatch" style="display:none">⚠ Pattern mismatch</span>
+          <button class="stub" style="margin-left:auto;min-height:30px" onclick="toast('apply a pattern template across the kit')">Apply Template…</button>
+        </div>
+
+        <div class="matrix" id="matrix"></div>
+
+        <div class="barpager">
+          <span class="hint" style="margin-right:auto">Click a part name to dive into its single-part editor (Steps/Sound/FX/Macros/Mixer).</span>
+          <button class="pill on">1–16</button>
+          <button class="pill" onclick="toast('page to bar 17–32')">17–32</button>
+        </div>
+      </section>
+
+      <!-- KIT FX (bus inserts) -->
+      <section id="secFx" class="section">
+        <div class="row" style="justify-content:space-between">
+          <h2 style="margin:0">Kit FX <span class="hint">— insert chain on the 808 Bones bus (FX across the whole kit)</span></h2>
+          <button class="primary" onclick="toast('open FX browser for the kit bus')">+ FX</button>
+        </div>
+        <div class="note">The kit routes to its own bus by default, so these inserts process every part together. Per-part FX still live on each part — expand a row → FX.</div>
+        <div class="fxrow"><div class="handle">⠿</div><div><b>Bus Comp</b><div class="hint">glue · 3:1</div></div><div class="toggle on"></div><button style="min-height:28px;padding:0 9px">✕</button></div>
+        <div class="fxrow"><div class="handle">⠿</div><div><b>Saturator</b><div class="hint">tape</div></div><div class="toggle on"></div><button style="min-height:28px;padding:0 9px">✕</button></div>
+        <div class="fxrow" style="opacity:.6"><div class="handle">⠿</div><div><b>Reverb</b><div class="hint">bypassed</div></div><div class="toggle"></div><button style="min-height:28px;padding:0 9px">✕</button></div>
+      </section>
+
+      <!-- KIT MACROS -->
+      <section id="secMacros" class="section">
+        <h2>Kit Macros <span class="hint">— M1–M8 mapped across the whole kit / its bus</span></h2>
+        <div class="note">Decided (#7): a kit macro sweeps one parameter across ALL parts at once (e.g. cutoff on every part) or drives the bus FX. Defaults are editable templates seeded with initial values.</div>
+        <div class="macgrid">
+          <div class="cell"><div class="knob assigned">M1</div><span>kit cutoff<br>(all parts)</span></div>
+          <div class="cell"><div class="knob assigned">M2</div><span>bus drive</span></div>
+          <div class="cell"><div class="knob assigned">M3</div><span>decay<br>(all parts)</span></div>
+          <div class="cell"><div class="knob">M4</div><span>assign</span></div>
+          <div class="cell"><div class="knob">M5</div><span>assign</span></div>
+          <div class="cell"><div class="knob">M6</div><span>assign</span></div>
+          <div class="cell"><div class="knob">M7</div><span>assign</span></div>
+          <div class="cell"><div class="knob">M8</div><span>assign</span></div>
+        </div>
+      </section>
+
+      <!-- KIT MIXER (the kit bus) -->
+      <section id="secMixer" class="section">
+        <h2>Kit Mixer <span class="hint">— the 808 Bones bus: output, sends, per-part levels</span></h2>
+        <div class="note">The kit's own bus is the single mixer strip for the whole kit; its output and sends sit alongside per-part levels here.</div>
+        <div class="row" style="justify-content:space-between; align-items:flex-start; gap:20px">
+          <div class="well" style="flex:1">
+            <h3 style="margin-top:0">Bus output</h3>
+            <div class="row" style="justify-content:space-between">
+              <span class="pill on">→ Master ▾</span>
+              <div class="row">
+                <div class="lv" style="align-items:center"><div class="knob">A</div><span class="hint">Send A</span></div>
+                <div class="lv" style="align-items:center"><div class="knob">B</div><span class="hint">Send B</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <h3>Per-part levels</h3>
+        <div class="levels" id="kitLevels"></div>
+      </section>
+
+      <!-- COLLAPSED CELL -->
+      <section id="secCollapsed" class="section">
+        <div class="kithdr">
+          <div class="left"><h1>Tracks</h1><span class="hint">Tracks Perform — the kit as ONE cell</span></div>
+          <div class="row"><span class="pill on">Layer: Pattern</span></div>
+        </div>
+        <div class="note">Decided (#4): when a kit's pattern is linked, it collapses to a single cell in the track/perform matrix and Song mode — one cell drives the whole kit instead of 6 part cards. Expand re-opens the matrix. Scenes deferred.</div>
+        <div class="matrixview">
+          <div class="trkcard"><h4>Bass</h4><div class="minislots"><span class="on"></span><span></span><span></span><span></span></div><div class="hint" style="margin-top:8px">P1 · mono</div></div>
+          <div class="trkcard kitcell">
+            <div class="row" style="justify-content:space-between"><h4>▦ 808 Bones</h4><button class="stub" style="min-height:26px;padding:2px 7px" onclick="setPrototypeState('linked')">Expand ▸</button></div>
+            <div class="minislots"><span class="on"></span><span></span><span></span><span></span></div>
+            <div class="hint" style="margin-top:8px">6 parts · linked · P1 · own bus</div>
+          </div>
+          <div class="trkcard"><h4>Lead</h4><div class="minislots"><span></span><span class="on"></span><span></span><span></span></div><div class="hint" style="margin-top:8px">P2 · poly</div></div>
+          <div class="trkcard"><h4>Pad</h4><div class="minislots"><span class="on"></span><span></span><span></span><span></span></div><div class="hint" style="margin-top:8px">P1 · poly</div></div>
+        </div>
+        <div class="note">When UNLINKED, the kit expands inline to its 6 part cells in this same matrix (so per-part performance still works). Linked ↔ collapsed; unlinked ↔ expanded.</div>
+      </section>
+
+      <!-- KIT HISTORY -->
+      <section id="secHistory" class="section">
+        <div class="row" style="justify-content:space-between; margin-bottom:10px">
+          <div class="row"><button class="stub" onclick="setPrototypeState('linked')">‹ Close capture</button><h2 style="margin:0">Capture · History <span class="hint">— Live buffer · Rolling</span></h2></div>
+          <div class="row"><span class="hint">Selection length</span><span class="pill">½ bar</span><span class="pill on">1 bar</span><span class="pill">2 bars</span><span class="pill">4 bars</span></div>
+        </div>
+        <div class="note">Opened from the Capture button — it replaces the tab view, but the Patterns row above stays so you can assign the captured clip set to a slot. You see ALL parts' live buffers together and save the lot as ONE coordinated clip set. Model: capture <i>22-track-history-tab</i> (#2, decided).</div>
+
+        <div class="note">Decided: the shared scrubber below pages the selection window back through the rolling buffer across all parts in lockstep — the "move through history" mechanism that was missing (per capture 22).</div>
+        <div class="scrub">
+          <button class="pill" onclick="moveHist(-1)" title="step back in time">«</button>
+          <div class="timeline" id="timeline"><div class="window" id="histWindow"></div></div>
+          <button class="pill" onclick="moveHist(1)" title="step toward now">»</button>
+          <button class="pill on" onclick="moveHist('live')">Live ▸</button>
+        </div>
+        <div class="hint" id="histPos" style="text-align:right;margin:4px 0 2px"></div>
+
+        <div id="histRows"></div>
+
+        <h3>Recent output</h3>
+        <div class="recent" id="recent"></div>
+
+        <div class="row" style="justify-content:flex-end; margin-top:12px">
+          <button class="stub">Audition set</button>
+          <button class="primary" onclick="toast('saves the windowed history of all parts into one clip set → click a Pattern slot above to assign it')">Save as clip set → assign to a Pattern slot ▴</button>
+        </div>
+      </section>
+
+    </div>
+  </div>
+  <div id="toast" class="toast"></div>
+
+  <script>
+    const PARTS = [
+      { name:"Kick",  tag:"kick",  steps:[1,5,9,13], slot:"P1" },
+      { name:"Snare", tag:"snare", steps:[5,13],     slot:"P2" },
+      { name:"Clap",  tag:"clap",  steps:[7,15],     slot:"P1" },
+      { name:"HH cl", tag:"hat",   steps:[1,3,5,7,9,11,13,15], slot:"P1" },
+      { name:"HH op", tag:"hat-o", steps:[3,11],     slot:"P1" },
+      { name:"Perc",  tag:"perc",  steps:[4,10,14],  slot:"P3" },
+    ];
+    let linked = true;
+    let layer = "steps";
+    let expandedPart = null;
+    let eTab = "stepsclip";
+    let srcMode = "clip";
+
+    function buildGroupSlots() {
+      const el = document.getElementById("groupSlots"); el.innerHTML = "";
+      for (let i=1;i<=8;i++){ const b=document.createElement("button"); b.className="pill slot"+(i===1?" on":""); b.textContent=i; el.appendChild(b); }
+    }
+
+    function buildMatrix() {
+      const el = document.getElementById("matrix"); el.innerHTML = "";
+      PARTS.forEach((p, idx) => {
+        const open = (idx === expandedPart);
+        const row = document.createElement("div"); row.className="mrow"+(open?" expanded":"");
+        const slotLabel = linked ? "P1" : p.slot;
+        const nm = document.createElement("div"); nm.className="mname";
+        nm.onclick = () => toggleExpand(idx);
+        nm.innerHTML = '<div class="top"><b>'+p.name+'</b><span class="chev">'+(open?'▾':'▸')+'</span></div>'+
+          '<div class="meta"><span class="tag">'+p.tag+'</span><span class="pill" style="min-width:0;padding:2px 6px;font-size:10px">'+slotLabel+'</span></div>';
+        row.appendChild(nm);
+        if (open){
+          const d = document.createElement("div"); d.className="mdetail"; d.innerHTML = detailHTML(p); row.appendChild(d);
+        } else {
+          const st = document.createElement("div"); st.className="msteps";
+          for (let i=1;i<=16;i++){
+            const s=document.createElement("div");
+            const on = p.steps.includes(i);
+            if (layer==="velocity" && on){ s.className="step vel"; s.style.setProperty("--v",(30+(i*4)%60)+"%"); }
+            else s.className="step"+(on?" on":"");
+            s.textContent=i; st.appendChild(s);
+          }
+          row.appendChild(st);
+        }
+        el.appendChild(row);
+      });
+    }
+
+    // Detail panel rendered to the RIGHT of the part name (accordion).
+    function detailHTML(p) {
+      const tabs = ["Steps/Clip","Sound","FX","Macros","Mixer"];
+      const key = t => t.toLowerCase().replace(/[^a-z]/g,"");
+      let html = '<div class="row" style="justify-content:space-between"><b>'+p.name+' — inline part controls</b>'+
+        '<button class="stub" style="min-height:28px" onclick="toast(\'or dive into the full single-track detail (reuse view 01)\')">Open full editor ▸</button></div>'+
+        '<div class="hint" style="margin:4px 0 10px">Sound / FX / Macros / Mixer never contradict the linked kit pattern — only Steps/Clip does.</div>'+
+        '<div class="minitabs">';
+      tabs.forEach(t => html += '<button class="'+(key(t)===eTab?'active':'')+'" onclick="setETab(\''+key(t)+'\')">'+t+'</button>');
+      html += '</div><div class="ebody">'+ebody(p)+'</div>';
+      return html;
+    }
+
+    function miniSteps(p){ let s=""; for(let i=1;i<=16;i++) s+='<div class="step'+(p.steps.includes(i)?" on":"")+'">'+i+'</div>'; return s; }
+
+    function ebody(p) {
+      if (eTab==="stepsclip"){
+        let h = '<div class="srcmode"><span class="hint">Source</span>'+
+          '<button class="pill '+(srcMode==="clip"?"on":"")+'" onclick="setSrc(\'clip\')">Clip</button>'+
+          '<button class="pill '+(srcMode==="generator"?"on":"")+'" onclick="setSrc(\'generator\')">Generator</button>'+
+          '<span class="hint">— Steps/Clip is a tab like the track view; switch the part between a clip and a generator (+ modifier).</span></div>';
+        if (srcMode==="clip")
+          h += '<div class="note">Decided (#4b — break): editing '+p.name+'’s step content within the shared slot is fine ('+(linked?'linked':'unlinked')+'). Only structural divergence (different length/slot) auto-unlinks this part → MIXED, with one-click re-link.</div>'+
+            '<div class="esteps">'+miniSteps(p)+'</div>';
+        else
+          h += '<div class="row"><span class="pill on">Euclidean Mono ▾</span><span class="hint">generator</span></div>'+
+            '<div class="row" style="margin-top:8px"><span class="hint">Modifier</span><button class="pill" onclick="toast(\'add a modifier to the generator\')">+ Add modifier</button></div>';
+        return h;
+      }
+      if (eTab==="sound")
+        return '<div class="row"><div class="knob assigned">DIR</div><div class="knob assigned">LEN</div><div class="knob">START</div><div class="knob">GAIN</div>'+
+          '<span class="hint" style="margin-left:10px">Mini sampler + in-sampler filter (Low Pass · 12k · curve)</span></div>';
+      if (eTab==="fx")
+        return '<div class="fxrow"><div class="handle">⠿</div><div><b>Bit Crusher</b></div><div class="toggle on"></div><button style="min-height:26px;padding:0 8px">✕</button></div>'+
+          '<button class="primary" style="min-height:30px">+ FX</button>';
+      if (eTab==="macros")
+        return '<div class="row"><div class="knob assigned">M1<br>dir</div><div class="knob assigned">M2<br>len</div><div class="knob assigned">M3<br>cut</div><div class="knob">M4</div><span class="hint" style="margin-left:8px">drum-part macro defaults pre-filled</span></div>';
+      return '<div class="row" style="justify-content:space-between"><span class="pill on">Bus: 808 Bones ▾</span>'+
+        '<span class="hint">part routes to the kit bus by default</span></div>';
+    }
+
+    function toggleExpand(idx){ expandedPart = (expandedPart===idx? null : idx); buildMatrix(); }
+    function setETab(t){ eTab=t; buildMatrix(); }
+    function setSrc(m){ srcMode=m; buildMatrix(); }
+
+    const BUFFER = 28, WIN = 7;
+    let histPos = 0; // 0 = live (window at the newest/right end); larger = further back
+
+    function winStart(){ return Math.max(0, Math.min(BUFFER-WIN, (BUFFER-WIN) - histPos)); }
+
+    function buildHistory() {
+      const el = document.getElementById("histRows"); el.innerHTML="";
+      const ws = winStart();
+      PARTS.forEach(p=>{
+        const r=document.createElement("div"); r.className="histrow";
+        let strip='<div class="histstrip">';
+        for(let i=0;i<BUFFER;i++){
+          const on = p.steps.includes((i % 16) + 1);
+          const inWin = (i>=ws && i<ws+WIN);
+          strip += '<span class="'+(on?"on ":"")+(inWin?"win":"")+'"></span>';
+        }
+        strip+='</div>';
+        r.innerHTML='<div><b>'+p.name+'</b><div class="hint">live</div></div>'+strip;
+        el.appendChild(r);
+      });
+      const w = document.getElementById("histWindow");
+      if (w){ w.style.left=(ws/BUFFER*100)+"%"; w.style.width=(WIN/BUFFER*100)+"%"; }
+      const pos = document.getElementById("histPos");
+      if (pos) pos.textContent = histPos===0 ? "● live — newest window" : ("◂ "+histPos+" step(s) back through the buffer");
+    }
+
+    function moveHist(d){
+      if (d==="live") histPos=0;
+      else histPos = Math.max(0, Math.min(BUFFER-WIN, histPos - d));
+      buildHistory();
+    }
+
+    function buildRecent(){
+      const el=document.getElementById("recent"); if(!el) return; el.innerHTML="";
+      const filled=[1,2,5,9];
+      for(let i=1;i<=16;i++){ const s=document.createElement("div"); s.className="slot"+(filled.includes(i)?" filled":""); s.textContent=filled.includes(i)?("set "+i):i; el.appendChild(s); }
+    }
+
+    function toggleLink() {
+      linked = !linked;
+      document.getElementById("linkToggle").textContent = linked ? "⛓ Linked" : "⛓̸ Unlinked";
+      document.getElementById("linkToggle").className = "pill " + (linked ? "kit" : "warn");
+      document.getElementById("mismatch").style.display = linked ? "none" : "";
+      document.getElementById("kitMeta").textContent = "6 parts · 16 steps · 2 bars" + (linked? " · linked":" · per-part");
+      buildMatrix();
+    }
+
+    function setLayer(l){
+      layer=l;
+      document.getElementById("lSteps").className="pill"+(l==="steps"?" on":"");
+      document.getElementById("lVel").className="pill"+(l==="velocity"?" on":"");
+      document.getElementById("lChance").className="pill"+(l==="chance"?" on":"");
+      buildMatrix();
+    }
+
+    function buildLevels(){
+      const el=document.getElementById("kitLevels"); if(!el) return; el.innerHTML="";
+      PARTS.forEach((p,i)=>{ const v=40+(i*9)%45; el.innerHTML+='<div class="lv"><div class="fader" style="--f:'+v+'%"></div><span>'+p.name+'</span></div>'; });
+    }
+
+    function setPrototypeState(state){
+      const sections = ["secMatrix","secCollapsed","secHistory","secFx","secMacros","secMixer"];
+      sections.forEach(id=>document.getElementById(id).classList.remove("active"));
+      const kitTabs = {linked:"ktMatrix",unlinked:"ktMatrix",velocity:"ktMatrix",expanded:"ktMatrix",fx:"ktFx",macros:"ktMacros",mixer:"ktMixer"};
+      ["ktMatrix","ktFx","ktMacros","ktMixer"].forEach(id=>document.getElementById(id).classList.remove("active"));
+      const chrome = document.getElementById("kitChrome");
+      const tabBar = document.getElementById("kitTabBar");
+      const cap = document.getElementById("kitCapture");
+      cap.classList.remove("primary");
+
+      // collapsed = the track-matrix view; hide all kit chrome (incl. patterns)
+      if (state==="collapsed"){ chrome.style.display="none"; document.getElementById("secCollapsed").classList.add("active"); return; }
+      chrome.style.display="";
+
+      // Capture/History replaces the tab view, but the Patterns row stays visible for assigning
+      if (state==="history"){ tabBar.style.display="none"; cap.classList.add("primary"); document.getElementById("secHistory").classList.add("active"); return; }
+      tabBar.style.display="";
+
+      if (kitTabs[state]) document.getElementById(kitTabs[state]).classList.add("active");
+      if (state==="fx"){ document.getElementById("secFx").classList.add("active"); return; }
+      if (state==="macros"){ document.getElementById("secMacros").classList.add("active"); return; }
+      if (state==="mixer"){ document.getElementById("secMixer").classList.add("active"); buildLevels(); return; }
+
+      // matrix family
+      document.getElementById("secMatrix").classList.add("active");
+      if (state==="expanded") { expandedPart = 2; eTab = "stepsclip"; } else { expandedPart = null; }
+      if (state==="linked" && !linked) toggleLink();
+      if (state==="unlinked" && linked) toggleLink();
+      if (state==="velocity") setLayer("velocity"); else if (state==="linked"||state==="unlinked"||state==="expanded") setLayer("steps");
+      buildMatrix();
+    }
+
+    let toastTimer;
+    function toast(msg){ const t=document.getElementById("toast"); t.textContent=msg; t.classList.add("show"); clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove("show"),2600); }
+
+    buildGroupSlots(); buildMatrix(); buildHistory(); buildRecent(); setPrototypeState("linked");
+  </script>
+</body>
+</html>
+</content>

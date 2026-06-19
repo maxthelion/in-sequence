@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Track Detail IA Wireframe</title>
+  <style>
+    :root {
+      --bg:#f4f4f4; --panel:#fff; --ink:#202020; --muted:#6c6c6c; --line:#707070;
+      --stub:#dedede; --accent:#1f6feb; --selected:#d7e7ff; --pending:#fff3c4;
+      --success:#dff3df; --changed:#ffe1c6; --error:#ffd6d6;
+    }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--bg); color:var(--ink); font:14px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+    button { font:inherit; border:2px solid var(--line); background:var(--panel); padding:8px 10px; min-height:36px; cursor:pointer; }
+    button.primary { border-color:var(--accent); background:var(--selected); font-weight:700; }
+    button.stub { border-style:dashed; background:var(--stub); color:var(--muted); }
+    .app { width:min(1320px, calc(100vw - 32px)); margin:16px auto; border:2px solid var(--line); background:var(--panel); min-height:calc(100vh - 32px); }
+    .top { display:grid; grid-template-columns:230px 1fr 220px; gap:12px; padding:14px; border-bottom:2px solid var(--line); align-items:center; }
+    .brand { font-size:20px; font-weight:800; }
+    .transport,.row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    .nav { display:flex; gap:8px; padding:12px 14px; border-bottom:2px solid var(--line); }
+    .nav button.active { background:var(--selected); border-color:var(--accent); }
+    .body { padding:18px 22px 28px; }
+    .panel { border:2px solid var(--line); padding:14px; background:var(--panel); }
+    h1,h2,h3 { margin:0; }
+    h1 { font-size:22px; }
+    h2 { font-size:16px; margin-bottom:10px; }
+    h3 { font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin:16px 0 8px; }
+    .hint { color:var(--muted); font-size:12px; line-height:1.4; }
+    .pill { border:2px solid var(--line); padding:5px 9px; background:var(--panel); min-width:48px; text-align:center; }
+    .pill.on { border-color:var(--accent); background:var(--selected); font-weight:700; }
+    .pill.pending { background:var(--pending); border-style:dashed; }
+    .pill.green { border-color:#2c8a2c; background:var(--success); }
+
+    .hdr { display:flex; align-items:center; gap:14px; justify-content:space-between; margin-bottom:14px; }
+    .hdr .left { display:flex; align-items:center; gap:12px; }
+    .kitcrumb { display:flex; align-items:center; gap:8px; }
+
+    .pattern { display:flex; gap:6px; flex-wrap:wrap; margin:8px 0 16px; }
+    .pattern .slot { min-width:40px; }
+    .pattern .slot.on { background:var(--success); border-color:#2c8a2c; font-weight:700; }
+
+    /* tab bar */
+    .tabbar { display:grid; grid-template-columns:repeat(5,1fr); gap:8px; margin-bottom:6px; }
+    .tabbar button { text-align:left; display:flex; flex-direction:column; gap:2px; align-items:flex-start; }
+    .tabbar button .lbl { font-weight:700; }
+    .tabbar button .sub { font-size:11px; color:var(--muted); }
+    .tabbar button.active { background:var(--selected); border-color:var(--accent); }
+    .tabbody { border:2px solid var(--line); border-top-width:4px; border-top-color:var(--accent); padding:16px; margin-top:8px; }
+
+    .section { display:none; }
+    .section.active { display:block; }
+
+    /* grids and wells */
+    .well { border:2px solid var(--line); padding:12px; background:var(--panel); margin-bottom:12px; }
+    .well.dashed { border-style:dashed; background:var(--stub); color:var(--muted); }
+    .two { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+    .knob { width:62px; height:62px; border-radius:50%; border:2px solid var(--line); display:grid; place-items:center; font-size:11px; text-align:center; background:var(--panel); }
+    .knob.assigned { border-color:var(--accent); background:var(--selected); }
+    .macgrid { display:grid; grid-template-columns:repeat(8,1fr); gap:10px; align-items:start; }
+    .macgrid .cell { display:flex; flex-direction:column; align-items:center; gap:6px; font-size:11px; }
+
+    .steps { display:grid; grid-template-columns:repeat(16,1fr); gap:5px; }
+    .step { height:38px; border:2px solid var(--line); display:grid; place-items:center; background:var(--panel); font-size:11px; color:var(--muted); }
+    .step.on { background:var(--accent); border-color:var(--accent); }
+    .barpager { display:flex; gap:6px; justify-content:flex-end; margin-top:8px; }
+
+    /* fx chain */
+    .fxrow { display:grid; grid-template-columns:28px 1fr auto auto; gap:10px; align-items:center; border:2px solid var(--line); padding:8px 10px; background:var(--panel); margin-bottom:8px; }
+    .fxrow .handle { cursor:grab; color:var(--muted); font-size:18px; text-align:center; user-select:none; }
+    .fxrow .name b { display:block; }
+    .fxrow .name span { font-size:11px; color:var(--muted); }
+    .toggle { width:46px; height:26px; border:2px solid var(--line); border-radius:14px; position:relative; background:var(--panel); }
+    .toggle.on { background:var(--selected); border-color:var(--accent); }
+    .toggle::after { content:""; position:absolute; top:2px; left:2px; width:18px; height:18px; border-radius:50%; background:var(--line); }
+    .toggle.on::after { left:auto; right:2px; background:var(--accent); }
+    .x { width:30px; min-height:30px; padding:0; }
+
+    /* sampler + filter */
+    .sampler { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+    .curve { height:90px; border:2px solid var(--line); background:linear-gradient(180deg,#fff,#eef3ff); position:relative; }
+    .curve svg { position:absolute; inset:0; width:100%; height:100%; }
+
+    .note { border-left:4px solid var(--accent); background:var(--selected); padding:8px 10px; font-size:12px; margin:10px 0; }
+    .note.open { border-left-color:#b8860b; background:var(--pending); }
+
+    .statebar { display:flex; gap:6px; flex-wrap:wrap; padding:10px 22px; border-bottom:2px solid var(--line); background:#fafafa; }
+    .statebar small { width:100%; color:var(--muted); }
+    .toast { position:fixed; bottom:16px; left:50%; transform:translateX(-50%); background:var(--ink); color:white; padding:8px 12px; display:none; }
+    .toast.show { display:block; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="top">
+      <div class="brand">Track Detail</div>
+      <div class="transport">
+        <button class="stub">▶</button>
+        <span class="pill">120 BPM</span>
+        <span class="pill">Song · Free</span>
+        <span class="pill">Stopped</span>
+      </div>
+      <div class="row" style="justify-content:flex-end">
+        <button id="setupBtn" class="primary">Setup</button>
+        <button id="performBtn" onclick="toast('opens Track Perform scoped to THIS track — phrase-style overlay')">Perform ▸</button>
+      </div>
+    </div>
+    <div class="nav">
+      <button class="stub">Phrase</button>
+      <button class="active">Tracks</button>
+      <button class="stub">Mixer</button>
+      <button class="stub">Scenes</button>
+      <button class="stub">Library</button>
+    </div>
+
+    <!-- prototype state switcher (not part of the product chrome) -->
+    <div class="statebar">
+      <small>Wireframe states — tabs of the re-cut track detail. Toggle the part variant to see the drum-part header + in-sampler filter.</small>
+      <button onclick="setPrototypeState('steps')">Steps / Clip</button>
+      <button onclick="setPrototypeState('sound')">Sound</button>
+      <button onclick="setPrototypeState('fx')">FX</button>
+      <button onclick="setPrototypeState('macros')">Macros</button>
+      <button onclick="setPrototypeState('mixer')">Mixer</button>
+      <button onclick="togglePart()" id="partToggle">Variant: Main Track</button>
+    </div>
+
+    <div class="body">
+      <div class="hdr">
+        <div class="left">
+          <div id="crumb" class="kitcrumb"><h1 id="trackName">Main Track</h1></div>
+        </div>
+        <div class="row">
+          <button class="stub" onclick="toast('History opens via Capture at track + kit altitudes (#2, decided)')">History ▸</button>
+          <span class="pill" id="modePill">Setup</span>
+        </div>
+      </div>
+
+      <h3>Pattern</h3>
+      <div class="pattern">
+        <button class="slot on">1</button><button class="slot">2</button><button class="slot">3</button>
+        <button class="slot">4</button><button class="slot">5</button><button class="slot">6</button>
+        <button class="slot">7</button><button class="slot">8</button>
+        <span class="pill" id="patternLink" style="display:none">Kit pattern: LINKED</span>
+      </div>
+
+      <div class="tabbar">
+        <button id="tabSteps" onclick="setPrototypeState('steps')"><span class="lbl">Steps / Clip</span><span class="sub">pattern editing</span></button>
+        <button id="tabSound" onclick="setPrototypeState('sound')"><span class="lbl">Sound</span><span class="sub">instrument</span></button>
+        <button id="tabFx" onclick="setPrototypeState('fx')"><span class="lbl">FX</span><span class="sub">insert chain</span></button>
+        <button id="tabMacros" onclick="setPrototypeState('macros')"><span class="lbl">Macros</span><span class="sub">M1–M8 + lanes</span></button>
+        <button id="tabMixer" onclick="setPrototypeState('mixer')"><span class="lbl">Mixer</span><span class="sub">bus + sends</span></button>
+      </div>
+
+      <div class="tabbody">
+
+        <!-- STEPS / CLIP -->
+        <section id="secSteps" class="section">
+          <div class="row" style="justify-content:space-between">
+            <h2>Steps / Clip</h2>
+            <div class="row">
+              <span class="hint">Lane</span><span class="pill on">Normal</span><span class="pill">Fill</span>
+              <span class="hint" style="margin-left:10px">Layer</span><span class="pill on">Steps</span><span class="pill">Velocity</span><span class="pill">Chance</span>
+            </div>
+          </div>
+          <div class="note">Decided (#1): Steps/Clip is its own tab. The always-visible element above the tabs is the Patterns row, not the grid.</div>
+          <div class="steps" id="stepGrid"></div>
+          <div class="barpager">
+            <span class="hint" style="align-self:center" id="barLabel">2 bars · same 16-step primitive as the kit matrix</span>
+            <button class="pill on">1–16</button><button class="pill" id="bar2" onclick="toast('page to bar 17–32 — reused single-part bar pager')">17–32</button>
+          </div>
+        </section>
+
+        <!-- SOUND -->
+        <section id="secSound" class="section">
+          <h2>Sound <span class="hint">— the instrument only (reuses routing-source-mixer-split's SOUND SOURCE well, vocabulary .soundSource)</span></h2>
+          <div id="soundMain">
+            <div class="well">
+              <h3>Instrument</h3>
+              <div class="row" style="justify-content:space-between">
+                <div><b>No instrument</b><div class="hint">AU instrument · MIDI port · internal sampler · slicer</div></div>
+                <button class="primary">+ Add Sound Source</button>
+              </div>
+            </div>
+          </div>
+          <div id="soundPart" style="display:none">
+            <div class="well">
+              <h3>Mini sampler</h3>
+              <div class="sampler">
+                <div>
+                  <div class="row" style="justify-content:space-between"><b>808 Bones — Clap.wav</b><button class="stub x" onclick="toast('swap sample')">↺</button></div>
+                  <div class="hint" style="margin:8px 0">Sample</div>
+                  <div class="row">
+                    <div class="knob assigned">DIR<br>fwd</div>
+                    <div class="knob assigned">LEN<br>62%</div>
+                    <div class="knob">START</div>
+                    <div class="knob">GAIN</div>
+                  </div>
+                </div>
+                <div>
+                  <div class="row" style="justify-content:space-between">
+                    <b>Filter <span class="hint">(stays in the sampler this pass)</span></b>
+                    <span class="pill on">Low Pass ▾</span>
+                  </div>
+                  <div class="curve" title="filter curve">
+                    <svg viewBox="0 0 100 100" preserveAspectRatio="none"><polyline points="0,30 55,30 75,70 100,95" fill="none" stroke="#1f6feb" stroke-width="3"/></svg>
+                  </div>
+                  <div class="row" style="margin-top:8px">
+                    <div class="knob assigned">CUTOFF<br>12k</div>
+                    <div class="knob">RES<br>0.20</div>
+                    <span class="hint">More filter types · radial controls · no wet/dry · curve viz <i>(bug 135652)</i></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="note">Decision: drum-part filter lives inside the mini sampler (part of Sound), not the FX chain — for now.</div>
+          </div>
+        </section>
+
+        <!-- FX -->
+        <section id="secFx" class="section">
+          <div class="row" style="justify-content:space-between">
+            <h2>FX <span class="hint">— per-track insert chain (new model concept)</span></h2>
+            <button class="primary" onclick="toast('open FX browser')">+ FX</button>
+          </div>
+          <div class="note">Decision: tracks get their own FX. Cleanups from bugs 135534 / 135348 baked in: drag handle to reorder (not arrows), bypass + remove on one line, no "Enabled"/"Empty" filler, "+ FX" button instead of an Insert dropdown.</div>
+          <div class="fxrow">
+            <div class="handle" title="drag to reorder">⠿</div>
+            <div class="name"><b>Filter</b><span>Low Pass · 12 kHz</span></div>
+            <div class="toggle on" title="bypass"></div>
+            <button class="x" title="remove">✕</button>
+          </div>
+          <div class="fxrow">
+            <div class="handle">⠿</div>
+            <div class="name"><b>Bit Crusher</b><span>12-bit</span></div>
+            <div class="toggle on"></div>
+            <button class="x">✕</button>
+          </div>
+          <div class="fxrow" style="opacity:.6">
+            <div class="handle">⠿</div>
+            <div class="name"><b>Reverb</b><span>bypassed</span></div>
+            <div class="toggle"></div>
+            <button class="x">✕</button>
+          </div>
+        </section>
+
+        <!-- MACROS -->
+        <section id="secMacros" class="section">
+          <h2>Macros <span class="hint">— M1–M8 assignments + macro lanes in one place</span></h2>
+          <div class="note" id="macroNote">Decided (#7): macro defaults are editable templates seeded with initial values. A fresh drum part lands with M1 sample direction, M2 sample length, M3 filter cutoff pre-mapped (shown below), all editable.</div>
+          <div class="macgrid">
+            <div class="cell"><div class="knob assigned">M1</div><span id="m1lbl">cutoff</span></div>
+            <div class="cell"><div class="knob assigned">M2</div><span id="m2lbl">drive</span></div>
+            <div class="cell"><div class="knob">M3</div><span>assign</span></div>
+            <div class="cell"><div class="knob">M4</div><span>assign</span></div>
+            <div class="cell"><div class="knob">M5</div><span>assign</span></div>
+            <div class="cell"><div class="knob">M6</div><span>assign</span></div>
+            <div class="cell"><div class="knob">M7</div><span>assign</span></div>
+            <div class="cell"><div class="knob">M8</div><span>assign</span></div>
+          </div>
+          <h3>Macro lane (selected: M1)</h3>
+          <div class="steps" id="macroLane"></div>
+        </section>
+
+        <!-- MIXER -->
+        <section id="secMixer" class="section">
+          <h2>Mixer <span class="hint">— output bus + sends (reuses routing-source-mixer-split's MIXER &amp; FX well)</span></h2>
+          <div class="well">
+            <div class="row" style="justify-content:space-between">
+              <div><h3 style="margin-top:0">Output</h3>
+                <span class="pill on" id="outBus">Master ▾</span></div>
+              <div class="row">
+                <div class="cell" style="display:flex;flex-direction:column;align-items:center"><div class="knob">A</div><span class="hint">Send A 0%</span></div>
+                <div class="cell" style="display:flex;flex-direction:column;align-items:center"><div class="knob">B</div><span class="hint">Send B 0%</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="note" id="mixerNote">For a drum kit, a new group routes to its OWN bus by default (not Master), so bus inserts = FX across the whole kit. (Toggle the part variant.)</div>
+        </section>
+
+      </div>
+    </div>
+  </div>
+  <div id="toast" class="toast"></div>
+
+  <script>
+    let isPart = false;
+
+    function buildGrid(el, pattern) {
+      el.innerHTML = "";
+      for (let i = 1; i <= 16; i++) {
+        const d = document.createElement("div");
+        d.className = "step" + (pattern.includes(i) ? " on" : "");
+        d.textContent = i;
+        el.appendChild(d);
+      }
+    }
+
+    function setPrototypeState(state) {
+      const map = { steps:"secSteps", sound:"secSound", fx:"secFx", macros:"secMacros", mixer:"secMixer" };
+      const tabs = { steps:"tabSteps", sound:"tabSound", fx:"tabFx", macros:"tabMacros", mixer:"tabMixer" };
+      Object.values(map).forEach(id => document.getElementById(id).classList.remove("active"));
+      Object.values(tabs).forEach(id => document.getElementById(id).classList.remove("active"));
+      document.getElementById(map[state]).classList.add("active");
+      document.getElementById(tabs[state]).classList.add("active");
+    }
+
+    function togglePart() {
+      isPart = !isPart;
+      document.getElementById("partToggle").textContent = "Variant: " + (isPart ? "Drum Part (Clap)" : "Main Track");
+      // header / crumb
+      const crumb = document.getElementById("crumb");
+      if (isPart) {
+        crumb.innerHTML = '<button class="stub">‹</button><h1>Clap</h1><span class="hint">3 of 6</span>' +
+          '<span class="pill green">Kit: 808 Bones</span><button>Back to Kit ▦</button>';
+        document.getElementById("patternLink").style.display = "";
+        document.getElementById("soundMain").style.display = "none";
+        document.getElementById("soundPart").style.display = "";
+        document.getElementById("outBus").textContent = "Bus: 808 Bones ▾";
+        document.getElementById("barLabel").textContent = "2 bars · 16-step primitive + bar pager (replaces 32-wide kit layout)";
+        document.getElementById("m1lbl").textContent = "sample dir";
+        document.getElementById("m2lbl").textContent = "sample len";
+        document.getElementById("mixerNote").classList.add("open");
+      } else {
+        crumb.innerHTML = '<h1>Main Track</h1>';
+        document.getElementById("patternLink").style.display = "none";
+        document.getElementById("soundMain").style.display = "";
+        document.getElementById("soundPart").style.display = "none";
+        document.getElementById("outBus").textContent = "Master ▾";
+        document.getElementById("barLabel").textContent = "2 bars · same 16-step primitive as the kit matrix";
+        document.getElementById("m1lbl").textContent = "cutoff";
+        document.getElementById("m2lbl").textContent = "drive";
+        document.getElementById("mixerNote").classList.remove("open");
+      }
+    }
+
+    let toastTimer;
+    function toast(msg) {
+      const t = document.getElementById("toast");
+      t.textContent = msg; t.classList.add("show");
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => t.classList.remove("show"), 2600);
+    }
+
+    buildGrid(document.getElementById("stepGrid"), [1,3,5,8,9,11,13,15]);
+    buildGrid(document.getElementById("macroLane"), [1,2,4,7,9,12]);
+    setPrototypeState("steps");
+  </script>
+</body>
+</html>
+</content>

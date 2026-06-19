@@ -1,0 +1,449 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Add Drum Group IA Wireframe</title>
+  <style>
+    :root {
+      --bg:#f4f4f4; --panel:#fff; --ink:#202020; --muted:#6c6c6c; --line:#707070;
+      --stub:#dedede; --accent:#1f6feb; --selected:#d7e7ff; --pending:#fff3c4;
+      --success:#dff3df; --changed:#ffe1c6; --error:#ffd6d6; --kit:#b8860b;
+    }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--bg); color:var(--ink); font:14px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+    button { font:inherit; border:2px solid var(--line); background:var(--panel); padding:8px 10px; min-height:36px; cursor:pointer; }
+    button.primary { border-color:var(--accent); background:var(--selected); font-weight:700; }
+    button.stub { border-style:dashed; background:var(--stub); color:var(--muted); }
+    .app { width:min(920px, calc(100vw - 32px)); margin:16px auto; border:2px solid var(--line); background:var(--panel); min-height:calc(100vh - 32px); }
+    .top { display:grid; grid-template-columns:230px 1fr 220px; gap:12px; padding:14px; border-bottom:2px solid var(--line); align-items:center; }
+    .brand { font-size:20px; font-weight:800; }
+    .transport,.row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    .nav { display:flex; gap:8px; padding:12px 14px; border-bottom:2px solid var(--line); }
+    .nav button.active { background:var(--selected); border-color:var(--accent); }
+    .body { padding:18px 22px 28px; }
+    h1,h2,h3 { margin:0; }
+    h1 { font-size:22px; }
+    h2 { font-size:16px; margin-bottom:10px; }
+    h3 { font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin:16px 0 8px; }
+    .hint { color:var(--muted); font-size:12px; line-height:1.4; }
+    .pill { border:2px solid var(--line); padding:5px 9px; background:var(--panel); min-width:44px; text-align:center; }
+    .pill.on { border-color:var(--accent); background:var(--selected); font-weight:700; }
+    .pill.kit { border-color:var(--kit); background:#fbf2dc; color:#7a5b06; font-weight:700; }
+
+    .panel { border:2px solid var(--line); padding:14px; background:var(--panel); margin-bottom:14px; }
+    .well { border:2px solid var(--line); padding:12px; background:var(--panel); margin-bottom:12px; }
+    .well.dashed { border-style:dashed; background:var(--stub); color:var(--muted); }
+
+    /* step indicator */
+    .steps-ind { display:flex; gap:8px; margin-bottom:16px; }
+    .steps-ind .stp { flex:1; border:2px solid var(--line); padding:8px 10px; background:var(--panel); display:flex; gap:8px; align-items:center; }
+    .steps-ind .stp .num { width:24px; height:24px; border:2px solid var(--line); border-radius:50%; display:grid; place-items:center; font-size:12px; font-weight:700; flex:none; }
+    .steps-ind .stp.active { border-color:var(--accent); background:var(--selected); }
+    .steps-ind .stp.active .num { border-color:var(--accent); background:var(--accent); color:#fff; }
+    .steps-ind .stp.done .num { border-color:#2c8a2c; background:var(--success); color:#2c8a2c; }
+    .steps-ind .stp .lbl { font-weight:700; }
+    .steps-ind .stp .sub { font-size:11px; color:var(--muted); }
+
+    /* kit chips */
+    .chips { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+    .chip { border:2px solid var(--line); border-radius:18px; padding:6px 12px; background:var(--panel); cursor:pointer; font-weight:600; min-height:34px; }
+    .chip.on { border-color:var(--accent); background:var(--selected); }
+    .chip.global { border-style:dashed; }
+    .chiplabel { font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin-right:4px; }
+
+    /* parts list */
+    .partrow { display:grid; grid-template-columns:30px 1fr 150px 30px; gap:10px; align-items:center; border:2px solid var(--line); padding:8px 10px; background:var(--panel); margin-bottom:8px; }
+    .partrow .handle { cursor:grab; color:var(--muted); font-size:18px; text-align:center; user-select:none; }
+    .partrow .pname { border:2px solid var(--line); padding:6px 8px; background:#fafafa; font-weight:600; }
+    .partrow .pname:focus { outline:none; border-color:var(--accent); background:#fff; }
+    .partchip { border:2px solid var(--line); padding:6px 8px; background:#fafafa; font-size:12px; display:flex; gap:6px; align-items:center; justify-content:space-between; cursor:pointer; }
+    .partchip:hover { border-color:var(--accent); background:var(--selected); }
+    .partchip .swap { color:var(--muted); font-size:11px; }
+    .x { width:30px; min-height:30px; padding:0; }
+    .addpart { border:2px dashed var(--accent); background:var(--selected); color:#15489c; font-weight:700; width:100%; text-align:center; }
+
+    /* templates */
+    .tpltiles { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
+    .tile { border:2px solid var(--line); padding:10px; background:var(--panel); cursor:pointer; min-height:96px; display:flex; flex-direction:column; gap:6px; }
+    .tile.on { border-color:var(--accent); background:var(--selected); }
+    .tile b { font-size:13px; }
+    .tile .sub { font-size:11px; color:var(--muted); }
+    .ministeps { display:grid; grid-template-columns:repeat(8,1fr); gap:3px; margin-top:auto; }
+    .ministeps span { height:10px; border:1px solid var(--line); background:#fff; }
+    .ministeps span.on { background:var(--accent); border-color:var(--accent); }
+    .tplpreview { margin-top:12px; }
+    .tplpreview .prow { display:grid; grid-template-columns:90px 1fr; gap:10px; align-items:center; margin-bottom:6px; }
+    .tplpreview .prow b { font-size:12px; }
+    .tplpreview .strip { display:grid; grid-template-columns:repeat(16,1fr); gap:3px; }
+    .tplpreview .strip span { height:16px; border:1px solid var(--line); background:#fff; }
+    .tplpreview .strip span.on { background:var(--accent); border-color:var(--accent); }
+    .tplpreview .prow.empty b, .tplpreview .prow.empty .strip span { opacity:.4; }
+
+    /* routing */
+    .destopt { display:grid; grid-template-columns:26px 1fr auto; gap:12px; align-items:center; border:2px solid var(--line); padding:12px; background:var(--panel); margin-bottom:8px; cursor:pointer; }
+    .destopt.on { border-color:var(--accent); border-width:3px; background:var(--selected); }
+    .radio { width:18px; height:18px; border:2px solid var(--line); border-radius:50%; }
+    .destopt.on .radio { border-color:var(--accent); background:radial-gradient(var(--accent) 45%, transparent 48%); }
+    .destopt .dname b { display:block; }
+    .destopt .dname span { font-size:11px; color:var(--muted); }
+    .badge { font-size:10px; border:2px solid var(--kit); background:#fbf2dc; color:#7a5b06; padding:2px 7px; font-weight:700; }
+    .toggle { width:46px; height:26px; border:2px solid var(--line); border-radius:14px; position:relative; background:var(--panel); cursor:pointer; flex:none; }
+    .toggle.on { background:var(--selected); border-color:var(--accent); }
+    .toggle::after { content:""; position:absolute; top:2px; left:2px; width:18px; height:18px; border-radius:50%; background:var(--line); transition:left .12s; }
+    .toggle.on::after { left:auto; right:2px; background:var(--accent); }
+    .routes { border:2px solid var(--line); }
+    .routes .rrow { display:grid; grid-template-columns:140px 24px 1fr; gap:10px; align-items:center; padding:7px 10px; border-bottom:2px solid var(--line); }
+    .routes .rrow:last-child { border-bottom:none; }
+    .routes .rrow b { font-size:12px; }
+    .routes .rrow .arr { color:var(--muted); text-align:center; }
+    .routes .rrow .dest { font-size:12px; }
+
+    .note { border-left:4px solid var(--accent); background:var(--selected); padding:8px 10px; font-size:12px; margin:10px 0; }
+    .note.open { border-left-color:#b8860b; background:var(--pending); }
+
+    .section { display:none; }
+    .section.active { display:block; }
+
+    .wizfoot { display:flex; gap:8px; align-items:center; justify-content:space-between; border-top:2px solid var(--line); padding-top:14px; margin-top:18px; }
+
+    .statebar { display:flex; gap:6px; flex-wrap:wrap; padding:10px 22px; border-bottom:2px solid var(--line); background:#fafafa; }
+    .statebar small { width:100%; color:var(--muted); }
+    .toast { position:fixed; bottom:16px; left:50%; transform:translateX(-50%); background:var(--ink); color:white; padding:8px 12px; display:none; }
+    .toast.show { display:block; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="top">
+      <div class="brand">Add Drum Group</div>
+      <div class="transport">
+        <button class="stub">▶</button><span class="pill">120 BPM</span>
+        <span class="pill">Song · Free</span><span class="pill">Stopped</span>
+      </div>
+      <div class="row" style="justify-content:flex-end">
+        <button class="stub" onclick="toast('cancel — close the creation wizard')">Cancel</button>
+      </div>
+    </div>
+    <div class="nav">
+      <button class="stub">Phrase</button><button class="active">Tracks</button>
+      <button class="stub">Mixer</button><button class="stub">Scenes</button><button class="stub">Library</button>
+    </div>
+
+    <div class="statebar">
+      <small>Wireframe states — the Add Drum Group / kit creation flow as a 3-step wizard. Step through Sounds → Patterns → Routing. Routing settles the bus-by-default decision.</small>
+      <button onclick="setPrototypeState('sounds')">1 · Sounds</button>
+      <button onclick="setPrototypeState('patterns')">2 · Patterns</button>
+      <button onclick="setPrototypeState('routing')">3 · Routing</button>
+    </div>
+
+    <div class="body">
+
+      <!-- STEP INDICATOR -->
+      <div class="steps-ind">
+        <div class="stp" id="indSounds"><div class="num">1</div><div><div class="lbl">Sounds</div><div class="sub">kit + parts</div></div></div>
+        <div class="stp" id="indPatterns"><div class="num">2</div><div><div class="lbl">Patterns</div><div class="sub">optional template</div></div></div>
+        <div class="stp" id="indRouting"><div class="num">3</div><div><div class="lbl">Routing</div><div class="sub">destination</div></div></div>
+      </div>
+
+      <!-- STEP 1: SOUNDS -->
+      <section id="secSounds" class="section">
+        <div class="panel">
+          <h2>Sounds <span class="hint">— pick a kit to seed the parts, then edit the list freely</span></h2>
+
+          <h3>Kit</h3>
+          <div class="chips">
+            <span class="chiplabel">Blank</span>
+            <button class="chip" id="kitBlank" onclick="pickKit('blank')">Blank</button>
+            <span class="chiplabel">Pooled</span>
+            <button class="chip" id="kitPool1" onclick="pickKit('pool1')">House Pack</button>
+            <button class="chip" id="kitPool2" onclick="pickKit('pool2')">Tape Kit</button>
+            <span class="chiplabel">Global</span>
+            <button class="chip global on" id="kit808" onclick="pickKit('808')">808 Bones</button>
+            <button class="chip global" id="kit909" onclick="pickKit('909')">909 Core</button>
+          </div>
+
+          <h3>Parts</h3>
+          <div id="partsList"></div>
+
+          <button class="addpart" onclick="addPart()">＋ Add Part</button>
+          <div class="hint" style="margin-top:6px">A plus button adds a blank part (rename it, swap its sample) — no dropdown. <i>(bug 135348 spirit)</i></div>
+        </div>
+
+        <div class="wizfoot">
+          <button class="stub" onclick="toast('already on the first step')">‹ Back</button>
+          <div class="row"><span class="hint" id="footHint1">5 parts · seeded from 808 Bones</span><button class="primary" onclick="setPrototypeState('patterns')">Next ›</button></div>
+        </div>
+      </section>
+
+      <!-- STEP 2: PATTERNS -->
+      <section id="secPatterns" class="section">
+        <div class="panel">
+          <h2>Patterns <span class="hint">— optionally seed pattern slot 1 from a template</span></h2>
+          <div class="tpltiles">
+            <div class="tile on" id="tplBlank" onclick="pickTemplate('blank')">
+              <b>Blank</b><div class="sub">no steps — start empty</div>
+              <div class="ministeps"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+            </div>
+            <div class="tile" id="tplFour" onclick="pickTemplate('four')">
+              <b>Four-on-floor</b><div class="sub">kick every beat</div>
+              <div class="ministeps"><span class="on"></span><span></span><span class="on"></span><span></span><span class="on"></span><span></span><span class="on"></span><span></span></div>
+            </div>
+            <div class="tile" id="tplBoom" onclick="pickTemplate('boom')">
+              <b>Boom-bap</b><div class="sub">swung kick + snare</div>
+              <div class="ministeps"><span class="on"></span><span></span><span></span><span class="on"></span><span class="on"></span><span></span><span class="on"></span><span></span></div>
+            </div>
+            <div class="tile" id="tplBreak" onclick="pickTemplate('break')">
+              <b>Breakbeat</b><div class="sub">busy hats + ghost</div>
+              <div class="ministeps"><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span></div>
+            </div>
+          </div>
+
+          <div class="note" id="tplPreviewNote">Blank selected — parts start with empty patterns. Pick a template to preview which parts get steps (matched by tag).</div>
+
+          <div class="tplpreview" id="tplPreview" style="display:none">
+            <h3>Preview — which parts fill</h3>
+            <div id="previewRows"></div>
+          </div>
+        </div>
+
+        <div class="wizfoot">
+          <button class="stub" onclick="setPrototypeState('sounds')">‹ Back</button>
+          <div class="row"><span class="hint" id="footHint2">Template optional — skip to route the group</span><button class="primary" onclick="setPrototypeState('routing')">Next ›</button></div>
+        </div>
+      </section>
+
+      <!-- STEP 3: ROUTING -->
+      <section id="secRouting" class="section">
+        <div class="panel">
+          <h2>Routing <span class="hint">— where the new group's audio goes</span></h2>
+
+          <div class="note">Settled decision: a new drum group routes to its OWN dedicated bus by default — not Master. A dedicated bus lets you put FX across the whole kit via bus inserts (glue compression, bus EQ, drum reverb) and gives the kit one fader.</div>
+
+          <h3>Destination</h3>
+          <div class="destopt on" id="destBus" onclick="pickDest('bus')">
+            <div class="radio"></div>
+            <div class="dname"><b>New bus: 808 Bones <span class="badge" style="margin-left:6px">DEFAULT</span></b><span>Dedicated kit bus — FX across the whole kit via bus inserts · one fader for the group</span></div>
+            <span class="pill kit">Recommended</span>
+          </div>
+          <div class="destopt" id="destMaster" onclick="pickDest('master')">
+            <div class="radio"></div>
+            <div class="dname"><b>Master</b><span>Route straight to Master — no dedicated kit bus, no kit-wide insert point</span></div>
+            <span class="pill" style="border-style:dashed">Alternative</span>
+          </div>
+
+          <h3>Shared destination</h3>
+          <div class="well">
+            <div class="row" style="justify-content:space-between">
+              <div><b>All parts share one destination</b><div class="hint" id="sharedHint">On — every part feeds the kit bus. Turn off to route members individually.</div></div>
+              <div class="toggle on" id="sharedToggle" onclick="toggleShared()"></div>
+            </div>
+          </div>
+
+          <h3>Per-member routes <span class="hint" style="text-transform:none;letter-spacing:0">(preview)</span></h3>
+          <div class="routes" id="routesList"></div>
+        </div>
+
+        <div class="wizfoot">
+          <button class="stub" onclick="setPrototypeState('patterns')">‹ Back</button>
+          <div class="row"><span class="hint">Routes to <b id="footDest">New bus: 808 Bones</b></span><button class="primary" onclick="toast('creates the drum group → 5 parts on the 808 Bones bus, bus → Master')">Create kit ✓</button></div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+  <div id="toast" class="toast"></div>
+
+  <script>
+    // ---- model ----
+    const KITS = {
+      blank: [],
+      pool1: [
+        { name:"Kick",  tag:"kick",  sample:"House — Kick 02" },
+        { name:"Clap",  tag:"clap",  sample:"House — Clap A" },
+        { name:"HH cl", tag:"hat",   sample:"House — HH 1" },
+        { name:"Ride",  tag:"perc",  sample:"House — Ride" },
+      ],
+      pool2: [
+        { name:"Kick",  tag:"kick",  sample:"Tape — Kick" },
+        { name:"Snare", tag:"snare", sample:"Tape — Snare" },
+        { name:"HH cl", tag:"hat",   sample:"Tape — Hat" },
+      ],
+      "808": [
+        { name:"Kick",   tag:"kick",  sample:"808 Bones — Kick.wav" },
+        { name:"Snare",  tag:"snare", sample:"808 Bones — Snare.wav" },
+        { name:"Clap",   tag:"clap",  sample:"808 Bones — Clap.wav" },
+        { name:"HH closed", tag:"hat", sample:"808 Bones — HH cl.wav" },
+        { name:"HH open",   tag:"hat-o", sample:"808 Bones — HH op.wav" },
+      ],
+      "909": [
+        { name:"Kick",   tag:"kick",  sample:"909 Core — BD.wav" },
+        { name:"Snare",  tag:"snare", sample:"909 Core — SD.wav" },
+        { name:"Clap",   tag:"clap",  sample:"909 Core — CP.wav" },
+        { name:"HH closed", tag:"hat", sample:"909 Core — CH.wav" },
+        { name:"Crash",  tag:"perc",  sample:"909 Core — CR.wav" },
+      ],
+    };
+    const KIT_LABEL = { blank:"Blank", pool1:"House Pack", pool2:"Tape Kit", "808":"808 Bones", "909":"909 Core" };
+
+    // template tag → fills (which tags get steps)
+    const TEMPLATES = {
+      blank: null,
+      four:  { label:"Four-on-floor", fills:{ kick:[1,5,9,13], "hat":[3,7,11,15], clap:[5,13] } },
+      boom:  { label:"Boom-bap",      fills:{ kick:[1,4,8,11], snare:[5,13], "hat":[1,3,5,7,9,11,13,15] } },
+      break: { label:"Breakbeat",     fills:{ kick:[1,11], snare:[5,13], "hat":[1,2,4,6,8,10,12,14,16], clap:[8] } },
+    };
+
+    let currentKit = "808";
+    let parts = KITS["808"].map(p => ({...p}));
+    let currentTemplate = "blank";
+    let dest = "bus";       // "bus" | "master"
+    let shared = true;
+
+    // ---- step 1 ----
+    function renderKitChips() {
+      ["Blank","Pool1","Pool2","808","909"].forEach(k=>{});
+      document.getElementById("kitBlank").classList.toggle("on", currentKit==="blank");
+      document.getElementById("kitPool1").classList.toggle("on", currentKit==="pool1");
+      document.getElementById("kitPool2").classList.toggle("on", currentKit==="pool2");
+      document.getElementById("kit808").classList.toggle("on", currentKit==="808");
+      document.getElementById("kit909").classList.toggle("on", currentKit==="909");
+    }
+
+    function renderParts() {
+      const el = document.getElementById("partsList"); el.innerHTML = "";
+      if (parts.length === 0) {
+        const d = document.createElement("div"); d.className="well dashed";
+        d.textContent = "No parts yet — add parts one by one with the plus button below.";
+        el.appendChild(d);
+      }
+      parts.forEach((p, i) => {
+        const row = document.createElement("div"); row.className="partrow";
+        row.innerHTML =
+          '<div class="handle" title="drag to reorder">⠿</div>' +
+          '<input class="pname" value="'+p.name+'" oninput="renamePart('+i+', this.value)">' +
+          '<div class="partchip" onclick="toast(\'swap sample for '+p.name.replace(/\'/g,"")+' — opens the tag\\\'s sound pool\')">' +
+            '<span>'+p.sample+'</span><span class="swap">swap ↺</span></div>' +
+          '<button class="x" title="remove part" onclick="removePart('+i+')">✕</button>';
+        el.appendChild(row);
+      });
+      const noun = parts.length===1 ? "part" : "parts";
+      const seed = currentKit==="blank" ? "added by hand" : "seeded from "+KIT_LABEL[currentKit];
+      document.getElementById("footHint1").textContent = parts.length+" "+noun+" · "+seed;
+    }
+
+    function pickKit(k) {
+      currentKit = k;
+      parts = KITS[k].map(p => ({...p}));
+      renderKitChips(); renderParts(); renderRoutes();
+    }
+    function renamePart(i, v) { parts[i].name = v; }
+    function removePart(i) { parts.splice(i,1); renderParts(); renderRoutes(); }
+    function addPart() {
+      parts.push({ name:"Part "+(parts.length+1), tag:"kick", sample:"Default — pick a sample" });
+      renderParts(); renderRoutes();
+      currentKit = "blank"; renderKitChips();
+    }
+
+    // ---- step 2 ----
+    function pickTemplate(t) {
+      currentTemplate = t;
+      ["blank","four","boom","break"].forEach(id=>{
+        const map={blank:"tplBlank",four:"tplFour",boom:"tplBoom",break:"tplBreak"};
+        document.getElementById(map[id]).classList.toggle("on", id===t);
+      });
+      renderTemplatePreview();
+    }
+
+    function tagFilled(tag, fills) {
+      if (fills[tag]) return fills[tag];
+      if (tag==="hat-o" && fills["hat"]) return fills["hat"]; // open hats follow hat in this preview
+      return null;
+    }
+
+    function renderTemplatePreview() {
+      const note = document.getElementById("tplPreviewNote");
+      const wrap = document.getElementById("tplPreview");
+      const rows = document.getElementById("previewRows");
+      const tpl = TEMPLATES[currentTemplate];
+      if (!tpl) {
+        note.style.display=""; wrap.style.display="none";
+        note.textContent = "Blank selected — parts start with empty patterns. Pick a template to preview which parts get steps (matched by tag).";
+        document.getElementById("footHint2").textContent = "Template optional — skip to route the group";
+        return;
+      }
+      note.style.display="none"; wrap.style.display="";
+      rows.innerHTML="";
+      let filled=0;
+      parts.forEach(p=>{
+        const steps = tagFilled(p.tag, tpl.fills);
+        const isFilled = !!steps;
+        if (isFilled) filled++;
+        const r=document.createElement("div"); r.className="prow"+(isFilled?"":" empty");
+        let strip='<div class="strip">';
+        for(let i=1;i<=16;i++) strip += '<span class="'+((steps && steps.includes(i))?"on":"")+'"></span>';
+        strip+='</div>';
+        r.innerHTML='<b>'+p.name+(isFilled?'':' — no match')+'</b>'+strip;
+        rows.appendChild(r);
+      });
+      document.getElementById("footHint2").textContent = tpl.label+" · "+filled+" of "+parts.length+" parts get steps";
+    }
+
+    // ---- step 3 ----
+    function pickDest(d) {
+      dest = d;
+      document.getElementById("destBus").classList.toggle("on", d==="bus");
+      document.getElementById("destMaster").classList.toggle("on", d==="master");
+      renderRoutes();
+    }
+    function toggleShared() {
+      shared = !shared;
+      document.getElementById("sharedToggle").classList.toggle("on", shared);
+      document.getElementById("sharedHint").textContent = shared
+        ? "On — every part feeds the same destination. Turn off to route members individually."
+        : "Off — each part can pick its own destination (preview shows per-member routes).";
+      renderRoutes();
+    }
+    function destLabel() { return dest==="bus" ? "New bus: 808 Bones" : "Master"; }
+    function renderRoutes() {
+      const el = document.getElementById("routesList"); if (!el) return;
+      el.innerHTML="";
+      const target = dest==="bus" ? "808 Bones bus" : "Master";
+      const altPool = ["808 Bones bus","Drum FX bus","Master","Reverb send"];
+      parts.forEach((p,i)=>{
+        const r=document.createElement("div"); r.className="rrow";
+        const to = shared ? target : altPool[i % altPool.length];
+        r.innerHTML='<b>'+p.name+'</b><div class="arr">→</div><div class="dest">'+to+(shared?'':' <span class="hint">(per-member)</span>')+'</div>';
+        el.appendChild(r);
+      });
+      const tail=document.createElement("div"); tail.className="rrow";
+      tail.innerHTML='<b>'+(dest==="bus"?"808 Bones bus":"(no kit bus)")+'</b><div class="arr">→</div><div class="dest">Master</div>';
+      if (dest==="bus") el.appendChild(tail);
+      const fd=document.getElementById("footDest"); if (fd) fd.textContent = destLabel();
+    }
+
+    // ---- wizard ----
+    function setPrototypeState(state) {
+      const secs = { sounds:"secSounds", patterns:"secPatterns", routing:"secRouting" };
+      Object.values(secs).forEach(id=>document.getElementById(id).classList.remove("active"));
+      document.getElementById(secs[state]).classList.add("active");
+
+      const order = ["sounds","patterns","routing"];
+      const idx = order.indexOf(state);
+      const inds = { sounds:"indSounds", patterns:"indPatterns", routing:"indRouting" };
+      order.forEach((s,i)=>{
+        const el=document.getElementById(inds[s]);
+        el.classList.remove("active","done");
+        if (i<idx) el.classList.add("done");
+        else if (i===idx) el.classList.add("active");
+      });
+    }
+
+    let toastTimer;
+    function toast(msg){ const t=document.getElementById("toast"); t.textContent=msg; t.classList.add("show"); clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove("show"),2600); }
+
+    renderKitChips(); renderParts(); renderTemplatePreview(); renderRoutes();
+    setPrototypeState("sounds");
+  </script>
+</body>
+</html>
