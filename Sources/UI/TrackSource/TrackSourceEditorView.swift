@@ -100,6 +100,7 @@ struct TrackSourceEditorView: View {
     @State private var macroSlotPickerRequest: MacroSlotPickerRequest?
     @State private var clipHistoryModel: ClipHistoryTransferViewModel?
     @State private var clipHistoryToast: String?
+    @State private var isAddFXPresented = false
 
     private var clipHistoryDestinationMode: Bool {
         clipHistoryModel?.isSaveArmed == true
@@ -306,6 +307,9 @@ struct TrackSourceEditorView: View {
                 assignMacro(descriptor, to: request.slotIndex)
             }
             .presentationBackground(.clear)
+        }
+        .sheet(isPresented: $isAddFXPresented) {
+            addFXSheet
         }
         .overlay(alignment: .bottomTrailing) {
             if let clipHistoryToast {
@@ -547,18 +551,105 @@ struct TrackSourceEditorView: View {
 
     @ViewBuilder
     private var fxTab: some View {
+        // ENGINE TODO: the chain is persisted + fully editable here, but the
+        // inserts do not yet process audio. Wiring `track.fxInserts` (respecting
+        // order + bypass) into the per-track audio graph — reusing the existing
+        // AU-effect host path used for bus/master/scene inserts — is a follow-up.
         TrackSourceSelectedWellBody(accent: StudioTheme.violet, isEmpty: false) {
+            TrackFXChainView(
+                inserts: track.fxInserts,
+                accent: StudioTheme.violet,
+                onAddFX: { isAddFXPresented = true },
+                onRemove: { insertID in
+                    session.removeFXInsert(trackID: track.id, insertID: insertID)
+                },
+                onMove: { source, destination in
+                    session.moveFXInsert(trackID: track.id, from: source, to: destination)
+                },
+                onSetBypassed: { insertID, bypassed in
+                    session.setFXInsertBypassed(trackID: track.id, insertID: insertID, bypassed: bypassed)
+                }
+            )
+        }
+    }
+
+    private var addFXSheet: some View {
+        let effects = engineController.availableAudioEffects
+        let trackID = track.id
+        return StudioModal(
+            title: "Add FX",
+            accent: StudioTheme.violet,
+            minWidth: 360,
+            onClose: { isAddFXPresented = false }
+        ) {
             VStack(alignment: .leading, spacing: 8) {
-                Text("FX")
-                    .studioText(.bodyBold)
-                    .foregroundStyle(StudioTheme.text)
-                Text("Per-track insert chain arrives in the FX slice.")
+                addFXOptionButton(title: "Filter", systemName: "line.3.horizontal.decrease.circle") {
+                    session.addFXInsert(trackID: trackID, insert: .filter())
+                    isAddFXPresented = false
+                }
+                addFXOptionButton(title: "Bitcrusher", systemName: "waveform.path.ecg") {
+                    session.addFXInsert(trackID: trackID, insert: .bitcrusher())
+                    isAddFXPresented = false
+                }
+            }
+
+            Divider()
+                .overlay(StudioTheme.border)
+
+            Text("AU Effect")
+                .studioText(.micro)
+                .tracking(0.8)
+                .foregroundStyle(StudioTheme.mutedText)
+
+            if effects.isEmpty {
+                Text("No AU effects found")
                     .studioText(.body)
                     .foregroundStyle(StudioTheme.mutedText)
+            } else {
+                ScrollView {
+                    VStack(spacing: 6) {
+                        ForEach(effects.prefix(16)) { effect in
+                            addFXOptionButton(title: effect.displayName, systemName: "slider.horizontal.3") {
+                                session.addFXInsert(trackID: trackID, insert: .auEffect(effect))
+                                isAddFXPresented = false
+                            }
+                        }
+                    }
+                }
+                .frame(maxHeight: 220)
+                .scrollContentBackground(.hidden)
+            }
+        }
+        .presentationBackground(.clear)
+        .environment(\.colorScheme, .dark)
+    }
+
+    private func addFXOptionButton(
+        title: String,
+        systemName: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: 10) {
+                Image(systemName: systemName)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(StudioTheme.violet)
+                Text(title)
+                    .studioText(.labelBold)
+                    .foregroundStyle(StudioTheme.text)
+                    .lineLimit(1)
+                Spacer(minLength: 0)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(StudioMetrics.Spacing.standard)
+            .padding(.vertical, 9)
+            .padding(.horizontal, 12)
+            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                    .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+            )
         }
+        .buttonStyle(.plain)
     }
 
     @ViewBuilder

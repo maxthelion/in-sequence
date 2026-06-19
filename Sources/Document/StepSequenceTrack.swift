@@ -64,6 +64,11 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
     var gateLength: Int
     /// Per-track macro bindings. Capped at 8 (enforced by `Project.addAUMacro`).
     var macros: [TrackMacroBinding]
+    /// Per-track ordered FX insert chain. A new model concept (track-view IA):
+    /// inserts previously lived only on buses / master / scenes. Ordered;
+    /// each insert is independently bypassable. Defaults empty; legacy
+    /// documents decode as empty.
+    var fxInserts: [TrackFXInsert]
     /// Per-track filter settings. Lives here (not on Destination) so it survives
     /// sample swaps. Defaults are bypass-transparent.
     var filter: SamplerFilterSettings
@@ -86,6 +91,7 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         case velocity
         case gateLength
         case macros
+        case fxInserts
         case filter
         case recordBarLength
         case inputChannel
@@ -110,6 +116,7 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         velocity: 100,
         gateLength: 4,
         macros: [],
+        fxInserts: [],
         filter: .init(),
         recordBarLength: Self.defaultRecordBarLength,
         inputChannel: Self.defaultInputChannel,
@@ -131,6 +138,7 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         velocity: Int,
         gateLength: Int,
         macros: [TrackMacroBinding] = [],
+        fxInserts: [TrackFXInsert] = [],
         filter: SamplerFilterSettings = .init(),
         recordBarLength: Int = Self.defaultRecordBarLength,
         inputChannel: AudioInputChannel = Self.defaultInputChannel,
@@ -150,6 +158,7 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         self.velocity = velocity
         self.gateLength = gateLength
         self.macros = Self.normalizedMacros(macros)
+        self.fxInserts = TrackFXInsert.normalizedChain(fxInserts)
         self.filter = filter
         self.recordBarLength = Self.normalizedRecordBarLength(recordBarLength)
         self.inputChannel = inputChannel
@@ -219,6 +228,10 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         macros = Self.normalizedMacros(
             try container.decodeIfPresent([TrackMacroBinding].self, forKey: .macros) ?? []
         )
+        // Legacy documents without an FX chain decode as an empty chain.
+        fxInserts = TrackFXInsert.normalizedChain(
+            try container.decodeIfPresent([TrackFXInsert].self, forKey: .fxInserts) ?? []
+        )
         // Legacy documents without filter decode with bypass-transparent defaults.
         filter = try container.decodeIfPresent(SamplerFilterSettings.self, forKey: .filter) ?? .init()
         let decodedRecordBarLength = try container.decodeIfPresent(Int.self, forKey: .recordBarLength)
@@ -243,6 +256,7 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         try container.encode(velocity, forKey: .velocity)
         try container.encode(gateLength, forKey: .gateLength)
         try container.encode(macros, forKey: .macros)
+        try container.encode(fxInserts, forKey: .fxInserts)
         try container.encode(filter, forKey: .filter)
         if trackType == .audioInput {
             try container.encode(recordBarLength, forKey: .recordBarLength)
