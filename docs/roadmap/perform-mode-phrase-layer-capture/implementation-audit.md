@@ -151,6 +151,16 @@ done declaration for the whole feature.
 - This narrows the previous acceptance gap where tests proved overlay reads but
   not that the installed playback snapshot used the overlay-applied phrase.
 
+## Implemented In Eleventh Slice
+
+- The phrase-local Latch length chip now cycles through `LEN: HOLD`, `LEN: 1B`,
+  `LEN: 2B`, `LEN: 4B`, and `LEN: 8B`.
+- Multi-bar length-limited Mute staging is covered at the session boundary: a
+  committed two-bar latch writes a bar-shaped phrase cell for the two bars
+  beginning at the committed boundary.
+- This keeps the surface matrix-like and avoids adding another modal or detail
+  panel for latch length.
+
 ## Verified
 
 - `docs/roadmap/perform-mode-phrase-layer-capture/acceptance-verification.md`
@@ -209,6 +219,14 @@ done declaration for the whole feature.
   direct `xcodebuild`.
 - After the tenth slice, the app target built with direct `xcodebuild` using
   `/tmp/seqai-phrase-perform-build`.
+- After the eleventh slice, `xcodebuild test
+  -only-testing:SequencerAITests/SequencerDocumentSessionQuantisedToggleTests/test_committedLengthLimitedMuteCanSpanMultiplePhraseBars`
+  passed with direct `xcodebuild`.
+- After the eleventh slice, `xcodebuild test
+  -only-testing:SequencerAITests/SequencerDocumentSessionQuantisedToggleTests`
+  passed with direct `xcodebuild`.
+- After the eleventh slice, the app target built with direct `xcodebuild` using
+  `/tmp/seqai-phrase-perform-build`.
 
 ## Still Not Done
 
@@ -219,9 +237,10 @@ done declaration for the whole feature.
   values for scene A, scene B, and crossfader. Per-bar/continuous scene values
   and macro automation have not been implemented.
 - Moment and Latch behavior is partially engine-backed for phrase-local Mute
-  changes. One-bar length-limited Mute now commits at the bar boundary and
-  stages a bar-shaped phrase cell. General phrase-cell quantized execution and
-  length-limited behavior for other layers still need engine-level handling.
+  changes. Length-limited Mute now commits at the bar boundary and stages a
+  bar-shaped phrase cell across the configured bar span. General phrase-cell
+  quantized execution and length-limited behavior for other layers still need
+  engine-level handling.
 - Playback snapshot agreement is proven for pattern, mute, fill, repeat/loop,
   and scene state, but it still needs interactive runtime evidence while the app
   is playing.

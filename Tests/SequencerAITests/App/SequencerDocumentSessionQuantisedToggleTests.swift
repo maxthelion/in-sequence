@@ -184,6 +184,44 @@ final class SequencerDocumentSessionQuantisedToggleTests: XCTestCase {
         XCTAssertTrue(engine.quantisedMuteOverridesForTesting.isEmpty)
     }
 
+    func test_committedLengthLimitedMuteCanSpanMultiplePhraseBars() throws {
+        let (session, engine, _) = makeSession()
+        defer { SequencerDocumentSessionRegistry.unregister(session) }
+        session.workspaceMode = .perform
+
+        let phraseID = session.store.selectedPhrase.id
+        XCTAssertTrue(session.setPhraseBarCount(4, phraseID: phraseID))
+        let phrase = try XCTUnwrap(session.store.phrases.first(where: { $0.id == phraseID }))
+        let trackID = session.store.tracks[0].id
+
+        session.applyCommittedQuantisedToggles([
+            .lengthLimitedMute(
+                trackID: trackID,
+                muted: true,
+                basisPhraseID: phrase.id,
+                lengthBars: 2,
+                startTick: 16
+            )
+        ])
+
+        let staged = try XCTUnwrap(session.performOverlayCell(
+            phraseID: phrase.id,
+            layerID: muteLayerID,
+            trackID: trackID
+        ))
+        guard case let .bars(values) = staged else {
+            return XCTFail("Expected two-bar latch to stage a bar-shaped phrase cell, got \(staged)")
+        }
+
+        XCTAssertEqual(values, [
+            .bool(false),
+            .bool(true),
+            .bool(true),
+            .bool(false)
+        ])
+        XCTAssertTrue(engine.quantisedMuteOverridesForTesting.isEmpty)
+    }
+
     // MARK: - Leaving the quantise context cancels arms
 
     func test_flippingQToOffCancelsPendingArms() {
