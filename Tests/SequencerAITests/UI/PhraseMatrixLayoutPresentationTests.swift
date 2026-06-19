@@ -72,27 +72,30 @@ final class PhraseMatrixLayoutPresentationTests: XCTestCase {
         XCTAssertEqual(PhraseLayerSelectorPresentation.lineLimit, 1)
     }
 
-    func test_layerSelectorUsesBoundedPhaseFiveLayerOrderAndLabels() {
+    func test_layerSelectorUsesRuntimeBackedPhraseLayerOrderAndLabels() {
         let track = StepSequenceTrack.default
         let layers = PhraseLayerDefinition.defaultSet(for: [track])
         let selectableLayers = PhraseLayerSelectorPresentation.selectableLayers(from: layers)
 
-        XCTAssertEqual(selectableLayers.map(\.id), ["pattern", "transpose", "variance", "fx-send", "mute"])
+        XCTAssertEqual(selectableLayers.map(\.id), ["pattern", "mute", "fill-flag"])
         XCTAssertEqual(
             selectableLayers.map { PhraseLayerSelectorPresentation.displayName(for: $0) },
-            ["Pattern", "Transpose", "Variance %", "FX Send", "Mute"]
+            ["Pattern", "Mute", "Fill"]
         )
     }
 
-    func test_defaultPhraseLayersIncludeFxSendForMatrixSelector() {
+    func test_defaultPhraseLayersCanIncludeFxSendWithoutExposingItInRuntimeBackedSelector() {
         let track = StepSequenceTrack.default
-        let fxSendLayer = PhraseLayerDefinition.defaultSet(for: [track]).first { $0.id == "fx-send" }
+        let layers = PhraseLayerDefinition.defaultSet(for: [track])
+        let fxSendLayer = layers.first { $0.id == "fx-send" }
+        let selectableLayerIDs = PhraseLayerSelectorPresentation.selectableLayers(from: layers).map(\.id)
 
         XCTAssertEqual(fxSendLayer?.name, "FX Send")
         XCTAssertEqual(fxSendLayer?.valueType, .scalar)
         XCTAssertEqual(fxSendLayer?.minValue, 0)
         XCTAssertEqual(fxSendLayer?.maxValue, 1)
         XCTAssertEqual(fxSendLayer?.defaults[track.id], .scalar(0))
+        XCTAssertFalse(selectableLayerIDs.contains("fx-send"))
     }
 
     func test_longLayerLabelKeepsFullAccessibilityText() {

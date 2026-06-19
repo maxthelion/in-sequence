@@ -53,7 +53,7 @@ runtime evidence. A partial result means "do not call the whole feature done".
 | 7 | Capture/Discard are visible but disabled when Perform is off. | Partial | `PhraseWorkspaceView` renders Capture/Discard in the phrase shell and gates actions from overlay state. This still needs visual review to prove disabled/off-state presentation is clear. |
 | 8 | Dirty/changed state is visible when Perform is on and changes exist. | Pass, needs visual review | Overlay staged counts and dirty lookups are covered by `PhrasePerformOverlaySessionTests`. Built visual clarity is not yet reviewed. |
 | 9 | Latch timing controls are phrase-local and inactive in Moment mode. | Pass, needs visual review | UI state and `PhrasePerformTimingPolicyTests` prove Moment does not arm quantized Mute, Fill, or Pattern layers. `PhraseWorkspaceView` exposes phrase-local `LEN: HOLD`, `1B`, `2B`, `4B`, and `8B` only for Latch. Visual state remains unverified. |
-| 10 | Layers uses an eight-column matrix and direct cell click changes values. | Partial | `PhraseWorkspaceView` uses eight-column grids and value-mode clicks route through direct `setPhraseCell` paths. Needs visual evidence against V3. |
+| 10 | Layers uses an eight-column matrix and direct cell click changes values. | Partial | `PhraseWorkspaceView` uses eight-column grids and value-mode clicks route through direct `setPhraseCell` paths for the runtime-backed phrase layers exposed in this slice: Pattern, Mute, and Fill. Needs visual evidence against V3. |
 | 11 | Automation mode changes layer-cell click behavior to open automation editing. | Partial | `PhraseCellTool.automation` routes cell clicks to the deeper editor. `PhraseCellEditorSheet` now includes Clear Automation, which collapses bars/steps/curve automation to the current resolved single value. The modal still needs visual/UX review. |
 | 12 | Global Apply applies a chosen layer/value to the current track scope. | Pass | `PhrasePerformOverlaySessionTests.test_scopedGlobalApplyInPerformModeStagesEveryRecipientTrack` proves scoped multi-track writes through the phrase overlay path. |
 | 13 | Global Apply track scope selection uses an eight-column matrix. | Partial | Implemented in `PhraseWorkspaceView`, but needs visual evidence. |
@@ -63,7 +63,7 @@ runtime evidence. A partial result means "do not call the whole feature done".
 | 17 | Discard removes the perform copy without saving it. | Pass | Overlay tests cover `revertPhrasePerformOverlay` clearing staged cells while preserving canonical phrase state. |
 | 18 | Playback and UI agree about phrase mute/fill/pattern/repeat values. | Pass for compiled playback snapshot, needs interactive exercise | `PhrasePerformOverlaySessionTests.test_performOverlayPublishesEngineVisiblePhrasePlaybackState` proves perform-overlay pattern, mute, fill, repeat/loop, and scene state are installed into the engine-visible playback snapshot. `EngineControllerPhraseNavigationTests` additionally prove phrase scene state is applied to the runtime master bus on phrase start/boundary. Interactive heard/runtime evidence is still required. |
 | 19 | Moment changes are immediate. | Pass for direct phrase-layer writes, needs interactive runtime exercise | `PhrasePerformTimingPolicyTests` proves Moment bypasses quantized Mute arming. `PhrasePerformOverlaySessionTests.test_performModeDirectLayerChangesPublishImmediatelyWithoutTransport` proves direct pattern, mute, and fill changes update the engine-visible snapshot immediately without transport or pending quantized arms. |
-| 20 | Latch changes can be quantized to next bar and length-limited. | Pass for Mute, Fill, and Pattern; scalar timing still intentionally immediate | Quantized Mute, Fill Flag, and Pattern arming exists for phrase Layers and Global Apply when Latch + Q:BAR is active. One-bar and multi-bar length-limited commits land at the boundary, affect the first boundary tick via engine overrides, and stage capturable phrase cells. Scalar layers still land immediately because the current scalar macro-row model is not uniformly runtime-backed as phrase playback buffers. |
+| 20 | Latch changes can be quantized to next bar and length-limited. | Pass for Mute, Fill, and Pattern | Quantized Mute, Fill Flag, and Pattern arming exists for phrase Layers and Global Apply when Latch + Q:BAR is active. One-bar and multi-bar length-limited commits land at the boundary, affect the first boundary tick via engine overrides, and stage capturable phrase cells. Scalar phrase layers are not exposed in this slice because the current scalar macro-row model is not uniformly runtime-backed as phrase playback buffers. |
 | 21 | No deferred performance-group UI is implemented. | Pass | The current phrase workspace does not add performance-group UI. |
 | 22 | No Capture Clip redesign is implemented. | Pass | This build keeps phrase capture separate from clip history/capture clip work. |
 | 23 | No generic Cell Detail page remains in this flow. | Partial | Normal layer clicks no longer open the generic editor. Automation mode opens the automation sheet with mode controls and Clear Automation, but this still needs visual review against the V3 "automation modal" intent. |
@@ -78,8 +78,9 @@ runtime evidence. A partial result means "do not call the whole feature done".
   visual-scenario compatibility.
 - Pass: Capture Phrase no longer contains Capture Clip and no longer asks for a
   changed-cell review.
-- Partial: Layers and Global Apply use matrix grammar in code, but visual
-  evidence is still required before declaring they avoided a workflow-form feel.
+- Partial: Layers and Global Apply use matrix grammar in code and now expose
+  only runtime-backed phrase layers for this slice, but visual evidence is still
+  required before declaring they avoided a workflow-form feel.
 
 ## Required Next Evidence
 
@@ -94,6 +95,5 @@ runtime evidence. A partial result means "do not call the whole feature done".
 4. Decide whether the remaining internal `WorkspaceMode.perform` name should be
    renamed later; it is no longer exposed as top-level app chrome, but tests and
    scenario commands still use the legacy name.
-5. Confirm whether scalar phrase-layer changes should remain immediate in Latch
-   mode or gain scheduled/length-limited semantics after their runtime target
-   model is made explicit.
+5. Decide scalar phrase-layer runtime targets before adding scalar controls back
+   to the phrase Layers or Global Apply surfaces.

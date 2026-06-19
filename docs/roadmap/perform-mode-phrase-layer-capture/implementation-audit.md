@@ -338,8 +338,9 @@ done declaration for the whole feature.
   and macro automation have not been implemented.
 - Moment and Latch behavior is engine-backed for phrase-local Mute, Fill Flag,
   and Pattern changes. Length-limited commits stage bar-shaped phrase cells
-  across the configured bar span. Scalar phrase-layer latch timing still needs
-  a runtime target decision before it should be scheduled.
+  across the configured bar span. Scalar phrase-layer controls are intentionally
+  not exposed in this slice because their runtime targets are not uniformly
+  backed by phrase playback buffers yet.
 - Playback snapshot agreement is proven for pattern, mute, fill, repeat/loop,
   and scene state, but it still needs interactive runtime evidence while the app
   is playing.
@@ -356,6 +357,9 @@ done declaration for the whole feature.
   called done.
 - Global Apply needs visual review and likely refinement against the V3 matrix
   intent, especially scope default semantics.
+- Scalar phrase-layer targets need a later architecture/build slice before
+  Transpose, Variance, FX Send, Volume, or Pan controls should appear in the
+  phrase Layers or Global Apply matrix.
 
 ## Next Build-Loop Action
 
@@ -369,5 +373,5 @@ Review and harden the built phrase perform surface before more feature growth:
   visual shape survives review;
 - decide whether scene macro moves become phrase-cell automation or a separate
   phrase-scene event lane;
-- then extend Moment/Latch engine semantics beyond one-bar Mute and implement
-  the remaining scene automation model.
+- then decide the scalar phrase-layer target model and implement the remaining
+  scene automation model.

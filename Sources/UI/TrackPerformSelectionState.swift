@@ -151,9 +151,7 @@ enum TrackPerformLayerMode: String, CaseIterable, Equatable, Hashable, Identifia
             return "pattern"
         case .fill:
             return "fill-flag"
-        case .volume:
-            return "volume"
-        case .noteRepeat, .stepOrder, .pan:
+        case .noteRepeat, .stepOrder, .volume, .pan:
             return nil
         }
     }

@@ -33,7 +33,7 @@ struct PhraseMatrixLayoutPresentation: Equatable {
     /// One fixed height for every cell in a phrase row (phrase box, layer
     /// cells, row actions) so the row reads as a single aligned strip.
     static let matrixRowHeight: CGFloat = 118
-    static let selectableLayerIDs = ["pattern", "transpose", "variance", "fx-send", "mute"]
+    static let selectableLayerIDs = ["pattern", "mute", "fill-flag"]
 
     let trackCount: Int
     let pageIndex: Int

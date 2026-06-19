@@ -1529,8 +1529,15 @@ struct PhraseWorkspaceView: View {
         .buttonStyle(.plain)
     }
 
+    private var phraseLocalPerformanceLayerOptions: [PerformanceLayerOption] {
+        PerformanceLayerOption.all.filter { option in
+            guard let layerID = option.mode.phraseLayerID else { return false }
+            return matrixSelectableLayers.contains { $0.id == layerID }
+        }
+    }
+
     private var globalApplyOptions: [PerformanceLayerOption] {
-        PerformanceLayerOption.all.filter { $0.mode.phraseLayerID != nil }
+        phraseLocalPerformanceLayerOptions
     }
 
     private var globalApplyColumns: [GridItem] {
@@ -1649,7 +1656,7 @@ struct PhraseWorkspaceView: View {
             }
 
             LazyVGrid(columns: performanceLayerSelectionColumns, alignment: .leading, spacing: 10) {
-                ForEach(PerformanceLayerOption.all) { option in
+                ForEach(phraseLocalPerformanceLayerOptions) { option in
                     PerformanceLayerOptionCell(
                         option: option,
                         isSelected: performanceLayerSelection.mode == option.mode
