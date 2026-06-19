@@ -23,9 +23,14 @@ struct PerformOverviewDashboard: View {
     let isQuantiseCueLive: Bool
     let onSelectRow: (UUID) -> Void
     let onToggleRowSelection: ([UUID]) -> Void
-    /// Cycle a phrase-layer cell (pattern / mute taps): layer, source track,
+    /// Cycle a phrase-layer cell (mute taps): layer, source track,
     /// recipients. The host owns quantised-vs-immediate routing.
     let onCycleCell: (PhraseLayerDefinition, UUID, [UUID]) -> Void
+    /// Set a phrase-layer cell to a SPECIFIC value (pattern mini-grid taps):
+    /// layer, value, source track, recipients. Routed through the same staged
+    /// perform path as `onCycleCell`, but addresses one slot directly instead
+    /// of advancing by one.
+    let onSetCellValue: (PhraseLayerDefinition, PhraseCellValue, UUID, [UUID]) -> Void
     let onActivateRuntimeControl: (TrackPerformBinaryControl, UUID, [UUID]) -> Void
     let onReleaseRuntimeControl: (TrackPerformBinaryControl, UUID) -> Void
     let onCueRuntimeControl: ((TrackPerformBinaryControl, UUID, [UUID]) -> Void)?
@@ -62,6 +67,7 @@ struct PerformOverviewDashboard: View {
                     onSelectRow: onSelectRow,
                     onToggleRowSelection: onToggleRowSelection,
                     onCycleCell: onCycleCell,
+                    onSetCellValue: onSetCellValue,
                     onActivateRuntimeControl: onActivateRuntimeControl,
                     onReleaseRuntimeControl: onReleaseRuntimeControl,
                     onCueRuntimeControl: onCueRuntimeControl
@@ -153,6 +159,7 @@ struct PerformOverviewRowView: View {
     let onSelectRow: (UUID) -> Void
     let onToggleRowSelection: ([UUID]) -> Void
     let onCycleCell: (PhraseLayerDefinition, UUID, [UUID]) -> Void
+    let onSetCellValue: (PhraseLayerDefinition, PhraseCellValue, UUID, [UUID]) -> Void
     let onActivateRuntimeControl: (TrackPerformBinaryControl, UUID, [UUID]) -> Void
     let onReleaseRuntimeControl: (TrackPerformBinaryControl, UUID) -> Void
     let onCueRuntimeControl: ((TrackPerformBinaryControl, UUID, [UUID]) -> Void)?
@@ -263,8 +270,10 @@ struct PerformOverviewRowView: View {
                     layer: patternLayer,
                     trackIDs: row.trackIDs,
                     isDirty: isCellDirty(patternLayer, row.trackIDs)
-                ) {
-                    onCycleCell(patternLayer, row.primaryTrackID, recipients)
+                ) { slotIndex in
+                    // Each slot in the mini grid sets THAT pattern directly via
+                    // the staged perform path — no whole-cell cycle.
+                    onSetCellValue(patternLayer, .index(slotIndex), row.primaryTrackID, recipients)
                 }
             } else {
                 placeholderCell
@@ -358,16 +367,24 @@ struct PerformOverviewRowView: View {
 
 // MARK: - Leaves (the only views here that may read engine runtime state)
 
-/// Pattern chip leaf: resolves the playing pattern (playhead-dependent for
-/// bar/step-varying cells) and renders it in the pattern's identity colour.
-/// Tap cycles the pattern via the staged perform path — the cards' grammar.
+/// Pattern mini-grid leaf: resolves the playing pattern (playhead-dependent
+/// for bar/step-varying cells) and renders a 4×4 matrix of pattern slots, the
+/// active slot lit in its identity colour. Each slot is individually tappable
+/// and sets THAT pattern directly via the staged perform path — no whole-cell
+/// cycle (reuses the `PatternIndexCellPreview` grammar).
 struct PerformOverviewPatternCellLeaf: View {
     @Environment(EngineController.self) private var engineController
     let phrase: PhraseModel
     let layer: PhraseLayerDefinition
     let trackIDs: [UUID]
     let isDirty: Bool
-    let onTap: () -> Void
+    /// Set the pattern for this row to a specific slot index.
+    let onSetIndex: (Int) -> Void
+
+    private static let columns = Array(
+        repeating: GridItem(.flexible(), spacing: 2),
+        count: 4
+    )
 
     var body: some View {
         #if DEBUG
@@ -375,29 +392,41 @@ struct PerformOverviewPatternCellLeaf: View {
         #endif
         let indices = resolvedPatternIndices
         let uniformIndex: Int? = indices.dropFirst().allSatisfy { $0 == indices.first } ? indices.first ?? nil : nil
-        Button(action: onTap) {
-            Text(uniformIndex.map { "P\($0 + 1)" } ?? "P–")
-                .studioText(.title)
-                .monospacedDigit()
-                .foregroundStyle(uniformIndex != nil ? StudioTheme.background : StudioTheme.text)
-                .frame(maxWidth: .infinity)
-                .frame(height: PerformOverviewDashboard.rowCellHeight)
-                .background(
-                    uniformIndex.map { StudioTheme.patternColor($0) } ?? Color.white.opacity(StudioOpacity.subtleFill),
-                    in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-                )
+        let activeIndex = uniformIndex
+        LazyVGrid(columns: Self.columns, spacing: 2) {
+            ForEach(0..<TrackPatternBank.slotCount, id: \.self) { slot in
+                slotButton(slot, isActive: slot == activeIndex)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: PerformOverviewDashboard.rowCellHeight)
+        .padding(4)
+        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                .stroke(isDirty ? StudioTheme.amber : StudioTheme.border, lineWidth: isDirty ? 2 : StudioMetrics.borderWidth)
+        )
+        .accessibilityLabel(uniformIndex.map { "Pattern \($0 + 1)" } ?? "Mixed patterns")
+    }
+
+    private func slotButton(_ slot: Int, isActive: Bool) -> some View {
+        let fill = isActive ? StudioTheme.patternColor(slot) : Color.clear
+        let stroke = isActive ? StudioTheme.patternColor(slot) : StudioTheme.border.opacity(StudioOpacity.softStroke)
+        return Button {
+            onSetIndex(slot)
+        } label: {
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous)
+                .fill(fill)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .overlay(
-                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-                        .stroke(
-                            isDirty ? StudioTheme.amber : uniformIndex.map { StudioTheme.patternColor($0) } ?? StudioTheme.border,
-                            lineWidth: isDirty ? 2 : StudioMetrics.borderWidth
-                        )
+                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous)
+                        .stroke(stroke, lineWidth: StudioMetrics.borderWidth)
                 )
-                .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
+                .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous))
         }
         .buttonStyle(.plain)
-        .help("Cycle pattern")
-        .accessibilityLabel(uniformIndex.map { "Pattern \($0 + 1)" } ?? "Mixed patterns")
+        .help("Set pattern \(slot + 1)")
+        .accessibilityLabel("Set pattern \(slot + 1)")
     }
 
     /// One resolved index per track (kit rows aggregate members). The

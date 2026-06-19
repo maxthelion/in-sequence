@@ -87,13 +87,14 @@ struct TrackDestinationEditor: View {
         }
     }
 
-    // The panel title already says "Destination"; an empty slot is just a
-    // plus card, not a paragraph (ux-canon rules 1/3).
+    // This editor lives in the Sound tab's "SOUND SOURCE" well; an empty slot
+    // is just a plus card naming the source action, not a paragraph
+    // (ux-canon rules 1/3).
     private var unsetState: some View {
         StudioAddCard(
-            label: "Add Destination",
+            label: "Add Sound Source",
             minHeight: 72,
-            help: "Choose where this track's notes go"
+            help: "Choose this track's sound source"
         ) {
             showingAddDestinationSheet = true
         }
