@@ -5,7 +5,11 @@ struct LiveWorkspaceView: View {
     @Binding var selectedLayerID: String
     @Environment(SequencerDocumentSession.self) private var session
     @Environment(EngineController.self) private var engineController
-    @State private var collapseGroups = true
+    /// AC18: a LINKED kit collapses to one cell in Song mode; an unlinked kit
+    /// expands to per-part cells (linked↔collapsed, unlinked↔expanded). The
+    /// Expand affordance on a collapsed cell adds the group here for display
+    /// only — it never changes the link state.
+    @State private var forceExpandedGroups: Set<TrackGroupID> = []
 
     private let columns = [
         GridItem(.adaptive(minimum: 180, maximum: 240), spacing: 12)
@@ -39,15 +43,22 @@ struct LiveWorkspaceView: View {
         editingPhrase.id
     }
 
+    /// A linked kit collapses to one cell unless the user has transiently
+    /// forced it expanded via the Expand affordance (AC18). An unlinked kit is
+    /// always expanded to its per-part cells.
+    private func isGroupCollapsed(_ group: TrackGroup) -> Bool {
+        group.isPatternLinked && !forceExpandedGroups.contains(group.id)
+    }
+
     private var visibleScopes: [LiveLaneScope] {
         var scopes: [LiveLaneScope] = []
         var emittedGroups: Set<TrackGroupID> = []
         let trackGroups = session.store.trackGroups
 
         for track in session.store.tracks {
-            if collapseGroups,
-               let groupID = track.groupID,
+            if let groupID = track.groupID,
                let group = trackGroups.first(where: { $0.id == groupID }),
+               isGroupCollapsed(group),
                !emittedGroups.contains(groupID)
             {
                 emittedGroups.insert(groupID)
@@ -56,7 +67,7 @@ struct LiveWorkspaceView: View {
                     LiveLaneScope(
                         kind: .group(group.id),
                         title: group.name,
-                        subtitle: "\(members.count) tracks • \(group.sharedDestination?.kindLabel ?? "No sink")",
+                        subtitle: "\(members.count) parts • \(group.sharedDestination?.kindLabel ?? "Own bus")",
                         trackIDs: members.map(\.id),
                         accent: StudioTheme.success
                     )
@@ -102,7 +113,8 @@ struct LiveWorkspaceView: View {
                             cell: editableCell(for: scope),
                             modeLabel: currentMode(for: scope)?.label ?? "Mixed",
                             summary: liveValueLabel(for: scope),
-                            isMixed: sharedCell(for: scope) == nil
+                            isMixed: sharedCell(for: scope) == nil,
+                            onExpandKit: expandAction(for: scope)
                         )
                     }
                     .buttonStyle(.plain)
@@ -184,13 +196,16 @@ struct LiveWorkspaceView: View {
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
                     .stroke(StudioTheme.violet.opacity(StudioOpacity.subtleStroke), lineWidth: StudioMetrics.borderWidth)
             )
-
-            if !session.store.trackGroups.isEmpty {
-                Toggle("Collapse groups", isOn: $collapseGroups)
-                    .toggleStyle(.switch)
-                    .labelsHidden()
-            }
         }
+    }
+
+    /// Non-nil only for a collapsed (linked) kit cell: the Expand affordance
+    /// reveals the kit's per-part cells without changing the link state (AC18).
+    private func expandAction(for scope: LiveLaneScope) -> (() -> Void)? {
+        guard case let .group(groupID) = scope.kind else {
+            return nil
+        }
+        return { forceExpandedGroups.insert(groupID) }
     }
 
     private func cycleLayer(by delta: Int) {
@@ -372,18 +387,33 @@ private struct LiveScopeCard: View {
     let modeLabel: String
     let summary: String
     let isMixed: Bool
+    /// Non-nil for a collapsed (linked) kit cell: shows an Expand affordance
+    /// revealing the per-part cells (AC18).
+    var onExpandKit: (() -> Void)? = nil
+
+    private var isCollapsedKit: Bool {
+        onExpandKit != nil
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text(modeLabel.uppercased())
+                Text((isCollapsedKit ? "KIT" : modeLabel).uppercased())
                     .studioText(.micro)
                     .tracking(0.8)
                     .foregroundStyle(scope.accent)
 
                 Spacer()
 
-                if isMixed {
+                if isCollapsedKit {
+                    Text("LINKED")
+                        .font(.system(size: 9, weight: .bold, design: .rounded))
+                        .tracking(0.8)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 4)
+                        .overlay(Capsule().stroke(scope.accent.opacity(StudioOpacity.accentStroke), lineWidth: StudioMetrics.borderWidth))
+                        .foregroundStyle(scope.accent)
+                } else if isMixed {
                     Text("MIX")
                         .font(.system(size: 9, weight: .bold, design: .rounded))
                         .tracking(0.8)
@@ -404,15 +434,36 @@ private struct LiveScopeCard: View {
                 .foregroundStyle(StudioTheme.mutedText)
                 .lineLimit(2)
 
-            PhraseCellPreview(
-                layer: layer,
-                cell: cell,
-                resolvedValue: resolvedValue,
-                accent: scope.accent,
-                summary: summary,
-                isMixed: isMixed,
-                metrics: .live
-            )
+            if let onExpandKit {
+                Button(action: onExpandKit) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "arrow.up.left.and.arrow.down.right")
+                            .font(.system(size: 11, weight: .bold))
+                        Text("Expand")
+                            .font(.system(size: 11, weight: .bold, design: .rounded))
+                    }
+                    .foregroundStyle(scope.accent)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                            .stroke(scope.accent.opacity(StudioOpacity.accentStroke), lineWidth: StudioMetrics.borderWidth)
+                    )
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("kit-expand")
+                .help("Expand \(scope.title) to its per-part cells")
+            } else {
+                PhraseCellPreview(
+                    layer: layer,
+                    cell: cell,
+                    resolvedValue: resolvedValue,
+                    accent: scope.accent,
+                    summary: summary,
+                    isMixed: isMixed,
+                    metrics: .live
+                )
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(StudioMetrics.Spacing.standard)
@@ -421,6 +472,7 @@ private struct LiveScopeCard: View {
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
                 .stroke(scope.accent.opacity(StudioOpacity.hoverFill), lineWidth: StudioMetrics.borderWidth)
         )
+        .accessibilityIdentifier(isCollapsedKit ? "kit-collapsed-cell" : "live-scope-card")
     }
 
     private var resolvedValue: PhraseCellValue {
