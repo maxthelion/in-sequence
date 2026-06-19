@@ -23,11 +23,14 @@ runtime evidence. A partial result means "do not call the whole feature done".
 ## Summary
 
 - Verified enough to keep building: phrase overlay state, capture/discard model,
-  transport phrase presentation, phrase scene single-value state, scoped Global
+  transport phrase presentation, phrase cue/override engine behavior, phrase
+  scene single-value state, scoped Global
   Apply writes, the first quantized Mute latch policy, and length-limited Mute
   staging across one or more bars. Engine-visible playback snapshot
   coverage now proves phrase overlay values reach pattern, mute, fill,
-  repeat/loop, and scene state buffers. Automation editing now has an explicit
+  repeat/loop, and scene state buffers; engine phrase-navigation tests now prove
+  phrase scene A/B/crossfader state is applied to the master bus at playback
+  start and queued phrase boundaries. Automation editing now has an explicit
   clear path that collapses automation to the current resolved value. Direct
   Moment-style layer changes are proven to publish immediately without transport
   or quantized arming.
@@ -42,7 +45,7 @@ runtime evidence. A partial result means "do not call the whole feature done".
 |---|---|---|---|
 | 1 | Current phrase, next phrase, and progress are visible in transport. | Pass, needs visual review | `TransportPhraseNavigationPresentation` and `TransportPhraseProgressPresentation` drive separate current/next/progress UI in `Sources/UI/TransportBar.swift`. Covered by `TransportPhraseNavigationPresentationTests`. |
 | 2 | Song mode proposes next phrase and Free mode starts with no next phrase. | Pass | Tests cover Free stopped with no next phrase and Song running with arrangement next phrase. |
-| 3 | The user can cue/override the next phrase. | Partial | Presentation tests cover queued phrase overriding Song arrangement next. Existing phrase launch grid remains the interaction path, but this needs runtime/visual verification in the built app. |
+| 3 | The user can cue/override the next phrase. | Pass, needs visual review | Presentation tests cover queued phrase overriding Song arrangement next. `EngineControllerPhraseNavigationTests` cover queue replacement, immediate switch, queued promotion at the phrase boundary, queued promotion even when the current phrase loops, and invalid queue reconciliation. Existing phrase launch grid remains the interaction path, so visual click-path review is still required. |
 | 4 | Phrase page has Layers, Scenes, and Global Apply tabs. | Pass, needs visual review | `PhraseWorkspaceTab` defines `layers`, `scenes`, and `globalApply`; `PhraseWorkspaceView` switches between those surfaces. |
 | 5 | Perform Off edits phrase baseline directly. | Pass | `PhrasePerformOverlaySessionTests.test_setPhraseCellInSetupModeMutatesCanonicalPhrase` and scene setup tests prove setup-mode writes canonical phrase state. |
 | 6 | Perform On edits a live phrase copy/overlay. | Pass | `PhrasePerformOverlayState` stores staged cells/scene state. Overlay tests prove perform-mode writes do not mutate canonical phrase and are read through `phraseWithPerformOverlay`. |
@@ -53,11 +56,11 @@ runtime evidence. A partial result means "do not call the whole feature done".
 | 11 | Automation mode changes layer-cell click behavior to open automation editing. | Partial | `PhraseCellTool.automation` routes cell clicks to the deeper editor. `PhraseCellEditorSheet` now includes Clear Automation, which collapses bars/steps/curve automation to the current resolved single value. The modal still needs visual/UX review. |
 | 12 | Global Apply applies a chosen layer/value to the current track scope. | Pass | `PhrasePerformOverlaySessionTests.test_scopedGlobalApplyInPerformModeStagesEveryRecipientTrack` proves scoped multi-track writes through the phrase overlay path. |
 | 13 | Global Apply track scope selection uses an eight-column matrix. | Partial | Implemented in `PhraseWorkspaceView`, but needs visual evidence. |
-| 14 | Scenes keeps the current scene A/B/crossfader shape. | Partial | `phraseScenesSurface` uses Slot A, crossfader, Slot B and stores `PhraseSceneState`. It needs visual comparison with the current scenes surface and V3 intent. |
+| 14 | Scenes keeps the current scene A/B/crossfader shape. | Pass for model/runtime, needs visual review | `phraseScenesSurface` uses Slot A, crossfader, Slot B and stores `PhraseSceneState`. `PhrasePerformOverlaySessionTests` prove setup, perform overlay, capture, and playback-snapshot persistence. `EngineControllerPhraseNavigationTests` prove phrase scene A/B/crossfader state reaches the master bus at playback start and queued phrase boundary. It still needs visual comparison with the current scenes surface and V3 intent. |
 | 15 | Capture Phrase only chooses a phrase destination. | Pass | `PhrasePerformCaptureSheet` is reused for destination-only capture paths. No changed-cell review or Capture Clip option is in this phrase capture surface. |
 | 16 | Capture writes the perform copy to the chosen phrase destination. | Pass | Overlay tests cover capture to existing phrase and new phrase, including staged cells and scene state. |
 | 17 | Discard removes the perform copy without saving it. | Pass | Overlay tests cover `revertPhrasePerformOverlay` clearing staged cells while preserving canonical phrase state. |
-| 18 | Playback and UI agree about phrase mute/fill/pattern/repeat values. | Pass for compiled playback snapshot, needs runtime exercise | `PhrasePerformOverlaySessionTests.test_performOverlayPublishesEngineVisiblePhrasePlaybackState` proves perform-overlay pattern, mute, fill, repeat/loop, and scene state are installed into the engine-visible playback snapshot. Interactive heard/runtime evidence is still required. |
+| 18 | Playback and UI agree about phrase mute/fill/pattern/repeat values. | Pass for compiled playback snapshot, needs interactive exercise | `PhrasePerformOverlaySessionTests.test_performOverlayPublishesEngineVisiblePhrasePlaybackState` proves perform-overlay pattern, mute, fill, repeat/loop, and scene state are installed into the engine-visible playback snapshot. `EngineControllerPhraseNavigationTests` additionally prove phrase scene state is applied to the runtime master bus on phrase start/boundary. Interactive heard/runtime evidence is still required. |
 | 19 | Moment changes are immediate. | Pass for direct phrase-layer writes, needs interactive runtime exercise | `PhrasePerformTimingPolicyTests` proves Moment bypasses quantized Mute arming. `PhrasePerformOverlaySessionTests.test_performModeDirectLayerChangesPublishImmediatelyWithoutTransport` proves direct pattern, mute, and fill changes update the engine-visible snapshot immediately without transport or pending quantized arms. |
 | 20 | Latch changes can be quantized to next bar and length-limited. | Partial | Quantized Mute arming exists for phrase Layers and Global Apply when Latch + Q:BAR is active. One-bar and multi-bar length-limited Mute commits at the boundary and stages a bar-shaped phrase cell. General length-limited semantics for other layers are not implemented. |
 | 21 | No deferred performance-group UI is implemented. | Pass | The current phrase workspace does not add performance-group UI. |
@@ -82,8 +85,8 @@ runtime evidence. A partial result means "do not call the whole feature done".
 1. Run an interactive visual review with screenshots for Transport, Layers,
    Scenes, Global Apply, Capture, and Automation mode against
    `prototypes/05-phrase-value-cell-system-v3.html`.
-2. Exercise a running phrase in Free and Song modes to prove the displayed
-   current/next phrase and heard phrase agree.
+2. Run visual review in a running app to prove the phrase launch grid and
+   transport current/next/progress presentation match the intended click-path.
 3. Exercise a running phrase to confirm the compiled pattern/mute/fill/repeat
    agreement is audible/runtime-visible, not only present in the installed
    playback snapshot.

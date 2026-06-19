@@ -85,6 +85,64 @@ final class EngineControllerPhraseNavigationTests: XCTestCase {
         fixture.controller.stop()
     }
 
+    func test_playbackStartAppliesCurrentPhraseSceneStateToMasterBus() throws {
+        let scenes = phraseNavigationScenes()
+        let fixture = makePhraseNavigationFixture(
+            masterBus: scenes.masterBus
+        ) { phrases in
+            phrases[0].sceneState = PhraseSceneState(
+                sceneAID: scenes.a.id,
+                sceneBID: scenes.b.id,
+                crossfader: 0.31
+            )
+        }
+
+        startEngineForManualTicks(fixture.controller)
+
+        XCTAssertEqual(
+            fixture.controller.masterBusState.abSelection,
+            MasterBusABSelection(sceneAID: scenes.a.id, sceneBID: scenes.b.id, crossfader: 0.31)
+        )
+
+        fixture.controller.stop()
+    }
+
+    func test_queuedPhraseBoundaryAppliesNextPhraseSceneStateToMasterBus() throws {
+        let scenes = phraseNavigationScenes()
+        let fixture = makePhraseNavigationFixture(
+            masterBus: scenes.masterBus
+        ) { phrases in
+            phrases[0].sceneState = PhraseSceneState(
+                sceneAID: scenes.a.id,
+                sceneBID: scenes.b.id,
+                crossfader: 0.15
+            )
+            phrases[1].sceneState = PhraseSceneState(
+                sceneAID: scenes.b.id,
+                sceneBID: scenes.c.id,
+                crossfader: 0.82
+            )
+        }
+        startEngineForManualTicks(fixture.controller)
+
+        XCTAssertTrue(fixture.controller.queuePhrase(fixture.phrases[1].id))
+        fixture.controller.processTick(tickIndex: 0, now: 0)
+        XCTAssertEqual(
+            fixture.controller.masterBusState.abSelection,
+            MasterBusABSelection(sceneAID: scenes.a.id, sceneBID: scenes.b.id, crossfader: 0.15)
+        )
+
+        fixture.controller.processTick(tickIndex: 1, now: 0.1)
+
+        XCTAssertEqual(fixture.controller.currentPhraseID, fixture.phrases[1].id)
+        XCTAssertEqual(
+            fixture.controller.masterBusState.abSelection,
+            MasterBusABSelection(sceneAID: scenes.b.id, sceneBID: scenes.c.id, crossfader: 0.82)
+        )
+
+        fixture.controller.stop()
+    }
+
     func test_repeatCountOneAdvancesToNextPhraseAtFirstCycleBoundary() throws {
         let fixture = makePhraseNavigationFixture { phrases in
             phrases[0].repeatCount = 1
@@ -483,6 +541,7 @@ private struct PhraseSpecificStepOrderBoundaryFixture {
 private func makePhraseNavigationFixture(
     selectedPhraseIndex: Int = 0,
     phraseCount: Int = 3,
+    masterBus: MasterBusState = .default,
     configurePhrases: (inout [PhraseModel]) -> Void = { _ in }
 ) -> PhraseNavigationFixture {
     let sink = PhraseNavigationAudioSink()
@@ -529,6 +588,7 @@ private func makePhraseNavigationFixture(
         clipPool: [],
         layers: layers,
         routes: [],
+        masterBus: masterBus,
         patternBanks: [patternBank],
         selectedTrackID: track.id,
         phrases: phrases,
@@ -806,6 +866,27 @@ private func phraseNavigationGenerator(
             trigger: .native(euclideanAlgo(matching: pattern)),
             pitch: .native(.manual(pitches: [pitch], pickMode: .sequential)),
             shape: NoteShape(velocity: 100, gateLength: 1, accent: false)
+        )
+    )
+}
+
+private func phraseNavigationScenes() -> (
+    a: MasterBusScene,
+    b: MasterBusScene,
+    c: MasterBusScene,
+    masterBus: MasterBusState
+) {
+    let sceneA = MasterBusScene(id: UUID(uuidString: "aaaaaaaa-1111-2222-3333-000000000001")!, name: "Scene A")
+    let sceneB = MasterBusScene(id: UUID(uuidString: "bbbbbbbb-1111-2222-3333-000000000002")!, name: "Scene B")
+    let sceneC = MasterBusScene(id: UUID(uuidString: "cccccccc-1111-2222-3333-000000000003")!, name: "Scene C")
+    return (
+        sceneA,
+        sceneB,
+        sceneC,
+        MasterBusState(
+            scenes: [sceneA, sceneB, sceneC],
+            activeSceneID: sceneA.id,
+            abSelection: MasterBusABSelection(sceneAID: sceneA.id, sceneBID: sceneB.id, crossfader: 0)
         )
     )
 }

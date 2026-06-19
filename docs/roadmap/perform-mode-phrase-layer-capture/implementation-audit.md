@@ -178,6 +178,17 @@ done declaration for the whole feature.
   snapshot updates after each write, and confirms no quantized arm remains
   pending.
 
+## Implemented In Fourteenth Slice
+
+- Phrase navigation tests now explicitly cover runtime application of phrase
+  scene state, not just phrase-scene persistence in the playback snapshot.
+- Playback start applies the current phrase's scene A, scene B, and crossfader
+  selection to the master bus.
+- A queued phrase boundary applies the promoted phrase's scene A, scene B, and
+  crossfader selection to the master bus.
+- This closes a stale evidence gap around whether the phrase Scenes surface is
+  merely stored or actually reaches runtime playback state.
+
 ## Verified
 
 - `docs/roadmap/perform-mode-phrase-layer-capture/acceptance-verification.md`
@@ -258,6 +269,9 @@ done declaration for the whole feature.
   `xcodebuild`/`xctest` process remained.
 - After the thirteenth slice, the app target built with direct `xcodebuild`
   using `/tmp/seqai-phrase-perform-build`.
+- After the fourteenth slice, `xcodebuild test
+  -only-testing:SequencerAITests/EngineControllerPhraseNavigationTests` passed
+  with direct `xcodebuild`.
 
 ## Still Not Done
 
