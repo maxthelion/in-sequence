@@ -972,12 +972,13 @@ struct SliceSamplerCard: View {
         VStack(alignment: .leading, spacing: 0) {
             header
             divider
-            rangePreview
-            divider
             browseRow
             divider
             SliceSamplePlayerParametersView(
                 markerIndex: markerIndex,
+                sampleName: sampleName,
+                sliceDetail: rangeDetail,
+                waveformBuckets: previewBuckets,
                 mode: $mode,
                 parameters: $parameters
             )
