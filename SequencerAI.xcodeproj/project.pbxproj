@@ -18,6 +18,7 @@
 		04DB94084382289D1FA32186 /* RenderHarnessAnalysis.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA62DE6769089A3FA197FAC6 /* RenderHarnessAnalysis.swift */; };
 		0548B251550E4ACEC18D7FDF /* TrackInsertChainHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8289E3E7E3E9D8292415E74A /* TrackInsertChainHost.swift */; };
 		05FA15CE3D3945B8646D3497 /* AudioDeviceSwitchCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 992751E0C58A3456C92F7C43 /* AudioDeviceSwitchCoordinatorTests.swift */; };
+		065FBD41D5553AEE94A9E149 /* DrumKitMatrixView+Matrix.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE32C422BD4E33CEAB3F302B /* DrumKitMatrixView+Matrix.swift */; };
 		0713ACA4D003AF64DD11021B /* RecordingLibraryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D189BD19C6EBC5D43F66FBCC /* RecordingLibraryTests.swift */; };
 		0858E7BE80B3CCADFA28E634 /* PatternIndexCellPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = C83646DA7EE07AF03317D968 /* PatternIndexCellPreview.swift */; };
 		08612155F4FAC437E7C5CCCE /* AUWindowHostCloseAllTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 550816EA6A0A5FF2E9425922 /* AUWindowHostCloseAllTests.swift */; };
@@ -178,6 +179,7 @@
 		587305FC4D7FA3EA0687F6CD /* DrumAssetLibraryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 862D25C1793168EC7115AE4B /* DrumAssetLibraryTests.swift */; };
 		59479499E4F42BE628B7EE30 /* TickClock.swift in Sources */ = {isa = PBXBuildFile; fileRef = D14D36481855CDB4DD04A150 /* TickClock.swift */; };
 		59730541A48D9BB3AF730C0B /* RouterDispatchState.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB70B0792E33E24F0C23F56B /* RouterDispatchState.swift */; };
+		5973D3F803C65C50433283E5 /* DrumKitMatrixView+Header.swift in Sources */ = {isa = PBXBuildFile; fileRef = D806FE7641E4D02D5170233F /* DrumKitMatrixView+Header.swift */; };
 		599E343AB49551157311BCEA /* StepAlgo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42D94B671AB39329D57A4A19 /* StepAlgo.swift */; };
 		5A5A65D0F09B8BB387EF9B24 /* TrackSourceSlotWellTabBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A5B9980685213A52BFA97B7 /* TrackSourceSlotWellTabBar.swift */; };
 		5A62F6A8B55ABD5D639A206A /* LiveSequencerStore+Accessors.swift in Sources */ = {isa = PBXBuildFile; fileRef = B155D688CADB8AB94B754066 /* LiveSequencerStore+Accessors.swift */; };
@@ -250,6 +252,7 @@
 		7E3500231C11294E08975315 /* PlaybackSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD406C1DFC605824895BA3E6 /* PlaybackSnapshot.swift */; };
 		7E5B2AD63D3615F71AEDC0A8 /* WaveformDownsampler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 516D8F17D3FBB41335AAD779 /* WaveformDownsampler.swift */; };
 		7E644B5452556C45E95CE59E /* TrackSourceSourceDisplayStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0ED9814F4772023BA0FC68D /* TrackSourceSourceDisplayStateTests.swift */; };
+		7ED603CAA89D1179881B93CA /* DrumKitMatrixView+Capture.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6034C14EF39DF74D99F89C7C /* DrumKitMatrixView+Capture.swift */; };
 		7F6E2E9E21E78C0B6DC49184 /* TickStateBuffer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57865C84C633D0EFCE676C5F /* TickStateBuffer.swift */; };
 		7FCBEA8A63FB2A7CEB0623BC /* SourceRefNormalizationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D7C2BD9B01666806D99ECB4 /* SourceRefNormalizationTests.swift */; };
 		808530F1DECBEDFD2A8B1EC1 /* TrackPatternBankDefaultSeedingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B550FDF4C884B75F74EB1BFB /* TrackPatternBankDefaultSeedingTests.swift */; };
@@ -291,6 +294,7 @@
 		93D66B65020831B6627FBD8A /* Stream.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97637E4515BD5143B0324852 /* Stream.swift */; };
 		94B0EB5599FB87ADC565B50E /* PhraseLayerPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2B25BBA0A63F5333205728D /* PhraseLayerPresentation.swift */; };
 		94B4EC421B1F20DF7319B20D /* TrackSourceModifierWell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47029A8AB1028847F20787B4 /* TrackSourceModifierWell.swift */; };
+		956093D33392976803F3711A /* DrumKitMatrixView+KitTabs.swift in Sources */ = {isa = PBXBuildFile; fileRef = 275A78BA971DBA34EC7FFFBE /* DrumKitMatrixView+KitTabs.swift */; };
 		95AF5DC840B4983E9DC22979 /* TrackTypeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEF446745D50F1C5C132A7B4 /* TrackTypeTests.swift */; };
 		960AB948B6AAE414394DA7A7 /* DebounceSemanticsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F38EED0B80F1F92C5BF183C /* DebounceSemanticsTests.swift */; };
 		97291714B354CC84D3C90211 /* TrackPatternSlotPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57912ABBC0CEFBFE13662D84 /* TrackPatternSlotPalette.swift */; };
@@ -414,6 +418,7 @@
 		CD365053A22AE3B4D897BA9D /* GeneratorPoolEntryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79348F939FFFE4ADE1B1EC55 /* GeneratorPoolEntryTests.swift */; };
 		CDA543F2C9A473C71669754A /* PlaybackSnapshotConcurrencyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82E7BD2488E628F87C0B2076 /* PlaybackSnapshotConcurrencyTests.swift */; };
 		CE34B437807535F6DEA1A282 /* TickPathMainIsolationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A2348DB30E7A749D42C0808 /* TickPathMainIsolationTests.swift */; };
+		CEF1609FC7E9118E3472281B /* DrumKitMatrixView+VisualCommand.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C5BDEE837E0162DBD86D93B /* DrumKitMatrixView+VisualCommand.swift */; };
 		D0D635E76A2AC0D52E6B6BB7 /* ClipContentSliceTriggerModeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76FD26AC0C6F36A15CF48D56 /* ClipContentSliceTriggerModeTests.swift */; };
 		D0F772B25ED1AB7A6E1219C5 /* ExecutorPreparedNotesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4BBDC41ED64C6E6EABEDF757 /* ExecutorPreparedNotesTests.swift */; };
 		D12DED6F5732AC9AF17CFB41 /* AUAudioUnitFactoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF8BFF74542FD45AD9EC93D0 /* AUAudioUnitFactoryTests.swift */; };
@@ -440,6 +445,7 @@
 		DCBC4082D377C6AC0E8DF994 /* TrackPatternBankCodableTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18CD1A530C413842E775B627 /* TrackPatternBankCodableTests.swift */; };
 		DCE90760D458C6ECB991ADEC /* TrackFanOutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8089D62FCED221080CD45F1 /* TrackFanOutTests.swift */; };
 		DCEA5182138E0D1A74DB5F4C /* ScalesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD744CCDFC9A3A90E909A8B9 /* ScalesTests.swift */; };
+		DDDC959121787742E061AA41 /* DrumKitMatrixView+Accordion.swift in Sources */ = {isa = PBXBuildFile; fileRef = D6961BB59E9326D2A886BBAC /* DrumKitMatrixView+Accordion.swift */; };
 		DE6EC8E3F51E903CF3054A8A /* ProjectTrackMacroTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1525ED94BCDEB1DFAEAD1B2C /* ProjectTrackMacroTests.swift */; };
 		DE7E155B4DC728D3F7336A5A /* LibraryAssetCatalogTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76A702DE836B35158C5C1BFB /* LibraryAssetCatalogTests.swift */; };
 		DEE60AD6D95324501D916F60 /* StudioTypographyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF8772C8554BBCE9F9C6026A /* StudioTypographyTests.swift */; };
@@ -754,6 +760,7 @@
 		266AE712D001165F668D357E /* 2026-06-10-mixer-ux-review.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2026-06-10-mixer-ux-review.md"; sourceTree = "<group>"; };
 		26FC9075583872A9F8A6ED9C /* index.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = index.html; sourceTree = "<group>"; };
 		27471F4DC13E24696F58AFA7 /* spec.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = spec.md; sourceTree = "<group>"; };
+		275A78BA971DBA34EC7FFFBE /* DrumKitMatrixView+KitTabs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DrumKitMatrixView+KitTabs.swift"; sourceTree = "<group>"; };
 		276246EB8F66A97BC4BCFBD2 /* ux-review.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "ux-review.md"; sourceTree = "<group>"; };
 		2778BA85FAEAD67BA4092E1C /* AudioInstrumentHostPresetsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioInstrumentHostPresetsTests.swift; sourceTree = "<group>"; };
 		27B0969D9289A6A242EB5262 /* MIDIEndpoint.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MIDIEndpoint.swift; sourceTree = "<group>"; };
@@ -1055,6 +1062,7 @@
 		5B9A011013A46C4536AEE50D /* ClipPianoRollPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipPianoRollPreview.swift; sourceTree = "<group>"; };
 		5BDE0286507605D92758E623 /* InspectorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InspectorView.swift; sourceTree = "<group>"; };
 		5BFB523CBDC50B50E99FADEE /* 2026-04-21-fix-sample-playback-graph-mutation-on-tickclock.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2026-04-21-fix-sample-playback-graph-mutation-on-tickclock.md"; sourceTree = "<group>"; };
+		5C5BDEE837E0162DBD86D93B /* DrumKitMatrixView+VisualCommand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DrumKitMatrixView+VisualCommand.swift"; sourceTree = "<group>"; };
 		5C67D3170B3A71C3C1C8F511 /* architecture.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = architecture.md; sourceTree = "<group>"; };
 		5C79A54AD1E48B579EECBB97 /* validated-screen.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "validated-screen.png"; sourceTree = "<group>"; };
 		5D8CFA2674342EBF864A2871 /* mixer-grammar.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "mixer-grammar.md"; sourceTree = "<group>"; };
@@ -1070,6 +1078,7 @@
 		5F97DA8B3D2F8DFB777FDB0F /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		5FDF991F82BBF57F88DBBD0C /* DevActivityLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevActivityLog.swift; sourceTree = "<group>"; };
 		602521066F31995FF617B8F8 /* Project+Tracks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Project+Tracks.swift"; sourceTree = "<group>"; };
+		6034C14EF39DF74D99F89C7C /* DrumKitMatrixView+Capture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DrumKitMatrixView+Capture.swift"; sourceTree = "<group>"; };
 		605E4A01247A0458EA6EBF33 /* EngineControllerShutdownTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EngineControllerShutdownTests.swift; sourceTree = "<group>"; };
 		60787467C1441EA261560880 /* overnight-broad-probe-2026-05-05-summary.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "overnight-broad-probe-2026-05-05-summary.md"; sourceTree = "<group>"; };
 		60C5BCBCB204962F1759A2F1 /* concerns.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = concerns.md; sourceTree = "<group>"; };
@@ -1730,6 +1739,7 @@
 		D607B232B0B516E5513AA5A6 /* DrumKitMatrixEditingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DrumKitMatrixEditingTests.swift; sourceTree = "<group>"; };
 		D639D87712452D8473A42B89 /* AlgorithmSummaryCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlgorithmSummaryCard.swift; sourceTree = "<group>"; };
 		D6643D99F0C0C1BB4C966293 /* scene-perform-primary.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = "scene-perform-primary.html"; sourceTree = "<group>"; };
+		D6961BB59E9326D2A886BBAC /* DrumKitMatrixView+Accordion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DrumKitMatrixView+Accordion.swift"; sourceTree = "<group>"; };
 		D6FCC2FFDDD49BA07FD1CEC5 /* TrackDestinationEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackDestinationEditor.swift; sourceTree = "<group>"; };
 		D730940F170EDDC3ADDA8471 /* resolution.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = resolution.md; sourceTree = "<group>"; };
 		D7340E5D5BA21F6BB09F9288 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
@@ -1737,6 +1747,7 @@
 		D74A1FCFAC29AE43CAFDD7C3 /* 03-track-drum-capture-phrase.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = "03-track-drum-capture-phrase.html"; sourceTree = "<group>"; };
 		D7B132CF6D049667582FD1AB /* DrumKit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DrumKit.swift; sourceTree = "<group>"; };
 		D7B6C23467A6F481C12386AD /* live-meter-fixture-evidence.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "live-meter-fixture-evidence.md"; sourceTree = "<group>"; };
+		D806FE7641E4D02D5170233F /* DrumKitMatrixView+Header.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DrumKitMatrixView+Header.swift"; sourceTree = "<group>"; };
 		D886DBC4281CA6FACED46168 /* user-stories.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "user-stories.md"; sourceTree = "<group>"; };
 		D8994A37A57F287DBF393147 /* 2026-04-19-characterization.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2026-04-19-characterization.md"; sourceTree = "<group>"; };
 		D8E0A4FA566BADC10A26045A /* existing-state.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "existing-state.md"; sourceTree = "<group>"; };
@@ -1855,6 +1866,7 @@
 		ECFD642DE37F346879EFF1CD /* document-model.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "document-model.md"; sourceTree = "<group>"; };
 		ED3E372E2003DB861632EBB2 /* 20260430-102206-prototypes-feedback.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "20260430-102206-prototypes-feedback.md"; sourceTree = "<group>"; };
 		ED7AB17B688A6D78BB0ACE26 /* note.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = note.md; sourceTree = "<group>"; };
+		EE32C422BD4E33CEAB3F302B /* DrumKitMatrixView+Matrix.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DrumKitMatrixView+Matrix.swift"; sourceTree = "<group>"; };
 		EE4CBF300A45729055D32CA2 /* 02-lane-toolbar-toggle.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = "02-lane-toolbar-toggle.html"; sourceTree = "<group>"; };
 		EE77DED0EC67123A37DF6D3F /* prototype-approval.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "prototype-approval.md"; sourceTree = "<group>"; };
 		EE87817931119C72582F18D4 /* source-empty.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "source-empty.png"; sourceTree = "<group>"; };
@@ -3361,6 +3373,12 @@
 				1EC45C756B141A5ADE0C1121 /* DrumKitMatrixModel.swift */,
 				918DBB45085601B0AF83C6E9 /* DrumKitMatrixRowView.swift */,
 				878E4A2B8B32080B2995489F /* DrumKitMatrixView.swift */,
+				D6961BB59E9326D2A886BBAC /* DrumKitMatrixView+Accordion.swift */,
+				6034C14EF39DF74D99F89C7C /* DrumKitMatrixView+Capture.swift */,
+				D806FE7641E4D02D5170233F /* DrumKitMatrixView+Header.swift */,
+				275A78BA971DBA34EC7FFFBE /* DrumKitMatrixView+KitTabs.swift */,
+				EE32C422BD4E33CEAB3F302B /* DrumKitMatrixView+Matrix.swift */,
+				5C5BDEE837E0162DBD86D93B /* DrumKitMatrixView+VisualCommand.swift */,
 				17891E38F9A630FABCC45BF6 /* DrumKitTemplateChooserSheet.swift */,
 				AC22CFF3119571D90A7473DA /* KitBusFXChainView.swift */,
 			);
@@ -5648,6 +5666,12 @@
 				02C0F4C53521C6D94C3D643F /* DrumKit.swift in Sources */,
 				FDC6FBA9681F486A2167D26B /* DrumKitMatrixModel.swift in Sources */,
 				9EB2F73B92C6C955FD92B57E /* DrumKitMatrixRowView.swift in Sources */,
+				DDDC959121787742E061AA41 /* DrumKitMatrixView+Accordion.swift in Sources */,
+				7ED603CAA89D1179881B93CA /* DrumKitMatrixView+Capture.swift in Sources */,
+				5973D3F803C65C50433283E5 /* DrumKitMatrixView+Header.swift in Sources */,
+				956093D33392976803F3711A /* DrumKitMatrixView+KitTabs.swift in Sources */,
+				065FBD41D5553AEE94A9E149 /* DrumKitMatrixView+Matrix.swift in Sources */,
+				CEF1609FC7E9118E3472281B /* DrumKitMatrixView+VisualCommand.swift in Sources */,
 				8DD0D45F8B1D1C4080CD71C9 /* DrumKitMatrixView.swift in Sources */,
 				7CAFC81CB0B468221FC5C3DF /* DrumKitNoteMap.swift in Sources */,
 				DF8BC00687CF944F74C4E8AE /* DrumKitTemplateChooserSheet.swift in Sources */,
