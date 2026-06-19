@@ -164,6 +164,19 @@ final class SamplerFilterNodeTests: XCTestCase {
 
         filter.setType(.notch)
         XCTAssertEqual(filter.avNode.bands[0].filterType, .parametric)
+
+        // AC3.3: the newer types map onto AVAudioUnitEQ coefficients too.
+        // Peak (bell) is a positive-gain parametric band.
+        filter.setType(.peak)
+        XCTAssertEqual(filter.avNode.bands[0].filterType, .parametric)
+
+        // Comb and formant currently fall back to a resonant band-pass until
+        // they get bespoke DSP (see SamplerFilterNode.applyCurrentSettingsOnMain).
+        filter.setType(.comb)
+        XCTAssertEqual(filter.avNode.bands[0].filterType, .bandPass)
+
+        filter.setType(.formant)
+        XCTAssertEqual(filter.avNode.bands[0].filterType, .bandPass)
     }
 
     // MARK: - Setter methods don't allocate new bands
