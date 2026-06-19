@@ -29,11 +29,10 @@ struct ScenesWorkspaceView: View {
     @Environment(SequencerDocumentSession.self) var session
     @Environment(EngineController.self) var engineController
 
-    /// The page obeys the ONE global workspace mode (perform/setup split
-    /// slice 1): setup is the former browse/edit mode, perform the former
-    /// perform mode. The top bar owns the switch; no local toggle.
+    /// Top-level Scenes is scene management only. Scene perform now lives
+    /// inside the selected phrase workspace.
     var mode: ScenesWorkspaceMode {
-        session.workspaceMode.scenesModeValue
+        .browseEdit
     }
 
     @State var selectedSceneID: UUID?
@@ -153,11 +152,10 @@ struct ScenesWorkspaceView: View {
     }
 
     private func handleVisualCommand(_ command: String) {
-        if command.hasPrefix("mode:"),
-           let nextMode = ScenesWorkspaceMode(rawValue: String(command.dropFirst("mode:".count))) {
-            // Legacy harness vocabulary mapped onto the global mode
-            // (browseEdit ≙ setup, perform ≙ perform).
-            session.workspaceMode = WorkspaceMode(scenesMode: nextMode)
+        if command.hasPrefix("mode:") {
+            // Legacy harness vocabulary is still accepted, but the top-level
+            // Scenes page no longer switches into scene perform.
+            session.workspaceMode = .setup
             return
         }
 

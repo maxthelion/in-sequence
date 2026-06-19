@@ -60,7 +60,7 @@ CAPTURES=$(cat <<'TABLE'
 05-scenes-browse|workspace=scenes,scenesMode=browseEdit|scenesMode=browseEdit;transport=stop
 05a-scenes-edit-empty|workspace=scenes,scenesMode=browseEdit,sceneEditorFixture=empty|scenesMode=browseEdit;sceneEditorFixture=empty;transport=stop
 05b-scenes-edit-content|workspace=scenes,scenesMode=browseEdit,sceneEditorFixture=content|scenesMode=browseEdit;sceneEditorFixture=content;transport=stop
-06-scenes-perform|workspace=scenes,scenesMode=perform|scenesMode=perform;transport=stop
+06-phrase-scenes-perform|workspace=phrase,workspaceMode=perform,phraseWorkspaceTab=scenes|workspace=phrase;workspaceMode=perform;phraseWorkspaceTab=scenes;transport=stop
 07-library|workspace=library|workspace=library;transport=stop
 08-phrase-layers-pattern|workspace=phrase,phraseWorkspaceTab=layers,phraseMatrixSelectedLayerID=pattern,phraseCellTool=value|phraseMatrixTrackCount=8;phraseMatrixPhraseCount=8;phraseWorkspaceTab=layers;phraseCellTool=value;phraseMatrixLayerID=pattern;transport=stop
 09-phrase-layers-mute|workspace=phrase,phraseWorkspaceTab=layers,phraseMatrixSelectedLayerID=mute|phraseMatrixTrackCount=8;phraseMatrixPhraseCount=8;phraseWorkspaceTab=layers;phraseMatrixLayerID=mute;transport=stop

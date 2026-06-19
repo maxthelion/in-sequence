@@ -11,14 +11,13 @@ import XCTest
 //
 //  1. the mode is session-only state defaulting to `.setup` (like the
 //     selected page, it is never persisted in the document),
-//  2. the ONE mode value drives both pages — the legacy per-page
-//     vocabularies are pure derivations of it,
+//  2. the ONE mode value drives Tracks; top-level Scenes remains management
+//     because scene perform now lives under Phrase,
 //  3. capture-harness compatibility: the legacy `tracksMode=` and
-//     `scenesMode=` commands map onto the global mode (and keep their
-//     navigation side effect), the new `workspaceMode=` command sets it
-//     directly, and the `.status` file keeps emitting the legacy keys —
-//     derived from the global mode — so qa-surface-coverage.sh rows and
-//     existing scenario scripts keep passing unchanged.
+//     `scenesMode=` commands keep their navigation side effect, the new
+//     `workspaceMode=` command sets the global mode directly, and the
+//     `.status` file keeps emitting legacy keys so visual scripts can keep
+//     reading deterministic state.
 @MainActor
 final class WorkspaceModeTests: XCTestCase {
 
@@ -117,14 +116,15 @@ final class WorkspaceModeTests: XCTestCase {
         XCTAssertEqual(fixture.sectionBox.section, .tracks)
     }
 
-    func test_legacyScenesModeCommand_setsGlobalModeAndNavigatesToScenes() {
+    func test_legacyScenesModeCommand_navigatesToSceneManagementOnly() {
         let fixture = makeFixture()
+        fixture.session.workspaceMode = .perform
 
         apply(["scenesMode": "perform"], fixture: fixture)
-        XCTAssertEqual(fixture.session.workspaceMode, .perform,
-                       "scenesMode=perform must map onto the global mode")
+        XCTAssertEqual(fixture.session.workspaceMode, .setup,
+                       "top-level Scenes is management only; scene perform lives under Phrase")
         XCTAssertEqual(fixture.sectionBox.section, .scenes,
-                       "scenesMode= keeps its navigation side effect")
+                       "scenesMode= keeps its navigation side effect for legacy capture commands")
 
         apply(["scenesMode": "browseEdit"], fixture: fixture)
         XCTAssertEqual(fixture.session.workspaceMode, .setup,
@@ -191,7 +191,7 @@ final class WorkspaceModeTests: XCTestCase {
         XCTAssertEqual(status["tracksMode"], "perform",
                        "legacy tracksMode status key must survive, derived from the global mode")
         XCTAssertEqual(status["scenesMode"], "perform",
-                       "legacy scenesMode status key must survive, derived from the global mode")
+                       "outside the Scenes workspace, the legacy scenesMode key still reflects the global mode")
 
         fixture.session.workspaceMode = .setup
         status = try statusDictionary(fixture: fixture, section: .scenes)
@@ -199,7 +199,13 @@ final class WorkspaceModeTests: XCTestCase {
         XCTAssertEqual(status["tracksMode"], "edit",
                        "setup must read back as the legacy edit vocabulary")
         XCTAssertEqual(status["scenesMode"], "browseEdit",
-                       "setup must read back as the legacy browseEdit vocabulary")
+                       "top-level Scenes always reports scene management")
+
+        fixture.session.workspaceMode = .perform
+        status = try statusDictionary(fixture: fixture, section: .scenes)
+        XCTAssertEqual(status["workspaceMode"], "perform")
+        XCTAssertEqual(status["scenesMode"], "browseEdit",
+                       "top-level Scenes must not report scene perform anymore")
     }
 
     // MARK: - The tracks page observes the global mode

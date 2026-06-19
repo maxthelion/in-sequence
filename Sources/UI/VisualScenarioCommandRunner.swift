@@ -485,10 +485,11 @@ enum VisualScenarioCommandRunner {
         let canSavePhrasePerformOverlay = session.phrasePerformOverlay.basisPhraseID.map { phraseID in
             phrases.contains { $0.id == phraseID }
         } ?? false
-        // tracksMode/scenesMode are the legacy per-page keys, now DERIVED
-        // from the one global mode so existing qa-surface-coverage rows and
-        // scenario scripts keep their expectations; workspaceMode is the
-        // global mode's own key.
+        // tracksMode is still derived from the one global mode. Top-level
+        // Scenes is now management only; scene perform lives under Phrase.
+        let scenesModeStatus = section == .scenes
+            ? ScenesWorkspaceMode.browseEdit
+            : session.workspaceMode.scenesModeValue
         let status: String = """
         workspace=\(section.rawValue)
         workspaceMode=\(session.workspaceMode.rawValue)
@@ -515,7 +516,7 @@ enum VisualScenarioCommandRunner {
         slicerSliceCount=\(selectedSlicer.sliceCount)
         slicerClipStepCount=\(selectedSlicer.clipStepCount)
         slicerClipActiveStepCount=\(selectedSlicer.activeStepCount)
-        scenesMode=\(session.workspaceMode.scenesModeValue.rawValue)
+        scenesMode=\(scenesModeStatus.rawValue)
         sceneEditorFixture=\(sceneEditorFixtureState)
         libraryCategory=\(libraryCategoryState)
         libraryFixture=\(libraryFixtureState)
@@ -1466,10 +1467,9 @@ enum VisualScenarioCommandRunner {
         _ = session.addAssetToPool(kind: .sample, assetID: missingAssetID)
     }
 
-    /// Drives the Scenes workspace via the legacy `scenesMode=` command —
-    /// now mapped onto the GLOBAL workspace mode (browseEdit ≙ setup,
-    /// perform ≙ perform) plus navigation to the scenes page — and the
-    /// deterministic scene-editor fixtures for visual coverage.
+    /// Drives the top-level Scenes workspace via the legacy `scenesMode=`
+    /// command. Top-level Scenes is management only now; phrase-local scene
+    /// perform is captured through `workspace=phrase, phraseWorkspaceTab=scenes`.
     private static func applyScenesModeCommand(
         command: [String: String],
         section: Binding<WorkspaceSection>,
@@ -1481,11 +1481,11 @@ enum VisualScenarioCommandRunner {
 
         if let rawMode = command["scenesMode"],
            let scenesMode = ScenesWorkspaceMode(rawValue: rawMode) {
-            session.workspaceMode = WorkspaceMode(scenesMode: scenesMode)
+            session.workspaceMode = .setup
             if command["sceneEditorFixture"] == nil {
                 sceneEditorFixtureState = "none"
             }
-            postRepeatedVisualCommand(name: .scenesWorkspaceVisualCommand, object: "mode:\(rawMode)")
+            postRepeatedVisualCommand(name: .scenesWorkspaceVisualCommand, object: "mode:\(scenesMode.rawValue)")
         }
 
         if let rawFixture = command["sceneEditorFixture"],
