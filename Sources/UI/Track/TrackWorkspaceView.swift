@@ -445,6 +445,10 @@ extension Notification.Name {
     static let drumPartWorkspaceHeaderVisualCommand = Notification.Name("SequencerAIDrumPartWorkspaceHeaderVisualCommand")
     static let drumKitMatrixVisualCommand = Notification.Name("SequencerAIDrumKitMatrixVisualCommand")
     static let drumKitMatrixRenderedVisualState = Notification.Name("SequencerAIDrumKitMatrixRenderedVisualState")
+    /// Posted (object: TrackGroupID) when the kit-page Perform header button is
+    /// pressed. The scoped phrase-perform surface is a later slice; this lets
+    /// QA observe the intent for now (AC13/AC22 header wiring).
+    static let drumKitPerformRequested = Notification.Name("SequencerAIDrumKitPerformRequested")
     static let drumGroupRoutingEditorVisualCommand = Notification.Name("SequencerAIDrumGroupRoutingEditorVisualCommand")
     static let drumGroupRoutingEditorRenderedVisualState = Notification.Name("SequencerAIDrumGroupRoutingEditorRenderedVisualState")
     static let phraseMatrixVisualCommand = Notification.Name("SequencerAIPhraseMatrixVisualCommand")

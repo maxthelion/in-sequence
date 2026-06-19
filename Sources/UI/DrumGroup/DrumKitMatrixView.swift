@@ -3,6 +3,31 @@ import SwiftUI
 /// Matrix-wide step layer. The same layer set the single-track step editor
 /// offers for note-grid clips (`ClipEditorMode`): on/off triggers, velocity,
 /// and chance. Macro lanes are per-track bindings and stay single-track only.
+/// Kit-altitude tab bar (track-view IA, AC13/AC23). The tabs operate at
+/// KIT-BUS scope, distinct from the per-part FX/Macros/Mixer reached by
+/// diving into a single part. Capture + Perform are header buttons, NOT tabs.
+enum DrumKitTab: String, CaseIterable, Identifiable {
+    case matrix
+    case fx
+    case macros
+    case mixer
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .matrix:
+            return "Matrix"
+        case .fx:
+            return "FX"
+        case .macros:
+            return "Macros"
+        case .mixer:
+            return "Mixer"
+        }
+    }
+}
+
 enum DrumKitMatrixLayer: String, CaseIterable, Identifiable {
     case steps
     case velocity
@@ -334,6 +359,14 @@ struct DrumKitMatrixView: View {
     @State private var selectedLayer: DrumKitMatrixLayer = .steps
     @State private var isPresentingRoutingEditor = false
     @State private var isPresentingTemplateChooser = false
+    /// Which kit-bus tab is shown (Matrix · FX · Macros · Mixer). Ignored while
+    /// `isCaptureOpen` is true — Capture replaces the tab body (AC14 header).
+    @State private var kitTab: DrumKitTab = .matrix
+    /// Capture surface replaces the tab content; the Patterns row stays visible
+    /// above it so a captured set can be assigned to a slot (AC12/AC14).
+    @State private var isCaptureOpen = false
+    /// "+ FX" picker for the kit bus (AC23 kit FX).
+    @State private var isPresentingKitFX = false
 
     private var model: DrumKitMatrixModel? {
         DrumKitMatrixModel(
@@ -352,6 +385,24 @@ struct DrumKitMatrixView: View {
 
     private var accent: Color {
         Color(hex: model?.colorHex ?? "") ?? StudioTheme.success
+    }
+
+    /// The kit's own bus, resolved from its members' `outputBusID` (kits route
+    /// to a dedicated bus by default). The first member with a resolvable bus
+    /// wins; nil means the kit is on Master / unrouted, in which case the FX
+    /// and Mixer tabs show an explanatory empty state. (AC23 kit-bus scope.)
+    private func kitBus(_ model: DrumKitMatrixModel) -> MixerBus? {
+        let buses = session.store.buses
+        let tracksByID = Dictionary(
+            uniqueKeysWithValues: session.store.tracks.map { ($0.id, $0) }
+        )
+        for row in model.rows {
+            guard let busID = tracksByID[row.memberID]?.outputBusID,
+                  let bus = buses.first(where: { $0.id == busID })
+            else { continue }
+            return bus
+        }
+        return nil
     }
 
     /// Longest editable/read-only row length, in steps, across the kit. Drives
@@ -387,7 +438,7 @@ struct DrumKitMatrixView: View {
             header
 
             if let model {
-                matrixContent(model)
+                kitBody(model)
             } else {
                 unavailableState
             }
@@ -450,6 +501,9 @@ struct DrumKitMatrixView: View {
                     .background(StudioTheme.stageFill)
             }
         }
+        .sheet(isPresented: $isPresentingKitFX) {
+            kitFXChooserSheet
+        }
         .onAppear {
             postRenderedVisualState(isVisible: true)
         }
@@ -460,6 +514,12 @@ struct DrumKitMatrixView: View {
             postRenderedVisualState(isVisible: true)
         }
         .onChange(of: selectedLayer) {
+            postRenderedVisualState(isVisible: true)
+        }
+        .onChange(of: kitTab) {
+            postRenderedVisualState(isVisible: true)
+        }
+        .onChange(of: isCaptureOpen) {
             postRenderedVisualState(isVisible: true)
         }
         .onChange(of: isPresentingRoutingEditor) {
@@ -496,6 +556,9 @@ struct DrumKitMatrixView: View {
                 "groupPatternSlot": isVisible ? (groupSlot.map { "\($0 + 1)" } ?? "mixed") : "none",
                 "groupName": isVisible ? model?.groupName ?? "none" : "none",
                 "memberCount": isVisible ? model?.rows.count ?? 0 : 0,
+                "kitTab": isVisible ? (isCaptureOpen ? "capture" : kitTab.rawValue) : "none",
+                "captureOpen": isVisible && isCaptureOpen,
+                "kitFXChooserVisible": isVisible && isPresentingKitFX,
             ]
         )
     }
@@ -538,14 +601,14 @@ struct DrumKitMatrixView: View {
             }
             .frame(minWidth: 180, maxWidth: .infinity, alignment: .leading)
 
-            headerActionButton(title: "Apply Template…", systemImage: "square.grid.2x2") {
-                isPresentingTemplateChooser = true
-            }
-            .help("Apply a pattern template into the selected group pattern slot")
-
-            headerActionButton(title: "Edit Routing", systemImage: "slider.horizontal.3") {
+            headerSecondaryButton(title: "Routing", systemImage: "slider.horizontal.3") {
                 isPresentingRoutingEditor = true
             }
+            .help("Edit the kit's trigger routing and destinations")
+
+            captureButton
+
+            performButton
         }
         .padding(StudioMetrics.Spacing.standard)
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.section, style: .continuous))
@@ -569,6 +632,79 @@ struct DrumKitMatrixView: View {
         .padding(.horizontal, 10)
         .padding(.vertical, 7)
         .background(accent, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+    }
+
+    /// Neutral header chip (Routing). Distinct from the accent-filled
+    /// `headerActionButton` so Capture/Perform read as the primary header pair.
+    private func headerSecondaryButton(
+        title: String,
+        systemImage: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Label(title, systemImage: systemImage)
+                .studioText(.labelBold)
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(StudioTheme.text)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
+        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+        )
+    }
+
+    /// Capture header button (AC13/AC14). Toggles the history surface that
+    /// replaces the tab content while the Patterns row stays visible. When
+    /// open it reads as selected (accent fill).
+    private var captureButton: some View {
+        Button {
+            isCaptureOpen.toggle()
+        } label: {
+            Label("Capture", systemImage: "smallcircle.filled.circle")
+                .studioText(.labelBold)
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(isCaptureOpen ? StudioTheme.background : StudioTheme.text)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
+        .background(
+            isCaptureOpen ? accent : Color.white.opacity(StudioOpacity.subtleFill),
+            in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                .stroke(isCaptureOpen ? Color.clear : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+        )
+        .help("Capture: open the kit history surface to save a coordinated clip set")
+        .accessibilityIdentifier("kit-capture")
+        .accessibilityLabel("Capture kit history")
+        .accessibilityValue(isCaptureOpen ? "Open" : "Closed")
+    }
+
+    /// Perform header button (AC13). Scoped phrase-perform for the whole kit is
+    /// a later slice; for now this posts a notification so QA can observe the
+    /// intent without a bespoke surface (see spec AC22).
+    private var performButton: some View {
+        Button {
+            NotificationCenter.default.post(
+                name: .drumKitPerformRequested,
+                object: navigationState.groupID
+            )
+        } label: {
+            Label("Perform", systemImage: "play.fill")
+                .studioText(.labelBold)
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(StudioTheme.background)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
+        .background(accent, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+        .help("Perform: open the phrase perform UI scoped to the whole kit (coming soon)")
+        .accessibilityIdentifier("kit-perform")
+        .accessibilityLabel("Perform kit")
     }
 
     /// Bar pager: one button per 16-step bar (1–16, 17–32, …), shown only when
@@ -628,14 +764,94 @@ struct DrumKitMatrixView: View {
         .accessibilityValue(isSelected ? "Selected" : "Not selected")
     }
 
+    /// Kit page layout (AC12/AC13/AC14): persistent Patterns row, then either
+    /// the Capture history surface (replaces the tabs) or the kit tab bar +
+    /// selected tab body. The Patterns row is ALWAYS above and stays visible
+    /// across every tab and during Capture.
     @ViewBuilder
-    private func matrixContent(_ model: DrumKitMatrixModel) -> some View {
+    private func kitBody(_ model: DrumKitMatrixModel) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            if !model.rows.isEmpty {
+                persistentPatternsRow(model)
+            }
+
+            if isCaptureOpen {
+                captureHistoryBody(model)
+            } else {
+                kitTabBar
+                selectedKitTabBody(model)
+            }
+        }
+    }
+
+    /// Persistent Patterns row, framed as its own panel so it reads as a fixed
+    /// assignment surface above the tab bar (AC12).
+    private func persistentPatternsRow(_ model: DrumKitMatrixModel) -> some View {
+        StudioPanel(title: "Patterns", accent: accent) {
+            groupPatternRow(model)
+        }
+    }
+
+    /// Matrix · FX · Macros · Mixer (AC13). Hidden while Capture is open.
+    private var kitTabBar: some View {
+        HStack(spacing: 4) {
+            ForEach(DrumKitTab.allCases) { tab in
+                kitTabButton(tab)
+            }
+        }
+        .padding(3)
+        .background(
+            Color.white.opacity(StudioOpacity.subtleFill),
+            in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                .stroke(StudioTheme.border.opacity(0.9), lineWidth: StudioMetrics.borderWidth)
+        )
+    }
+
+    private func kitTabButton(_ tab: DrumKitTab) -> some View {
+        let isSelected = kitTab == tab
+        return Button {
+            kitTab = tab
+        } label: {
+            Text(tab.title)
+                .studioText(.labelBold)
+                .foregroundStyle(isSelected ? StudioTheme.background : StudioTheme.text.opacity(0.78))
+                .lineLimit(1)
+                .frame(minWidth: 72, minHeight: 30)
+                .padding(.horizontal, 10)
+                .background(
+                    isSelected ? accent : Color.clear,
+                    in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
+                )
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("kit-tab-\(tab.rawValue)")
+        .accessibilityLabel("Kit tab \(tab.title)")
+        .accessibilityValue(isSelected ? "Selected" : "Not selected")
+    }
+
+    @ViewBuilder
+    private func selectedKitTabBody(_ model: DrumKitMatrixModel) -> some View {
+        switch kitTab {
+        case .matrix:
+            matrixTabBody(model)
+        case .fx:
+            kitFXTabBody(model)
+        case .macros:
+            kitMacrosTabBody(model)
+        case .mixer:
+            kitMixerTabBody(model)
+        }
+    }
+
+    /// Matrix tab: the existing matrix content, minus the group pattern row
+    /// (which now lives in the persistent Patterns row above). (AC23)
+    @ViewBuilder
+    private func matrixTabBody(_ model: DrumKitMatrixModel) -> some View {
         StudioPanel(title: "Kit Matrix", accent: accent) {
             VStack(alignment: .leading, spacing: 12) {
-                if !model.rows.isEmpty {
-                    groupPatternRow(model)
-                }
-
                 HStack(spacing: 10) {
                     layerSelector
 
@@ -646,6 +862,11 @@ struct DrumKitMatrixView: View {
                     if model.hasPatternMismatch {
                         mismatchBadge
                     }
+
+                    headerActionButton(title: "Apply Template…", systemImage: "square.grid.2x2") {
+                        isPresentingTemplateChooser = true
+                    }
+                    .help("Apply a pattern template into the selected group pattern slot")
                 }
 
                 if model.staleMemberCount > 0 {
@@ -657,6 +878,357 @@ struct DrumKitMatrixView: View {
                 } else {
                     matrixRows(model)
                 }
+            }
+        }
+    }
+
+    // MARK: - Kit FX tab (AC23: insert chain on the kit's own bus)
+
+    /// FX tab: the insert chain on the kit's dedicated bus, so the inserts
+    /// process every part together. Reuses the existing per-bus insert model
+    /// (`MixerBusInsert`) + session mutations (`addMixerBusInsert` etc.).
+    @ViewBuilder
+    private func kitFXTabBody(_ model: DrumKitMatrixModel) -> some View {
+        StudioPanel(title: "Kit FX", eyebrow: kitFXEyebrow(model), accent: accent) {
+            if let bus = kitBus(model) {
+                KitBusFXChainView(
+                    inserts: bus.inserts,
+                    accent: accent,
+                    onAddFX: { isPresentingKitFX = true },
+                    onRemove: { insertID in
+                        session.removeMixerBusInsert(insertID, busID: bus.id)
+                    },
+                    onMove: { source, destination in
+                        moveKitBusInserts(bus: bus, from: source, to: destination)
+                    },
+                    onSetBypassed: { insertID, bypassed in
+                        session.updateMixerBusInsert(insertID, busID: bus.id) { insert in
+                            insert.isEnabled = !bypassed
+                        }
+                    }
+                )
+            } else {
+                kitBusUnavailableState
+            }
+        }
+    }
+
+    private func kitFXEyebrow(_ model: DrumKitMatrixModel) -> String {
+        if let bus = kitBus(model) {
+            return "Insert chain on \(bus.name) (whole kit)"
+        }
+        return "Kit bus unavailable"
+    }
+
+    /// `List.onMove` gives index-based moves; the bus session API reorders by an
+    /// explicit id list, so translate the move into the new ordering.
+    private func moveKitBusInserts(bus: MixerBus, from source: IndexSet, to destination: Int) {
+        var ids = bus.inserts.map(\.id)
+        ids.move(fromOffsets: source, toOffset: destination)
+        session.reorderMixerBusInserts(ids, busID: bus.id)
+    }
+
+    private var kitBusUnavailableState: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("This kit is not on a dedicated bus")
+                .studioText(.bodyEmphasis)
+                .foregroundStyle(StudioTheme.text)
+            Text("Route the kit to its own bus (Routing) to add kit-wide FX.")
+                .studioText(.body)
+                .foregroundStyle(StudioTheme.mutedText)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(StudioMetrics.Spacing.loose)
+    }
+
+    /// "+ FX" picker for the kit bus, mirroring the per-track Add FX sheet but
+    /// committing a `MixerBusInsert` to the kit's bus (AC23).
+    @ViewBuilder
+    private var kitFXChooserSheet: some View {
+        if let model, let bus = kitBus(model) {
+            let effects = engineController.availableAudioEffects
+            let busID = bus.id
+            StudioModal(
+                title: "Add Kit FX",
+                accent: accent,
+                minWidth: 360,
+                onClose: { isPresentingKitFX = false }
+            ) {
+                VStack(alignment: .leading, spacing: 8) {
+                    kitFXOptionButton(title: "Filter", systemName: "line.3.horizontal.decrease.circle") {
+                        session.addMixerBusInsert(.filter(), busID: busID)
+                        isPresentingKitFX = false
+                    }
+                    kitFXOptionButton(title: "Bitcrusher", systemName: "waveform.path.ecg") {
+                        session.addMixerBusInsert(.bitcrusher(), busID: busID)
+                        isPresentingKitFX = false
+                    }
+                }
+
+                Divider()
+                    .overlay(StudioTheme.border)
+
+                Text("AU Effect")
+                    .studioText(.micro)
+                    .tracking(0.8)
+                    .foregroundStyle(StudioTheme.mutedText)
+
+                if effects.isEmpty {
+                    Text("No AU effects found")
+                        .studioText(.body)
+                        .foregroundStyle(StudioTheme.mutedText)
+                } else {
+                    ScrollView {
+                        VStack(spacing: 6) {
+                            ForEach(effects.prefix(16)) { effect in
+                                kitFXOptionButton(title: effect.displayName, systemName: "slider.horizontal.3") {
+                                    session.addMixerBusInsert(.auEffect(effect), busID: busID)
+                                    isPresentingKitFX = false
+                                }
+                            }
+                        }
+                    }
+                    .frame(maxHeight: 220)
+                    .scrollContentBackground(.hidden)
+                }
+            }
+            .presentationBackground(.clear)
+            .environment(\.colorScheme, .dark)
+        } else {
+            Text("Kit bus unavailable")
+                .studioText(.body)
+                .foregroundStyle(StudioTheme.mutedText)
+                .padding(StudioMetrics.Spacing.page)
+                .background(StudioTheme.stageFill)
+        }
+    }
+
+    private func kitFXOptionButton(
+        title: String,
+        systemName: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: 10) {
+                Image(systemName: systemName)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(accent)
+                Text(title)
+                    .studioText(.labelBold)
+                    .foregroundStyle(StudioTheme.text)
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 9)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                    .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Kit Macros tab (AC23: M1–M8 across the kit / bus)
+
+    /// Macros tab: a styled M1–M8 surface reusing `AUMacroSlotKnob`. It mirrors
+    /// the originating part's macro bindings as a representative kit view.
+    /// STUBBED: full cross-part / bus macro wiring (sweeping one parameter
+    /// across every part at once) is a later slice; the knobs render the kit's
+    /// default mappings but do not yet drive every part — see report.
+    @ViewBuilder
+    private func kitMacrosTabBody(_ model: DrumKitMatrixModel) -> some View {
+        StudioPanel(title: "Kit Macros", eyebrow: "M1–M8 across the whole kit / its bus", accent: accent) {
+            let slots = kitMacroSlots(model)
+            LazyVGrid(columns: Self.macroColumns, alignment: .leading, spacing: 14) {
+                ForEach(slots) { slot in
+                    AUMacroSlotKnob(
+                        slotIndex: slot.slotIndex,
+                        binding: slot.binding,
+                        value: nil,
+                        onAssign: {},
+                        onChange: { _ in }
+                    )
+                }
+            }
+            .padding(.vertical, 4)
+        }
+    }
+
+    private static let macroColumns = Array(
+        repeating: GridItem(.flexible(), spacing: 14),
+        count: 4
+    )
+
+    /// Eight slots (M1–M8) seeded from the originating part's macro bindings so
+    /// the kit view reflects the seeded drum-part defaults (M1 dir / M2 len /
+    /// M3 cutoff). Unbound slots render as assignable knobs.
+    private func kitMacroSlots(_ model: DrumKitMatrixModel) -> [MacroSlot] {
+        let originating = session.store.tracks.first { $0.id == model.originatingPartID }
+        let bindings = originating?.macros ?? []
+        return (0..<8).map { slotIndex in
+            MacroSlot(
+                slotIndex: slotIndex,
+                binding: bindings.first { $0.slotIndex == slotIndex }
+            )
+        }
+    }
+
+    // MARK: - Kit Mixer tab (AC23: bus output + sends + per-part levels)
+
+    /// Mixer tab: the kit bus output (→ its destination) and a per-part level
+    /// row each (reusing `session.setTrackMix`). Send A/B and bus output
+    /// routing are shown as the bus summary; full bus-strip editing is reachable
+    /// from the global Mixer — see report for what is real vs summarized.
+    @ViewBuilder
+    private func kitMixerTabBody(_ model: DrumKitMatrixModel) -> some View {
+        StudioPanel(title: "Kit Mixer", eyebrow: "Bus output + per-part levels", accent: accent) {
+            VStack(alignment: .leading, spacing: 14) {
+                kitBusOutputRow(model)
+
+                Text("PER-PART LEVELS")
+                    .studioText(.eyebrow)
+                    .tracking(0.8)
+                    .foregroundStyle(StudioTheme.mutedText)
+
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(model.rows) { row in
+                        kitPartLevelRow(row)
+                    }
+                }
+            }
+        }
+    }
+
+    private func kitBusOutputRow(_ model: DrumKitMatrixModel) -> some View {
+        let bus = kitBus(model)
+        let outputTitle = bus.map { "→ \($0.name) → Master" } ?? "→ Master"
+        return HStack(spacing: 10) {
+            Text("BUS OUTPUT")
+                .studioText(.eyebrow)
+                .tracking(0.8)
+                .foregroundStyle(StudioTheme.mutedText)
+
+            Text(outputTitle)
+                .studioText(.labelBold)
+                .foregroundStyle(StudioTheme.text)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(accent.opacity(StudioOpacity.hoverFill), in: Capsule())
+
+            Spacer(minLength: 0)
+
+            kitSendBadge("A")
+            kitSendBadge("B")
+        }
+    }
+
+    private func kitSendBadge(_ label: String) -> some View {
+        Text("Send \(label)")
+            .studioText(.label)
+            .foregroundStyle(StudioTheme.mutedText)
+            .padding(.horizontal, 9)
+            .padding(.vertical, 5)
+            .background(Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
+            .overlay(
+                Capsule().stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+            )
+    }
+
+    private func kitPartLevelRow(_ row: DrumKitMatrixModel.Row) -> some View {
+        let track = session.store.tracks.first { $0.id == row.memberID }
+        let level = track?.mix.level ?? 0
+        let percent = Int((level * 100).rounded())
+        return HStack(spacing: 12) {
+            Text(row.partName)
+                .studioText(.labelBold)
+                .foregroundStyle(StudioTheme.text)
+                .lineLimit(1)
+                .frame(width: 120, alignment: .leading)
+
+            Slider(
+                value: kitPartLevelBinding(memberID: row.memberID, track: track),
+                in: 0...1
+            )
+            .tint(accent)
+
+            Text("\(percent)%")
+                .studioText(.micro)
+                .foregroundStyle(StudioTheme.mutedText)
+                .frame(width: 44, alignment: .trailing)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
+                .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+        )
+    }
+
+    private func kitPartLevelBinding(memberID: UUID, track: StepSequenceTrack?) -> Binding<Double> {
+        Binding(
+            get: { track?.mix.level ?? 0 },
+            set: { newValue in
+                guard var mix = session.store.tracks.first(where: { $0.id == memberID })?.mix else { return }
+                mix.level = newValue
+                session.setTrackMix(trackID: memberID, mix: mix)
+            }
+        )
+    }
+
+    // MARK: - Capture / History body (AC14 header interaction)
+
+    /// Capture surface — replaces the tab content while the Patterns row stays
+    /// above (AC12/AC14). STUBBED: the full all-parts history scrubber + save-
+    /// as-clip-set content is a later slice; for now this is a styled placeholder
+    /// body with a "Close capture" affordance back to the tabs.
+    @ViewBuilder
+    private func captureHistoryBody(_ model: DrumKitMatrixModel) -> some View {
+        StudioPanel(title: "Capture · History", eyebrow: "Live buffer · all parts", accent: accent) {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 10) {
+                    Button {
+                        isCaptureOpen = false
+                    } label: {
+                        Label("Close capture", systemImage: "chevron.left")
+                            .studioText(.labelBold)
+                            .foregroundStyle(StudioTheme.text)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                                    .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+                            )
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("kit-capture-close")
+                    .accessibilityLabel("Close capture")
+
+                    Spacer(minLength: 0)
+                }
+
+                Text("Capture replaces the tabs; the Patterns row above stays so a captured clip set can be assigned to a slot.")
+                    .studioText(.body)
+                    .foregroundStyle(StudioTheme.mutedText)
+
+                VStack(alignment: .leading, spacing: 6) {
+                    ForEach(model.rows) { row in
+                        Text(row.partName)
+                            .studioText(.label)
+                            .foregroundStyle(StudioTheme.text)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 7)
+                            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+                    }
+                }
+
+                Text("All-parts history scrubber + save-as-clip-set arrive in a later slice.")
+                    .studioText(.micro)
+                    .foregroundStyle(StudioTheme.mutedText)
             }
         }
     }
@@ -883,6 +1455,26 @@ struct DrumKitMatrixView: View {
             isPresentingTemplateChooser = true
         case "close-template-chooser":
             isPresentingTemplateChooser = false
+        case "open-capture":
+            isCaptureOpen = true
+        case "close-capture":
+            isCaptureOpen = false
+        case "open-kit-fx-chooser":
+            isPresentingKitFX = true
+        case "close-kit-fx-chooser":
+            isPresentingKitFX = false
+        case "tab-matrix":
+            isCaptureOpen = false
+            kitTab = .matrix
+        case "tab-fx":
+            isCaptureOpen = false
+            kitTab = .fx
+        case "tab-macros":
+            isCaptureOpen = false
+            kitTab = .macros
+        case "tab-mixer":
+            isCaptureOpen = false
+            kitTab = .mixer
         case "back":
             onBack()
         default:
@@ -1079,6 +1671,146 @@ private struct DrumKitMatrixRowView: View {
                 fraction: ClipNoteGridStepEditing.chanceValue(for: steps[index], lane: .main)
             )
         }
+    }
+}
+
+/// Kit-bus FX insert chain (AC23). The same grammar as the per-track FX chain
+/// (drag handle reorder, bypass + ✕ on one line, "+ FX" button, compact empty
+/// state — no "Enabled"/"Empty" filler), but it edits the kit bus's
+/// `MixerBusInsert` chain so the inserts process the whole kit at once.
+private struct KitBusFXChainView: View {
+    let inserts: [MixerBusInsert]
+    let accent: Color
+    let onAddFX: () -> Void
+    let onRemove: (UUID) -> Void
+    let onMove: (IndexSet, Int) -> Void
+    let onSetBypassed: (UUID, Bool) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            if inserts.isEmpty {
+                emptyState
+            } else {
+                chainList
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var emptyState: some View {
+        HStack(spacing: 12) {
+            Text("No inserts yet.")
+                .studioText(.body)
+                .foregroundStyle(StudioTheme.mutedText)
+            Spacer(minLength: 0)
+            addFXButton
+        }
+    }
+
+    private var chainList: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            List {
+                ForEach(inserts) { insert in
+                    insertRow(insert)
+                        .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                }
+                .onMove(perform: onMove)
+            }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .frame(height: listHeight)
+
+            HStack {
+                Spacer(minLength: 0)
+                addFXButton
+            }
+        }
+    }
+
+    private var listHeight: CGFloat {
+        let rowHeight: CGFloat = 56
+        let visibleRows = min(inserts.count, 5)
+        return CGFloat(visibleRows) * rowHeight
+    }
+
+    private func insertRow(_ insert: MixerBusInsert) -> some View {
+        let icon = TrackFXChainView.iconName(for: insert.kind)
+        let subtitle = insert.kind.summary
+        let bypassed = !insert.isEnabled
+        return HStack(spacing: 10) {
+            Image(systemName: "line.3.horizontal")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(StudioTheme.mutedText)
+                .frame(width: 18)
+                .accessibilityLabel("Reorder \(insert.name)")
+
+            Image(systemName: icon)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(StudioTheme.background)
+                .frame(width: 22, height: 22)
+                .background(accent, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(insert.name)
+                    .studioText(.labelBold)
+                    .foregroundStyle(StudioTheme.text)
+                    .lineLimit(1)
+                Text(subtitle)
+                    .studioText(.micro)
+                    .foregroundStyle(StudioTheme.mutedText)
+                    .lineLimit(1)
+            }
+
+            Spacer(minLength: 6)
+
+            Toggle("Bypass \(insert.name)", isOn: bypassBinding(insert))
+                .labelsHidden()
+                .toggleStyle(.switch)
+                .controlSize(.mini)
+                .tint(StudioTheme.success)
+
+            Button {
+                onRemove(insert.id)
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(StudioTheme.mutedText)
+            }
+            .buttonStyle(.plain)
+            .help("Remove insert")
+            .accessibilityLabel("Remove \(insert.name)")
+        }
+        .padding(.vertical, 8)
+        .padding(.horizontal, 10)
+        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
+                .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+        )
+        .opacity(bypassed ? 0.55 : 1)
+    }
+
+    private var addFXButton: some View {
+        Button(action: onAddFX) {
+            Label("FX", systemImage: "plus")
+                .studioText(.labelBold)
+                .foregroundStyle(StudioTheme.background)
+                .padding(.vertical, 8)
+                .padding(.horizontal, 12)
+                .background(accent, in: Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Add kit FX insert")
+        .accessibilityIdentifier("kit-add-fx")
+    }
+
+    private func bypassBinding(_ insert: MixerBusInsert) -> Binding<Bool> {
+        Binding(
+            get: { insert.isEnabled },
+            set: { isActive in onSetBypassed(insert.id, !isActive) }
+        )
     }
 }
 
