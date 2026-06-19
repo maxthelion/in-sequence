@@ -175,6 +175,14 @@ done declaration for the whole feature.
   `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer` when rerun outside
   the sandbox after the sandboxed runner could not reach Xcode's helper
   services.
+- After the ninth slice, the app target built with direct `xcodebuild` using
+  `/tmp/seqai-phrase-perform-build`.
+- After the ninth slice, `xcodebuild test
+  -only-testing:SequencerAITests/QuantisedToggleSchedulerTests` passed with
+  direct `xcodebuild`.
+- After the ninth slice, `xcodebuild test
+  -only-testing:SequencerAITests/SequencerDocumentSessionQuantisedToggleTests/test_committedLengthLimitedMuteStagesBarCellForTheCommittedBar`
+  passed with direct `xcodebuild`.
 
 ## Still Not Done
 
@@ -185,8 +193,9 @@ done declaration for the whole feature.
   values for scene A, scene B, and crossfader. Per-bar/continuous scene values
   and macro automation have not been implemented.
 - Moment and Latch behavior is partially engine-backed for phrase-local Mute
-  changes. General phrase-cell quantized execution and length-limited expiry
-  still need engine-level handling.
+  changes. One-bar length-limited Mute now commits at the bar boundary and
+  stages a bar-shaped phrase cell. General phrase-cell quantized execution and
+  length-limited behavior for other layers still need engine-level handling.
 - The visible top-level Perform affordance is gone, but the internal
   `WorkspaceMode.perform` naming still exists and may need a later rename if it
   keeps confusing the phrase-local Perform model.
@@ -210,5 +219,5 @@ Review and harden the built phrase perform surface before more feature growth:
   visual shape survives review;
 - decide whether scene macro moves become phrase-cell automation or a separate
   phrase-scene event lane;
-- then implement Moment/Latch engine semantics and the remaining scene
-  automation model.
+- then extend Moment/Latch engine semantics beyond one-bar Mute and implement
+  the remaining scene automation model.

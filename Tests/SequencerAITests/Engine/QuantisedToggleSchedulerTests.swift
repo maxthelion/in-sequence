@@ -15,6 +15,16 @@ final class QuantisedToggleSchedulerTests: XCTestCase {
         .mute(trackID: trackID, muted: muted, basisPhraseID: phraseID)
     }
 
+    private func oneBarMuteChange(_ trackID: UUID, muted: Bool = true, startTick: UInt64? = nil) -> QuantisedToggleChange {
+        .lengthLimitedMute(
+            trackID: trackID,
+            muted: muted,
+            basisPhraseID: phraseID,
+            lengthBars: 1,
+            startTick: startTick
+        )
+    }
+
     func test_armedChangeCommitsOnlyOnTheBarBoundaryTick() {
         let scheduler = QuantisedToggleScheduler()
         XCTAssertEqual(scheduler.armOrCancel(muteChange(trackA)), .armed)
@@ -43,6 +53,18 @@ final class QuantisedToggleSchedulerTests: XCTestCase {
 
         XCTAssertTrue(scheduler.commitAtBarBoundary(upcomingTick: 16, ticksPerBar: 16).isEmpty)
         XCTAssertTrue(scheduler.activeMuteOverrides().isEmpty)
+    }
+
+    func test_lengthLimitedMuteUsesMuteKeyAndCommitsWithBoundaryTick() {
+        let scheduler = QuantisedToggleScheduler()
+        XCTAssertEqual(scheduler.armOrCancel(oneBarMuteChange(trackA)), .armed)
+        XCTAssertEqual(scheduler.armOrCancel(muteChange(trackA, muted: false)), .cancelled,
+                       "held and length-limited mutes share the same per-track mute arm slot")
+
+        XCTAssertEqual(scheduler.armOrCancel(oneBarMuteChange(trackA)), .armed)
+        let committed = scheduler.commitAtBarBoundary(upcomingTick: 16, ticksPerBar: 16)
+        XCTAssertEqual(committed, [oneBarMuteChange(trackA, startTick: 16)])
+        XCTAssertEqual(scheduler.activeMuteOverrides(), [trackA: true])
     }
 
     func test_muteAndFillKeysAreIndependentPerTrack() {

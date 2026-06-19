@@ -1073,8 +1073,13 @@ final class EngineController: RouterDispatcher {
     /// Pending mute target for UI (armed, not yet committed), or nil.
     func quantisedPendingMuteTarget(for trackID: UUID) -> Bool? {
         for change in quantisedPendingChanges {
-            if case let .mute(changeTrackID, muted, _) = change, changeTrackID == trackID {
+            switch change {
+            case let .mute(changeTrackID, muted, _) where changeTrackID == trackID:
                 return muted
+            case let .lengthLimitedMute(changeTrackID, muted, _, _, _) where changeTrackID == trackID:
+                return muted
+            default:
+                continue
             }
         }
         return nil

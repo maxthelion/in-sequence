@@ -21,11 +21,14 @@ struct QuantisedToggleKey: Equatable, Hashable, Sendable {
 /// "cue for one cycle" — fill's third gesture).
 enum QuantisedToggleChange: Equatable, Hashable, Sendable {
     case mute(trackID: UUID, muted: Bool, basisPhraseID: UUID)
+    case lengthLimitedMute(trackID: UUID, muted: Bool, basisPhraseID: UUID, lengthBars: Int, startTick: UInt64?)
     case fillCue(trackID: UUID)
 
     var trackID: UUID {
         switch self {
         case let .mute(trackID, _, _):
+            return trackID
+        case let .lengthLimitedMute(trackID, _, _, _, _):
             return trackID
         case let .fillCue(trackID):
             return trackID
@@ -35,6 +38,8 @@ enum QuantisedToggleChange: Equatable, Hashable, Sendable {
     var key: QuantisedToggleKey {
         switch self {
         case let .mute(trackID, _, _):
+            return QuantisedToggleKey(kind: .mute, trackID: trackID)
+        case let .lengthLimitedMute(trackID, _, _, _, _):
             return QuantisedToggleKey(kind: .mute, trackID: trackID)
         case let .fillCue(trackID):
             return QuantisedToggleKey(kind: .fillCue, trackID: trackID)
@@ -153,16 +158,28 @@ final class QuantisedToggleScheduler: @unchecked Sendable {
             return []
         }
 
-        let committed = armedKeyOrder.compactMap { armedByKey[$0] }
+        let armed = armedKeyOrder.compactMap { armedByKey[$0] }
         armedByKey.removeAll()
         armedKeyOrder.removeAll()
 
-        for change in committed {
+        var committed: [QuantisedToggleChange] = []
+        for change in armed {
             switch change {
             case let .mute(trackID, muted, _):
                 muteOverridesByTrackID[trackID] = muted
+                committed.append(change)
+            case let .lengthLimitedMute(trackID, muted, basisPhraseID, lengthBars, _):
+                muteOverridesByTrackID[trackID] = muted
+                committed.append(.lengthLimitedMute(
+                    trackID: trackID,
+                    muted: muted,
+                    basisPhraseID: basisPhraseID,
+                    lengthBars: max(1, lengthBars),
+                    startTick: upcomingTick
+                ))
             case let .fillCue(trackID):
                 fillCueExpiryTickByTrackID[trackID] = upcomingTick &+ barLength
+                committed.append(change)
             }
         }
         return committed

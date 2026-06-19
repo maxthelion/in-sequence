@@ -150,6 +150,40 @@ final class SequencerDocumentSessionQuantisedToggleTests: XCTestCase {
         XCTAssertTrue(engine.quantisedPendingChanges.isEmpty)
     }
 
+    func test_committedLengthLimitedMuteStagesBarCellForTheCommittedBar() throws {
+        let (session, engine, _) = makeSession()
+        defer { SequencerDocumentSessionRegistry.unregister(session) }
+        session.workspaceMode = .perform
+
+        let phrase = session.store.selectedPhrase
+        let trackID = session.store.tracks[0].id
+
+        session.applyCommittedQuantisedToggles([
+            .lengthLimitedMute(
+                trackID: trackID,
+                muted: true,
+                basisPhraseID: phrase.id,
+                lengthBars: 1,
+                startTick: 16
+            )
+        ])
+
+        let staged = try XCTUnwrap(session.performOverlayCell(
+            phraseID: phrase.id,
+            layerID: muteLayerID,
+            trackID: trackID
+        ))
+        guard case let .bars(values) = staged else {
+            return XCTFail("Expected one-bar latch to stage a bar-shaped phrase cell, got \(staged)")
+        }
+
+        XCTAssertEqual(values.count, phrase.lengthBars)
+        XCTAssertEqual(values[0], .bool(false), "bar before the committed boundary keeps the resolved baseline")
+        XCTAssertEqual(values[1], .bool(true), "tick 16 is the start of phrase bar 2 in the default phrase")
+        XCTAssertEqual(values[2], .bool(false), "the one-bar length expires through phrase-cell resolution")
+        XCTAssertTrue(engine.quantisedMuteOverridesForTesting.isEmpty)
+    }
+
     // MARK: - Leaving the quantise context cancels arms
 
     func test_flippingQToOffCancelsPendingArms() {

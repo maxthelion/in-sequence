@@ -18,6 +18,7 @@ struct PhraseWorkspaceView: View {
     @State private var phraseSceneSlotPickerRequest: ScenePerformSlotPickerRequest?
     @State private var isPresentingPhraseCapture = false
     @State private var phraseLatchMode: TrackPerformLatchMode = .momentary
+    @State private var phraseLatchLengthBars: Int?
     @State private var scalarDragBase: (phraseID: UUID, trackID: UUID, value: Double)?
 
     private let phraseColumnWidth: CGFloat = 118
@@ -333,6 +334,24 @@ struct PhraseWorkspaceView: View {
             .buttonStyle(.plain)
             .disabled(phraseLatchMode != .latched)
             .help(phraseLatchMode == .latched ? "Latch changes can land on the next bar" : "Momentary changes are immediate")
+
+            Button {
+                phraseLatchLengthBars = phraseLatchLengthBars == nil ? 1 : nil
+            } label: {
+                Text(phraseLatchLengthBars.map { "LEN: \($0)B" } ?? "LEN: HOLD")
+                    .studioText(.microEmphasis)
+                    .tracking(0.8)
+                    .foregroundStyle(phraseLatchMode == .latched ? StudioTheme.text : StudioTheme.mutedText)
+                    .frame(width: 82, height: 30)
+                    .background(phraseLatchMode == .latched ? Color.white.opacity(StudioOpacity.subtleFill) : StudioTheme.inset, in: Capsule())
+                    .overlay(
+                        Capsule()
+                            .stroke(phraseLatchMode == .latched && phraseLatchLengthBars != nil ? StudioTheme.amber : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+                    )
+            }
+            .buttonStyle(.plain)
+            .disabled(phraseLatchMode != .latched)
+            .help(phraseLatchMode == .latched ? "Latch can hold until changed or apply for one bar" : "Momentary changes do not use latch length")
         }
         .padding(3)
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
@@ -1256,7 +1275,8 @@ struct PhraseWorkspaceView: View {
                 trackIDs: [trackID],
                 basisPhrase: displayedPhrase,
                 layer: selectedLayer,
-                stepIndex: 0
+                stepIndex: 0,
+                lengthBars: phraseLatchLengthBars
             )
             return
         }
@@ -1544,7 +1564,8 @@ struct PhraseWorkspaceView: View {
                 trackIDs: globalApplyScopeTrackIDs,
                 basisPhrase: phrase,
                 layer: layer,
-                stepIndex: 0
+                stepIndex: 0,
+                lengthBars: phraseLatchLengthBars
             )
             return
         }

@@ -56,7 +56,8 @@ extension SequencerDocumentSession {
         trackIDs: [UUID],
         basisPhrase: PhraseModel,
         layer: PhraseLayerDefinition,
-        stepIndex: Int
+        stepIndex: Int,
+        lengthBars: Int? = nil
     ) {
         for trackID in trackIDs {
             let currentValue = basisPhrase.resolvedValue(for: layer, trackID: trackID, stepIndex: stepIndex)
@@ -66,9 +67,19 @@ extension SequencerDocumentSession {
             } else {
                 targetMuted = true
             }
-            engineController.armQuantisedToggle(
-                .mute(trackID: trackID, muted: targetMuted, basisPhraseID: basisPhrase.id)
-            )
+            let change: QuantisedToggleChange
+            if let lengthBars {
+                change = .lengthLimitedMute(
+                    trackID: trackID,
+                    muted: targetMuted,
+                    basisPhraseID: basisPhrase.id,
+                    lengthBars: max(1, lengthBars),
+                    startTick: nil
+                )
+            } else {
+                change = .mute(trackID: trackID, muted: targetMuted, basisPhraseID: basisPhrase.id)
+            }
+            engineController.armQuantisedToggle(change)
         }
     }
 
@@ -102,16 +113,28 @@ extension SequencerDocumentSession {
 
         var committedMuteTrackIDs: [UUID] = []
         for change in changes {
-            guard case let .mute(trackID, muted, basisPhraseID) = change else {
+            switch change {
+            case let .mute(trackID, muted, basisPhraseID):
+                stagePhrasePerformCell(
+                    .single(.bool(muted)),
+                    layerID: muteLayerID,
+                    trackIDs: [trackID],
+                    basisPhraseID: basisPhraseID
+                )
+                committedMuteTrackIDs.append(trackID)
+            case let .lengthLimitedMute(trackID, muted, basisPhraseID, lengthBars, startTick):
+                stageLengthLimitedMute(
+                    muted: muted,
+                    trackID: trackID,
+                    basisPhraseID: basisPhraseID,
+                    layerID: muteLayerID,
+                    lengthBars: lengthBars,
+                    startTick: startTick
+                )
+                committedMuteTrackIDs.append(trackID)
+            case .fillCue:
                 continue
             }
-            stagePhrasePerformCell(
-                .single(.bool(muted)),
-                layerID: muteLayerID,
-                trackIDs: [trackID],
-                basisPhraseID: basisPhraseID
-            )
-            committedMuteTrackIDs.append(trackID)
         }
 
         guard !committedMuteTrackIDs.isEmpty else {
@@ -121,5 +144,56 @@ extension SequencerDocumentSession {
         // installed synchronously, so the overrides can retire without a
         // window where neither source carries the value.
         engineController.confirmQuantisedMuteApplied(trackIDs: committedMuteTrackIDs)
+    }
+
+    private func stageLengthLimitedMute(
+        muted: Bool,
+        trackID: UUID,
+        basisPhraseID: UUID,
+        layerID: String,
+        lengthBars: Int,
+        startTick: UInt64?
+    ) {
+        guard let phrase = store.phrases.first(where: { $0.id == basisPhraseID }),
+              let layer = store.layer(id: layerID)
+        else {
+            stagePhrasePerformCell(
+                .single(.bool(muted)),
+                layerID: layerID,
+                trackIDs: [trackID],
+                basisPhraseID: basisPhraseID
+            )
+            return
+        }
+
+        let displayedPhrase = phraseWithPerformOverlay(phrase)
+        let startTick = startTick ?? engineController.transportTickIndex
+        let startBarIndex = PhrasePlayhead(
+            phrase: displayedPhrase,
+            transportTickIndex: startTick
+        ).barIndex
+        var barValues = (0..<displayedPhrase.lengthBars).map { barIndex in
+            displayedPhrase.resolvedValue(
+                for: layer,
+                trackID: trackID,
+                stepIndex: barIndex * displayedPhrase.stepsPerBar
+            )
+            .normalized(for: layer)
+        }
+
+        let endBarIndex = min(displayedPhrase.lengthBars, startBarIndex + max(1, lengthBars))
+        guard startBarIndex < endBarIndex else {
+            return
+        }
+        for barIndex in startBarIndex..<endBarIndex {
+            barValues[barIndex] = .bool(muted)
+        }
+
+        stagePhrasePerformCell(
+            .bars(barValues),
+            layerID: layerID,
+            trackIDs: [trackID],
+            basisPhraseID: basisPhraseID
+        )
     }
 }

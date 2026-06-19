@@ -399,6 +399,8 @@ enum VisualScenarioCommandRunner {
             switch change {
             case let .mute(_, muted, _):
                 return "\(trackName):\(muted ? "mute-on" : "mute-off")"
+            case let .lengthLimitedMute(_, muted, _, lengthBars, _):
+                return "\(trackName):\(muted ? "mute-on" : "mute-off")-\(lengthBars)b"
             case .fillCue:
                 return "\(trackName):fill-cue"
             }
