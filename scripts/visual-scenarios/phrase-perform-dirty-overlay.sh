@@ -149,21 +149,12 @@ capture_window "$pid" "$output_dir/tracks-matrix-dirty-overlay.png"
 cp "$status_file" "$output_dir/tracks-matrix-dirty-overlay.status"
 scenario_status="captured tracks-matrix-dirty-overlay"
 
-write_visual_command "workspace=tracks
-tracksMode=perform
-phrasePerformOverlay=dirtyOneCell
-phrasePerformCapture=open
-transport=stop"
-
-wait_for_status workspace tracks 10
-wait_for_status tracksMode perform 10
-wait_for_status phrasePerformOverlayDirty true 10
-wait_for_status trackPerformCaptureVisible true 10
-sleep 0.8
-cp "$command_file" "$output_dir/tracks-matrix-capture-chooser.command.env"
-capture_window "$pid" "$output_dir/tracks-matrix-capture-chooser.png"
-cp "$status_file" "$output_dir/tracks-matrix-capture-chooser.status"
-scenario_status="captured tracks-matrix-capture-chooser"
+# RETIRED: the tracks Perform view no longer hosts the phrase-perform
+# capture chooser (the bespoke perform/capture surface was removed; tracks
+# Perform is navigation + selection now). The dirty-overlay + Capture flow
+# is covered by the phrase-perform scenarios. The former
+# `phrasePerformCapture=open` command and `trackPerformCaptureVisible` status
+# assertion are gone, so this capture step is dropped.
 
 scenario_status="completed phrase perform dirty overlay capture"
 sleep 0.2
