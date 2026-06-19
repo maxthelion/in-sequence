@@ -366,9 +366,6 @@ struct TrackSourceEditorView: View {
             else { return }
             selectedTab = tab
         }
-        .task(id: clipHistoryLiveRefreshKey) {
-            await refreshClipHistoryWhileVisible()
-        }
     }
 
     /// Perform header button (AC22): posts `.trackPerformRequested` with this
@@ -843,15 +840,6 @@ struct TrackSourceEditorView: View {
             }
         )
         resetClipHistoryDestinationMode()
-    }
-
-    private var clipHistoryLiveRefreshKey: String {
-        "history-inactive"
-    }
-
-    @MainActor
-    private func refreshClipHistoryWhileVisible() async {
-        return
     }
 
     private func updateClipHistoryLiveSnapshot() {
