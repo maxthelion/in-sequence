@@ -311,6 +311,31 @@ final class ProjectAddDrumGroupTests: XCTestCase {
         )
     }
 
+    func test_new_drum_part_seeds_default_macro_template_m1_direction_m2_length_m3_cutoff() {
+        var project = Project.empty
+
+        let groupID = project.addDrumGroup(plan: .blankDefault, library: testLibrary)
+
+        guard let groupID, let group = project.trackGroups.first(where: { $0.id == groupID }),
+              let firstMemberID = group.memberIDs.first,
+              let track = project.tracks.first(where: { $0.id == firstMemberID })
+        else {
+            return XCTFail("expected a populated drum group")
+        }
+
+        let bySlot = Dictionary(uniqueKeysWithValues: track.macros.map { ($0.slotIndex, $0) })
+        XCTAssertEqual(bySlot[0]?.source, .builtin(.sampleStart), "M1 should be sample direction (sampleStart)")
+        XCTAssertEqual(bySlot[1]?.source, .builtin(.sampleLength), "M2 should be sample length")
+        XCTAssertEqual(bySlot[2]?.source, .builtin(.samplerFilterCutoff), "M3 should be filter cutoff")
+        XCTAssertEqual(track.macros.count, 3, "exactly three seeded slots, all editable/removable")
+
+        // Each seeded binding has a backing phrase layer so its value resolves.
+        for binding in track.macros {
+            let layerID = "macro-\(track.id.uuidString)-\(binding.id.uuidString)"
+            XCTAssertTrue(project.layers.contains { $0.id == layerID }, "missing macro layer for slot \(binding.slotIndex)")
+        }
+    }
+
     private var testLibrary: AudioSampleLibrary {
         AudioSampleLibrary(libraryRoot: libraryRoot)
     }

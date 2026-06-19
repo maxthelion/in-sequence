@@ -564,34 +564,54 @@ struct TrackSourceEditorView: View {
     @ViewBuilder
     private var macrosTab: some View {
         TrackSourceSelectedWellBody(accent: StudioTheme.amber, isEmpty: false) {
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 10) {
                 Text("Macros")
                     .studioText(.bodyBold)
                     .foregroundStyle(StudioTheme.text)
-                macrosTabList
+                Text("M1–M8 slot assignments. Drag to set, right-click to change or remove.")
+                    .studioText(.body)
+                    .foregroundStyle(StudioTheme.mutedText)
+                macroSlotGrid
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(StudioMetrics.Spacing.standard)
         }
     }
 
+    private let macroSlotColumns = [
+        GridItem(.adaptive(minimum: 58, maximum: 72), spacing: 10, alignment: .top)
+    ]
+
     @ViewBuilder
-    private var macrosTabList: some View {
-        if orderedMacros.isEmpty {
-            Text("No macros assigned.")
-                .studioText(.body)
-                .foregroundStyle(StudioTheme.mutedText)
-        } else {
-            ForEach(orderedMacros, id: \.id) { binding in
-                Text(macroLabel(binding))
-                    .studioText(.labelBold)
-                    .foregroundStyle(StudioTheme.text)
+    private var macroSlotGrid: some View {
+        LazyVGrid(columns: macroSlotColumns, alignment: .leading, spacing: 12) {
+            ForEach(clipMacroSlots) { slot in
+                macroSlotKnob(for: slot)
             }
         }
     }
 
-    private func macroLabel(_ binding: TrackMacroBinding) -> String {
-        "M\(binding.slotIndex + 1) · \(binding.displayName)"
+    @ViewBuilder
+    private func macroSlotKnob(for slot: MacroSlot) -> some View {
+        let binding = slot.binding
+        let slotValue = binding.flatMap { macroFallbackValues[$0.id] }
+        AUMacroSlotKnob(
+            slotIndex: slot.slotIndex,
+            binding: binding,
+            value: slotValue,
+            onAssign: { prepareAndPresentMacroSlotPicker(slotIndex: slot.slotIndex) },
+            onChange: { newValue in
+                guard let binding else { return }
+                session.setMacroLayerDefault(
+                    value: newValue,
+                    bindingID: binding.id,
+                    trackID: track.id
+                )
+            },
+            onRemove: binding.map { binding in
+                { session.removeAUMacroSlot(bindingID: binding.id, trackID: track.id) }
+            }
+        )
     }
 
     @ViewBuilder
