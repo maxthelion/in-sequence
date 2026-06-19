@@ -243,6 +243,87 @@ final class WorkspaceModeTests: XCTestCase {
         )
     }
 
+    // MARK: - Tracks Perform = navigation + selection (no bespoke layer surface)
+
+    /// AC3/AC4: the tracks Perform view's "Perform" action launches the scoped
+    /// Track/Kit Perform overlay (which reuses phrase perform) for the current
+    /// selection. The Perform button's effect is exactly an
+    /// `enterScopedPerform` over the selected (or focused) track ids, with the
+    /// selection scoping a single track, a multi-select set, or a whole kit —
+    /// all transient runtime state, never persisted to the document.
+    func test_performFromMultiSelect_setsScopeAndEntersScopedPerform() {
+        let fixture = makeFixture()
+        // Three transient runtime selections drive the launch — they are NOT
+        // document-backed track ids here; the contract under test is the
+        // scope-set + mode flip the Perform button performs.
+        let selected = [UUID(), UUID(), UUID()]
+
+        fixture.session.enterScopedPerform(trackIDs: selected)
+
+        XCTAssertEqual(
+            fixture.session.performTrackScope, Set(selected),
+            "Selecting cards then Perform must scope perform to exactly the selected track ids."
+        )
+        XCTAssertEqual(
+            fixture.session.workspaceMode, .perform,
+            "Perform must flip the global workspace mode into perform."
+        )
+    }
+
+    /// AC4: the bespoke tracks-perform layer surface is gone, so the QA status
+    /// must no longer report any `trackPerformLayer*` selector/variant field.
+    func test_status_noLongerReportsTrackPerformLayerSelector() throws {
+        let fixture = makeFixture()
+        fixture.session.workspaceMode = .perform
+
+        let status = try statusDictionary(fixture: fixture, section: .tracks)
+
+        XCTAssertNil(
+            status["trackPerformLayerMode"],
+            "The tracks Perform view is navigation + selection now — it must not expose a track-perform layer mode."
+        )
+        XCTAssertNil(
+            status["trackPerformLayerSelectorVisible"],
+            "The TRACK LAYER selector was removed; its status field must be retired."
+        )
+        XCTAssertNil(
+            status["trackPerformLayerVariant"],
+            "The track-perform layer variant was removed with the layer surface."
+        )
+        XCTAssertNil(
+            status["trackPerformCaptureVisible"],
+            "The tracks-matrix capture chooser was removed; its status field must be retired."
+        )
+    }
+
+    /// AC4: the retired `trackPerformLayer*` / `phrasePerformCapture` commands
+    /// must be accepted (so stale visual scripts don't error) but ignored —
+    /// they only drive navigation into tracks-perform now, never a layer
+    /// selector. The selection/scope stays empty (unscoped) since no scope
+    /// command was sent.
+    func test_retiredTrackPerformLayerCommand_isAcceptedButDrivesNoLayerSurface() {
+        let fixture = makeFixture()
+
+        apply(
+            [
+                "trackPerformLayer": "noteRepeat",
+                "trackPerformLayerSelector": "open",
+                "trackPerformLayerVariant": "1/16"
+            ],
+            fixture: fixture
+        )
+
+        XCTAssertEqual(
+            fixture.session.workspaceMode, .perform,
+            "The retired fixture still navigates into tracks perform."
+        )
+        XCTAssertEqual(fixture.sectionBox.section, .tracks)
+        XCTAssertTrue(
+            fixture.session.performTrackScope.isEmpty,
+            "A retired layer command must not scope perform — it is ignored."
+        )
+    }
+
     // MARK: - The tracks page observes the global mode
 
     func test_tracksPage_reEvaluatesWhenGlobalModeChanges() throws {

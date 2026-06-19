@@ -55,7 +55,7 @@ scenario_status="started; no captures completed yet"
 CAPTURES=$(cat <<'TABLE'
 01-phrase|workspace=phrase|phraseMatrixTrackCount=6;phraseMatrixPhraseCount=6;phraseMatrixLayerIndex=0;transport=stop
 02-tracks-edit|workspace=tracks,tracksMode=edit|tracksMode=edit;transport=stop
-03-tracks-perform|workspace=tracks,tracksMode=perform,trackPerformLayerMode=pattern|tracksMode=perform;trackPerformTrackCount=8;trackPerformLayer=pattern;transport=stop
+03-tracks-perform|workspace=tracks,tracksMode=perform|tracksMode=perform;trackPerformTrackCount=8;transport=stop
 04-mixer|workspace=mixer|workspace=mixer;transport=stop
 05-scenes-browse|workspace=scenes,scenesMode=browseEdit|scenesMode=browseEdit;transport=stop
 05a-scenes-edit-empty|workspace=scenes,scenesMode=browseEdit,sceneEditorFixture=empty|scenesMode=browseEdit;sceneEditorFixture=empty;transport=stop
@@ -70,10 +70,11 @@ CAPTURES=$(cat <<'TABLE'
 13-phrase-global-apply|workspace=phrase,phraseWorkspaceTab=globalApply|phraseMatrixTrackCount=8;phraseMatrixPhraseCount=8;phraseWorkspaceTab=globalApply;transport=stop
 13a-phrase-global-apply-track-selector|workspace=phrase,phraseWorkspaceTab=globalApply,phraseGlobalApplyTrackSelectorVisible=true|phraseMatrixTrackCount=8;phraseMatrixPhraseCount=8;phraseWorkspaceTab=globalApply;phraseGlobalApplyTrackSelector=open;transport=stop
 13b-phrase-perform-capture|workspace=phrase,workspaceMode=perform,phraseCaptureVisible=true|phraseMatrixTrackCount=8;phraseMatrixPhraseCount=8;workspaceMode=perform;phraseWorkspaceTab=layers;phraseCapture=open;transport=stop
-14-tracks-perform-layer-selector|workspace=tracks,trackPerformLayerSelectorVisible=true|tracksMode=perform;trackPerformTrackCount=8;trackPerformLayerSelector=open;transport=stop
-15-tracks-perform-mute|workspace=tracks,trackPerformLayerMode=mute|tracksMode=perform;trackPerformTrackCount=8;trackPerformLayer=mute;transport=stop
-16-tracks-perform-fill|workspace=tracks,trackPerformLayerMode=fill|tracksMode=perform;trackPerformTrackCount=8;trackPerformLayer=fill;transport=stop
-17-tracks-perform-note-repeat|workspace=tracks,trackPerformLayerMode=noteRepeat|tracksMode=perform;trackPerformTrackCount=8;trackPerformLayer=noteRepeat;transport=stop
+# 14-17 RETIRED: the tracks Perform LAYER surface (TRACK LAYER selector +
+# mute/fill/note-repeat layer cells) was removed. Tracks Perform is now
+# navigation + selection; layer perform launches scoped from the selection
+# (covered by the phrase-perform rows 08-13b). The trackPerformLayer* status
+# fields no longer exist.
 18-track-detail-steps-clip|workspace=track|trackFillSource=clip;trackSourceTab=steps-clip;transport=stop
 19-track-detail-sound|workspace=track|trackFillSource=generator;trackSourceTab=sound;transport=stop
 20-track-fill-preview-active|workspace=track,selectedTrackFillPreviewActive=true|trackFillSource=clip;trackFillPreview=on;transport=stop
@@ -104,7 +105,11 @@ CAPTURES=$(cat <<'TABLE'
 39-drum-kit-matrix-generator-readonly|workspace=track,drumKitMatrixRenderedVisible=true|drumPartHeaderFixture=kit;drumKitMatrixFixture=generatorAndReadOnly;drumPartHeaderOpenKitView=true;drumKitMatrixTemplateChooser=close;transport=stop
 32-step-order-unassigned|workspace=phrase,stepOrderFixtureState=unassigned|stepOrderFixture=unassigned;phrasePerformLayer=stepOrder;transport=stop
 33-step-order-assigned-on|workspace=phrase,stepOrderFixtureState=assignedOn|stepOrderFixture=assignedOn;phrasePerformLayer=stepOrder;transport=stop
-34-note-repeat-active|workspace=tracks,selectedNoteRepeatActive=true|tracksMode=perform;trackPerformTrackCount=4;trackPerformLayer=noteRepeat;noteRepeatEnsureSecondClipTrack=true;noteRepeatSelectedTrackIndex=0;noteRepeatSource=clip;noteRepeatInterval=1/8;noteRepeatAction=press;transport=play
+# 34 RETIRED: note-repeat runtime engagement was driven from the removed
+# tracks-matrix note-repeat layer surface (noteRepeatAction=press). Note
+# repeat is now a scoped/phrase-perform concern; tracks Perform no longer
+# engages it, so the selectedNoteRepeatActive=true capture cannot be driven
+# here.
 40-library-global|workspace=library,libraryCategory=drumKits|workspace=library;libraryCategory=drumKits;transport=stop
 41-library-pool|workspace=library,libraryFixture=pool,libraryPoolCount=4|workspace=library;libraryFixture=pool;libraryCategory=drumKits;transport=stop
 42-library-recordings-populated|workspace=library,libraryCategory=recordings,libraryRecordingsCount=2|workspace=library;libraryFixture=recordings;libraryCategory=recordings;transport=stop
@@ -230,11 +235,10 @@ write_notes() {
 }
 
 cleanup() {
-  # Never strand a driven instance: the last capture can leave the transport
-  # playing with a held note repeat, which reads as "the app is broken" (and
-  # previously exposed a stop/tick deadlock). Reset, then quit the app.
-  write_visual_command "transport=stop
-noteRepeatAction=release" 2>/dev/null || true
+  # Never strand a driven instance: reset the transport, then quit the app.
+  # (The note-repeat release cleanup was retired with the tracks-matrix
+  # note-repeat surface — note repeat is no longer engaged from here.)
+  write_visual_command "transport=stop" 2>/dev/null || true
   sleep 2
   if [ -n "${pid:-}" ]; then
     kill "$pid" 2>/dev/null || true
@@ -302,6 +306,8 @@ wait_for_status "workspace" "phrase" 15
 
 while IFS= read -r row; do
   [ -n "$row" ] || continue
+  # Skip comment lines (e.g. retired-row notes) in the CAPTURES table.
+  case "$row" in \#*) continue ;; esac
   if [ -n "$capture_filter" ]; then
     row_name="${row%%|*}"
     [[ "$row_name" == *"$capture_filter"* ]] || continue

@@ -44,10 +44,6 @@ enum VisualScenarioCommandRunner {
     private static var phraseCellTool = "value"
     private static var phraseGlobalApplyTrackSelectorVisible = false
     private static var phraseCaptureVisible = false
-    private static var trackPerformLayerMode = TrackPerformLayerMode.pattern.rawValue
-    private static var trackPerformLayerSelectorVisible = false
-    private static var trackPerformLayerVariant = "none"
-    private static var trackPerformCaptureVisible = false
     private static var stepOrderFixtureState = "none"
     private static var trackSourceTabState = "none"
     private static var sceneEditorFixtureState = "none"
@@ -201,15 +197,6 @@ enum VisualScenarioCommandRunner {
                 phraseCellTool = userInfo["cellTool"] as? String ?? "value"
                 phraseGlobalApplyTrackSelectorVisible = userInfo["globalApplyTrackSelectorVisible"] as? Bool ?? false
                 phraseCaptureVisible = userInfo["captureVisible"] as? Bool ?? false
-            }
-        }
-        NotificationCenter.default.addObserver(
-            forName: .trackPerformCaptureRenderedVisualState,
-            object: nil,
-            queue: .main
-        ) { notification in
-            Task { @MainActor in
-                trackPerformCaptureVisible = notification.userInfo?["visible"] as? Bool ?? false
             }
         }
     }
@@ -636,10 +623,6 @@ enum VisualScenarioCommandRunner {
         selectedPatternSourceMode=\(selectedPattern.sourceRef.mode.rawValue)
         selectedPatternHasClip=\(session.store.clipEntry(id: selectedPattern.sourceRef.clipID) != nil)
         selectedPatternHasGenerator=\(session.store.generatorEntry(id: selectedPattern.sourceRef.generatorID) != nil)
-        trackPerformLayerMode=\(trackPerformLayerMode)
-        trackPerformLayerSelectorVisible=\(trackPerformLayerSelectorVisible)
-        trackPerformLayerVariant=\(trackPerformLayerVariant)
-        trackPerformCaptureVisible=\(trackPerformCaptureVisible)
         performOverviewRowCount=\(PerformOverviewRowModel.rows(tracks: session.store.tracks, groups: session.store.trackGroups).count)
         selectedNoteRepeatAvailable=\(session.isNoteRepeatAvailable(trackID: session.store.selectedTrackID))
         selectedNoteRepeatStoredInterval=\(session.store.selectedTrack.noteRepeatInterval.rawValue)
@@ -762,6 +745,14 @@ enum VisualScenarioCommandRunner {
         session.store.phrases.first { $0.name == "Phrase A" } ?? session.store.phrases.first
     }
 
+    /// RETIRED: the tracks Perform view no longer has a bespoke layer surface
+    /// (it is navigation + selection; layer perform launches scoped from the
+    /// selection). The `trackPerformLayer` / `trackPerformLayerSelector` /
+    /// `trackPerformLayerVariant` / `phrasePerformCapture` commands and the
+    /// `trackPerformLayer*` status fields are gone. Only the still-meaningful
+    /// `trackPerformTrackCount` navigation fixture is kept (it just opens the
+    /// tracks page in perform mode with N tracks). The retired keys are
+    /// accepted but ignored so old visual scripts don't error.
     private static func applyTrackPerformLayerMatrixFixture(
         command: [String: String],
         section: Binding<WorkspaceSection>,
@@ -781,54 +772,24 @@ enum VisualScenarioCommandRunner {
            let trackCount = Int(rawTrackCount) {
             ensureTrackCount(trackCount, session: session)
         }
-
-        switch command["trackPerformLayerSelector"] {
-        case "open", "visible", "true":
-            trackPerformLayerSelectorVisible = true
-            NotificationCenter.default.post(name: .trackPerformVisualCommand, object: "open-layer-selector")
-        case "close", "hidden", "false":
-            trackPerformLayerSelectorVisible = false
-            NotificationCenter.default.post(name: .trackPerformVisualCommand, object: "close-layer-selector")
-        default:
-            break
-        }
-
-        switch command["phrasePerformCapture"] {
-        case "open", "visible", "true":
-            NotificationCenter.default.post(name: .trackPerformVisualCommand, object: "open-phrase-capture")
-        case "close", "hidden", "false":
-            NotificationCenter.default.post(name: .trackPerformVisualCommand, object: "close-phrase-capture")
-        default:
-            break
-        }
-
-        if let rawLayer = command["trackPerformLayer"],
-           let layer = TrackPerformLayerMode(rawValue: rawLayer) {
-            trackPerformLayerMode = layer.rawValue
-
-            if let variant = command["trackPerformLayerVariant"],
-               layer.inlineVariantLabels.contains(variant) {
-                trackPerformLayerVariant = variant
-                trackPerformLayerSelectorVisible = false
-                NotificationCenter.default.post(
-                    name: .trackPerformVisualCommand,
-                    object: "select-variant:\(layer.rawValue):\(variant)"
-                )
-            } else if command["trackPerformLayerSelector"] == nil {
-                trackPerformLayerVariant = "none"
-                trackPerformLayerSelectorVisible = false
-                NotificationCenter.default.post(name: .trackPerformVisualCommand, object: "select-layer:\(layer.rawValue)")
-            }
-        }
+        // trackPerformLayer*/phrasePerformCapture intentionally ignored
+        // (bespoke layer surface removed).
     }
 
+    /// Note-repeat lived on the retired tracks-perform layer surface. The
+    /// runtime engage/release/clear interaction is no longer driven from the
+    /// tracks matrix (note repeat is a scoped/phrase-perform concern now), so
+    /// the visual-command posts and the `trackPerformLayer` key are retired.
+    /// The document-truth bits that are still meaningful — navigating to the
+    /// tracks page in perform mode, ensuring track count, selecting a track,
+    /// the fill source, and the stored note-repeat interval — are kept so
+    /// existing fixtures that set up state don't break.
     private static func applyNoteRepeatPerformFixture(
         command: [String: String],
         section: Binding<WorkspaceSection>,
         session: SequencerDocumentSession
     ) {
-        guard command["trackPerformLayer"] != nil ||
-              command["noteRepeatSelectedTrackIndex"] != nil ||
+        guard command["noteRepeatSelectedTrackIndex"] != nil ||
               command["noteRepeatSource"] != nil ||
               command["noteRepeatInterval"] != nil ||
               command["noteRepeatAction"] != nil ||
@@ -849,13 +810,6 @@ enum VisualScenarioCommandRunner {
             session.setSelectedTrackID(session.store.tracks[clampedIndex].id)
         }
 
-        if command["trackPerformLayerVariant"] == nil,
-           let rawLayer = command["trackPerformLayer"],
-           let layer = TrackPerformLayerMode(rawValue: rawLayer) {
-            trackPerformLayerMode = layer.rawValue
-            NotificationCenter.default.post(name: .trackPerformVisualCommand, object: "layer:\(layer.rawValue)")
-        }
-
         if let sourceState = command["noteRepeatSource"] {
             applyTrackFillSource(sourceState, session: session)
         }
@@ -864,21 +818,8 @@ enum VisualScenarioCommandRunner {
            let interval = NoteRepeatInterval(rawValue: rawInterval) {
             session.setTrackNoteRepeatInterval(interval, trackID: session.store.selectedTrackID)
         }
-
-        switch command["noteRepeatAction"] {
-        case "press", "hold", "active", "engage":
-            trackPerformLayerMode = TrackPerformLayerMode.noteRepeat.rawValue
-            NotificationCenter.default.post(name: .trackPerformVisualCommand, object: "layer:\(TrackPerformLayerMode.noteRepeat.rawValue)")
-            let trackID = session.store.selectedTrackID
-            NotificationCenter.default.post(name: .trackPerformVisualCommand, object: "press:\(trackID.uuidString)")
-        case "release", "inactive", "off":
-            let trackID = session.store.selectedTrackID
-            NotificationCenter.default.post(name: .trackPerformVisualCommand, object: "release:\(trackID.uuidString)")
-        case "clear":
-            NotificationCenter.default.post(name: .trackPerformVisualCommand, object: "clear-note-repeat")
-        default:
-            break
-        }
+        // noteRepeatAction (press/release/clear) retired: the tracks-matrix
+        // note-repeat runtime trigger surface was removed.
     }
 
     private static func applyPhraseMatrixFixture(
