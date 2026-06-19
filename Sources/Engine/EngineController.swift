@@ -757,6 +757,10 @@ final class EngineController: RouterDispatcher {
         lastNoteTriggerUptime = 0
         lastNoteTriggerCount = 0
         sampleEngine.stop()
+        // Stopped audio means no more meter taps fire; snap every mixer
+        // meter (master + channels + buses) to zero so they don't freeze on
+        // their last value.
+        mainAudioGraph.resetMetersToSilence()
         tickState.resetRuntimeState()
         clearNoteRepeatCaptureCaches()
         clearAllNoteRepeats(now: now)

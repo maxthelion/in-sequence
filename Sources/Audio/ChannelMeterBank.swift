@@ -53,6 +53,16 @@ final class ChannelMeterBank {
         }
     }
 
+    /// Snaps every publisher (channels + auxiliary master) to silence at
+    /// once — used when the transport stops so meters drop to zero instead of
+    /// freezing on their last value. Mirrors `recordSilenceEverywhere()`'s
+    /// snapshot-then-act threading.
+    func resetAllToSilence() {
+        for publisher in publishersSnapshot() {
+            publisher.resetToSilence()
+        }
+    }
+
     func startPublishing() {
         if Thread.isMainThread {
             startPublishingOnMain()

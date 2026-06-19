@@ -759,40 +759,51 @@ struct VerticalLevelFader: View {
     var body: some View {
         GeometryReader { proxy in
             let height = proxy.size.height
-            let filledHeight = max(12, height * clampedLevel)
+            let usableHeight = max(0, height - thumbDiameter)
+            // The thumb travels within the trough; its centre maps the level.
+            let thumbCenterY = thumbDiameter / 2 + (1 - clampedLevel) * usableHeight
 
             ZStack(alignment: .bottom) {
-                // Bold-flat pass: the trough is an outlined inset cut.
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
-                    .fill(StudioTheme.inset)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
-                            .stroke(StudioTheme.border.opacity(StudioOpacity.softStroke), lineWidth: StudioMetrics.borderWidth)
-                    )
-
+                // The trough carries the live L/R meter lanes — prominent,
+                // like the master fader, so channels read levels too.
                 if let meterState {
-                    HStack(alignment: .bottom, spacing: 3) {
+                    HStack(alignment: .bottom, spacing: 4) {
                         meterLane(peak: meterState.leftPeakDBFS, height: height)
                         meterLane(peak: meterState.rightPeakDBFS, height: height)
                     }
-                    .padding(.horizontal, 5)
-                    .padding(.vertical, 4)
                     .animation(.linear(duration: 0.05), value: meterState.leftPeakDBFS)
                     .animation(.linear(duration: 0.05), value: meterState.rightPeakDBFS)
+                } else {
+                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
+                        .fill(StudioTheme.inset)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
+                                .stroke(StudioTheme.border.opacity(StudioOpacity.softStroke), lineWidth: StudioMetrics.borderWidth)
+                        )
                 }
 
                 if isInteractive {
-                    // Colour identifies, it never floods (ux-canon rule 12):
-                    // the fader column is a neutral wash (meters stay legible
-                    // through it); the level reads from the solid cyan cap.
-                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
-                        .fill(Color.white.opacity(isMuted ? StudioOpacity.selectedFill : StudioOpacity.mutedFill))
-                        .frame(height: filledHeight)
+                    // The draggable blue slide control, vertical: a thin
+                    // accent rail with a round thumb at the level position.
+                    Capsule(style: .continuous)
+                        .fill(StudioTheme.border.opacity(StudioOpacity.softStroke))
+                        .frame(width: 4)
+                        .padding(.vertical, thumbDiameter / 2)
 
-                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous)
+                    Capsule(style: .continuous)
+                        .fill(isMuted ? Color.white.opacity(StudioOpacity.selectedFill) : StudioTheme.cyan)
+                        .frame(width: 4, height: max(0, usableHeight * clampedLevel))
+                        .offset(y: -thumbDiameter / 2)
+
+                    Circle()
                         .fill(isMuted ? Color.white.opacity(0.85) : StudioTheme.cyan)
-                        .frame(width: 18, height: 4)
-                        .offset(y: -filledHeight + 10)
+                        .overlay(
+                            Circle().stroke(StudioTheme.inset, lineWidth: 2)
+                        )
+                        .frame(width: thumbDiameter, height: thumbDiameter)
+                        // Position the thumb centre; ZStack is bottom-aligned
+                        // so offset up from the bottom edge.
+                        .offset(y: -(height - thumbCenterY) + thumbDiameter / 2)
                 }
             }
             .contentShape(Rectangle())
@@ -801,7 +812,8 @@ struct VerticalLevelFader: View {
                     ? DragGesture(minimumDistance: 0)
                         .onChanged { value in
                             onBegin()
-                            let normalized = 1 - min(max(value.location.y / max(height, 1), 0), 1)
+                            let travel = value.location.y - thumbDiameter / 2
+                            let normalized = 1 - min(max(travel / max(usableHeight, 1), 0), 1)
                             onChange(normalized)
                         }
                         .onEnded { _ in
@@ -812,19 +824,24 @@ struct VerticalLevelFader: View {
         }
     }
 
+    private var thumbDiameter: CGFloat { 16 }
+
     private func meterLane(peak: Double, height: CGFloat) -> some View {
         let normalizedPeak = MasterMeterLevelScale.normalized(peak)
         return ZStack(alignment: .bottom) {
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous)
-                .fill(Color.white.opacity(0.06))
+                .fill(StudioTheme.inset)
+                .overlay(
+                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous)
+                        .stroke(StudioTheme.border.opacity(StudioOpacity.softStroke), lineWidth: StudioMetrics.borderWidth)
+                )
 
             meterGradient
-                .frame(height: max(0, height - 8))
                 .mask {
                     VStack(spacing: 0) {
                         Spacer(minLength: 0)
                         Rectangle()
-                            .frame(height: max(0, height - 8) * normalizedPeak)
+                            .frame(height: height * normalizedPeak)
                     }
                 }
                 .opacity(normalizedPeak > 0 ? 0.95 : 0)
