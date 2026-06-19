@@ -289,11 +289,15 @@ launched_pid="$!"
 sleep 3
 
 pid="$launched_pid"
-ensure_document_window "$pid"
 
+# Size the freshly-launched window BEFORE the peekaboo gate. Without saved
+# window state the app opens at a tiny default size that peekaboo filters out
+# as "window too small", so the gate never sees it. Send the resize first (the
+# command file is consumed once the window exists), then confirm it.
 write_visual_command "windowFrame=$WB
 workspace=phrase
 transport=stop"
+ensure_document_window "$pid"
 wait_for_status "workspace" "phrase" 15
 
 while IFS= read -r row; do
