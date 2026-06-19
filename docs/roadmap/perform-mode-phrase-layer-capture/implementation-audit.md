@@ -161,6 +161,15 @@ done declaration for the whole feature.
 - This keeps the surface matrix-like and avoids adding another modal or detail
   panel for latch length.
 
+## Implemented In Twelfth Slice
+
+- The automation sheet now has an explicit Clear Automation action.
+- Clearing automation collapses bars/steps/curve cells to a single phrase-cell
+  value resolved at the current phrase playhead position.
+- The underlying deterministic helper is covered by phrase policy tests so
+  clearing bar and curve automation preserves the currently heard value rather
+  than snapping to a default.
+
 ## Verified
 
 - `docs/roadmap/perform-mode-phrase-layer-capture/acceptance-verification.md`
@@ -227,6 +236,11 @@ done declaration for the whole feature.
   passed with direct `xcodebuild`.
 - After the eleventh slice, the app target built with direct `xcodebuild` using
   `/tmp/seqai-phrase-perform-build`.
+- After the twelfth slice, `xcodebuild test
+  -only-testing:SequencerAITests/PhrasePolicySessionTests` passed with direct
+  `xcodebuild`.
+- After the twelfth slice, the app target built with direct `xcodebuild` using
+  `/tmp/seqai-phrase-perform-build`.
 
 ## Still Not Done
 
@@ -249,9 +263,9 @@ done declaration for the whole feature.
   keeps confusing the phrase-local Perform model.
 - Visual review evidence against the V3 prototype has not yet been captured for
   the built app.
-- The automation modal is still visually the existing editor restyled as
-  "Automation"; it needs a UX review against the V3 intent before the full
-  feature can be called done.
+- The automation modal now has a Clear Automation action, but its visual shape
+  still needs review against the V3 intent before the full feature can be
+  called done.
 - Global Apply needs visual review and likely refinement against the V3 matrix
   intent, especially scope default semantics.
 

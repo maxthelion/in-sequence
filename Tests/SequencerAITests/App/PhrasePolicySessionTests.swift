@@ -38,6 +38,34 @@ final class PhrasePolicySessionTests: XCTestCase {
         SequencerDocumentSessionRegistry.unregister(session)
     }
 
+    func test_clearingAutomationCollapsesToResolvedSingleValueAtStep() throws {
+        let track = StepSequenceTrack.default
+        let layers = PhraseLayerDefinition.defaultSet(for: [track])
+        let patternLayer = try XCTUnwrap(layers.first(where: { $0.id == "pattern" }))
+        let volumeLayer = try XCTUnwrap(layers.first(where: { $0.id == "volume" }))
+        var phrase = PhraseModel.default(
+            tracks: [track],
+            layers: layers,
+            generatorPool: GeneratorPoolEntry.defaultPool,
+            clipPool: []
+        )
+        phrase.lengthBars = 4
+
+        phrase.setCell(.bars([.index(0), .index(4), .index(7), .index(2)]), for: patternLayer.id, trackID: track.id)
+        XCTAssertTrue(phrase.cell(for: patternLayer.id, trackID: track.id).isAutomated)
+        XCTAssertEqual(
+            phrase.clearingAutomation(for: patternLayer, trackID: track.id, stepIndex: phrase.stepsPerBar),
+            .single(.index(4))
+        )
+
+        phrase.setCell(.curve([0, 127]), for: volumeLayer.id, trackID: track.id)
+        XCTAssertTrue(phrase.cell(for: volumeLayer.id, trackID: track.id).isAutomated)
+        XCTAssertEqual(
+            phrase.clearingAutomation(for: volumeLayer, trackID: track.id, stepIndex: phrase.stepCount - 1),
+            .single(.scalar(127))
+        )
+    }
+
     func test_phrasePolicyCommandsReturnFalseForNoOpOrMissingPhrase() {
         let (session, phraseID, _) = makeSessionWithAuthoredBarValues()
 

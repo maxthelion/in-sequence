@@ -16,6 +16,7 @@ struct PhraseCellEditorSheet: View {
 
     @State private var selectedBarPage = 0
     @Environment(SequencerDocumentSession.self) private var session
+    @Environment(EngineController.self) private var engineController
     @Environment(\.dismiss) private var dismiss
 
     private var phrase: PhraseModel? {
@@ -85,6 +86,23 @@ struct PhraseCellEditorSheet: View {
                     .buttonStyle(.plain)
                     .foregroundStyle(cell.editMode == mode ? StudioTheme.text : StudioTheme.mutedText)
                 }
+
+                Spacer(minLength: 10)
+
+                Button {
+                    clearAutomation(phrase: phrase, track: track, layer: layer)
+                } label: {
+                    Text("Clear Automation")
+                        .studioText(.labelBold)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
+                        .overlay(Capsule().stroke(cell.isAutomated ? accent : StudioTheme.border, lineWidth: StudioMetrics.borderWidth))
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(cell.isAutomated ? StudioTheme.text : StudioTheme.mutedText)
+                .disabled(!cell.isAutomated)
+                .help(cell.isAutomated ? "Collapse automation to the value at the current phrase position" : "This cell has no automation to clear")
             }
 
             switch cell {
@@ -327,6 +345,23 @@ struct PhraseCellEditorSheet: View {
             barCount: phrase.lengthBars
         )
         setCell(cell, phrase: phrase, track: track, layer: layer)
+    }
+
+    private func clearAutomation(
+        phrase: PhraseModel,
+        track: StepSequenceTrack,
+        layer: PhraseLayerDefinition
+    ) {
+        let stepIndex = PhrasePlayhead(
+            phrase: phrase,
+            transportTickIndex: engineController.transportTickIndex
+        ).stepIndex
+        setCell(
+            phrase.clearingAutomation(for: layer, trackID: track.id, stepIndex: stepIndex),
+            phrase: phrase,
+            track: track,
+            layer: layer
+        )
     }
 
     /// Inherit is only offered when this cell follows a phrase whose same

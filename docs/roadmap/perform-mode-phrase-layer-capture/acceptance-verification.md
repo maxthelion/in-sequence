@@ -27,7 +27,8 @@ runtime evidence. A partial result means "do not call the whole feature done".
   Apply writes, the first quantized Mute latch policy, and length-limited Mute
   staging across one or more bars. Engine-visible playback snapshot
   coverage now proves phrase overlay values reach pattern, mute, fill,
-  repeat/loop, and scene state buffers.
+  repeat/loop, and scene state buffers. Automation editing now has an explicit
+  clear path that collapses automation to the current resolved value.
 - Not yet verified enough to ship as the full feature: visual match to the V3
   wireframes, general latch length/expiry semantics beyond Mute, scene
   macro/per-bar/continuous automation, and interactive runtime evidence for the
@@ -47,7 +48,7 @@ runtime evidence. A partial result means "do not call the whole feature done".
 | 8 | Dirty/changed state is visible when Perform is on and changes exist. | Pass, needs visual review | Overlay staged counts and dirty lookups are covered by `PhrasePerformOverlaySessionTests`. Built visual clarity is not yet reviewed. |
 | 9 | Latch timing controls are phrase-local and inactive in Moment mode. | Partial | UI state and `PhrasePerformTimingPolicyTests` prove Moment does not arm quantized Mute. `PhraseWorkspaceView` now exposes phrase-local `LEN: HOLD`, `1B`, `2B`, `4B`, and `8B` only for Latch. Visual state remains unverified. |
 | 10 | Layers uses an eight-column matrix and direct cell click changes values. | Partial | `PhraseWorkspaceView` uses eight-column grids and value-mode clicks route through direct `setPhraseCell` paths. Needs visual evidence against V3. |
-| 11 | Automation mode changes layer-cell click behavior to open automation editing. | Partial | `PhraseCellTool.automation` routes cell clicks to the deeper editor. The editor is still the existing modal shape and needs UX review. |
+| 11 | Automation mode changes layer-cell click behavior to open automation editing. | Partial | `PhraseCellTool.automation` routes cell clicks to the deeper editor. `PhraseCellEditorSheet` now includes Clear Automation, which collapses bars/steps/curve automation to the current resolved single value. The modal still needs visual/UX review. |
 | 12 | Global Apply applies a chosen layer/value to the current track scope. | Pass | `PhrasePerformOverlaySessionTests.test_scopedGlobalApplyInPerformModeStagesEveryRecipientTrack` proves scoped multi-track writes through the phrase overlay path. |
 | 13 | Global Apply track scope selection uses an eight-column matrix. | Partial | Implemented in `PhraseWorkspaceView`, but needs visual evidence. |
 | 14 | Scenes keeps the current scene A/B/crossfader shape. | Partial | `phraseScenesSurface` uses Slot A, crossfader, Slot B and stores `PhraseSceneState`. It needs visual comparison with the current scenes surface and V3 intent. |
@@ -59,7 +60,7 @@ runtime evidence. A partial result means "do not call the whole feature done".
 | 20 | Latch changes can be quantized to next bar and length-limited. | Partial | Quantized Mute arming exists for phrase Layers and Global Apply when Latch + Q:BAR is active. One-bar and multi-bar length-limited Mute commits at the boundary and stages a bar-shaped phrase cell. General length-limited semantics for other layers are not implemented. |
 | 21 | No deferred performance-group UI is implemented. | Pass | The current phrase workspace does not add performance-group UI. |
 | 22 | No Capture Clip redesign is implemented. | Pass | This build keeps phrase capture separate from clip history/capture clip work. |
-| 23 | No generic Cell Detail page remains in this flow. | Partial | Normal layer clicks no longer open the generic editor. Automation mode still opens the deeper cell editor, so this needs UX review against "automation modal" intent. |
+| 23 | No generic Cell Detail page remains in this flow. | Partial | Normal layer clicks no longer open the generic editor. Automation mode opens the automation sheet with mode controls and Clear Automation, but this still needs visual review against the V3 "automation modal" intent. |
 | 24 | Visual review evidence shows built surfaces compared with V3 wireframe intent. | Missing | Peekaboo/visual automation was not run in this unattended context. No screenshot evidence is attached yet. |
 
 ## Anti-Hybrid Review

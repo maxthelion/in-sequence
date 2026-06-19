@@ -274,6 +274,14 @@ struct PhraseModel: Codable, Equatable, Sendable, Identifiable {
         resolvedValue(for: layer, trackID: address.trackID, stepIndex: address.stepIndex)
     }
 
+    func clearingAutomation(
+        for layer: PhraseLayerDefinition,
+        trackID: UUID,
+        stepIndex: Int
+    ) -> PhraseCell {
+        .single(resolvedValue(for: layer, trackID: trackID, stepIndex: stepIndex).normalized(for: layer))
+    }
+
     func patternIndex(for trackID: UUID, layers: [PhraseLayerDefinition]) -> Int {
         guard let layer = layers.first(where: { $0.target == .patternIndex }) else {
             return 0
@@ -560,6 +568,15 @@ enum PhraseCell: Codable, Equatable, Sendable {
             return .steps
         case .curve:
             return .curve
+        }
+    }
+
+    var isAutomated: Bool {
+        switch self {
+        case .bars, .steps, .curve:
+            return true
+        case .inheritDefault, .single:
+            return false
         }
     }
 
