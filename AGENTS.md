@@ -66,6 +66,33 @@ summaries live under `.meta/multipass/state/`.
 - `/Users/maxwilliams/dev/foreman-coordinator/actors/` holds central actor prompts.
 - `scripts/visual-scenarios/` holds project-local Peekaboo visual evidence scripts.
 
+## Visual Capture Map
+
+When updating or running visual evidence, start here instead of searching:
+
+- `scripts/visual-scenarios/qa-surface-coverage.sh` is the broad screenshot
+  capture script. Its `CAPTURES` table is the place to add or update app
+  surfaces, including phrase Layers, Scenes, Global Apply, Capture, and
+  Automation states.
+- `scripts/visual-scenarios/phrase-matrix-navigation.sh` is the smaller
+  phrase-matrix paging/layer-switch scenario.
+- `scripts/visual-scenarios/phrase-perform-dirty-overlay.sh` is the older
+  focused phrase perform overlay/capture scenario.
+- `scripts/visual-scenarios/peekaboo-common.sh` owns the visual-automation
+  permission gate and shared app/window helpers.
+- `Sources/UI/VisualScenarioCommandRunner.swift` maps command-file keys to app
+  state and writes `.status` files. Add phrase command support there before
+  adding capture rows that need new state.
+- `Sources/UI/PhraseWorkspaceView.swift` owns the phrase-local UI surfaces and
+  subscribes to `.phraseMatrixVisualCommand` for visual scenario commands.
+
+The capture protocol is command-file driven: scripts write key/value commands
+such as `workspace=phrase`, `phraseMatrixLayerID=mute`,
+`phrasePerformLayerSelector=open`, or `phrasePerformCapture=open`; the app
+writes matching status keys such as `phraseMatrixRenderedVisible`,
+`phrasePerformLayerMode`, `phrasePerformLayerSelectorVisible`, and
+`trackPerformCaptureVisible`.
+
 ## How To Orient
 
 Run:
