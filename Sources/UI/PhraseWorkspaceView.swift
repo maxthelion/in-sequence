@@ -1729,6 +1729,11 @@ struct SongWorkspaceView: View {
         Array(repeating: GridItem(.flexible(minimum: 118, maximum: 168), spacing: 10), count: 8)
     }
 
+    private var songSlots: [PhraseModel?] {
+        let slotCount = max(8, Int(ceil(Double(phrases.count) / 8.0)) * 8)
+        return phrases.map(Optional.some) + Array(repeating: nil, count: max(0, slotCount - phrases.count))
+    }
+
     var body: some View {
         StudioPanel(title: "Song", accent: StudioTheme.cyan, showsHeader: false) {
             VStack(alignment: .leading, spacing: 16) {
@@ -1784,28 +1789,35 @@ struct SongWorkspaceView: View {
     private var phraseGrid: some View {
         ScrollView([.vertical]) {
             LazyVGrid(columns: songColumns, alignment: .leading, spacing: 10) {
-                ForEach(phrases) { phrase in
-                    PhraseMatrixPhraseCell(
-                        phrase: phrase,
-                        isSelected: phrase.id == session.store.selectedPhraseID,
-                        isPlaying: PhraseButtonControlPresentation.isPlayingBadgeVisible(
-                            phraseID: phrase.id,
-                            engineIsRunning: engineController.isRunning,
-                            currentPhraseID: engineController.currentPhraseID
-                        ),
-                        isQueued: engineController.queuedPhraseID == phrase.id,
-                        onSelect: {
-                            session.setSelectedPhraseID(phrase.id)
-                            onOpenPhrase()
-                        },
-                        onChangeBarCount: { nextBarCount in
-                            session.setPhraseBarCount(nextBarCount, phraseID: phrase.id)
-                        },
-                        onChangeRepeatCount: { nextRepeatCount in
-                            session.setPhraseRepeatCount(nextRepeatCount, phraseID: phrase.id)
+                ForEach(Array(songSlots.enumerated()), id: \.offset) { index, slot in
+                    if let phrase = slot {
+                        PhraseMatrixPhraseCell(
+                            phrase: phrase,
+                            isSelected: phrase.id == session.store.selectedPhraseID,
+                            isPlaying: PhraseButtonControlPresentation.isPlayingBadgeVisible(
+                                phraseID: phrase.id,
+                                engineIsRunning: engineController.isRunning,
+                                currentPhraseID: engineController.currentPhraseID
+                            ),
+                            isQueued: engineController.queuedPhraseID == phrase.id,
+                            onSelect: {
+                                session.setSelectedPhraseID(phrase.id)
+                                onOpenPhrase()
+                            },
+                            onChangeBarCount: { nextBarCount in
+                                session.setPhraseBarCount(nextBarCount, phraseID: phrase.id)
+                            },
+                            onChangeRepeatCount: { nextRepeatCount in
+                                session.setPhraseRepeatCount(nextRepeatCount, phraseID: phrase.id)
+                            }
+                        )
+                        .frame(minHeight: PhraseMatrixLayoutPresentation.matrixRowHeight)
+                    } else {
+                        SongEmptyPhraseCell(slotIndex: index) {
+                            session.insertPhrase(below: selectedPhrase.id)
                         }
-                    )
-                    .frame(minHeight: PhraseMatrixLayoutPresentation.matrixRowHeight)
+                        .frame(minHeight: PhraseMatrixLayoutPresentation.matrixRowHeight)
+                    }
                 }
             }
             .padding(.vertical, 2)
@@ -1841,6 +1853,44 @@ struct SongWorkspaceView: View {
         }
         .buttonStyle(.plain)
         .disabled(disabled)
+    }
+}
+
+private struct SongEmptyPhraseCell: View {
+    let slotIndex: Int
+    let onAdd: () -> Void
+
+    var body: some View {
+        Button(action: onAdd) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("Slot \(slotIndex + 1)")
+                        .studioText(.microEmphasis)
+                        .tracking(0.7)
+                        .foregroundStyle(StudioTheme.mutedText)
+                    Spacer(minLength: 0)
+                    Image(systemName: "plus")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(StudioTheme.mutedText)
+                }
+
+                Spacer(minLength: 0)
+
+                Text("Empty")
+                    .studioText(.subtitle)
+                    .foregroundStyle(StudioTheme.mutedText)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .padding(StudioMetrics.Spacing.compact)
+            .background(StudioTheme.inset.opacity(0.35), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
+                    .stroke(StudioTheme.border.opacity(StudioOpacity.mediumStroke), style: StrokeStyle(lineWidth: StudioMetrics.borderWidth, dash: [5, 5]))
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Empty phrase slot \(slotIndex + 1)")
+        .accessibilityHint("Add phrase")
     }
 }
 
