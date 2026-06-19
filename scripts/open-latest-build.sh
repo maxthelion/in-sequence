@@ -2,6 +2,20 @@
 
 set -euo pipefail
 
+# macOS does not provide the Linux-style C.UTF-8 locale. Some Codex/CI
+# environments still export it, and tools such as shasum invoke Perl, which
+# aborts before the helper can print or open the app. Fall back to the portable
+# C locale for this script.
+if [[ "${LC_ALL:-}" == "C.UTF-8" ]]; then
+  export LC_ALL=C
+fi
+if [[ "${LC_CTYPE:-}" == "C.UTF-8" ]]; then
+  export LC_CTYPE=C
+fi
+if [[ "${LANG:-}" == "C.UTF-8" ]]; then
+  export LANG=C
+fi
+
 mode="open"
 build_before_open="yes"
 
