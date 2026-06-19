@@ -170,6 +170,14 @@ done declaration for the whole feature.
   clearing bar and curve automation preserves the currently heard value rather
   than snapping to a default.
 
+## Implemented In Thirteenth Slice
+
+- A focused acceptance-style test now proves direct Perform-layer writes are
+  immediate for pattern, mute, and fill.
+- The test runs without transport, confirms the engine-visible playback
+  snapshot updates after each write, and confirms no quantized arm remains
+  pending.
+
 ## Verified
 
 - `docs/roadmap/perform-mode-phrase-layer-capture/acceptance-verification.md`
@@ -241,6 +249,15 @@ done declaration for the whole feature.
   `xcodebuild`.
 - After the twelfth slice, the app target built with direct `xcodebuild` using
   `/tmp/seqai-phrase-perform-build`.
+- After the thirteenth slice, `xcodebuild test
+  -only-testing:SequencerAITests/PhrasePerformOverlaySessionTests/test_performModeDirectLayerChangesPublishImmediatelyWithoutTransport`
+  passed with direct `xcodebuild`.
+- After the thirteenth slice, `xcodebuild test
+  -only-testing:SequencerAITests/PhrasePerformOverlaySessionTests` produced the
+  normal completion footer and exited after the wrapper cleared; no
+  `xcodebuild`/`xctest` process remained.
+- After the thirteenth slice, the app target built with direct `xcodebuild`
+  using `/tmp/seqai-phrase-perform-build`.
 
 ## Still Not Done
 
@@ -258,6 +275,9 @@ done declaration for the whole feature.
 - Playback snapshot agreement is proven for pattern, mute, fill, repeat/loop,
   and scene state, but it still needs interactive runtime evidence while the app
   is playing.
+- Direct Moment-style pattern, mute, and fill writes are proven to publish
+  immediately into the engine-visible snapshot, but they still need interactive
+  runtime evidence on the built surface.
 - The visible top-level Perform affordance is gone, but the internal
   `WorkspaceMode.perform` naming still exists and may need a later rename if it
   keeps confusing the phrase-local Perform model.

@@ -28,7 +28,9 @@ runtime evidence. A partial result means "do not call the whole feature done".
   staging across one or more bars. Engine-visible playback snapshot
   coverage now proves phrase overlay values reach pattern, mute, fill,
   repeat/loop, and scene state buffers. Automation editing now has an explicit
-  clear path that collapses automation to the current resolved value.
+  clear path that collapses automation to the current resolved value. Direct
+  Moment-style layer changes are proven to publish immediately without transport
+  or quantized arming.
 - Not yet verified enough to ship as the full feature: visual match to the V3
   wireframes, general latch length/expiry semantics beyond Mute, scene
   macro/per-bar/continuous automation, and interactive runtime evidence for the
@@ -56,7 +58,7 @@ runtime evidence. A partial result means "do not call the whole feature done".
 | 16 | Capture writes the perform copy to the chosen phrase destination. | Pass | Overlay tests cover capture to existing phrase and new phrase, including staged cells and scene state. |
 | 17 | Discard removes the perform copy without saving it. | Pass | Overlay tests cover `revertPhrasePerformOverlay` clearing staged cells while preserving canonical phrase state. |
 | 18 | Playback and UI agree about phrase mute/fill/pattern/repeat values. | Pass for compiled playback snapshot, needs runtime exercise | `PhrasePerformOverlaySessionTests.test_performOverlayPublishesEngineVisiblePhrasePlaybackState` proves perform-overlay pattern, mute, fill, repeat/loop, and scene state are installed into the engine-visible playback snapshot. Interactive heard/runtime evidence is still required. |
-| 19 | Moment changes are immediate. | Partial | Policy tests prove Moment bypasses quantized Mute arming. Direct value paths are immediate, but this is not covered end-to-end for every layer. |
+| 19 | Moment changes are immediate. | Pass for direct phrase-layer writes, needs interactive runtime exercise | `PhrasePerformTimingPolicyTests` proves Moment bypasses quantized Mute arming. `PhrasePerformOverlaySessionTests.test_performModeDirectLayerChangesPublishImmediatelyWithoutTransport` proves direct pattern, mute, and fill changes update the engine-visible snapshot immediately without transport or pending quantized arms. |
 | 20 | Latch changes can be quantized to next bar and length-limited. | Partial | Quantized Mute arming exists for phrase Layers and Global Apply when Latch + Q:BAR is active. One-bar and multi-bar length-limited Mute commits at the boundary and stages a bar-shaped phrase cell. General length-limited semantics for other layers are not implemented. |
 | 21 | No deferred performance-group UI is implemented. | Pass | The current phrase workspace does not add performance-group UI. |
 | 22 | No Capture Clip redesign is implemented. | Pass | This build keeps phrase capture separate from clip history/capture clip work. |

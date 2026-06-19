@@ -179,6 +179,58 @@ final class PhrasePerformOverlaySessionTests: XCTestCase {
         XCTAssertTrue(resolvedStep.fillEnabled)
     }
 
+    func test_performModeDirectLayerChangesPublishImmediatelyWithoutTransport() throws {
+        let fixture = makeSession()
+        defer { fixture.unregister() }
+
+        let phraseID = fixture.phrases[0].id
+        fixture.session.workspaceMode = .perform
+
+        fixture.session.setPhraseCell(
+            .single(.index(1)),
+            layerID: "pattern",
+            trackIDs: [fixture.trackID],
+            phraseID: phraseID
+        )
+        XCTAssertEqual(
+            fixture.engine.currentPlaybackSnapshotForTesting.resolvedStep(
+                phraseID: phraseID,
+                trackID: fixture.trackID,
+                stepInPhrase: 0
+            )?.slotIndex,
+            1
+        )
+
+        fixture.session.setPhraseCell(
+            .single(.bool(true)),
+            layerID: fixture.muteLayerID,
+            trackIDs: [fixture.trackID],
+            phraseID: phraseID
+        )
+        XCTAssertTrue(
+            try XCTUnwrap(fixture.engine.currentPlaybackSnapshotForTesting.resolvedStep(
+                phraseID: phraseID,
+                trackID: fixture.trackID,
+                stepInPhrase: 0
+            )).mute
+        )
+
+        fixture.session.setPhraseCell(
+            .single(.bool(true)),
+            layerID: "fill-flag",
+            trackIDs: [fixture.trackID],
+            phraseID: phraseID
+        )
+        XCTAssertTrue(
+            try XCTUnwrap(fixture.engine.currentPlaybackSnapshotForTesting.resolvedStep(
+                phraseID: phraseID,
+                trackID: fixture.trackID,
+                stepInPhrase: 0
+            )).fillEnabled
+        )
+        XCTAssertTrue(fixture.engine.quantisedPendingChanges.isEmpty)
+    }
+
     func test_setPhraseSceneStateInSetupModeMutatesCanonicalPhrase() {
         let fixture = makeSession()
         defer { fixture.unregister() }
