@@ -133,6 +133,24 @@ done declaration for the whole feature.
 - This resolves the visible anti-hybrid issue where phrase-local Perform/Capture
   coexisted with a global top-level Perform affordance.
 
+## Implemented In Ninth Slice
+
+- Phrase-local Latch now has a `LEN: HOLD` / `LEN: 1B` control in the phrase
+  header.
+- A one-bar length-limited Mute uses the quantised toggle scheduler, commits at
+  the bar boundary, and stages a bar-shaped phrase cell in the perform overlay.
+- The scheduler records the committed boundary tick so the session can compute
+  which phrase bar receives the temporary mute value.
+
+## Implemented In Tenth Slice
+
+- A session-level playback agreement test now proves perform-overlay phrase
+  values reach the engine-visible playback snapshot.
+- The covered fields are pattern slot, mute, fill flag, repeat count, loop flag,
+  and phrase scene state.
+- This narrows the previous acceptance gap where tests proved overlay reads but
+  not that the installed playback snapshot used the overlay-applied phrase.
+
 ## Verified
 
 - `docs/roadmap/perform-mode-phrase-layer-capture/acceptance-verification.md`
@@ -183,6 +201,14 @@ done declaration for the whole feature.
 - After the ninth slice, `xcodebuild test
   -only-testing:SequencerAITests/SequencerDocumentSessionQuantisedToggleTests/test_committedLengthLimitedMuteStagesBarCellForTheCommittedBar`
   passed with direct `xcodebuild`.
+- After the tenth slice, `xcodebuild test
+  -only-testing:SequencerAITests/PhrasePerformOverlaySessionTests/test_performOverlayPublishesEngineVisiblePhrasePlaybackState`
+  passed with direct `xcodebuild`.
+- After the tenth slice, `xcodebuild test
+  -only-testing:SequencerAITests/PhrasePerformOverlaySessionTests` passed with
+  direct `xcodebuild`.
+- After the tenth slice, the app target built with direct `xcodebuild` using
+  `/tmp/seqai-phrase-perform-build`.
 
 ## Still Not Done
 
@@ -196,6 +222,9 @@ done declaration for the whole feature.
   changes. One-bar length-limited Mute now commits at the bar boundary and
   stages a bar-shaped phrase cell. General phrase-cell quantized execution and
   length-limited behavior for other layers still need engine-level handling.
+- Playback snapshot agreement is proven for pattern, mute, fill, repeat/loop,
+  and scene state, but it still needs interactive runtime evidence while the app
+  is playing.
 - The visible top-level Perform affordance is gone, but the internal
   `WorkspaceMode.perform` naming still exists and may need a later rename if it
   keeps confusing the phrase-local Perform model.
@@ -211,7 +240,7 @@ done declaration for the whole feature.
 
 Review and harden the built phrase perform surface before more feature growth:
 
-- resolve or explicitly accept the partial/fail items in
+- resolve or explicitly accept the remaining partial/missing items in
   `acceptance-verification.md`;
 - run visual review against the V3 prototype for Layers, Scenes, and Global
   Apply, and the transport current/next/progress control;

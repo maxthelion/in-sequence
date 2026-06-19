@@ -25,11 +25,13 @@ runtime evidence. A partial result means "do not call the whole feature done".
 - Verified enough to keep building: phrase overlay state, capture/discard model,
   transport phrase presentation, phrase scene single-value state, scoped Global
   Apply writes, the first quantized Mute latch policy, and one-bar
-  length-limited Mute staging.
+  length-limited Mute staging. Engine-visible playback snapshot coverage now
+  proves phrase overlay values reach pattern, mute, fill, repeat/loop, and scene
+  state buffers.
 - Not yet verified enough to ship as the full feature: visual match to the V3
   wireframes, general latch length/expiry semantics beyond Mute, scene
-  macro/per-bar/continuous automation, and runtime agreement for every phrase
-  layer during playback.
+  macro/per-bar/continuous automation, and interactive runtime evidence for the
+  phrase surfaces while playback is running.
 
 ## Acceptance Criteria
 
@@ -52,7 +54,7 @@ runtime evidence. A partial result means "do not call the whole feature done".
 | 15 | Capture Phrase only chooses a phrase destination. | Pass | `PhrasePerformCaptureSheet` is reused for destination-only capture paths. No changed-cell review or Capture Clip option is in this phrase capture surface. |
 | 16 | Capture writes the perform copy to the chosen phrase destination. | Pass | Overlay tests cover capture to existing phrase and new phrase, including staged cells and scene state. |
 | 17 | Discard removes the perform copy without saving it. | Pass | Overlay tests cover `revertPhrasePerformOverlay` clearing staged cells while preserving canonical phrase state. |
-| 18 | Playback and UI agree about phrase mute/fill/pattern/repeat values. | Partial | UI reads through `phraseWithPerformOverlay`; snapshot compilation includes phrase cells and scene state. Full runtime agreement for mute/fill/pattern/repeat together is not proven. |
+| 18 | Playback and UI agree about phrase mute/fill/pattern/repeat values. | Pass for compiled playback snapshot, needs runtime exercise | `PhrasePerformOverlaySessionTests.test_performOverlayPublishesEngineVisiblePhrasePlaybackState` proves perform-overlay pattern, mute, fill, repeat/loop, and scene state are installed into the engine-visible playback snapshot. Interactive heard/runtime evidence is still required. |
 | 19 | Moment changes are immediate. | Partial | Policy tests prove Moment bypasses quantized Mute arming. Direct value paths are immediate, but this is not covered end-to-end for every layer. |
 | 20 | Latch changes can be quantized to next bar and length-limited. | Partial | Quantized Mute arming exists for phrase Layers and Global Apply when Latch + Q:BAR is active. One-bar length-limited Mute commits at the boundary and stages a bar-shaped phrase cell. General length-limited semantics for other layers are not implemented. |
 | 21 | No deferred performance-group UI is implemented. | Pass | The current phrase workspace does not add performance-group UI. |
@@ -79,8 +81,9 @@ runtime evidence. A partial result means "do not call the whole feature done".
    `prototypes/05-phrase-value-cell-system-v3.html`.
 2. Exercise a running phrase in Free and Song modes to prove the displayed
    current/next phrase and heard phrase agree.
-3. Add or extend engine-level tests for phrase mute/fill/pattern/repeat
-   agreement, not just isolated overlay writes.
+3. Exercise a running phrase to confirm the compiled pattern/mute/fill/repeat
+   agreement is audible/runtime-visible, not only present in the installed
+   playback snapshot.
 4. Decide whether the remaining internal `WorkspaceMode.perform` name should be
    renamed later; it is no longer exposed as top-level app chrome, but tests and
    scenario commands still use the legacy name.

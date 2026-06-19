@@ -124,6 +124,61 @@ final class PhrasePerformOverlaySessionTests: XCTestCase {
         }
     }
 
+    func test_performOverlayPublishesEngineVisiblePhrasePlaybackState() throws {
+        let fixture = makeSession()
+        defer { fixture.unregister() }
+
+        let phraseID = fixture.phrases[0].id
+        fixture.session.workspaceMode = .perform
+        XCTAssertTrue(fixture.session.setPhraseRepeatCount(3, phraseID: phraseID))
+        XCTAssertTrue(fixture.session.setPhraseLoopEnabled(true, phraseID: phraseID))
+
+        fixture.session.setPhraseCell(
+            .single(.index(1)),
+            layerID: "pattern",
+            trackIDs: [fixture.trackID],
+            phraseID: phraseID
+        )
+        fixture.session.setPhraseCell(
+            .single(.bool(true)),
+            layerID: fixture.muteLayerID,
+            trackIDs: [fixture.trackID],
+            phraseID: phraseID
+        )
+        fixture.session.setPhraseCell(
+            .single(.bool(true)),
+            layerID: "fill-flag",
+            trackIDs: [fixture.trackID],
+            phraseID: phraseID
+        )
+
+        let sceneState = PhraseSceneState(
+            sceneAID: fixture.sceneAID,
+            sceneBID: fixture.sceneBID,
+            crossfader: 0.65
+        )
+        fixture.session.setPhraseSceneState(sceneState, phraseID: phraseID)
+
+        let snapshot = fixture.engine.currentPlaybackSnapshotForTesting
+        let phraseBuffer = try XCTUnwrap(snapshot.phraseBuffer(for: phraseID))
+        let trackState = try XCTUnwrap(phraseBuffer.trackState(for: fixture.trackID))
+        let resolvedStep = try XCTUnwrap(snapshot.resolvedStep(
+            phraseID: phraseID,
+            trackID: fixture.trackID,
+            stepInPhrase: 0
+        ))
+
+        XCTAssertEqual(phraseBuffer.repeatCount, 3)
+        XCTAssertTrue(phraseBuffer.loopEnabled)
+        XCTAssertEqual(phraseBuffer.sceneState, sceneState.normalized())
+        XCTAssertEqual(trackState.patternSlotIndex[0], 1)
+        XCTAssertTrue(trackState.mute[0])
+        XCTAssertTrue(trackState.fillEnabled[0])
+        XCTAssertEqual(resolvedStep.slotIndex, 1)
+        XCTAssertTrue(resolvedStep.mute)
+        XCTAssertTrue(resolvedStep.fillEnabled)
+    }
+
     func test_setPhraseSceneStateInSetupModeMutatesCanonicalPhrase() {
         let fixture = makeSession()
         defer { fixture.unregister() }
