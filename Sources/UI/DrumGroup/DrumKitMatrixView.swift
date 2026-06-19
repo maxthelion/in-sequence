@@ -416,37 +416,37 @@ struct DrumKitMatrixView: View {
             else { return "none" }
             return row.sourceMode.rawValue
         }()
+        let state = DrumKitRenderedVisualState(
+            visible: isVisible,
+            routingEditorVisible: isVisible && isPresentingRoutingEditor,
+            templateChooserVisible: isVisible && isPresentingTemplateChooser,
+            displayStepCount: Self.stepsPerBar,
+            barPage: isVisible ? (model.map(clampedPage) ?? 0) : 0,
+            barPageCount: isVisible ? (model.map(barPageCount) ?? 1) : 1,
+            layer: isVisible ? selectedLayer.rawValue : "none",
+            groupPatternSlot: isVisible ? (groupSlot.map { "\($0 + 1)" } ?? "mixed") : "none",
+            patternLinked: isVisible && (model?.isPatternLinked ?? false),
+            patternLinkBroken: isVisible && (model?.isLinkBroken ?? false),
+            groupName: isVisible ? model?.groupName ?? "none" : "none",
+            memberCount: isVisible ? model?.rows.count ?? 0 : 0,
+            kitTab: isVisible ? (isCaptureOpen ? "capture" : kitTab.rawValue) : "none",
+            captureOpen: isVisible && isCaptureOpen,
+            kitFXChooserVisible: isVisible && isPresentingKitFX,
+            historyLengthSteps: isVisible && isCaptureOpen ? historyLengthSteps : 0,
+            historyBarsBack: isVisible && isCaptureOpen ? historyBarsBack : 0,
+            historyWindow: isVisible && isCaptureOpen
+                ? (historyBarsBack == 0 ? "live" : "\(historyBarsBack) back")
+                : "none",
+            historyAuditioning: isVisible && isCaptureOpen && isAuditioningCapture,
+            historySaveSlotPickerVisible: isVisible && isCaptureOpen && isPresentingSaveSlotPicker,
+            expandedPartIndex: isVisible ? expandedIndex : nil,
+            expandedRowTab: isVisible && expandedIndex != nil ? expandedRowTab.rawValue : "none",
+            expandedSourceMode: expandedSourceMode
+        )
         NotificationCenter.default.post(
             name: .drumKitMatrixRenderedVisualState,
             object: nil,
-            userInfo: [
-                "visible": isVisible,
-                "routingEditorVisible": isVisible && isPresentingRoutingEditor,
-                "templateChooserVisible": isVisible && isPresentingTemplateChooser,
-                "displayStepCount": Self.stepsPerBar,
-                "barPage": isVisible ? (model.map(clampedPage) ?? 0) : 0,
-                "barPageCount": isVisible ? (model.map(barPageCount) ?? 1) : 1,
-                "layer": isVisible ? selectedLayer.rawValue : "none",
-                "groupPatternSlot": isVisible ? (groupSlot.map { "\($0 + 1)" } ?? "mixed") : "none",
-                "patternLinked": isVisible && (model?.isPatternLinked ?? false),
-                "patternLinkBroken": isVisible && (model?.isLinkBroken ?? false),
-                "groupName": isVisible ? model?.groupName ?? "none" : "none",
-                "memberCount": isVisible ? model?.rows.count ?? 0 : 0,
-                "kitTab": isVisible ? (isCaptureOpen ? "capture" : kitTab.rawValue) : "none",
-                "captureOpen": isVisible && isCaptureOpen,
-                "kitFXChooserVisible": isVisible && isPresentingKitFX,
-                "historyLengthSteps": isVisible && isCaptureOpen ? historyLengthSteps : 0,
-                "historyBarsBack": isVisible && isCaptureOpen ? historyBarsBack : 0,
-                "historyWindow": isVisible && isCaptureOpen
-                    ? (historyBarsBack == 0 ? "live" : "\(historyBarsBack) back")
-                    : "none",
-                "historyAuditioning": isVisible && isCaptureOpen && isAuditioningCapture,
-                "historySaveSlotPickerVisible": isVisible && isCaptureOpen && isPresentingSaveSlotPicker,
-                "rowExpanded": isVisible && expandedIndex != nil,
-                "expandedPartIndex": isVisible ? (expandedIndex ?? -1) : -1,
-                "expandedRowTab": isVisible && expandedIndex != nil ? expandedRowTab.rawValue : "none",
-                "expandedSourceMode": expandedSourceMode,
-            ]
+            userInfo: state.notificationUserInfo
         )
     }
 
@@ -632,5 +632,77 @@ private extension Color {
             green: Double((value & 0x00FF00) >> 8) / 255.0,
             blue: Double(value & 0x0000FF) / 255.0
         )
+    }
+}
+
+// MARK: - Rendered visual state (typed producer contract)
+
+/// Typed producer-side contract for the drum-kit matrix rendered-visual-state
+/// notification. The view builds this struct; `notificationUserInfo` serializes
+/// it into the string-keyed `userInfo` that `VisualScenarioCommandRunner` and
+/// `scripts/visual-scenarios/drum-kit-matrix.sh` read. The wire keys/values are
+/// byte-for-byte identical to the old inline dictionary — `expandedPartIndex`
+/// is still encoded as `Int` with `-1` standing in for `nil` (the `-1` sentinel
+/// exists ONLY at this wire boundary, never in the Swift type).
+struct DrumKitRenderedVisualState: Equatable, Sendable {
+    var visible: Bool
+    var routingEditorVisible: Bool
+    var templateChooserVisible: Bool
+    var displayStepCount: Int
+    var barPage: Int
+    var barPageCount: Int
+    var layer: String
+    var groupPatternSlot: String
+    var patternLinked: Bool
+    var patternLinkBroken: Bool
+    var groupName: String
+    var memberCount: Int
+    var kitTab: String
+    var captureOpen: Bool
+    var kitFXChooserVisible: Bool
+    var historyLengthSteps: Int
+    var historyBarsBack: Int
+    var historyWindow: String
+    var historyAuditioning: Bool
+    var historySaveSlotPickerVisible: Bool
+    /// `nil` means "no expanded part". On the wire this encodes as `-1`.
+    var expandedPartIndex: Int?
+    var expandedRowTab: String
+    var expandedSourceMode: String
+
+    /// `true` when a part row is expanded — derived from `expandedPartIndex`.
+    var rowExpanded: Bool {
+        expandedPartIndex != nil
+    }
+
+    /// Serialize into the exact string-keyed `userInfo` the QA/observability
+    /// path expects. Keys/values must stay byte-for-byte stable.
+    var notificationUserInfo: [String: Any] {
+        [
+            "visible": visible,
+            "routingEditorVisible": routingEditorVisible,
+            "templateChooserVisible": templateChooserVisible,
+            "displayStepCount": displayStepCount,
+            "barPage": barPage,
+            "barPageCount": barPageCount,
+            "layer": layer,
+            "groupPatternSlot": groupPatternSlot,
+            "patternLinked": patternLinked,
+            "patternLinkBroken": patternLinkBroken,
+            "groupName": groupName,
+            "memberCount": memberCount,
+            "kitTab": kitTab,
+            "captureOpen": captureOpen,
+            "kitFXChooserVisible": kitFXChooserVisible,
+            "historyLengthSteps": historyLengthSteps,
+            "historyBarsBack": historyBarsBack,
+            "historyWindow": historyWindow,
+            "historyAuditioning": historyAuditioning,
+            "historySaveSlotPickerVisible": historySaveSlotPickerVisible,
+            "rowExpanded": rowExpanded,
+            "expandedPartIndex": expandedPartIndex ?? -1,
+            "expandedRowTab": expandedRowTab,
+            "expandedSourceMode": expandedSourceMode,
+        ]
     }
 }
