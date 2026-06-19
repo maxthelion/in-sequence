@@ -28,10 +28,10 @@ case "$fixture_path" in
   /*) fixture_source_path="$fixture_path" ;;
   *) fixture_source_path="$REPO_ROOT/$fixture_path" ;;
 esac
-runtime_fixture_path="${SEQUENCER_AI_QA_RUNTIME_FIXTURE:-${TMPDIR:-/tmp}/sequencer-ai-visual-fixtures/qa-surface-coverage-fixture.seqai}"
 
 bundle_id="ai.sequencer.SequencerAI"
 app_command_dir="$HOME/Library/Containers/$bundle_id/Data/tmp/sequencer-ai-visual-commands"
+runtime_fixture_path="${SEQUENCER_AI_QA_RUNTIME_FIXTURE:-$app_command_dir/qa-surface-coverage-fixture.seqai}"
 command_file_from_env=false
 if [ -n "${SEQUENCER_AI_VISUAL_COMMAND_FILE:-}" ]; then
   command_file="$SEQUENCER_AI_VISUAL_COMMAND_FILE"
@@ -146,11 +146,15 @@ capture_state() {
   local name="$2"
   mkdir -p "$output_dir"
   cp "$command_file" "$output_dir/${name}.command.env" 2>/dev/null || true
-  capture_window "$pid" "$output_dir/${name}.png"
   cp "$status_file" "$output_dir/${name}.status" 2>/dev/null || true
-  captured_count=$((captured_count + 1))
-  action_log "Captured ${name}.png (${captured_count})"
-  scenario_status="captured ${name}"
+  if capture_window "$pid" "$output_dir/${name}.png"; then
+    captured_count=$((captured_count + 1))
+    action_log "Captured ${name}.png (${captured_count})"
+    scenario_status="captured ${name}"
+  else
+    action_log "WARN: failed to capture ${name}.png; status was still copied"
+    scenario_status="failed to capture ${name}; continuing"
+  fi
 }
 
 run_capture_row() {
