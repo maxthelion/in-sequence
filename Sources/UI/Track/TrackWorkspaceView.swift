@@ -710,24 +710,19 @@ private struct AudioInputRuntimePanel: View {
                     .foregroundStyle(StudioTheme.mutedText)
                 Spacer()
                 Button("Configure") {}
-                    .buttonStyle(.borderless)
+                    .buttonStyle(.plain)
                     .studioText(.microEmphasis)
-                    .foregroundStyle(StudioTheme.mutedText)
+                    .foregroundStyle(StudioTheme.text)
+                    .padding(.horizontal, 11)
+                    .padding(.vertical, 5)
+                    .background(Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
+                    .overlay(Capsule().stroke(StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth))
+                    .opacity(0.55)
                     .disabled(true)
                     .help("Project-wide audio channel configuration is not yet modeled.")
             }
 
             inputChannelPicker
-
-            StudioSegmentedControl(
-                title: "Channel Mode",
-                selection: channelModeBinding,
-                segments: [
-                    StudioSegment(title: "Mono", value: false),
-                    StudioSegment(title: "Stereo", value: true, isEnabled: availableChannels >= 1),
-                ],
-                accent: StudioTheme.cyan
-            )
 
             AudioInputLevelMeters(level: runtime?.liveLevel ?? .silent, accent: runtime?.isSilent == true ? StudioTheme.mutedText : accent)
                 .frame(height: 92)
@@ -1160,7 +1155,7 @@ private struct AudioInputRuntimePanel: View {
                             .lineLimit(1)
                         Text("\(selectedChannel.label) · \(channelRequirementLabel.lowercased())")
                             .studioText(.micro)
-                            .foregroundStyle(StudioTheme.mutedText)
+                            .foregroundStyle(StudioTheme.text.opacity(0.7))
                             .lineLimit(1)
                     }
 
@@ -1182,24 +1177,6 @@ private struct AudioInputRuntimePanel: View {
             .menuStyle(.borderlessButton)
             .help(options.isEmpty ? "The interface reports no usable inputs" : "Choose the device input")
         }
-    }
-
-    private var channelModeBinding: Binding<Bool> {
-        Binding(
-            get: { selectedChannel.isStereo },
-            set: { wantsStereo in
-                let current = selectedChannel
-                guard wantsStereo != current.isStereo else { return }
-                let next: AudioInputChannel
-                switch current {
-                case let .mono(channel):
-                    next = AudioInputChannel.stereo(firstChannel: channel).normalized
-                case let .stereo(firstChannel):
-                    next = .mono(channel: firstChannel)
-                }
-                session.setAudioInputChannel(trackID: track.id, channel: next)
-            }
-        )
     }
 
     private var recordBarsBinding: Binding<Int> {
