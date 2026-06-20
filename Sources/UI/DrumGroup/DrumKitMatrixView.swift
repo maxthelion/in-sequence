@@ -473,7 +473,7 @@ struct DrumKitMatrixView: View {
     /// Persistent Patterns row, framed as its own panel so it reads as a fixed
     /// assignment surface above the tab bar (AC12).
     func persistentPatternsRow(_ model: DrumKitMatrixModel) -> some View {
-        StudioPanel(title: "Patterns", accent: accent) {
+        StudioPanel(title: "Patterns", accent: accent, showsHeader: false) {
             groupPatternRow(model)
         }
     }
@@ -536,7 +536,7 @@ struct DrumKitMatrixView: View {
     /// (which now lives in the persistent Patterns row above). (AC23)
     @ViewBuilder
     func matrixTabBody(_ model: DrumKitMatrixModel) -> some View {
-        StudioPanel(title: "Kit Matrix", accent: accent) {
+        StudioPanel(title: "Kit Matrix", accent: accent, showsHeader: false) {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 10) {
                     layerSelector

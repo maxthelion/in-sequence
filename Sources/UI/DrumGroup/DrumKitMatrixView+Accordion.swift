@@ -10,49 +10,18 @@ extension DrumKitMatrixView {
 
     /// The inline detail panel that opens to the RIGHT of the part name when a
     /// row is expanded. Reuses the single-track detail surfaces, scoped to the
-    /// member's track id: mini-tab bar + selected tab body + "Open full editor".
+    /// member's track id: mini-tab bar + selected tab body.
     /// Kept compact: each tab body is its own helper so the type-checker never
     /// faces one giant view-builder expression.
     @ViewBuilder
     func expandedRowDetail(_ row: DrumKitMatrixModel.Row) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            expandedRowHeader(row)
             expandedRowTabBar
             expandedRowTabBody(row)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .sheet(item: $expandedFXTarget) { target in
             expandedFXChooserSheet(memberID: target.memberID)
-        }
-    }
-
-    func expandedRowHeader(_ row: DrumKitMatrixModel.Row) -> some View {
-        HStack(spacing: 10) {
-            Text("\(row.partName) — inline part controls")
-                .studioText(.labelBold)
-                .foregroundStyle(StudioTheme.text)
-                .lineLimit(1)
-
-            Spacer(minLength: 0)
-
-            Button {
-                onSelectPart(row.memberID)
-            } label: {
-                Label("Open full editor", systemImage: "arrow.up.forward.square")
-                    .studioText(.labelBold)
-                    .foregroundStyle(StudioTheme.text)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                            .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
-                    )
-            }
-            .buttonStyle(.plain)
-            .help("Dive into the full single-track detail for \(row.partName)")
-            .accessibilityIdentifier("kit-row-open-full")
-            .accessibilityLabel("Open full editor for \(row.partName)")
         }
     }
 

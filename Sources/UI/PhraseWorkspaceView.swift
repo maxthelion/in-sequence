@@ -773,12 +773,12 @@ struct PhraseWorkspaceView: View {
     private var shellLayerControls: some View {
         HStack(spacing: 8) {
             phraseLayerSelectorButton
-                .frame(width: 240)
+                .frame(width: 132)
 
             phraseCellToolButton(.value)
-                .frame(width: 92, height: 50)
+                .frame(width: 84, height: 50)
             phraseCellToolButton(.automation)
-                .frame(width: 116, height: 50)
+                .frame(width: 104, height: 50)
         }
         .fixedSize(horizontal: true, vertical: false)
     }
@@ -787,35 +787,24 @@ struct PhraseWorkspaceView: View {
         Button {
                 isPresentingPerformanceLayerSelection = true
             } label: {
-                HStack(spacing: 8) {
+                HStack(spacing: 6) {
                     // Bold-flat pass: solid accent circle with dark glyph.
                     Image(systemName: performanceLayerSelection.mode.symbolName)
-                        .font(.system(size: 13, weight: .bold))
+                        .font(.system(size: 11, weight: .bold))
                         .foregroundStyle(StudioTheme.background)
-                        .frame(width: 28, height: 28)
+                        .frame(width: 22, height: 22)
                         .background(activeLayerAccent, in: Circle())
 
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("PHRASE LAYER")
-                            .studioText(.micro)
-                            .tracking(0.8)
-                            .foregroundStyle(StudioTheme.mutedText)
-
-                        Text(performanceLayerSelection.activeLabel.uppercased())
-                            .studioText(.labelBold)
-                            .foregroundStyle(activeLayerAccent)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.72)
-
-                        Text(performanceLayerSelection.mode.subtitle)
-                            .studioText(.micro)
-                            .foregroundStyle(StudioTheme.mutedText)
-                            .lineLimit(1)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    Text(performanceLayerSelection.activeLabel.uppercased())
+                        .studioText(.microEmphasis)
+                        .tracking(0.6)
+                        .foregroundStyle(activeLayerAccent)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.72)
+                        .frame(maxWidth: .infinity, alignment: .leading)
 
                     Image(systemName: isPresentingPerformanceLayerSelection ? "chevron.up" : "chevron.down")
-                        .font(.system(size: 10, weight: .bold))
+                        .font(.system(size: 9, weight: .bold))
                         .foregroundStyle(StudioTheme.mutedText)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
