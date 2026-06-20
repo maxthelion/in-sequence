@@ -1563,17 +1563,6 @@ struct PhraseWorkspaceView: View {
         return (first, isDivergent)
     }
 
-    /// Write a value to every scoped track through the perform overlay path
-    /// (setPhraseCell routes to the transient copy while Perform is on).
-    private func setGlobalApplyValue(_ value: PhraseCellValue, layer: PhraseLayerDefinition) {
-        session.setPhraseCell(
-            .single(value),
-            layerID: layer.id,
-            trackIDs: globalApplyScopeTrackIDs,
-            phraseID: selectedPhraseForEditing.id
-        )
-    }
-
     @ViewBuilder
     private func globalApplyActionCell(_ option: PerformanceLayerOption) -> some View {
         if let layerID = option.mode.phraseLayerID,
@@ -1584,142 +1573,30 @@ struct PhraseWorkspaceView: View {
         }
     }
 
-    // Bug 20260620-140815: layer cards use the same grammar as the other views
-    // — a big button whose COLOUR carries on/off (no tick + "On"/"Off" text).
-    // Divergence across the scoped tracks is shown by colouring the cell BORDER
-    // amber (no noisy "MIXED" label).
+    // Bug 20260620-140815 / consistency pass: the global-apply card renders its
+    // value with the SAME PhraseCellPreview the Layers matrix uses, so a mute
+    // value (red "Muted" / green "Live"), a pattern value (the 4×4 slot matrix)
+    // and a scalar value (the level well) look identical in both views. The card
+    // keeps its own framing — the layer NAME label on top and an amber border
+    // when the scoped tracks diverge ("mixed") — but the inner value cell is
+    // shared. Tapping the whole card cycles/toggles via applyGlobalOption, the
+    // same write path as before.
     @ViewBuilder
     private func globalApplyInteractiveCell(
         _ option: PerformanceLayerOption,
         layer: PhraseLayerDefinition
     ) -> some View {
         let consensus = globalApplyConsensus(for: layer)
-        switch layer.valueType {
-        case .boolean:
-            globalApplyBooleanCell(option, layer: layer, value: consensus.value, isDivergent: consensus.isDivergent)
-        case .patternIndex, .scalar:
-            globalApplyValueCell(option, layer: layer, value: consensus.value, isDivergent: consensus.isDivergent)
-        }
-    }
-
-    /// Boolean layer: the whole cell is the toggle. ON fills with the layer
-    /// accent (dark glyph/label); OFF is outline-only on the ground.
-    private func globalApplyBooleanCell(
-        _ option: PerformanceLayerOption,
-        layer: PhraseLayerDefinition,
-        value: PhraseCellValue,
-        isDivergent: Bool
-    ) -> some View {
-        let accent = option.mode.selectorAccent
-        let isOn: Bool = {
-            if case let .bool(on) = value { return on }
-            return false
-        }()
-        return Button {
-            // applyGlobalOption flips the boolean and honours quantised arming.
-            applyGlobalOption(option)
-        } label: {
-            VStack(alignment: .leading, spacing: 8) {
-                Image(systemName: option.mode.symbolName)
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundStyle(isOn ? StudioTheme.background : accent)
-                Spacer(minLength: 0)
-                Text(option.title.uppercased())
-                    .studioText(.labelBold)
-                    .foregroundStyle(isOn ? StudioTheme.background : StudioTheme.text)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.62)
-            }
-            .padding(StudioMetrics.Spacing.compact)
-            .frame(maxWidth: .infinity, minHeight: 82, alignment: .topLeading)
-            .background(isOn ? accent : Color.clear, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-                    .stroke(globalApplyCellBorder(isOn: isOn, isDivergent: isDivergent, accent: accent), lineWidth: isDivergent ? 2 : StudioMetrics.borderWidth)
-            )
-            .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
-        }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("phrase-global-apply-cell-\(layer.id)")
-        .accessibilityValue(isDivergent ? "Mixed" : (isOn ? "On" : "Off"))
-    }
-
-    /// Non-boolean layer: value label + stepper, with the same border-divergence
-    /// treatment as the boolean cell.
-    private func globalApplyValueCell(
-        _ option: PerformanceLayerOption,
-        layer: PhraseLayerDefinition,
-        value: PhraseCellValue,
-        isDivergent: Bool
-    ) -> some View {
-        let accent = option.mode.selectorAccent
-        return VStack(alignment: .leading, spacing: 8) {
-            Image(systemName: option.mode.symbolName)
-                .font(.system(size: 12, weight: .bold))
-                .foregroundStyle(accent)
-
-            Text(option.title.uppercased())
-                .studioText(.labelBold)
-                .foregroundStyle(StudioTheme.text)
-                .lineLimit(1)
-                .minimumScaleFactor(0.62)
-
-            Spacer(minLength: 0)
-
-            HStack(spacing: 6) {
-                Text(valueLabel(value, layer: layer))
-                    .studioText(.microEmphasis)
-                    .foregroundStyle(StudioTheme.text)
-                    .lineLimit(1)
-                Spacer(minLength: 0)
-                StudioStepperButtons(
-                    symbols: ("chevron.up", "chevron.down"),
-                    upHelp: "Increase \(layer.name)",
-                    downHelp: "Decrease \(layer.name)",
-                    onUp: { applyGlobalOption(option) },
-                    onDown: { setGlobalApplyValue(decrementedValue(value, for: layer), layer: layer) }
-                )
-            }
-        }
-        .padding(StudioMetrics.Spacing.compact)
-        .frame(maxWidth: .infinity, minHeight: 82, alignment: .topLeading)
-        .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-                .stroke(globalApplyCellBorder(isOn: false, isDivergent: isDivergent, accent: accent), lineWidth: isDivergent ? 2 : StudioMetrics.borderWidth)
+        GlobalApplyLayerCard(
+            option: option,
+            layer: layer,
+            value: consensus.value,
+            isDivergent: consensus.isDivergent,
+            summary: valueLabel(consensus.value, layer: layer),
+            onApply: { applyGlobalOption(option) }
         )
-        .accessibilityIdentifier("phrase-global-apply-cell-\(layer.id)")
-        .accessibilityValue(isDivergent ? "Mixed" : valueLabel(value, layer: layer))
     }
 
-    private func globalApplyCellBorder(isOn: Bool, isDivergent: Bool, accent: Color) -> Color {
-        if isDivergent {
-            return StudioTheme.amber
-        }
-        return isOn ? accent : StudioTheme.border
-    }
-
-    /// Reverse of `cycledValue` for stepper-down: walks the value backward and
-    /// wraps for indexed/scalar layers.
-    private func decrementedValue(_ value: PhraseCellValue, for layer: PhraseLayerDefinition) -> PhraseCellValue {
-        switch layer.valueType {
-        case .boolean:
-            return toggledBooleanValue(value, for: layer)
-        case .patternIndex:
-            if case let .index(index) = value.normalized(for: layer) {
-                let next = (index - 1 + TrackPatternBank.slotCount) % TrackPatternBank.slotCount
-                return .index(next)
-            }
-            return .index(0)
-        case .scalar:
-            let current = scalarValue(for: value, layer: layer)
-            let step = (layer.maxValue - layer.minValue) / 4
-            let next = current - step
-            if next < layer.minValue {
-                return .scalar(layer.maxValue)
-            }
-            return .scalar(next)
-        }
-    }
 
     private var phraseLocalPerformanceLayerOptions: [PerformanceLayerOption] {
         PerformanceLayerOption.all.filter { option in
