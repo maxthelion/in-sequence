@@ -983,7 +983,7 @@ struct SliceSamplerCard: View {
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
                 .stroke(StudioTheme.violet.opacity(StudioOpacity.mediumStroke), lineWidth: StudioMetrics.borderWidth)
         )
-        .frame(maxWidth: 560, alignment: .leading)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var header: some View {
