@@ -404,18 +404,6 @@ struct SlicerSourceWidget: View {
                             .foregroundStyle(StudioTheme.text)
                     }
                 }
-
-                SlicerControlField(title: "Voice") {
-                    Picker("Voice", selection: Binding(
-                        get: { currentSettings.voiceMode },
-                        set: { value in updateSettings { $0.voiceMode = value } }
-                    )) {
-                        Text("Mono").tag(SlicerVoiceMode.mono)
-                        Text("Poly").tag(SlicerVoiceMode.polyphonic)
-                    }
-                    .labelsHidden()
-                    .pickerStyle(.segmented)
-                }
             }
         }
         .padding(StudioMetrics.Spacing.comfortable)
