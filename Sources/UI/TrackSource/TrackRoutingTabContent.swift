@@ -44,14 +44,7 @@ struct TrackRoutingTabContent: View {
     }
 
     private var soundSourceWell: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("SOUND SOURCE")
-                .studioText(.eyebrow)
-                .tracking(0.8)
-                .foregroundStyle(StudioTheme.mutedText)
-
-            TrackDestinationEditor(document: $document)
-        }
+        TrackDestinationEditor(document: $document)
     }
 
     private var mixerWell: some View {
