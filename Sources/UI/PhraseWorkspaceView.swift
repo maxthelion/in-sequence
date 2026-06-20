@@ -1206,6 +1206,18 @@ struct PhraseWorkspaceView: View {
     }
 
     private var selectedPhraseLayerMatrix: some View {
+        // Size the track columns to the width the panel actually hands us so a
+        // full page of columns fits inside the page without a clipped partial
+        // column running off the right edge (bug 20260620-135607).
+        GeometryReader { proxy in
+            let columnWidth = fittedTrackColumnWidth(forAvailableWidth: proxy.size.width)
+            matrixGrid(trackColumnWidth: columnWidth)
+                .frame(width: proxy.size.width, alignment: .leading)
+        }
+        .frame(minHeight: 280)
+    }
+
+    private func matrixGrid(trackColumnWidth: CGFloat) -> some View {
         ScrollView([.horizontal, .vertical]) {
             VStack(alignment: .leading, spacing: gridSpacing) {
                 let activeLayer = activeMatrixLayer
@@ -1294,16 +1306,23 @@ struct PhraseWorkspaceView: View {
             .padding(.vertical, 2)
         }
         .scrollIndicators(.never)
-        .frame(maxWidth: matrixContentWidth, alignment: .leading)
-        .frame(minHeight: 280)
     }
 
-    /// The matrix renders a fixed grid (two gutters + one page of track
-    /// columns); pinning the ScrollView to that intrinsic width stops the
-    /// bottom section overflowing the panel (bug 20260620-135607).
-    private var matrixContentWidth: CGFloat {
-        matrixGutterWidth * 2 + trackGridWidth + gridSpacing * 2
+    /// Shrink the track columns just enough that a full page (gutters +
+    /// spacing + every column) fits the available width; never grow past the
+    /// natural width, and keep a sane floor so cells stay legible (bug
+    /// 20260620-135607). If the floor still overflows the grid scrolls.
+    private func fittedTrackColumnWidth(forAvailableWidth availableWidth: CGFloat) -> CGFloat {
+        guard availableWidth > 0 else { return trackColumnWidth }
+        let columnCount = CGFloat(trackPageSize)
+        let fixedWidth = matrixGutterWidth * 2 + gridSpacing * (columnCount + 1)
+        let widthForColumns = availableWidth - fixedWidth
+        guard widthForColumns > 0 else { return minTrackColumnWidth }
+        let fitted = widthForColumns / columnCount
+        return min(trackColumnWidth, max(minTrackColumnWidth, fitted))
     }
+
+    private let minTrackColumnWidth: CGFloat = 92
 
     private func toggleBooleanCell(phraseID: UUID, trackID: UUID) {
         guard let selectedLayer = activeMatrixLayer, selectedLayer.valueType == .boolean else {

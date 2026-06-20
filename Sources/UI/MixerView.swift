@@ -316,14 +316,27 @@ private struct MixerChannelStrip: View {
                 .foregroundStyle(StudioTheme.mutedText)
 
             // Send knobs sit closer together now the strip is narrower (bug
-            // 134440): the A/B pair reads as one cluster, not two spread fields.
-            HStack(spacing: 4) {
+            // 134440): the A/B pair reads as one cluster, not two spread
+            // fields. Each knob is held to a tight footprint so the A/B pair
+            // stays fully inside the 96pt strip box rather than spilling over
+            // its rounded edge (bug 20260620-153143).
+            HStack(spacing: sendKnobSpacing) {
                 ForEach(SendSlot.allCases, id: \.self) { slot in
                     sendKnob(slot)
+                        .frame(width: sendKnobSlotWidth)
+                        .clipped()
                 }
             }
             .frame(maxWidth: .infinity)
         }
+    }
+
+    /// Spacing and per-knob footprint for the SENDS row, sized so two knobs
+    /// plus the gap fit inside the strip's content width.
+    private var sendKnobSpacing: CGFloat { 4 }
+    private var sendKnobSlotWidth: CGFloat {
+        let content = StudioMixerStripMetrics.stripWidth - StudioMixerStripMetrics.stripPadding * 2
+        return (content - sendKnobSpacing) / CGFloat(SendSlot.allCases.count)
     }
 
     /// Send knobs move in place — drag turns the rotary and drives the
@@ -334,7 +347,7 @@ private struct MixerChannelStrip: View {
             value: displayedSend(slot),
             range: TrackMixSettings.sendRange,
             accent: slot.accent,
-            size: 30,
+            size: 26,
             format: { MixerSendDisplayModel.percentLabel(for: $0) },
             onChange: { commitSend(slot, value: $0) },
             onLiveChange: { updateSend(slot, value: $0) }
