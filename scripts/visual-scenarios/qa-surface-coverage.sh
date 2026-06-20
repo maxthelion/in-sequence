@@ -102,6 +102,7 @@ CAPTURES=$(cat <<'TABLE'
 27-audio-loop-ready|workspace=track,audioInputArmState=hasLoop|audioInputState=completed;transport=stop
 27a-audio-source-tab|workspace=track,audioInputTab=source|audioInputState=live;audioInputTab=source;transport=stop
 27b-audio-mixer-tab|workspace=track,audioInputArmState=hasLoop,audioInputTab=mixer|audioInputState=completed;audioInputTab=mixer;transport=stop
+27c-audio-playback|workspace=track,audioInputArmState=hasLoop,audioInputMonitorMode=loop|audioInputState=playback;transport=stop
 28-drum-part|workspace=track,drumPartHeaderVisible=true,drumTrackDefaultView=partEditor|drumPartHeaderFixture=kit;drumPartHeaderSelectedIndex=2;drumPartHeaderDiveIn=true;transport=stop
 28b-drum-track-default-kit|workspace=track,drumPartHeaderVisible=true,drumTrackDefaultView=kitMatrix,drumKitMatrixRenderedVisible=true|drumPartHeaderFixture=kit;drumPartHeaderSelectedIndex=2;transport=stop
 29-drum-kit-matrix|workspace=track,drumKitMatrixRenderedVisible=true,drumTrackDefaultView=kitMatrix,drumKitMatrixRenderedGroupPatternSlot=mixed|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixDisplayStepCount=16;transport=stop
