@@ -146,7 +146,8 @@ struct TracksMatrixView: View {
         let selectedTrackID = session.store.selectedTrackID
         // The top-nav pill already names this page; the panel renders no
         // header of its own (ux-canon rule 1). This is a plain navigator —
-        // no perform chrome (no basis-phrase banner, no Edit Set, no Perform).
+        // tap a tile to open it (selection OFF), or build a multi-selection
+        // for the actions nav (selection ON). No perform chrome lives here.
         VStack(alignment: .leading, spacing: 18) {
             StudioPanel(
                 title: "Tracks",
@@ -154,6 +155,8 @@ struct TracksMatrixView: View {
                 showsHeader: false
             ) {
                 VStack(alignment: .leading, spacing: 18) {
+                    selectionTopBar(trackCount: tracks.count)
+
                     if tracks.isEmpty {
                         StudioPlaceholderTile(
                             title: "No Tracks Yet",
@@ -162,6 +165,14 @@ struct TracksMatrixView: View {
                         )
                     } else {
                         matrixSections(tracks: tracks, selectedTrackID: selectedTrackID)
+                    }
+
+                    if session.tracksSelectionMode, !session.tracksSelection.isEmpty {
+                        TracksSelectionActionsNav(
+                            selectionCount: session.tracksSelection.count,
+                            onLayerPerform: { requestPhrasePerform(tab: .layers) },
+                            onSameValue: { requestPhrasePerform(tab: .globalApply) }
+                        )
                     }
                 }
             }
@@ -217,6 +228,77 @@ struct TracksMatrixView: View {
         }
     }
 
+    /// A small top bar with the Select toggle. With selection mode ON, the
+    /// hint flips to explain tap-to-select and a Clear control appears.
+    private func selectionTopBar(trackCount: Int) -> some View {
+        let isOn = session.tracksSelectionMode
+        let selectedCount = session.tracksSelection.count
+        return HStack(spacing: 10) {
+            Button {
+                session.toggleTracksSelectionMode()
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: isOn ? "checkmark.circle.fill" : "checkmark.circle")
+                        .font(.system(size: 12, weight: .bold))
+                    Text(isOn ? "Selecting" : "Select")
+                        .studioText(.microEmphasis)
+                        .tracking(0.8)
+                }
+                .foregroundStyle(isOn ? StudioTheme.background : StudioTheme.text)
+                .frame(height: 32)
+                .padding(.horizontal, 14)
+                .background(
+                    isOn ? StudioTheme.cyan : Color.white.opacity(StudioOpacity.subtleFill),
+                    in: Capsule()
+                )
+                .overlay(
+                    Capsule().stroke(isOn ? StudioTheme.cyan : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+                )
+            }
+            .buttonStyle(.plain)
+            .disabled(trackCount == 0)
+            .accessibilityIdentifier("tracks-select-toggle")
+            .help(isOn ? "Exit selection mode" : "Select tracks to perform together")
+
+            if isOn {
+                Text(
+                    selectedCount == 0
+                        ? "Tap tiles to select tracks"
+                        : "\(selectedCount) selected"
+                )
+                .studioText(.body)
+                .foregroundStyle(StudioTheme.mutedText)
+
+                Spacer(minLength: 0)
+
+                if selectedCount > 0 {
+                    Button {
+                        session.tracksSelection.removeAll()
+                    } label: {
+                        Text("CLEAR")
+                            .studioText(.micro)
+                            .tracking(0.8)
+                            .foregroundStyle(StudioTheme.mutedText)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .overlay(Capsule().stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("tracks-select-clear")
+                    .help("Clear selection")
+                }
+            } else {
+                Spacer(minLength: 0)
+            }
+        }
+    }
+
+    /// Layer perform / Same value: stash the current selection as the perform
+    /// scope and queue navigation into the matching phrase tab.
+    private func requestPhrasePerform(tab: PhraseWorkspaceTab) {
+        session.requestPhrasePerform(tab: tab, trackIDs: session.tracksSelection)
+    }
+
     private func matrixSections(tracks: [StepSequenceTrack], selectedTrackID: UUID) -> some View {
         VStack(alignment: .leading, spacing: 18) {
             if !ungroupedTracks.isEmpty {
@@ -259,6 +341,10 @@ struct TracksMatrixView: View {
     @ViewBuilder
     private func collapsedKitCell(section: GroupedTrackSection, selectedTrackID: UUID) -> some View {
         let representativeTrackID = section.members.first?.id
+        let memberIDs = section.members.map(\.id)
+        // A grouped kit tile selects (or deselects) all its members at once so
+        // the actions nav speaks for the whole kit.
+        let kitSelected = !memberIDs.isEmpty && memberIDs.allSatisfy { session.tracksSelection.contains($0) }
         LazyVGrid(columns: columns, spacing: 14) {
             CollapsedKitCell(
                 group: section.group,
@@ -266,8 +352,12 @@ struct TracksMatrixView: View {
                 patternSlotLabel: collapsedKitPatternSlotLabel(section),
                 destinationLabel: section.group.sharedDestination?.summary ?? "Own bus",
                 isFocused: section.members.contains { $0.id == selectedTrackID },
+                isSelectionMode: session.tracksSelectionMode,
+                isSelected: kitSelected,
                 onOpenKit: {
-                    if let representativeTrackID {
+                    if session.tracksSelectionMode {
+                        session.toggleTracksSelected(memberIDs)
+                    } else if let representativeTrackID {
                         session.setSelectedTrackID(representativeTrackID)
                         onOpenTrack()
                     }
@@ -301,12 +391,18 @@ struct TracksMatrixView: View {
                     group: group,
                     isMuted: track.mix.isMuted,
                     isFocused: track.id == selectedTrackID,
+                    isSelectionMode: session.tracksSelectionMode,
+                    isSelected: session.tracksSelection.contains(track.id),
                     onToggleMute: {
                         session.toggleTrackMute(trackID: track.id)
                     }
                 ) {
-                    session.setSelectedTrackID(track.id)
-                    onOpenTrack()
+                    if session.tracksSelectionMode {
+                        session.toggleTrackSelected(track.id)
+                    } else {
+                        session.setSelectedTrackID(track.id)
+                        onOpenTrack()
+                    }
                 }
             }
 
@@ -332,6 +428,104 @@ private struct GroupedTrackSection: Identifiable {
     let members: [StepSequenceTrack]
 
     var id: TrackGroupID { group.id }
+}
+
+/// The actions nav that appears when selection mode is on and ≥1 track is
+/// selected. Layer perform and Same value NAVIGATE to the existing phrase
+/// surfaces (Layers / Global Apply) — nothing perform-shaped is built here.
+/// Create performance group is deferred (the durable performance-group object
+/// is not built yet, per
+/// perform-mode-phrase-layer-capture/feedback/2026-06-17-defer-performance-groups.md):
+/// it renders as a disabled affordance with a "soon" hint.
+private struct TracksSelectionActionsNav: View {
+    let selectionCount: Int
+    let onLayerPerform: () -> Void
+    let onSameValue: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("\(selectionCount) TRACK\(selectionCount == 1 ? "" : "S") SELECTED")
+                .studioText(.micro)
+                .tracking(0.8)
+                .foregroundStyle(StudioTheme.mutedText)
+
+            HStack(spacing: 10) {
+                actionButton(
+                    title: "Layer perform",
+                    detail: "Perform one layer across the selection",
+                    accent: StudioTheme.violet,
+                    identifier: "tracks-action-layer-perform",
+                    action: onLayerPerform
+                )
+                actionButton(
+                    title: "Same value",
+                    detail: "Apply one value to the selection",
+                    accent: StudioTheme.cyan,
+                    identifier: "tracks-action-same-value",
+                    action: onSameValue
+                )
+                deferredGroupButton
+            }
+        }
+        .padding(StudioMetrics.Spacing.roomy)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.section, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.section, style: .continuous)
+                .stroke(StudioTheme.cyan.opacity(StudioOpacity.accentStroke), lineWidth: StudioMetrics.borderWidth)
+        )
+        .accessibilityIdentifier("tracks-selection-actions-nav")
+    }
+
+    private func actionButton(
+        title: String,
+        detail: String,
+        accent: Color,
+        identifier: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        StudioOptionButton(
+            title: title,
+            detail: detail,
+            accent: accent,
+            minHeight: 72,
+            action: action
+        )
+        .accessibilityIdentifier(identifier)
+    }
+
+    // Create performance group is intentionally disabled: the durable
+    // performance-group object is deferred until its own spec lands.
+    private var deferredGroupButton: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                Text("Create performance group")
+                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                    .foregroundStyle(StudioTheme.text)
+                Text("SOON")
+                    .studioText(.micro)
+                    .tracking(0.8)
+                    .foregroundStyle(StudioTheme.background)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 3)
+                    .background(StudioTheme.mutedText, in: Capsule())
+            }
+            Text("Save this selection as a reusable group (not yet available)")
+                .studioText(.label)
+                .foregroundStyle(StudioTheme.mutedText)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, minHeight: 72, alignment: .topLeading)
+        .padding(StudioMetrics.Spacing.standard)
+        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
+                .stroke(StudioTheme.border, style: StrokeStyle(lineWidth: StudioMetrics.borderWidth, dash: [4, 4]))
+        )
+        .opacity(0.55)
+        .accessibilityIdentifier("tracks-action-create-group")
+        .help("Performance groups are coming soon")
+    }
 }
 
 private struct GroupSectionView<Grid: View>: View {
@@ -424,6 +618,8 @@ private struct CollapsedKitCell: View {
     let patternSlotLabel: String
     let destinationLabel: String
     let isFocused: Bool
+    var isSelectionMode: Bool = false
+    var isSelected: Bool = false
     let onOpenKit: () -> Void
     let onExpand: () -> Void
 
@@ -460,6 +656,13 @@ private struct CollapsedKitCell: View {
                 }
 
                 Spacer(minLength: 0)
+
+                if isSelectionMode {
+                    Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundStyle(isSelected ? accent : StudioTheme.mutedText)
+                        .accessibilityIdentifier("kit-card-select-mark")
+                }
             }
 
             Text(destinationLabel.uppercased())
@@ -499,13 +702,13 @@ private struct CollapsedKitCell: View {
         .padding(StudioMetrics.Spacing.comfortable)
         .background(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                .fill(Color.white.opacity(StudioOpacity.subtleFill))
+                .fill(isSelected ? accent.opacity(StudioOpacity.accentFill) : Color.white.opacity(StudioOpacity.subtleFill))
         )
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
                 .stroke(
-                    isFocused ? accent.opacity(StudioOpacity.accentFill) : StudioTheme.border,
-                    lineWidth: isFocused ? 2 : StudioMetrics.borderWidth
+                    isSelected ? accent : (isFocused ? accent.opacity(StudioOpacity.accentFill) : StudioTheme.border),
+                    lineWidth: (isSelected || isFocused) ? 2 : StudioMetrics.borderWidth
                 )
         )
         .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
@@ -655,6 +858,8 @@ private struct TrackMatrixCard: View {
     let group: TrackGroup?
     let isMuted: Bool
     let isFocused: Bool
+    var isSelectionMode: Bool = false
+    var isSelected: Bool = false
     let onToggleMute: () -> Void
     let onTap: () -> Void
 
@@ -685,21 +890,31 @@ private struct TrackMatrixCard: View {
 
                 Spacer(minLength: 0)
 
-                // A tiny mute toggle is the only control on the tile.
-                Button(action: onToggleMute) {
-                    Image(systemName: isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundStyle(isMuted ? StudioTheme.background : StudioTheme.mutedText)
+                if isSelectionMode {
+                    // In selection mode the tile carries a checkbox instead of
+                    // the mute toggle — the whole tile toggles membership.
+                    Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundStyle(isSelected ? accent : StudioTheme.mutedText)
                         .frame(width: 26, height: 26)
-                        .background(
-                            isMuted ? StudioTheme.amber : Color.white.opacity(StudioOpacity.subtleFill),
-                            in: Circle()
-                        )
-                        .overlay(Circle().stroke(isMuted ? StudioTheme.amber : StudioTheme.border, lineWidth: StudioMetrics.borderWidth))
+                        .accessibilityIdentifier("track-card-select-mark")
+                } else {
+                    // A tiny mute toggle is the only control on the tile.
+                    Button(action: onToggleMute) {
+                        Image(systemName: isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundStyle(isMuted ? StudioTheme.background : StudioTheme.mutedText)
+                            .frame(width: 26, height: 26)
+                            .background(
+                                isMuted ? StudioTheme.amber : Color.white.opacity(StudioOpacity.subtleFill),
+                                in: Circle()
+                            )
+                            .overlay(Circle().stroke(isMuted ? StudioTheme.amber : StudioTheme.border, lineWidth: StudioMetrics.borderWidth))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("track-card-mute")
+                    .help(isMuted ? "Unmute \(track.name)" : "Mute \(track.name)")
                 }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("track-card-mute")
-                .help(isMuted ? "Unmute \(track.name)" : "Mute \(track.name)")
             }
 
             Spacer(minLength: 0)
@@ -722,19 +937,26 @@ private struct TrackMatrixCard: View {
         .padding(StudioMetrics.Spacing.comfortable)
         .background(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                .fill(Color.white.opacity(StudioOpacity.subtleFill))
+                .fill(isSelected ? accent.opacity(StudioOpacity.accentFill) : Color.white.opacity(StudioOpacity.subtleFill))
         )
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                .stroke(
-                    isFocused ? accent.opacity(StudioOpacity.accentFill) : StudioTheme.border,
-                    lineWidth: isFocused ? 2 : StudioMetrics.borderWidth
-                )
+                .stroke(strokeColor, lineWidth: strokeWidth)
         )
         .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
         .onTapGesture {
             onTap()
         }
+    }
+
+    private var strokeColor: Color {
+        if isSelected { return accent }
+        if isFocused { return accent.opacity(StudioOpacity.accentFill) }
+        return StudioTheme.border
+    }
+
+    private var strokeWidth: CGFloat {
+        (isSelected || isFocused) ? 2 : StudioMetrics.borderWidth
     }
 }
 

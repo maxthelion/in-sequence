@@ -259,6 +259,48 @@ enum VisualScenarioCommandRunner {
             session.workspaceMode = mode
         }
 
+        // Tracks navigator selection mode (ux-rethink-2): flip selection mode
+        // on/off, then optionally select a track so a capture shows the actions
+        // nav. `tracksSelect` accepts `selected` (the current selected track),
+        // `first` (the first project track), or a UUID.
+        if let rawSelectionMode = command["tracksSelectionMode"] {
+            session.tracksSelectionMode = rawSelectionMode == "on"
+            section.wrappedValue = .tracks
+        }
+        // Clear runs BEFORE select so a capture row can reset to a known
+        // selection deterministically (rows share session state).
+        if command["tracksClearSelection"] == "true" {
+            session.tracksSelection.removeAll()
+        }
+        if let rawSelect = command["tracksSelect"] {
+            let trackID: UUID? = {
+                switch rawSelect {
+                case "selected": return session.store.selectedTrackID
+                case "first": return session.store.tracks.first?.id
+                default: return UUID(uuidString: rawSelect)
+                }
+            }()
+            if let trackID, session.store.tracks.contains(where: { $0.id == trackID }) {
+                session.toggleTrackSelected(trackID)
+            }
+        }
+        // Drive the tracks actions nav: stash the selection as the perform
+        // scope and request navigation to the matching phrase tab, exactly as
+        // the Layer perform / Same value buttons do. `WorkspaceDetailView` and
+        // `PhraseWorkspaceView` then complete the navigation.
+        if let rawAction = command["tracksAction"] {
+            let tab: PhraseWorkspaceTab? = {
+                switch rawAction {
+                case "layerPerform": return .layers
+                case "sameValue": return .globalApply
+                default: return nil
+                }
+            }()
+            if let tab {
+                session.requestPhrasePerform(tab: tab, trackIDs: session.tracksSelection)
+            }
+        }
+
         // Quantised perform toggles (slice 2): drive the session Q setting.
         if let requestedQuantise = command["quantise"],
            let quantise = PerformQuantise(rawValue: requestedQuantise) {
@@ -532,6 +574,8 @@ enum VisualScenarioCommandRunner {
         tracksMode=\(session.workspaceMode.tracksModeValue.rawValue)
         quantise=\(session.performQuantise.rawValue)
         performScopeCount=\(session.performTrackScope.count)
+        tracksSelectionMode=\(session.tracksSelectionMode ? "on" : "off")
+        tracksSelectionCount=\(session.tracksSelection.count)
         quantisePending=\(quantisePendingStatus(session: session, engineController: engineController))
         quantiseFillCueActive=\(quantiseFillCueActiveStatus(session: session, engineController: engineController))
         transport=\(engineController.isRunning ? "play" : "stop")

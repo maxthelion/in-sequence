@@ -43,6 +43,14 @@ struct WorkspaceDetailView: View {
                 guard !memberIDs.isEmpty else { return }
                 enterScopedPerform(trackIDs: memberIDs)
             }
+            // Tracks actions nav (Layer perform / Same value): when a pending
+            // phrase-perform target is set, navigate to the Phrase workspace.
+            // The phrase view consumes the tab + scope and clears the target.
+            .onChange(of: session.pendingPhrasePerform) {
+                if session.pendingPhrasePerform != nil {
+                    section = .phrase
+                }
+            }
             // Bold-flat pass: the stage IS the window ground — no rounded stage
             // plate, no outline; controls sit directly on the one near-black
             // ground like the reference.

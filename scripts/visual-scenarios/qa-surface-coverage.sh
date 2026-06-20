@@ -54,7 +54,9 @@ scenario_status="started; no captures completed yet"
 # ---------------------------------------------------------------------------
 CAPTURES=$(cat <<'TABLE'
 01-phrase|workspace=phrase|phraseMatrixTrackCount=6;phraseMatrixPhraseCount=6;phraseMatrixLayerIndex=0;transport=stop
-02-tracks-navigator|workspace=tracks|workspace=tracks;transport=stop
+02-tracks-navigator|workspace=tracks,tracksSelectionMode=off|workspace=tracks;tracksSelectionMode=off;transport=stop
+02a-tracks-selection-actions|workspace=tracks,tracksSelectionMode=on,tracksSelectionCount=1|workspace=tracks;tracksSelectionMode=on;tracksClearSelection=true;tracksSelect=first;transport=stop
+02b-tracks-layer-perform-nav|workspace=phrase,phraseWorkspaceTab=layers,performScopeCount=1|workspace=tracks;tracksSelectionMode=on;tracksClearSelection=true;tracksSelect=first;tracksAction=layerPerform;transport=stop
 # 03/03a RETIRED: the tracks view is now a plain NAVIGATOR (track tiles +
 # add tile), not a perform surface. There is no Edit/Perform split, no
 # BASIS PHRASE banner, no EDIT SET selection bar, no Perform launcher, and

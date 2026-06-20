@@ -162,10 +162,16 @@ struct PhraseWorkspaceView: View {
             reconcileSelectedLayer()
             clampTrackPage()
             applyVisualControlsOpenIndex()
+            consumePendingPhrasePerform()
             for command in VisualScenarioCommandRunner.drainPendingPhraseMatrixCommands() {
                 applyMatrixVisualCommand(command)
             }
             postRenderedMatrixVisualState(isVisible: true)
+        }
+        .onChange(of: session.pendingPhrasePerform) {
+            // The view may already be mounted (e.g. navigated from Tracks while
+            // Phrase is the live section), so consume the pending target here too.
+            consumePendingPhrasePerform()
         }
         .onDisappear {
             postRenderedMatrixVisualState(isVisible: false)
@@ -875,6 +881,26 @@ struct PhraseWorkspaceView: View {
 
     private func clampTrackPage() {
         trackPage = min(max(trackPage, 0), trackPageCount - 1)
+    }
+
+    /// Consume a pending Tracks→Phrase navigation request (set by the tracks
+    /// actions nav): open the requested tab, and for Same value (Global Apply)
+    /// seed the track selector from the selection. The perform scope itself is
+    /// already set on the session. Cleared once applied so it fires once.
+    private func consumePendingPhrasePerform() {
+        guard let pending = session.pendingPhrasePerform else { return }
+        phraseTab = pending.tab
+        if pending.tab != .layers {
+            isPresentingPerformanceLayerSelection = false
+        }
+        // Re-assert the perform scope as the view mounts so it is authoritative
+        // for the phrase surfaces regardless of any intervening navigation.
+        session.performTrackScope = pending.trackIDs
+        if pending.tab == .globalApply {
+            globalApplyScope = TrackPerformSelectionState(selectedTrackIDs: pending.trackIDs)
+        }
+        session.pendingPhrasePerform = nil
+        postRenderedMatrixVisualState(isVisible: true)
     }
 
     private func applyMatrixVisualCommand(_ command: String) {
@@ -2045,7 +2071,7 @@ private enum PhraseCellTool: String, Equatable {
     }
 }
 
-private enum PhraseWorkspaceTab: String, CaseIterable, Identifiable {
+enum PhraseWorkspaceTab: String, CaseIterable, Identifiable {
     case layers
     case scenes
     case globalApply

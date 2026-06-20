@@ -80,6 +80,72 @@ final class SequencerDocumentSession {
         workspaceMode = .perform
     }
 
+    // MARK: - Tracks navigator selection (transient)
+
+    /// Tracks navigator "Selection mode" (ux-rethink-2 "Selection mode on/off").
+    /// OFF: tapping a tile opens the track detail. ON: tapping a tile toggles
+    /// its membership in `tracksSelection` so an actions nav can act on the
+    /// chosen tracks. Session-only runtime UI state — never flushed to the
+    /// document (Performance-Time Mutation Rule / document-truth guardrail).
+    var tracksSelectionMode = false {
+        didSet {
+            // Turning selection off drops any pending multi-selection so the
+            // navigator returns cleanly to its open-on-tap behaviour.
+            if oldValue, !tracksSelectionMode {
+                tracksSelection.removeAll()
+            }
+        }
+    }
+
+    /// The transient multi-selection built in tracks selection mode. Never
+    /// persisted; the actions nav copies it into `performTrackScope` when it
+    /// navigates to the phrase surfaces.
+    var tracksSelection: Set<UUID> = []
+
+    func toggleTracksSelectionMode() {
+        tracksSelectionMode.toggle()
+    }
+
+    func toggleTrackSelected(_ trackID: UUID) {
+        if tracksSelection.contains(trackID) {
+            tracksSelection.remove(trackID)
+        } else {
+            tracksSelection.insert(trackID)
+        }
+    }
+
+    /// A grouped/kit tile selects (or deselects) all its member tracks at once
+    /// so the actions nav speaks for the whole kit.
+    func toggleTracksSelected(_ trackIDs: [UUID]) {
+        guard !trackIDs.isEmpty else { return }
+        let allSelected = trackIDs.allSatisfy { tracksSelection.contains($0) }
+        if allSelected {
+            trackIDs.forEach { tracksSelection.remove($0) }
+        } else {
+            trackIDs.forEach { tracksSelection.insert($0) }
+        }
+    }
+
+    // MARK: - Pending Tracks → Phrase navigation (transient)
+
+    /// A pending request from the tracks actions nav to navigate to the phrase
+    /// workspace on a specific tab with the selection pre-loaded as the perform
+    /// scope. `WorkspaceDetailView` consumes the section switch; the phrase view
+    /// consumes the tab + scope, then clears it. Session-only runtime state.
+    struct PendingPhrasePerform: Equatable {
+        var tab: PhraseWorkspaceTab
+        var trackIDs: Set<UUID>
+    }
+
+    var pendingPhrasePerform: PendingPhrasePerform?
+
+    /// Layer perform / Same value actions: stash the selection as the perform
+    /// scope and queue navigation to the phrase workspace's requested tab.
+    func requestPhrasePerform(tab: PhraseWorkspaceTab, trackIDs: Set<UUID>) {
+        performTrackScope = trackIDs
+        pendingPhrasePerform = PendingPhrasePerform(tab: tab, trackIDs: trackIDs)
+    }
+
     /// Debounce interval used for `scheduleFlushToDocument`.
     /// Injectable for tests to avoid real-time waits.
     let debounceInterval: Duration
