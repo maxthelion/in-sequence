@@ -4,11 +4,13 @@ import SwiftUI
 /// elements align row-for-row across track, send-return, bus, and master
 /// columns.
 enum StudioMixerStripMetrics {
-    /// One narrow width for all ordinary strips.
-    static let stripWidth: CGFloat = 142
+    /// One narrow width for all ordinary strips. Reduced to ~2/3 of the prior
+    /// 142pt so channel strips no longer eat horizontal room (bug 134440).
+    static let stripWidth: CGFloat = 96
     /// The master column keeps a little extra room for its meter scale, but
     /// no more than it needs — it was noticeably wider than the channels.
-    static let masterWidth: CGFloat = 164
+    /// Trimmed in step with the narrower channel strips.
+    static let masterWidth: CGFloat = 118
 
     /// Fixed slot heights. A strip type that has nothing for a slot renders
     /// an empty slot of the same height, keeping neighbours aligned.

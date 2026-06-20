@@ -300,17 +300,24 @@ struct ScenesWorkspaceView: View {
         VStack(alignment: .leading, spacing: 18) {
             sceneEditorHeader
 
-            ViewThatFits(in: .horizontal) {
-                HStack(alignment: .top, spacing: 18) {
-                    insertList
-                        .frame(minWidth: 300, maxWidth: 380, alignment: .topLeading)
-                    insertEditor
-                        .frame(maxWidth: .infinity, alignment: .topLeading)
-                }
+            // Empty scene = one full-width dashed "Add FX" tile (mirrors the
+            // tracks/scenes add grammar). The two-column split (insert list |
+            // editor) only appears once at least one insert is present.
+            if selectedScene.inserts.isEmpty {
+                addFXTile(minHeight: 132)
+            } else {
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .top, spacing: 18) {
+                        insertList
+                            .frame(minWidth: 300, maxWidth: 380, alignment: .topLeading)
+                        insertEditor
+                            .frame(maxWidth: .infinity, alignment: .topLeading)
+                    }
 
-                VStack(alignment: .leading, spacing: 18) {
-                    insertList
-                    insertEditor
+                    VStack(alignment: .leading, spacing: 18) {
+                        insertList
+                        insertEditor
+                    }
                 }
             }
 
@@ -339,36 +346,30 @@ struct ScenesWorkspaceView: View {
         }
     }
 
+    // Only rendered when at least one insert exists (empty scenes use the
+    // full-width add-FX tile in `sceneEditor`). The add affordance is an
+    // empty-with-plus tile BELOW the list, matching TrackFXChainView's
+    // below-the-list add grammar (bug 135233).
     private var insertList: some View {
         VStack(alignment: .leading, spacing: 12) {
-            // The + FX button is the only header affordance: no redundant "FX"
-            // eyebrow (bug 212650).
-            HStack {
-                Spacer()
-                addInsertButton
-            }
-
-            if selectedScene.inserts.isEmpty {
-                // Empty state: nothing extra. The single in-theme "+ FX" button
-                // above is the only add affordance — no redundant green tile and
-                // no filler helper text.
-                EmptyView()
-            } else {
-                // A List with `.onMove` gives drag-to-reorder by handle, with no
-                // up/down arrow buttons (bug 135534).
-                List {
-                    ForEach(selectedScene.inserts) { insert in
-                        insertRow(insert)
-                            .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
-                            .listRowBackground(Color.clear)
-                            .listRowSeparator(.hidden)
-                    }
-                    .onMove(perform: moveInserts)
+            // A List with `.onMove` gives drag-to-reorder by handle, with no
+            // up/down arrow buttons (bug 135534).
+            List {
+                ForEach(selectedScene.inserts) { insert in
+                    insertRow(insert)
+                        .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
                 }
-                .listStyle(.plain)
-                .scrollContentBackground(.hidden)
-                .frame(height: insertListHeight)
+                .onMove(perform: moveInserts)
             }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .frame(height: insertListHeight)
+
+            // Add-FX tile beneath the inserts (same dashed plus-tile grammar as
+            // the empty state and the rest of the app).
+            addFXTile(minHeight: 64)
         }
     }
 
@@ -378,26 +379,19 @@ struct ScenesWorkspaceView: View {
         return CGFloat(visibleRows) * rowHeight
     }
 
-    // Direct + FX button (bug 135348): a plain Button, never a dropdown. It
-    // opens the add-FX picker sheet.
-    private var addInsertButton: some View {
-        Button {
+    // Dashed full-width "Add FX" tile (bugs 135118 + 135233): reuses the same
+    // StudioAddCard grammar as the tracks navigator and the track-source "Add
+    // Sound Source" tile, tinted in-theme with the Scenes accent (amber) — never
+    // the green success accent. It opens the add-FX picker sheet.
+    private func addFXTile(minHeight: CGFloat) -> some View {
+        StudioAddCard(
+            label: "Add FX",
+            accent: StudioTheme.amber,
+            minHeight: minHeight,
+            help: "Add FX"
+        ) {
             presentAddInsertPicker()
-        } label: {
-            // In-theme add control: the same filled-capsule "+ FX" pattern the
-            // per-track FX chain uses (TrackFXChainView.addFXButton), tinted with
-            // the Scenes accent (amber) — never the green success accent.
-            Label("FX", systemImage: "plus")
-                .studioText(.labelBold)
-                .foregroundStyle(StudioTheme.background)
-                .padding(.vertical, 8)
-                .padding(.horizontal, 12)
-                .background(StudioTheme.amber, in: Capsule())
         }
-        .buttonStyle(.plain)
-        .fixedSize()
-        .help("Add FX")
-        .accessibilityLabel("Add FX")
     }
 
     private func presentAddInsertPicker() {

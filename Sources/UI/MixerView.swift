@@ -274,17 +274,9 @@ private struct MixerChannelStrip: View {
             isHighlighted: isSelected,
             dimsContent: isEffectivelyMuted && !track.mix.isMuted
         ) {
-            MixerStripHeader(title: track.name, caption: destinationLabel) {
-                MixerStripActionButton(
-                    title: "",
-                    systemName: "slider.horizontal.3",
-                    accent: StudioTheme.cyan,
-                    minWidth: 20,
-                    action: onSelect
-                )
-                .help("Edit track")
-                .accessibilityLabel("\(track.name) edit")
-            }
+            // Configure is folded into the title: tapping the channel name
+            // opens its editor — no separate Configure/edit button (bug 134440).
+            MixerStripHeader(title: track.name, caption: destinationLabel, onTitleTap: onSelect)
         } processing: {
             sendsSection
         } levels: {
@@ -323,7 +315,9 @@ private struct MixerChannelStrip: View {
                 .tracking(0.8)
                 .foregroundStyle(StudioTheme.mutedText)
 
-            HStack(spacing: 14) {
+            // Send knobs sit closer together now the strip is narrower (bug
+            // 134440): the A/B pair reads as one cluster, not two spread fields.
+            HStack(spacing: 4) {
                 ForEach(SendSlot.allCases, id: \.self) { slot in
                     sendKnob(slot)
                 }
@@ -340,7 +334,7 @@ private struct MixerChannelStrip: View {
             value: displayedSend(slot),
             range: TrackMixSettings.sendRange,
             accent: slot.accent,
-            size: 38,
+            size: 30,
             format: { MixerSendDisplayModel.percentLabel(for: $0) },
             onChange: { commitSend(slot, value: $0) },
             onLiveChange: { updateSend(slot, value: $0) }
@@ -497,6 +491,10 @@ struct MixerStripHeader<Leading: View>: View {
     let title: String
     var caption: String? = nil
     var accentDot: Color? = nil
+    /// When set, the title block itself is the configure affordance — tapping
+    /// the channel name opens its editor, so no separate Configure button is
+    /// needed (bug 134440).
+    var onTitleTap: (() -> Void)? = nil
     @ViewBuilder var leading: Leading
 
     var body: some View {
@@ -510,28 +508,47 @@ struct MixerStripHeader<Leading: View>: View {
                     .fill(accentDot)
                     .frame(width: 9, height: 9)
             }
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .studioText(.labelBold)
-                    .foregroundStyle(StudioTheme.text)
-                    .lineLimit(1)
-                if let caption {
-                    Text(caption)
-                        .studioText(.micro)
-                        .tracking(0.6)
-                        .foregroundStyle(StudioTheme.mutedText)
-                        .lineLimit(1)
-                }
-            }
+            titleBlock
             Spacer(minLength: 0)
         }
         .frame(maxHeight: .infinity, alignment: .center)
     }
+
+    @ViewBuilder
+    private var titleBlock: some View {
+        if let onTitleTap {
+            Button(action: onTitleTap) {
+                titleLabel
+            }
+            .buttonStyle(.plain)
+            .contentShape(Rectangle())
+            .help("Configure \(title)")
+            .accessibilityLabel("\(title) configure")
+        } else {
+            titleLabel
+        }
+    }
+
+    private var titleLabel: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title)
+                .studioText(.labelBold)
+                .foregroundStyle(StudioTheme.text)
+                .lineLimit(1)
+            if let caption {
+                Text(caption)
+                    .studioText(.micro)
+                    .tracking(0.6)
+                    .foregroundStyle(StudioTheme.mutedText)
+                    .lineLimit(1)
+            }
+        }
+    }
 }
 
 extension MixerStripHeader where Leading == EmptyView {
-    init(title: String, caption: String? = nil, accentDot: Color? = nil) {
-        self.init(title: title, caption: caption, accentDot: accentDot) { EmptyView() }
+    init(title: String, caption: String? = nil, accentDot: Color? = nil, onTitleTap: (() -> Void)? = nil) {
+        self.init(title: title, caption: caption, accentDot: accentDot, onTitleTap: onTitleTap) { EmptyView() }
     }
 }
 
