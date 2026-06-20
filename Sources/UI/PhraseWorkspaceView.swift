@@ -109,14 +109,15 @@ struct PhraseWorkspaceView: View {
             accent: activeLayerAccent,
             showsHeader: false
         ) {
-            VStack(alignment: .leading, spacing: 16) {
-                phrasePerformanceShell
-                // While the layer selector is open its grid lives inside the
-                // orange shell above; the LAYERS/SCENES/GLOBAL APPLY tabs are
-                // hidden so the selection reads as part of the layer button.
+            VStack(alignment: .leading, spacing: 8) {
+                // The three-mode tab row (LAYERS / SCENES / GLOBAL APPLY) sits
+                // ABOVE the orange perform-copy bar. While the layer selector is
+                // open the tabs are hidden so the selection reads as part of the
+                // layer button.
                 if !(isPresentingPerformanceLayerSelection && phraseTab == .layers) {
                     phraseTabBar
                 }
+                phrasePerformanceShell
                 switch phraseTab {
                 case .layers:
                     selectedPhraseLayerMatrix
