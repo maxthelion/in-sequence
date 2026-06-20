@@ -309,7 +309,7 @@ struct TracksMatrixView: View {
             Text(title)
                 .studioText(.microEmphasis)
                 .tracking(0.8)
-                .foregroundStyle(accent)
+                .foregroundStyle(StudioTheme.background)
                 .frame(height: 32)
                 .padding(.horizontal, 14)
                 .background(accent.opacity(StudioOpacity.accentFill), in: Capsule())
