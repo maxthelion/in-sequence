@@ -889,7 +889,7 @@ struct SliceSourceTabContent: View {
     }
 
     // Studio-styled action button matching the app's capsule/outline grammar
-    // (cf. lengthButton / voiceChip): neutral fill, accent lives in the outline.
+    // (cf. lengthButton): neutral fill, accent lives in the outline.
     private func studioActionButton(
         title: String,
         systemImage: String,
@@ -930,16 +930,15 @@ struct SliceSourceTabContent: View {
 /// The Slice tab squashes "where the slice is in the source" and the
 /// sampler/playback settings into one card that reads like the drum-part
 /// sampler (`SamplerDestinationWidget`): title row, compact range preview,
-/// browse/audition, parameter dials, reverse/choke + voice chips. The per-slice
+/// browse/audition, parameter dials, reverse/choke. The per-slice
 /// values are the real engine-backed `SliceTriggerStepParameters` for the
-/// selected step; voice mode is the real track-wide `SlicerVoiceMode`.
+/// selected step.
 struct SliceSamplerCard: View {
     let sampleName: String
     let markerIndex: Int
     let buckets: [Float]
     let marker: SliceMarker
     let sampleLengthFrames: Int64
-    @Binding var voiceMode: SlicerVoiceMode
     @Binding var mode: SliceTriggerStepMode
     @Binding var parameters: SliceTriggerStepParameters
     let onAudition: () -> Void
@@ -963,8 +962,6 @@ struct SliceSamplerCard: View {
                 mode: $mode,
                 parameters: $parameters
             )
-            divider
-            voiceRow
         }
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(
@@ -1045,39 +1042,6 @@ struct SliceSamplerCard: View {
         }
         .padding(.horizontal, StudioMetrics.Spacing.comfortable)
         .padding(.vertical, StudioMetrics.Spacing.snug)
-    }
-
-    private var voiceRow: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("PLAYBACK")
-                .studioText(.eyebrow)
-                .tracking(0.8)
-                .foregroundStyle(StudioTheme.mutedText)
-
-            HStack(spacing: 8) {
-                ForEach(SlicerVoiceMode.allCases, id: \.self) { voice in
-                    voiceChip(voice)
-                }
-                Spacer()
-            }
-        }
-        .padding(StudioMetrics.Spacing.comfortable)
-    }
-
-    private func voiceChip(_ voice: SlicerVoiceMode) -> some View {
-        let isSelected = voiceMode == voice
-        return Button {
-            voiceMode = voice
-        } label: {
-            Text(voice == .mono ? "Mono" : "Poly")
-                .studioText(.labelBold)
-                .foregroundStyle(isSelected ? StudioTheme.background : StudioTheme.text)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 7)
-                .background(isSelected ? StudioTheme.violet : Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
-                .overlay(Capsule().stroke(isSelected ? Color.clear : StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth))
-        }
-        .buttonStyle(.plain)
     }
 
     private var divider: some View {

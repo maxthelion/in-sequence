@@ -218,7 +218,10 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         let resolvedEnd = max(resolvedStart + 1, min(endFrame, file.length))
         guard resolvedEnd > resolvedStart else { return nil }
 
-        return playWithPreparedVoice(trackID: trackID, voiceMode: clampedSettings.voiceMode) { [self] voice, voiceFilter, params in
+        // Slicer playback is always polyphonic; per-slice Choke is the single
+        // voice-cutting mechanism. The legacy `voiceMode` setting no longer
+        // affects playback (kept only for Codable backward-compat).
+        return playWithPreparedVoice(trackID: trackID, voiceMode: .polyphonic) { [self] voice, voiceFilter, params in
             let effectiveWhen = Self.effectivePlaybackTime(for: when)
             SampleTriggerTrace.schedule(
                 trackID: trackID,

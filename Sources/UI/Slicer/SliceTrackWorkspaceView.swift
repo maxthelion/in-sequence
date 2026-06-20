@@ -428,7 +428,6 @@ struct SliceTrackWorkspaceView: View {
                 buckets: currentSample.map { waveformBuckets(sample: $0) } ?? [],
                 marker: assigned,
                 sampleLengthFrames: currentSample.map { sampleLengthFrames(sample: $0) } ?? 0,
-                voiceMode: voiceModeBinding,
                 mode: Binding(get: { selectedStepMode }, set: { assignStepMode($0) }),
                 parameters: Binding(get: { selectedStepParameters }, set: { assignStepParameters($0) }),
                 onAudition: { auditionSelectedSlice() },
@@ -597,20 +596,7 @@ struct SliceTrackWorkspaceView: View {
         }
     }
 
-    // MARK: - Slice browsing / voice mode / audition / remove
-
-    private var voiceModeBinding: Binding<SlicerVoiceMode> {
-        Binding(
-            get: { currentSettings.voiceMode },
-            set: { newMode in
-                var next = currentSettings
-                next.voiceMode = newMode
-                if let sliceSet = currentSliceSet {
-                    session.setSlicerDestination(sliceSet: sliceSet, settings: next, for: track.id)
-                }
-            }
-        )
-    }
+    // MARK: - Slice browsing / audition / remove
 
     private func browseSlice(_ delta: Int) {
         guard let steps = sliceTriggerSteps,
