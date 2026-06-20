@@ -278,6 +278,13 @@ trap cleanup EXIT
 # ---------------------------------------------------------------------------
 
 mkdir -p "$output_dir"
+# A full run starts from a clean output dir so retired/renamed rows never leave
+# stale PNGs behind (the gallery shows whatever is in the dir). Filtered runs
+# (QA_SURFACE_CAPTURE_FILTER set) only refresh their subset, so they must NOT
+# purge the other rows' artifacts.
+if [ -z "$capture_filter" ]; then
+  rm -f "$output_dir"/*.png "$output_dir"/*.status "$output_dir"/*.command.env
+fi
 mkdir -p "$(dirname "$command_file")"
 mkdir -p "$(dirname "$runtime_fixture_path")"
 rm -f "$command_file" "$status_file"
