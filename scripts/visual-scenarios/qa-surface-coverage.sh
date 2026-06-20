@@ -56,6 +56,7 @@ CAPTURES=$(cat <<'TABLE'
 01-phrase|workspace=phrase|phraseMatrixTrackCount=6;phraseMatrixPhraseCount=6;phraseMatrixLayerIndex=0;transport=stop
 02-tracks-edit|workspace=tracks,tracksMode=edit|tracksMode=edit;transport=stop
 03-tracks-perform|workspace=tracks,tracksMode=perform|tracksMode=perform;trackPerformTrackCount=8;transport=stop
+03a-tracks-scoped-perform|workspace=tracks,workspaceMode=perform,performScopeCount=1|tracksMode=edit;performScopeTrack=selected;transport=stop
 04-mixer|workspace=mixer|workspace=mixer;transport=stop
 05-scenes-browse|workspace=scenes,scenesMode=browseEdit|scenesMode=browseEdit;transport=stop
 05a-scenes-edit-empty|workspace=scenes,scenesMode=browseEdit,sceneEditorFixture=empty|scenesMode=browseEdit;sceneEditorFixture=empty;transport=stop
@@ -98,6 +99,13 @@ CAPTURES=$(cat <<'TABLE'
 29-drum-kit-matrix|workspace=track,drumKitMatrixRenderedVisible=true,drumTrackDefaultView=kitMatrix,drumKitMatrixRenderedGroupPatternSlot=mixed|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixDisplayStepCount=16;transport=stop
 30-drum-kit-matrix-32|workspace=track,drumKitMatrixRenderedVisible=true,drumKitMatrixRenderedDisplayStepCount=32|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixDisplayStepCount=32;transport=stop
 31-drum-kit-routing|workspace=track,drumGroupRoutingEditorRenderedVisible=true|drumPartHeaderFixture=kit;drumPartHeaderOpenKitView=true;drumKitMatrixCommand=openRouting;drumGroupRoutingEditorState=channel;transport=stop
+29a-drum-kit-fx-tab|workspace=track,drumKitMatrixRenderedVisible=true,drumKitMatrixRenderedKitTab=fx|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixCommand=tab-fx;transport=stop
+29b-drum-kit-macros-tab|workspace=track,drumKitMatrixRenderedVisible=true,drumKitMatrixRenderedKitTab=macros|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixCommand=tab-macros;transport=stop
+29c-drum-kit-mixer-tab|workspace=track,drumKitMatrixRenderedVisible=true,drumKitMatrixRenderedKitTab=mixer|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixCommand=tab-mixer;transport=stop
+29d-drum-kit-fx-chooser|workspace=track,drumKitMatrixRenderedKitFXChooserVisible=true|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixCommands=tab-fx,open-kit-fx-chooser;transport=stop
+29e-drum-kit-capture|workspace=track,drumKitMatrixRenderedCaptureOpen=true|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixCommand=open-capture;transport=stop
+29f-drum-kit-capture-save-slot|workspace=track,drumKitMatrixRenderedSaveSlotPickerVisible=true|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixCommands=open-capture,history-save-open;transport=stop
+29g-drum-kit-expanded-row|workspace=track,drumKitMatrixRenderedRowExpanded=true,drumKitMatrixRenderedExpandedRowTab=sound|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixCommands=expand-part:0,row-tab-sound;transport=stop
 35-drum-kit-matrix-velocity-layer|workspace=track,drumKitMatrixRenderedLayer=velocity|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixLayer=velocity;transport=stop
 36-drum-kit-matrix-chance-layer|workspace=track,drumKitMatrixRenderedLayer=chance|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixLayer=chance;transport=stop
 37-drum-kit-matrix-pattern-realign|workspace=track,drumKitMatrixRenderedGroupPatternSlot=2|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixPattern=2;transport=stop

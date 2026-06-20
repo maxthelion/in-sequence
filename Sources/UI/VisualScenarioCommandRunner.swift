@@ -25,6 +25,13 @@ enum VisualScenarioCommandRunner {
     private static var drumKitMatrixRenderedGroupPatternSlot = "none"
     private static var drumKitMatrixRenderedGroupName = "none"
     private static var drumKitMatrixRenderedMemberCount = 0
+    private static var drumKitMatrixRenderedKitTab = "none"
+    private static var drumKitMatrixRenderedCaptureOpen = false
+    private static var drumKitMatrixRenderedKitFXChooserVisible = false
+    private static var drumKitMatrixRenderedSaveSlotPickerVisible = false
+    private static var drumKitMatrixRenderedRowExpanded = false
+    private static var drumKitMatrixRenderedExpandedPartIndex = -1
+    private static var drumKitMatrixRenderedExpandedRowTab = "none"
     private static var phraseMatrixRenderedVisible = false
     private static var phraseMatrixPageIndex = 0
     private static var phraseMatrixPageCount = 0
@@ -151,6 +158,13 @@ enum VisualScenarioCommandRunner {
                 drumKitMatrixRenderedGroupPatternSlot = userInfo["groupPatternSlot"] as? String ?? "none"
                 drumKitMatrixRenderedGroupName = userInfo["groupName"] as? String ?? "none"
                 drumKitMatrixRenderedMemberCount = userInfo["memberCount"] as? Int ?? 0
+                drumKitMatrixRenderedKitTab = userInfo["kitTab"] as? String ?? "none"
+                drumKitMatrixRenderedCaptureOpen = userInfo["captureOpen"] as? Bool ?? false
+                drumKitMatrixRenderedKitFXChooserVisible = userInfo["kitFXChooserVisible"] as? Bool ?? false
+                drumKitMatrixRenderedSaveSlotPickerVisible = userInfo["historySaveSlotPickerVisible"] as? Bool ?? false
+                drumKitMatrixRenderedRowExpanded = userInfo["rowExpanded"] as? Bool ?? false
+                drumKitMatrixRenderedExpandedPartIndex = userInfo["expandedPartIndex"] as? Int ?? -1
+                drumKitMatrixRenderedExpandedRowTab = userInfo["expandedRowTab"] as? String ?? "none"
             }
         }
         NotificationCenter.default.addObserver(
@@ -600,6 +614,13 @@ enum VisualScenarioCommandRunner {
         drumKitMatrixRenderedGroupPatternSlot=\(drumKitMatrixRenderedGroupPatternSlot)
         drumKitMatrixRenderedGroupName=\(drumKitMatrixRenderedGroupName)
         drumKitMatrixRenderedMemberCount=\(drumKitMatrixRenderedMemberCount)
+        drumKitMatrixRenderedKitTab=\(drumKitMatrixRenderedKitTab)
+        drumKitMatrixRenderedCaptureOpen=\(drumKitMatrixRenderedCaptureOpen)
+        drumKitMatrixRenderedKitFXChooserVisible=\(drumKitMatrixRenderedKitFXChooserVisible)
+        drumKitMatrixRenderedSaveSlotPickerVisible=\(drumKitMatrixRenderedSaveSlotPickerVisible)
+        drumKitMatrixRenderedRowExpanded=\(drumKitMatrixRenderedRowExpanded)
+        drumKitMatrixRenderedExpandedPartIndex=\(drumKitMatrixRenderedExpandedPartIndex)
+        drumKitMatrixRenderedExpandedRowTab=\(drumKitMatrixRenderedExpandedRowTab)
         drumGroupRoutingEditorRenderedVisible=\(drumGroupRoutingEditorRenderedState)
         drumGroupRoutingEditorMode=\(drumGroupRoutingEditorMode)
         drumGroupRoutingEditorCanApply=\(drumGroupRoutingEditorCanApply)
@@ -1011,7 +1032,38 @@ enum VisualScenarioCommandRunner {
         command: [String: String],
         session: SequencerDocumentSession
     ) {
+        // Comma-separated sequence of kit visual commands the view already
+        // understands (e.g. `open-capture,history-save-open`). Posted in order
+        // because the command-file payload is a dictionary — a single
+        // `drumKitMatrixCommand` key cannot carry two ordered commands. The
+        // first command repeats (mount safety — the matrix view may mount after
+        // the open-kit-view navigation tick); the rest are posted once each
+        // after a settle delay so a later command (e.g. row-tab-sound) is not
+        // clobbered by a re-post of an earlier one (e.g. expand-part:0, which
+        // resets the row tab to its default on every apply).
+        if let rawSequence = command["drumKitMatrixCommands"] {
+            let tokens = rawSequence
+                .split(separator: ",")
+                .map { $0.trimmingCharacters(in: .whitespaces) }
+                .filter { !$0.isEmpty && DrumKitVisualCommand(rawValue: $0) != nil }
+            if let first = tokens.first {
+                postRepeatedVisualCommand(name: .drumKitMatrixVisualCommand, object: first)
+            }
+            if tokens.count > 1 {
+                let rest = Array(tokens.dropFirst())
+                Task { @MainActor in
+                    // Wait out the first command's repeated re-posts (~600ms).
+                    try? await Task.sleep(nanoseconds: 800_000_000)
+                    for token in rest {
+                        NotificationCenter.default.post(name: .drumKitMatrixVisualCommand, object: token)
+                        try? await Task.sleep(nanoseconds: 150_000_000)
+                    }
+                }
+            }
+        }
+
         guard command["drumKitMatrixCommand"] != nil ||
+              command["drumKitMatrixCommands"] != nil ||
               command["drumKitMatrixLayer"] != nil ||
               command["drumKitMatrixPattern"] != nil ||
               command["drumKitMatrixTemplateChooser"] != nil
@@ -1047,6 +1099,13 @@ enum VisualScenarioCommandRunner {
                 drumGroupRoutingEditorRenderedState = false
                 drumGroupRoutingEditorMode = "none"
                 NotificationCenter.default.post(name: .drumKitMatrixVisualCommand, object: "select-index:\(selectedIndex)")
+            } else if DrumKitVisualCommand(rawValue: rawCommand) != nil {
+                // Generic pass-through for the kit-matrix visual commands the
+                // view already understands (tab-fx/tab-macros/tab-mixer,
+                // open-capture, history-save-open, open-kit-fx-chooser,
+                // expand-part:N, row-tab-*, etc.). Posted repeatedly because the
+                // matrix view may mount after the open-kit-view navigation tick.
+                postRepeatedVisualCommand(name: .drumKitMatrixVisualCommand, object: rawCommand)
             }
         case nil:
             break
@@ -1171,6 +1230,25 @@ enum VisualScenarioCommandRunner {
         }
 
         if command["drumPartHeaderOpenKitView"] == "true" {
+            // Reset any kit sheets/sub-surfaces a PRIOR row left open on the
+            // live (persisted) matrix view — `open-kit-view` does not always
+            // recreate the view, so its @State (FX chooser, capture, expanded
+            // row) can otherwise bleed into this row's screenshot.
+            NotificationCenter.default.post(name: .drumKitMatrixVisualCommand, object: "close-routing")
+            NotificationCenter.default.post(name: .drumKitMatrixVisualCommand, object: "close-kit-fx-chooser")
+            NotificationCenter.default.post(name: .drumKitMatrixVisualCommand, object: "close-capture")
+            NotificationCenter.default.post(name: .drumKitMatrixVisualCommand, object: "collapse-row")
+            NotificationCenter.default.post(name: .drumKitMatrixVisualCommand, object: "tab-matrix")
+            drumKitMatrixRoutingEditorVisualState = false
+            drumKitMatrixRenderedRoutingEditorState = false
+            drumGroupRoutingEditorRenderedState = false
+            drumGroupRoutingEditorMode = "none"
+            drumKitMatrixRenderedKitFXChooserVisible = false
+            drumKitMatrixRenderedCaptureOpen = false
+            drumKitMatrixRenderedSaveSlotPickerVisible = false
+            drumKitMatrixRenderedRowExpanded = false
+            drumKitMatrixRenderedExpandedRowTab = "none"
+            drumKitMatrixRenderedKitTab = "none"
             let model = DrumPartWorkspaceHeaderModel(
                 selectedTrack: session.store.selectedTrack,
                 tracks: session.store.tracks,
