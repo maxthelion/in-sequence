@@ -1688,6 +1688,51 @@ final class EngineControllerTests: XCTestCase {
         XCTAssertEqual(controller.lastNoteTriggerCount, 1)
     }
 
+    @MainActor
+    func test_rescanAudioPluginChoicesPublishesScanningThenReadyCountsAndIgnoresRepeat() async throws {
+        let finishScan = DispatchSemaphore(value: 0)
+        let scanCountLock = NSLock()
+        var scanCount = 0
+        let controller = EngineController(
+            client: nil,
+            endpoint: nil,
+            audioPluginChoiceRescanner: {
+                scanCountLock.lock()
+                scanCount += 1
+                scanCountLock.unlock()
+                _ = finishScan.wait(timeout: .now() + 2)
+                return AudioPluginChoiceScanResult(instrumentCount: 7, effectCount: 23)
+            }
+        )
+
+        controller.rescanAudioPluginChoices()
+
+        XCTAssertEqual(controller.audioPluginChoiceScanState, .scanning)
+        let scanStarted = try await waitForRescanCount(1, lock: scanCountLock) {
+            scanCount
+        }
+        guard scanStarted else {
+            finishScan.signal()
+            XCTFail("Timed out waiting for rescan operation to start")
+            return
+        }
+
+        controller.rescanAudioPluginChoices()
+        scanCountLock.lock()
+        let scansStartedWhileScanning = scanCount
+        scanCountLock.unlock()
+        XCTAssertEqual(scansStartedWhileScanning, 1)
+
+        finishScan.signal()
+        try await waitForMainActorState {
+            controller.audioPluginChoiceScanState == .ready(instrumentCount: 7, effectCount: 23)
+        }
+        XCTAssertEqual(
+            controller.audioPluginChoiceScanState.displayText,
+            "7 instruments, 23 effects"
+        )
+    }
+
     func test_selected_au_output_routes_note_events_to_audio_sink() throws {
         throw XCTSkip("Selecting the AU output path can restart the macOS XCTest host before assertions run; controller fan-out remains covered by the multi-track audio sink tests and manual AU smoke.")
         let audioSink = CapturingAudioSink()
@@ -3325,5 +3370,41 @@ private final class CapturingAudioSink: TrackPlaybackSink {
 
     func play(noteEvents: [NoteEvent], bpm: Double, stepsPerBar: Int) {
         receivedEvents.append(noteEvents)
+    }
+}
+
+@MainActor
+private func waitForMainActorState(
+    timeout: Duration = .seconds(1),
+    _ condition: @escaping @MainActor () -> Bool
+) async throws {
+    let startedAt = ContinuousClock.now
+    while !condition() {
+        if startedAt.duration(to: .now) >= timeout {
+            XCTFail("Timed out waiting for main-actor state")
+            return
+        }
+        try await Task.sleep(for: .milliseconds(10))
+    }
+}
+
+private func waitForRescanCount(
+    _ expectedCount: Int,
+    lock: NSLock,
+    timeout: Duration = .seconds(1),
+    currentCount: () -> Int
+) async throws -> Bool {
+    let startedAt = ContinuousClock.now
+    while true {
+        lock.lock()
+        let count = currentCount()
+        lock.unlock()
+        if count >= expectedCount {
+            return true
+        }
+        if startedAt.duration(to: .now) >= timeout {
+            return false
+        }
+        try await Task.sleep(for: .milliseconds(10))
     }
 }

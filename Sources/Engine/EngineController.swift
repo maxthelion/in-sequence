@@ -110,6 +110,33 @@ enum TickPathMainSyncGuard {
     #endif
 }
 
+enum AudioPluginChoiceScanState: Equatable {
+    case idle
+    case scanning
+    case ready(instrumentCount: Int, effectCount: Int)
+
+    var isScanning: Bool {
+        if case .scanning = self { return true }
+        return false
+    }
+
+    var displayText: String {
+        switch self {
+        case .idle:
+            return "Plug-ins ready"
+        case .scanning:
+            return "Scanning plug-ins..."
+        case let .ready(instrumentCount, effectCount):
+            return "\(instrumentCount) instruments, \(effectCount) effects"
+        }
+    }
+}
+
+struct AudioPluginChoiceScanResult: Equatable {
+    let instrumentCount: Int
+    let effectCount: Int
+}
+
 @Observable
 final class EngineController: RouterDispatcher {
     struct PipelineEntry: Equatable {
@@ -206,6 +233,8 @@ final class EngineController: RouterDispatcher {
     var audioInputCaptureDrainTimer: DispatchSourceTimer?
     // Initialized at end of init() after `self` is fully available.
     private var macroApplier: TrackMacroApplier!
+    @ObservationIgnored
+    private let audioPluginChoiceRescanner: () -> AudioPluginChoiceScanResult
     let sampleLibrary: AudioSampleLibrary
     var sampleLibraryRoot: URL { sampleLibrary.libraryRoot }
     /// Destination for completed audio-input captures. Nil (the default for
@@ -286,6 +315,11 @@ final class EngineController: RouterDispatcher {
     /// lock on the reader synchronizes nothing against the main-thread
     /// writer (data race R2).
     private(set) var chordContextByLane: [String: Chord] = [:]
+    private(set) var audioPluginChoiceScanState: AudioPluginChoiceScanState = .idle
+    @ObservationIgnored
+    private var audioPluginChoiceFixtureInstruments: [AudioInstrumentChoice]?
+    @ObservationIgnored
+    private var audioPluginChoiceFixtureEffects: [AudioEffectChoice]?
     /// Engine-side copy, guarded by `stateLock` on both sides; written at
     /// dispatch time on the tick queue, read by `prepareTick`.
     @ObservationIgnored
@@ -640,7 +674,15 @@ final class EngineController: RouterDispatcher {
         sampleLibrary: AudioSampleLibrary = .shared,
         masterBusHost: MasterBusHosting = MasterBusHost(),
         publishesAudioInputCapture: Bool = false,
-        recordingLibrary: RecordingLibrary? = nil
+        recordingLibrary: RecordingLibrary? = nil,
+        audioPluginChoiceRescanner: @escaping () -> AudioPluginChoiceScanResult = {
+            let instruments = AudioInstrumentChoiceCache.shared.rescanChoices()
+            let effects = AudioEffectChoiceCache.shared.rescanChoices()
+            return AudioPluginChoiceScanResult(
+                instrumentCount: instruments.count,
+                effectCount: effects.count
+            )
+        }
     ) {
         self.mainAudioGraph = mainAudioGraph
         self.sampleEngine = sampleEngine ?? SamplePlaybackEngine(audioGraph: mainAudioGraph)
@@ -651,6 +693,7 @@ final class EngineController: RouterDispatcher {
         self.endpoint = endpoint
         self.sharedAudioOutput = audioOutput
         self.audioOutputFactory = audioOutputFactory
+        self.audioPluginChoiceRescanner = audioPluginChoiceRescanner
         self.stepsPerBar = max(1, stepsPerBar)
         self.registry = BlockRegistry()
         self.commandQueue = CommandQueue(capacity: 256)
@@ -1333,11 +1376,61 @@ final class EngineController: RouterDispatcher {
     }
 
     var availableAudioInstruments: [AudioInstrumentChoice] {
-        sharedAudioOutput?.availableInstruments ?? AudioInstrumentChoice.defaultChoices
+        if let audioPluginChoiceFixtureInstruments {
+            return audioPluginChoiceFixtureInstruments
+        }
+        if audioPluginChoiceScanState.isScanning,
+           let choices = AudioInstrumentChoiceCache.shared.currentChoicesIfAvailable
+        {
+            return choices
+        }
+        // `AudioInstrumentHost` snapshots its instrument list at init from the cache, so it
+        // cannot reflect a runtime rescan. Read the live cache directly unless a non-host
+        // sink (e.g. a test/mock) is supplying its own list.
+        if let sharedAudioOutput, !(sharedAudioOutput is AudioInstrumentHost) {
+            return sharedAudioOutput.availableInstruments
+        }
+        return AudioInstrumentChoice.defaultChoices
     }
 
     var availableAudioEffects: [AudioEffectChoice] {
-        AudioEffectChoice.defaultChoices
+        if let audioPluginChoiceFixtureEffects {
+            return audioPluginChoiceFixtureEffects
+        }
+        if audioPluginChoiceScanState.isScanning,
+           let choices = AudioEffectChoiceCache.shared.currentChoicesIfAvailable
+        {
+            return choices
+        }
+        return AudioEffectChoice.defaultChoices
+    }
+
+    func rescanAudioPluginChoices() {
+        guard !audioPluginChoiceScanState.isScanning else { return }
+        audioPluginChoiceScanState = .scanning
+
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self else { return }
+            let result = self.audioPluginChoiceRescanner()
+            self.publishToMain {
+                self.audioPluginChoiceScanState = .ready(
+                    instrumentCount: result.instrumentCount,
+                    effectCount: result.effectCount
+                )
+            }
+        }
+    }
+
+    @MainActor
+    func setAudioPluginChoiceFixtureForVisualAutomation(
+        instruments: [AudioInstrumentChoice],
+        effects: [AudioEffectChoice],
+        scanState: AudioPluginChoiceScanState
+    ) {
+        guard VisualScenarioCommandRunner.isConfigured else { return }
+        audioPluginChoiceFixtureInstruments = instruments
+        audioPluginChoiceFixtureEffects = effects
+        audioPluginChoiceScanState = scanState
     }
 
     var availableMIDIDestinationNames: [MIDIEndpointName] {

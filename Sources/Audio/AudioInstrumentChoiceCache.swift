@@ -7,8 +7,8 @@ import Foundation
 /// `AVAudioUnitComponentManager.shared().components(matching:)` validates every installed
 /// third-party AU plug-in (sandbox entitlements, code-signing, licence state) on the first
 /// call. On machines with many or slow-validating AUs, this blocks the calling thread for
-/// many seconds. Because the scan result is stable for the lifetime of the process (new plug-in
-/// installs require relaunching the app), a single warm is sufficient.
+/// many seconds. The app warms the list once at launch, then explicit user rescans refresh
+/// it on a background queue when plug-ins are installed while the app is running.
 ///
 /// Usage:
 ///
@@ -26,16 +26,12 @@ import Foundation
 class AudioInstrumentChoiceCache {
     static let shared = AudioInstrumentChoiceCache()
 
-    private let lock = NSLock()
-    /// One token per waiter.  After the result is stored we signal `maxWaiters` times so all
-    /// concurrent `cachedChoices` calls are unblocked.
-    private let semaphore = DispatchSemaphore(value: 0)
-    private let maxWaiters = 64
+    private let condition = NSCondition()
     private var cacheState: CacheState = .idle
 
     private enum CacheState {
         case idle
-        case warming
+        case warming(previous: [AudioInstrumentChoice]?)
         case ready([AudioInstrumentChoice])
     }
 
@@ -44,69 +40,111 @@ class AudioInstrumentChoiceCache {
     /// Start warming the cache on a background queue.  Safe to call multiple times — only
     /// the first call launches the background scan; subsequent calls are no-ops.
     func beginWarmingIfNeeded() {
-        lock.lock()
+        condition.lock()
         guard case .idle = cacheState else {
-            lock.unlock()
+            condition.unlock()
             return
         }
-        cacheState = .warming
-        lock.unlock()
+        cacheState = .warming(previous: nil)
+        condition.unlock()
 
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             guard let self else { return }
-            let choices = self.performScan()
-            self.lock.lock()
-            self.cacheState = .ready(choices)
-            self.lock.unlock()
-            // Unblock all waiters in cachedChoices.
-            for _ in 0..<self.maxWaiters {
-                self.semaphore.signal()
-            }
+            self.completeScan(self.performScan())
+        }
+    }
+
+    /// Start a refresh on a background queue. Returns `false` if a warm/rescan is already
+    /// running, making repeated button presses cheap and safe.
+    @discardableResult
+    func beginRescanIfNeeded() -> Bool {
+        condition.lock()
+        let previousChoices: [AudioInstrumentChoice]?
+        switch cacheState {
+        case .warming:
+            condition.unlock()
+            return false
+        case .idle:
+            previousChoices = nil
+        case let .ready(choices):
+            previousChoices = choices
+        }
+        cacheState = .warming(previous: previousChoices)
+        condition.unlock()
+
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self else { return }
+            self.completeScan(self.performScan())
+        }
+        return true
+    }
+
+    /// Force a refresh on the caller's thread, waiting for any in-flight scan to finish
+    /// first. Intended for off-main rescan coordinators and deterministic tests.
+    func rescanChoices() -> [AudioInstrumentChoice] {
+        condition.lock()
+        while case .warming = cacheState {
+            condition.wait()
+        }
+
+        let previousChoices: [AudioInstrumentChoice]?
+        switch cacheState {
+        case .idle:
+            previousChoices = nil
+        case let .ready(choices):
+            previousChoices = choices
+        case .warming:
+            previousChoices = nil
+        }
+        cacheState = .warming(previous: previousChoices)
+        condition.unlock()
+
+        let choices = performScan()
+        completeScan(choices)
+        return choices
+    }
+
+    /// Non-blocking snapshot for UI redraws while a rescan is running.
+    var currentChoicesIfAvailable: [AudioInstrumentChoice]? {
+        condition.lock()
+        defer { condition.unlock() }
+        switch cacheState {
+        case .idle:
+            return nil
+        case let .warming(previous):
+            return previous
+        case let .ready(choices):
+            return choices
         }
     }
 
     /// The cached AU instrument choices.  Blocks the caller once (until the background scan
     /// finishes) and returns instantly on every subsequent call.
     var cachedChoices: [AudioInstrumentChoice] {
-        lock.lock()
-        if case let .ready(choices) = cacheState {
-            lock.unlock()
+        condition.lock()
+        switch cacheState {
+        case let .ready(choices):
+            condition.unlock()
             return choices
-        }
-
-        let wasIdle: Bool
-        if case .idle = cacheState {
-            wasIdle = true
-            cacheState = .warming
-        } else {
-            wasIdle = false
-        }
-        lock.unlock()
-
-        if wasIdle {
+        case .idle:
+            cacheState = .warming(previous: nil)
+            condition.unlock()
             // No warm has been requested yet — do it synchronously on the caller thread.
             let choices = performScan()
-            lock.lock()
-            cacheState = .ready(choices)
-            lock.unlock()
-            // Unblock any concurrent waiters.
-            for _ in 0..<maxWaiters { semaphore.signal() }
+            completeScan(choices)
             return choices
+        case .warming:
+            while case .warming = cacheState {
+                condition.wait()
+            }
+            if case let .ready(choices) = cacheState {
+                condition.unlock()
+                return choices
+            }
+            condition.unlock()
+            // Defensive fallback; should not be reached.
+            return [.builtInSynth]
         }
-
-        // A background warm is in progress — wait for it rather than launching a duplicate.
-        semaphore.wait()
-        // Re-signal so the next waiter is not stranded (broadcast pattern).
-        semaphore.signal()
-
-        lock.lock()
-        if case let .ready(choices) = cacheState {
-            lock.unlock()
-            return choices
-        }
-        lock.unlock()
-        // Defensive fallback; should not be reached.
-        return [.builtInSynth]
     }
 
     // MARK: - Overridable scan hook (for testing)
@@ -147,5 +185,12 @@ class AudioInstrumentChoiceCache {
             if rhs == .builtInSynth { return false }
             return lhs.displayName.localizedCaseInsensitiveCompare(rhs.displayName) == .orderedAscending
         }
+    }
+
+    private func completeScan(_ choices: [AudioInstrumentChoice]) {
+        condition.lock()
+        cacheState = .ready(choices)
+        condition.broadcast()
+        condition.unlock()
     }
 }
