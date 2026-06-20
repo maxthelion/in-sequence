@@ -166,14 +166,6 @@ struct TracksMatrixView: View {
                     } else {
                         matrixSections(tracks: tracks, selectedTrackID: selectedTrackID)
                     }
-
-                    if session.tracksSelectionMode, !session.tracksSelection.isEmpty {
-                        TracksSelectionActionsNav(
-                            selectionCount: session.tracksSelection.count,
-                            onLayerPerform: { requestPhrasePerform(tab: .layers) },
-                            onSameValue: { requestPhrasePerform(tab: .globalApply) }
-                        )
-                    }
                 }
             }
         }
@@ -228,11 +220,13 @@ struct TracksMatrixView: View {
         }
     }
 
-    /// A small top bar with the Select toggle. With selection mode ON, the
-    /// hint flips to explain tap-to-select and a Clear control appears.
+    /// A single horizontal bar with the Select toggle. With selection mode ON
+    /// and ≥1 track selected, the Clear control and the action buttons (Layer
+    /// perform / Same value / Create performance group) appear inline — there
+    /// is no separate actions section and no "N selected" text.
     private func selectionTopBar(trackCount: Int) -> some View {
         let isOn = session.tracksSelectionMode
-        let selectedCount = session.tracksSelection.count
+        let hasSelection = !session.tracksSelection.isEmpty
         return HStack(spacing: 10) {
             Button {
                 session.toggleTracksSelectionMode()
@@ -260,37 +254,97 @@ struct TracksMatrixView: View {
             .accessibilityIdentifier("tracks-select-toggle")
             .help(isOn ? "Exit selection mode" : "Select tracks to perform together")
 
-            if isOn {
-                Text(
-                    selectedCount == 0
-                        ? "Tap tiles to select tracks"
-                        : "\(selectedCount) selected"
-                )
-                .studioText(.body)
-                .foregroundStyle(StudioTheme.mutedText)
+            if isOn, hasSelection {
+                clearButton
 
-                Spacer(minLength: 0)
+                Divider()
+                    .frame(height: 22)
 
-                if selectedCount > 0 {
-                    Button {
-                        session.tracksSelection.removeAll()
-                    } label: {
-                        Text("CLEAR")
-                            .studioText(.micro)
-                            .tracking(0.8)
-                            .foregroundStyle(StudioTheme.mutedText)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
-                            .overlay(Capsule().stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth))
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("tracks-select-clear")
-                    .help("Clear selection")
-                }
-            } else {
-                Spacer(minLength: 0)
+                selectionActionButton(
+                    title: "Layer perform",
+                    accent: StudioTheme.violet,
+                    identifier: "tracks-action-layer-perform"
+                ) { requestPhrasePerform(tab: .layers) }
+
+                selectionActionButton(
+                    title: "Same value",
+                    accent: StudioTheme.cyan,
+                    identifier: "tracks-action-same-value"
+                ) { requestPhrasePerform(tab: .globalApply) }
+
+                deferredGroupButton
             }
+
+            Spacer(minLength: 0)
         }
+    }
+
+    private var clearButton: some View {
+        Button {
+            session.tracksSelection.removeAll()
+        } label: {
+            Text("CLEAR")
+                .studioText(.micro)
+                .tracking(0.8)
+                .foregroundStyle(StudioTheme.mutedText)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .overlay(Capsule().stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth))
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("tracks-select-clear")
+        .help("Clear selection")
+    }
+
+    /// A compact selection action button. Layer perform / Same value NAVIGATE
+    /// to the existing phrase surfaces (Layers / Global Apply) — nothing
+    /// perform-shaped is built here.
+    private func selectionActionButton(
+        title: String,
+        accent: Color,
+        identifier: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Text(title)
+                .studioText(.microEmphasis)
+                .tracking(0.8)
+                .foregroundStyle(accent)
+                .frame(height: 32)
+                .padding(.horizontal, 14)
+                .background(accent.opacity(StudioOpacity.accentFill), in: Capsule())
+                .overlay(Capsule().stroke(accent.opacity(StudioOpacity.accentStroke), lineWidth: StudioMetrics.borderWidth))
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier(identifier)
+        .help(title)
+    }
+
+    /// Create performance group is intentionally disabled: the durable
+    /// performance-group object is deferred until its own spec lands.
+    private var deferredGroupButton: some View {
+        HStack(spacing: 6) {
+            Text("Create performance group")
+                .studioText(.microEmphasis)
+                .tracking(0.8)
+                .foregroundStyle(StudioTheme.mutedText)
+            Text("SOON")
+                .studioText(.micro)
+                .tracking(0.8)
+                .foregroundStyle(StudioTheme.background)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+                .background(StudioTheme.mutedText, in: Capsule())
+        }
+        .frame(height: 32)
+        .padding(.horizontal, 14)
+        .overlay(
+            Capsule()
+                .stroke(StudioTheme.border, style: StrokeStyle(lineWidth: StudioMetrics.borderWidth, dash: [4, 4]))
+        )
+        .opacity(0.55)
+        .accessibilityIdentifier("tracks-action-create-group")
+        .help("Performance groups are coming soon")
     }
 
     /// Layer perform / Same value: stash the current selection as the perform
@@ -428,104 +482,6 @@ private struct GroupedTrackSection: Identifiable {
     let members: [StepSequenceTrack]
 
     var id: TrackGroupID { group.id }
-}
-
-/// The actions nav that appears when selection mode is on and ≥1 track is
-/// selected. Layer perform and Same value NAVIGATE to the existing phrase
-/// surfaces (Layers / Global Apply) — nothing perform-shaped is built here.
-/// Create performance group is deferred (the durable performance-group object
-/// is not built yet, per
-/// perform-mode-phrase-layer-capture/feedback/2026-06-17-defer-performance-groups.md):
-/// it renders as a disabled affordance with a "soon" hint.
-private struct TracksSelectionActionsNav: View {
-    let selectionCount: Int
-    let onLayerPerform: () -> Void
-    let onSameValue: () -> Void
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("\(selectionCount) TRACK\(selectionCount == 1 ? "" : "S") SELECTED")
-                .studioText(.micro)
-                .tracking(0.8)
-                .foregroundStyle(StudioTheme.mutedText)
-
-            HStack(spacing: 10) {
-                actionButton(
-                    title: "Layer perform",
-                    detail: "Perform one layer across the selection",
-                    accent: StudioTheme.violet,
-                    identifier: "tracks-action-layer-perform",
-                    action: onLayerPerform
-                )
-                actionButton(
-                    title: "Same value",
-                    detail: "Apply one value to the selection",
-                    accent: StudioTheme.cyan,
-                    identifier: "tracks-action-same-value",
-                    action: onSameValue
-                )
-                deferredGroupButton
-            }
-        }
-        .padding(StudioMetrics.Spacing.roomy)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.section, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.section, style: .continuous)
-                .stroke(StudioTheme.cyan.opacity(StudioOpacity.accentStroke), lineWidth: StudioMetrics.borderWidth)
-        )
-        .accessibilityIdentifier("tracks-selection-actions-nav")
-    }
-
-    private func actionButton(
-        title: String,
-        detail: String,
-        accent: Color,
-        identifier: String,
-        action: @escaping () -> Void
-    ) -> some View {
-        StudioOptionButton(
-            title: title,
-            detail: detail,
-            accent: accent,
-            minHeight: 72,
-            action: action
-        )
-        .accessibilityIdentifier(identifier)
-    }
-
-    // Create performance group is intentionally disabled: the durable
-    // performance-group object is deferred until its own spec lands.
-    private var deferredGroupButton: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 6) {
-                Text("Create performance group")
-                    .font(.system(size: 15, weight: .bold, design: .rounded))
-                    .foregroundStyle(StudioTheme.text)
-                Text("SOON")
-                    .studioText(.micro)
-                    .tracking(0.8)
-                    .foregroundStyle(StudioTheme.background)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 3)
-                    .background(StudioTheme.mutedText, in: Capsule())
-            }
-            Text("Save this selection as a reusable group (not yet available)")
-                .studioText(.label)
-                .foregroundStyle(StudioTheme.mutedText)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .frame(maxWidth: .infinity, minHeight: 72, alignment: .topLeading)
-        .padding(StudioMetrics.Spacing.standard)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                .stroke(StudioTheme.border, style: StrokeStyle(lineWidth: StudioMetrics.borderWidth, dash: [4, 4]))
-        )
-        .opacity(0.55)
-        .accessibilityIdentifier("tracks-action-create-group")
-        .help("Performance groups are coming soon")
-    }
 }
 
 private struct GroupSectionView<Grid: View>: View {
