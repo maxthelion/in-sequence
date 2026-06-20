@@ -218,19 +218,10 @@ struct SliceTrackWorkspaceView: View {
 
     private func playbackWaveform(sample: AudioSample, sliceSet: SliceSet) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .center, spacing: 12) {
-                Text(sample.name)
-                    .studioText(.subtitle)
-                    .foregroundStyle(StudioTheme.text)
-                    .lineLimit(1)
-
-                Spacer()
-
-                Text("Markers selectable · zoom & slicing in Source")
-                    .studioText(.label)
-                    .foregroundStyle(StudioTheme.mutedText)
-                    .lineLimit(1)
-            }
+            Text(sample.name)
+                .studioText(.subtitle)
+                .foregroundStyle(StudioTheme.text)
+                .lineLimit(1)
 
             // Default playback view: the waveform spans the full content width,
             // slice markers render IN it and are selectable. No zoom/scroll —
@@ -280,19 +271,8 @@ struct SliceTrackWorkspaceView: View {
     // Direction / Note Repeat / Gate are real selectable layers shown read-only
     // until per-step engine params land (see NOTE in the strip).
     private var sliceLayerSelector: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 10) {
-                Text("Step Layer")
-                    .studioText(.eyebrow)
-                    .foregroundStyle(StudioTheme.mutedText)
-                Text("Same step row, different slicer values.")
-                    .studioText(.label)
-                    .foregroundStyle(StudioTheme.mutedText)
-            }
-
-            SliceLayerTabRow(selectedLayer: selectedLayer, accent: accent) { layer in
-                selectedLayer = layer
-            }
+        SliceLayerTabRow(selectedLayer: selectedLayer, accent: accent) { layer in
+            selectedLayer = layer
         }
     }
 

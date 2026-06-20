@@ -726,16 +726,6 @@ enum SliceTrackLowerTab: String, CaseIterable, Identifiable {
         case .mixer: return "Mixer"
         }
     }
-
-    var subtitle: String {
-        switch self {
-        case .source: return "sample + markers"
-        case .slice: return "range + sampler"
-        case .fx: return "insert chain"
-        case .macros: return "M1–M8"
-        case .mixer: return "bus + sends"
-        }
-    }
 }
 
 struct SliceLowerTabBar: View {
@@ -759,17 +749,10 @@ struct SliceLowerTabBar: View {
         return Button {
             onSelect(tab)
         } label: {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(tab.title)
-                    .studioText(.labelBold)
-                    .foregroundStyle(isSelected ? StudioTheme.background : StudioTheme.text)
-                Text(tab.subtitle)
-                    .studioText(.micro)
-                    .foregroundStyle(isSelected ? StudioTheme.background.opacity(0.8) : StudioTheme.mutedText)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            Text(tab.title)
+                .studioText(.labelBold)
+                .foregroundStyle(isSelected ? StudioTheme.background : StudioTheme.text)
+                .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 12)
             .padding(.vertical, 9)
             .background(
@@ -807,15 +790,9 @@ struct SliceSourceTabContent: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .center, spacing: 10) {
-                Text("Source")
-                    .studioText(.bodyBold)
-                    .foregroundStyle(StudioTheme.text)
-                Spacer()
-                Text(statusText)
-                    .studioText(.labelBold)
-                    .foregroundStyle(StudioTheme.mutedText)
-            }
+            Text("Source")
+                .studioText(.bodyBold)
+                .foregroundStyle(StudioTheme.text)
 
             switch state {
             case .empty:
@@ -825,14 +802,6 @@ struct SliceSourceTabContent: View {
             case .sliced:
                 slicedState
             }
-        }
-    }
-
-    private var statusText: String {
-        switch state {
-        case .empty: return "No sample"
-        case .unsliced: return "Sample present · unsliced"
-        case .sliced: return "Sample present · \(sliceCount) slice\(sliceCount == 1 ? "" : "s")"
         }
     }
 
@@ -849,19 +818,19 @@ struct SliceSourceTabContent: View {
         }
     }
 
+    // One well, studio styling: sample name + remove on the first row,
+    // the slice action(s) beneath, no white system buttons.
     private var unslicedState: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            sampleRow
-            well {
+        well {
+            VStack(alignment: .leading, spacing: 12) {
+                sampleNameRow
                 HStack(spacing: 10) {
-                    Button {
-                        onOpenSliceModal()
-                    } label: {
-                        Label("Slice Sample", systemImage: "scissors")
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(StudioTheme.violet)
-
+                    studioActionButton(
+                        title: "Slice Sample",
+                        systemImage: "scissors",
+                        accent: StudioTheme.violet,
+                        action: onOpenSliceModal
+                    )
                     Text("Unsliced")
                         .studioText(.labelBold)
                         .foregroundStyle(StudioTheme.amber)
@@ -872,57 +841,76 @@ struct SliceSourceTabContent: View {
     }
 
     private var slicedState: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            sampleRow
-            well {
-                VStack(alignment: .leading, spacing: 10) {
-                    HStack(spacing: 8) {
-                        Text("\(sliceCount) slice\(sliceCount == 1 ? "" : "s")")
-                            .studioText(.labelBold)
-                            .foregroundStyle(StudioTheme.success)
-                        Text(detectionLabel)
-                            .studioText(.label)
-                            .foregroundStyle(StudioTheme.mutedText)
-                        Spacer()
-                    }
-                    HStack(spacing: 10) {
-                        Button {
-                            onOpenSliceModal()
-                        } label: {
-                            Label("Edit Slices", systemImage: "slider.horizontal.3")
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .tint(StudioTheme.violet)
-
-                        Button {
-                            onOpenSliceModal()
-                        } label: {
-                            Label("Re-slice", systemImage: "arrow.triangle.2.circlepath")
-                        }
-                        .buttonStyle(.bordered)
-                        Spacer()
-                    }
+        well {
+            VStack(alignment: .leading, spacing: 12) {
+                sampleNameRow
+                HStack(spacing: 8) {
+                    Text("\(sliceCount) slice\(sliceCount == 1 ? "" : "s")")
+                        .studioText(.labelBold)
+                        .foregroundStyle(StudioTheme.success)
+                    Text(detectionLabel)
+                        .studioText(.label)
+                        .foregroundStyle(StudioTheme.mutedText)
+                    Spacer()
+                }
+                HStack(spacing: 10) {
+                    studioActionButton(
+                        title: "Edit Slices",
+                        systemImage: "slider.horizontal.3",
+                        accent: StudioTheme.violet,
+                        action: onOpenSliceModal
+                    )
+                    studioActionButton(
+                        title: "Re-slice",
+                        systemImage: "arrow.triangle.2.circlepath",
+                        accent: nil,
+                        action: onOpenSliceModal
+                    )
+                    Spacer()
                 }
             }
         }
     }
 
-    private var sampleRow: some View {
-        well {
-            HStack(spacing: 10) {
-                Text(sampleName ?? "Sample")
-                    .studioText(.subtitle)
-                    .foregroundStyle(StudioTheme.text)
-                    .lineLimit(1)
-                Spacer()
-                Button(role: .destructive) {
-                    onRemoveSample()
-                } label: {
-                    Label("Remove Sample", systemImage: "trash")
-                }
-                .buttonStyle(.bordered)
-            }
+    private var sampleNameRow: some View {
+        HStack(spacing: 10) {
+            Text(sampleName ?? "Sample")
+                .studioText(.subtitle)
+                .foregroundStyle(StudioTheme.text)
+                .lineLimit(1)
+            Spacer()
+            studioActionButton(
+                title: "Remove Sample",
+                systemImage: "trash",
+                accent: nil,
+                action: onRemoveSample
+            )
         }
+    }
+
+    // Studio-styled action button matching the app's capsule/outline grammar
+    // (cf. lengthButton / voiceChip): neutral fill, accent lives in the outline.
+    private func studioActionButton(
+        title: String,
+        systemImage: String,
+        accent: Color?,
+        action: @escaping () -> Void
+    ) -> some View {
+        let stroke = accent?.opacity(StudioOpacity.mediumStroke) ?? StudioTheme.border.opacity(0.8)
+        return Button(action: action) {
+            HStack(spacing: 6) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 12, weight: .semibold))
+                Text(title)
+                    .studioText(.labelBold)
+            }
+            .foregroundStyle(StudioTheme.text)
+            .padding(.horizontal, 13)
+            .padding(.vertical, 8)
+            .background(Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
+            .overlay(Capsule().stroke(stroke, lineWidth: StudioMetrics.borderWidth))
+        }
+        .buttonStyle(.plain)
     }
 
     private func well<Content: View>(@ViewBuilder content: () -> Content) -> some View {
