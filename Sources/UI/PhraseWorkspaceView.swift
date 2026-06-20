@@ -111,14 +111,15 @@ struct PhraseWorkspaceView: View {
         ) {
             VStack(alignment: .leading, spacing: 16) {
                 phrasePerformanceShell
-                phraseTabBar
+                // While the layer selector is open its grid lives inside the
+                // orange shell above; the LAYERS/SCENES/GLOBAL APPLY tabs are
+                // hidden so the selection reads as part of the layer button.
+                if !(isPresentingPerformanceLayerSelection && phraseTab == .layers) {
+                    phraseTabBar
+                }
                 switch phraseTab {
                 case .layers:
-                    if isPresentingPerformanceLayerSelection {
-                        performanceLayerSelectionSurface
-                    } else {
-                        selectedPhraseLayerMatrix
-                    }
+                    selectedPhraseLayerMatrix
                 case .scenes:
                     phraseScenesSurface
                 case .globalApply:
@@ -226,35 +227,29 @@ struct PhraseWorkspaceView: View {
     }
 
     private var phrasePerformanceShell: some View {
-        // The orange perform-copy bar carries the title, the perform controls,
-        // and — on the LAYERS tab only (bug 20260619-213241) — the PHRASE LAYER
-        // selector + VALUE/AUTOMATION cell tools on the SAME line. The separate
-        // standalone layer row is gone.
-        HStack(alignment: .center, spacing: 10) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(phraseShellTitle)
-                    .studioText(.title)
-                    .foregroundStyle(StudioTheme.text)
-                    .lineLimit(1)
-
-                if let detail = phraseShellDetail {
-                    Text(detail)
-                        .studioText(.body)
-                        .foregroundStyle(StudioTheme.mutedText)
-                        .lineLimit(2)
+        // The orange perform-copy bar carries the perform controls and — on the
+        // LAYERS tab only — the PHRASE LAYER selector + VALUE/AUTOMATION cell
+        // tools. Bug 20260620-135607: the truncated "Phrase…" title is gone;
+        // the top-nav pill already names the page. When the layer selector is
+        // open (bug 20260620-135925), its grid lives INSIDE this box so the
+        // connection to the PATTERN/layer button stays clear.
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .center, spacing: 10) {
+                if phraseTab == .layers {
+                    shellLayerControls
                 }
+
+                Spacer(minLength: 8)
+
+                phrasePerformToggle
+                phraseCaptureActions
+                phraseDirtyPill
+                phraseLatchTimingControls
             }
 
-            if phraseTab == .layers {
-                shellLayerControls
+            if isPresentingPerformanceLayerSelection, phraseTab == .layers {
+                performanceLayerSelectionGrid
             }
-
-            Spacer(minLength: 8)
-
-            phrasePerformToggle
-            phraseDirtyPill
-            phraseLatchTimingControls
-            phraseCaptureActions
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
@@ -264,21 +259,6 @@ struct PhraseWorkspaceView: View {
                 .stroke(phraseShellAccent.opacity(StudioOpacity.mediumStroke), lineWidth: StudioMetrics.borderWidth)
         )
         .accessibilityIdentifier("phrase-performance-shell")
-    }
-
-    private var phraseShellTitle: String {
-        let phraseName = session.store.selectedPhrase.name
-        return session.workspaceMode == .perform ? "\(phraseName) / Perform Copy" : "\(phraseName) / Edit Baseline"
-    }
-
-    private var phraseShellDetail: String? {
-        // Bug 20260619-213241: drop the perform-copy descriptive copy so the
-        // shell collapses onto the layer-selector row. Setup mode keeps a short
-        // hint that perform writes are disabled.
-        if session.workspaceMode == .perform {
-            return nil
-        }
-        return "Perform is off. Phrase edits write to the baseline; Capture and Discard stay visible but inactive."
     }
 
     private var phraseShellAccent: Color {
@@ -397,6 +377,10 @@ struct PhraseWorkspaceView: View {
         return phraseLatchLengthOptions[(index + 1) % phraseLatchLengthOptions.count]
     }
 
+    // Capture + Discard sit right next to Perform On — they're only useful
+    // while perform is on and share its capsule grammar (bug 20260620-135423).
+    // Capture is the primary action (solid amber when live), Discard is the
+    // outline-only secondary.
     private var phraseCaptureActions: some View {
         let availability = phrasePerformActionAvailability
 
@@ -406,10 +390,15 @@ struct PhraseWorkspaceView: View {
             } label: {
                 Text("Capture")
                     .studioText(.labelBold)
+                    .foregroundStyle(availability.canCapture ? StudioTheme.background : StudioTheme.mutedText)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(availability.canCapture ? StudioTheme.amber : Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
+                    .overlay(Capsule().stroke(availability.canCapture ? StudioTheme.amber : StudioTheme.border, lineWidth: StudioMetrics.borderWidth))
             }
-            .buttonStyle(.borderedProminent)
-            .tint(StudioTheme.amber)
+            .buttonStyle(.plain)
             .disabled(!availability.canCapture)
+            .accessibilityIdentifier("phrase-capture")
             .help(availability.captureHelp)
 
             Button {
@@ -417,14 +406,15 @@ struct PhraseWorkspaceView: View {
             } label: {
                 Text("Discard")
                     .studioText(.labelBold)
-                    .foregroundStyle(StudioTheme.text)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 7)
+                    .foregroundStyle(availability.canDiscard ? StudioTheme.text : StudioTheme.mutedText)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
                     .background(Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
                     .overlay(Capsule().stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth))
             }
             .buttonStyle(.plain)
             .disabled(!availability.canDiscard)
+            .accessibilityIdentifier("phrase-discard")
             .help(availability.discardHelp)
         }
     }
@@ -1304,7 +1294,15 @@ struct PhraseWorkspaceView: View {
             .padding(.vertical, 2)
         }
         .scrollIndicators(.never)
+        .frame(maxWidth: matrixContentWidth, alignment: .leading)
         .frame(minHeight: 280)
+    }
+
+    /// The matrix renders a fixed grid (two gutters + one page of track
+    /// columns); pinning the ScrollView to that intrinsic width stops the
+    /// bottom section overflowing the panel (bug 20260620-135607).
+    private var matrixContentWidth: CGFloat {
+        matrixGutterWidth * 2 + trackGridWidth + gridSpacing * 2
     }
 
     private func toggleBooleanCell(phraseID: UUID, trackID: UUID) {
@@ -1423,6 +1421,8 @@ struct PhraseWorkspaceView: View {
         )
     }
 
+    // Bug 20260620-140815: the orange wrapper + its padding are gone — the
+    // scope bar and layer cards sit directly on the panel like the other tabs.
     private var globalApplySurface: some View {
         VStack(alignment: .leading, spacing: 14) {
             globalApplyScopeBar
@@ -1437,12 +1437,6 @@ struct PhraseWorkspaceView: View {
                 }
             }
         }
-        .padding(StudioMetrics.Spacing.standard)
-        .background(StudioTheme.background, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.section, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.section, style: .continuous)
-                .stroke(StudioTheme.amber, lineWidth: StudioMetrics.borderWidth)
-        )
         .accessibilityIdentifier("phrase-global-apply-surface")
     }
 
@@ -1571,30 +1565,79 @@ struct PhraseWorkspaceView: View {
         }
     }
 
+    // Bug 20260620-140815: layer cards use the same grammar as the other views
+    // — a big button whose COLOUR carries on/off (no tick + "On"/"Off" text).
+    // Divergence across the scoped tracks is shown by colouring the cell BORDER
+    // amber (no noisy "MIXED" label).
+    @ViewBuilder
     private func globalApplyInteractiveCell(
         _ option: PerformanceLayerOption,
         layer: PhraseLayerDefinition
     ) -> some View {
-        let accent = option.mode.selectorAccent
         let consensus = globalApplyConsensus(for: layer)
-        // Divergence is surfaced with a tinted fill + amber outline so the
-        // performer can see the scoped tracks disagree on this value.
-        let outline = consensus.isDivergent ? StudioTheme.amber : accent
-        let fill = consensus.isDivergent ? StudioTheme.amber.opacity(StudioOpacity.subtleFill) : Color.clear
+        switch layer.valueType {
+        case .boolean:
+            globalApplyBooleanCell(option, layer: layer, value: consensus.value, isDivergent: consensus.isDivergent)
+        case .patternIndex, .scalar:
+            globalApplyValueCell(option, layer: layer, value: consensus.value, isDivergent: consensus.isDivergent)
+        }
+    }
 
-        return VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 6) {
+    /// Boolean layer: the whole cell is the toggle. ON fills with the layer
+    /// accent (dark glyph/label); OFF is outline-only on the ground.
+    private func globalApplyBooleanCell(
+        _ option: PerformanceLayerOption,
+        layer: PhraseLayerDefinition,
+        value: PhraseCellValue,
+        isDivergent: Bool
+    ) -> some View {
+        let accent = option.mode.selectorAccent
+        let isOn: Bool = {
+            if case let .bool(on) = value { return on }
+            return false
+        }()
+        return Button {
+            // applyGlobalOption flips the boolean and honours quantised arming.
+            applyGlobalOption(option)
+        } label: {
+            VStack(alignment: .leading, spacing: 8) {
                 Image(systemName: option.mode.symbolName)
                     .font(.system(size: 12, weight: .bold))
-                    .foregroundStyle(accent)
+                    .foregroundStyle(isOn ? StudioTheme.background : accent)
                 Spacer(minLength: 0)
-                if consensus.isDivergent {
-                    Text("MIXED")
-                        .studioText(.micro)
-                        .tracking(0.7)
-                        .foregroundStyle(StudioTheme.amber)
-                }
+                Text(option.title.uppercased())
+                    .studioText(.labelBold)
+                    .foregroundStyle(isOn ? StudioTheme.background : StudioTheme.text)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.62)
             }
+            .padding(StudioMetrics.Spacing.compact)
+            .frame(maxWidth: .infinity, minHeight: 82, alignment: .topLeading)
+            .background(isOn ? accent : Color.clear, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                    .stroke(globalApplyCellBorder(isOn: isOn, isDivergent: isDivergent, accent: accent), lineWidth: isDivergent ? 2 : StudioMetrics.borderWidth)
+            )
+            .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("phrase-global-apply-cell-\(layer.id)")
+        .accessibilityValue(isDivergent ? "Mixed" : (isOn ? "On" : "Off"))
+    }
+
+    /// Non-boolean layer: value label + stepper, with the same border-divergence
+    /// treatment as the boolean cell.
+    private func globalApplyValueCell(
+        _ option: PerformanceLayerOption,
+        layer: PhraseLayerDefinition,
+        value: PhraseCellValue,
+        isDivergent: Bool
+    ) -> some View {
+        let accent = option.mode.selectorAccent
+        return VStack(alignment: .leading, spacing: 8) {
+            Image(systemName: option.mode.symbolName)
+                .font(.system(size: 12, weight: .bold))
+                .foregroundStyle(accent)
 
             Text(option.title.uppercased())
                 .studioText(.labelBold)
@@ -1604,48 +1647,6 @@ struct PhraseWorkspaceView: View {
 
             Spacer(minLength: 0)
 
-            globalApplyCellControl(option, layer: layer, value: consensus.value, accent: accent)
-        }
-        .padding(StudioMetrics.Spacing.compact)
-        .frame(maxWidth: .infinity, minHeight: 82, alignment: .topLeading)
-        .background(fill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-                .stroke(outline, lineWidth: consensus.isDivergent ? 2 : StudioMetrics.borderWidth)
-        )
-        .accessibilityIdentifier("phrase-global-apply-cell-\(layer.id)")
-    }
-
-    @ViewBuilder
-    private func globalApplyCellControl(
-        _ option: PerformanceLayerOption,
-        layer: PhraseLayerDefinition,
-        value: PhraseCellValue,
-        accent: Color
-    ) -> some View {
-        switch layer.valueType {
-        case .boolean:
-            let isOn: Bool = {
-                if case let .bool(on) = value { return on }
-                return false
-            }()
-            Button {
-                // applyGlobalOption flips the boolean and honours quantised arming.
-                applyGlobalOption(option)
-            } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: isOn ? "checkmark.circle.fill" : "circle")
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(isOn ? accent : StudioTheme.mutedText)
-                    Text(isOn ? "On" : "Off")
-                        .studioText(.microEmphasis)
-                        .foregroundStyle(StudioTheme.text)
-                    Spacer(minLength: 0)
-                }
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-        case .patternIndex, .scalar:
             HStack(spacing: 6) {
                 Text(valueLabel(value, layer: layer))
                     .studioText(.microEmphasis)
@@ -1661,6 +1662,21 @@ struct PhraseWorkspaceView: View {
                 )
             }
         }
+        .padding(StudioMetrics.Spacing.compact)
+        .frame(maxWidth: .infinity, minHeight: 82, alignment: .topLeading)
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                .stroke(globalApplyCellBorder(isOn: false, isDivergent: isDivergent, accent: accent), lineWidth: isDivergent ? 2 : StudioMetrics.borderWidth)
+        )
+        .accessibilityIdentifier("phrase-global-apply-cell-\(layer.id)")
+        .accessibilityValue(isDivergent ? "Mixed" : valueLabel(value, layer: layer))
+    }
+
+    private func globalApplyCellBorder(isOn: Bool, isDivergent: Bool, accent: Color) -> Color {
+        if isDivergent {
+            return StudioTheme.amber
+        }
+        return isOn ? accent : StudioTheme.border
     }
 
     /// Reverse of `cycledValue` for stepper-down: walks the value backward and
@@ -1781,24 +1797,13 @@ struct PhraseWorkspaceView: View {
         )
     }
 
-    private var performanceLayerSelectionSurface: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .center, spacing: 12) {
-                Text("CHOOSE PHRASE LAYER")
-                    .studioText(.microEmphasis)
-                    .tracking(0.8)
-                    .foregroundStyle(StudioTheme.amber)
-
-                Spacer(minLength: 8)
-
-                StudioCircleIconButton(
-                    systemName: "xmark",
-                    help: "Return to phrase layer matrix"
-                ) {
-                    isPresentingPerformanceLayerSelection = false
-                    postRenderedMatrixVisualState(isVisible: true)
-                }
-            }
+    // The layer-selection grid lives INSIDE the orange perform shell (bug
+    // 20260620-135925): no "CHOOSE PHRASE LAYER" title and no separate box, so
+    // it reads as an extension of the PATTERN/layer button it drops down from.
+    private var performanceLayerSelectionGrid: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Divider()
+                .overlay(StudioTheme.amber.opacity(StudioOpacity.mediumStroke))
 
             LazyVGrid(columns: performanceLayerSelectionColumns, alignment: .leading, spacing: 10) {
                 ForEach(phraseLocalPerformanceLayerOptions) { option in
@@ -1812,14 +1817,6 @@ struct PhraseWorkspaceView: View {
                 }
             }
         }
-        .padding(StudioMetrics.Spacing.standard)
-        // Bold-flat pass: the selector sits on the ground behind a solid
-        // amber outline — no tinted wash.
-        .background(StudioTheme.background, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.section, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.section, style: .continuous)
-                .stroke(StudioTheme.amber, lineWidth: StudioMetrics.borderWidth)
-        )
         .accessibilityIdentifier("phrase-performance-layer-selection-surface")
     }
 
