@@ -349,16 +349,10 @@ struct ScenesWorkspaceView: View {
             }
 
             if selectedScene.inserts.isEmpty {
-                // Empty state is a plus tile that opens the same add picker as
-                // the + FX button (bug 212730), not filler text.
-                StudioAddCard(
-                    label: "Add FX",
-                    accent: StudioTheme.success,
-                    minHeight: 96,
-                    help: "Add FX"
-                ) {
-                    presentAddInsertPicker()
-                }
+                // Empty state: nothing extra. The single in-theme "+ FX" button
+                // above is the only add affordance — no redundant green tile and
+                // no filler helper text.
+                EmptyView()
             } else {
                 // A List with `.onMove` gives drag-to-reorder by handle, with no
                 // up/down arrow buttons (bug 135534).
@@ -390,12 +384,15 @@ struct ScenesWorkspaceView: View {
         Button {
             presentAddInsertPicker()
         } label: {
+            // In-theme add control: the same filled-capsule "+ FX" pattern the
+            // per-track FX chain uses (TrackFXChainView.addFXButton), tinted with
+            // the Scenes accent (amber) — never the green success accent.
             Label("FX", systemImage: "plus")
                 .studioText(.labelBold)
                 .foregroundStyle(StudioTheme.background)
-                .padding(.vertical, 6)
+                .padding(.vertical, 8)
                 .padding(.horizontal, 12)
-                .background(StudioTheme.success, in: Capsule())
+                .background(StudioTheme.amber, in: Capsule())
         }
         .buttonStyle(.plain)
         .fixedSize()
@@ -542,12 +539,9 @@ struct ScenesWorkspaceView: View {
                     .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
             )
         } else {
-            // Compact empty state only (no wasted-space filler text).
-            Text("Select FX to edit")
-                .studioText(.label)
-                .foregroundStyle(StudioTheme.mutedText)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.vertical, 6)
+            // No FX selected / no FX yet: no helper text. The "+ FX" add control
+            // already communicates the next action.
+            EmptyView()
         }
     }
 

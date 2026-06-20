@@ -114,7 +114,6 @@ struct PhraseWorkspaceView: View {
                 phraseTabBar
                 switch phraseTab {
                 case .layers:
-                    layerBar
                     if isPresentingPerformanceLayerSelection {
                         performanceLayerSelectionSurface
                     } else {
@@ -221,7 +220,11 @@ struct PhraseWorkspaceView: View {
     }
 
     private var phrasePerformanceShell: some View {
-        HStack(alignment: .center, spacing: 12) {
+        // The orange perform-copy bar carries the title, the perform controls,
+        // and — on the LAYERS tab only (bug 20260619-213241) — the PHRASE LAYER
+        // selector + VALUE/AUTOMATION cell tools on the SAME line. The separate
+        // standalone layer row is gone.
+        HStack(alignment: .center, spacing: 10) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(phraseShellTitle)
                     .studioText(.title)
@@ -236,7 +239,11 @@ struct PhraseWorkspaceView: View {
                 }
             }
 
-            Spacer(minLength: 12)
+            if phraseTab == .layers {
+                shellLayerControls
+            }
+
+            Spacer(minLength: 8)
 
             phrasePerformToggle
             phraseDirtyPill
@@ -760,22 +767,24 @@ struct PhraseWorkspaceView: View {
         session.setSelectedPhraseID(phrases[visualControlsOpenIndex].id)
     }
 
-    private var layerBar: some View {
-        HStack(spacing: gridSpacing) {
-            Color.clear
-                .frame(width: matrixGutterWidth, height: 44)
+    // Compact layer controls that live INSIDE the orange perform-copy bar on
+    // the LAYERS tab (bug 20260619-213241). Same PHRASE LAYER pill + VALUE /
+    // AUTOMATION cell tools as before, sized to share the bar's single line.
+    private var shellLayerControls: some View {
+        HStack(spacing: 8) {
+            phraseLayerSelectorButton
+                .frame(width: 240)
 
-            layerSelectorRegion
-                .frame(width: trackGridWidth, height: 44)
-
-            Color.clear
-                .frame(width: matrixGutterWidth, height: 44)
+            phraseCellToolButton(.value)
+                .frame(width: 92, height: 50)
+            phraseCellToolButton(.automation)
+                .frame(width: 116, height: 50)
         }
+        .fixedSize(horizontal: true, vertical: false)
     }
 
-    private var layerSelectorRegion: some View {
-        HStack(spacing: gridSpacing) {
-            Button {
+    private var phraseLayerSelectorButton: some View {
+        Button {
                 isPresentingPerformanceLayerSelection = true
             } label: {
                 HStack(spacing: 8) {
@@ -809,7 +818,7 @@ struct PhraseWorkspaceView: View {
                         .font(.system(size: 10, weight: .bold))
                         .foregroundStyle(StudioTheme.mutedText)
                 }
-                .frame(width: 220)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
             .buttonStyle(.plain)
             .padding(.horizontal, 10)
@@ -821,14 +830,6 @@ struct PhraseWorkspaceView: View {
             )
             .accessibilityIdentifier("phrase-layer-selector")
             .help("Choose the Phrase performance layer")
-
-            phraseCellToolButton(.value)
-                .frame(width: 104)
-            phraseCellToolButton(.automation)
-                .frame(width: 132)
-
-            Spacer(minLength: 0)
-        }
     }
 
     private func phraseCellToolButton(_ tool: PhraseCellTool) -> some View {
