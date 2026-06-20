@@ -850,7 +850,7 @@ struct VerticalLevelFader: View {
                         .stroke(StudioTheme.border.opacity(StudioOpacity.softStroke), lineWidth: StudioMetrics.borderWidth)
                 )
 
-            meterGradient
+            MasterMeterLevelScale.meterGradient
                 .mask {
                     VStack(spacing: 0) {
                         Spacer(minLength: 0)
@@ -861,21 +861,6 @@ struct VerticalLevelFader: View {
                 .opacity(normalizedPeak > 0 ? 0.95 : 0)
         }
         .frame(maxWidth: .infinity)
-    }
-
-    private var meterGradient: LinearGradient {
-        LinearGradient(
-            stops: [
-                .init(color: StudioTheme.success, location: 0),
-                .init(color: StudioTheme.success, location: MasterMeterLevelScale.normalized(MasterMeterLevelScale.warningDBFS)),
-                .init(color: StudioTheme.amber, location: MasterMeterLevelScale.normalized(MasterMeterLevelScale.warningDBFS)),
-                .init(color: StudioTheme.amber, location: MasterMeterLevelScale.normalized(MasterMeterLevelScale.dangerDBFS)),
-                .init(color: Color.red, location: MasterMeterLevelScale.normalized(MasterMeterLevelScale.dangerDBFS)),
-                .init(color: Color.red, location: 1)
-            ],
-            startPoint: .bottom,
-            endPoint: .top
-        )
     }
 
     private var clampedLevel: CGFloat {

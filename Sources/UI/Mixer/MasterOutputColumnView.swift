@@ -151,11 +151,11 @@ struct MasterOutputColumnView: View {
             onClose: { isAddFXPresented = false }
         ) {
                 VStack(alignment: .leading, spacing: 8) {
-                    addFXButton(title: "Filter", systemName: "line.3.horizontal.decrease.circle") {
+                    StudioFXOptionRow(title: "Filter", systemImage: "line.3.horizontal.decrease.circle") {
                         session.addMasterOutputInsert(.filter())
                         isAddFXPresented = false
                     }
-                    addFXButton(title: "Bitcrusher", systemName: "waveform.path.ecg") {
+                    StudioFXOptionRow(title: "Bitcrusher", systemImage: "waveform.path.ecg") {
                         session.addMasterOutputInsert(.bitcrusher())
                         isAddFXPresented = false
                     }
@@ -170,7 +170,7 @@ struct MasterOutputColumnView: View {
                     .foregroundStyle(StudioTheme.mutedText)
 
                 AUEffectPickerList(effects: engineController.availableAudioEffects) { effect in
-                    addFXButton(title: effect.displayName, systemName: "slider.horizontal.3") {
+                    StudioFXOptionRow(title: effect.displayName, systemImage: "slider.horizontal.3") {
                         session.addMasterOutputInsert(.auEffect(effect))
                         isAddFXPresented = false
                     }
@@ -178,29 +178,6 @@ struct MasterOutputColumnView: View {
         }
         .presentationBackground(.clear)
         .environment(\.colorScheme, .dark)
-    }
-
-    private func addFXButton(title: String, systemName: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            HStack(spacing: 10) {
-                Image(systemName: systemName)
-                    .font(.system(size: 13, weight: .semibold))
-                    .frame(width: 22)
-                Text(title)
-                    .studioText(.labelBold)
-                    .lineLimit(1)
-                Spacer()
-            }
-            .foregroundStyle(StudioTheme.text)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 9)
-            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
-        }
-        .buttonStyle(.plain)
-        .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
-                .stroke(StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
-        )
     }
 
     private var masterOutputSection: some View {
@@ -404,7 +381,7 @@ private struct MasterOutputFaderMeter: View {
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
                     .fill(StudioTheme.inset)
 
-                meterGradient
+                MasterMeterLevelScale.meterGradient
                     .frame(height: height)
                     .mask {
                         VStack(spacing: 0) {
@@ -417,20 +394,5 @@ private struct MasterOutputFaderMeter: View {
             }
         }
         .frame(width: 10)
-    }
-
-    private var meterGradient: LinearGradient {
-        LinearGradient(
-            stops: [
-                .init(color: StudioTheme.success, location: 0),
-                .init(color: StudioTheme.success, location: MasterMeterLevelScale.normalized(MasterMeterLevelScale.warningDBFS)),
-                .init(color: StudioTheme.amber, location: MasterMeterLevelScale.normalized(MasterMeterLevelScale.warningDBFS)),
-                .init(color: StudioTheme.amber, location: MasterMeterLevelScale.normalized(MasterMeterLevelScale.dangerDBFS)),
-                .init(color: Color.red, location: MasterMeterLevelScale.normalized(MasterMeterLevelScale.dangerDBFS)),
-                .init(color: Color.red, location: 1)
-            ],
-            startPoint: .bottom,
-            endPoint: .top
-        )
     }
 }

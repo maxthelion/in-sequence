@@ -1,5 +1,6 @@
 import CoreGraphics
 import Foundation
+import SwiftUI
 
 enum MasterOutputColumnPresentation: Equatable {
     case fullColumn(width: CGFloat)
@@ -65,6 +66,24 @@ enum MasterMeterLevelScale {
     static func normalized(_ dbFS: Double) -> Double {
         guard dbFS.isFinite else { return 0 }
         return clamp((dbFS - floorDBFS) / (ceilingDBFS - floorDBFS), to: 0...1)
+    }
+
+    /// Bottom-to-top green/amber/red meter fill, shared by every vertical
+    /// fader-meter (channel strips, send returns, master out) so the danger
+    /// thresholds stay in lockstep with the scale above.
+    static var meterGradient: LinearGradient {
+        LinearGradient(
+            stops: [
+                .init(color: StudioTheme.success, location: 0),
+                .init(color: StudioTheme.success, location: normalized(warningDBFS)),
+                .init(color: StudioTheme.amber, location: normalized(warningDBFS)),
+                .init(color: StudioTheme.amber, location: normalized(dangerDBFS)),
+                .init(color: Color.red, location: normalized(dangerDBFS)),
+                .init(color: Color.red, location: 1)
+            ],
+            startPoint: .bottom,
+            endPoint: .top
+        )
     }
 }
 

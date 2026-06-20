@@ -54,6 +54,38 @@ struct StudioOptionButton: View {
     }
 }
 
+/// Icon + label row in a subtleFill rounded tile with border, used by the
+/// mixer FX pickers (mixer bus, master out) to list addable inserts. The icon
+/// inherits the text colour and sits in a fixed leading well.
+struct StudioFXOptionRow: View {
+    let title: String
+    let systemImage: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 10) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 13, weight: .semibold))
+                    .frame(width: 22)
+                Text(title)
+                    .studioText(.labelBold)
+                    .lineLimit(1)
+                Spacer()
+            }
+            .foregroundStyle(StudioTheme.text)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 9)
+            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
+                .stroke(StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
+        )
+    }
+}
+
 /// Dashed-border "add" card used at the end of grids (tracks, scenes, busses).
 struct StudioAddCard: View {
     static let dashPattern: [CGFloat] = [5, 5]

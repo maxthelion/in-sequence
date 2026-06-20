@@ -1076,9 +1076,7 @@ struct PhraseWorkspaceView: View {
             return
         }
 
-        let inherited = PhraseInheritedDefaults
-            .build(phrases: phrases, layers: session.store.layers)
-            .resolved(for: phraseID)
+        let inherited = inheritedDefaults(for: phraseID)
         let phrase = phrases[startIndex]
         let resolvedValue = phrase.resolvedValue(
             for: layer,

@@ -792,7 +792,6 @@ enum VisualScenarioCommandRunner {
         guard command["noteRepeatSelectedTrackIndex"] != nil ||
               command["noteRepeatSource"] != nil ||
               command["noteRepeatInterval"] != nil ||
-              command["noteRepeatAction"] != nil ||
               command["noteRepeatEnsureSecondClipTrack"] == "true"
         else { return }
 

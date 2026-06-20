@@ -261,10 +261,6 @@ struct TracksMatrixView: View {
                 session.performTrackScope = []
             }
         }
-        .onReceive(NotificationCenter.default.publisher(for: .trackPerformVisualCommand)) { notification in
-            guard let command = notification.object as? String else { return }
-            applyTrackPerformVisualCommand(command)
-        }
     }
 
     // The tracks Perform view is navigation + selection (not a layer surface):
@@ -588,19 +584,6 @@ struct TracksMatrixView: View {
         }
     }
 
-    /// The tracks Perform view is navigation + selection now, so the bespoke
-    /// layer-perform visual commands (open/close the TRACK LAYER selector,
-    /// select a layer/variant, press/release note-repeat, phrase capture) are
-    /// retired — they drove the removed layer surface. The QA runner no longer
-    /// posts them; this handler stays as a deliberate no-op so any stale
-    /// notification is ignored rather than crashing.
-    private func applyTrackPerformVisualCommand(_ command: String) {
-        // Retired: track-perform layer surface removed (tracks-perform =
-        // navigation + selection; layer perform launches scoped from the
-        // selection via the action-bar Perform button).
-        _ = command
-    }
-
 }
 
 private struct GroupedTrackSection: Identifiable {
@@ -865,20 +848,6 @@ struct PhrasePerformCaptureSheet: View {
             }
         }
         .accessibilityIdentifier("phrase-perform-capture-sheet")
-        .onAppear {
-            NotificationCenter.default.post(
-                name: .trackPerformCaptureRenderedVisualState,
-                object: nil,
-                userInfo: ["visible": true]
-            )
-        }
-        .onDisappear {
-            NotificationCenter.default.post(
-                name: .trackPerformCaptureRenderedVisualState,
-                object: nil,
-                userInfo: ["visible": false]
-            )
-        }
     }
 
     @ViewBuilder

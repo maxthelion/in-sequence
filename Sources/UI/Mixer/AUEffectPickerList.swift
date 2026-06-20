@@ -23,7 +23,7 @@ struct AUEffectPickerList<Row: View>: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            rescanHeader
+            StudioPluginRescanHeader()
 
             if effects.count > 8 {
                 StudioSearchBar(placeholder: "Search effects", text: $query)
@@ -48,7 +48,15 @@ struct AUEffectPickerList<Row: View>: View {
         }
     }
 
-    private var rescanHeader: some View {
+}
+
+/// Scan-state line + "Rescan" action shared by the AU plugin pickers (mixer FX
+/// list, add-destination AU instrument list). Reads the live scan state and
+/// kicks a rescan; disabled while a scan is in flight.
+struct StudioPluginRescanHeader: View {
+    @Environment(EngineController.self) private var engineController
+
+    var body: some View {
         HStack(spacing: 10) {
             Text(engineController.audioPluginChoiceScanState.displayText)
                 .studioText(.label)

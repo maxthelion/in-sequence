@@ -66,7 +66,7 @@ struct AddDestinationSheet: View {
             } else {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 10) {
-                        rescanHeader
+                        StudioPluginRescanHeader()
 
                         // The modal subtitle already says these are Audio Units
                         // to host; rows carry only their own name.
@@ -96,28 +96,6 @@ struct AddDestinationSheet: View {
 
     private func optionButton(title: String, detail: String, action: @escaping () -> Void) -> some View {
         StudioOptionButton(title: title, detail: detail, action: action)
-    }
-
-    private var rescanHeader: some View {
-        HStack(spacing: 10) {
-            Text(engineController.audioPluginChoiceScanState.displayText)
-                .studioText(.label)
-                .foregroundStyle(StudioTheme.mutedText)
-                .lineLimit(1)
-
-            Spacer(minLength: 8)
-
-            Button {
-                engineController.rescanAudioPluginChoices()
-            } label: {
-                Label("Rescan", systemImage: "arrow.clockwise")
-                    .studioText(.labelBold)
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(StudioTheme.violet)
-            .disabled(engineController.audioPluginChoiceScanState.isScanning)
-            .opacity(engineController.audioPluginChoiceScanState.isScanning ? 0.5 : 1)
-        }
     }
 
     private enum SelectionMode {
