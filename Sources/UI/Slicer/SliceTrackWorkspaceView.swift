@@ -171,7 +171,10 @@ struct SliceTrackWorkspaceView: View {
     // clip length. This mirrors `TrackSourceEditorView` rather than the old
     // bespoke slicer split.
     private var topControlsPanel: some View {
-        StudioPanel(title: "Pattern", accent: accent) {
+        // The PATTERN section label lives in the workspace's compact top header
+        // (collapsed top grammar), so this panel renders headerless — the slot
+        // palette + Lane/Length sit directly beneath the shared header.
+        StudioPanel(title: "Pattern", accent: accent, showsHeader: false) {
             VStack(alignment: .leading, spacing: 12) {
                 TrackPatternSlotPalette(
                     selectedSlot: selectedPatternIndexBinding,

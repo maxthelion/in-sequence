@@ -257,9 +257,13 @@ struct TrackSourceEditorView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
+            // The PATTERN section label + Perform now live in the workspace's
+            // compact top header (collapsed top grammar), so this panel renders
+            // the slot palette headerless directly beneath it.
             StudioPanel(
                 title: "Pattern",
                 accent: accent,
+                showsHeader: false,
                 content: {
                     VStack(alignment: .leading, spacing: 10) {
                         TrackPatternSlotPalette(
@@ -278,8 +282,7 @@ struct TrackSourceEditorView: View {
 
                         clipHistoryDestinationRow
                     }
-                },
-                accessory: { performButton }
+                }
             )
 
             VStack(alignment: .leading, spacing: 0) {
@@ -366,29 +369,6 @@ struct TrackSourceEditorView: View {
             else { return }
             selectedTab = tab
         }
-    }
-
-    /// Perform header button (AC22): posts `.trackPerformRequested` with this
-    /// track's id. The coordinator (WorkspaceDetailView) enters the reused
-    /// tracks-perform surface scoped to this single track — no bespoke surface.
-    private var performButton: some View {
-        Button {
-            NotificationCenter.default.post(
-                name: .trackPerformRequested,
-                object: track.id
-            )
-        } label: {
-            Label("Perform", systemImage: "play.fill")
-                .studioText(.labelBold)
-        }
-        .buttonStyle(.plain)
-        .foregroundStyle(StudioTheme.background)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 7)
-        .background(accent, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
-        .help("Perform: open the phrase perform UI scoped to this track")
-        .accessibilityIdentifier("track-perform")
-        .accessibilityLabel("Perform track")
     }
 
     private var trackSourceHeader: some View {

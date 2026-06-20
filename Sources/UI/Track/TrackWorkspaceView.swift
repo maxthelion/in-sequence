@@ -143,7 +143,7 @@ struct TrackWorkspaceView: View {
                 }
             )
         } else {
-            VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: 14) {
                 trackHeader
 
                 if track.trackType == .audioInput {
@@ -207,19 +207,19 @@ struct TrackWorkspaceView: View {
     }
 
     private var defaultTrackHeader: some View {
-        HStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: 6) {
-                trackNameEditor
-            }
-
-            Spacer()
-
+        CompactTrackDetailHeader(accent: sourceAccent) {
+            trackNameEditor
+        } trailing: {
             if track.trackType == .monoMelodic || track.trackType == .polyMelodic {
-                TrackFillPreviewControl(
-                    presentation: fillPreviewPresentation,
-                    accent: StudioTheme.amber,
-                    toggle: toggleFillPreview
-                )
+                HStack(spacing: 10) {
+                    TrackFillPreviewControl(
+                        presentation: fillPreviewPresentation,
+                        accent: StudioTheme.amber,
+                        toggle: toggleFillPreview
+                    )
+
+                    TrackPerformHeaderButton(trackID: track.id, accent: sourceAccent)
+                }
             }
         }
     }
@@ -439,6 +439,81 @@ private struct DrumPartWorkspaceHeader<Title: View>: View {
         )
     }
 
+}
+
+/// Perform header button (AC22): posts `.trackPerformRequested` with the
+/// track id. Shared by the compact track-detail headers so the melodic, slicer
+/// and audio surfaces present an identical Perform affordance.
+struct TrackPerformHeaderButton: View {
+    let trackID: UUID
+    let accent: Color
+
+    var body: some View {
+        Button {
+            NotificationCenter.default.post(
+                name: .trackPerformRequested,
+                object: trackID
+            )
+        } label: {
+            Label("Perform", systemImage: "play.fill")
+                .studioText(.labelBold)
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(StudioTheme.background)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
+        .background(accent, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+        .help("Perform: open the phrase perform UI scoped to this track")
+        .accessibilityIdentifier("track-perform")
+        .accessibilityLabel("Perform track")
+    }
+}
+
+/// Shared compact top-header grammar for the three track-detail surfaces
+/// (melodic track, slicer, audio input). Renders the track title together with
+/// the PATTERN section label on a single tight row, with the surface's
+/// immediate controls (Fill Preview / Perform / etc.) trailing on that same
+/// line. Keeps the three views visually uniform and minimises vertical space.
+struct CompactTrackDetailHeader<Title: View, Trailing: View>: View {
+    var accent: Color
+    @ViewBuilder var title: () -> Title
+    @ViewBuilder var trailing: () -> Trailing
+
+    init(
+        accent: Color,
+        @ViewBuilder title: @escaping () -> Title,
+        @ViewBuilder trailing: @escaping () -> Trailing = { EmptyView() }
+    ) {
+        self.accent = accent
+        self.title = title
+        self.trailing = trailing
+    }
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 14) {
+            title()
+                .layoutPriority(1)
+
+            patternLabel
+
+            Spacer(minLength: 12)
+
+            trailing()
+        }
+    }
+
+    private var patternLabel: some View {
+        HStack(alignment: .center, spacing: 8) {
+            Text("PATTERN")
+                .studioText(.bodyEmphasis)
+                .tracking(1.1)
+                .foregroundStyle(StudioTheme.mutedText)
+
+            Rectangle()
+                .fill(accent)
+                .frame(width: 28, height: 2)
+        }
+    }
 }
 
 extension Notification.Name {
