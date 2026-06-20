@@ -93,6 +93,7 @@ struct TrackDestinationEditor: View {
     private var unsetState: some View {
         StudioAddCard(
             label: "Add Sound Source",
+            accent: StudioTheme.cyan,
             minHeight: 72,
             help: "Choose this track's sound source"
         ) {

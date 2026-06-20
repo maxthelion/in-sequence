@@ -50,17 +50,49 @@ struct SamplerDestinationWidget: View {
         VStack(alignment: .leading, spacing: 0) {
             header(sample: sample)
             divider
-            waveformSection(sample: sample)
-            divider
-            knobSection
-            divider
-            filterSection
+            sampleBody(sample: sample)
         }
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
                 .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
         )
+    }
+
+    /// Side-by-side layout: the waveform browser sits on the left at a flexible
+    /// width, the knob grid and filter controls stack on the right. Wrapping is
+    /// handled by ViewThatFits so narrow widths fall back to a vertical column.
+    private func sampleBody(sample: AudioSample) -> some View {
+        ViewThatFits(in: .horizontal) {
+            horizontalBody(sample: sample)
+            verticalBody(sample: sample)
+        }
+    }
+
+    private func horizontalBody(sample: AudioSample) -> some View {
+        HStack(alignment: .top, spacing: 0) {
+            waveformSection(sample: sample)
+                .frame(minWidth: 220, maxWidth: .infinity, alignment: .topLeading)
+
+            verticalDivider
+
+            VStack(alignment: .leading, spacing: 0) {
+                knobSection
+                divider
+                filterSection
+            }
+            .frame(minWidth: 260, maxWidth: 400, alignment: .topLeading)
+        }
+    }
+
+    private func verticalBody(sample: AudioSample) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            waveformSection(sample: sample)
+            divider
+            knobSection
+            divider
+            filterSection
+        }
     }
 
     private func header(sample: AudioSample) -> some View {
@@ -136,6 +168,7 @@ struct SamplerDestinationWidget: View {
                 }
             }
         }
+        .frame(maxHeight: .infinity, alignment: .top)
         .padding(StudioMetrics.Spacing.comfortable)
     }
 
@@ -143,7 +176,7 @@ struct SamplerDestinationWidget: View {
         let url = (try? sample.fileRef.resolve(libraryRoot: library.libraryRoot)) ?? URL(fileURLWithPath: "/dev/null")
         let buckets = WaveformDownsampler.downsample(url: url, bucketCount: 64)
         return WaveformView(buckets: buckets)
-            .frame(height: 60)
+            .frame(minHeight: 60, maxHeight: .infinity)
             .padding(StudioMetrics.Spacing.snug)
             .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip))
             .overlay(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip).stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth))
@@ -282,6 +315,11 @@ struct SamplerDestinationWidget: View {
     }
 
     private var divider: some View {
+        Divider()
+            .overlay(StudioTheme.border.opacity(0.7))
+    }
+
+    private var verticalDivider: some View {
         Divider()
             .overlay(StudioTheme.border.opacity(0.7))
     }

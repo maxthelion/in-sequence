@@ -79,17 +79,49 @@ struct SliceSamplePlayerParametersView: View {
         VStack(alignment: .leading, spacing: 0) {
             header
             divider
-            waveformSection
-            divider
-            knobSection
-            divider
-            playbackSection
+            parametersBody
         }
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
                 .stroke(StudioTheme.violet.opacity(StudioOpacity.mediumStroke), lineWidth: StudioMetrics.borderWidth)
         )
+    }
+
+    /// Side-by-side layout: the waveform sits on the left at a flexible width,
+    /// the knob grid and playback controls stack on the right. ViewThatFits
+    /// falls back to a vertical column when the row is too narrow.
+    private var parametersBody: some View {
+        ViewThatFits(in: .horizontal) {
+            horizontalBody
+            verticalBody
+        }
+    }
+
+    private var horizontalBody: some View {
+        HStack(alignment: .top, spacing: 0) {
+            waveformSection
+                .frame(minWidth: 200, maxWidth: .infinity, alignment: .topLeading)
+
+            divider
+
+            VStack(alignment: .leading, spacing: 0) {
+                knobSection
+                divider
+                playbackSection
+            }
+            .frame(minWidth: 240, maxWidth: 360, alignment: .topLeading)
+        }
+    }
+
+    private var verticalBody: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            waveformSection
+            divider
+            knobSection
+            divider
+            playbackSection
+        }
     }
 
     private var header: some View {
@@ -123,7 +155,7 @@ struct SliceSamplePlayerParametersView: View {
 
     private var waveformSection: some View {
         WaveformView(buckets: waveformBuckets)
-            .frame(height: 60)
+            .frame(minHeight: 60, maxHeight: .infinity)
             .padding(StudioMetrics.Spacing.snug)
             .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip))
             .overlay(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip).stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth))
