@@ -593,6 +593,7 @@ private struct AudioInputRuntimePanel: View {
     @State private var selectedTab: AudioInputTrackDetailTab = .source
     @State private var recordQuantize: EngineController.AudioInputRecordQuantize = .bar
     @State private var micAccess = AVCaptureDevice.authorizationStatus(for: .audio)
+    @State private var isPresentingInputPicker = false
 
     private var monitorMode: EngineController.AudioInputMonitorMode {
         runtime?.monitorMode ?? .input
@@ -777,44 +778,85 @@ private struct AudioInputRuntimePanel: View {
         .fixedSize(horizontal: false, vertical: true)
     }
 
+    /// Whether an input device is connected and offers a usable channel. When
+    /// false the card shows the "+" empty state inviting the user to connect.
+    private var hasSelectableInput: Bool {
+        availableChannels > 0
+    }
+
+    @ViewBuilder
     private var inputCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .center) {
-                Text("Audio Channel")
-                    .studioText(.eyebrowBold)
-                    .foregroundStyle(StudioTheme.mutedText)
-                Spacer()
-                Button("Configure") {}
-                    .buttonStyle(.plain)
-                    .studioText(.microEmphasis)
-                    .foregroundStyle(StudioTheme.text)
-                    .padding(.horizontal, 11)
-                    .padding(.vertical, 5)
-                    .background(Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
-                    .overlay(Capsule().stroke(StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth))
-                    .opacity(0.55)
-                    .disabled(true)
-                    .help("Project-wide audio channel configuration is not yet modeled.")
+        Group {
+            if hasSelectableInput {
+                selectedInputElement
+            } else {
+                StudioAddCard(
+                    label: "Add Audio Input",
+                    accent: accent,
+                    minHeight: 168,
+                    help: "Choose the device input for this track."
+                ) {
+                    isPresentingInputPicker = true
+                }
             }
-
-            inputChannelPicker
-
-            AudioInputLevelMeters(level: runtime?.liveLevel ?? .silent, accent: runtime?.isSilent == true ? StudioTheme.mutedText : accent)
-                .frame(height: 92)
-                .padding(10)
-                .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                        .stroke(StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
-                )
         }
         .frame(maxHeight: .infinity, alignment: .top)
-        .padding(StudioMetrics.Spacing.standard)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                .stroke(StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
-        )
+        .sheet(isPresented: $isPresentingInputPicker) {
+            AudioInputChannelPickerSheet(
+                selectedChannel: selectedChannel,
+                availableChannels: availableChannels,
+                accent: accent,
+                onSelect: { channel in
+                    session.setAudioInputChannel(trackID: track.id, channel: channel)
+                }
+            )
+        }
+    }
+
+    /// One big, colourful, tappable element representing the selected input
+    /// with the live level meters integrated into the same surface. Tapping it
+    /// opens the change-input modal.
+    private var selectedInputElement: some View {
+        Button {
+            isPresentingInputPicker = true
+        } label: {
+            HStack(alignment: .center, spacing: 14) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Audio Channel")
+                        .studioText(.eyebrowBold)
+                        .foregroundStyle(StudioTheme.background.opacity(0.7))
+                    Text(selectedChannel.label)
+                        .font(.system(size: 22, weight: .bold, design: .rounded))
+                        .foregroundStyle(StudioTheme.background)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                    Text(channelRequirementLabel.lowercased())
+                        .studioText(.micro)
+                        .foregroundStyle(StudioTheme.background.opacity(0.7))
+                    Spacer(minLength: 0)
+                    HStack(spacing: 5) {
+                        Image(systemName: "slider.horizontal.3")
+                            .font(.system(size: 10, weight: .bold))
+                        Text("Change")
+                            .studioText(.microEmphasis)
+                    }
+                    .foregroundStyle(StudioTheme.background.opacity(0.85))
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                AudioInputLevelMeters(
+                    level: runtime?.liveLevel ?? .silent,
+                    accent: StudioTheme.background
+                )
+                .frame(width: 64)
+            }
+            .padding(StudioMetrics.Spacing.comfortable)
+            .frame(maxWidth: .infinity, minHeight: 168, alignment: .topLeading)
+            .background(accent, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .help("Change the device input for this track.")
     }
 
     private var recordCard: some View {
@@ -1202,58 +1244,6 @@ private struct AudioInputRuntimePanel: View {
         runtime?.selectedInputChannel ?? track.inputChannel
     }
 
-    /// Channel (or pair) choices generated from the connected device's
-    /// reported input count — generic over any interface.
-    private var inputChannelPicker: some View {
-        let options = selectedChannel.isStereo
-            ? AudioInputChannel.stereoOptions(channelCount: availableChannels)
-            : AudioInputChannel.monoOptions(channelCount: availableChannels)
-
-        return VStack(alignment: .leading, spacing: 6) {
-            Menu {
-                if options.isEmpty {
-                    Button("No inputs available") {}
-                        .disabled(true)
-                } else {
-                    ForEach(Array(options.enumerated()), id: \.offset) { _, option in
-                        Button(option.label) {
-                            session.setAudioInputChannel(trackID: track.id, channel: option)
-                        }
-                    }
-                }
-            } label: {
-                HStack(spacing: 8) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Audio Channel A")
-                            .studioText(.labelBold)
-                            .foregroundStyle(StudioTheme.text)
-                            .lineLimit(1)
-                        Text("\(selectedChannel.label) · \(channelRequirementLabel.lowercased())")
-                            .studioText(.micro)
-                            .foregroundStyle(StudioTheme.text.opacity(0.7))
-                            .lineLimit(1)
-                    }
-
-                    Spacer(minLength: 8)
-
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: 9, weight: .bold))
-                        .foregroundStyle(StudioTheme.text.opacity(0.75))
-                }
-                .padding(.horizontal, 11)
-                .padding(.vertical, 8)
-                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-                .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
-                        .stroke(StudioTheme.border.opacity(0.95), lineWidth: StudioMetrics.borderWidth)
-                )
-            }
-            .menuStyle(.borderlessButton)
-            .help(options.isEmpty ? "The interface reports no usable inputs" : "Choose the device input")
-        }
-    }
-
     private var recordBarsBinding: Binding<Int> {
         Binding(
             get: { recordBars },
@@ -1438,6 +1428,71 @@ private struct AudioInputLevelMeters: View {
             Text(label)
                 .studioText(.eyebrow)
                 .foregroundStyle(StudioTheme.mutedText)
+        }
+    }
+}
+
+/// Modal for changing which already-available input/channel the track taps.
+/// Reuses the same mono/stereo option generation the inline picker used; it
+/// only changes the existing selection (no device enumeration here).
+private struct AudioInputChannelPickerSheet: View {
+    let selectedChannel: AudioInputChannel
+    let availableChannels: Int
+    let accent: Color
+    let onSelect: (AudioInputChannel) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+
+    private var monoOptions: [AudioInputChannel] {
+        AudioInputChannel.monoOptions(channelCount: availableChannels)
+    }
+
+    private var stereoOptions: [AudioInputChannel] {
+        AudioInputChannel.stereoOptions(channelCount: availableChannels)
+    }
+
+    var body: some View {
+        StudioModal(
+            title: "Audio Input",
+            subtitle: "Choose which device channel this track records.",
+            accent: accent,
+            minWidth: 420,
+            onClose: { dismiss() }
+        ) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    optionGroup(title: "Stereo Pairs", options: stereoOptions)
+                    optionGroup(title: "Mono Channels", options: monoOptions)
+
+                    if monoOptions.isEmpty, stereoOptions.isEmpty {
+                        Text("The interface reports no usable inputs.")
+                            .studioText(.body)
+                            .foregroundStyle(StudioTheme.mutedText)
+                    }
+                }
+            }
+            .frame(maxHeight: 420)
+        }
+    }
+
+    @ViewBuilder
+    private func optionGroup(title: String, options: [AudioInputChannel]) -> some View {
+        if !options.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(title)
+                    .studioText(.eyebrowBold)
+                    .foregroundStyle(StudioTheme.mutedText)
+
+                ForEach(Array(options.enumerated()), id: \.offset) { _, option in
+                    StudioOptionButton(
+                        title: option.label,
+                        accent: option == selectedChannel ? accent : nil
+                    ) {
+                        onSelect(option)
+                        dismiss()
+                    }
+                }
+            }
         }
     }
 }
