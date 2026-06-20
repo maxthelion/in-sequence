@@ -18,6 +18,8 @@ enum SequencerSnapshotCompiler {
         let trackPrograms = Dictionary(uniqueKeysWithValues: state.tracks.map { track in
             (track.id, compileTrackSourceProgram(for: track, patternBanksByTrackID: state.patternBanksByTrackID))
         })
+        let orderedPhrases = state.phraseOrder.compactMap { state.phrasesByID[$0] }
+        let inheritedDefaults = PhraseInheritedDefaults.build(phrases: orderedPhrases, layers: state.layers)
         let phraseBuffers = Dictionary(uniqueKeysWithValues: state.phraseOrder.compactMap { id -> (UUID, PhrasePlaybackBuffer)? in
             guard let phrase = state.phrasesByID[id] else { return nil }
             return (
@@ -27,7 +29,8 @@ enum SequencerSnapshotCompiler {
                     stepOrderMaps: state.stepOrderMaps,
                     layers: state.layers,
                     trackPrograms: trackPrograms,
-                    tracks: state.tracks
+                    tracks: state.tracks,
+                    inherited: inheritedDefaults.resolved(for: phrase.id)
                 )
             )
         })
@@ -112,6 +115,9 @@ enum SequencerSnapshotCompiler {
                 || previousProgram?.macroDefaults != nextProgram?.macroDefaults
         }
 
+        let orderedPhrases = state.phraseOrder.compactMap { state.phrasesByID[$0] }
+        let inheritedDefaults = PhraseInheritedDefaults.build(phrases: orderedPhrases, layers: state.layers)
+
         var phraseBuffersByID = previous.phraseBuffersByID
         if changed.layersChanged || phraseRelevantTrackChange {
             phraseBuffersByID = Dictionary(uniqueKeysWithValues: state.phraseOrder.compactMap { phraseID in
@@ -123,12 +129,13 @@ enum SequencerSnapshotCompiler {
                         stepOrderMaps: state.stepOrderMaps,
                         layers: state.layers,
                         trackPrograms: trackProgramsByTrackID,
-                        tracks: tracks
+                        tracks: tracks,
+                        inherited: inheritedDefaults.resolved(for: phraseID)
                     )
                 )
             })
         } else {
-            let changedPhraseIDs = changed.phraseIDs.union(
+            let directlyChanged = changed.phraseIDs.union(
                 state.phrasesByID.values.compactMap { phrase in
                     guard let mapID = phrase.stepOrderAssignment?.mapID,
                           changed.stepOrderMapIDs.contains(mapID)
@@ -137,6 +144,13 @@ enum SequencerSnapshotCompiler {
                     }
                     return phrase.id
                 }
+            )
+            // Forward-only inheritance: editing a phrase can change the value
+            // inherited by every *following* phrase in song order. So recompile
+            // the changed phrases AND everything after the earliest changed one.
+            let changedPhraseIDs = phraseIDsAffectedByInheritance(
+                directlyChanged: directlyChanged,
+                order: state.phraseOrder
             )
             for phraseID in changedPhraseIDs {
                 guard let phrase = state.phrasesByID[phraseID] else {
@@ -147,7 +161,8 @@ enum SequencerSnapshotCompiler {
                     stepOrderMaps: state.stepOrderMaps,
                     layers: state.layers,
                     trackPrograms: trackProgramsByTrackID,
-                    tracks: tracks
+                    tracks: tracks,
+                    inherited: inheritedDefaults.resolved(for: phraseID)
                 )
             }
         }
@@ -353,12 +368,33 @@ enum SequencerSnapshotCompiler {
         )
     }
 
+    /// The set of phrases whose compiled buffers must be rebuilt given a set of
+    /// directly-edited phrases. Because inheritance is forward-only, a change to
+    /// one phrase invalidates that phrase and every phrase after it in song
+    /// order (later inheritors may resolve to a different value).
+    private static func phraseIDsAffectedByInheritance(
+        directlyChanged: Set<UUID>,
+        order: [UUID]
+    ) -> Set<UUID> {
+        guard !directlyChanged.isEmpty else { return [] }
+        guard let earliestIndex = order.firstIndex(where: { directlyChanged.contains($0) }) else {
+            // None of the changed phrases are in the ordered list (e.g. a
+            // phrase not yet placed): fall back to just the direct set.
+            return directlyChanged
+        }
+        var affected = Set(order[earliestIndex...])
+        // Include any directly-changed IDs not present in the order, defensively.
+        affected.formUnion(directlyChanged)
+        return affected
+    }
+
     private static func compilePhraseBuffer(
         for phrase: PhraseModel,
         stepOrderMaps: [StepOrderMap],
         layers: [PhraseLayerDefinition],
         trackPrograms: [UUID: TrackSourceProgram],
-        tracks: [StepSequenceTrack]
+        tracks: [StepSequenceTrack],
+        inherited: PhraseInheritedDefaults.Resolved
     ) -> PhrasePlaybackBuffer {
         let stepCount = max(1, phrase.stepCount)
         let patternLayer = layers.first(where: { $0.target == .patternIndex })
@@ -383,7 +419,7 @@ enum SequencerSnapshotCompiler {
             let patternSlotIndex = (0..<stepCount).map { stepIndex -> UInt8 in
                 let index: Int
                 if let patternLayer {
-                    switch phrase.resolvedValue(for: patternLayer, trackID: track.id, stepIndex: stepIndex) {
+                    switch phrase.resolvedValue(for: patternLayer, trackID: track.id, stepIndex: stepIndex, inherited: inherited) {
                     case let .index(value):
                         index = value
                     case let .scalar(value):
@@ -399,7 +435,7 @@ enum SequencerSnapshotCompiler {
 
             let mute = (0..<stepCount).map { stepIndex -> Bool in
                 guard let muteLayer,
-                      case let .bool(isMuted) = phrase.resolvedValue(for: muteLayer, trackID: track.id, stepIndex: stepIndex)
+                      case let .bool(isMuted) = phrase.resolvedValue(for: muteLayer, trackID: track.id, stepIndex: stepIndex, inherited: inherited)
                 else {
                     return false
                 }
@@ -408,7 +444,7 @@ enum SequencerSnapshotCompiler {
 
             let fillEnabled = (0..<stepCount).map { stepIndex -> Bool in
                 guard let fillLayer,
-                      case let .bool(isEnabled) = phrase.resolvedValue(for: fillLayer, trackID: track.id, stepIndex: stepIndex)
+                      case let .bool(isEnabled) = phrase.resolvedValue(for: fillLayer, trackID: track.id, stepIndex: stepIndex, inherited: inherited)
                 else {
                     return false
                 }
@@ -421,7 +457,7 @@ enum SequencerSnapshotCompiler {
                         return trackPrograms[track.id]?.macroDefaults[bindingID] ?? 0
                     }
                     return scalarDouble(
-                        from: phrase.resolvedValue(for: layer, trackID: track.id, stepIndex: stepIndex),
+                        from: phrase.resolvedValue(for: layer, trackID: track.id, stepIndex: stepIndex, inherited: inherited),
                         layer: layer
                     )
                 }

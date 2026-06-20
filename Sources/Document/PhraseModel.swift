@@ -236,13 +236,24 @@ struct PhraseModel: Codable, Equatable, Sendable, Identifiable {
         setCell(updated, for: layer.id, trackID: trackID)
     }
 
+    /// Resolve a cell value for one (layer, track, step).
+    ///
+    /// `inherited` carries forward-only inheritance: the value an
+    /// `.inheritDefault` cell should resolve to (the nearest *preceding*
+    /// explicit value for this layer+track in song order, see
+    /// `PhraseInheritedDefaults`). When `inherited` is `nil`, an inheriting
+    /// cell falls back to the layer's stored default — the legacy,
+    /// order-unaware behaviour, preserved for the many call sites that resolve
+    /// a single phrase out of song context.
     func resolvedValue(
         for layer: PhraseLayerDefinition,
         trackID: UUID,
-        stepIndex: Int
+        stepIndex: Int,
+        inherited: PhraseInheritedDefaults.Resolved? = nil
     ) -> PhraseCellValue {
         let clampedStep = min(max(stepIndex, 0), stepCount - 1)
-        let fallback = layer.defaultValue(for: trackID).normalized(for: layer)
+        let fallback = (inherited?.value(layerID: layer.id, trackID: trackID)
+            ?? layer.defaultValue(for: trackID)).normalized(for: layer)
 
         switch cell(for: layer.id, trackID: trackID) {
         case .inheritDefault:
@@ -269,9 +280,15 @@ struct PhraseModel: Codable, Equatable, Sendable, Identifiable {
 
     func resolvedValue(
         for layer: PhraseLayerDefinition,
-        at address: PhraseCellAddress
+        at address: PhraseCellAddress,
+        inherited: PhraseInheritedDefaults.Resolved? = nil
     ) -> PhraseCellValue {
-        resolvedValue(for: layer, trackID: address.trackID, stepIndex: address.stepIndex)
+        resolvedValue(
+            for: layer,
+            trackID: address.trackID,
+            stepIndex: address.stepIndex,
+            inherited: inherited
+        )
     }
 
     func clearingAutomation(
@@ -342,6 +359,89 @@ struct PhraseModel: Codable, Equatable, Sendable, Identifiable {
             sceneState: sceneState,
             cells: normalizedCells
         )
+    }
+}
+
+/// Forward-only inheritance resolver.
+///
+/// Inheritance flows in song order: a phrase whose cell is `.inheritDefault`
+/// takes the value of the nearest *preceding* phrase that set an explicit
+/// value for the same layer+track, falling back to the layer's stored default
+/// when no preceding explicit value exists. Editing a phrase therefore only
+/// affects that phrase and the following inheritors — never earlier ones.
+///
+/// `build` walks the ordered phrase list once and records, for each phrase,
+/// the value its inheriting cells should resolve to. `resolved(for:)` returns
+/// the slice for one phrase, which is then handed to
+/// `PhraseModel.resolvedValue(... inherited:)`.
+struct PhraseInheritedDefaults: Sendable {
+    struct Key: Hashable, Sendable {
+        var layerID: String
+        var trackID: UUID
+    }
+
+    /// The inherited values visible to a single phrase, keyed by layer+track.
+    struct Resolved: Sendable {
+        var values: [Key: PhraseCellValue]
+
+        func value(layerID: String, trackID: UUID) -> PhraseCellValue? {
+            values[Key(layerID: layerID, trackID: trackID)]
+        }
+    }
+
+    private let perPhrase: [UUID: Resolved]
+
+    private init(perPhrase: [UUID: Resolved]) {
+        self.perPhrase = perPhrase
+    }
+
+    /// The inherited values for a phrase. Phrases not present (e.g. resolved
+    /// out of song context) get an empty `Resolved`, so resolution falls back
+    /// to the layer default — matching legacy behaviour.
+    func resolved(for phraseID: UUID) -> Resolved {
+        perPhrase[phraseID] ?? Resolved(values: [:])
+    }
+
+    /// Walk `phrases` in song order, carrying each layer+track's most recent
+    /// explicit value forward to subsequent inheriting phrases.
+    static func build(
+        phrases: [PhraseModel],
+        layers: [PhraseLayerDefinition]
+    ) -> PhraseInheritedDefaults {
+        var perPhrase: [UUID: Resolved] = [:]
+        // The most recent explicit value seen so far, per layer+track. Absent
+        // entries mean "no preceding explicit value -> use layer default".
+        var carried: [Key: PhraseCellValue] = [:]
+
+        for phrase in phrases {
+            // The values THIS phrase's inheriting cells should see are the
+            // ones carried from strictly-preceding phrases.
+            perPhrase[phrase.id] = Resolved(values: carried)
+
+            // Now fold this phrase's explicit cells into the carry so that
+            // later phrases inherit from it. An explicit cell forwards its
+            // step-0 resolved value (the same value the cascade gesture and
+            // matrix display read).
+            for layer in layers {
+                for assignment in phrase.cells where assignment.layerID == layer.id {
+                    guard assignment.cell.editMode != .inheritDefault else {
+                        continue
+                    }
+                    let key = Key(layerID: layer.id, trackID: assignment.trackID)
+                    // Resolve against the current carry so explicit-from-curve
+                    // etc. still produce a concrete forwarded value.
+                    let resolvedHere = phrase.resolvedValue(
+                        for: layer,
+                        trackID: assignment.trackID,
+                        stepIndex: 0,
+                        inherited: Resolved(values: carried)
+                    )
+                    carried[key] = resolvedHere.normalized(for: layer)
+                }
+            }
+        }
+
+        return PhraseInheritedDefaults(perPhrase: perPhrase)
     }
 }
 

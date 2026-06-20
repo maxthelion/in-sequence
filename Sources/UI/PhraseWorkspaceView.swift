@@ -40,6 +40,15 @@ struct PhraseWorkspaceView: View {
     private var phrases: [PhraseModel] { session.store.phrases }
     private var tracks: [StepSequenceTrack] { session.store.tracks }
     private var layers: [PhraseLayerDefinition] { session.store.layers }
+
+    /// Forward-only inherited defaults for one phrase, so matrix cells display
+    /// the value they will actually play (the nearest preceding explicit value
+    /// in song order), matching the engine compile path.
+    private func inheritedDefaults(for phraseID: UUID) -> PhraseInheritedDefaults.Resolved {
+        PhraseInheritedDefaults
+            .build(phrases: phrases, layers: layers)
+            .resolved(for: phraseID)
+    }
     private var matrixSelectableLayers: [PhraseLayerDefinition] {
         let selectableLayers = PhraseLayerSelectorPresentation.selectableLayers(from: layers)
         return selectableLayers.isEmpty ? layers : selectableLayers
@@ -1054,9 +1063,11 @@ struct PhraseWorkspaceView: View {
         }
     }
 
-    /// Shift-click: toggle the value, write it into the layer default for the
-    /// track, and convert this and every following phrase's cell to inherit it.
-    /// A plain click stays a single explicit value on the clicked cell.
+    /// Shift-click: toggle the value, write it as an explicit value on THIS
+    /// phrase, and convert every *following* phrase's cell to inherit it.
+    /// Inheritance is forward-only — earlier phrases are never touched, and the
+    /// clicked phrase + its following inheritors all resolve to the new value
+    /// (the nearest preceding explicit value in song order).
     private func cascadeBooleanValue(phraseID: UUID, trackID: UUID) {
         guard let layer = activeMatrixLayer,
               layer.valueType == .boolean,
@@ -1065,12 +1076,27 @@ struct PhraseWorkspaceView: View {
             return
         }
 
+        let inherited = PhraseInheritedDefaults
+            .build(phrases: phrases, layers: session.store.layers)
+            .resolved(for: phraseID)
         let phrase = phrases[startIndex]
-        let resolvedValue = phrase.resolvedValue(for: layer, trackID: trackID, stepIndex: 0)
+        let resolvedValue = phrase.resolvedValue(
+            for: layer,
+            trackID: trackID,
+            stepIndex: 0,
+            inherited: inherited
+        )
         let toggledValue = toggledBooleanValue(resolvedValue, for: layer)
 
-        session.setPhraseLayerDefault(toggledValue, layerID: layer.id, trackID: trackID)
-        for followingPhrase in phrases[startIndex...] {
+        // Anchor the cascade on the clicked phrase as an explicit value.
+        session.setPhraseCell(
+            .single(toggledValue),
+            layerID: layer.id,
+            trackIDs: [trackID],
+            phraseID: phraseID
+        )
+        // Following phrases inherit it forward-only.
+        for followingPhrase in phrases[(startIndex + 1)...] {
             session.setPhraseCell(
                 .inheritDefault,
                 layerID: layer.id,
@@ -1210,6 +1236,7 @@ struct PhraseWorkspaceView: View {
 
                 let displayedPhrase = selectedPhraseForEditing
                 let selectedTrackID = session.store.selectedTrackID
+                let displayedInherited = inheritedDefaults(for: displayedPhrase.id)
                 HStack(alignment: .top, spacing: gridSpacing) {
                     PhraseMatrixGutterCell()
                         .frame(width: matrixGutterWidth)
@@ -1225,7 +1252,8 @@ struct PhraseWorkspaceView: View {
                                             phrase: displayedPhrase,
                                             track: track,
                                             isSelected: track.id == selectedTrackID,
-                                            accent: accent
+                                            accent: accent,
+                                            inherited: displayedInherited
                                         )
                                     } else {
                                         PhrasePerformancePlaceholderCell(
@@ -2410,6 +2438,7 @@ private struct PhraseGridCell: View {
     let track: StepSequenceTrack
     let isSelected: Bool
     let accent: Color
+    var inherited: PhraseInheritedDefaults.Resolved?
 
     // Inherited cells are a muted variant of explicit ones — no
     // "SINGLE"/"INHERIT" chip repeated in every cell (ux-canon rules 1/3).
@@ -2417,13 +2446,17 @@ private struct PhraseGridCell: View {
         cell.editMode == .inheritDefault
     }
 
+    private var resolvedValue: PhraseCellValue {
+        phrase.resolvedValue(for: layer, trackID: track.id, stepIndex: 0, inherited: inherited)
+    }
+
     var body: some View {
         PhraseCellPreview(
             layer: layer,
             cell: cell,
-            resolvedValue: phrase.resolvedValue(for: layer, trackID: track.id, stepIndex: 0),
+            resolvedValue: resolvedValue,
             accent: accent,
-            summary: valueLabel(phrase.resolvedValue(for: layer, trackID: track.id, stepIndex: 0), layer: layer),
+            summary: valueLabel(resolvedValue, layer: layer),
             metrics: .matrix
         )
         .opacity(isInherited ? StudioOpacity.inheritedContent : 1)
