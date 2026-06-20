@@ -699,6 +699,7 @@ private struct AudioInputRuntimePanel: View {
             writeTargetCard
                 .frame(width: 280)
         }
+        .fixedSize(horizontal: false, vertical: true)
     }
 
     private var inputCard: some View {
@@ -737,6 +738,7 @@ private struct AudioInputRuntimePanel: View {
                         .stroke(StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
                 )
         }
+        .frame(maxHeight: .infinity, alignment: .top)
         .padding(StudioMetrics.Spacing.standard)
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(
@@ -790,6 +792,7 @@ private struct AudioInputRuntimePanel: View {
                 )
             }
         }
+        .frame(maxHeight: .infinity, alignment: .top)
         .padding(StudioMetrics.Spacing.standard)
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(
@@ -808,6 +811,7 @@ private struct AudioInputRuntimePanel: View {
             writeTargetOption(title: "Replace saved buffer", subtitle: "Future saved take.", isSelected: false, isEnabled: false)
             writeTargetOption(title: "New saved buffer", subtitle: "Name after capture.", isSelected: false, isEnabled: false)
         }
+        .frame(maxHeight: .infinity, alignment: .top)
         .padding(StudioMetrics.Spacing.standard)
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(
