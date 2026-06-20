@@ -197,7 +197,7 @@ final class TracksPageInvalidationTests: XCTestCase {
         )
     }
 
-    func test_transportTicks_reachPlayheadLeaves_only() throws {
+    func test_transportTicks_doNotReachAnyLeaf() throws {
         let harness = try makeHarness(mode: .setup)
         defer { harness.window.close() }
 
@@ -207,15 +207,17 @@ final class TracksPageInvalidationTests: XCTestCase {
         let tickCount = 32
         driveTicks(tickCount, engine: harness.engine)
 
-        // Positive control for the leaf path: the fixture has step/bar-varying
-        // cells, so the playhead leaves must actually be re-evaluating. This
-        // guards against the page passing the budget test vacuously (e.g. the
-        // grid not rendering at all in the harness).
-        XCTAssertGreaterThan(
+        // The tracks view is now a plain NAVIGATOR (track tiles + add tile): it
+        // renders NO tick-rate state (no pattern/layer preview, no playhead-
+        // following stroke), so transport ticks must not re-evaluate any
+        // tracks-page leaf. The probe is proven wired by
+        // `test_documentMutation_stillReevaluatesPageBody`.
+        XCTAssertEqual(
             TracksPageInvalidationProbe.playheadLeafEvaluations, 0,
-            "Playhead leaves must re-evaluate while ticks advance — zero leaf " +
-            "evaluations means the harness did not render the matrix (or the " +
-            "leaf observation was severed entirely, which would freeze the UI)."
+            "The navigator reads no tick-rate state — transport ticks must not " +
+            "re-evaluate any tracks-page leaf " +
+            "(\(TracksPageInvalidationProbe.playheadLeafEvaluations) leaf " +
+            "evaluations for \(tickCount) ticks)."
         )
     }
 
@@ -265,24 +267,21 @@ final class TracksPageInvalidationTests: XCTestCase {
         )
         XCTAssertEqual(
             cardEvaluations, 0,
-            "Transport ticks must not re-build the track cards in perform mode " +
+            "Transport ticks must not re-build the track tiles in perform mode " +
             "(\(cardEvaluations) card-content evaluations for \(tickCount) ticks). " +
-            "In perform mode the page renders the same layered TRACK-CARD MATRIX " +
-            "as setup (the LazyVGrid ForEach item closure bumps this counter); a " +
-            "tick-rate read in the card-building closure would re-build every " +
-            "visible card per tick — the tracks-page BPM-sag mechanism."
+            "The tracks view is now a plain NAVIGATOR with no Edit/Perform split, " +
+            "so perform mode renders the same static tiles as setup; a tick-rate " +
+            "read in the tile-building closure would re-render every visible tile " +
+            "per tick — the tracks-page BPM-sag mechanism."
         )
     }
 
-    /// Perform-mode positive control for the matrix-card leaf path. The perform
-    /// surface is the layered TRACK-CARD MATRIX (the per-card playhead/stroke
-    /// overlays — `TrackCardCellPreviewLeaf` / `TrackCardStrokeOverlay` in
-    /// TracksMatrixView.swift — carry the tick-rate observation), NOT the
-    /// retired PerformOverviewDashboard. The fixture's step/bar-varying cells
-    /// mean those card leaves must keep re-evaluating while ticks advance — so
-    /// the perform-mode budget assertion above (page=0, cards=0) is proven
-    /// non-vacuous: ticks DO reach the leaves, just not the page/card bodies.
-    func test_transportTicks_reachMatrixCardLeaves_only_performMode() throws {
+    /// With the Edit/Perform split removed the tracks view is the same plain
+    /// NAVIGATOR in every workspace mode: static track tiles (name + icon +
+    /// mute) and the add tile, reading NO tick-rate state. So in perform mode
+    /// too transport ticks must reach no leaf — the navigator has no playhead-
+    /// following preview/stroke to re-evaluate.
+    func test_transportTicks_doNotReachAnyLeaf_performMode() throws {
         let harness = try makeHarness(mode: .perform)
         defer { harness.window.close() }
 
@@ -295,7 +294,7 @@ final class TracksPageInvalidationTests: XCTestCase {
         let pageEvaluations = TracksPageInvalidationProbe.pageBodyEvaluations
         let cardEvaluations = TracksPageInvalidationProbe.cardContentEvaluations
         let leafEvaluations = TracksPageInvalidationProbe.playheadLeafEvaluations
-        print("[TracksPageInvalidation] perform mode matrix leaves: \(tickCount) ticks → " +
+        print("[TracksPageInvalidation] perform mode navigator: \(tickCount) ticks → " +
               "pageBodyEvaluations=\(pageEvaluations), " +
               "cardContentEvaluations=\(cardEvaluations), " +
               "playheadLeafEvaluations=\(leafEvaluations)")
@@ -306,15 +305,14 @@ final class TracksPageInvalidationTests: XCTestCase {
         )
         XCTAssertEqual(
             cardEvaluations, 0,
-            "perform-mode ticks must not re-build the matrix cards " +
+            "perform-mode ticks must not re-build the navigator tiles " +
             "(\(cardEvaluations) card-content evaluations for \(tickCount) ticks)"
         )
-        XCTAssertGreaterThan(
+        XCTAssertEqual(
             leafEvaluations, 0,
-            "Matrix-card playhead/stroke leaves (pattern / mute cells) must " +
-            "re-evaluate while ticks advance — zero leaf evaluations means the " +
-            "matrix did not render in the harness, which would make the " +
-            "perform-mode budget assertions pass vacuously."
+            "The navigator reads no tick-rate state — perform-mode ticks must " +
+            "reach no tracks-page leaf (\(leafEvaluations) leaf evaluations for " +
+            "\(tickCount) ticks)."
         )
     }
 }

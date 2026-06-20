@@ -88,16 +88,15 @@ struct TracksWorkspaceView: View {
     @Binding var document: SeqAIDocument
     @Binding var selectedLayerID: String
     let onOpenTrack: () -> Void
-    @Environment(SequencerDocumentSession.self) private var session
 
     var body: some View {
-        // The page obeys the ONE global workspace mode (perform/setup split
-        // slice 1): setup is the former edit mode, perform the former
-        // perform mode. The top bar owns the switch; no local toggle.
+        // The tracks view is a plain NAVIGATOR: a matrix of track tiles you
+        // click to open the single-track detail, plus an add-track tile. It is
+        // no longer a perform surface — layer perform lives in phrase perform
+        // and on the single-track detail page. There is no Edit/Perform split.
         TracksMatrixView(
             document: $document,
             selectedLayerID: $selectedLayerID,
-            isPerforming: session.workspaceMode == .perform,
             onOpenTrack: onOpenTrack
         )
         .padding(StudioMetrics.Spacing.section)
@@ -109,13 +108,11 @@ struct TracksMatrixView: View {
     @Binding var selectedLayerID: String
     @Environment(EngineController.self) private var engineController
     @Environment(SequencerDocumentSession.self) private var session
-    let isPerforming: Bool
     let onOpenTrack: () -> Void
 
     @State private var isPresentingCreateTrack = false
     @State private var isPresentingAddSliceTrack = false
     @State private var isPresentingAddDrumGroup = false
-    @State private var performSelection = TrackPerformSelectionState()
     /// AC18: a linked drum kit collapses to ONE cell; an unlinked kit expands
     /// to its per-part cells (linked↔collapsed, unlinked↔expanded). The Expand
     /// affordance on a collapsed cell adds the group to this transient set,
@@ -127,40 +124,9 @@ struct TracksMatrixView: View {
         count: 8
     )
 
-    /// The card grid shows a pattern preview in both modes (navigation +
-    /// selection): the matrix is no longer a layer surface, so there is one
-    /// fixed preview layer (the pattern layer), not a selectable one.
-    private var previewLayer: PhraseLayerDefinition {
-        let layers = session.store.layers
-        return session.store.patternLayer
-            ?? session.store.layer(id: selectedLayerID)
-            ?? layers.first!
-    }
-
-    private var editingPhrase: PhraseModel {
-        let basisPhrase = TracksBasisPhraseResolver.resolvePhrase(
-            engineBasisPhraseID: engineController.basisPhraseID,
-            selectedPhraseID: session.store.selectedPhraseID,
-            selectedPhrase: session.store.selectedPhrase,
-            phrases: session.store.phrases
-        )
-        return session.phraseWithPerformOverlay(basisPhrase)
-    }
-
-    /// Scoped Track/Kit Perform (AC22): when non-empty, only these track ids are
-    /// shown so the reused perform surface presents a single track / one kit.
-    /// Empty means unscoped (the whole project), preserving prior behaviour.
-    private var performScope: Set<UUID> {
-        session.performTrackScope
-    }
-
-    private func isInScope(_ trackID: UUID) -> Bool {
-        performScope.isEmpty || performScope.contains(trackID)
-    }
-
     private var groupedSections: [GroupedTrackSection] {
         session.store.trackGroups.compactMap { group in
-            let members = session.store.tracksInGroup(group.id).filter { isInScope($0.id) }
+            let members = session.store.tracksInGroup(group.id)
             guard !members.isEmpty else {
                 return nil
             }
@@ -169,7 +135,7 @@ struct TracksMatrixView: View {
     }
 
     private var ungroupedTracks: [StepSequenceTrack] {
-        session.store.tracks.filter { $0.groupID == nil && isInScope($0.id) }
+        session.store.tracks.filter { $0.groupID == nil }
     }
 
     var body: some View {
@@ -179,16 +145,15 @@ struct TracksMatrixView: View {
         let tracks = session.store.tracks
         let selectedTrackID = session.store.selectedTrackID
         // The top-nav pill already names this page; the panel renders no
-        // header of its own (ux-canon rule 1).
+        // header of its own (ux-canon rule 1). This is a plain navigator —
+        // no perform chrome (no basis-phrase banner, no Edit Set, no Perform).
         VStack(alignment: .leading, spacing: 18) {
             StudioPanel(
                 title: "Tracks",
-                accent: isPerforming ? StudioTheme.amber : StudioTheme.cyan,
+                accent: StudioTheme.cyan,
                 showsHeader: false
             ) {
                 VStack(alignment: .leading, spacing: 18) {
-                    actionBar
-
                     if tracks.isEmpty {
                         StudioPlaceholderTile(
                             title: "No Tracks Yet",
@@ -250,209 +215,6 @@ struct TracksMatrixView: View {
             )
             .presentationBackground(.clear)
         }
-        .onChange(of: tracks.map(\.id)) { _, trackIDs in
-            performSelection.reconcile(availableTrackIDs: trackIDs)
-        }
-        .onChange(of: isPerforming) { _, isNowPerforming in
-            if !isNowPerforming {
-                performSelection.clear()
-                // Leaving perform also drops any scoped Track/Kit Perform set
-                // (AC22) so the next entry starts unscoped (whole project).
-                session.performTrackScope = []
-            }
-        }
-    }
-
-    // The tracks Perform view is navigation + selection (not a layer surface):
-    // the action bar names the basis phrase and, while performing, surfaces the
-    // multi-select "Edit Set" plus the Perform launcher that opens the scoped
-    // Track/Kit Perform overlay (which reuses phrase perform) for the selection.
-    private var actionBar: some View {
-        HStack(spacing: 12) {
-            basisPhrasePill
-            Spacer()
-            if isPerforming {
-                if !performScope.isEmpty {
-                    performScopeChip
-                }
-                performSelectionSummary
-                performLaunchButton
-            }
-        }
-    }
-
-    /// AC3: launch the existing scoped Track/Kit Perform overlay for the
-    /// current selection (single track, multi-select, or — when a whole kit is
-    /// selected — the kit). Selection is transient runtime state; entering
-    /// scoped perform records it in `session.performTrackScope` and flips the
-    /// global mode to perform. No bespoke layer UI is built here.
-    private var performLaunchButton: some View {
-        Button {
-            launchScopedPerform()
-        } label: {
-            HStack(spacing: 6) {
-                Image(systemName: "play.fill")
-                    .font(.system(size: 11, weight: .bold))
-                Text("Perform")
-                    .studioText(.labelBold)
-            }
-        }
-        .buttonStyle(.borderedProminent)
-        .tint(StudioTheme.amber)
-        .disabled(performLaunchTrackIDs.isEmpty)
-        .accessibilityIdentifier("track-perform-launch")
-        .help(performLaunchTrackIDs.isEmpty
-            ? "Select one or more cards to perform"
-            : "Perform the selected track(s) — opens scoped Track/Kit Perform")
-    }
-
-    /// Ordered track ids the Perform launcher will scope to: the multi-select
-    /// edit set when non-empty, otherwise the focused track.
-    private var performLaunchTrackIDs: [UUID] {
-        let ordered = session.store.tracks.map(\.id)
-        let selected = ordered.filter { performSelection.contains($0) }
-        if !selected.isEmpty {
-            return selected
-        }
-        let focused = session.store.selectedTrackID
-        return ordered.contains(focused) ? [focused] : []
-    }
-
-    private func launchScopedPerform() {
-        let trackIDs = performLaunchTrackIDs
-        guard !trackIDs.isEmpty else { return }
-        session.enterScopedPerform(trackIDs: trackIDs)
-    }
-
-    /// Scoped Track/Kit Perform (AC22): names the active scope and lets the
-    /// player drop back to the whole project without leaving perform.
-    private var performScopeChip: some View {
-        HStack(spacing: 8) {
-            VStack(alignment: .leading, spacing: 3) {
-                Text("PERFORM SCOPE")
-                    .studioText(.micro)
-                    .tracking(0.8)
-                    .foregroundStyle(StudioTheme.mutedText)
-                Text(performScopeText)
-                    .studioText(.labelBold)
-                    .foregroundStyle(StudioTheme.cyan)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.75)
-            }
-
-            Button {
-                session.performTrackScope = []
-            } label: {
-                Image(systemName: "xmark")
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundStyle(StudioTheme.text)
-                    .frame(width: 24, height: 24)
-                    .background(Color.white.opacity(StudioOpacity.subtleFill), in: Circle())
-                    .overlay(Circle().stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth))
-            }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("perform-scope-clear")
-            .help("Perform all tracks")
-        }
-        .frame(width: 170, alignment: .leading)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 7)
-        .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                .stroke(StudioTheme.cyan.opacity(StudioOpacity.accentStroke), lineWidth: StudioMetrics.borderWidth)
-        )
-        .accessibilityIdentifier("perform-scope")
-    }
-
-    private var performScopeText: String {
-        let scopedGroup = session.store.trackGroups.first { group in
-            let memberIDs = Set(session.store.tracksInGroup(group.id).map(\.id))
-            return !memberIDs.isEmpty && memberIDs == performScope
-        }
-        if let scopedGroup {
-            return scopedGroup.name
-        }
-        if performScope.count == 1,
-           let trackID = performScope.first,
-           let track = session.store.tracks.first(where: { $0.id == trackID }) {
-            return track.name
-        }
-        return "\(performScope.count) tracks"
-    }
-
-    private var basisPhrasePill: some View {
-        VStack(alignment: .trailing, spacing: 3) {
-            Text("BASIS PHRASE")
-                .studioText(.micro)
-                .tracking(0.8)
-                .foregroundStyle(StudioTheme.mutedText)
-            Text(editingPhrase.name)
-                .studioText(.labelBold)
-                .foregroundStyle(StudioTheme.violet)
-                .lineLimit(1)
-        }
-        .frame(width: 130, alignment: .trailing)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 7)
-        // Bold-flat pass: outline-only chip; the violet value text carries
-        // the accent — no tinted wash.
-        .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                .stroke(StudioTheme.violet.opacity(StudioOpacity.accentStroke), lineWidth: StudioMetrics.borderWidth)
-        )
-    }
-
-    private var performSelectionSummary: some View {
-        HStack(spacing: 8) {
-            VStack(alignment: .leading, spacing: 3) {
-                Text("EDIT SET")
-                    .studioText(.micro)
-                    .tracking(0.8)
-                    .foregroundStyle(StudioTheme.mutedText)
-                Text(performSelectionSummaryText)
-                    .studioText(.labelBold)
-                    .foregroundStyle(StudioTheme.amber)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.75)
-            }
-
-            if !performSelection.isEmpty {
-                Button {
-                    performSelection.clear()
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 11, weight: .bold))
-                        .foregroundStyle(StudioTheme.text)
-                        .frame(width: 24, height: 24)
-                        .background(Color.white.opacity(StudioOpacity.subtleFill), in: Circle())
-                        .overlay(Circle().stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth))
-                }
-                .buttonStyle(.plain)
-                .help("Clear edit set")
-            }
-        }
-        .frame(width: 150, alignment: .leading)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 7)
-        // Bold-flat pass: outline-only chip; the amber value text carries
-        // the accent — no tinted wash.
-        .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                .stroke(StudioTheme.amber.opacity(StudioOpacity.accentStroke), lineWidth: StudioMetrics.borderWidth)
-        )
-    }
-
-    private var performSelectionSummaryText: String {
-        let selectedTracks = session.store.tracks.filter { performSelection.contains($0.id) }
-        guard !selectedTracks.isEmpty else {
-            return "None selected"
-        }
-
-        let names = selectedTracks.prefix(2).map(\.name).joined(separator: ", ")
-        if selectedTracks.count <= 2 {
-            return "\(selectedTracks.count): \(names)"
-        }
-        return "\(selectedTracks.count): \(names) +\(selectedTracks.count - 2)"
     }
 
     private func matrixSections(tracks: [StepSequenceTrack], selectedTrackID: UUID) -> some View {
@@ -507,9 +269,7 @@ struct TracksMatrixView: View {
                 onOpenKit: {
                     if let representativeTrackID {
                         session.setSelectedTrackID(representativeTrackID)
-                        if !isPerforming {
-                            onOpenTrack()
-                        }
+                        onOpenTrack()
                     }
                 },
                 onExpand: { expandGroup(section.group) }
@@ -528,58 +288,39 @@ struct TracksMatrixView: View {
 
     @ViewBuilder
     private func tracksGrid(_ tracks: [StepSequenceTrack], group: TrackGroup?, selectedTrackID: UUID) -> some View {
-        // The card grid is navigation + selection in both modes: a fixed
-        // pattern preview (never a selectable layer) plus, while performing, a
-        // per-card mute toggle and the multi-select "Edit Set" checkbox.
-        let layer = previewLayer
+        // The navigator grid: each tile shows just the track name + a type
+        // icon and a tiny mute toggle. No pattern/layer preview, no perform
+        // chrome — clicking a tile opens that track's single-track detail.
         LazyVGrid(columns: columns, spacing: 14) {
             ForEach(tracks, id: \.id) { track in
                 #if DEBUG
                 let _ = { TracksPageInvalidationProbe.cardContentEvaluations += 1 }()
                 #endif
-                // Card inputs are document/selection state only. Anything
-                // that varies at tick/meter rate (playhead-resolved values,
-                // audio-input runtime) is read by leaf views INSIDE the card,
-                // so a transport tick never re-builds the cards
-                // (architecture verdict §2).
-                let cell = editingPhrase.cell(for: layer.id, trackID: track.id)
                 TrackMatrixCard(
                     track: track,
                     group: group,
-                    patternIndex: session.store.selectedPatternIndex(for: track.id),
-                    phrase: editingPhrase,
-                    layer: layer,
-                    cell: cell,
                     isMuted: track.mix.isMuted,
                     isFocused: track.id == selectedTrackID,
-                    isPerformSelected: performSelection.contains(track.id),
-                    isPerforming: isPerforming,
-                    onTogglePerformSelection: {
-                        performSelection.toggle(track.id)
-                    },
                     onToggleMute: {
                         session.toggleTrackMute(trackID: track.id)
                     }
                 ) {
-                    // Click opens that track's single-track detail in BOTH
-                    // modes (navigation): perform is launched from the action
-                    // bar's Perform button on the selection, not per card.
                     session.setSelectedTrackID(track.id)
                     onOpenTrack()
                 }
             }
 
-            if group == nil, !isPerforming {
+            if group == nil {
                 addTrackCard
             }
         }
     }
 
-    // Same footprint as TrackMatrixCard (minHeight 210 + comfortable padding)
-    // so the add cell sits flush in the grid (ux-canon rule 5); the "+" alone
+    // Same footprint as TrackMatrixCard (minHeight 132 + comfortable padding)
+    // so the add tile sits flush in the grid (ux-canon rule 5); the "+" alone
     // carries the affordance, with the action named in help/accessibility.
     private var addTrackCard: some View {
-        StudioAddCard(label: "", minHeight: 210, help: "Add a track") {
+        StudioAddCard(label: "", minHeight: 132, help: "Add a track") {
             isPresentingCreateTrack = true
         }
     }
@@ -905,22 +646,15 @@ struct PhrasePerformCaptureSheet: View {
     }
 }
 
+/// A single navigator tile: the track's type/instrument icon + its name, with
+/// a tiny mute toggle. No pattern/layer preview and no perform chrome — the
+/// tracks view is a plain navigator. Tapping the tile opens the single-track
+/// detail (kit members route via the surrounding section/collapsed cell).
 private struct TrackMatrixCard: View {
     let track: StepSequenceTrack
     let group: TrackGroup?
-    let patternIndex: Int
-    /// The phrase the leaves resolve against. The card itself never reads
-    /// the playhead — bar/step/curve cells resolve in
-    /// `TrackCardCellPreviewLeaf` / `TrackCardStrokeOverlay` so tick-rate
-    /// invalidation stops at those leaves.
-    let phrase: PhraseModel
-    let layer: PhraseLayerDefinition
-    let cell: PhraseCell
     let isMuted: Bool
     let isFocused: Bool
-    let isPerformSelected: Bool
-    let isPerforming: Bool
-    let onTogglePerformSelection: () -> Void
     let onToggleMute: () -> Void
     let onTap: () -> Void
 
@@ -944,152 +678,63 @@ private struct TrackMatrixCard: View {
         track.trackType.label.uppercased()
     }
 
-    private var destinationLabel: String {
-        if case .inheritGroup = track.destination {
-            return group?.sharedDestination?.kindLabel ?? "GROUP"
-        }
-        return track.destination.kindLabel
-    }
-
-    private var pitchOffsetLabel: String? {
-        guard let group, let offset = group.noteMapping[track.id], offset != 0 else {
-            return nil
-        }
-        return offset > 0 ? "+\(offset)" : "\(offset)"
-    }
-
-    private var layerAccentColor: Color {
-        layerAccent(layer.id)
-    }
-
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 10) {
                 TrackTypeBadge(trackType: track.trackType, accent: accent)
 
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(track.name)
-                        .studioText(.subtitle)
-                        .foregroundStyle(StudioTheme.text)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.7)
+                Spacer(minLength: 0)
 
-                    HStack(spacing: 6) {
-                        Text(typeLabel)
-                        Text("P\(patternIndex + 1)")
-                        Text(destinationLabel)
-                        if let pitchOffsetLabel {
-                            Text(pitchOffsetLabel)
-                        }
-                    }
+                // A tiny mute toggle is the only control on the tile.
+                Button(action: onToggleMute) {
+                    Image(systemName: isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(isMuted ? StudioTheme.background : StudioTheme.mutedText)
+                        .frame(width: 26, height: 26)
+                        .background(
+                            isMuted ? StudioTheme.amber : Color.white.opacity(StudioOpacity.subtleFill),
+                            in: Circle()
+                        )
+                        .overlay(Circle().stroke(isMuted ? StudioTheme.amber : StudioTheme.border, lineWidth: StudioMetrics.borderWidth))
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("track-card-mute")
+                .help(isMuted ? "Unmute \(track.name)" : "Mute \(track.name)")
+            }
+
+            Spacer(minLength: 0)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(track.name)
+                    .studioText(.subtitle)
+                    .foregroundStyle(StudioTheme.text)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+
+                Text(typeLabel)
                     .studioText(.micro)
                     .tracking(0.8)
                     .foregroundStyle(StudioTheme.mutedText)
                     .lineLimit(1)
-                    .minimumScaleFactor(0.75)
-                }
-
-                Spacer(minLength: 0)
-
-                if track.trackType == .audioInput {
-                    AudioInputRuntimeBadge(trackID: track.id, accent: accent)
-                }
-
-                if isPerforming {
-                    // Per-card mute toggle (prototype 03): document-truth track
-                    // mute, not a phrase-perform layer cell.
-                    Button(action: onToggleMute) {
-                        Image(systemName: isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
-                            .font(.system(size: 13, weight: .bold))
-                            .foregroundStyle(isMuted ? StudioTheme.background : StudioTheme.mutedText)
-                            .frame(width: 28, height: 28)
-                            .background(
-                                isMuted ? StudioTheme.amber : Color.white.opacity(StudioOpacity.subtleFill),
-                                in: Circle()
-                            )
-                            .overlay(Circle().stroke(isMuted ? StudioTheme.amber : StudioTheme.border, lineWidth: StudioMetrics.borderWidth))
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("track-card-mute")
-                    .help(isMuted ? "Unmute \(track.name)" : "Mute \(track.name)")
-
-                    Button(action: onTogglePerformSelection) {
-                        Image(systemName: isPerformSelected ? "checkmark.circle.fill" : "circle")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(isPerformSelected ? StudioTheme.amber : StudioTheme.mutedText)
-                            .frame(width: 28, height: 28)
-                            .background(Color.white.opacity(StudioOpacity.subtleFill), in: Circle())
-                            .overlay(Circle().stroke(isPerformSelected ? StudioTheme.amber.opacity(0.7) : StudioTheme.border, lineWidth: StudioMetrics.borderWidth))
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("track-card-select")
-                    .help(isPerformSelected ? "Remove from edit set" : "Add to edit set")
-                }
             }
-
-            if let group {
-                // Bold-flat pass: outline-only chip with accent text.
-                Text(group.name.uppercased())
-                    .studioText(.micro)
-                    .tracking(0.8)
-                    .foregroundStyle(accent)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .overlay(
-                        Capsule()
-                            .stroke(accent.opacity(StudioOpacity.accentStroke), lineWidth: StudioMetrics.borderWidth)
-                    )
-                    .lineLimit(1)
-            }
-
-            // The card shows a fixed PATTERN PREVIEW in both modes (the
-            // tracks view is navigation + selection, not a layer surface).
-            TrackCardCellPreviewLeaf(
-                phrase: phrase,
-                layer: layer,
-                trackID: track.id,
-                cell: cell,
-                accent: layerAccentColor,
-                contentOpacity: layerContentOpacity
-            )
         }
-        .frame(maxWidth: .infinity, minHeight: 210, alignment: .topLeading)
+        .frame(maxWidth: .infinity, minHeight: 132, alignment: .topLeading)
         .padding(StudioMetrics.Spacing.comfortable)
         .background(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                .fill(cardFill)
+                .fill(Color.white.opacity(StudioOpacity.subtleFill))
         )
         .overlay(
-            TrackCardStrokeOverlay(
-                phrase: phrase,
-                layer: layer,
-                trackID: track.id,
-                cell: cell,
-                isFocused: isFocused,
-                isPerformSelected: isPerformSelected,
-                isPerforming: isPerforming,
-                focusAccent: accent,
-                layerAccentColor: layerAccentColor
-            )
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
+                .stroke(
+                    isFocused ? accent.opacity(StudioOpacity.accentFill) : StudioTheme.border,
+                    lineWidth: isFocused ? 2 : StudioMetrics.borderWidth
+                )
         )
         .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
         .onTapGesture {
             onTap()
         }
-    }
-
-    private var layerContentOpacity: Double {
-        if cell.editMode == .inheritDefault {
-            return StudioOpacity.inheritedContent
-        }
-        return isPerforming ? 1 : 0.82
-    }
-
-    /// Colour identifies, it never floods (ux-canon rule 12): the card body is
-    /// always the neutral step above ground; state/identity lives in the
-    /// outline (`TrackCardStrokeOverlay`) and the solid pattern chip.
-    private var cardFill: Color {
-        Color.white.opacity(StudioOpacity.subtleFill)
     }
 }
 
@@ -1103,185 +748,6 @@ extension PhraseCell {
             return true
         case .single, .inheritDefault:
             return false
-        }
-    }
-}
-
-/// The cell-content leaf — with the stroke overlay, the only tracks-page
-/// views allowed to read the transport playhead. Bar/step/curve cells
-/// re-resolve when `transportTickIndex` publishes; single/inherit cells
-/// never register the dependency. `PhraseCellPreview` sits behind an
-/// Equatable guard so per-tick re-evaluations that resolve to the same
-/// value stop here (the meter-bank displayState dedupe shape).
-private struct TrackCardCellPreviewLeaf: View {
-    @Environment(EngineController.self) private var engineController
-    let phrase: PhraseModel
-    let layer: PhraseLayerDefinition
-    let trackID: UUID
-    let cell: PhraseCell
-    let accent: Color
-    let contentOpacity: Double
-
-    var body: some View {
-        #if DEBUG
-        let _ = { TracksPageInvalidationProbe.playheadLeafEvaluations += 1 }()
-        #endif
-        let resolvedValue = phrase.resolvedValue(for: layer, trackID: trackID, stepIndex: playheadStepIndex)
-        PhraseCellPreview(
-            layer: layer,
-            cell: cell,
-            resolvedValue: resolvedValue,
-            accent: accent,
-            summary: valueLabel(resolvedValue, layer: layer),
-            metrics: .matrix
-        )
-        .equatable()
-        .opacity(contentOpacity)
-    }
-
-    private var playheadStepIndex: Int {
-        guard cell.dependsOnPlayhead else {
-            return 0
-        }
-        return PhrasePlayhead(phrase: phrase, transportTickIndex: engineController.transportTickIndex).stepIndex
-    }
-}
-
-/// Card outline leaf. In perform mode with the pattern layer the stroke
-/// takes the playing pattern's identity colour, which for bar/step-varying
-/// cells follows the playhead — so the stroke (not the whole card) owns
-/// that tick-rate read. In edit mode it reads no engine state at all.
-private struct TrackCardStrokeOverlay: View {
-    @Environment(EngineController.self) private var engineController
-    let phrase: PhraseModel
-    let layer: PhraseLayerDefinition
-    let trackID: UUID
-    let cell: PhraseCell
-    let isFocused: Bool
-    let isPerformSelected: Bool
-    let isPerforming: Bool
-    let focusAccent: Color
-    let layerAccentColor: Color
-
-    var body: some View {
-        #if DEBUG
-        let _ = { TracksPageInvalidationProbe.playheadLeafEvaluations += 1 }()
-        #endif
-        // Armed quantised mute (wireframes §2): dashed amber outline + the
-        // pending glyph until the change lands at the bar boundary. The
-        // pending mirror publishes at gesture/bar rate (never tick rate),
-        // and only this leaf reads it.
-        let pendingMuteTarget = isPerforming && layer.id == TrackPerformLayerMode.mute.phraseLayerID
-            ? engineController.quantisedPendingMuteTarget(for: trackID)
-            : nil
-        ZStack(alignment: .bottomTrailing) {
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                .stroke(
-                    pendingMuteTarget != nil ? StudioTheme.amber.opacity(0.9) : strokeColor,
-                    style: QuantisedTogglePresentation.strokeStyle(
-                        isPending: pendingMuteTarget != nil,
-                        lineWidth: isFocused || isPerformSelected || isPerforming ? 2 : StudioMetrics.borderWidth
-                    )
-                )
-            if let pendingMuteTarget {
-                HStack(spacing: 4) {
-                    Image(systemName: QuantisedTogglePresentation.pendingGlyphSystemName)
-                        .font(.system(size: 10, weight: .bold))
-                    Text(pendingMuteTarget ? "MUTE NEXT BAR" : "UNMUTE NEXT BAR")
-                        .studioText(.microEmphasis)
-                        .tracking(0.6)
-                }
-                .foregroundStyle(StudioTheme.amber)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(StudioTheme.background, in: Capsule())
-                .overlay(
-                    Capsule().stroke(
-                        StudioTheme.amber.opacity(0.9),
-                        style: QuantisedTogglePresentation.strokeStyle(isPending: true, lineWidth: StudioMetrics.borderWidth)
-                    )
-                )
-                .padding(8)
-                .accessibilityLabel(pendingMuteTarget ? "Mute armed for next bar" : "Unmute armed for next bar")
-            }
-        }
-        // Chrome only — the card underneath keeps the whole hit target.
-        .allowsHitTesting(false)
-    }
-
-    private var strokeColor: Color {
-        if isPerformSelected {
-            return StudioTheme.amber.opacity(StudioOpacity.accentFill)
-        }
-        if isPerforming, let activePatternColor {
-            return activePatternColor.opacity(StudioOpacity.accentFill)
-        }
-        if isPerforming {
-            return layerAccentColor.opacity(StudioOpacity.accentFill)
-        }
-        if isFocused {
-            return focusAccent.opacity(StudioOpacity.accentFill)
-        }
-        return StudioTheme.border
-    }
-
-    /// The active pattern's identity colour when the pattern layer drives
-    /// this card; the outline takes the colour of the playing pattern.
-    private var activePatternColor: Color? {
-        guard layer.valueType == .patternIndex else {
-            return nil
-        }
-        let stepIndex = cell.dependsOnPlayhead
-            ? PhrasePlayhead(phrase: phrase, transportTickIndex: engineController.transportTickIndex).stepIndex
-            : 0
-        guard case let .index(index) = phrase
-            .resolvedValue(for: layer, trackID: trackID, stepIndex: stepIndex)
-            .normalized(for: layer)
-        else {
-            return nil
-        }
-        return StudioTheme.patternColor(index)
-    }
-}
-
-/// Audio-input badge leaf: the only tracks-page view that reads audio-input
-/// runtime state. `audioInputRuntimeRevision` bumps at capture-progress
-/// rate while recording, so page/card bodies must not observe it.
-private struct AudioInputRuntimeBadge: View {
-    @Environment(EngineController.self) private var engineController
-    let trackID: UUID
-    let accent: Color
-
-    var body: some View {
-        #if DEBUG
-        let _ = { TracksPageInvalidationProbe.playheadLeafEvaluations += 1 }()
-        #endif
-        if let label {
-            // Bold-flat pass: live runtime state is a solid accent block
-            // with dark text.
-            Text(label)
-                .studioText(.micro)
-                .tracking(0.8)
-                .foregroundStyle(StudioTheme.background)
-                .padding(.horizontal, 7)
-                .padding(.vertical, 4)
-                .background(accent, in: Capsule())
-                .lineLimit(1)
-        }
-    }
-
-    private var label: String? {
-        guard let runtime = engineController.audioInputRuntime(for: trackID) else {
-            return nil
-        }
-
-        switch runtime.armState {
-        case .armed:
-            return "ARM"
-        case .recording:
-            return "REC"
-        case .idle, .hasLoop:
-            return "IN"
         }
     }
 }
