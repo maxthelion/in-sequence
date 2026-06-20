@@ -104,6 +104,7 @@ CAPTURES=$(cat <<'TABLE'
 27b-audio-mixer-tab|workspace=track,audioInputArmState=hasLoop,audioInputTab=mixer|audioInputState=completed;audioInputTab=mixer;transport=stop
 27c-audio-playback|workspace=track,audioInputArmState=hasLoop,audioInputMonitorMode=loop,audioInputTab=source|audioInputState=playback;audioInputTab=source;transport=stop
 28-drum-part|workspace=track,drumPartHeaderVisible=true,drumTrackDefaultView=partEditor|drumPartHeaderFixture=kit;drumPartHeaderSelectedIndex=2;drumPartHeaderDiveIn=true;transport=stop
+28a-drum-part-sound|workspace=track,drumPartHeaderVisible=true,drumTrackDefaultView=partEditor,trackSourceTab=sound|drumPartHeaderFixture=kit;drumPartHeaderSelectedIndex=2;drumPartHeaderDiveIn=true;trackSourceTab=sound;transport=stop
 28b-drum-track-default-kit|workspace=track,drumPartHeaderVisible=true,drumTrackDefaultView=kitMatrix,drumKitMatrixRenderedVisible=true|drumPartHeaderFixture=kit;drumPartHeaderSelectedIndex=2;transport=stop
 29-drum-kit-matrix|workspace=track,drumKitMatrixRenderedVisible=true,drumTrackDefaultView=kitMatrix,drumKitMatrixRenderedGroupPatternSlot=mixed|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixDisplayStepCount=16;transport=stop
 30-drum-kit-matrix-32|workspace=track,drumKitMatrixRenderedVisible=true,drumKitMatrixRenderedDisplayStepCount=32|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixDisplayStepCount=32;transport=stop
