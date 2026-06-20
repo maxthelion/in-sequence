@@ -728,6 +728,13 @@ struct SliceTrackWorkspaceView: View {
         if command.hasPrefix(layerPrefix),
            let layer = SliceTrackClipLayer(rawValue: String(command.dropFirst(layerPrefix.count))) {
             selectedLayer = layer
+            return
+        }
+
+        let tabPrefix = "tab:"
+        if command.hasPrefix(tabPrefix),
+           let tab = SliceTrackLowerTab(rawValue: String(command.dropFirst(tabPrefix.count))) {
+            selectedLowerTab = tab
         }
     }
 

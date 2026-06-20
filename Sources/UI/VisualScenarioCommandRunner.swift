@@ -347,6 +347,7 @@ enum VisualScenarioCommandRunner {
         applyNoteRepeatPerformFixture(command: command, section: section, session: session)
         applyDrumPartHeaderFixture(command: command, section: section, session: session)
         applyDrumKitMatrixCommand(command: command, session: session)
+        applyTrackSoundSourceCommand(command: command, section: section, session: session)
         applyTrackSourceTabCommand(command: command, section: section)
         applySlicerFixture(command: command, section: section, session: session)
         applyScenesModeCommand(command: command, section: section, session: session)
@@ -545,6 +546,7 @@ enum VisualScenarioCommandRunner {
         stepOrderPendingToggle=\(stepOrderStatus.pendingToggle)
         stepOrderFixtureState=\(stepOrderFixtureState)
         trackSourceTab=\(trackSourceTabState)
+        selectedTrackSoundDestinationKind=\(selectedTrackSoundDestinationKind(session: session))
         slicerFixture=\(slicerFixtureState)
         slicerLayer=\(slicerLayerState)
         slicerTab=\(slicerTabState)
@@ -1294,6 +1296,37 @@ enum VisualScenarioCommandRunner {
     /// not exist yet right after the section switch. The ROUTING tab is
     /// setup-only; the editor's own guard ignores a `routing` selection while
     /// the workspace is in perform mode.
+    /// Drives the Sound tab's SOUND SOURCE well into a chosen destination
+    /// state. `empty` clears the destination so the cyan "Add Sound Source"
+    /// add card renders (TrackDestinationEditor.unsetState).
+    private static func applyTrackSoundSourceCommand(
+        command: [String: String],
+        section: Binding<WorkspaceSection>,
+        session: SequencerDocumentSession
+    ) {
+        guard let rawState = command["trackSoundSource"] else { return }
+        section.wrappedValue = .track
+        let trackID = session.store.selectedTrackID
+        switch rawState {
+        case "empty", "none", "unset":
+            session.setEditedDestination(.none, for: trackID)
+        default:
+            break
+        }
+    }
+
+    private static func selectedTrackSoundDestinationKind(session: SequencerDocumentSession) -> String {
+        switch session.store.resolvedDestination(for: session.store.selectedTrackID) {
+        case .none: return "none"
+        case .midi: return "midi"
+        case .auInstrument: return "auInstrument"
+        case .internalSampler: return "internalSampler"
+        case .sample: return "sample"
+        case .slicer: return "slicer"
+        case .inheritGroup: return "inheritGroup"
+        }
+    }
+
     private static func applyTrackSourceTabCommand(
         command: [String: String],
         section: Binding<WorkspaceSection>

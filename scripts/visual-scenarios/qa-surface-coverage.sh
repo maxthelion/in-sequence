@@ -78,6 +78,7 @@ CAPTURES=$(cat <<'TABLE'
 # fields no longer exist.
 18-track-detail-steps-clip|workspace=track|trackFillSource=clip;trackSourceTab=steps-clip;transport=stop
 19-track-detail-sound|workspace=track|trackFillSource=generator;trackSourceTab=sound;transport=stop
+19a-track-detail-sound-empty|workspace=track,selectedTrackSoundDestinationKind=none|trackSoundSource=empty;trackSourceTab=sound;transport=stop
 20-track-fill-preview-active|workspace=track,selectedTrackFillPreviewActive=true|trackFillSource=clip;trackFillPreview=on;transport=stop
 21-track-macros-tab|workspace=track,trackSourceTab=macros|trackFillSource=clip;trackFillPreview=off;trackSourceTab=macros;transport=stop
 22-track-detail-fx|workspace=track,trackSourceTab=fx|trackFillSource=generator;trackSourceTab=fx;transport=stop
