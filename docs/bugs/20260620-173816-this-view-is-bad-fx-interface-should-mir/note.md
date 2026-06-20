@@ -1,0 +1,6 @@
+this view is bad. FX interface should mirror how we do it in scenes. I just provided feedback about it
+
+Screenshots:
+- 29a-drum-kit-fx-tab.png
+
+RESOLVED 2026-06-20: Reworked the Kit FX tab to mirror the Scenes FX grammar. KitBusFXChainView now: empty kit bus -> one full-width dashed "Add FX" tile (StudioAddCard, kit accent), exactly like the Scenes empty-FX tile (05a); populated -> the insert list (drag-handle reorder, name, bypass toggle, x remove) with an "Add FX" StudioAddCard tile BELOW the list, plus the per-insert editor (native filter radial cutoff/resonance knobs + SceneFilterCurveView, bitcrusher controls) when an insert is selected. Removed the old small "+ FX" capsule pill and the "No inserts yet." filler. Add/remove/reorder/bypass stay wired to the kit-bus session API (addMixerBusInsert / removeMixerBusInsert / reorderMixerBusInserts / updateMixerBusInsert). Kit-on-Master still shows the existing "kit bus unavailable" message. Reused StudioAddCard, SceneFilterCurveView, StudioRotaryKnob, TrackFXChainView.iconName, AUEffectPickerList (in the add sheet). The 29a fixture (808 Bones kit bus, no inserts) renders the full-width dashed Add FX tile, matching the Scenes empty state.

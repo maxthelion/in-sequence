@@ -16,6 +16,7 @@ extension DrumKitMatrixView {
         StudioPanel(title: "Kit FX", eyebrow: kitFXEyebrow(model), accent: accent) {
             if let bus = kitBus(model) {
                 KitBusFXChainView(
+                    busID: bus.id,
                     inserts: bus.inserts,
                     accent: accent,
                     onAddFX: { isPresentingKitFX = true },
