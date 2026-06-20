@@ -1,0 +1,6 @@
+let's use the same UI view for mixer on all types of track (eg, normal, slicer, drum, audio). Normal track has best example now
+
+Screenshots:
+- 27b-audio-mixer-tab.png
+
+RESOLVED 2026-06-20: Audio-input track MIXER tab now renders TrackRoutingTabContent(mode: .mixer) — the same minimal INSTRUMENT→DESTINATION path summary + MIXER & FX (OUTPUT selector + SEND A/B) panel used by the normal/slicer tracks. Removed the bespoke audioChannelMixerContent / audioChannelLevelCard (Channel/Mute/Solo/LEVEL/PAN) / audioChannelOutputCard / audioChannelSendsCard / audioChannelSendKnob / mixBinding / setMixValue helpers from AudioInputRuntimePanel (TrackWorkspaceView.swift), adding a routingPathSummary computed property built the same way as the slicer/source callers. Drum kit MIXER tab (DrumKitMatrixView+KitTabs.swift kitMixerTabBody) dropped the PER-PART LEVELS label + per-part level slider loop; only the BUS OUTPUT row (→ bus → Master + Send A/B) remains. kitPartLevelRow/kitPartLevelBinding kept because the accordion per-member mixer mini-tab (DrumKitMatrixView+Accordion.swift) still uses them. Verified via QA captures 27b (audio now matches 22b), 29c (kit per-part levels gone), 22b (normal unchanged).

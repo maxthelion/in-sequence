@@ -207,26 +207,15 @@ extension DrumKitMatrixView {
 
     // MARK: - Kit Mixer tab (AC23: bus output + sends + per-part levels)
 
-    /// Mixer tab: the kit bus output (→ its destination) and a per-part level
-    /// row each (reusing `session.setTrackMix`). Send A/B and bus output
-    /// routing are shown as the bus summary; full bus-strip editing is reachable
-    /// from the global Mixer — see report for what is real vs summarized.
+    /// Mixer tab: the kit bus output (→ its destination) plus Send A/B summary.
+    /// This mirrors the minimal normal-track mixer grammar — bus output + sends.
+    /// Per-part levels live on each member's accordion mixer mini-tab, not here.
+    /// Full bus-strip editing is reachable from the global Mixer.
     @ViewBuilder
     func kitMixerTabBody(_ model: DrumKitMatrixModel) -> some View {
         StudioPanel(title: "Kit Mixer", accent: accent, showsHeader: false) {
             VStack(alignment: .leading, spacing: 14) {
                 kitBusOutputRow(model)
-
-                Text("PER-PART LEVELS")
-                    .studioText(.eyebrow)
-                    .tracking(0.8)
-                    .foregroundStyle(StudioTheme.mutedText)
-
-                VStack(alignment: .leading, spacing: 8) {
-                    ForEach(model.rows) { row in
-                        kitPartLevelRow(row)
-                    }
-                }
             }
         }
     }

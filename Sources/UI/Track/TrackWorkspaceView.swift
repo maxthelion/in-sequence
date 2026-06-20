@@ -1011,188 +1011,24 @@ private struct AudioInputRuntimePanel: View {
     }
 
     private var mixerTab: some View {
-        StudioPanel(title: "Mixer", accent: StudioTheme.success, showsHeader: false) {
-            audioChannelMixerContent
-        }
-    }
-
-    private var audioChannelMixerContent: some View {
-        HStack(alignment: .top, spacing: 14) {
-            audioChannelLevelCard
-                .frame(minWidth: 280, maxWidth: .infinity)
-
-            audioChannelOutputCard
-                .frame(width: 240)
-
-            audioChannelSendsCard
-                .frame(width: 220)
-        }
-        .padding(StudioMetrics.Spacing.standard)
-    }
-
-    private var audioChannelLevelCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 10) {
-                Text("Channel")
-                    .studioText(.eyebrowBold)
-                    .foregroundStyle(StudioTheme.mutedText)
-
-                Spacer()
-
-                Button {
-                    session.toggleTrackMute(trackID: track.id)
-                } label: {
-                    Label(track.mix.isMuted ? "Muted" : "Mute", systemImage: track.mix.isMuted ? "speaker.slash.fill" : "speaker.slash")
-                }
-                .buttonStyle(.bordered)
-                .tint(StudioTheme.amber)
-
-                Button {
-                    session.setTrackSoloed(!track.mix.isSoloed, trackID: track.id)
-                } label: {
-                    Label(track.mix.isSoloed ? "Soloed" : "Solo", systemImage: "headphones")
-                }
-                .buttonStyle(.bordered)
-                .tint(StudioTheme.amber)
-            }
-
-            VStack(alignment: .leading, spacing: 6) {
-                HStack {
-                    Text("LEVEL")
-                        .studioText(.micro)
-                        .tracking(0.8)
-                        .foregroundStyle(StudioTheme.mutedText)
-                    Spacer()
-                    Text(StudioLevelFormat.dBLabel(forLinear: track.mix.clampedLevel))
-                        .studioText(.microEmphasis)
-                        .foregroundStyle(StudioTheme.text)
-                }
-
-                Slider(value: mixBinding(\.level, range: 0...1), in: 0...1)
-                    .tint(StudioTheme.cyan)
-            }
-
-            StudioSlideControl(
-                value: track.mix.clampedPan,
-                accent: StudioTheme.violet,
-                leadingLabel: "PAN",
-                trailingLabel: StudioSlideControlModel.panLabel(for: track.mix.clampedPan),
-                help: "\(track.name) pan",
-                onChange: { setMixValue(\.pan, value: $0, range: -1...1) },
-                onEnd: {}
-            )
-        }
-        .padding(StudioMetrics.Spacing.standard)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                .stroke(StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
+        TrackRoutingTabContent(
+            document: $document,
+            summary: routingPathSummary,
+            mode: .mixer,
+            accent: accent
         )
     }
 
-    private var audioChannelOutputCard: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Output")
-                .studioText(.eyebrowBold)
-                .foregroundStyle(StudioTheme.mutedText)
-
-            Menu {
-                Button("Master") {
-                    session.setTrackOutputBus(trackID: track.id, busID: nil)
-                }
-                ForEach(session.store.buses) { bus in
-                    Button(bus.name) {
-                        session.setTrackOutputBus(trackID: track.id, busID: bus.id)
-                    }
-                }
-            } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: "arrow.triangle.branch")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(StudioTheme.mutedText)
-                    Text(MixerRoutingDisplayModel.outputTitle(for: track, buses: session.store.buses))
-                        .studioText(.labelBold)
-                        .foregroundStyle(StudioTheme.text)
-                    Spacer()
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: 9, weight: .bold))
-                        .foregroundStyle(StudioTheme.mutedText)
-                }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 9)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-                        .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
-                )
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(StudioMetrics.Spacing.standard)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                .stroke(StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
+    private var routingPathSummary: TrackRoutingPathSummary {
+        TrackRoutingPathSummary.make(
+            destinationSummary: DestinationSummary.make(
+                for: session.store.resolvedDestination(for: track.id),
+                in: session.store,
+                trackID: track.id
+            ),
+            outputTitle: MixerRoutingDisplayModel.outputTitle(for: track, buses: session.store.buses),
+            mix: track.mix
         )
-    }
-
-    private var audioChannelSendsCard: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Sends")
-                .studioText(.eyebrowBold)
-                .foregroundStyle(StudioTheme.mutedText)
-
-            HStack(spacing: 18) {
-                audioChannelSendKnob(title: "A", value: track.mix.sendA, keyPath: \.sendA, accent: StudioTheme.cyan)
-                audioChannelSendKnob(title: "B", value: track.mix.sendB, keyPath: \.sendB, accent: StudioTheme.violet)
-            }
-            .frame(maxWidth: .infinity)
-        }
-        .padding(StudioMetrics.Spacing.standard)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                .stroke(StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
-        )
-    }
-
-    private func audioChannelSendKnob(
-        title: String,
-        value: Double,
-        keyPath: WritableKeyPath<TrackMixSettings, Double>,
-        accent: Color
-    ) -> some View {
-        StudioRotaryKnob(
-            title: title,
-            value: MixerSendDisplayModel.clamped(value),
-            range: TrackMixSettings.sendRange,
-            accent: accent,
-            size: 42,
-            format: { MixerSendDisplayModel.percentLabel(for: $0) },
-            onChange: { setMixValue(keyPath, value: $0, range: TrackMixSettings.sendRange) },
-            onLiveChange: { setMixValue(keyPath, value: $0, range: TrackMixSettings.sendRange) }
-        )
-    }
-
-    private func mixBinding(
-        _ keyPath: WritableKeyPath<TrackMixSettings, Double>,
-        range: ClosedRange<Double>
-    ) -> Binding<Double> {
-        Binding(
-            get: { track.mix[keyPath: keyPath] },
-            set: { setMixValue(keyPath, value: $0, range: range) }
-        )
-    }
-
-    private func setMixValue(
-        _ keyPath: WritableKeyPath<TrackMixSettings, Double>,
-        value: Double,
-        range: ClosedRange<Double>
-    ) {
-        var mix = track.mix
-        mix[keyPath: keyPath] = min(max(value, range.lowerBound), range.upperBound)
-        session.setTrackMix(trackID: track.id, mix: mix)
     }
 
     private func applyVisualCommand(_ command: String) {
