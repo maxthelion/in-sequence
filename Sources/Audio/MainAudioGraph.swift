@@ -275,6 +275,40 @@ final class MainAudioGraph {
         channelMeterBank.registerAuxiliaryPublisher(masterMeterPublisher)
 
         performOnMain {
+            // Visual-automation/capture: render offline so the engine never
+            // connects to the CoreAudio HAL. This MUST happen while the engine
+            // is stopped and BEFORE any node is attached/connected and BEFORE
+            // the first `mainMixerNode` access below — `mainMixerNode`/
+            // `outputNode` instantiate the HAL IO unit on access, which raises
+            // the macOS mic TCC prompt and hangs the unattended capture
+            // harness. Enabling manual rendering here keeps the IO unit (and
+            // thus the prompt) from ever being created. Gated behind the
+            // automation flag, so normal launches are unaffected.
+            // Self-activating: the capture harness exports
+            // SEQUENCER_AI_VISUAL_COMMAND_FILE to the app, so detect automation
+            // directly here (no AppDelegate wiring needed — keeps this fix
+            // self-contained in the audio layer). The static flag remains for
+            // tests / explicit opt-in.
+            let inVisualAutomation = Self.useManualRenderingForAutomation
+                || ProcessInfo.processInfo.environment["SEQUENCER_AI_VISUAL_COMMAND_FILE"] != nil
+            if inVisualAutomation {
+                guard let manualFormat = AVAudioFormat(standardFormatWithSampleRate: 44_100, channels: 2) else {
+                    NSLog("[MainAudioGraph] manual-rendering enable SKIPPED: could not build 44.1k/2ch format")
+                    return
+                }
+                do {
+                    try self.engine.enableManualRenderingMode(
+                        .offline,
+                        format: manualFormat,
+                        maximumFrameCount: 4096
+                    )
+                    NSLog("[MainAudioGraph] manual-rendering (offline) ENABLED for automation — HAL IO unit suppressed")
+                    DevActivity.trace(DevActivity.harness, "MainAudioGraph manual-rendering enabled for automation")
+                } catch {
+                    NSLog("[MainAudioGraph] manual-rendering enable FAILED: %@", String(describing: error))
+                }
+            }
+
             self.engine.attach(self.preMasterMixer)
             self.engine.attach(self.postBlendMixer)
             self.engine.attach(self.finalOutputMixer)
@@ -368,6 +402,17 @@ final class MainAudioGraph {
     /// `engine.inputNode` — real input access from tests both risks the TCC
     /// prompt and has been observed stalling for minutes inside CoreAudio.
     static var simulateAudioInputConnectionForTesting = false
+
+    /// Set true by the visual-automation/capture launch path BEFORE any
+    /// MainAudioGraph is built. When set, init puts the AVAudioEngine into
+    /// offline manual-rendering mode, so the engine renders to a buffer and
+    /// never connects to the CoreAudio HAL. This avoids instantiating an
+    /// input-capable IO unit — `mainMixerNode`/`outputNode` access otherwise
+    /// triggers `GetIOUnit -> AudioComponentInstanceNew -> mic check`, which
+    /// raises the macOS TCC microphone prompt and hangs the unattended capture
+    /// harness. Gated entirely behind automation: normal launches are
+    /// unaffected (flag stays false).
+    static var useManualRenderingForAutomation = false
 
     /// True while the underlying AVAudioEngine is running. Player nodes throw
     /// NSException (uncatchable from Swift) if started against a stopped
