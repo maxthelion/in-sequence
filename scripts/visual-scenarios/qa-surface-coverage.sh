@@ -198,7 +198,12 @@ $payload"
 
 ensure_document_window() {
   local pid="$1"
-  local deadline=$((SECONDS + 10))
+  # Generous deadline: a fresh build re-prompts for mic permission (the ad-hoc
+  # code signature changes every rebuild, so TCC re-asks), and macOS forbids
+  # synthetic clicks on that dialog — so an operator may need to click Allow
+  # before warm-up can finish and the document window appears. See
+  # docs/bugs/.../qa-capture-mic-permission-workaround.
+  local deadline=$((SECONDS + 45))
   local title=""
   while [ "$SECONDS" -lt "$deadline" ]; do
     title="$(window_json "$pid" | jq -r '.data.windows[0].window_title // ""')"
