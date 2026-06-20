@@ -71,78 +71,120 @@ struct AudioEffectChoice: Codable, Equatable, Hashable, Identifiable, Sendable {
     }
 }
 
-final class AudioEffectChoiceCache {
+class AudioEffectChoiceCache {
     static let shared = AudioEffectChoiceCache()
 
-    private let lock = NSLock()
-    private let semaphore = DispatchSemaphore(value: 0)
-    private let maxWaiters = 64
+    private let condition = NSCondition()
     private var cacheState: CacheState = .idle
 
     private enum CacheState {
         case idle
-        case warming
+        case warming(previous: [AudioEffectChoice]?)
         case ready([AudioEffectChoice])
     }
 
     func beginWarmingIfNeeded() {
-        lock.lock()
+        condition.lock()
         guard case .idle = cacheState else {
-            lock.unlock()
+            condition.unlock()
             return
         }
-        cacheState = .warming
-        lock.unlock()
+        cacheState = .warming(previous: nil)
+        condition.unlock()
 
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             guard let self else { return }
-            let choices = self.performScan()
-            self.lock.lock()
-            self.cacheState = .ready(choices)
-            self.lock.unlock()
-            for _ in 0..<self.maxWaiters {
-                self.semaphore.signal()
-            }
+            self.completeScan(self.performScan())
+        }
+    }
+
+    /// Start a refresh on a background queue. Returns `false` if a warm/rescan is already
+    /// running, making repeated button presses cheap and safe.
+    @discardableResult
+    func beginRescanIfNeeded() -> Bool {
+        condition.lock()
+        let previousChoices: [AudioEffectChoice]?
+        switch cacheState {
+        case .warming:
+            condition.unlock()
+            return false
+        case .idle:
+            previousChoices = nil
+        case let .ready(choices):
+            previousChoices = choices
+        }
+        cacheState = .warming(previous: previousChoices)
+        condition.unlock()
+
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self else { return }
+            self.completeScan(self.performScan())
+        }
+        return true
+    }
+
+    /// Force a refresh on the caller's thread, waiting for any in-flight scan to finish
+    /// first. Intended for off-main rescan coordinators and deterministic tests.
+    func rescanChoices() -> [AudioEffectChoice] {
+        condition.lock()
+        while case .warming = cacheState {
+            condition.wait()
+        }
+
+        let previousChoices: [AudioEffectChoice]?
+        switch cacheState {
+        case .idle:
+            previousChoices = nil
+        case let .ready(choices):
+            previousChoices = choices
+        case .warming:
+            previousChoices = nil
+        }
+        cacheState = .warming(previous: previousChoices)
+        condition.unlock()
+
+        let choices = performScan()
+        completeScan(choices)
+        return choices
+    }
+
+    /// Non-blocking snapshot for UI redraws while a rescan is running.
+    var currentChoicesIfAvailable: [AudioEffectChoice]? {
+        condition.lock()
+        defer { condition.unlock() }
+        switch cacheState {
+        case .idle:
+            return nil
+        case let .warming(previous):
+            return previous
+        case let .ready(choices):
+            return choices
         }
     }
 
     var cachedChoices: [AudioEffectChoice] {
-        lock.lock()
-        if case let .ready(choices) = cacheState {
-            lock.unlock()
+        condition.lock()
+        switch cacheState {
+        case let .ready(choices):
+            condition.unlock()
             return choices
-        }
-
-        let wasIdle: Bool
-        if case .idle = cacheState {
-            wasIdle = true
-            cacheState = .warming
-        } else {
-            wasIdle = false
-        }
-        lock.unlock()
-
-        if wasIdle {
+        case .idle:
+            cacheState = .warming(previous: nil)
+            condition.unlock()
             let choices = performScan()
-            lock.lock()
-            cacheState = .ready(choices)
-            lock.unlock()
-            for _ in 0..<maxWaiters {
-                semaphore.signal()
+            completeScan(choices)
+            return choices
+        case .warming:
+            while case .warming = cacheState {
+                condition.wait()
             }
-            return choices
+            if case let .ready(choices) = cacheState {
+                condition.unlock()
+                return choices
+            }
+            condition.unlock()
+            return []
         }
-
-        semaphore.wait()
-        semaphore.signal()
-
-        lock.lock()
-        if case let .ready(choices) = cacheState {
-            lock.unlock()
-            return choices
-        }
-        lock.unlock()
-        return []
     }
 
     func performScan() -> [AudioEffectChoice] {
@@ -175,5 +217,12 @@ final class AudioEffectChoiceCache {
         return Array(Set(choices)).sorted {
             $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending
         }
+    }
+
+    private func completeScan(_ choices: [AudioEffectChoice]) {
+        condition.lock()
+        cacheState = .ready(choices)
+        condition.broadcast()
+        condition.unlock()
     }
 }

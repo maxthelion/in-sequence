@@ -15,22 +15,56 @@ final class AudioInstrumentChoicesCacheTests: XCTestCase {
     /// Subclass that replaces the actual AVAudioUnitComponentManager scan with a controlled
     /// stub so tests run fast and deterministically.
     private final class FakeCache: AudioInstrumentChoiceCache {
-        let stubbedResult: [AudioInstrumentChoice]
-        private(set) var scanCallCount = 0
+        private var stubbedResults: [[AudioInstrumentChoice]]
+        private let lock = NSLock()
         private let scanDelay: TimeInterval
 
         init(stubbedResult: [AudioInstrumentChoice], scanDelay: TimeInterval = 0) {
-            self.stubbedResult = stubbedResult
+            self.stubbedResults = [stubbedResult]
+            self.scanDelay = scanDelay
+        }
+
+        init(stubbedResults: [[AudioInstrumentChoice]], scanDelay: TimeInterval = 0) {
+            self.stubbedResults = stubbedResults
             self.scanDelay = scanDelay
         }
 
         override func performScan() -> [AudioInstrumentChoice] {
-            scanCallCount += 1
             if scanDelay > 0 {
                 Thread.sleep(forTimeInterval: scanDelay)
             }
-            return stubbedResult
+            lock.lock()
+            defer { lock.unlock() }
+            let index = min(scanCallCount, max(0, stubbedResults.count - 1))
+            scanCallCount += 1
+            return stubbedResults[index]
         }
+
+        private(set) var scanCallCount = 0
+    }
+
+    private final class FakeEffectCache: AudioEffectChoiceCache {
+        private var stubbedResults: [[AudioEffectChoice]]
+        private let lock = NSLock()
+        private let scanDelay: TimeInterval
+
+        init(stubbedResults: [[AudioEffectChoice]], scanDelay: TimeInterval = 0) {
+            self.stubbedResults = stubbedResults
+            self.scanDelay = scanDelay
+        }
+
+        override func performScan() -> [AudioEffectChoice] {
+            if scanDelay > 0 {
+                Thread.sleep(forTimeInterval: scanDelay)
+            }
+            lock.lock()
+            defer { lock.unlock() }
+            let index = min(scanCallCount, max(0, stubbedResults.count - 1))
+            scanCallCount += 1
+            return stubbedResults[index]
+        }
+
+        private(set) var scanCallCount = 0
     }
 
     // MARK: - Single-scan assertion
@@ -107,6 +141,63 @@ final class AudioInstrumentChoicesCacheTests: XCTestCase {
         XCTAssertEqual(cache.scanCallCount, 1, "Multiple beginWarmingIfNeeded calls must not trigger multiple scans")
     }
 
+    // MARK: - Runtime rescan
+
+    func test_rescanChoices_replacesCachedInstrumentChoices() {
+        let first = AudioInstrumentChoice.builtInSynth
+        let second = AudioInstrumentChoice.testInstrument
+        let cache = FakeCache(stubbedResults: [[first], [first, second]])
+
+        XCTAssertEqual(cache.cachedChoices, [first])
+
+        XCTAssertEqual(cache.rescanChoices(), [first, second])
+        XCTAssertEqual(cache.cachedChoices, [first, second])
+        XCTAssertEqual(cache.scanCallCount, 2, "Rescan must perform exactly one fresh scan")
+    }
+
+    func test_beginRescanIfNeeded_keepsPreviousInstrumentChoicesAvailableWhileScanning() {
+        let first = AudioInstrumentChoice.builtInSynth
+        let second = AudioInstrumentChoice.testInstrument
+        let cache = FakeCache(stubbedResults: [[first], [first, second]], scanDelay: 0.05)
+
+        XCTAssertEqual(cache.cachedChoices, [first])
+        XCTAssertTrue(cache.beginRescanIfNeeded())
+        XCTAssertEqual(cache.currentChoicesIfAvailable, [first])
+        XCTAssertFalse(cache.beginRescanIfNeeded(), "Repeated rescan requests during a scan should be cheap no-ops")
+
+        XCTAssertEqual(cache.cachedChoices, [first, second])
+        XCTAssertEqual(cache.scanCallCount, 2)
+    }
+
+    func test_rescanChoices_replacesCachedEffectChoicesAndPreservesLargeLists() {
+        let first = [Self.effectChoice(named: "Alpha", subtype: 1)]
+        let rescanned = (0..<24).map { index in
+            Self.effectChoice(named: String(format: "Effect %02d", index), subtype: UInt32(index + 10))
+        }
+        let cache = FakeEffectCache(stubbedResults: [first, rescanned])
+
+        XCTAssertEqual(cache.cachedChoices, first)
+
+        XCTAssertEqual(cache.rescanChoices(), rescanned)
+        XCTAssertEqual(cache.cachedChoices.count, 24)
+        XCTAssertEqual(cache.cachedChoices.last?.name, "Effect 23")
+        XCTAssertEqual(cache.scanCallCount, 2)
+    }
+
+    func test_beginRescanIfNeeded_keepsPreviousEffectChoicesAvailableWhileScanning() {
+        let first = [Self.effectChoice(named: "Alpha", subtype: 1)]
+        let second = first + [Self.effectChoice(named: "Beta", subtype: 2)]
+        let cache = FakeEffectCache(stubbedResults: [first, second], scanDelay: 0.05)
+
+        XCTAssertEqual(cache.cachedChoices, first)
+        XCTAssertTrue(cache.beginRescanIfNeeded())
+        XCTAssertEqual(cache.currentChoicesIfAvailable, first)
+        XCTAssertFalse(cache.beginRescanIfNeeded())
+
+        XCTAssertEqual(cache.cachedChoices, second)
+        XCTAssertEqual(cache.scanCallCount, 2)
+    }
+
     // MARK: - defaultChoices round-trip (shared singleton)
 
     func test_defaultChoices_containsBuiltInSynth() {
@@ -124,5 +215,15 @@ final class AudioInstrumentChoicesCacheTests: XCTestCase {
         let elapsed = Date().timeIntervalSince(start)
 
         XCTAssertLessThan(elapsed, 0.001, "Cached read must complete in under 1 ms (got \(elapsed)s)")
+    }
+
+    private static func effectChoice(named name: String, subtype: UInt32) -> AudioEffectChoice {
+        AudioEffectChoice(
+            name: name,
+            manufacturerName: "Codex",
+            componentType: kAudioUnitType_Effect,
+            componentSubType: subtype,
+            componentManufacturer: 0x43445820
+        )
     }
 }

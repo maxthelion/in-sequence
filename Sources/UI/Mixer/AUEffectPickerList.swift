@@ -10,6 +10,7 @@ struct AUEffectPickerList<Row: View>: View {
     var maxHeight: CGFloat = 260
     @ViewBuilder var row: (AudioEffectChoice) -> Row
 
+    @Environment(EngineController.self) private var engineController
     @State private var query = ""
 
     private var filtered: [AudioEffectChoice] {
@@ -22,6 +23,8 @@ struct AUEffectPickerList<Row: View>: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
+            rescanHeader
+
             if effects.count > 8 {
                 StudioSearchBar(placeholder: "Search effects", text: $query)
             }
@@ -42,6 +45,28 @@ struct AUEffectPickerList<Row: View>: View {
                 .frame(maxHeight: maxHeight)
                 .scrollContentBackground(.hidden)
             }
+        }
+    }
+
+    private var rescanHeader: some View {
+        HStack(spacing: 10) {
+            Text(engineController.audioPluginChoiceScanState.displayText)
+                .studioText(.label)
+                .foregroundStyle(StudioTheme.mutedText)
+                .lineLimit(1)
+
+            Spacer(minLength: 8)
+
+            Button {
+                engineController.rescanAudioPluginChoices()
+            } label: {
+                Label("Rescan", systemImage: "arrow.clockwise")
+                    .studioText(.labelBold)
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(StudioTheme.violet)
+            .disabled(engineController.audioPluginChoiceScanState.isScanning)
+            .opacity(engineController.audioPluginChoiceScanState.isScanning ? 0.5 : 1)
         }
     }
 }
