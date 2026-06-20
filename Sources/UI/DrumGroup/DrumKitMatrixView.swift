@@ -457,10 +457,6 @@ struct DrumKitMatrixView: View {
     @ViewBuilder
     func kitBody(_ model: DrumKitMatrixModel) -> some View {
         VStack(alignment: .leading, spacing: 14) {
-            if !model.rows.isEmpty {
-                persistentPatternsRow(model)
-            }
-
             if isCaptureOpen {
                 captureHistoryBody(model)
             } else {
@@ -470,30 +466,17 @@ struct DrumKitMatrixView: View {
         }
     }
 
-    /// Persistent Patterns row, framed as its own panel so it reads as a fixed
-    /// assignment surface above the tab bar (AC12).
-    func persistentPatternsRow(_ model: DrumKitMatrixModel) -> some View {
-        StudioPanel(title: "Patterns", accent: accent, showsHeader: false) {
-            groupPatternRow(model)
-        }
-    }
-
     /// Matrix · FX · Macros · Mixer (AC13). Hidden while Capture is open.
+    /// Styled to match the normal-track segmented tab bar
+    /// (`TrackSourceSlotWellTabBar`): each tab is a neutral-filled pill with an
+    /// uppercase eyebrow label and an accent underline + ghost-stroke when
+    /// selected, so the kit surface reads with the same grammar as a track.
     var kitTabBar: some View {
         HStack(spacing: 4) {
             ForEach(DrumKitTab.allCases) { tab in
                 kitTabButton(tab)
             }
         }
-        .padding(3)
-        .background(
-            Color.white.opacity(StudioOpacity.subtleFill),
-            in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-                .stroke(StudioTheme.border.opacity(0.9), lineWidth: StudioMetrics.borderWidth)
-        )
     }
 
     func kitTabButton(_ tab: DrumKitTab) -> some View {
@@ -501,16 +484,38 @@ struct DrumKitMatrixView: View {
         return Button {
             kitTab = tab
         } label: {
-            Text(tab.title)
-                .studioText(.labelBold)
-                .foregroundStyle(isSelected ? StudioTheme.background : StudioTheme.text.opacity(0.78))
-                .lineLimit(1)
-                .frame(minWidth: 72, minHeight: 30)
-                .padding(.horizontal, 10)
-                .background(
-                    isSelected ? accent : Color.clear,
-                    in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
-                )
+            VStack(spacing: 0) {
+                HStack(alignment: .center, spacing: 8) {
+                    Text(tab.title.uppercased())
+                        .studioText(.eyebrowBold)
+                        .foregroundStyle(isSelected ? StudioTheme.text : StudioTheme.mutedText)
+                        .tracking(0.8)
+
+                    Spacer(minLength: 0)
+                }
+                .padding(.vertical, 10)
+                .padding(.horizontal, 12)
+
+                Rectangle()
+                    .fill(isSelected ? accent : Color.clear)
+                    .frame(height: 2)
+            }
+            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+            // Colour identifies, it never floods (ux-canon rule 12): the
+            // selected tab keeps the neutral fill; its accent lives in the
+            // outline and underline. Matches TrackSourceSlotWellTabBar.
+            .background(
+                Color.white.opacity(StudioOpacity.subtleFill),
+                in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                    .stroke(
+                        isSelected ? accent.opacity(StudioOpacity.ghostStroke) : StudioTheme.border,
+                        lineWidth: isSelected ? 1.5 : 1
+                    )
+            )
+            .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("kit-tab-\(tab.rawValue)")

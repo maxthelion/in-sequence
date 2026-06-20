@@ -1,0 +1,6 @@
+we're wasting too much vertical space at the top. Put the patterns in the top box. remove the subtext below the kit name. Remove the line with group pattern in. We'll make the current version only allow kit patterns, not patterns per part. That makes those pills redundant. The matrxi, fx etc should use a common element from the other kinds of tracks so that they look the same.
+
+Screenshots:
+- 29-drum-kit-matrix.png
+
+RESOLVED 2026-06-20: Removed the "N parts · 16 steps/bar" subtext under the kit name (DrumKitMatrixView+Header.swift). Removed the standalone GROUP PATTERN row including the Linked/Unlinked toggle, MIXED badge, and Re-link button (kit now only supports kit-level patterns), and moved the 1-16 pattern pill palette up into the header box beneath the title + Routing/Capture/Perform row (DrumKitMatrixView+Header.swift headerPatternPalette; removed groupPatternRow/linkToggle/mixedBadge/reLinkButton from DrumKitMatrixView+Matrix.swift; removed persistentPatternsRow from DrumKitMatrixView.swift). Restyled the Matrix/FX/Macros/Mixer kit tab bar to match the normal-track segmented control grammar from TrackSourceSlotWellTabBar (full-width neutral-fill pills, uppercase eyebrow label, accent underline + ghost-stroke when selected). Behavior preserved; verified in 29-drum-kit-matrix.png.

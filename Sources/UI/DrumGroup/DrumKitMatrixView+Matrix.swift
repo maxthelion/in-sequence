@@ -1,116 +1,14 @@
 import SwiftUI
 
-// Matrix-tab content for the kit matrix: the group pattern row (link toggle,
-// mixed/re-link badges, slot palette), the layer selector, mismatch/stale/empty
-// states, and the matrix rows list + accordion toggle. Split out of
-// DrumKitMatrixView.swift as an extension; zero behavior change.
+// Matrix-tab content for the kit matrix: the kit-level pattern slot binding
+// (the pills themselves now live in the header box), the layer selector,
+// mismatch/stale/empty states, and the matrix rows list + accordion toggle.
+// Split out of DrumKitMatrixView.swift as an extension.
 
 extension DrumKitMatrixView {
-    /// Group-level 1–16 pattern row, styled like a track's pattern selector.
-    /// Selecting slot N fans the existing per-track pattern switch out to
-    /// every member; a mixed state (no selected slot) renders when members
-    /// diverge, and selecting any slot realigns them.
-    func groupPatternRow(_ model: DrumKitMatrixModel) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 8) {
-                Text("GROUP PATTERN")
-                    .studioText(.eyebrow)
-                    .tracking(0.8)
-                    .foregroundStyle(StudioTheme.mutedText)
-
-                linkToggle(model)
-
-                if model.isLinkBroken {
-                    mixedBadge
-                    reLinkButton
-                } else if model.groupSelectedSlotIndex == nil && model.rows.count > 1 {
-                    mixedBadge
-                }
-
-                Spacer(minLength: 0)
-            }
-
-            TrackPatternSlotPalette(
-                selectedSlot: groupPatternSlotBinding(model),
-                occupiedSlots: model.occupiedSlotIndexes,
-                bypassState: .notApplicable,
-                onBypassToggle: { _ in }
-            )
-        }
-    }
-
-    /// Explicit pattern-link toggle (AC17). Linked ⛓ gangs slot selection only;
-    /// mute/fill/macros stay per-part. The pill reflects and flips the group's
-    /// persisted `isPatternLinked`.
-    func linkToggle(_ model: DrumKitMatrixModel) -> some View {
-        let linked = model.isPatternLinked
-        let title = linked ? "Linked" : "Unlinked"
-        let symbol = linked ? "link" : "link.badge.plus"
-        return Button {
-            session.setDrumGroupPatternLinked(!linked, groupID: navigationState.groupID)
-        } label: {
-            HStack(spacing: 5) {
-                Image(systemName: symbol)
-                    .font(.system(size: 10, weight: .bold))
-                Text(title)
-                    .studioText(.microEmphasis)
-                    .tracking(0.6)
-            }
-            .foregroundStyle(linked ? StudioTheme.background : StudioTheme.text)
-            .padding(.horizontal, 9)
-            .padding(.vertical, 4)
-            .background(
-                linked ? accent : Color.white.opacity(StudioOpacity.subtleFill),
-                in: Capsule()
-            )
-            .overlay(
-                Capsule().stroke(linked ? Color.clear : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
-            )
-        }
-        .buttonStyle(.plain)
-        .help(linked
-            ? "Linked: selecting a group pattern switches every part to that slot. Mute, fill, and macros stay per-part."
-            : "Unlinked: each part keeps its own pattern slot.")
-        .accessibilityIdentifier("kit-link-toggle")
-        .accessibilityLabel("Pattern linking")
-        .accessibilityValue(linked ? "Linked" : "Unlinked")
-    }
-
-    var mixedBadge: some View {
-        Text("MIXED")
-            .studioText(.microEmphasis)
-            .tracking(0.6)
-            .foregroundStyle(StudioTheme.background)
-            .padding(.horizontal, 7)
-            .padding(.vertical, 3)
-            .background(StudioTheme.amber, in: Capsule())
-            .help("Members are on different pattern slots. Re-link realigns every part.")
-    }
-
-    /// One-click re-link (AC20). Re-gangs every member to the representative
-    /// slot and restores the link; no modal, no pattern fork.
-    var reLinkButton: some View {
-        Button {
-            session.reLinkDrumGroupPattern(groupID: navigationState.groupID)
-        } label: {
-            HStack(spacing: 5) {
-                Image(systemName: "arrow.triangle.merge")
-                    .font(.system(size: 10, weight: .bold))
-                Text("Re-link")
-                    .studioText(.microEmphasis)
-                    .tracking(0.6)
-            }
-            .foregroundStyle(StudioTheme.background)
-            .padding(.horizontal, 9)
-            .padding(.vertical, 4)
-            .background(accent, in: Capsule())
-        }
-        .buttonStyle(.plain)
-        .help("Re-link: switch every part back to a shared pattern slot.")
-        .accessibilityIdentifier("kit-relink")
-        .accessibilityLabel("Re-link kit patterns")
-    }
-
+    /// Kit-level 1–16 pattern slot binding. Selecting slot N applies that
+    /// pattern across the whole kit (the kit supports only kit-level patterns).
+    /// The pills are rendered in the header box (`headerPatternPalette`).
     func groupPatternSlotBinding(_ model: DrumKitMatrixModel) -> Binding<Int> {
         Binding(
             get: { model.groupSelectedSlotIndex ?? -1 },

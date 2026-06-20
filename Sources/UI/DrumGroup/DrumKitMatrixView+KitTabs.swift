@@ -13,7 +13,7 @@ extension DrumKitMatrixView {
     /// (`MixerBusInsert`) + session mutations (`addMixerBusInsert` etc.).
     @ViewBuilder
     func kitFXTabBody(_ model: DrumKitMatrixModel) -> some View {
-        StudioPanel(title: "Kit FX", eyebrow: kitFXEyebrow(model), accent: accent) {
+        StudioPanel(title: "Kit FX", accent: accent, showsHeader: false) {
             if let bus = kitBus(model) {
                 KitBusFXChainView(
                     busID: bus.id,
@@ -36,13 +36,6 @@ extension DrumKitMatrixView {
                 kitBusUnavailableState
             }
         }
-    }
-
-    func kitFXEyebrow(_ model: DrumKitMatrixModel) -> String {
-        if let bus = kitBus(model) {
-            return "Insert chain on \(bus.name) (whole kit)"
-        }
-        return "Kit bus unavailable"
     }
 
     /// `List.onMove` gives index-based moves; the bus session API reorders by an
@@ -152,7 +145,7 @@ extension DrumKitMatrixView {
     /// default mappings but do not yet drive every part — see report.
     @ViewBuilder
     func kitMacrosTabBody(_ model: DrumKitMatrixModel) -> some View {
-        StudioPanel(title: "Kit Macros", eyebrow: "M1–M8 across the whole kit / its bus", accent: accent) {
+        StudioPanel(title: "Kit Macros", accent: accent, showsHeader: false) {
             VStack(alignment: .leading, spacing: 12) {
                 kitNotYetFunctionalBadge("Kit-wide macro sweeps coming soon")
 
@@ -220,7 +213,7 @@ extension DrumKitMatrixView {
     /// from the global Mixer — see report for what is real vs summarized.
     @ViewBuilder
     func kitMixerTabBody(_ model: DrumKitMatrixModel) -> some View {
-        StudioPanel(title: "Kit Mixer", eyebrow: "Bus output + per-part levels", accent: accent) {
+        StudioPanel(title: "Kit Mixer", accent: accent, showsHeader: false) {
             VStack(alignment: .leading, spacing: 14) {
                 kitBusOutputRow(model)
 

@@ -6,26 +6,26 @@ import SwiftUI
 
 extension DrumKitMatrixView {
     var header: some View {
-        HStack(alignment: .center, spacing: 12) {
-            if showsBackButton {
-                Button {
-                    onBack()
-                } label: {
-                    Label("Back", systemImage: "chevron.left")
-                        .studioText(.labelBold)
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .center, spacing: 12) {
+                if showsBackButton {
+                    Button {
+                        onBack()
+                    } label: {
+                        Label("Back", systemImage: "chevron.left")
+                            .studioText(.labelBold)
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(StudioTheme.text)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 7)
+                    .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                            .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+                    )
                 }
-                .buttonStyle(.plain)
-                .foregroundStyle(StudioTheme.text)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 7)
-                .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                        .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
-                )
-            }
 
-            VStack(alignment: .leading, spacing: 5) {
                 HStack(spacing: 8) {
                     Circle()
                         .fill(accent)
@@ -36,27 +36,39 @@ extension DrumKitMatrixView {
                         .lineLimit(1)
                         .truncationMode(.tail)
                 }
+                .frame(minWidth: 180, maxWidth: .infinity, alignment: .leading)
 
-                Text("\(model?.memberCountLabel ?? "No parts") · 16 steps/bar")
-                    .studioText(.eyebrowBold)
-                    .foregroundStyle(StudioTheme.mutedText)
+                headerSecondaryButton(title: "Routing", systemImage: "slider.horizontal.3") {
+                    isPresentingRoutingEditor = true
+                }
+                .help("Edit the kit's trigger routing and destinations")
+
+                captureButton
+
+                performButton
             }
-            .frame(minWidth: 180, maxWidth: .infinity, alignment: .leading)
 
-            headerSecondaryButton(title: "Routing", systemImage: "slider.horizontal.3") {
-                isPresentingRoutingEditor = true
+            if let model, !model.rows.isEmpty {
+                headerPatternPalette(model)
             }
-            .help("Edit the kit's trigger routing and destinations")
-
-            captureButton
-
-            performButton
         }
         .padding(StudioMetrics.Spacing.standard)
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.section, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.section, style: .continuous)
                 .stroke(accent.opacity(StudioOpacity.hoverFill), lineWidth: StudioMetrics.borderWidth)
+        )
+    }
+
+    /// The 1–16 kit-level pattern pills, now living inside the header box. The
+    /// kit supports only KIT-level patterns, so the former Linked / MIXED /
+    /// Re-link controls are gone — selecting a slot applies it across the kit.
+    func headerPatternPalette(_ model: DrumKitMatrixModel) -> some View {
+        TrackPatternSlotPalette(
+            selectedSlot: groupPatternSlotBinding(model),
+            occupiedSlots: model.occupiedSlotIndexes,
+            bypassState: .notApplicable,
+            onBypassToggle: { _ in }
         )
     }
 
