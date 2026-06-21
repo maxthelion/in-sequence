@@ -384,6 +384,7 @@
 		B6863061684526E1768461AF /* SequencerDocumentSessionRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A722A3FE340A068B514DB7E /* SequencerDocumentSessionRegistry.swift */; };
 		B71F8D067ABCCFB699A3DEB6 /* OfflineRenderHarness.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0106D90C2A84332F0CA02A91 /* OfflineRenderHarness.swift */; };
 		B881B8D0AB773876DB47639B /* InsertChainComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9861C444DE75DD989268D69D /* InsertChainComponents.swift */; };
+		B927D6F5540DAAA2EACE4F9F /* InsertKindShape.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2438B744373D8C903E8CF1AF /* InsertKindShape.swift */; };
 		BA8016BC55D62287FBAA7C39 /* AVAudioPCMBuffer+PlaybackConversion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4CFAB8C28D29758AD8AF801D /* AVAudioPCMBuffer+PlaybackConversion.swift */; };
 		BACEF904A3AEB81E5BC505E7 /* ClipContentEmptyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D69E7F5964479E254C64568 /* ClipContentEmptyTests.swift */; };
 		BB947DA359F8C31D1D0BA211 /* EngineControllerMixSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD628474D98791125F6842D6 /* EngineControllerMixSync.swift */; };
@@ -765,6 +766,7 @@
 		23F9EB8F54530FD81E909628 /* PhrasePerformOverlaySessionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhrasePerformOverlaySessionTests.swift; sourceTree = "<group>"; };
 		240116D6A88D916F1275FF66 /* implementation-handoff.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "implementation-handoff.md"; sourceTree = "<group>"; };
 		240EB58BDF7EDC5685169AC1 /* ObjCExceptionCatcher.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ObjCExceptionCatcher.h; sourceTree = "<group>"; };
+		2438B744373D8C903E8CF1AF /* InsertKindShape.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsertKindShape.swift; sourceTree = "<group>"; };
 		245D1344E88E3642D44E1C65 /* 2026-06-17-phrase-layer-cell-shape.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2026-06-17-phrase-layer-cell-shape.md"; sourceTree = "<group>"; };
 		247067E067F71AC913F2A175 /* existing-state.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "existing-state.md"; sourceTree = "<group>"; };
 		2484905540BDFD1A4F53DE62 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
@@ -2299,6 +2301,7 @@
 				7D10F32D6AB1943E3EDBF18B /* ChannelMeterBank.swift */,
 				E68B29D1143C97E47A672605 /* DrumAssetLibrary.swift */,
 				B31D0DA4C6322285F73C2665 /* FullStateCoder.swift */,
+				2438B744373D8C903E8CF1AF /* InsertKindShape.swift */,
 				41D81554158C1EFFC86D6C21 /* MainAudioGraph.swift */,
 				C73AB53718A449F72E8E8AE5 /* MasterBusHost.swift */,
 				65B54A9AEBA9C055A2F6E0B8 /* MixerBusHost.swift */,
@@ -6260,6 +6263,7 @@
 				65B174285FFD41552F62BFF0 /* GlobalApplyLayerCard.swift in Sources */,
 				48BD197D4D71219D62370DF4 /* GridEditor.swift in Sources */,
 				B881B8D0AB773876DB47639B /* InsertChainComponents.swift in Sources */,
+				B927D6F5540DAAA2EACE4F9F /* InsertKindShape.swift in Sources */,
 				295A4BEED435806DC5E40E53 /* InspectorView.swift in Sources */,
 				F2B4A813EAAF9E42D8BCA581 /* KitBusFXChainView.swift in Sources */,
 				867B3BFA293DB32F9C69AC3F /* LayerSnapshot.swift in Sources */,

@@ -24,12 +24,6 @@ final class MixerBusHost {
         let kind: InsertKindShape
     }
 
-    private enum InsertKindShape: Equatable {
-        case nativeFilter
-        case nativeBitcrusher
-        case auEffect(componentID: AudioComponentID, stateBlob: Data?)
-    }
-
     private struct CachedAUEffect {
         let componentID: AudioComponentID
         let stateBlob: Data?
@@ -296,20 +290,9 @@ final class MixerBusHost {
                 if let insertIDs, !insertIDs.contains(insert.id) {
                     return nil
                 }
-                return InsertShape(id: insert.id, kind: insertKindShape(for: insert.kind))
+                return InsertShape(id: insert.id, kind: InsertKindShape.make(for: insert.kind))
             }
         )
-    }
-
-    private static func insertKindShape(for kind: MasterBusInsertKind) -> InsertKindShape {
-        switch kind {
-        case .nativeFilter:
-            return .nativeFilter
-        case .nativeBitcrusher:
-            return .nativeBitcrusher
-        case let .auEffect(componentID, stateBlob):
-            return .auEffect(componentID: componentID, stateBlob: stateBlob)
-        }
     }
 
 }
@@ -332,12 +315,6 @@ final class SendBusHost {
     private struct InsertShape: Equatable {
         let id: UUID
         let kind: InsertKindShape
-    }
-
-    private enum InsertKindShape: Equatable {
-        case nativeFilter
-        case nativeBitcrusher
-        case auEffect(componentID: AudioComponentID, stateBlob: Data?)
     }
 
     private struct CachedAUEffect {
@@ -573,20 +550,9 @@ final class SendBusHost {
                 if let insertIDs, !insertIDs.contains(insert.id) {
                     return nil
                 }
-                return InsertShape(id: insert.id, kind: insertKindShape(for: insert.kind))
+                return InsertShape(id: insert.id, kind: InsertKindShape.make(for: insert.kind))
             }
         )
-    }
-
-    private static func insertKindShape(for kind: MasterBusInsertKind) -> InsertKindShape {
-        switch kind {
-        case .nativeFilter:
-            return .nativeFilter
-        case .nativeBitcrusher:
-            return .nativeBitcrusher
-        case let .auEffect(componentID, stateBlob):
-            return .auEffect(componentID: componentID, stateBlob: stateBlob)
-        }
     }
 }
 
