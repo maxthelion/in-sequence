@@ -466,26 +466,6 @@ final class DrumKitMatrixEditingTests: XCTestCase {
         XCTAssertEqual(matrixModel(session, groupID: groupID)?.isPatternLinked, true)
     }
 
-    func test_linkToggle_flipsExplicitFlag_andGangsSlotSelection() throws {
-        let (session, _) = makeSession()
-        let groupID = makeDrumGroup(in: session)
-        let memberIDs = try XCTUnwrap(
-            session.store.trackGroups.first(where: { $0.id == groupID })?.memberIDs
-        )
-
-        session.setDrumGroupPatternLinked(false, groupID: groupID)
-        XCTAssertEqual(session.store.trackGroups.first(where: { $0.id == groupID })?.isPatternLinked, false)
-        session.setDrumGroupPatternLinked(true, groupID: groupID)
-        XCTAssertEqual(session.store.trackGroups.first(where: { $0.id == groupID })?.isPatternLinked, true)
-
-        // While linked, selecting the group slot gangs every member together.
-        session.setDrumGroupSelectedPatternIndex(3, groupID: groupID)
-        let exported = session.store.exportToProject()
-        for memberID in memberIDs {
-            XCTAssertEqual(exported.selectedPatternIndex(for: memberID), 3)
-        }
-    }
-
     func test_linking_doesNotGangMute() throws {
         let (session, _) = makeSession()
         let groupID = makeDrumGroup(in: session)
@@ -536,30 +516,4 @@ final class DrumKitMatrixEditingTests: XCTestCase {
         XCTAssertFalse(after.isLinkBroken)
     }
 
-    func test_structuralDivergence_flipsToMixed_andRelinkRestores() throws {
-        let (session, _) = makeSession()
-        let groupID = makeDrumGroup(in: session)
-        let memberIDs = try XCTUnwrap(
-            session.store.trackGroups.first(where: { $0.id == groupID })?.memberIDs
-        )
-        XCTAssertEqual(matrixModel(session, groupID: groupID)?.isLinkBroken, false)
-
-        // Move one member to a different slot (structural divergence, AC20).
-        session.setSelectedPatternIndex(4, for: memberIDs[1])
-        let diverged = try XCTUnwrap(matrixModel(session, groupID: groupID))
-        XCTAssertTrue(diverged.isPatternLinked, "Intent stays linked")
-        XCTAssertNil(diverged.groupSelectedSlotIndex, "Members are mixed")
-        XCTAssertTrue(diverged.isLinkBroken, "Mixed while linked surfaces re-link")
-
-        // One-click re-link re-gangs everyone to the representative slot.
-        session.reLinkDrumGroupPattern(groupID: groupID)
-        let relinked = try XCTUnwrap(matrixModel(session, groupID: groupID))
-        XCTAssertFalse(relinked.isLinkBroken)
-        XCTAssertNotNil(relinked.groupSelectedSlotIndex)
-        let exported = session.store.exportToProject()
-        let representative = exported.selectedPatternIndex(for: memberIDs[0])
-        for memberID in memberIDs {
-            XCTAssertEqual(exported.selectedPatternIndex(for: memberID), representative)
-        }
-    }
 }

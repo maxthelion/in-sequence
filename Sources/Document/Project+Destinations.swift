@@ -246,37 +246,6 @@ extension Project {
         trackGroups[groupIndex].triggerMappingMode = mode
     }
 
-    /// Set a drum group's explicit pattern-slot link flag (AC17). Linking gangs
-    /// PATTERN SLOT SELECTION only — mute/fill/macros stay per-part — so this
-    /// only flips the flag; it does not touch any member's mute/fill/macros.
-    mutating func setDrumGroupPatternLinked(_ linked: Bool, groupID: TrackGroupID) {
-        guard let groupIndex = trackGroups.firstIndex(where: { $0.id == groupID }) else {
-            return
-        }
-        trackGroups[groupIndex].isPatternLinked = linked
-    }
-
-    /// Re-gang every resolved member to the group's representative pattern slot
-    /// (AC20 re-link). The representative slot is the first member's current
-    /// slot. Marks the group linked again. Touches pattern slot selection only.
-    mutating func reLinkDrumGroupPattern(groupID: TrackGroupID) {
-        guard let groupIndex = trackGroups.firstIndex(where: { $0.id == groupID }) else {
-            return
-        }
-        let group = trackGroups[groupIndex]
-        let trackIDs = Set(tracks.map(\.id))
-        let members = group.memberIDs.filter { trackIDs.contains($0) }
-        guard let representative = members.first else {
-            trackGroups[groupIndex].isPatternLinked = true
-            return
-        }
-        let targetSlot = selectedPatternIndex(for: representative)
-        for memberID in members {
-            setSelectedPatternIndex(targetSlot, for: memberID)
-        }
-        trackGroups[groupIndex].isPatternLinked = true
-    }
-
     mutating func setDrumGroupMemberNoteOffset(_ offset: Int, trackID: UUID) {
         guard let groupIndex = drumGroupIndex(containing: trackID) else {
             return

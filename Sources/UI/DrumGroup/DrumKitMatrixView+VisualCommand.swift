@@ -29,9 +29,6 @@ enum DrumKitVisualCommand: Equatable {
     case historyAuditionOff
     case historySaveOpen
     case historySaveClose
-    case linkOn
-    case linkOff
-    case relink
     case openKitFXChooser
     case closeKitFXChooser
     case tabMatrix
@@ -71,9 +68,6 @@ enum DrumKitVisualCommand: Equatable {
         case "history-audition-off": self = .historyAuditionOff
         case "history-save-open": self = .historySaveOpen
         case "history-save-close": self = .historySaveClose
-        case "link-on": self = .linkOn
-        case "link-off": self = .linkOff
-        case "relink": self = .relink
         case "open-kit-fx-chooser": self = .openKitFXChooser
         case "close-kit-fx-chooser": self = .closeKitFXChooser
         case "tab-matrix": self = .tabMatrix
@@ -162,12 +156,6 @@ extension DrumKitMatrixView {
         case .historySaveClose:
             isPresentingSaveSlotPicker = false
             postRenderedVisualState(isVisible: true)
-        case .linkOn:
-            session.setDrumGroupPatternLinked(true, groupID: navigationState.groupID)
-        case .linkOff:
-            session.setDrumGroupPatternLinked(false, groupID: navigationState.groupID)
-        case .relink:
-            session.reLinkDrumGroupPattern(groupID: navigationState.groupID)
         case .openKitFXChooser:
             isPresentingKitFX = true
         case .closeKitFXChooser:
