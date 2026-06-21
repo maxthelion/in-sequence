@@ -259,12 +259,6 @@ struct SliceSamplePlayerParametersView: View {
             .overlay(StudioTheme.border.opacity(0.7))
     }
 
-    private var gainBinding: Binding<Double> { parameterBinding(\.gain) }
-    private var pitchBinding: Binding<Double> { parameterBinding(\.pitch) }
-    private var panBinding: Binding<Double> { parameterBinding(\.pan) }
-    private var filterBinding: Binding<Double> { parameterBinding(\.filter) }
-    private var attackBinding: Binding<Double> { parameterBinding(\.attackMs) }
-    private var releaseBinding: Binding<Double> { parameterBinding(\.releaseMs) }
     private var reverseBinding: Binding<Bool> { parameterBinding(\.reverse) }
     private var chokeBinding: Binding<Bool> { parameterBinding(\.choke) }
 
@@ -398,17 +392,6 @@ struct SliceSamplePlayerParametersView: View {
         var next = parameters
         next[keyPath: keyPath] = value
         parameters = next.clamped
-    }
-
-    private func parameterBinding(_ keyPath: WritableKeyPath<SliceTriggerStepParameters, Double>) -> Binding<Double> {
-        Binding(
-            get: { parameters[keyPath: keyPath] },
-            set: { value in
-                var next = parameters
-                next[keyPath: keyPath] = value
-                parameters = next.clamped
-            }
-        )
     }
 
     private func parameterBinding(_ keyPath: WritableKeyPath<SliceTriggerStepParameters, Bool>) -> Binding<Bool> {

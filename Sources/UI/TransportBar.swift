@@ -373,6 +373,12 @@ private struct TransportPhraseProgress: View {
     let phrase: PhraseModel?
 
     var body: some View {
+        // One presentation per render — this is a transport-tick-rate leaf, so
+        // make() ran up to 3× per frame when split across two computed props.
+        let progress = TransportPhraseProgressPresentation.make(
+            phrase: phrase,
+            transportTickIndex: engineController.transportTickIndex
+        )
         VStack(alignment: .leading, spacing: 3) {
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
@@ -381,32 +387,18 @@ private struct TransportPhraseProgress: View {
 
                     Capsule()
                         .fill(phrase == nil ? StudioTheme.border : StudioTheme.cyan)
-                        .frame(width: geo.size.width * progressFraction)
+                        .frame(width: geo.size.width * CGFloat(progress.fraction))
                 }
             }
             .frame(height: 4)
 
-            Text(progressLabel)
+            Text(progress.label)
                 .studioText(.micro)
                 .foregroundStyle(StudioTheme.mutedText)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
         }
-        .accessibilityLabel("Phrase progress \(progressLabel)")
-    }
-
-    private var progressFraction: CGFloat {
-        CGFloat(TransportPhraseProgressPresentation.make(
-            phrase: phrase,
-            transportTickIndex: engineController.transportTickIndex
-        ).fraction)
-    }
-
-    private var progressLabel: String {
-        TransportPhraseProgressPresentation.make(
-            phrase: phrase,
-            transportTickIndex: engineController.transportTickIndex
-        ).label
+        .accessibilityLabel("Phrase progress \(progress.label)")
     }
 }
 

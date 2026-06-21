@@ -999,16 +999,6 @@ struct SliceSamplerCard: View {
         return "\(sliceTitle) · \(length) frames"
     }
 
-    private var rangePreview: some View {
-        WaveformView(buckets: previewBuckets, fillColor: StudioTheme.success, inactiveColor: StudioTheme.border.opacity(0.6))
-            .frame(height: 60)
-            .padding(StudioMetrics.Spacing.snug)
-            .background(StudioTheme.inset, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip))
-            .overlay(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip).stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth))
-            .padding(.horizontal, StudioMetrics.Spacing.comfortable)
-            .padding(.vertical, StudioMetrics.Spacing.snug)
-    }
-
     private var previewBuckets: [Float] {
         guard !buckets.isEmpty, sampleLengthFrames > 0 else {
             return buckets

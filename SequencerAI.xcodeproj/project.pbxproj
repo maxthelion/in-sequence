@@ -495,7 +495,6 @@
 		F212013E190D3AF6E89C60D1 /* RenderHarnessDegradationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 530550F32C67DAA94570A274 /* RenderHarnessDegradationTests.swift */; };
 		F2873CBFB0F90A9D00B19847 /* AudioInstrumentChoice.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4976F7F2DD944611264495D /* AudioInstrumentChoice.swift */; };
 		F2B4A813EAAF9E42D8BCA581 /* KitBusFXChainView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC22CFF3119571D90A7473DA /* KitBusFXChainView.swift */; };
-		F2FBD3E86A5E42F4FE461F14 /* PerformOverviewDashboard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1270F0B450F98DEF2265F2F3 /* PerformOverviewDashboard.swift */; };
 		F33EBA199BD503315A15BD87 /* MasterBus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E0E42BEA92B81913A563DA5 /* MasterBus.swift */; };
 		F34499BE6738444F74917D0D /* StudioCards.swift in Sources */ = {isa = PBXBuildFile; fileRef = E98451F245050A603A25CAD1 /* StudioCards.swift */; };
 		F3BD3C15B233A27E35B0F202 /* SliceMarker.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8D6E8D88966A1807311AD39 /* SliceMarker.swift */; };
@@ -635,7 +634,6 @@
 		12009DF37212B76194BA1705 /* StepAlgo+Kind.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "StepAlgo+Kind.swift"; sourceTree = "<group>"; };
 		12194B131F506F10F78E9148 /* 01-track-detail-tabs.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = "01-track-detail-tabs.html"; sourceTree = "<group>"; };
 		124A0A4DC7678C1926EAA263 /* ContentView.swift.before */ = {isa = PBXFileReference; path = ContentView.swift.before; sourceTree = "<group>"; };
-		1270F0B450F98DEF2265F2F3 /* PerformOverviewDashboard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerformOverviewDashboard.swift; sourceTree = "<group>"; };
 		12884F0691848EE0C1D5A600 /* image-1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "image-1.png"; sourceTree = "<group>"; };
 		12FA43AD517AAAF3CFB8BE34 /* AudioInstrumentHostTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioInstrumentHostTests.swift; sourceTree = "<group>"; };
 		131F5E3D408582EC5C99AAC0 /* idle.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = idle.png; sourceTree = "<group>"; };
@@ -3087,7 +3085,6 @@
 		57AE0DDCD5DD94FE359565FE /* Track */ = {
 			isa = PBXGroup;
 			children = (
-				1270F0B450F98DEF2265F2F3 /* PerformOverviewDashboard.swift */,
 				529B74D4727B91834B2119EF /* PerformOverviewPresentation.swift */,
 				99F3A797BF18508361EAB829 /* TrackWorkspaceView.swift */,
 			);
@@ -5885,7 +5882,6 @@
 				544402EE9704A8ACB63D3BF8 /* PatternIndexPicker.swift in Sources */,
 				841478225B57227D72492096 /* PatternTemplate.swift in Sources */,
 				AB928CDF2F4DE1FF9086E978 /* PatternTemplateApplicationPreview.swift in Sources */,
-				F2FBD3E86A5E42F4FE461F14 /* PerformOverviewDashboard.swift in Sources */,
 				1038A2F4D51E896B20499961 /* PerformOverviewPresentation.swift in Sources */,
 				8EF1EC2FE92DF7792B953E0F /* PerformanceLayerSelector.swift in Sources */,
 				5307D66609EE825ED250EEE7 /* PhraseButtonControlPresentation.swift in Sources */,
