@@ -167,9 +167,12 @@ extension DrumKitMatrixView {
     /// visible 16-step window for every part row in lockstep.
     @ViewBuilder
     func barPager(_ model: DrumKitMatrixModel) -> some View {
-        let pageCount = barPageCount(model)
+        // Scan the rows for the longest length ONCE, then reuse it for both the
+        // page count and the clamped current page.
+        let longest = longestRowLength(model)
+        let pageCount = barPageCount(longestRowLength: longest)
         if pageCount > 1 {
-            let current = clampedPage(model)
+            let current = clampedPage(longestRowLength: longest)
             HStack(spacing: 6) {
                 Text("BAR")
                     .studioText(.eyebrow)

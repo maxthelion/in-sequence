@@ -21,14 +21,32 @@ extension DrumKitMatrixView {
     /// that writes each member's windowed selection into one coordinated set.
     @ViewBuilder
     func captureHistoryBody(_ model: DrumKitMatrixModel) -> some View {
-        StudioPanel(title: "Capture · History", accent: accent) {
+        // Snapshot every member's rolling buffer ONCE per render. Each
+        // `engineController.captureSnapshot(trackID:)` takes a lock and copies
+        // the buffer; the scrubber + each part row's three preview helpers used
+        // to call it 3–4× per part per render. Capturing here and threading the
+        // map down collapses that to one snapshot per member per render.
+        let snapshots = captureSnapshots(model)
+        return StudioPanel(title: "Capture · History", accent: accent) {
             VStack(alignment: .leading, spacing: 14) {
                 captureHistoryHeader(model)
-                captureHistoryScrubber(model)
-                captureHistoryParts(model)
+                captureHistoryScrubber(model, snapshots: snapshots)
+                captureHistoryParts(model, snapshots: snapshots)
                 captureHistoryFooter(model)
             }
         }
+    }
+
+    /// One snapshot per member, taken once per render and threaded down to the
+    /// scrubber and the per-part preview helpers so each member's rolling buffer
+    /// is locked + copied exactly once.
+    func captureSnapshots(_ model: DrumKitMatrixModel) -> [UUID: CaptureSnapshot] {
+        var snapshots: [UUID: CaptureSnapshot] = [:]
+        snapshots.reserveCapacity(model.rows.count)
+        for row in model.rows where snapshots[row.memberID] == nil {
+            snapshots[row.memberID] = engineController.captureSnapshot(trackID: row.memberID)
+        }
+        return snapshots
     }
 
     func captureHistoryHeader(_ model: DrumKitMatrixModel) -> some View {
@@ -134,8 +152,11 @@ extension DrumKitMatrixView {
     /// rolling buffer, » steps it toward now, and Live jumps to the newest
     /// window. The window position is shown ("live" vs "N back"). The same
     /// window applies to every member row in lockstep.
-    func captureHistoryScrubber(_ model: DrumKitMatrixModel) -> some View {
-        let maxBack = historyMaxBarsBack(model)
+    func captureHistoryScrubber(
+        _ model: DrumKitMatrixModel,
+        snapshots: [UUID: CaptureSnapshot]
+    ) -> some View {
+        let maxBack = historyMaxBarsBack(model, snapshots: snapshots)
         let back = min(historyBarsBack, maxBack)
         return HStack(spacing: 10) {
             Text("HISTORY")
@@ -227,7 +248,10 @@ extension DrumKitMatrixView {
     /// preview of what Save captures, distinct from the History scrubber above
     /// (which navigates the rolling buffer). Reuses the single-track
     /// `ClipHistoryPianoRollPreview` per part rather than a bespoke strip.
-    func captureHistoryParts(_ model: DrumKitMatrixModel) -> some View {
+    func captureHistoryParts(
+        _ model: DrumKitMatrixModel,
+        snapshots: [UUID: CaptureSnapshot]
+    ) -> some View {
         let targetSlot = historyTargetSlotIndex(model)
         let lengthLabel = ClipHistoryTransferViewModel.lengthLabel(for: historyLengthSteps)
         return VStack(alignment: .leading, spacing: 8) {
@@ -244,7 +268,10 @@ extension DrumKitMatrixView {
             ScrollView(.vertical) {
                 VStack(alignment: .leading, spacing: 8) {
                     ForEach(model.rows) { row in
-                        captureHistoryPartRow(row)
+                        captureHistoryPartRow(
+                            row,
+                            snapshot: snapshots[row.memberID]
+                        )
                     }
                 }
             }
@@ -256,8 +283,14 @@ extension DrumKitMatrixView {
     /// One part's longer-history row: the full rolling buffer drawn as a piano
     /// roll, with the length-defined save-window highlighted via the reused
     /// `ClipHistoryPianoRollPreview.selectionRange`.
-    func captureHistoryPartRow(_ row: DrumKitMatrixModel.Row) -> some View {
-        HStack(spacing: 10) {
+    func captureHistoryPartRow(
+        _ row: DrumKitMatrixModel.Row,
+        snapshot: CaptureSnapshot?
+    ) -> some View {
+        // One snapshot drives all three previews for this row (full buffer,
+        // grid step count, selection highlight) instead of three separate locks.
+        let snapshot = snapshot ?? engineController.captureSnapshot(trackID: row.memberID)
+        return HStack(spacing: 10) {
             Text(row.partName)
                 .studioText(.labelBold)
                 .foregroundStyle(StudioTheme.text)
@@ -266,12 +299,12 @@ extension DrumKitMatrixView {
                 .frame(width: 120, alignment: .leading)
 
             ClipHistoryPianoRollPreview(
-                content: historyFullBufferContent(memberID: row.memberID),
-                gridSteps: historyDisplayedGridSteps(memberID: row.memberID),
+                content: historyFullBufferContent(snapshot: snapshot, memberID: row.memberID),
+                gridSteps: historyDisplayedGridSteps(snapshot: snapshot),
                 liveFillStepIndex: nil,
                 accent: accent,
                 isTransportRunning: engineController.isRunning,
-                selectionRange: historySelectionRange(memberID: row.memberID)
+                selectionRange: historySelectionRange(snapshot: snapshot)
             )
             .frame(height: 56)
             .frame(maxWidth: .infinity)
@@ -379,9 +412,19 @@ extension DrumKitMatrixView {
     /// buffer — bounded by the shortest member snapshot so the window stays
     /// valid for EVERY part in lockstep.
     func historyMaxBarsBack(_ model: DrumKitMatrixModel) -> Int {
+        historyMaxBarsBack(model, snapshots: captureSnapshots(model))
+    }
+
+    /// Same as `historyMaxBarsBack(_:)` but reuses pre-taken snapshots so the
+    /// render path doesn't re-lock every member's buffer.
+    func historyMaxBarsBack(
+        _ model: DrumKitMatrixModel,
+        snapshots: [UUID: CaptureSnapshot]
+    ) -> Int {
         var minMaxSteps = Int.max
         for row in model.rows {
-            let snapshot = engineController.captureSnapshot(trackID: row.memberID)
+            let snapshot = snapshots[row.memberID]
+                ?? engineController.captureSnapshot(trackID: row.memberID)
             minMaxSteps = min(minMaxSteps, snapshot.maxSteps)
         }
         guard minMaxSteps != Int.max else { return 0 }
@@ -432,8 +475,7 @@ extension DrumKitMatrixView {
     /// The FULL displayed buffer for a member (the longer history), materialized
     /// against the tail of its rolling snapshot. Reuses `PseudoClipState`, the
     /// same materializer the windowed selection uses.
-    func historyFullBufferContent(memberID: UUID) -> ClipContent? {
-        let snapshot = engineController.captureSnapshot(trackID: memberID)
+    func historyFullBufferContent(snapshot: CaptureSnapshot, memberID: UUID) -> ClipContent? {
         guard !snapshot.isEmpty else { return nil }
         let displayed = historyDisplayedBufferSteps(maxSteps: snapshot.maxSteps)
         let bufferStart = max(0, snapshot.maxSteps - displayed)
@@ -448,8 +490,7 @@ extension DrumKitMatrixView {
     /// The save-window's step columns within the DISPLAYED buffer for a member:
     /// `[windowStart, windowStart + length)` re-based onto the shown buffer so
     /// the highlight lines up with `historyFullBufferContent`.
-    func historySelectionRange(memberID: UUID) -> Range<Int> {
-        let snapshot = engineController.captureSnapshot(trackID: memberID)
+    func historySelectionRange(snapshot: CaptureSnapshot) -> Range<Int> {
         guard !snapshot.isEmpty else { return 0..<historyLengthSteps }
         let displayed = historyDisplayedBufferSteps(maxSteps: snapshot.maxSteps)
         let bufferStart = max(0, snapshot.maxSteps - displayed)
@@ -460,8 +501,7 @@ extension DrumKitMatrixView {
     }
 
     /// Number of grid columns the full-buffer preview should draw for a member.
-    func historyDisplayedGridSteps(memberID: UUID) -> Int {
-        let snapshot = engineController.captureSnapshot(trackID: memberID)
+    func historyDisplayedGridSteps(snapshot: CaptureSnapshot) -> Int {
         guard !snapshot.isEmpty else { return historyLengthSteps }
         return historyDisplayedBufferSteps(maxSteps: snapshot.maxSteps)
     }

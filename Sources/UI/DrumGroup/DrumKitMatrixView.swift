@@ -234,8 +234,18 @@ struct DrumKitMatrixView: View {
         )
     }
 
+    /// The kit accent, derived straight from the group's stored color hex.
+    /// This intentionally does NOT build `DrumKitMatrixModel` — `colorHex` is a
+    /// verbatim copy of `group.color`, and `accent` is read ~37× per render, so
+    /// rebuilding the whole model (tracksByID dict + every member's note-grid
+    /// decode + occupiedSlotIndexes) just to read the color was pure waste.
+    /// When the group no longer resolves, `model` is also nil, so falling back
+    /// to `StudioTheme.success` matches the old `Color(hex: "") ?? success`.
     var accent: Color {
-        Color(hex: model?.colorHex ?? "") ?? StudioTheme.success
+        let hex = session.store.trackGroups
+            .first(where: { $0.id == navigationState.groupID })?
+            .color
+        return Color(hex: hex ?? "") ?? StudioTheme.success
     }
 
     /// The kit's own bus, resolved from its members' `outputBusID` (kits route
@@ -276,8 +286,15 @@ struct DrumKitMatrixView: View {
     /// Number of 16-step bar pages, at least one. Delegates the page math to
     /// the testable `DrumKitBarPaging` value type.
     func barPageCount(_ model: DrumKitMatrixModel) -> Int {
+        barPageCount(longestRowLength: longestRowLength(model))
+    }
+
+    /// Page count from a pre-computed longest-row length. Lets a caller compute
+    /// `longestRowLength` once per render and reuse it for both paging helpers
+    /// instead of re-scanning every row 3–4× per render.
+    func barPageCount(longestRowLength: Int) -> Int {
         DrumKitBarPaging.pageCount(
-            length: longestRowLength(model),
+            length: longestRowLength,
             stepsPerBar: Self.stepsPerBar
         )
     }
@@ -285,9 +302,14 @@ struct DrumKitMatrixView: View {
     /// `barPage` clamped to the valid range for the current model. Delegates the
     /// clamp to the testable `DrumKitBarPaging` value type.
     func clampedPage(_ model: DrumKitMatrixModel) -> Int {
+        clampedPage(longestRowLength: longestRowLength(model))
+    }
+
+    /// Clamped page from a pre-computed longest-row length (see `barPageCount`).
+    func clampedPage(longestRowLength: Int) -> Int {
         DrumKitBarPaging.clampedPage(
             barPage,
-            length: longestRowLength(model),
+            length: longestRowLength,
             stepsPerBar: Self.stepsPerBar
         )
     }
@@ -405,6 +427,11 @@ struct DrumKitMatrixView: View {
     }
 
     func postRenderedVisualState(isVisible: Bool) {
+        // Build the model once for this status snapshot (this runs on lifecycle/
+        // change callbacks, not the render path, but there is no reason to
+        // rebuild it for every field below).
+        let model = self.model
+        let longest = model.map(longestRowLength)
         let groupSlot = model?.groupSelectedSlotIndex
         let expandedIndex: Int? = {
             guard let model, let expandedPartID else { return nil }
@@ -421,8 +448,8 @@ struct DrumKitMatrixView: View {
             routingEditorVisible: isVisible && isPresentingRoutingEditor,
             templateChooserVisible: isVisible && isPresentingTemplateChooser,
             displayStepCount: Self.stepsPerBar,
-            barPage: isVisible ? (model.map(clampedPage) ?? 0) : 0,
-            barPageCount: isVisible ? (model.map(barPageCount) ?? 1) : 1,
+            barPage: isVisible ? (longest.map(clampedPage(longestRowLength:)) ?? 0) : 0,
+            barPageCount: isVisible ? (longest.map(barPageCount(longestRowLength:)) ?? 1) : 1,
             layer: isVisible ? selectedLayer.rawValue : "none",
             groupPatternSlot: isVisible ? (groupSlot.map { "\($0 + 1)" } ?? "mixed") : "none",
             patternLinked: isVisible && (model?.isPatternLinked ?? false),
