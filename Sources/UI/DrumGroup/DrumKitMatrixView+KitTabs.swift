@@ -73,11 +73,11 @@ extension DrumKitMatrixView {
                 onClose: { isPresentingKitFX = false }
             ) {
                 VStack(alignment: .leading, spacing: 8) {
-                    kitFXOptionButton(title: "Filter", systemName: "line.3.horizontal.decrease.circle") {
+                    kitFXOptionRow(title: "Filter", systemName: "line.3.horizontal.decrease.circle") {
                         session.addMixerBusInsert(.filter(), busID: busID)
                         isPresentingKitFX = false
                     }
-                    kitFXOptionButton(title: "Bitcrusher", systemName: "waveform.path.ecg") {
+                    kitFXOptionRow(title: "Bitcrusher", systemName: "waveform.path.ecg") {
                         session.addMixerBusInsert(.bitcrusher(), busID: busID)
                         isPresentingKitFX = false
                     }
@@ -92,7 +92,7 @@ extension DrumKitMatrixView {
                     .foregroundStyle(StudioTheme.mutedText)
 
                 AUEffectPickerList(effects: effects) { effect in
-                    kitFXOptionButton(title: effect.displayName, systemName: "slider.horizontal.3") {
+                    kitFXOptionRow(title: effect.displayName, systemName: "slider.horizontal.3") {
                         session.addMixerBusInsert(.auEffect(effect), busID: busID)
                         isPresentingKitFX = false
                     }
@@ -109,31 +109,23 @@ extension DrumKitMatrixView {
         }
     }
 
-    func kitFXOptionButton(
+    /// Kit add-FX picker row. Routes through the shared `StudioFXOptionRow`,
+    /// passing the kit's accent-tinted icon, no reserved icon column, the
+    /// `.badge` corner radius, and the full-opacity border that this sheet uses.
+    func kitFXOptionRow(
         title: String,
         systemName: String,
         action: @escaping () -> Void
     ) -> some View {
-        Button(action: action) {
-            HStack(spacing: 10) {
-                Image(systemName: systemName)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(accent)
-                Text(title)
-                    .studioText(.labelBold)
-                    .foregroundStyle(StudioTheme.text)
-                Spacer(minLength: 0)
-            }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 9)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                    .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
-            )
-        }
-        .buttonStyle(.plain)
+        StudioFXOptionRow(
+            title: title,
+            systemImage: systemName,
+            iconColor: accent,
+            iconColumnWidth: nil,
+            cornerRadius: StudioMetrics.CornerRadius.badge,
+            borderColor: StudioTheme.border,
+            action: action
+        )
     }
 
     // MARK: - Kit Macros tab (AC23: M1–M8 across the kit / bus)

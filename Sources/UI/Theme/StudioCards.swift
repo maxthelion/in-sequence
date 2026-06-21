@@ -60,6 +60,17 @@ struct StudioOptionButton: View {
 struct StudioFXOptionRow: View {
     let title: String
     let systemImage: String
+    /// Tint for the leading icon. Defaults to the row's text color (used by the
+    /// mixer/master sheets); the kit add-FX sheet passes its kit accent.
+    var iconColor: Color = StudioTheme.text
+    /// Fixed leading-icon column width. `nil` lets the icon size naturally (the
+    /// kit sheet renders without a reserved icon column).
+    var iconColumnWidth: CGFloat? = 22
+    /// Tile corner radius. Defaults to `.tile`; the kit sheet uses `.badge`.
+    var cornerRadius: CGFloat = StudioMetrics.CornerRadius.tile
+    /// Stroke color for the tile border. Defaults to the mixer/master grammar
+    /// (`border` at 0.8); the kit sheet uses the full-opacity border.
+    var borderColor: Color = StudioTheme.border.opacity(0.8)
     let action: () -> Void
 
     var body: some View {
@@ -67,7 +78,8 @@ struct StudioFXOptionRow: View {
             HStack(spacing: 10) {
                 Image(systemName: systemImage)
                     .font(.system(size: 13, weight: .semibold))
-                    .frame(width: 22)
+                    .foregroundStyle(iconColor)
+                    .frame(width: iconColumnWidth)
                 Text(title)
                     .studioText(.labelBold)
                     .lineLimit(1)
@@ -76,12 +88,12 @@ struct StudioFXOptionRow: View {
             .foregroundStyle(StudioTheme.text)
             .padding(.horizontal, 10)
             .padding(.vertical, 9)
-            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
+            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
         }
         .buttonStyle(.plain)
         .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
-                .stroke(StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                .stroke(borderColor, lineWidth: StudioMetrics.borderWidth)
         )
     }
 }

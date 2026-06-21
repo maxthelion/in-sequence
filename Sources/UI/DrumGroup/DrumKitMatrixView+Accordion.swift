@@ -358,11 +358,11 @@ extension DrumKitMatrixView {
             onClose: { expandedFXTarget = nil }
         ) {
             VStack(alignment: .leading, spacing: 8) {
-                kitFXOptionButton(title: "Filter", systemName: "line.3.horizontal.decrease.circle") {
+                kitFXOptionRow(title: "Filter", systemName: "line.3.horizontal.decrease.circle") {
                     session.addFXInsert(trackID: memberID, insert: .filter())
                     expandedFXTarget = nil
                 }
-                kitFXOptionButton(title: "Bitcrusher", systemName: "waveform.path.ecg") {
+                kitFXOptionRow(title: "Bitcrusher", systemName: "waveform.path.ecg") {
                     session.addFXInsert(trackID: memberID, insert: .bitcrusher())
                     expandedFXTarget = nil
                 }
@@ -377,7 +377,7 @@ extension DrumKitMatrixView {
                 .foregroundStyle(StudioTheme.mutedText)
 
             AUEffectPickerList(effects: effects) { effect in
-                kitFXOptionButton(title: effect.displayName, systemName: "slider.horizontal.3") {
+                kitFXOptionRow(title: effect.displayName, systemName: "slider.horizontal.3") {
                     session.addFXInsert(trackID: memberID, insert: .auEffect(effect))
                     expandedFXTarget = nil
                 }
