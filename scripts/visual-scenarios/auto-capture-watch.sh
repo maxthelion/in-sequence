@@ -52,23 +52,36 @@ if pgrep -f 'qa-surface-coverage.sh' >/dev/null 2>&1; then
   exit 0
 fi
 
-# --- newest capture PNG mtime (0 if none captured yet) ----------------------
-newest_png_mtime=0
+# --- newest capture PNG (the staleness baseline; absent => never captured) --
 newest_png=$(ls -t "$REVIEW_DIR"/*.png 2>/dev/null | head -1 || true)
-[ -n "$newest_png" ] && newest_png_mtime=$(stat -f '%m' "$newest_png")
 
-# --- newest watched-source mtime --------------------------------------------
+# --- staleness decision (cheap path) ----------------------------------------
+# Stop at the FIRST source file newer than the newest capture (`-print -quit`),
+# so the common "nothing stale" tick never stats+sorts the whole source tree.
+stale=0
+if [ -z "$newest_png" ]; then
+  stale=1   # nothing captured yet
+else
+  for p in "${WATCH_PATHS[@]}"; do
+    [ -e "$p" ] || continue
+    if [ -n "$(find "$p" -type f \( -name '*.swift' -o -name '*.sh' \) -newer "$newest_png" -print -quit 2>/dev/null)" ]; then
+      stale=1
+      break
+    fi
+  done
+fi
+
+if [ "$stale" -eq 0 ]; then
+  exit 0   # captures are current; nothing to do (cheap path)
+fi
+
+# --- stale: compute the newest source mtime, only now, for the debounce -----
 newest_src_mtime=0
 for p in "${WATCH_PATHS[@]}"; do
   [ -e "$p" ] || continue
   m=$(find "$p" -type f \( -name '*.swift' -o -name '*.sh' \) -exec stat -f '%m' {} + 2>/dev/null | sort -n | tail -1 || true)
   [ -n "${m:-}" ] && [ "$m" -gt "$newest_src_mtime" ] && newest_src_mtime="$m"
 done
-
-# --- staleness decision -----------------------------------------------------
-if [ "$newest_src_mtime" -le "$newest_png_mtime" ]; then
-  exit 0   # captures are current; nothing to do (cheap path)
-fi
 
 # Debounce: if source changed very recently, wait for the edit burst to settle.
 now=$(date +%s)
@@ -77,7 +90,7 @@ if [ "$(( now - newest_src_mtime ))" -lt "$DEBOUNCE_SECONDS" ]; then
   exit 0
 fi
 
-log "stale: source newer than captures (src=$newest_src_mtime png=$newest_png_mtime) — building + capturing"
+log "stale: source newer than newest capture — building + capturing"
 
 # --- force a fresh build (open-latest-build fingerprint-skips stale binaries) -
 build_log="$STATE_DIR/.auto-capture.build.log"
