@@ -98,70 +98,27 @@ struct KitBusFXChainView: View {
     }
 
     private func insertRow(_ insert: MixerBusInsert) -> some View {
-        let isSelected = insert.id == selectedInsertID
-        let icon = TrackFXChainView.iconName(for: insert.kind)
-        return HStack(spacing: 10) {
-            Image(systemName: "line.3.horizontal")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(StudioTheme.mutedText)
-                .frame(width: 18)
-                .accessibilityLabel("Reorder \(insert.name)")
-
-            Image(systemName: icon)
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(StudioTheme.background)
-                .frame(width: 24, height: 24)
-                .background(accent, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(insert.name)
-                    .studioText(.labelBold)
-                    .foregroundStyle(StudioTheme.text)
-                    .lineLimit(1)
-                Text(insert.kind.summary)
-                    .studioText(.micro)
-                    .foregroundStyle(StudioTheme.mutedText)
-                    .lineLimit(1)
-            }
-
-            Spacer(minLength: 6)
-
-            // Bypass toggle + remove on the SAME line, no "Enabled" text.
-            Toggle("Bypass \(insert.name)", isOn: bypassBinding(insert))
-                .labelsHidden()
-                .toggleStyle(.switch)
-                .controlSize(.mini)
-                .tint(StudioTheme.success)
-
-            Button {
+        InsertChainRow(
+            title: insert.name,
+            subtitle: insert.kind.summary,
+            iconName: TrackFXChainView.iconName(for: insert.kind),
+            accent: accent,
+            isSelected: insert.id == selectedInsertID,
+            isBypassed: !insert.isEnabled,
+            iconSize: 12,
+            iconWell: 24,
+            iconCornerRadius: StudioMetrics.CornerRadius.chip,
+            showsSelection: true,
+            onSelect: { selectedInsertID = insert.id },
+            onToggleBypass: { onSetBypassed(insert.id, $0) },
+            onRemove: {
                 let nextID = inserts.first(where: { $0.id != insert.id })?.id
                 onRemove(insert.id)
                 if selectedInsertID == insert.id {
                     selectedInsertID = nextID
                 }
-            } label: {
-                Image(systemName: "xmark")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(StudioTheme.mutedText)
             }
-            .buttonStyle(.plain)
-            .help("Remove FX")
-            .accessibilityLabel("Remove \(insert.name)")
-        }
-        .padding(.vertical, 8)
-        .padding(.horizontal, 10)
-        // Colour identifies, it never floods (ux-canon rule 12): selection reads
-        // from the accent outline, not a tinted row fill.
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
-                .stroke(isSelected ? StudioTheme.cyan : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
         )
-        .opacity(insert.isEnabled ? 1 : 0.55)
-        .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
-        .onTapGesture {
-            selectedInsertID = insert.id
-        }
     }
 
     // MARK: - Per-insert editor (mirrors ScenesWorkspaceView.insertEditor)
@@ -204,106 +161,51 @@ struct KitBusFXChainView: View {
 
     // Filter editor: radial cutoff/resonance knobs + response curve, mirroring
     // the Scenes filter editor (no wet/dry).
-    @ViewBuilder
     private func filterEditor(insert: MixerBusInsert, settings: MasterFilterSettings) -> some View {
-        let modeBinding = filterModeBinding(insertID: insert.id, settings: settings)
-        VStack(alignment: .leading, spacing: 16) {
-            filterModeSegmentedControl(selection: modeBinding)
-
-            SceneFilterCurveView(
-                mode: settings.mode,
-                cutoffHz: settings.cutoffHz,
-                resonance: settings.resonance,
-                accent: accent
-            )
-            .frame(height: 120)
-            .frame(maxWidth: .infinity)
-            .background(StudioTheme.background.opacity(0.35), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
-                    .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
-            )
-
-            HStack(alignment: .top, spacing: 28) {
-                StudioRotaryKnob(
-                    title: "Cutoff",
-                    value: settings.cutoffHz,
-                    range: 20...20_000,
-                    accent: accent,
-                    size: 58,
-                    format: { "\(Int($0.rounded())) Hz" },
-                    onChange: { setFilterCutoff(insertID: insert.id, value: $0) },
-                    onLiveChange: { setFilterCutoff(insertID: insert.id, value: $0) }
-                )
-                StudioRotaryKnob(
-                    title: "Resonance",
-                    value: settings.resonance,
-                    range: 0...1,
-                    accent: StudioTheme.amber,
-                    size: 58,
-                    format: { String(format: "%.2f", $0) },
-                    onChange: { setFilterResonance(insertID: insert.id, value: $0) },
-                    onLiveChange: { setFilterResonance(insertID: insert.id, value: $0) }
-                )
-                Spacer(minLength: 0)
-            }
-        }
-    }
-
-    // Studio segmented control for the filter type, matching the Scenes editor.
-    private func filterModeSegmentedControl(selection: Binding<MasterFilterSettings.Mode>) -> some View {
-        HStack(spacing: 4) {
-            ForEach(MasterFilterSettings.Mode.allCases, id: \.self) { mode in
-                filterModeChip(mode, selection: selection)
-            }
-        }
-        .padding(3)
-        .background(
-            Color.white.opacity(StudioOpacity.subtleFill),
-            in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-                .stroke(StudioTheme.border.opacity(0.9), lineWidth: StudioMetrics.borderWidth)
+        NativeInsertParameterEditor.Filter(
+            settings: settings,
+            accent: accent,
+            onModeChange: { mode in
+                session.updateMixerBusInsert(insert.id, busID: busID) { insert in
+                    if case var .nativeFilter(settings) = insert.kind {
+                        settings.mode = mode
+                        insert.kind = .nativeFilter(settings)
+                    }
+                }
+            },
+            onCutoffChange: { setFilterCutoff(insertID: insert.id, value: $0) },
+            onResonanceChange: { setFilterResonance(insertID: insert.id, value: $0) }
         )
     }
 
-    private func filterModeChip(_ mode: MasterFilterSettings.Mode, selection: Binding<MasterFilterSettings.Mode>) -> some View {
-        let isSelected = selection.wrappedValue == mode
-        return Button {
-            selection.wrappedValue = mode
-        } label: {
-            Text(mode.displayName)
-                .studioText(.labelBold)
-                .foregroundStyle(isSelected ? StudioTheme.background : StudioTheme.text.opacity(0.78))
-                .lineLimit(1)
-                .frame(maxWidth: .infinity, minHeight: 30)
-                .padding(.horizontal, 10)
-                .background(
-                    isSelected ? StudioTheme.cyan : Color.clear,
-                    in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
-                )
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("Filter type \(mode.displayName)")
-        .accessibilityValue(isSelected ? "Selected" : "Not selected")
-    }
-
-    @ViewBuilder
     private func bitcrusherEditor(insert: MixerBusInsert, settings: MasterBitcrusherSettings) -> some View {
-        Stepper("Bits: \(settings.bitDepth)", value: bitDepthBinding(insertID: insert.id, settings: settings), in: 4...16)
-            .foregroundStyle(StudioTheme.text)
-        sliderRow(
-            title: "Rate",
-            value: bitRateBinding(insertID: insert.id, settings: settings),
-            range: 0.05...1,
-            label: "\(Int((settings.sampleRateScale * 100).rounded()))%"
-        )
-        sliderRow(
-            title: "Drive",
-            value: bitDriveBinding(insertID: insert.id, settings: settings),
-            range: 0...1,
-            label: "\(Int((settings.drive * 100).rounded()))%"
+        NativeInsertParameterEditor.Bitcrusher(
+            settings: settings,
+            accent: accent,
+            onBitDepthChange: { bitDepth in
+                session.updateMixerBusInsert(insert.id, busID: busID) { insert in
+                    if case var .nativeBitcrusher(settings) = insert.kind {
+                        settings.bitDepth = bitDepth
+                        insert.kind = .nativeBitcrusher(settings)
+                    }
+                }
+            },
+            onRateChange: { value in
+                session.updateMixerBusInsert(insert.id, busID: busID) { insert in
+                    if case var .nativeBitcrusher(settings) = insert.kind {
+                        settings.sampleRateScale = value
+                        insert.kind = .nativeBitcrusher(settings)
+                    }
+                }
+            },
+            onDriveChange: { value in
+                session.updateMixerBusInsert(insert.id, busID: busID) { insert in
+                    if case var .nativeBitcrusher(settings) = insert.kind {
+                        settings.drive = value
+                        insert.kind = .nativeBitcrusher(settings)
+                    }
+                }
+            }
         )
     }
 
@@ -354,20 +256,6 @@ struct KitBusFXChainView: View {
         )
     }
 
-    private func filterModeBinding(insertID: UUID, settings: MasterFilterSettings) -> Binding<MasterFilterSettings.Mode> {
-        Binding(
-            get: { (filterSettings(insertID) ?? settings).mode },
-            set: { mode in
-                session.updateMixerBusInsert(insertID, busID: busID) { insert in
-                    if case var .nativeFilter(settings) = insert.kind {
-                        settings.mode = mode
-                        insert.kind = .nativeFilter(settings)
-                    }
-                }
-            }
-        )
-    }
-
     private func setFilterCutoff(insertID: UUID, value: Double) {
         session.updateMixerBusInsert(insertID, busID: busID) { insert in
             if case var .nativeFilter(settings) = insert.kind {
@@ -386,59 +274,4 @@ struct KitBusFXChainView: View {
         }
     }
 
-    private func bitDepthBinding(insertID: UUID, settings: MasterBitcrusherSettings) -> Binding<Int> {
-        Binding(
-            get: { (bitcrusherSettings(insertID) ?? settings).bitDepth },
-            set: { bitDepth in
-                session.updateMixerBusInsert(insertID, busID: busID) { insert in
-                    if case var .nativeBitcrusher(settings) = insert.kind {
-                        settings.bitDepth = bitDepth
-                        insert.kind = .nativeBitcrusher(settings)
-                    }
-                }
-            }
-        )
-    }
-
-    private func bitRateBinding(insertID: UUID, settings: MasterBitcrusherSettings) -> Binding<Double> {
-        Binding(
-            get: { (bitcrusherSettings(insertID) ?? settings).sampleRateScale },
-            set: { value in
-                session.updateMixerBusInsert(insertID, busID: busID) { insert in
-                    if case var .nativeBitcrusher(settings) = insert.kind {
-                        settings.sampleRateScale = value
-                        insert.kind = .nativeBitcrusher(settings)
-                    }
-                }
-            }
-        )
-    }
-
-    private func bitDriveBinding(insertID: UUID, settings: MasterBitcrusherSettings) -> Binding<Double> {
-        Binding(
-            get: { (bitcrusherSettings(insertID) ?? settings).drive },
-            set: { value in
-                session.updateMixerBusInsert(insertID, busID: busID) { insert in
-                    if case var .nativeBitcrusher(settings) = insert.kind {
-                        settings.drive = value
-                        insert.kind = .nativeBitcrusher(settings)
-                    }
-                }
-            }
-        )
-    }
-
-    private func filterSettings(_ insertID: UUID) -> MasterFilterSettings? {
-        guard let insert = inserts.first(where: { $0.id == insertID }),
-              case let .nativeFilter(settings) = insert.kind
-        else { return nil }
-        return settings
-    }
-
-    private func bitcrusherSettings(_ insertID: UUID) -> MasterBitcrusherSettings? {
-        guard let insert = inserts.first(where: { $0.id == insertID }),
-              case let .nativeBitcrusher(settings) = insert.kind
-        else { return nil }
-        return settings
-    }
 }

@@ -73,61 +73,19 @@ struct TrackFXChainView: View {
     }
 
     private func insertRow(_ insert: TrackFXInsert) -> some View {
-        let icon = Self.iconName(for: insert.kind)
-        let subtitle = insert.subtitle
-        return HStack(spacing: 10) {
-            // Drag handle (AC4: reorder by handle, never arrows).
-            Image(systemName: "line.3.horizontal")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(StudioTheme.mutedText)
-                .frame(width: 18)
-                .accessibilityLabel("Reorder \(insert.name)")
-
-            Image(systemName: icon)
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(StudioTheme.background)
-                .frame(width: 22, height: 22)
-                .background(accent, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(insert.name)
-                    .studioText(.labelBold)
-                    .foregroundStyle(StudioTheme.text)
-                    .lineLimit(1)
-                Text(subtitle)
-                    .studioText(.micro)
-                    .foregroundStyle(StudioTheme.mutedText)
-                    .lineLimit(1)
-            }
-
-            Spacer(minLength: 6)
-
-            // Bypass toggle (AC5: no "Enabled" text label).
-            Toggle("Bypass \(insert.name)", isOn: bypassBinding(insert))
-                .labelsHidden()
-                .toggleStyle(.switch)
-                .controlSize(.mini)
-                .tint(StudioTheme.success)
-
-            Button {
-                onRemove(insert.id)
-            } label: {
-                Image(systemName: "xmark")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(StudioTheme.mutedText)
-            }
-            .buttonStyle(.plain)
-            .help("Remove insert")
-            .accessibilityLabel("Remove \(insert.name)")
-        }
-        .padding(.vertical, 8)
-        .padding(.horizontal, 10)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
-                .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+        InsertChainRow(
+            title: insert.name,
+            subtitle: insert.subtitle,
+            iconName: Self.iconName(for: insert.kind),
+            accent: accent,
+            isBypassed: insert.bypassed,
+            iconSize: 11,
+            iconWell: 22,
+            iconCornerRadius: StudioMetrics.CornerRadius.badge,
+            showsSelection: false,
+            onToggleBypass: { onSetBypassed(insert.id, $0) },
+            onRemove: { onRemove(insert.id) }
         )
-        .opacity(insert.bypassed ? 0.55 : 1)
     }
 
     private var addFXButton: some View {
@@ -141,15 +99,6 @@ struct TrackFXChainView: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Add FX insert")
-    }
-
-    private func bypassBinding(_ insert: TrackFXInsert) -> Binding<Bool> {
-        // The switch reads "on" as active (not bypassed) so the green tint
-        // means "processing".
-        Binding(
-            get: { !insert.bypassed },
-            set: { isActive in onSetBypassed(insert.id, !isActive) }
-        )
     }
 
     static func iconName(for kind: MasterBusInsertKind) -> String {

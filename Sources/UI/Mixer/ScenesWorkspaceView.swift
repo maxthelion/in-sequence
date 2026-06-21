@@ -455,69 +455,29 @@ struct ScenesWorkspaceView: View {
     }
 
     private func insertRow(_ insert: MasterBusInsert) -> some View {
-        let isSelected = insert.id == selectedInsertID
-        return HStack(spacing: 10) {
-            // Drag handle for reorder (bug 135534: handle, never arrows).
-            Image(systemName: "line.3.horizontal")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(StudioTheme.mutedText)
-                .frame(width: 18)
-                .accessibilityLabel("Reorder \(insert.name)")
-
-            Image(systemName: iconName(for: insert.kind))
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(StudioTheme.background)
-                .frame(width: 24, height: 24)
-                .background(StudioTheme.amber, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
-
-            VStack(alignment: .leading, spacing: 2) {
-                TextField("FX Name", text: insertNameBinding(insert.id, fallback: insert.name))
-                    .studioText(.labelBold)
-                    .foregroundStyle(StudioTheme.text)
-                    .textFieldStyle(.plain)
-                    .lineLimit(1)
-
-                Text(insert.kind.summary)
-                    .studioText(.micro)
-                    .foregroundStyle(StudioTheme.mutedText)
-                    .lineLimit(1)
-            }
-
-            Spacer(minLength: 6)
-
-            // Bypass toggle + remove on the SAME line, no "Enabled" text.
-            Toggle("Bypass \(insert.name)", isOn: binding(for: insert.id, keyPath: \.isEnabled, fallback: insert.isEnabled))
-                .labelsHidden()
-                .toggleStyle(.switch)
-                .controlSize(.mini)
-                .tint(StudioTheme.success)
-
-            Button {
+        InsertChainRow(
+            title: insert.name,
+            subtitle: insert.kind.summary,
+            iconName: iconName(for: insert.kind),
+            accent: StudioTheme.amber,
+            isSelected: insert.id == selectedInsertID,
+            isBypassed: !insert.isEnabled,
+            nameBinding: insertNameBinding(insert.id, fallback: insert.name),
+            iconSize: 12,
+            iconWell: 24,
+            iconCornerRadius: StudioMetrics.CornerRadius.chip,
+            showsSelection: true,
+            onSelect: { selectedInsertID = insert.id },
+            onToggleBypass: { isBypassed in
+                session.updateMasterBusInsert(insert.id, in: selectedScene.id) { editing in
+                    editing.isEnabled = !isBypassed
+                }
+            },
+            onRemove: {
                 session.removeMasterBusInsert(insert.id, from: selectedScene.id)
                 selectedInsertID = selectedScene.inserts.first(where: { $0.id != insert.id })?.id
-            } label: {
-                Image(systemName: "xmark")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(StudioTheme.mutedText)
             }
-            .buttonStyle(.plain)
-            .help("Remove FX")
-            .accessibilityLabel("Remove \(insert.name)")
-        }
-        .padding(.vertical, 8)
-        .padding(.horizontal, 10)
-        // Colour identifies, it never floods (ux-canon rule 12): selection
-        // reads from the cyan outline, not a tinted row fill.
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
-                .stroke(isSelected ? StudioTheme.cyan : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
         )
-        .opacity(insert.isEnabled ? 1 : 0.55)
-        .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
-        .onTapGesture {
-            selectedInsertID = insert.id
-        }
     }
 
     @ViewBuilder
@@ -697,19 +657,12 @@ struct ScenesWorkspaceView: View {
             filterEditor(insert: insert, settings: settings)
 
         case let .nativeBitcrusher(settings):
-            Stepper("Bits: \(settings.bitDepth)", value: bitDepthBinding(insertID: insert.id, settings: settings), in: 4...16)
-                .foregroundStyle(StudioTheme.text)
-            sliderRow(
-                title: "Rate",
-                value: bitRateBinding(insertID: insert.id, settings: settings),
-                range: 0.05...1,
-                label: "\(Int((settings.sampleRateScale * 100).rounded()))%"
-            )
-            sliderRow(
-                title: "Drive",
-                value: bitDriveBinding(insertID: insert.id, settings: settings),
-                range: 0...1,
-                label: "\(Int((settings.drive * 100).rounded()))%"
+            NativeInsertParameterEditor.Bitcrusher(
+                settings: settings,
+                accent: StudioTheme.cyan,
+                onBitDepthChange: { bitDepthBinding(insertID: insert.id, settings: settings).wrappedValue = $0 },
+                onRateChange: { bitRateBinding(insertID: insert.id, settings: settings).wrappedValue = $0 },
+                onDriveChange: { bitDriveBinding(insertID: insert.id, settings: settings).wrappedValue = $0 }
             )
 
         case .auEffect:
@@ -719,112 +672,18 @@ struct ScenesWorkspaceView: View {
 
     // MARK: - Filter editor (radial controls + curve viz, no wet/dry)
 
-    @ViewBuilder
     private func filterEditor(insert: MasterBusInsert, settings: MasterFilterSettings) -> some View {
         let cutoffBinding = filterCutoffBinding(insertID: insert.id, settings: settings)
         let resonanceBinding = filterResonanceBinding(insertID: insert.id, settings: settings)
-
         let modeBinding = filterModeBinding(insertID: insert.id, settings: settings)
 
-        VStack(alignment: .leading, spacing: 16) {
-            // Custom studio segmented control (bug 212622): mirrors the kit
-            // tab-chip pattern, replacing the Aqua `.segmented` Picker.
-            filterModeSegmentedControl(selection: modeBinding)
-
-            SceneFilterCurveView(
-                mode: settings.mode,
-                cutoffHz: settings.cutoffHz,
-                resonance: settings.resonance,
-                accent: StudioTheme.cyan
-            )
-            .frame(height: 120)
-            .frame(maxWidth: .infinity)
-            .background(StudioTheme.background.opacity(0.35), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
-                    .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
-            )
-
-            HStack(alignment: .top, spacing: 28) {
-                StudioRotaryKnob(
-                    title: "Cutoff",
-                    value: settings.cutoffHz,
-                    range: 20...20_000,
-                    accent: StudioTheme.cyan,
-                    size: 58,
-                    format: { "\(Int($0.rounded())) Hz" },
-                    onChange: { cutoffBinding.wrappedValue = $0 },
-                    onLiveChange: { cutoffBinding.wrappedValue = $0 }
-                )
-                StudioRotaryKnob(
-                    title: "Resonance",
-                    value: settings.resonance,
-                    range: 0...1,
-                    accent: StudioTheme.amber,
-                    size: 58,
-                    format: { String(format: "%.2f", $0) },
-                    onChange: { resonanceBinding.wrappedValue = $0 },
-                    onLiveChange: { resonanceBinding.wrappedValue = $0 }
-                )
-                Spacer(minLength: 0)
-            }
-        }
-    }
-
-    // Custom studio segmented control for the filter type, styled like the
-    // drum-kit tab chips (flat, rounded, accent-filled selection).
-    private func filterModeSegmentedControl(selection: Binding<MasterFilterSettings.Mode>) -> some View {
-        HStack(spacing: 4) {
-            ForEach(MasterFilterSettings.Mode.allCases, id: \.self) { mode in
-                filterModeChip(mode, selection: selection)
-            }
-        }
-        .padding(3)
-        .background(
-            Color.white.opacity(StudioOpacity.subtleFill),
-            in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+        return NativeInsertParameterEditor.Filter(
+            settings: settings,
+            accent: StudioTheme.cyan,
+            onModeChange: { modeBinding.wrappedValue = $0 },
+            onCutoffChange: { cutoffBinding.wrappedValue = $0 },
+            onResonanceChange: { resonanceBinding.wrappedValue = $0 }
         )
-        .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-                .stroke(StudioTheme.border.opacity(0.9), lineWidth: StudioMetrics.borderWidth)
-        )
-    }
-
-    private func filterModeChip(_ mode: MasterFilterSettings.Mode, selection: Binding<MasterFilterSettings.Mode>) -> some View {
-        let isSelected = selection.wrappedValue == mode
-        return Button {
-            selection.wrappedValue = mode
-        } label: {
-            Text(mode.displayName)
-                .studioText(.labelBold)
-                .foregroundStyle(isSelected ? StudioTheme.background : StudioTheme.text.opacity(0.78))
-                .lineLimit(1)
-                .frame(maxWidth: .infinity, minHeight: 30)
-                .padding(.horizontal, 10)
-                .background(
-                    isSelected ? StudioTheme.cyan : Color.clear,
-                    in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
-                )
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("Filter type \(mode.displayName)")
-        .accessibilityValue(isSelected ? "Selected" : "Not selected")
-    }
-
-    private func sliderRow(title: String, value: Binding<Double>, range: ClosedRange<Double>, label: String) -> some View {
-        HStack(spacing: 10) {
-            Text(title)
-                .studioText(.label)
-                .foregroundStyle(StudioTheme.mutedText)
-                .frame(width: 82, alignment: .leading)
-            Slider(value: value, in: range)
-                .tint(StudioTheme.cyan)
-            Text(label)
-                .studioText(.eyebrow)
-                .monospacedDigit()
-                .foregroundStyle(StudioTheme.text)
-                .frame(width: 74, alignment: .trailing)
-        }
     }
 
     private func sceneNameBinding(_ sceneID: UUID, fallback: String) -> Binding<String> {
@@ -873,24 +732,6 @@ struct ScenesWorkspaceView: View {
             set: { name in
                 session.updateMasterBusInsert(insertID, in: selectedScene.id) { insert in
                     insert.name = name
-                }
-            }
-        )
-    }
-
-    private func binding<Value>(
-        for insertID: UUID,
-        keyPath: WritableKeyPath<MasterBusInsert, Value>,
-        fallback: Value
-    ) -> Binding<Value> {
-        Binding(
-            get: {
-                selectedScene.inserts.first(where: { $0.id == insertID })?[keyPath: keyPath]
-                    ?? fallback
-            },
-            set: { value in
-                session.updateMasterBusInsert(insertID, in: selectedScene.id) { insert in
-                    insert[keyPath: keyPath] = value
                 }
             }
         )
