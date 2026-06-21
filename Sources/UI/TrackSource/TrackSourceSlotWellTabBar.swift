@@ -199,45 +199,14 @@ struct TrackSourceSlotWellTabBar: View {
         let badgeAccent = accentPresentation.badge.color(trackAccent: accent)
         let selectedAccent = accentPresentation.selected.color(trackAccent: accent)
 
-        return Button {
-            selectedTab = tab
-        } label: {
-            VStack(spacing: 0) {
-                HStack(alignment: .center, spacing: 8) {
-                    Text(title.uppercased())
-                        .studioText(.eyebrowBold)
-                        .foregroundStyle(isSelected ? StudioTheme.text : StudioTheme.mutedText)
-                        .tracking(0.8)
-
-                    badge(title: badgeTitle, accent: badgeAccent)
-
-                    Spacer(minLength: 0)
-                }
-                .padding(.vertical, 10)
-                .padding(.horizontal, 12)
-
-                Rectangle()
-                    .fill(isSelected ? selectedAccent : Color.clear)
-                    .frame(height: 2)
-            }
-            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-            // Colour identifies, it never floods (ux-canon rule 12): the
-            // selected tab keeps the neutral fill; its accent lives in the
-            // outline, underline, and solid state badge.
-            .background(
-                Color.white.opacity(StudioOpacity.subtleFill),
-                in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                    .stroke(
-                        isSelected ? selectedAccent.opacity(StudioOpacity.ghostStroke) : StudioTheme.border,
-                        lineWidth: isSelected ? 1.5 : 1
-                    )
-            )
-            .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
-        }
-        .buttonStyle(.plain)
+        return StudioSlotTabButton(
+            title: title,
+            isSelected: isSelected,
+            selectedAccent: selectedAccent,
+            badgeTitle: badgeTitle,
+            badgeAccent: badgeAccent,
+            action: { selectedTab = tab }
+        )
     }
 
     private var sourceAccentPresentation: TrackSourceSlotWellTabAccentPresentation {
@@ -246,17 +215,5 @@ struct TrackSourceSlotWellTabBar: View {
 
     private var modifierAccentPresentation: TrackSourceSlotWellTabAccentPresentation {
         TrackSourceSlotWellTabAccentPresentation.modifier(for: modifierState)
-    }
-
-    private func badge(title: String, accent: Color) -> some View {
-        Text(title)
-            .font(.system(size: 10, weight: .black, design: .rounded))
-            .foregroundStyle(StudioTheme.background)
-            .padding(.vertical, 3)
-            .padding(.horizontal, 7)
-            .background(
-                accent,
-                in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-            )
     }
 }

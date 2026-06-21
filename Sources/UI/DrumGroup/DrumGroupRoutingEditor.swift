@@ -334,49 +334,19 @@ private struct DrumGroupRoutingModeControl: View {
     ]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("Mode".uppercased())
-                .studioText(.eyebrow)
-                .foregroundStyle(StudioTheme.mutedText)
-
-            HStack(spacing: 4) {
-                ForEach(modes.indices, id: \.self) { index in
-                    modeButton(modes[index])
-                }
-            }
-            .padding(3)
-            .background(
-                Color.white.opacity(StudioOpacity.subtleFill),
-                in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-                    .stroke(StudioTheme.border.opacity(0.9), lineWidth: StudioMetrics.borderWidth)
-            )
-        }
-    }
-
-    private func modeButton(_ option: (title: String, mode: DrumTriggerMappingMode)) -> some View {
-        let isSelected = selection == option.mode
-
-        return Button {
-            selection = option.mode
-        } label: {
-            Text(option.title)
-                .studioText(.labelBold)
-                .foregroundStyle(isSelected ? StudioTheme.background : StudioTheme.text.opacity(0.78))
-                .lineLimit(1)
-                .minimumScaleFactor(0.82)
-                .frame(maxWidth: .infinity, minHeight: 30)
-                .padding(.horizontal, 10)
-                .background(
-                    isSelected ? StudioTheme.cyan : Color.clear,
-                    in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
+        StudioSegmentedControl(
+            title: "Mode",
+            selection: $selection,
+            segments: modes.map { option in
+                StudioSegment(
+                    title: option.title,
+                    value: option.mode,
+                    accessibilityLabel: "Routing mode \(option.title)"
                 )
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("Routing mode \(option.title)")
-        .accessibilityValue(isSelected ? "Selected" : "Not selected")
+            },
+            accent: StudioTheme.cyan,
+            layout: StudioSegmentedControl.Layout(minHeight: 30, horizontalPadding: 10)
+        )
     }
 }
 

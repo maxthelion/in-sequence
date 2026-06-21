@@ -98,47 +98,36 @@ extension DrumKitMatrixView {
                 .tracking(0.8)
                 .foregroundStyle(StudioTheme.mutedText)
 
-            HStack(spacing: 4) {
-                ForEach(Self.historyLengthOptions, id: \.self) { option in
-                    historyLengthButton(option)
-                }
-            }
-            .padding(3)
-            .background(
-                Color.white.opacity(StudioOpacity.subtleFill),
-                in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-                    .stroke(StudioTheme.border.opacity(0.9), lineWidth: StudioMetrics.borderWidth)
-            )
-        }
-    }
-
-    func historyLengthButton(_ option: Int) -> some View {
-        let isSelected = historyLengthSteps == option
-        let title = ClipHistoryTransferViewModel.lengthLabel(for: option)
-        return Button {
-            historyLengthSteps = option
-            historySaveMessage = nil
-            refreshKitAuditionIfActive()
-            postRenderedVisualState(isVisible: true)
-        } label: {
-            Text(title)
-                .studioText(.labelBold)
-                .foregroundStyle(isSelected ? StudioTheme.background : StudioTheme.text.opacity(0.78))
-                .lineLimit(1)
-                .frame(minWidth: 52, minHeight: 26)
-                .padding(.horizontal, 6)
-                .background(
-                    isSelected ? accent : Color.clear,
-                    in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
+            StudioSegmentedControl(
+                title: nil,
+                selection: Binding(
+                    get: { historyLengthSteps },
+                    set: { option in
+                        historyLengthSteps = option
+                        historySaveMessage = nil
+                        refreshKitAuditionIfActive()
+                        postRenderedVisualState(isVisible: true)
+                    }
+                ),
+                segments: Self.historyLengthOptions.map { option in
+                    let title = ClipHistoryTransferViewModel.lengthLabel(for: option)
+                    return StudioSegment(
+                        title: title,
+                        value: option,
+                        accessibilityIdentifier: "kit-history-length-\(option)",
+                        accessibilityLabel: "Selection length \(title)"
+                    )
+                },
+                accent: accent,
+                layout: StudioSegmentedControl.Layout(
+                    fillsWidth: false,
+                    minWidth: 52,
+                    minHeight: 26,
+                    horizontalPadding: 6,
+                    minimumScaleFactor: nil
                 )
+            )
         }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("kit-history-length-\(option)")
-        .accessibilityLabel("Selection length \(title)")
-        .accessibilityValue(isSelected ? "Selected" : "Not selected")
     }
 
     /// Shared scrubber/timeline (AC16). « steps the window back through the

@@ -743,7 +743,12 @@ private struct AudioInputRuntimePanel: View {
                         selection: monitorBinding,
                         segments: [
                             StudioSegment(title: "Live", value: .input),
-                            StudioSegment(title: "Playback", value: .loop, isEnabled: runtime?.hasRecordedLoop == true),
+                            StudioSegment(
+                                title: "Playback",
+                                value: .loop,
+                                isEnabled: runtime?.hasRecordedLoop == true,
+                                help: runtime?.hasRecordedLoop == true ? nil : "The audio interface does not provide enough inputs for Playback"
+                            ),
                         ],
                         accent: accent
                     )
@@ -1333,72 +1338,5 @@ private struct AudioInputChannelPickerSheet: View {
     }
 }
 
-private struct StudioSegment<Value: Equatable> {
-    let title: String
-    let value: Value
-    var isEnabled: Bool = true
-}
-
-private struct StudioSegmentedControl<Value: Equatable>: View {
-    let title: String
-    let selection: Binding<Value>
-    let segments: [StudioSegment<Value>]
-    let accent: Color
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(title.uppercased())
-                .studioText(.eyebrow)
-                .foregroundStyle(StudioTheme.mutedText)
-
-            HStack(spacing: 4) {
-                ForEach(segments.indices, id: \.self) { index in
-                    segmentButton(segments[index])
-                }
-            }
-            .padding(3)
-            .background(
-                Color.white.opacity(StudioOpacity.subtleFill),
-                in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-                    .stroke(StudioTheme.border.opacity(0.9), lineWidth: StudioMetrics.borderWidth)
-            )
-        }
-    }
-
-    private func segmentButton(_ segment: StudioSegment<Value>) -> some View {
-        let isSelected = selection.wrappedValue == segment.value
-
-        return Button {
-            selection.wrappedValue = segment.value
-        } label: {
-            Text(segment.title)
-                .studioText(.labelBold)
-                .foregroundStyle(segmentForeground(isSelected: isSelected, isEnabled: segment.isEnabled))
-                .lineLimit(1)
-                .minimumScaleFactor(0.82)
-                .frame(maxWidth: .infinity, minHeight: 28)
-                .padding(.horizontal, 8)
-                // Colour identifies, it never floods (ux-canon rule 12): the
-                // selected segment is a fully solid accent thumb.
-                .background(
-                    isSelected ? accent : Color.clear,
-                    in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
-                )
-        }
-        .buttonStyle(.plain)
-        .disabled(!segment.isEnabled)
-        .help(segment.isEnabled ? "" : "The audio interface does not provide enough inputs for \(segment.title)")
-        .accessibilityLabel("\(title) \(segment.title)")
-        .accessibilityValue(isSelected ? "Selected" : "Not selected")
-    }
-
-    private func segmentForeground(isSelected: Bool, isEnabled: Bool) -> Color {
-        guard isEnabled else {
-            return StudioTheme.mutedText.opacity(0.4)
-        }
-        return isSelected ? StudioTheme.background : StudioTheme.text.opacity(0.78)
-    }
-}
+// StudioSegmentedControl / StudioSegment were promoted to
+// Sources/UI/Theme/StudioSegmentedControls.swift in W2.

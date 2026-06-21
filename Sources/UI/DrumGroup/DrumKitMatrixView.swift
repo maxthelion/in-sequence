@@ -481,43 +481,14 @@ struct DrumKitMatrixView: View {
 
     func kitTabButton(_ tab: DrumKitTab) -> some View {
         let isSelected = kitTab == tab
-        return Button {
-            kitTab = tab
-        } label: {
-            VStack(spacing: 0) {
-                HStack(alignment: .center, spacing: 8) {
-                    Text(tab.title.uppercased())
-                        .studioText(.eyebrowBold)
-                        .foregroundStyle(isSelected ? StudioTheme.text : StudioTheme.mutedText)
-                        .tracking(0.8)
-
-                    Spacer(minLength: 0)
-                }
-                .padding(.vertical, 10)
-                .padding(.horizontal, 12)
-
-                Rectangle()
-                    .fill(isSelected ? accent : Color.clear)
-                    .frame(height: 2)
-            }
-            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-            // Colour identifies, it never floods (ux-canon rule 12): the
-            // selected tab keeps the neutral fill; its accent lives in the
-            // outline and underline. Matches TrackSourceSlotWellTabBar.
-            .background(
-                Color.white.opacity(StudioOpacity.subtleFill),
-                in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                    .stroke(
-                        isSelected ? accent.opacity(StudioOpacity.ghostStroke) : StudioTheme.border,
-                        lineWidth: isSelected ? 1.5 : 1
-                    )
-            )
-            .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
-        }
-        .buttonStyle(.plain)
+        // Underline-tab grammar shared with TrackSourceSlotWellTabBar; the kit
+        // tabs are label-only (no per-tab state badge).
+        return StudioSlotTabButton(
+            title: tab.title,
+            isSelected: isSelected,
+            selectedAccent: accent,
+            action: { kitTab = tab }
+        )
         .accessibilityIdentifier("kit-tab-\(tab.rawValue)")
         .accessibilityLabel("Kit tab \(tab.title)")
         .accessibilityValue(isSelected ? "Selected" : "Not selected")

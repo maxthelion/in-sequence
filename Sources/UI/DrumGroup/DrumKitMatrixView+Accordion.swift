@@ -26,43 +26,31 @@ extension DrumKitMatrixView {
     }
 
     var expandedRowTabBar: some View {
-        HStack(spacing: 4) {
-            ForEach(DrumKitRowTab.allCases) { tab in
-                expandedRowTabButton(tab)
-            }
-        }
-        .padding(3)
-        .background(
-            Color.white.opacity(StudioOpacity.subtleFill),
-            in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-                .stroke(StudioTheme.border.opacity(0.9), lineWidth: StudioMetrics.borderWidth)
-        )
-    }
-
-    func expandedRowTabButton(_ tab: DrumKitRowTab) -> some View {
-        let isSelected = expandedRowTab == tab
-        return Button {
-            expandedRowTab = tab
-            postRenderedVisualState(isVisible: true)
-        } label: {
-            Text(tab.title)
-                .studioText(.labelBold)
-                .foregroundStyle(isSelected ? StudioTheme.background : StudioTheme.text.opacity(0.78))
-                .lineLimit(1)
-                .frame(minWidth: 64, minHeight: 28)
-                .padding(.horizontal, 8)
-                .background(
-                    isSelected ? accent : Color.clear,
-                    in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
+        StudioSegmentedControl(
+            title: nil,
+            selection: Binding(
+                get: { expandedRowTab },
+                set: { newValue in
+                    expandedRowTab = newValue
+                    postRenderedVisualState(isVisible: true)
+                }
+            ),
+            segments: DrumKitRowTab.allCases.map { tab in
+                StudioSegment(
+                    title: tab.title,
+                    value: tab,
+                    accessibilityIdentifier: "kit-row-tab-\(tab.rawValue)",
+                    accessibilityLabel: "Row tab \(tab.title)"
                 )
-        }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("kit-row-tab-\(tab.rawValue)")
-        .accessibilityLabel("Row tab \(tab.title)")
-        .accessibilityValue(isSelected ? "Selected" : "Not selected")
+            },
+            accent: accent,
+            layout: StudioSegmentedControl.Layout(
+                fillsWidth: false,
+                minWidth: 64,
+                minHeight: 28,
+                minimumScaleFactor: nil
+            )
+        )
     }
 
     @ViewBuilder
@@ -113,44 +101,31 @@ extension DrumKitMatrixView {
                 .tracking(0.8)
                 .foregroundStyle(StudioTheme.mutedText)
 
-            HStack(spacing: 4) {
-                sourceModeButton(row, mode: .clip)
-                sourceModeButton(row, mode: .generator)
-            }
-            .padding(3)
-            .background(
-                Color.white.opacity(StudioOpacity.subtleFill),
-                in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-                    .stroke(StudioTheme.border.opacity(0.9), lineWidth: StudioMetrics.borderWidth)
+            StudioSegmentedControl(
+                title: nil,
+                selection: Binding(
+                    get: { row.sourceMode },
+                    set: { setMemberSourceMode(row: row, mode: $0) }
+                ),
+                segments: [TrackSourceMode.clip, .generator].map { mode in
+                    StudioSegment(
+                        title: mode.label,
+                        value: mode,
+                        accessibilityIdentifier: "kit-row-source-\(mode.rawValue)",
+                        accessibilityLabel: "Source mode \(mode.label)"
+                    )
+                },
+                accent: accent,
+                layout: StudioSegmentedControl.Layout(
+                    fillsWidth: false,
+                    minWidth: 64,
+                    minHeight: 26,
+                    minimumScaleFactor: nil
+                )
             )
 
             Spacer(minLength: 0)
         }
-    }
-
-    func sourceModeButton(_ row: DrumKitMatrixModel.Row, mode: TrackSourceMode) -> some View {
-        let isSelected = row.sourceMode == mode
-        return Button {
-            setMemberSourceMode(row: row, mode: mode)
-        } label: {
-            Text(mode.label)
-                .studioText(.labelBold)
-                .foregroundStyle(isSelected ? StudioTheme.background : StudioTheme.text.opacity(0.78))
-                .lineLimit(1)
-                .frame(minWidth: 64, minHeight: 26)
-                .padding(.horizontal, 8)
-                .background(
-                    isSelected ? accent : Color.clear,
-                    in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
-                )
-        }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("kit-row-source-\(mode.rawValue)")
-        .accessibilityLabel("Source mode \(mode.label)")
-        .accessibilityValue(isSelected ? "Selected" : "Not selected")
     }
 
     /// Switch THIS member's active pattern slot between clip and generator
