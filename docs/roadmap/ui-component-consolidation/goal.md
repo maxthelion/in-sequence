@@ -14,6 +14,29 @@ These are **behaviour-preserving refactors**: the user-visible result must be
 **pixel-identical** to today, except where a slice explicitly intends a change.
 That is the whole verification bar — see below.
 
+## Status (2026-06-21) — executed end-to-end
+
+| Slice | Outcome |
+|---|---|
+| W1 shared FX insert chain | ✅ DONE `6568b669` — verified (05b AE 0) |
+| W2 shared segmented/tab controls | ✅ DONE `b1500969` — verified (9 surfaces) |
+| W3 StudioFXOptionRow adoption | ◑ PARTIAL `0b65bacc` — kit verified; scenes deferred (genuinely different) |
+| W4 rotary wrap | ✗ WON'T DO — false positive (different grammar, uncaptured) |
+| W5 shared insertKindShape | ✅ DONE `faf8a019` — build+parity (tests stalled→fallback) |
+| W6 drum-kit render efficiency | ✅ DONE `1d374c78` — verified AE 0 |
+| W7 retire pattern-linking infra | ✅ DONE `470c764b` — verified (02 AE 0) |
+| W8 Mode-enum split | ✗ WON'T DO — low-value reorg, risk without gain |
+| W9 QA-runner dict | ✗ WON'T DO — owner skip (harness blast radius) |
+
+**Follow-up capture gaps surfaced (separate harness work, need the W9-class
+plumbing):**
+1. `31-drum-kit-routing` capture is BROKEN — the routing editor never opens
+   (`drumGroupRoutingEditorRenderedVisible=false`), so DrumGroupRoutingEditor is
+   only ever transitively verified. Fix the openRouting command path.
+2. No `05c-scenes-fx-chooser` capture for the scenes add-FX sheet — blocks both a
+   pixel-verified W3 scenes swap and any future scene-FX-sheet coverage.
+3. (Pre-existing) `29g` post-dive-in commands are intermittent.
+
 ## Process for every slice (verification is mandatory, not optional)
 
 Work in a worktree off `main`. For EACH slice:
@@ -49,7 +72,16 @@ intended diff) + independent verifier signed off + tests green where applicable.
 
 ---
 
-## W1 — Shared FX insert chain (HIGH — biggest win)
+## W1 — Shared FX insert chain (HIGH — biggest win) — ✅ DONE (`6568b669`)
+
+Extracted `Sources/UI/FX/InsertChainComponents.swift` (`InsertChainRow` +
+`NativeInsertParameterEditor`); ~377 LOC removed across the 3 call sites.
+Verified independently: `05b-scenes-edit-content` pixel-identical (insert rows +
+filter editor); empty states (`22`, `29a`) unchanged. Info.plist restored after
+xcodegen (it had stripped `NSMicrophoneUsageDescription`). Bitcrusher editor was
+not pixel-captured (no fixture selects it) — preserved by code, manual smoke
+advised.
+
 
 The insert-chain UI is implemented THREE times, near-verbatim:
 - `Sources/UI/TrackSource/TrackFXChainView.swift` (per-track FX)
@@ -77,7 +109,23 @@ for each (add an insert in the fixture so the row + editor render).
 **Acceptance:** all three FX surfaces pixel-identical to baseline in empty AND
 populated states; ~350–500 LOC removed; build green; verifier sign-off.
 
-## W2 — Shared segmented control / tab button (HIGH)
+## W2 — Shared segmented control / tab button (HIGH) — ✅ DONE (`b1500969`)
+
+Extracted `Sources/UI/Theme/StudioSegmentedControls.swift` (`StudioSlotTabButton`
+underline grammar + promoted `StudioSegmentedControl` solid-thumb grammar).
+Routed kitTabButton, TrackSourceSlotWellTabBar.slotButton, accordion chips,
+capture length buttons, and DrumGroupRoutingEditor mode buttons through them
+(~net dedup across 8 files). `mixerButton` left un-routed (genuinely different
+2-line layout). Info.plist restored after xcodegen.
+Verified independently: pixel-identical on `29`/`29a`/`29b`/`29c` (kit tabs),
+`22b` (normal-track tabs — the high-risk surface), `29g` (accordion chips),
+`29e`/`29f` (capture length). DrumGroupRoutingEditor is transitively verified
+(uses the same `StudioSegmentedControl` proven on `29e`/`29g`) — its own `31`
+capture is BROKEN pre-W2 (`drumGroupRoutingEditorRenderedVisible=false`; the
+openRouting command doesn't take, same class as the `29g` post-dive-in issue).
+**Follow-up: fix the `31-drum-kit-routing` capture so the routing editor is
+directly covered.**
+
 
 Bespoke segmented/pill controls reimplement the same grammar in ≥5 places:
 - `DrumKitMatrixView.kitTabButton` (≈ `TrackSourceSlotWellTabBar.slotButton`)
@@ -99,7 +147,21 @@ it. The kit tabs are label-only (no per-tab accent/badge) — generalize minimal
 **Acceptance:** every listed surface pixel-identical; the track tab bar
 unaffected; build green; verifier sign-off.
 
-## W3 — Finish `StudioFXOptionRow` adoption (MED)
+## W3 — Finish `StudioFXOptionRow` adoption (MED) — ◑ PARTIAL (`0b65bacc`)
+
+Generalized `StudioFXOptionRow` with optional params (iconColor / iconColumnWidth
+/ cornerRadius / borderColor; defaults keep MixerBusStrip + MasterOutputColumnView
+byte-identical) and routed the KIT add-FX chooser (+ the per-member accordion
+chooser, a 3rd caller) through it. Verified: `29d-drum-kit-fx-chooser`
+pixel-identical (AE 0).
+**Scenes `addInsertOptionButton` deliberately NOT swapped:** it is genuinely a
+different style (Label-based size-12 bold icon, Label spacing, h12/v10 padding,
+full-opacity border) — routing it through the shared row would CHANGE its
+appearance, violating behaviour-preservation, and it has no capture/visual
+command to verify against. Unifying scenes is therefore a deliberate visual
+change needing owner sign-off + a new `05c-scenes-fx-chooser` capture (the
+capture needs the same harness plumbing as the W2 `31` fix / W9). Left as-is.
+
 
 `StudioFXOptionRow` (`Sources/UI/Theme/StudioCards.swift`) is used by
 `MixerBusStrip` and `MasterOutputColumnView`, but two add-FX sheets still
@@ -112,7 +174,19 @@ hand-roll the identical icon+label tile:
 **Capture rows:** `29d-drum-kit-fx-chooser`, the scenes add-FX sheet.
 **Acceptance:** both sheets pixel-identical; build green; verifier sign-off.
 
-## W4 — `StepLayerRotaryDial` → wrap `StudioRotaryKnob` (MED)
+## W4 — `StepLayerRotaryDial` → wrap `StudioRotaryKnob` (MED) — ✗ WON'T DO
+
+On inspection the two are genuinely different visual grammars, not a wrap:
+`StudioRotaryKnob` uses a 2pt `border` circle, a `trim(0.15…0.85)`-rotated 3pt
+solid arc, and renders the value in the ACCENT colour; `StepLayerRotaryDial` uses
+a 3pt `border.opacity(0.55)` circle, a custom `StepLayerRotaryArc` 4pt
+`accent.opacity(0.94)` arc, renders the value in WHITE, and adds a tile
+background + amber active-layer outline + tap-to-select. Consolidating would
+either change the dial's pixels (violates behaviour-preservation) or bloat
+`StudioRotaryKnob` with dial-only params that risk its many other call sites —
+and the step-edit rotary cluster isn't exercised by any capture, so it can't be
+pixel-verified regardless. Net-negative; skipped. (~70 LOC left as-is.)
+
 
 `Sources/UI/Slicer/SliceTrackEditingControls.swift` `StepLayerRotaryDial`
 reimplements the arc+vertical-drag rotary that `StudioRotaryKnob` provides; only
@@ -123,7 +197,19 @@ and keep the selection chrome around it.
 **Acceptance:** rotary pixel-identical incl. selected state + drag behaviour
 (manual drag smoke); build green; verifier sign-off.
 
-## W5 — Single `insertKindShape` helper across Audio hosts (MED — non-visual, audio-correctness-sensitive)
+## W5 — Single `insertKindShape` helper across Audio hosts (MED) — ✅ DONE (`faf8a019`)
+
+Promoted `InsertKindShape` (was a private nested enum declared 3×) to
+`Sources/Audio/InsertKindShape.swift` with `static func make(for:)`; routed the 3
+`InsertKindShape`-returning call sites (MixerBusHost ×2 + TrackInsertChainHost)
+through it; deleted the 3 private copies + 3 redundant nested enum decls
+(+36/−54). Build green; extracted body byte-identical to originals (pure mapping,
+no render-path work). Tests hit the documented CoreAudio stall → fell back to
+build-green + code-parity (sufficient for a pure mapping). Info.plist restored
+after xcodegen. NOTE: `MasterBusHost.MasterBusInsertKindShape` is structurally
+identical — left untouched as a future unification (needs merging two enums +
+their two InsertShape structs).
+
 
 `insertKindShape(for:MasterBusInsertKind)` is byte-identical in
 `TrackInsertChainHost`, `MixerBusHost` (×2), `MasterBusHost`; the `graphShape`
@@ -137,7 +223,17 @@ work added to the render callback.
 note (load a kit + a track with inserts, confirm FX still audibly apply). NO
 allocation/lock added on the render path.
 
-## W6 — Drum-kit matrix render efficiency (MED — behaviour-preserving)
+## W6 — Drum-kit matrix render efficiency (MED) — ✅ DONE (`1d374c78`)
+
+All 3 fixes: (1) `accent` now reads the group color from `session.store.trackGroups`
+(identical `colorHex` → identical Color) instead of rebuilding the whole model
+~37×/render; (2) capture history snapshots each member ONCE/render into a
+`[UUID: CaptureSnapshot]` instead of ~4 locked buffer copies/member/render; (3)
+`longestRowLength` computed once and threaded (was 3–4 scans/render;
+`postRenderedVisualState` now builds model once not ~6×). Build green; pixel
+parity AE 0 on `29`/`29e`/`29f`/`29g` (eyeballed accent unchanged); `30`
+deterministic (my stashed `30` baseline was stale, not a regression).
+
 
 - `DrumKitMatrixView.accent` rebuilds the entire `DrumKitMatrixModel` (allocates
   `tracksByID`, decodes every member clip grid) just to read `colorHex`, and is
@@ -154,7 +250,18 @@ allocation/lock added on the render path.
 **Acceptance:** pixel-identical output (this is a perf-only change); build green;
 verifier sign-off. Optional: a before/after note on snapshot/lock call count.
 
-## W7 — Decide the fate of drum-group pattern-linking infra (DECISION + execute)
+## W7 — Retire drum-group pattern-linking infra (owner: RETIRE) — ✅ DONE (`470c764b`)
+
+Deleted `Project.setDrumGroupPatternLinked`/`reLinkDrumGroupPattern`, the
+`.linkOn/.linkOff/.relink` DrumKit visual-commands, and the tests driving them
+(−89 lines). Kept the live reads: `TrackGroup.isPatternLinked` (+ Codable, drives
+kit-collapse in TracksMatrixView/LiveWorkspaceView) and
+`DrumKitMatrixModel.isLinkBroken` (feeds the `patternLinkBroken` render
+visual-state). No runtime/visual change (mutations were already unreachable
+post-UI-removal): `02-tracks-navigator` AE 0, build green. Tests hit the CoreAudio
+stall (1500s/case); the one case that ran passed → fell back to build-green +
+no-dangling-refs + collapse parity.
+
 
 `setDrumGroupPatternLinked` / `reLinkDrumGroupPattern` (session + `Project+Destinations`),
 `TrackGroup.isPatternLinked`, and `DrumKitMatrixModel.needsReLink` survive, but
@@ -173,14 +280,30 @@ only whatever `isPatternLinked` semantics the collapse behaviour genuinely needs
 test surface is gone and the retained `isPatternLinked` use is documented; tests
 green; collapse behaviour unchanged (capture `02-tracks-navigator` parity).
 
-## W8 — Split `TrackRoutingTabContent` Mode enum into two views (LOW)
+## W8 — Split `TrackRoutingTabContent` Mode enum into two views (LOW) — ✗ WON'T DO
+
+On inspection the `Mode { sound, mixer }` enum is an idiomatic small-view pattern:
+both branches share the struct's inputs (document/session/summary/accent) + the
+padding wrapper; `.sound` is a one-liner (`TrackDestinationEditor`) and `.mixer`
+is the path-summary + destination row. Splitting means 2 new structs, relocating
+~150 lines of helpers, rewiring 4 call sites (TrackSourceEditorView ×2,
+TrackWorkspaceView, SliceTrackWorkspaceView), and 4 capture-parity runs — pure
+code-reorg with zero user/perf benefit on a surface that was fragile all session.
+Risk without gain; skipped. (Available later if desired — it's a clean split.)
+
 
 The `enum Mode { sound, mixer }` multiplexes one struct into two layouts that
 share nothing. Split into `TrackSoundTabContent` + `TrackMixerTabContent`.
 Low value; do only if W1–W7 land cleanly. **Caution:** this surface was just
 unified this session — capture `19`/`22b`/`27b`/`29c` and require parity.
 
-## W9 — Generic status dictionary in VisualScenarioCommandRunner (LOW — risky)
+## W9 — Generic status dictionary in VisualScenarioCommandRunner (LOW — risky) — ✗ WON'T DO (owner: SKIP)
+
+Owner decided to skip: the runner's status string is parsed by every capture's
+status-wait, so the blast radius (the whole QA harness) outweighs the
+internal-cleanliness gain. The per-surface mirror fields stay as tolerable
+boilerplate.
+
 
 The runner accretes a `private static var …Rendered*` mirror + an observer line +
 a status line per QA surface. A `[String:String]` keyed by surface would collapse
