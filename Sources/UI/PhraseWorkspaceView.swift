@@ -240,6 +240,14 @@ struct PhraseWorkspaceView: View {
                     shellLayerControls
                 }
 
+                // Bug 20260622-181714: the global-apply track scope count button
+                // lives in this perform bar (the purple/amber-outlined nav row),
+                // left-anchored, instead of up in the LAYERS/SCENES/GLOBAL APPLY
+                // menu row. It only appears while the GLOBAL APPLY tab is active.
+                if phraseTab == .globalApply {
+                    globalApplyTrackScopeButton
+                }
+
                 // Left-anchored perform actions. Capture/Discard are always
                 // present (disabled until there are staged changes) so they
                 // never shift when Mom/Latch appear; those timing controls
@@ -439,22 +447,13 @@ struct PhraseWorkspaceView: View {
                 .help(tab.help)
             }
 
-            // Bug 20260622-130446: the global-apply track scope lives behind a
-            // SINGLE left-anchored count button (rolling in the old "Track
-            // Selector"/"Hide Tracks" toggle). It sits in this left menu row so
-            // it reads as a sibling of the LAYERS/SCENES/GLOBAL APPLY controls,
-            // and only appears while the GLOBAL APPLY tab is active.
-            if phraseTab == .globalApply {
-                globalApplyTrackScopeButton
-            }
-
             Spacer(minLength: 0)
         }
     }
 
     // Single toggle for the global-apply track scope. Its label is the live
     // selection count; tapping it opens the selector and tapping it again closes
-    // it (bug 20260622-130446 requirements 3 + 4).
+    // it. Bug 20260622-181714: it now lives in the perform bar, not the top menu.
     private var globalApplyTrackScopeButton: some View {
         Button {
             isPresentingGlobalApplyTrackSelector.toggle()
@@ -1509,37 +1508,21 @@ struct PhraseWorkspaceView: View {
         .accessibilityIdentifier("phrase-global-apply-surface")
     }
 
-    // The scope summary header. The track-selector toggle has moved to the left
-    // menu row (globalApplyTrackScopeButton); while the selector is OPEN this bar
-    // carries the All / Clear actions that replace the old "All Tracks"/"Hide
-    // Tracks" cluster (bug 20260622-130446 requirement 5).
+    // Bug 20260622-181714: the wide "GLOBAL APPLY / N selected · Phrase" panel is
+    // gone — the count + toggle now live on the perform-bar button. This row only
+    // carries the All / Clear actions, and only WHILE the selector is open (i.e.
+    // while a selection is actually being made).
+    @ViewBuilder
     private var globalApplyScopeBar: some View {
-        HStack(spacing: gridSpacing) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("GLOBAL APPLY")
-                    .studioText(.microEmphasis)
-                    .tracking(0.8)
-                    .foregroundStyle(StudioTheme.amber)
-                Text("\(globalApplyScopeTitle) • \(selectedPhraseForEditing.name)")
-                    .studioText(.labelBold)
-                    .foregroundStyle(StudioTheme.text)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 9)
-            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                    .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
-            )
-
-            if isPresentingGlobalApplyTrackSelector {
+        if isPresentingGlobalApplyTrackSelector {
+            HStack(spacing: gridSpacing) {
                 globalApplyScopeBarAction(title: "All", identifier: "phrase-global-apply-select-all") {
                     selectAllGlobalApplyTracks()
                 }
                 globalApplyScopeBarAction(title: "Clear", identifier: "phrase-global-apply-clear") {
                     clearGlobalApplyTracks()
                 }
+                Spacer(minLength: 0)
             }
         }
     }
