@@ -1585,6 +1585,34 @@ extension SequencerDocumentSession {
         }
     }
 
+    /// Remove a specific track by id (detail-page delete affordance). Uses the
+    /// same project round-trip as `removeSelectedTrack`; the project guard keeps
+    /// at least one track in the document.
+    func removeTrack(id: UUID) {
+        clearTrackFillPreviewIfActiveTrack(id, reason: .selectedTrackDeleted)
+        batch(impact: .fullEngineApply, changed: .full) { s in
+            var p = s.exportToProject()
+            p.removeTrack(id: id)
+            s.importFromProject(p)
+        }
+    }
+
+    /// Remove a set of tracks by id (tracks-page selection action). Clears the
+    /// transient tracks selection afterwards so the navigator returns cleanly.
+    func removeTracks(ids: Set<UUID>) {
+        guard !ids.isEmpty else { return }
+        for id in ids {
+            clearTrackFillPreviewIfActiveTrack(id, reason: .selectedTrackDeleted)
+        }
+        let orderedIDs = store.tracks.map(\.id).filter { ids.contains($0) }
+        batch(impact: .fullEngineApply, changed: .full) { s in
+            var p = s.exportToProject()
+            p.removeTracks(ids: orderedIDs)
+            s.importFromProject(p)
+        }
+        tracksSelection.removeAll()
+    }
+
     @discardableResult
     func armAudioInputTrack(
         trackID: UUID,

@@ -15,6 +15,8 @@ struct TrackWorkspaceView: View {
     // track shows the matrix; when it equals the selected drum part, that part's
     // editor is shown. Non-drum tracks ignore this entirely.
     @State private var divedInPartID: UUID?
+    /// Drives the delete-track confirmation on the single-track detail header.
+    @State private var isConfirmingTrackDelete = false
     @FocusState private var trackNameFieldFocused: Bool
 
     private var track: StepSequenceTrack {
@@ -210,8 +212,8 @@ struct TrackWorkspaceView: View {
         CompactTrackDetailHeader(accent: sourceAccent) {
             trackNameEditor
         } trailing: {
-            if track.trackType == .monoMelodic || track.trackType == .polyMelodic {
-                HStack(spacing: 10) {
+            HStack(spacing: 10) {
+                if track.trackType == .monoMelodic || track.trackType == .polyMelodic {
                     TrackFillPreviewControl(
                         presentation: fillPreviewPresentation,
                         accent: StudioTheme.amber,
@@ -220,8 +222,49 @@ struct TrackWorkspaceView: View {
 
                     TrackPerformHeaderButton(trackID: track.id, accent: sourceAccent)
                 }
+
+                deleteTrackButton
             }
         }
+        .confirmationDialog(
+            "Delete \(track.name)?",
+            isPresented: $isConfirmingTrackDelete,
+            titleVisibility: .visible
+        ) {
+            Button("Delete Track", role: .destructive) {
+                let removedID = track.id
+                isConfirmingTrackDelete = false
+                session.removeTrack(id: removedID)
+            }
+            Button("Cancel", role: .cancel) {
+                isConfirmingTrackDelete = false
+            }
+        } message: {
+            Text("This removes the track from the project. This cannot be undone.")
+        }
+    }
+
+    /// Top-right delete affordance on the single-track detail header. Tapping it
+    /// raises a confirmation before the track is removed via the session API.
+    private var deleteTrackButton: some View {
+        Button {
+            isConfirmingTrackDelete = true
+        } label: {
+            Image(systemName: "trash")
+                .font(.system(size: 13, weight: .bold))
+                .foregroundStyle(StudioTheme.amber)
+                .frame(width: 34, height: 34)
+                .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                        .stroke(StudioTheme.amber.opacity(StudioOpacity.accentStroke), lineWidth: StudioMetrics.borderWidth)
+                )
+                .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .help("Delete this track")
+        .accessibilityIdentifier("track-detail-delete")
+        .accessibilityLabel("Delete track")
     }
 
     private var fillPreviewPresentation: TrackFillPreviewHeaderPresentation {

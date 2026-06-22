@@ -37,6 +37,29 @@ struct DrumKitMatrixModel: Equatable {
             if case .editable = content { return true }
             return false
         }
+
+        /// The active source's length in steps, when it is a note-grid clip the
+        /// row can express. `nil` for generator/read-only rows that have no
+        /// fixed step length to surface.
+        var clipLengthSteps: Int? {
+            switch content {
+            case let .editable(_, lengthSteps, _):
+                return lengthSteps
+            case .generator, .readOnly:
+                return nil
+            }
+        }
+
+        /// Compact clip-length line shown under the part name, e.g. "1 bar · 16
+        /// steps". Returns `nil` for rows with no expressible step length.
+        var clipLengthLabel: String? {
+            guard let steps = clipLengthSteps, steps > 0 else { return nil }
+            let stepsPerBar = 16
+            let bars = max(1, Int((Double(steps) / Double(stepsPerBar)).rounded(.up)))
+            let barWord = bars == 1 ? "bar" : "bars"
+            let stepWord = steps == 1 ? "step" : "steps"
+            return "\(bars) \(barWord) · \(steps) \(stepWord)"
+        }
     }
 
     var groupID: TrackGroupID

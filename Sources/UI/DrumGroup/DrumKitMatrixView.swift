@@ -544,6 +544,8 @@ struct DrumKitMatrixView: View {
                 HStack(spacing: 10) {
                     layerSelector
 
+                    fillModeControl(model)
+
                     barPager(model)
 
                     Spacer(minLength: 0)

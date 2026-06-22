@@ -78,6 +78,16 @@ struct DrumKitMatrixRowView<DetailPanel: View>: View {
             .accessibilityIdentifier(isExpanded ? "kit-row-collapse" : "kit-row-expand")
             .accessibilityLabel(isExpanded ? "Collapse \(row.partName)" : "Expand \(row.partName)")
 
+            if let clipLengthLabel = row.clipLengthLabel {
+                Text(clipLengthLabel)
+                    .studioText(.micro)
+                    .foregroundStyle(StudioTheme.mutedText)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                    .accessibilityIdentifier("kit-row-clip-length")
+                    .help("Clip length for \(row.partName)")
+            }
+
             if row.isDivergentPattern {
                 Text(row.patternBadge)
                     .studioText(.microEmphasis)

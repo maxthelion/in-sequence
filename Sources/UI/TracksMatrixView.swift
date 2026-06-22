@@ -113,6 +113,8 @@ struct TracksMatrixView: View {
     @State private var isPresentingCreateTrack = false
     @State private var isPresentingAddSliceTrack = false
     @State private var isPresentingAddDrumGroup = false
+    /// Drives the delete confirmation for the selection-action bar.
+    @State private var isConfirmingSelectionDelete = false
     /// AC18: a linked drum kit collapses to ONE cell; an unlinked kit expands
     /// to its per-part cells (linked↔collapsed, unlinked↔expanded). The Expand
     /// affordance on a collapsed cell adds the group to this transient set,
@@ -273,10 +275,57 @@ struct TracksMatrixView: View {
                 ) { requestPhrasePerform(tab: .globalApply) }
 
                 deferredGroupButton
+
+                deleteSelectionButton
             }
 
             Spacer(minLength: 0)
         }
+        .confirmationDialog(
+            deleteConfirmTitle,
+            isPresented: $isConfirmingSelectionDelete,
+            titleVisibility: .visible
+        ) {
+            Button("Delete", role: .destructive) {
+                let ids = session.tracksSelection
+                isConfirmingSelectionDelete = false
+                session.removeTracks(ids: ids)
+            }
+            Button("Cancel", role: .cancel) {
+                isConfirmingSelectionDelete = false
+            }
+        } message: {
+            Text("This removes the selected track\(session.tracksSelection.count == 1 ? "" : "s") from the project. This cannot be undone.")
+        }
+    }
+
+    private var deleteConfirmTitle: String {
+        let count = session.tracksSelection.count
+        return "Delete \(count) track\(count == 1 ? "" : "s")?"
+    }
+
+    /// Selection-action Delete: removes the selected tracks after a
+    /// confirmation. Styled with the amber destructive accent.
+    private var deleteSelectionButton: some View {
+        Button {
+            isConfirmingSelectionDelete = true
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "trash")
+                    .font(.system(size: 11, weight: .bold))
+                Text("Delete")
+                    .studioText(.microEmphasis)
+                    .tracking(0.8)
+            }
+            .foregroundStyle(StudioTheme.background)
+            .frame(height: 32)
+            .padding(.horizontal, 14)
+            .background(StudioTheme.amber.opacity(StudioOpacity.accentFill), in: Capsule())
+            .overlay(Capsule().stroke(StudioTheme.amber.opacity(StudioOpacity.accentStroke), lineWidth: StudioMetrics.borderWidth))
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("tracks-action-delete")
+        .help("Delete the selected tracks")
     }
 
     private var clearButton: some View {

@@ -92,6 +92,45 @@ extension Project {
         syncPhrasesWithTracks()
     }
 
+    /// Remove a specific track by id (guard: must leave at least one track).
+    /// Mirrors `removeSelectedTrack`'s group/phrase bookkeeping but addresses the
+    /// track explicitly so a multi-selection or a detail-page delete can target
+    /// it without first making it the selected track.
+    mutating func removeTrack(id: UUID) {
+        guard tracks.count > 1,
+              let index = tracks.firstIndex(where: { $0.id == id })
+        else {
+            return
+        }
+
+        let removedTrack = tracks[index]
+        if removedTrack.groupID != nil {
+            removeFromGroup(trackID: removedTrack.id)
+        }
+        // `removeFromGroup` may have reordered/removed entries; re-resolve.
+        guard let removeIndex = tracks.firstIndex(where: { $0.id == id }) else {
+            syncPhrasesWithTracks()
+            return
+        }
+        let wasSelected = selectedTrackID == id
+        tracks.remove(at: removeIndex)
+        if wasSelected {
+            selectedTrackID = tracks[min(removeIndex, tracks.count - 1)].id
+        } else if !tracks.contains(where: { $0.id == selectedTrackID }) {
+            selectedTrackID = tracks[0].id
+        }
+        syncPhrasesWithTracks()
+    }
+
+    /// Remove a set of tracks by id, one at a time, always leaving at least one
+    /// track in the project (so the document never reaches the no-track state).
+    mutating func removeTracks(ids: [UUID]) {
+        for id in ids {
+            guard tracks.count > 1 else { break }
+            removeTrack(id: id)
+        }
+    }
+
     private static func defaultTrackName(for trackType: TrackType, index: Int) -> String {
         switch trackType {
         case .monoMelodic:

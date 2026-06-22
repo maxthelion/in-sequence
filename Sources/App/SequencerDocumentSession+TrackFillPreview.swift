@@ -21,6 +21,32 @@ extension SequencerDocumentSession {
         setTrackFillPreviewActiveTrackID(nil)
     }
 
+    /// Toggle fill preview for an explicit track id (used by the kit matrix's
+    /// kit-level FILL/NORMAL control, which addresses the kit's representative
+    /// member rather than the document's selected track). When `active` is true
+    /// and the track's source supports it, the fill lane becomes the active
+    /// preview; otherwise the preview is cleared back to NORMAL playback.
+    func setTrackFillPreview(trackID: UUID, active: Bool) {
+        guard active else {
+            disableTrackFillPreview(for: trackID)
+            return
+        }
+        guard store.tracks.contains(where: { $0.id == trackID }) else {
+            clearTrackFillPreview(reason: .selectedTrackUnavailable)
+            return
+        }
+        guard isTrackFillPreviewAvailable(trackID: trackID) else {
+            clearTrackFillPreview(reason: .sourceBecameUnsupported)
+            return
+        }
+        setTrackFillPreviewActiveTrackID(trackID)
+    }
+
+    /// Whether fill preview is currently the active lane for the given track.
+    func isTrackFillPreviewActive(trackID: UUID) -> Bool {
+        trackFillPreviewState.isActive(for: trackID)
+    }
+
     func clearTrackFillPreview(reason _: TrackFillPreviewResetReason) {
         setTrackFillPreviewActiveTrackID(nil)
     }

@@ -38,6 +38,69 @@ extension DrumKitMatrixView {
         )
     }
 
+    /// Kit-level FILL / NORMAL control for the matrix top bar (applies to all
+    /// rows). NORMAL hears phrase-resolved playback; FILL previews the fill lane.
+    /// Fill preview is single-track in the engine, so this addresses the kit's
+    /// representative member (the originating part, falling back to the first
+    /// row). Disabled when that part's source has no fill lane to preview.
+    func fillModeControl(_ model: DrumKitMatrixModel) -> some View {
+        let memberID = fillPreviewMemberID(model)
+        let isActive = memberID.map { session.isTrackFillPreviewActive(trackID: $0) } ?? false
+        let isAvailable = memberID.map { session.isTrackFillPreviewAvailable(trackID: $0) } ?? false
+        return HStack(spacing: 4) {
+            fillModeButton(title: "Normal", isSelected: !isActive, isEnabled: true) {
+                if let memberID { session.setTrackFillPreview(trackID: memberID, active: false) }
+            }
+            fillModeButton(title: "Fill", isSelected: isActive, isEnabled: isAvailable) {
+                if let memberID { session.setTrackFillPreview(trackID: memberID, active: true) }
+            }
+        }
+        .padding(3)
+        .background(
+            Color.white.opacity(StudioOpacity.subtleFill),
+            in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                .stroke(StudioTheme.border.opacity(0.9), lineWidth: StudioMetrics.borderWidth)
+        )
+        .help(isAvailable
+            ? "Switch all rows between NORMAL playback and the FILL lane preview"
+            : "Fill preview is available for clip-backed kits only in v1")
+        .accessibilityIdentifier("kit-fill-mode")
+    }
+
+    private func fillPreviewMemberID(_ model: DrumKitMatrixModel) -> UUID? {
+        if model.rows.contains(where: { $0.memberID == navigationState.originatingPartID }) {
+            return navigationState.originatingPartID
+        }
+        return model.rows.first?.memberID
+    }
+
+    func fillModeButton(
+        title: String,
+        isSelected: Bool,
+        isEnabled: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Text(title)
+                .studioText(.labelBold)
+                .foregroundStyle(isSelected ? StudioTheme.background : StudioTheme.text.opacity(0.78))
+                .lineLimit(1)
+                .frame(minWidth: 56, minHeight: 28)
+                .padding(.horizontal, 8)
+                .background(
+                    isSelected ? accent : Color.clear,
+                    in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
+                )
+        }
+        .buttonStyle(.plain)
+        .disabled(!isEnabled)
+        .accessibilityLabel("\(title) playback")
+        .accessibilityValue(isSelected ? "Selected" : "Not selected")
+    }
+
     func layerButton(_ layer: DrumKitMatrixLayer) -> some View {
         let isSelected = selectedLayer == layer
 
