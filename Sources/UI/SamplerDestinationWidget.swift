@@ -14,7 +14,8 @@ struct SamplerDestinationWidget: View {
     @State private var isAuditioning = false
     @State private var auditionTask: Task<Void, Never>?
 
-    private let knobColumns = Array(repeating: GridItem(.flexible(), spacing: 12), count: 3)
+    private let ampKnobColumns = Array(repeating: GridItem(.flexible(), spacing: 12), count: 3)
+    private let filterKnobColumns = Array(repeating: GridItem(.flexible(), spacing: 12), count: 3)
 
     private var currentSampleID: UUID? {
         if case let .sample(id, _) = destination { return id }
@@ -71,13 +72,17 @@ struct SamplerDestinationWidget: View {
 
     private func horizontalBody(sample: AudioSample) -> some View {
         HStack(alignment: .top, spacing: 0) {
-            waveformSection(sample: sample)
-                .frame(minWidth: 220, maxWidth: .infinity, alignment: .topLeading)
+            VStack(alignment: .leading, spacing: 0) {
+                waveformSection(sample: sample)
+                divider
+                ampKnobSection
+            }
+            .frame(minWidth: 260, maxWidth: .infinity, alignment: .topLeading)
 
             verticalDivider
 
             VStack(alignment: .leading, spacing: 0) {
-                knobSection
+                filterKnobSection
                 divider
                 filterSection
             }
@@ -89,7 +94,9 @@ struct SamplerDestinationWidget: View {
         VStack(alignment: .leading, spacing: 0) {
             waveformSection(sample: sample)
             divider
-            knobSection
+            ampKnobSection
+            divider
+            filterKnobSection
             divider
             filterSection
         }
@@ -168,22 +175,28 @@ struct SamplerDestinationWidget: View {
                 }
             }
         }
-        .frame(maxHeight: .infinity, alignment: .top)
+        .frame(alignment: .top)
         .padding(StudioMetrics.Spacing.comfortable)
     }
 
     private func waveform(sample: AudioSample) -> some View {
         let url = (try? sample.fileRef.resolve(libraryRoot: library.libraryRoot)) ?? URL(fileURLWithPath: "/dev/null")
         let buckets = WaveformDownsampler.downsample(url: url, bucketCount: 64)
+        let start = currentSettings.start.clamped(to: 0...1)
+        let stop = (currentSettings.start + currentSettings.length).clamped(to: 0...1)
         return WaveformView(buckets: buckets)
-            .frame(minHeight: 60, maxHeight: .infinity)
+            .frame(height: 120)
+            .overlay(
+                WaveformRegionMarkers(start: start, stop: stop)
+            )
             .padding(StudioMetrics.Spacing.snug)
             .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip))
             .overlay(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip).stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth))
     }
 
-    private var knobSection: some View {
-        LazyVGrid(columns: knobColumns, alignment: .leading, spacing: 16) {
+    /// Playback / amp controls laid out as a horizontal row beneath the waveform.
+    private var ampKnobSection: some View {
+        LazyVGrid(columns: ampKnobColumns, alignment: .leading, spacing: 16) {
             SamplerParameterKnob(
                 label: "Start",
                 normalizedValue: currentSettings.start,
@@ -207,7 +220,13 @@ struct SamplerDestinationWidget: View {
             ) { normalized in
                 commitGain(gainFromNormalized(normalized))
             }
+        }
+        .padding(StudioMetrics.Spacing.comfortable)
+    }
 
+    /// Filter knobs (Cutoff / Reso / Drive) shown atop the right-hand filter column.
+    private var filterKnobSection: some View {
+        LazyVGrid(columns: filterKnobColumns, alignment: .leading, spacing: 16) {
             SamplerParameterKnob(
                 label: "Cutoff",
                 normalizedValue: normalizedCutoff(filterSettings.cutoffHz),
@@ -674,6 +693,41 @@ private struct FilterCurveView: View {
 
     private func clamp01(_ value: Double) -> Double {
         min(max(value, 0), 1)
+    }
+}
+
+/// Vertical start / stop markers overlaid on the waveform. `start` and `stop`
+/// are fractions (0...1) of the waveform width, driven by the Start and
+/// Start+Length sampler settings. The region between them is lightly shaded.
+private struct WaveformRegionMarkers: View {
+    let start: Double
+    let stop: Double
+
+    var body: some View {
+        GeometryReader { geo in
+            let width = geo.size.width
+            let height = geo.size.height
+            let startX = CGFloat(min(max(start, 0), 1)) * width
+            let stopX = CGFloat(min(max(stop, 0), 1)) * width
+
+            ZStack(alignment: .topLeading) {
+                // Shaded active region between start and stop.
+                Rectangle()
+                    .fill(StudioTheme.cyan.opacity(0.10))
+                    .frame(width: max(0, stopX - startX), height: height)
+                    .offset(x: startX)
+
+                marker(at: startX, height: height)
+                marker(at: stopX, height: height)
+            }
+        }
+    }
+
+    private func marker(at x: CGFloat, height: CGFloat) -> some View {
+        Rectangle()
+            .fill(StudioTheme.cyan)
+            .frame(width: 2, height: height)
+            .offset(x: x - 1)
     }
 }
 
