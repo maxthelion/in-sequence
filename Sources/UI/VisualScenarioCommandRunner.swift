@@ -54,6 +54,7 @@ enum VisualScenarioCommandRunner {
     private static var phraseCaptureVisible = false
     private static var tracksCreateTrackModalVisible = false
     private static var tracksAddDrumGroupModalVisible = false
+    private static var tracksAddSliceTrackModalVisible = false
     private static var stepOrderFixtureState = "none"
     private static var trackSourceTabState = "none"
     private static var sceneEditorFixtureState = "none"
@@ -641,6 +642,7 @@ enum VisualScenarioCommandRunner {
         phraseCaptureVisible=\(phraseCaptureVisible)
         tracksCreateTrackModalVisible=\(tracksCreateTrackModalVisible)
         tracksAddDrumGroupModalVisible=\(tracksAddDrumGroupModalVisible)
+        tracksAddSliceTrackModalVisible=\(tracksAddSliceTrackModalVisible)
         masterGain=\(session.store.masterBus.masterOutputGain)
         firstTrackSendA=\(session.store.tracks.first?.mix.sendA ?? 0)
         firstTrackSendB=\(session.store.tracks.first?.mix.sendB ?? 0)
@@ -1053,7 +1055,8 @@ enum VisualScenarioCommandRunner {
         section: Binding<WorkspaceSection>
     ) {
         guard command["tracksCreateTrackModal"] != nil ||
-              command["tracksAddDrumGroupModal"] != nil
+              command["tracksAddDrumGroupModal"] != nil ||
+              command["tracksAddSliceTrackModal"] != nil
         else { return }
 
         section.wrappedValue = .tracks
@@ -1068,6 +1071,7 @@ enum VisualScenarioCommandRunner {
         case "open", "visible", "true":
             tracksCreateTrackModalVisible = true
             tracksAddDrumGroupModalVisible = false
+            tracksAddSliceTrackModalVisible = false
             posts.append("create-track-modal:open")
         case "close", "hidden", "false":
             tracksCreateTrackModalVisible = false
@@ -1080,10 +1084,24 @@ enum VisualScenarioCommandRunner {
         case "open", "visible", "true":
             tracksAddDrumGroupModalVisible = true
             tracksCreateTrackModalVisible = false
+            tracksAddSliceTrackModalVisible = false
             posts.append("add-drum-group-modal:open")
         case "close", "hidden", "false":
             tracksAddDrumGroupModalVisible = false
             posts.append("add-drum-group-modal:close")
+        default:
+            break
+        }
+
+        switch command["tracksAddSliceTrackModal"] {
+        case "open", "visible", "true":
+            tracksAddSliceTrackModalVisible = true
+            tracksCreateTrackModalVisible = false
+            tracksAddDrumGroupModalVisible = false
+            posts.append("add-slice-track-modal:open")
+        case "close", "hidden", "false":
+            tracksAddSliceTrackModalVisible = false
+            posts.append("add-slice-track-modal:close")
         default:
             break
         }

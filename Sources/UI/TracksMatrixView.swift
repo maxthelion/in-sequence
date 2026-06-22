@@ -243,14 +243,22 @@ struct TracksMatrixView: View {
         switch command {
         case "create-track-modal:open":
             isPresentingAddDrumGroup = false
+            isPresentingAddSliceTrack = false
             isPresentingCreateTrack = true
         case "create-track-modal:close":
             isPresentingCreateTrack = false
         case "add-drum-group-modal:open":
             isPresentingCreateTrack = false
+            isPresentingAddSliceTrack = false
             isPresentingAddDrumGroup = true
         case "add-drum-group-modal:close":
             isPresentingAddDrumGroup = false
+        case "add-slice-track-modal:open":
+            isPresentingCreateTrack = false
+            isPresentingAddDrumGroup = false
+            isPresentingAddSliceTrack = true
+        case "add-slice-track-modal:close":
+            isPresentingAddSliceTrack = false
         default:
             break
         }
@@ -1405,10 +1413,6 @@ private struct AddSliceTrackSheet: View {
         }
     }
 
-    private var columns: [GridItem] {
-        [GridItem(.adaptive(minimum: 220, maximum: 280), spacing: 12)]
-    }
-
     private var breaksFolderPath: String {
         library.libraryRoot.appendingPathComponent("breaks", isDirectory: true).path
     }
@@ -1428,9 +1432,9 @@ private struct AddSliceTrackSheet: View {
                         )
                     } else {
                         ScrollView {
-                            LazyVGrid(columns: columns, alignment: .leading, spacing: 12) {
+                            LazyVStack(alignment: .leading, spacing: 8) {
                                 ForEach(samples) { sample in
-                                    sampleCard(sample)
+                                    sampleRow(sample)
                                 }
                             }
                         }
@@ -1463,20 +1467,35 @@ private struct AddSliceTrackSheet: View {
         }
     }
 
-    private func sampleCard(_ sample: AudioSample) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .top, spacing: 10) {
-                VStack(alignment: .leading, spacing: 5) {
+    /// Recording buffers get the amber accent; factory breaks keep violet.
+    private func accent(for sample: AudioSample) -> Color {
+        sample.category == .recordings ? StudioTheme.amber : StudioTheme.violet
+    }
+
+    private func sampleRow(_ sample: AudioSample) -> some View {
+        let rowAccent = accent(for: sample)
+        let isRecording = sample.category == .recordings
+        return HStack(alignment: .center, spacing: 12) {
+            // Accent rail distinguishes recordings from factory breaks at a glance.
+            RoundedRectangle(cornerRadius: 2, style: .continuous)
+                .fill(rowAccent)
+                .frame(width: 4, height: 36)
+
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 8) {
                     Text(sample.name)
                         .studioText(.bodyBold)
                         .foregroundStyle(StudioTheme.text)
-                        .lineLimit(2)
-                        .minimumScaleFactor(0.75)
-
-                    Text(sampleDetail(sample))
-                        .studioText(.label)
-                        .foregroundStyle(StudioTheme.mutedText)
                         .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+
+                    Text(isRecording ? "BUFFER" : "FACTORY")
+                        .studioText(.microEmphasis)
+                        .tracking(0.6)
+                        .foregroundStyle(rowAccent)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(rowAccent.opacity(0.18), in: Capsule())
 
                     if pooledSampleIDs.contains(sample.id) {
                         Text("IN PROJECT")
@@ -1486,20 +1505,25 @@ private struct AddSliceTrackSheet: View {
                     }
                 }
 
-                Spacer(minLength: 6)
-
-                Button {
-                    togglePreview(sample)
-                } label: {
-                    Image(systemName: previewingSampleID == sample.id ? "stop.fill" : "play.fill")
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundStyle(StudioTheme.background)
-                        .frame(width: 28, height: 28)
-                        .background(StudioTheme.violet, in: Circle())
-                }
-                .buttonStyle(.plain)
-                .help(previewingSampleID == sample.id ? "Stop preview" : "Preview loop")
+                Text(sampleDetail(sample))
+                    .studioText(.label)
+                    .foregroundStyle(StudioTheme.mutedText)
+                    .lineLimit(1)
             }
+
+            Spacer(minLength: 12)
+
+            Button {
+                togglePreview(sample)
+            } label: {
+                Image(systemName: previewingSampleID == sample.id ? "stop.fill" : "play.fill")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(StudioTheme.background)
+                    .frame(width: 28, height: 28)
+                    .background(rowAccent, in: Circle())
+            }
+            .buttonStyle(.plain)
+            .help(previewingSampleID == sample.id ? "Stop preview" : "Preview loop")
 
             Button {
                 sampleEngine.stopAudition()
@@ -1508,14 +1532,15 @@ private struct AddSliceTrackSheet: View {
                 Text("Use Loop")
                     .studioText(.labelBold)
                     .foregroundStyle(StudioTheme.background)
-                    .frame(maxWidth: .infinity)
+                    .padding(.horizontal, 16)
                     .padding(.vertical, 8)
-                    .background(StudioTheme.violet, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
+                    .background(rowAccent, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
             }
             .buttonStyle(.plain)
         }
-        .padding(StudioMetrics.Spacing.comfortable)
-        .frame(maxWidth: .infinity, minHeight: 128, alignment: .topLeading)
+        .padding(.horizontal, StudioMetrics.Spacing.comfortable)
+        .padding(.vertical, 10)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
