@@ -58,6 +58,8 @@ enum VisualScenarioCommandRunner {
     private static var stepOrderFixtureState = "none"
     private static var trackSourceTabState = "none"
     private static var sceneEditorFixtureState = "none"
+    private static var scenesAddFXModalState = "closed"
+    private static var scenesSelectedInsertIndex = "none"
     private static var libraryCategoryState = "none"
     private static var libraryFixtureState = "none"
     private static var slicerFixtureState = "none"
@@ -608,6 +610,9 @@ enum VisualScenarioCommandRunner {
         slicerClipActiveStepCount=\(selectedSlicer.activeStepCount)
         scenesMode=\(scenesModeStatus.rawValue)
         sceneEditorFixture=\(sceneEditorFixtureState)
+        scenesAddFXModal=\(scenesAddFXModalState)
+        scenesAddFXModalVisible=\(scenesAddFXModalState == "open")
+        scenesSelectedInsertIndex=\(scenesSelectedInsertIndex)
         libraryCategory=\(libraryCategoryState)
         libraryFixture=\(libraryFixtureState)
         libraryPoolCount=\(session.store.assetPool.count)
@@ -916,6 +921,7 @@ enum VisualScenarioCommandRunner {
               command["phraseWorkspaceTab"] != nil ||
               command["phraseCellTool"] != nil ||
               command["phraseGlobalApplyTrackSelector"] != nil ||
+              command["phraseGlobalApplySelect"] != nil ||
               command["phraseSceneSelect"] != nil ||
               command["phraseCapture"] != nil
         else { return }
@@ -1004,6 +1010,13 @@ enum VisualScenarioCommandRunner {
             posts.append("global-apply-track-selector:close")
         default:
             break
+        }
+
+        // QA: preselect the first N tracks in the global-apply scope so a
+        // capture shows amber-selected cells.
+        if let rawSelect = command["phraseGlobalApplySelect"],
+           let count = Int(rawSelect) {
+            posts.append("global-apply-select:\(count)")
         }
 
         switch command["phraseSceneSelect"] {
@@ -1128,6 +1141,29 @@ enum VisualScenarioCommandRunner {
         return pending
     }
 
+    /// Pending kit-matrix visual commands for a DrumKitMatrixView that mounts
+    /// after the command was applied (open-kit-view / dive-in race). Drained in
+    /// onAppear. Live views still react via the notification.
+    static var pendingDrumKitMatrixCommands: [String] = []
+
+    static func drainPendingDrumKitMatrixCommands() -> [String] {
+        let pending = pendingDrumKitMatrixCommands
+        pendingDrumKitMatrixCommands = []
+        return pending
+    }
+
+    /// Pending track-source-editor visual commands (e.g. `select-tab:sound`) for
+    /// a TrackSourceEditorView that mounts after the command was applied — e.g.
+    /// the sound tab post racing the dive-in part-editor mount. Drained in
+    /// onAppear; live views still react via the notification.
+    static var pendingTrackSourceEditorCommands: [String] = []
+
+    static func drainPendingTrackSourceEditorCommands() -> [String] {
+        let pending = pendingTrackSourceEditorCommands
+        pendingTrackSourceEditorCommands = []
+        return pending
+    }
+
     private static func currentDrumKitMatrixModel(session: SequencerDocumentSession) -> DrumKitMatrixModel? {
         guard drumKitMatrixVisualState,
               let groupID = drumKitMatrixGroupID,
@@ -1197,17 +1233,39 @@ enum VisualScenarioCommandRunner {
                 .split(separator: ",")
                 .map { $0.trimmingCharacters(in: .whitespaces) }
                 .filter { !$0.isEmpty && DrumKitVisualCommand(rawValue: $0) != nil }
+            // Stash the WHOLE ordered sequence for the onAppear drain: when the
+            // kit matrix view (and its expanded-row detail panel) mounts after
+            // the open-kit-view tick, the live posts below can be lost
+            // (29g expand-part:0,row-tab-sound race). The drain replays them in
+            // order on mount.
+            if !tokens.isEmpty {
+                pendingDrumKitMatrixCommands.append(contentsOf: tokens)
+            }
             if let first = tokens.first {
                 postRepeatedVisualCommand(name: .drumKitMatrixVisualCommand, object: first)
             }
             if tokens.count > 1 {
                 let rest = Array(tokens.dropFirst())
+                let last = tokens.last
                 Task { @MainActor in
                     // Wait out the first command's repeated re-posts (~600ms).
                     try? await Task.sleep(nanoseconds: 800_000_000)
                     for token in rest {
                         NotificationCenter.default.post(name: .drumKitMatrixVisualCommand, object: token)
                         try? await Task.sleep(nanoseconds: 150_000_000)
+                    }
+                    // Re-assert the FINAL command (e.g. row-tab-sound) several
+                    // more times, late: when the kit matrix / expanded-row mounts
+                    // after the open-kit-view tick, an in-flight expand-part:N
+                    // re-post can reset the row tab to its default AFTER the first
+                    // row-tab post, so 29g flips between sound and stepsClip
+                    // standalone. These late re-asserts let the tab win
+                    // deterministically (paired with the longer 29g settle).
+                    if let last {
+                        for delay in [200, 350, 500, 700] as [UInt64] {
+                            try? await Task.sleep(nanoseconds: delay * 1_000_000)
+                            NotificationCenter.default.post(name: .drumKitMatrixVisualCommand, object: last)
+                        }
                     }
                 }
             }
@@ -1229,7 +1287,12 @@ enum VisualScenarioCommandRunner {
             NotificationCenter.default.post(name: .drumKitMatrixVisualCommand, object: "display-32")
         case "openRouting", "open-routing":
             drumKitMatrixRoutingEditorVisualState = true
-            NotificationCenter.default.post(name: .drumKitMatrixVisualCommand, object: "open-routing")
+            // The kit matrix view mounts after the open-kit-view navigation
+            // tick, so a single live post races the mount and the routing sheet
+            // never opens (31-drum-kit-routing). Stash for the onAppear drain
+            // and re-post so it lands whether the view is already up or not.
+            pendingDrumKitMatrixCommands.append("open-routing")
+            postRepeatedVisualCommand(name: .drumKitMatrixVisualCommand, object: "open-routing")
         case "closeRouting", "close-routing":
             drumKitMatrixRoutingEditorVisualState = false
             drumGroupRoutingEditorRenderedState = false
@@ -1289,9 +1352,23 @@ enum VisualScenarioCommandRunner {
             applyDrumKitMatrixMutation(mutation, session: session)
         }
         if let routingState = command["drumGroupRoutingEditorState"] {
-            NotificationCenter.default.post(
+            // Normalise the shorthand mode values used in the QA table to the
+            // command strings the routing editor understands (it expects
+            // routing-per-note / routing-per-channel / routing-individual).
+            let normalized: String = {
+                switch routingState {
+                case "channel", "per-channel", "perChannel": return "per-channel"
+                case "note", "per-note", "perNote": return "per-note"
+                case "individual": return "individual"
+                default: return routingState
+                }
+            }()
+            // The routing editor sheet mounts after the kit matrix, so a single
+            // live post races its subscription. Re-post so the mode lands once
+            // the sheet is up.
+            postRepeatedVisualCommand(
                 name: .drumGroupRoutingEditorVisualCommand,
-                object: "routing-\(routingState)"
+                object: "routing-\(normalized)"
             )
         }
     }
@@ -1385,6 +1462,11 @@ enum VisualScenarioCommandRunner {
             // live (persisted) matrix view — `open-kit-view` does not always
             // recreate the view, so its @State (FX chooser, capture, expanded
             // row) can otherwise bleed into this row's screenshot.
+            // Reset any pending kit-matrix drain a PRIOR row queued so its
+            // stale open-routing / row-tab does not bleed into this row's
+            // freshly-mounted matrix. The current row's kit commands are
+            // appended after this reset (applyDrumKitMatrixCommand runs later).
+            pendingDrumKitMatrixCommands = []
             NotificationCenter.default.post(name: .drumKitMatrixVisualCommand, object: "close-routing")
             NotificationCenter.default.post(name: .drumKitMatrixVisualCommand, object: "close-kit-fx-chooser")
             NotificationCenter.default.post(name: .drumKitMatrixVisualCommand, object: "close-capture")
@@ -1436,7 +1518,26 @@ enum VisualScenarioCommandRunner {
             drumKitMatrixRoutingEditorVisualState = false
             drumKitMatrixGroupID = nil
             drumKitMatrixOriginatingPartID = nil
-            postRepeatedVisualCommand(name: .drumPartWorkspaceHeaderVisualCommand, object: "dive-into-part")
+            // Re-fire over a longer window than the default repeated poster: when
+            // 28a runs STANDALONE the drum-group fixture is built, dived into,
+            // and rendered all cold in one capture window, so the kit matrix
+            // view can mount (and observe the dive command) well after the first
+            // posts. Keep re-posting so the part editor reliably wins before the
+            // capture settle.
+            postSustainedVisualCommand(name: .drumPartWorkspaceHeaderVisualCommand, object: "dive-into-part")
+        }
+    }
+
+    /// Like `postRepeatedVisualCommand` but spread over a longer (~1.4s) window,
+    /// for cold-start races where the observing view mounts late (e.g. the
+    /// drum-part dive-in when its row runs standalone).
+    private static func postSustainedVisualCommand(name: Notification.Name, object: String) {
+        NotificationCenter.default.post(name: name, object: object)
+        Task { @MainActor in
+            for delay in [200, 400, 700, 1_000, 1_400] as [UInt64] {
+                try? await Task.sleep(nanoseconds: delay * 1_000_000)
+                NotificationCenter.default.post(name: name, object: object)
+            }
         }
     }
 
@@ -1480,12 +1581,25 @@ enum VisualScenarioCommandRunner {
         command: [String: String],
         section: Binding<WorkspaceSection>
     ) {
+        // QA: select a step in the Steps/Clip grid so the step-edit rotary
+        // cluster (StepLayerRotaryRow / StepLayerRotaryDial) renders in
+        // ClipContentPreview. Posted repeatedly because the editor may mount
+        // after the section switch.
+        if let rawStep = command["trackSelectStep"], let step = Int(rawStep), step >= 0 {
+            section.wrappedValue = .track
+            trackSourceTabState = "steps-clip"
+            postRepeatedVisualCommand(name: .trackSourceEditorVisualCommand, object: "select-step:\(step)")
+        }
+
         guard let rawTab = command["trackSourceTab"],
               TrackSourceEditorTab.tab(forVisualCommand: rawTab) != nil
         else { return }
 
         section.wrappedValue = .track
         trackSourceTabState = rawTab
+        // Stash for the onAppear drain: the source editor may mount AFTER a
+        // drum-part dive-in, so a live post can be lost (28a/29g race).
+        pendingTrackSourceEditorCommands = ["select-tab:\(rawTab)"]
         postRepeatedVisualCommand(name: .trackSourceEditorVisualCommand, object: "select-tab:\(rawTab)")
     }
 
@@ -1499,6 +1613,7 @@ enum VisualScenarioCommandRunner {
     ) {
         guard command["slicerFixture"] != nil ||
               command["slicerLayer"] != nil ||
+              command["slicerSelectStep"] != nil ||
               command["sliceSourceModal"] != nil
         else { return }
 
@@ -1526,6 +1641,14 @@ enum VisualScenarioCommandRunner {
            SliceTrackClipLayer(rawValue: rawLayer) != nil {
             slicerLayerState = rawLayer
             postRepeatedVisualCommand(name: .sliceTrackWorkspaceVisualCommand, object: "layer:\(rawLayer)")
+        }
+
+        // QA: select a slicer step so the step-edit rotary cluster renders.
+        // Posted repeatedly because the slice workspace view may mount after the
+        // section switch / fixture population.
+        if let rawStep = command["slicerSelectStep"],
+           let step = Int(rawStep), step >= 0 {
+            postRepeatedVisualCommand(name: .sliceTrackWorkspaceVisualCommand, object: "selectStep:\(step)")
         }
 
         if let rawTab = command["slicerTab"],
@@ -1722,7 +1845,11 @@ enum VisualScenarioCommandRunner {
         section: Binding<WorkspaceSection>,
         session: SequencerDocumentSession
     ) {
-        guard command["scenesMode"] != nil || command["sceneEditorFixture"] != nil else { return }
+        guard command["scenesMode"] != nil ||
+              command["sceneEditorFixture"] != nil ||
+              command["scenesAddFXModal"] != nil ||
+              command["scenesSelectInsert"] != nil
+        else { return }
 
         section.wrappedValue = .scenes
 
@@ -1741,6 +1868,35 @@ enum VisualScenarioCommandRunner {
             sceneEditorFixtureState = rawFixture
             postRepeatedVisualCommand(name: .scenesWorkspaceVisualCommand, object: "mode:\(ScenesWorkspaceMode.browseEdit.rawValue)")
             postRepeatedVisualCommand(name: .scenesWorkspaceVisualCommand, object: "fixture:\(rawFixture)")
+        }
+
+        // QA: select an insert (e.g. the bitcrusher at index 1 in the content
+        // fixture) so its NativeInsertParameterEditor renders. The fixture
+        // command (above) re-posts for ~600ms and resets the selected insert to
+        // the filter on each apply, so this MUST land after those settle —
+        // delay the posts past the fixture's repeat window, then re-post so the
+        // bitcrusher selection sticks.
+        if let rawIndex = command["scenesSelectInsert"],
+           let index = Int(rawIndex), index >= 0 {
+            scenesSelectedInsertIndex = "\(index)"
+            Task { @MainActor in
+                // Land just after the fixture's last repeat (~600ms) but before
+                // the capture settle (~800ms after the final payload write).
+                try? await Task.sleep(nanoseconds: 650_000_000)
+                NotificationCenter.default.post(name: .scenesWorkspaceVisualCommand, object: "selectInsert:\(index)")
+            }
+        }
+
+        // QA: drive the add-FX (add-insert) picker sheet for capture coverage.
+        switch command["scenesAddFXModal"] {
+        case "open", "visible", "true":
+            scenesAddFXModalState = "open"
+            postRepeatedVisualCommand(name: .scenesWorkspaceVisualCommand, object: "addFX:open")
+        case "close", "hidden", "false":
+            scenesAddFXModalState = "closed"
+            postRepeatedVisualCommand(name: .scenesWorkspaceVisualCommand, object: "addFX:close")
+        default:
+            break
         }
     }
 

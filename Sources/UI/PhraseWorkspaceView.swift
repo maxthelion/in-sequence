@@ -1006,6 +1006,24 @@ struct PhraseWorkspaceView: View {
             return
         }
 
+        // QA: preselect the first N tracks into the global-apply scope so a
+        // capture shows amber-selected cells (the empty fixture scope = all
+        // tracks renders nothing selected). Drives the same scope the selector
+        // cells toggle.
+        if command.hasPrefix("global-apply-select:"),
+           let rawCount = command.split(separator: ":").last,
+           let count = Int(rawCount) {
+            phraseTab = .globalApply
+            isPresentingGlobalApplyTrackSelector = true
+            var scope = TrackPerformSelectionState()
+            for track in tracks.prefix(max(0, count)) {
+                scope.add(track.id)
+            }
+            globalApplyScope = scope
+            postRenderedMatrixVisualState(isVisible: true)
+            return
+        }
+
         if command.hasPrefix("scene-select:") {
             let rawSlot = String(command.dropFirst("scene-select:".count))
             if rawSlot == "close" {

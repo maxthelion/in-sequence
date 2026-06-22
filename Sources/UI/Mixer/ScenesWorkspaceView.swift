@@ -170,6 +170,29 @@ struct ScenesWorkspaceView: View {
 
         if command.hasPrefix("fixture:") {
             applyVisualSceneEditorFixture(String(command.dropFirst("fixture:".count)))
+            return
+        }
+
+        // QA: drive the add-FX (add-insert) picker sheet for capture coverage.
+        switch command {
+        case "addFX:open":
+            addInsertPickerRequest = AddInsertPickerRequest()
+            return
+        case "addFX:close":
+            addInsertPickerRequest = nil
+            return
+        default:
+            break
+        }
+
+        // QA: select an insert by index in the currently selected scene so the
+        // matching NativeInsertParameterEditor (e.g. Bitcrusher at index 1)
+        // renders. The "content" fixture selects the filter (index 0) by default.
+        if command.hasPrefix("selectInsert:"),
+           let index = Int(command.dropFirst("selectInsert:".count)),
+           selectedScene.inserts.indices.contains(index) {
+            selectedInsertID = selectedScene.inserts[index].id
+            return
         }
     }
 

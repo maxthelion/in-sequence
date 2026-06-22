@@ -386,6 +386,13 @@ struct DrumKitMatrixView: View {
             kitFXChooserSheet
         }
         .onAppear {
+            // Drain QA commands that were posted before this view mounted (the
+            // open-kit-view / dive-in race): e.g. open-routing for the routing
+            // editor, or expand-part:N,row-tab-sound for the expanded row.
+            // Replaying them on mount makes those captures deterministic.
+            for command in VisualScenarioCommandRunner.drainPendingDrumKitMatrixCommands() {
+                applyVisualCommand(command)
+            }
             postRenderedVisualState(isVisible: true)
         }
         .onDisappear {

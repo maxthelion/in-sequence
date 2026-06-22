@@ -742,6 +742,19 @@ struct SliceTrackWorkspaceView: View {
             return
         }
 
+        // QA: select a step so the step-edit rotary cluster (StepLayerRotaryDial)
+        // renders. Mirrors tapping a step in the strip: sets the highlighted
+        // index and adds it to the coordinator's selection set, which is what
+        // gates the rotary row (shouldShowRotaryRow).
+        let selectStepPrefix = "selectStep:"
+        if command.hasPrefix(selectStepPrefix),
+           let stepIndex = Int(command.dropFirst(selectStepPrefix.count)) {
+            selectedStepIndex = max(0, stepIndex)
+            stepGridCoordinator?.clearSelection()
+            stepGridCoordinator?.toggleSelection(at: max(0, stepIndex))
+            return
+        }
+
         // Drive the Slice Source modal from the capture harness so it has QA
         // coverage (mirrors the tracks-navigator modal commands).
         switch command {

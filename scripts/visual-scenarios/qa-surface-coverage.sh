@@ -71,6 +71,8 @@ CAPTURES=$(cat <<'TABLE'
 05-scenes-browse|workspace=scenes,scenesMode=browseEdit|scenesMode=browseEdit;transport=stop
 05a-scenes-edit-empty|workspace=scenes,scenesMode=browseEdit,sceneEditorFixture=empty|scenesMode=browseEdit;sceneEditorFixture=empty;transport=stop
 05b-scenes-edit-content|workspace=scenes,scenesMode=browseEdit,sceneEditorFixture=content|scenesMode=browseEdit;sceneEditorFixture=content;transport=stop
+05c-scenes-add-fx|workspace=scenes,scenesMode=browseEdit,sceneEditorFixture=content,scenesAddFXModalVisible=true|scenesMode=browseEdit;sceneEditorFixture=content;scenesAddFXModal=open;transport=stop
+05d-scenes-bitcrusher-editor|workspace=scenes,scenesMode=browseEdit,sceneEditorFixture=content,scenesSelectedInsertIndex=1|scenesMode=browseEdit;sceneEditorFixture=content;scenesSelectInsert=1;transport=stop
 06-phrase-scenes-perform|workspace=phrase,workspaceMode=perform,phraseWorkspaceTab=scenes|workspace=phrase;workspaceMode=perform;phraseWorkspaceTab=scenes;transport=stop
 06a-phrase-scene-select|workspace=phrase,phraseWorkspaceTab=scenes,phraseSceneSelectVisible=true|phraseMatrixTrackCount=8;phraseMatrixPhraseCount=8;phraseWorkspaceTab=scenes;phraseSceneSelect=a;transport=stop
 07-library|workspace=library|workspace=library;transport=stop
@@ -82,6 +84,7 @@ CAPTURES=$(cat <<'TABLE'
 13-phrase-global-apply|workspace=phrase,phraseWorkspaceTab=globalApply|phraseMatrixTrackCount=8;phraseMatrixPhraseCount=8;phraseWorkspaceTab=globalApply;transport=stop
 13a-phrase-global-apply-track-selector|workspace=phrase,phraseWorkspaceTab=globalApply,phraseGlobalApplyTrackSelectorVisible=true|phraseMatrixTrackCount=8;phraseMatrixPhraseCount=8;phraseWorkspaceTab=globalApply;phraseGlobalApplyTrackSelector=open;transport=stop
 13b-phrase-perform-capture|workspace=phrase,workspaceMode=perform,phraseCaptureVisible=true|phraseMatrixTrackCount=8;phraseMatrixPhraseCount=8;workspaceMode=perform;phraseWorkspaceTab=layers;phraseCapture=open;transport=stop
+13c-phrase-global-apply-selected|workspace=phrase,phraseWorkspaceTab=globalApply,phraseGlobalApplyTrackSelectorVisible=true|phraseMatrixTrackCount=8;phraseWorkspaceTab=globalApply;phraseGlobalApplyTrackSelector=open;phraseGlobalApplySelect=2;transport=stop
 # 14-17 RETIRED: the tracks Perform LAYER surface (TRACK LAYER selector +
 # mute/fill/note-repeat layer cells) was removed. Tracks Perform is now
 # navigation + selection; layer perform launches scoped from the selection
@@ -101,6 +104,13 @@ CAPTURES=$(cat <<'TABLE'
 23d-track-slicer-source-tab|workspace=track,selectedTrackType=slice,slicerFixture=populated,slicerTab=source|slicerFixture=populated;slicerLayer=steps;slicerTab=source;workspaceScroll=bottom;transport=stop
 23e-track-slicer-slice-tab|workspace=track,selectedTrackType=slice,slicerFixture=populated,slicerTab=slice|slicerFixture=populated;slicerLayer=steps;slicerTab=slice;workspaceScroll=bottom;transport=stop
 23f-slice-source-modal|workspace=track,selectedTrackType=slice,slicerFixture=populated,sliceSourceModal=open|slicerFixture=populated;slicerLayer=steps;slicerTab=source;sliceSourceModal=open;transport=stop
+# 23g step-edit rotaries: the StepLayerRotaryRow / StepLayerRotaryDial cluster
+# lives in ClipContentPreview (the melodic Steps/Clip tab), shared code gated on
+# a step selection — it is NOT rendered by the slicer's own SliceStepStrip. So
+# the honest capture of the rotary cluster selects a step on a melodic track's
+# Steps/Clip grid. (The slicer step-selection command exists too — slicerSelectStep
+# — and highlights a slice step, but shows no rotary cluster.)
+23g-step-edit-rotaries|workspace=track,trackSourceTab=steps-clip|trackFillSource=clip;trackSourceTab=steps-clip;trackSelectStep=2;transport=stop
 24-audio-idle|workspace=track,selectedTrackType=audioInput|audioInputFixture=idle;audioInputAvailableChannels=0;transport=stop
 25-audio-live|workspace=track,audioInputArmState=idle|audioInputState=live;transport=stop
 26-audio-recording|workspace=track,audioInputArmState=recording|audioInputState=recording;transport=stop
@@ -215,7 +225,19 @@ $payload"
   done
   unset IFS
 
-  sleep 0.8
+  # Most surfaces render well within 0.8s. The drum-part dive-in rows
+  # (drumPartHeaderDiveIn / expanded kit row) build a drum-group fixture, dive
+  # into a part, AND render all cold when run standalone, so the part editor /
+  # expanded-row detail mounts (and observes its visual commands) late — the
+  # runner re-fires those posts over ~1.4s, so give these rows a longer settle
+  # so the intended surface is on screen at capture time. Harness-only timing;
+  # no product behaviour changes.
+  local settle=0.8
+  case "$name" in
+    28a-*) settle=2.0 ;;
+    29g-*) settle=2.8 ;;
+  esac
+  sleep "$settle"
   capture_state "$pid" "$name"
 }
 

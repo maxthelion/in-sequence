@@ -349,6 +349,17 @@ struct TrackSourceEditorView: View {
         }
         .onAppear {
             syncStepGridCoordinator()
+            // Drain QA select-tab commands posted before this editor mounted.
+            // The editor can mount AFTER a drum-part dive-in, so a live
+            // select-tab:sound post races the mount and is lost (28a/29g). The
+            // drain replays it on mount for deterministic standalone captures.
+            for command in VisualScenarioCommandRunner.drainPendingTrackSourceEditorCommands()
+            where command.hasPrefix("select-tab:") {
+                if let tab = TrackSourceEditorTab.tab(forVisualCommand: String(command.dropFirst("select-tab:".count))),
+                   tab.isAvailable(in: session.workspaceMode) {
+                    selectedTab = tab
+                }
+            }
         }
         .onChange(of: currentClip?.id) { _, _ in
             syncStepGridCoordinator()
@@ -362,12 +373,27 @@ struct TrackSourceEditorView: View {
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .trackSourceEditorVisualCommand)) { notification in
-            guard let command = notification.object as? String,
-                  command.hasPrefix("select-tab:"),
-                  let tab = TrackSourceEditorTab.tab(forVisualCommand: String(command.dropFirst("select-tab:".count))),
-                  tab.isAvailable(in: session.workspaceMode)
-            else { return }
-            selectedTab = tab
+            guard let command = notification.object as? String else { return }
+
+            if command.hasPrefix("select-tab:") {
+                guard let tab = TrackSourceEditorTab.tab(forVisualCommand: String(command.dropFirst("select-tab:".count))),
+                      tab.isAvailable(in: session.workspaceMode)
+                else { return }
+                selectedTab = tab
+                return
+            }
+
+            // QA: select a step in the Steps/Clip grid so the shared step-edit
+            // rotary cluster (StepLayerRotaryRow / StepLayerRotaryDial) renders
+            // in ClipContentPreview. Mirrors tapping a step.
+            if command.hasPrefix("select-step:"),
+               let stepIndex = Int(command.dropFirst("select-step:".count)) {
+                selectedTab = .stepsClip
+                syncStepGridCoordinator()
+                stepGridWorkspaceModel.coordinator?.clearSelection()
+                stepGridWorkspaceModel.coordinator?.toggleSelection(at: max(0, stepIndex))
+                return
+            }
         }
     }
 
