@@ -220,6 +220,40 @@ struct TracksMatrixView: View {
             )
             .presentationBackground(.clear)
         }
+        .onAppear {
+            // Drain any command applied while this view was still mounting
+            // (workspace-switch race) so the sheet still opens for the capture.
+            for command in VisualScenarioCommandRunner.drainPendingTracksMatrixCommands() {
+                applyModalVisualCommand(command)
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .tracksMatrixVisualCommand)) { notification in
+            guard let command = notification.object as? String else { return }
+            // Receiving live proves this view is mounted; clear the pending
+            // copy so a later remount doesn't replay a stale command.
+            VisualScenarioCommandRunner.pendingTracksMatrixCommands = []
+            applyModalVisualCommand(command)
+        }
+    }
+
+    /// Capture-harness hook: open/close the creation modals on command. The
+    /// runner owns the reported `tracks*ModalVisible` status (set when the
+    /// command is applied); this just flips the @State so the sheet renders.
+    private func applyModalVisualCommand(_ command: String) {
+        switch command {
+        case "create-track-modal:open":
+            isPresentingAddDrumGroup = false
+            isPresentingCreateTrack = true
+        case "create-track-modal:close":
+            isPresentingCreateTrack = false
+        case "add-drum-group-modal:open":
+            isPresentingCreateTrack = false
+            isPresentingAddDrumGroup = true
+        case "add-drum-group-modal:close":
+            isPresentingAddDrumGroup = false
+        default:
+            break
+        }
     }
 
     /// A single horizontal bar with the Select toggle. With selection mode ON
@@ -1285,14 +1319,17 @@ private struct CreateTrackSheet: View {
     let onPickSliceTrack: () -> Void
     let onPickDrumGroup: () -> Void
 
+    private var columns: [GridItem] {
+        Array(repeating: GridItem(.flexible(), spacing: 12), count: 3)
+    }
+
     var body: some View {
         StudioModal(
             title: "Create Track",
-            subtitle: "Choose the kind of track to append to the matrix.",
             minWidth: 560,
             onClose: { dismiss() }
         ) {
-            HStack(spacing: 12) {
+            LazyVGrid(columns: columns, spacing: 12) {
                 createButton(title: "Mono", detail: "Single melodic lane", accent: StudioTheme.cyan) {
                     appendAndOpen(.monoMelodic)
                 }

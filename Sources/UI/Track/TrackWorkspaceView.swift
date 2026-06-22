@@ -580,6 +580,9 @@ extension Notification.Name {
     static let audioInputTrackWorkspaceVisualCommand = Notification.Name("SequencerAIAudioInputTrackWorkspaceVisualCommand")
     static let workspaceDetailVisualCommand = Notification.Name("SequencerAIWorkspaceDetailVisualCommand")
     static let scenesWorkspaceVisualCommand = Notification.Name("SequencerAIScenesWorkspaceVisualCommand")
+    /// Drives the tracks-navigator creation modals from the capture harness
+    /// (objects "create-track-modal:open" / "add-drum-group-modal:open").
+    static let tracksMatrixVisualCommand = Notification.Name("SequencerAITracksMatrixVisualCommand")
 }
 
 private extension Color {

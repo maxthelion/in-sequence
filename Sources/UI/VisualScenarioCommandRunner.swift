@@ -52,6 +52,8 @@ enum VisualScenarioCommandRunner {
     private static var phraseGlobalApplyTrackSelectorVisible = false
     private static var phraseSceneSelectVisible = false
     private static var phraseCaptureVisible = false
+    private static var tracksCreateTrackModalVisible = false
+    private static var tracksAddDrumGroupModalVisible = false
     private static var stepOrderFixtureState = "none"
     private static var trackSourceTabState = "none"
     private static var sceneEditorFixtureState = "none"
@@ -386,6 +388,7 @@ enum VisualScenarioCommandRunner {
         )
         applyStepOrderFixture(command: command, section: section, session: session, engineController: engineController)
         applyPhraseMatrixFixture(command: command, section: section, session: session)
+        applyTracksMatrixModalCommand(command: command, section: section)
         applyPhrasePerformOverlayFixture(command: command, section: section, session: session)
         applyTrackPerformLayerMatrixFixture(command: command, section: section, session: session)
         applyNoteRepeatPerformFixture(command: command, section: section, session: session)
@@ -636,6 +639,8 @@ enum VisualScenarioCommandRunner {
         phraseGlobalApplyTrackSelectorVisible=\(phraseGlobalApplyTrackSelectorVisible)
         phraseSceneSelectVisible=\(phraseSceneSelectVisible)
         phraseCaptureVisible=\(phraseCaptureVisible)
+        tracksCreateTrackModalVisible=\(tracksCreateTrackModalVisible)
+        tracksAddDrumGroupModalVisible=\(tracksAddDrumGroupModalVisible)
         masterGain=\(session.store.masterBus.masterOutputGain)
         firstTrackSendA=\(session.store.tracks.first?.mix.sendA ?? 0)
         firstTrackSendB=\(session.store.tracks.first?.mix.sendB ?? 0)
@@ -1035,6 +1040,71 @@ enum VisualScenarioCommandRunner {
     static func drainPendingPhraseMatrixCommands() -> [String] {
         let pending = pendingPhraseMatrixCommands
         pendingPhraseMatrixCommands = []
+        return pending
+    }
+
+    /// Drives the tracks-navigator creation modals (`isPresentingCreateTrack`
+    /// and `isPresentingAddDrumGroup`) from the capture harness. Mirrors the
+    /// phrase-matrix command shape: navigate to the tracks page, then post a
+    /// notification TracksMatrixView observes to flip the sheet @State. The
+    /// rendered visibility is reported back via .tracksMatrixRenderedVisualState.
+    private static func applyTracksMatrixModalCommand(
+        command: [String: String],
+        section: Binding<WorkspaceSection>
+    ) {
+        guard command["tracksCreateTrackModal"] != nil ||
+              command["tracksAddDrumGroupModal"] != nil
+        else { return }
+
+        section.wrappedValue = .tracks
+
+        var posts: [String] = []
+
+        // Opening one creation modal closes the other (they share the tracks
+        // navigator's sheet slots), so the status reflects the mutually
+        // exclusive state the command drives. These vars are set authoritatively
+        // here — the render round-trip then confirms the sheet actually mounted.
+        switch command["tracksCreateTrackModal"] {
+        case "open", "visible", "true":
+            tracksCreateTrackModalVisible = true
+            tracksAddDrumGroupModalVisible = false
+            posts.append("create-track-modal:open")
+        case "close", "hidden", "false":
+            tracksCreateTrackModalVisible = false
+            posts.append("create-track-modal:close")
+        default:
+            break
+        }
+
+        switch command["tracksAddDrumGroupModal"] {
+        case "open", "visible", "true":
+            tracksAddDrumGroupModalVisible = true
+            tracksCreateTrackModalVisible = false
+            posts.append("add-drum-group-modal:open")
+        case "close", "hidden", "false":
+            tracksAddDrumGroupModalVisible = false
+            posts.append("add-drum-group-modal:close")
+        default:
+            break
+        }
+
+        // The command may arrive in the same runloop tick that switches the
+        // workspace to .tracks, before TracksMatrixView has subscribed to the
+        // notification. Keep the batch pending so the view drains it from
+        // onAppear; live views still react via the notifications.
+        pendingTracksMatrixCommands = posts
+        for post in posts {
+            NotificationCenter.default.post(name: .tracksMatrixVisualCommand, object: post)
+        }
+    }
+
+    /// Pending tracks-matrix visual commands for a TracksMatrixView that mounts
+    /// after the command was applied (workspace-switch race). Drained in onAppear.
+    static var pendingTracksMatrixCommands: [String] = []
+
+    static func drainPendingTracksMatrixCommands() -> [String] {
+        let pending = pendingTracksMatrixCommands
+        pendingTracksMatrixCommands = []
         return pending
     }
 
