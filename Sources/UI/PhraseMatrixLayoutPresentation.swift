@@ -110,13 +110,17 @@ struct PhraseLayerSelectorPresentation: Equatable {
 struct PhrasePerformActionAvailabilityPresentation: Equatable {
     let isPerformMode: Bool
     let hasLiveCopy: Bool
+    // True once perform changes have actually been staged (overlay dirty).
+    // Capture/Discard are only meaningful — and only turn green — when this
+    // is set; otherwise they stay disabled (bug 20260622-125244).
+    let hasChanges: Bool
 
     var canCapture: Bool {
-        isPerformMode && hasLiveCopy
+        isPerformMode && hasChanges
     }
 
     var canDiscard: Bool {
-        isPerformMode && hasLiveCopy
+        isPerformMode && hasChanges
     }
 
     var captureHelp: String {

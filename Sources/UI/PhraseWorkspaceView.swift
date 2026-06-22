@@ -240,12 +240,20 @@ struct PhraseWorkspaceView: View {
                     shellLayerControls
                 }
 
+                // Left-anchored perform actions. Capture/Discard are always
+                // present (disabled until there are staged changes) so they
+                // never shift when Mom/Latch appear; those timing controls
+                // only exist in perform mode and sit to their right, before the
+                // Spacer, so they push nothing around. Perform stays rightmost.
+                phraseCaptureActions
+
+                if session.workspaceMode == .perform {
+                    phraseLatchTimingControls
+                }
+
                 Spacer(minLength: 8)
 
                 phrasePerformToggle
-                phraseCaptureActions
-                phraseDirtyPill
-                phraseLatchTimingControls
             }
 
             if isPresentingPerformanceLayerSelection, phraseTab == .layers {
@@ -284,30 +292,6 @@ struct PhraseWorkspaceView: View {
         .buttonStyle(.plain)
         .accessibilityIdentifier("phrase-perform-toggle")
         .help(session.workspaceMode == .perform ? "Turn off phrase perform copy editing" : "Edit a temporary phrase copy during performance")
-    }
-
-    private var phraseDirtyPill: some View {
-        let hasActivePerformChanges = session.workspaceMode == .perform && session.phrasePerformOverlay.isDirty
-        return Text(phraseDirtyText)
-            .studioText(.microEmphasis)
-            .tracking(0.8)
-            .foregroundStyle(hasActivePerformChanges ? StudioTheme.background : StudioTheme.mutedText)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 8)
-            .background(hasActivePerformChanges ? StudioTheme.amber : StudioTheme.inset, in: Capsule())
-            .overlay(
-                Capsule()
-                    .stroke(hasActivePerformChanges ? StudioTheme.amber : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
-            )
-            .accessibilityIdentifier("phrase-perform-dirty-summary")
-    }
-
-    private var phraseDirtyText: String {
-        guard session.workspaceMode == .perform else {
-            return "NO PERFORM CHANGES"
-        }
-        let count = session.phrasePerformOverlay.stagedChangeCount
-        return count == 0 ? "NO CHANGES" : "\(count) CHANGED"
     }
 
     private var phraseLatchTimingControls: some View {
@@ -394,8 +378,8 @@ struct PhraseWorkspaceView: View {
                     .foregroundStyle(availability.canCapture ? StudioTheme.background : StudioTheme.mutedText)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
-                    .background(availability.canCapture ? StudioTheme.amber : Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
-                    .overlay(Capsule().stroke(availability.canCapture ? StudioTheme.amber : StudioTheme.border, lineWidth: StudioMetrics.borderWidth))
+                    .background(availability.canCapture ? StudioTheme.success : Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
+                    .overlay(Capsule().stroke(availability.canCapture ? StudioTheme.success : StudioTheme.border, lineWidth: StudioMetrics.borderWidth))
             }
             .buttonStyle(.plain)
             .disabled(!availability.canCapture)
@@ -407,11 +391,11 @@ struct PhraseWorkspaceView: View {
             } label: {
                 Text("Discard")
                     .studioText(.labelBold)
-                    .foregroundStyle(availability.canDiscard ? StudioTheme.text : StudioTheme.mutedText)
+                    .foregroundStyle(availability.canDiscard ? StudioTheme.success : StudioTheme.mutedText)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
                     .background(Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
-                    .overlay(Capsule().stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth))
+                    .overlay(Capsule().stroke(availability.canDiscard ? StudioTheme.success : StudioTheme.border, lineWidth: StudioMetrics.borderWidth))
             }
             .buttonStyle(.plain)
             .disabled(!availability.canDiscard)
@@ -423,7 +407,8 @@ struct PhraseWorkspaceView: View {
     private var phrasePerformActionAvailability: PhrasePerformActionAvailabilityPresentation {
         PhrasePerformActionAvailabilityPresentation(
             isPerformMode: session.workspaceMode == .perform,
-            hasLiveCopy: session.phrasePerformOverlay.hasLiveCopy
+            hasLiveCopy: session.phrasePerformOverlay.hasLiveCopy,
+            hasChanges: session.phrasePerformOverlay.isDirty
         )
     }
 

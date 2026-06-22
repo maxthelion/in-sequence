@@ -790,10 +790,8 @@ struct SliceSourceTabContent: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Source")
-                .studioText(.bodyBold)
-                .foregroundStyle(StudioTheme.text)
-
+            // The Source tab pill already names this panel; omit the duplicate
+            // section header (matches the showsHeader: false pattern elsewhere).
             switch state {
             case .empty:
                 emptyState

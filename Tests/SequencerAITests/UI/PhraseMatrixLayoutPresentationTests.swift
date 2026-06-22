@@ -114,7 +114,8 @@ final class PhraseMatrixLayoutPresentationTests: XCTestCase {
     func test_phrasePerformActionsAreDisabledWhenPerformIsOff() {
         let presentation = PhrasePerformActionAvailabilityPresentation(
             isPerformMode: false,
-            hasLiveCopy: true
+            hasLiveCopy: true,
+            hasChanges: true
         )
 
         XCTAssertFalse(presentation.canCapture)
@@ -123,10 +124,11 @@ final class PhraseMatrixLayoutPresentationTests: XCTestCase {
         XCTAssertEqual(presentation.discardHelp, "Turn Perform on before discarding a live phrase copy")
     }
 
-    func test_phrasePerformActionsAllowCapturingAndDiscardingCleanLiveCopy() {
+    func test_phrasePerformActionsAllowCapturingAndDiscardingWhenChangesStaged() {
         let presentation = PhrasePerformActionAvailabilityPresentation(
             isPerformMode: true,
-            hasLiveCopy: true
+            hasLiveCopy: true,
+            hasChanges: true
         )
 
         XCTAssertTrue(presentation.canCapture)
@@ -135,10 +137,11 @@ final class PhraseMatrixLayoutPresentationTests: XCTestCase {
         XCTAssertEqual(presentation.discardHelp, "Discard the live phrase copy and return to the phrase baseline")
     }
 
-    func test_phrasePerformActionsDisableCaptureWhenPerformHasNoLiveCopy() {
+    func test_phrasePerformActionsDisabledWhenPerformHasNoStagedChanges() {
         let presentation = PhrasePerformActionAvailabilityPresentation(
             isPerformMode: true,
-            hasLiveCopy: false
+            hasLiveCopy: true,
+            hasChanges: false
         )
 
         XCTAssertFalse(presentation.canCapture)
