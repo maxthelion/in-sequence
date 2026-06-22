@@ -649,6 +649,23 @@ final class MainAudioGraph {
                 host.install(bus: bus, in: self, effectiveMute: effectiveMuteByBusID[bus.id] ?? bus.mix.isMuted)
             }
 
+            // Re-wire every track whose output feeds a mixer bus, mirroring
+            // installSendBuses. A freshly created bus host (or one whose
+            // topology just rebuilt — inserts added/removed) is a NEW input
+            // mixer / new terminal node; a track routed to it via a separate
+            // hot-path connectTrackOutput either landed on the placeholder
+            // preMaster fallback (host did not exist yet) or now points at a
+            // stale node. Without this pass the track→bus→master chain is
+            // never (re)established and the bus stays silent — routing to a
+            // just-created bus produced no sound while master worked. Resolving
+            // each routing against the live host here closes that gap. Runs on
+            // main under graphLock during a topology install only; no work is
+            // added to the render callback (Performance-Time Mutation Rule).
+            for routing in self.trackOutputRoutings.values
+                where routing.busID != nil && routing.source.engine === self.engine {
+                self.reconnectTrackOutputOnMain(routing)
+            }
+
             self.engine.prepare()
             self.installMasterMeterTapIfNeeded()
 
