@@ -1788,6 +1788,58 @@ final class EngineControllerTests: XCTestCase {
         XCTAssertEqual(controller.statusSummary, "Audio: Mock AU Instrument via Main Mixer (Muted)")
     }
 
+    func test_statusSummary_describesResolvedSampleDestination() throws {
+        let libraryRoot = FileManager.default.temporaryDirectory
+            .appendingPathComponent("status-sample-library-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: libraryRoot) }
+        try FileManager.default.createDirectory(
+            at: libraryRoot.appendingPathComponent("kick", isDirectory: true),
+            withIntermediateDirectories: true
+        )
+        try Data("not real audio; status scan only".utf8)
+            .write(to: libraryRoot.appendingPathComponent("kick/status-kick.wav"))
+        let library = AudioSampleLibrary(libraryRoot: libraryRoot)
+        let sampleID = AudioSampleLibrary.stableID(forRelativePath: "kick/status-kick.wav")
+        let controller = EngineController(client: nil, endpoint: nil, sampleLibrary: library)
+        let track = StepSequenceTrack(
+            name: "Kick",
+            pitches: [60],
+            stepPattern: [true],
+            stepAccents: [false],
+            destination: .sample(sampleID: sampleID, settings: .default),
+            velocity: 100,
+            gateLength: 2
+        )
+
+        controller.apply(track: track)
+
+        XCTAssertEqual(controller.statusSummary, "Sample: status-kick via Main Mixer")
+    }
+
+    func test_statusSummary_flagsMissingSampleDestination() {
+        let libraryRoot = FileManager.default.temporaryDirectory
+            .appendingPathComponent("status-empty-sample-library-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: libraryRoot) }
+        let controller = EngineController(
+            client: nil,
+            endpoint: nil,
+            sampleLibrary: AudioSampleLibrary(libraryRoot: libraryRoot)
+        )
+        let track = StepSequenceTrack(
+            name: "Ghost",
+            pitches: [60],
+            stepPattern: [true],
+            stepAccents: [false],
+            destination: .sample(sampleID: UUID(), settings: .default),
+            velocity: 100,
+            gateLength: 2
+        )
+
+        controller.apply(track: track)
+
+        XCTAssertEqual(controller.statusSummary, "Sample missing")
+    }
+
     func test_effective_destination_uses_group_shared_destination_and_pitch_offset() {
         let controller = EngineController(client: nil, endpoint: nil)
         let groupID = UUID(uuidString: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee") ?? UUID()

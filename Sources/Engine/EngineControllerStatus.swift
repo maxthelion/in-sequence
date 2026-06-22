@@ -35,9 +35,8 @@ extension EngineController {
                 : "Audio instrument unavailable"
         case .internalSampler:
             return "Internal sampler pending"
-        case .sample:
-            // TODO: Task 11 will wire sample dispatch
-            return "Sample playback pending"
+        case let .sample(sampleID, _):
+            return sampleStatusSummary(sampleID: sampleID, isMuted: selectedTrack.mix.isMuted)
         case let .slicer(sliceSetID, _):
             let sliceSet = tickState.currentPlaybackSnapshot().sliceSet(id: sliceSetID)
             let count = sliceSet?.displaySliceCount ?? 0
@@ -76,5 +75,12 @@ extension EngineController {
             }
             return "Audio In • Buffer (\(bars) bar\(bars == 1 ? "" : "s"))\(muted)"
         }
+    }
+
+    private func sampleStatusSummary(sampleID: UUID, isMuted: Bool) -> String {
+        guard let sample = sampleLibrary.sample(id: sampleID) else {
+            return "Sample missing"
+        }
+        return "Sample: \(sample.name) via Main Mixer\(isMuted ? " (Muted)" : "")"
     }
 }
