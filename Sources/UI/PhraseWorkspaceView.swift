@@ -438,8 +438,46 @@ struct PhraseWorkspaceView: View {
                 .accessibilityIdentifier("phrase-tab-\(tab.rawValue)")
                 .help(tab.help)
             }
+
+            // Bug 20260622-130446: the global-apply track scope lives behind a
+            // SINGLE left-anchored count button (rolling in the old "Track
+            // Selector"/"Hide Tracks" toggle). It sits in this left menu row so
+            // it reads as a sibling of the LAYERS/SCENES/GLOBAL APPLY controls,
+            // and only appears while the GLOBAL APPLY tab is active.
+            if phraseTab == .globalApply {
+                globalApplyTrackScopeButton
+            }
+
             Spacer(minLength: 0)
         }
+    }
+
+    // Single toggle for the global-apply track scope. Its label is the live
+    // selection count; tapping it opens the selector and tapping it again closes
+    // it (bug 20260622-130446 requirements 3 + 4).
+    private var globalApplyTrackScopeButton: some View {
+        Button {
+            isPresentingGlobalApplyTrackSelector.toggle()
+            postRenderedMatrixVisualState(isVisible: true)
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "slider.horizontal.3")
+                    .font(.system(size: 12, weight: .bold))
+                Text(globalApplyScopeTitle.uppercased())
+                    .studioText(.microEmphasis)
+                    .tracking(0.8)
+            }
+            .foregroundStyle(isPresentingGlobalApplyTrackSelector ? StudioTheme.background : StudioTheme.text)
+            .frame(width: 148, height: 36)
+            .background(isPresentingGlobalApplyTrackSelector ? StudioTheme.amber : Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
+                    .stroke(isPresentingGlobalApplyTrackSelector ? StudioTheme.amber : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("phrase-global-apply-track-scope-button")
+        .help("Choose which tracks Global Apply writes to")
     }
 
     private var phraseScenesSurface: some View {
@@ -1453,6 +1491,10 @@ struct PhraseWorkspaceView: View {
         .accessibilityIdentifier("phrase-global-apply-surface")
     }
 
+    // The scope summary header. The track-selector toggle has moved to the left
+    // menu row (globalApplyTrackScopeButton); while the selector is OPEN this bar
+    // carries the All / Clear actions that replace the old "All Tracks"/"Hide
+    // Tracks" cluster (bug 20260622-130446 requirement 5).
     private var globalApplyScopeBar: some View {
         HStack(spacing: gridSpacing) {
             VStack(alignment: .leading, spacing: 4) {
@@ -1473,74 +1515,68 @@ struct PhraseWorkspaceView: View {
                     .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
             )
 
-            Button {
-                isPresentingGlobalApplyTrackSelector.toggle()
-            } label: {
-                Text(isPresentingGlobalApplyTrackSelector ? "Hide Tracks" : "Track Selector")
-                    .studioText(.labelBold)
-                    .foregroundStyle(StudioTheme.text)
-                    .frame(width: 132, height: 44)
-                    .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                            .stroke(isPresentingGlobalApplyTrackSelector ? StudioTheme.amber : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
-                    )
+            if isPresentingGlobalApplyTrackSelector {
+                globalApplyScopeBarAction(title: "All", identifier: "phrase-global-apply-select-all") {
+                    selectAllGlobalApplyTracks()
+                }
+                globalApplyScopeBarAction(title: "Clear", identifier: "phrase-global-apply-clear") {
+                    clearGlobalApplyTracks()
+                }
             }
-            .buttonStyle(.plain)
-
-            Button {
-                selectAllGlobalApplyTracks()
-            } label: {
-                Text("All Tracks")
-                    .studioText(.labelBold)
-                    .foregroundStyle(StudioTheme.text)
-                    .frame(width: 92, height: 44)
-                    .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
-                    .overlay(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous).stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth))
-            }
-            .buttonStyle(.plain)
         }
     }
 
+    private func globalApplyScopeBarAction(
+        title: String,
+        identifier: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Text(title)
+                .studioText(.labelBold)
+                .foregroundStyle(StudioTheme.text)
+                .frame(width: 92, height: 44)
+                .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous).stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth))
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier(identifier)
+    }
+
+    // Bug 20260622-130446: each track is a single whole-cell toggle. The cell is
+    // the control — tapping anywhere flips membership — and it reads its state
+    // from its FILL: an amber-filled cell is in the selection, a neutral cell is
+    // not. The standalone radio circle and the redundant "MONO" subtitle are
+    // gone (requirements 1 + 2).
     private var globalApplyTrackSelector: some View {
         LazyVGrid(columns: globalApplyColumns, alignment: .leading, spacing: 10) {
             ForEach(tracks, id: \.id) { track in
-                let isSelected = globalApplyScope.contains(track.id) || globalApplyScope.isEmpty
-                Button {
-                    if globalApplyScope.isEmpty {
-                        globalApplyScope.add(track.id)
-                    } else {
-                        globalApplyScope.toggle(track.id)
-                    }
-                } label: {
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack {
-                            Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                                .font(.system(size: 13, weight: .bold))
-                                .foregroundStyle(isSelected ? StudioTheme.amber : StudioTheme.mutedText)
-                            Spacer(minLength: 0)
-                        }
-                        Text(track.name)
-                            .studioText(.labelBold)
-                            .foregroundStyle(StudioTheme.text)
-                            .lineLimit(1)
-                        Text(track.trackType.shortLabel.uppercased())
-                            .studioText(.micro)
-                            .tracking(0.8)
-                            .foregroundStyle(StudioTheme.mutedText)
-                    }
-                    .padding(StudioMetrics.Spacing.compact)
-                    .frame(maxWidth: .infinity, minHeight: 78, alignment: .topLeading)
-                    .background(isSelected ? Color.white.opacity(StudioOpacity.subtleFill) : Color.clear, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-                            .stroke(isSelected ? StudioTheme.amber : StudioTheme.border, lineWidth: isSelected ? 2 : StudioMetrics.borderWidth)
-                    )
-                }
-                .buttonStyle(.plain)
+                globalApplyTrackCell(track)
             }
         }
         .accessibilityIdentifier("phrase-global-apply-track-selector")
+    }
+
+    private func globalApplyTrackCell(_ track: StepSequenceTrack) -> some View {
+        let isSelected = globalApplyScope.contains(track.id)
+        return Button {
+            globalApplyScope.toggle(track.id)
+            postRenderedMatrixVisualState(isVisible: true)
+        } label: {
+            Text(track.name)
+                .studioText(.labelBold)
+                .foregroundStyle(isSelected ? StudioTheme.background : StudioTheme.text)
+                .lineLimit(1)
+                .padding(StudioMetrics.Spacing.compact)
+                .frame(maxWidth: .infinity, minHeight: 56, alignment: .topLeading)
+                .background(isSelected ? StudioTheme.amber : Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                        .stroke(isSelected ? StudioTheme.amber : StudioTheme.border, lineWidth: isSelected ? 2 : StudioMetrics.borderWidth)
+                )
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("phrase-global-apply-track-cell-\(track.id.uuidString)")
     }
 
     /// The resolved value across the scoped tracks for a layer, plus whether
@@ -1627,7 +1663,20 @@ struct PhraseWorkspaceView: View {
     }
 
     private func selectAllGlobalApplyTracks() {
+        // Explicitly select every track so the count + the coloured cells read as
+        // "all selected". (The apply path also treats empty as all, but selecting
+        // explicitly keeps the UI honest after a Clear.)
+        var next = TrackPerformSelectionState()
+        for track in tracks {
+            next.add(track.id)
+        }
+        globalApplyScope = next
+        postRenderedMatrixVisualState(isVisible: true)
+    }
+
+    private func clearGlobalApplyTracks() {
         globalApplyScope.clear()
+        postRenderedMatrixVisualState(isVisible: true)
     }
 
     private func applyGlobalOption(_ option: PerformanceLayerOption) {
