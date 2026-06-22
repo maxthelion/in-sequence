@@ -515,25 +515,50 @@ struct SliceTrackWorkspaceView: View {
     private var sliceModal: some View {
         StudioModal(
             title: "Slice Source",
-            subtitle: "Zoom, scroll, normalize, detection, and detailed marker edits.",
             accent: StudioTheme.violet,
             minWidth: 760,
-            onClose: { isPresentingSliceModal = false }
-        ) {
-            if let sample = currentSample, let sliceSet = displayedSliceSet {
-                ScrollView {
-                    sliceModalBody(sample: sample, sliceSet: sliceSet)
+            onClose: { isPresentingSliceModal = false },
+            headerAccessory: {
+                // Normalize lives in the title bar (change 5): a single tap that
+                // re-normalizes the current marker frames. Only meaningful when a
+                // sample is loaded.
+                if let sample = currentSample {
+                    Button {
+                        normalizeWhole(sample: sample)
+                    } label: {
+                        Label("Normalize", systemImage: "waveform.path")
+                    }
+                    .buttonStyle(.bordered)
                 }
-                .frame(maxHeight: 560)
-            } else {
-                StudioPlaceholderTile(
-                    title: "No Sample",
-                    detail: "Choose a sample before slicing.",
-                    accent: StudioTheme.violet
-                )
+            },
+            content: {
+                if let sample = currentSample, let sliceSet = displayedSliceSet {
+                    sliceModalContent(sample: sample, sliceSet: sliceSet)
+                } else {
+                    StudioPlaceholderTile(
+                        title: "No Sample",
+                        detail: "Choose a sample before slicing.",
+                        accent: StudioTheme.violet
+                    )
+                }
             }
-        }
+        )
         .environment(\.colorScheme, .dark)
+    }
+
+    @ViewBuilder
+    private func sliceModalContent(sample: AudioSample, sliceSet: SliceSet) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            ScrollView {
+                sliceModalBody(sample: sample, sliceSet: sliceSet)
+            }
+            .frame(maxHeight: 500)
+
+            // Big Apply + Cancel at the bottom of the modal (change 4): Apply
+            // commits the detected slices and closes the modal; Cancel discards
+            // the draft and closes.
+            sliceModalActionBar(sample: sample)
+        }
     }
 
     private func sliceModalBody(sample: AudioSample, sliceSet: SliceSet) -> some View {
@@ -558,44 +583,54 @@ struct SliceTrackWorkspaceView: View {
                     .stroke(StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
             )
 
-            SlicerControlField(title: "View") {
-                HStack(spacing: 12) {
-                    Label("Zoom", systemImage: "plus.magnifyingglass")
-                        .studioText(.label)
-                        .foregroundStyle(StudioTheme.mutedText)
-                    Slider(value: $waveformZoom, in: 1...8)
-                    Label("Scroll", systemImage: "arrow.left.and.right")
-                        .studioText(.label)
-                        .foregroundStyle(StudioTheme.mutedText)
-                    Slider(value: $waveformScroll, in: 0...1)
-                        .disabled(waveformZoom <= 1.01)
-                }
+            // View controls inline under the waveform — no titled box (change 2).
+            viewControls
+
+            // Detection controls laid out plainly — no purple sub-box, no title
+            // (change 3).
+            autoDetectControls(sample: sample)
+        }
+    }
+
+    private var viewControls: some View {
+        HStack(spacing: 12) {
+            Label("Zoom", systemImage: "plus.magnifyingglass")
+                .studioText(.label)
+                .foregroundStyle(StudioTheme.mutedText)
+            Slider(value: $waveformZoom, in: 1...8)
+            Label("Scroll", systemImage: "arrow.left.and.right")
+                .studioText(.label)
+                .foregroundStyle(StudioTheme.mutedText)
+            Slider(value: $waveformScroll, in: 0...1)
+                .disabled(waveformZoom <= 1.01)
+        }
+    }
+
+    private func sliceModalActionBar(sample: AudioSample) -> some View {
+        HStack(spacing: 12) {
+            Button {
+                analysisDraft = nil
+                analysisMessage = nil
+                isPresentingSliceModal = false
+            } label: {
+                Text("Cancel")
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 6)
             }
+            .buttonStyle(.bordered)
+            .controlSize(.large)
 
-            SlicerControlField(title: "Detection") {
-                autoDetectControls(sample: sample)
+            Button {
+                applyAnalysis(sample: sample)
+                isPresentingSliceModal = false
+            } label: {
+                Text("Apply")
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 6)
             }
-
-            SlicerControlField(title: "Sample") {
-                HStack(spacing: 10) {
-                    Button {
-                        normalizeWhole(sample: sample)
-                    } label: {
-                        Label("Normalize", systemImage: "waveform.path")
-                    }
-                    .buttonStyle(.bordered)
-
-                    Button(role: .destructive) {
-                        removeSample()
-                        isPresentingSliceModal = false
-                    } label: {
-                        Label("Remove Sample", systemImage: "trash")
-                    }
-                    .buttonStyle(.bordered)
-
-                    Spacer()
-                }
-            }
+            .buttonStyle(.borderedProminent)
+            .tint(StudioTheme.success)
+            .controlSize(.large)
         }
     }
 
@@ -704,6 +739,19 @@ struct SliceTrackWorkspaceView: View {
         if command.hasPrefix(tabPrefix),
            let tab = SliceTrackLowerTab(rawValue: String(command.dropFirst(tabPrefix.count))) {
             selectedLowerTab = tab
+            return
+        }
+
+        // Drive the Slice Source modal from the capture harness so it has QA
+        // coverage (mirrors the tracks-navigator modal commands).
+        switch command {
+        case "sliceModal:open":
+            selectedLowerTab = .source
+            isPresentingSliceModal = true
+        case "sliceModal:close":
+            isPresentingSliceModal = false
+        default:
+            break
         }
     }
 
@@ -745,7 +793,10 @@ struct SliceTrackWorkspaceView: View {
 
                 Spacer()
 
-                Text("\(analysisDraft?.userSliceCount ?? 0) slices")
+                // Live slice count reflects the in-progress draft. The draft is
+                // populated on appear and on every parameter change, so this
+                // tracks the preview the user sees on the waveform.
+                Text("\(detectionSliceCount) slices")
                     .studioText(.labelBold)
                     .foregroundStyle(StudioTheme.violet)
             }
@@ -762,38 +813,20 @@ struct SliceTrackWorkspaceView: View {
                         .frame(width: 44, alignment: .trailing)
                 }
             }
-
-            HStack(spacing: 10) {
-                Button {
-                    applyAnalysis(sample: sample)
-                } label: {
-                    Label("Apply", systemImage: "checkmark.circle.fill")
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(StudioTheme.success)
-
-                Button {
-                    analysisDraft = nil
-                    analysisMessage = nil
-                } label: {
-                    Label("Cancel", systemImage: "xmark.circle")
-                }
-                .buttonStyle(.bordered)
-
-                Spacer()
-            }
         }
-        .padding(StudioMetrics.Spacing.comfortable)
-        // Colour identifies, it never floods (ux-canon rule 12): the panel is
-        // neutral; the violet lives in its outline.
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                .stroke(StudioTheme.violet.opacity(StudioOpacity.mediumStroke), lineWidth: StudioMetrics.borderWidth)
-        )
-        .onChange(of: analysisMode) { _, _ in refreshAutoSlicesIfNeeded(sample: sample) }
-        .onChange(of: analysisSensitivity) { _, _ in refreshAutoSlicesIfNeeded(sample: sample) }
-        .onChange(of: analysisBars) { _, _ in refreshAutoSlicesIfNeeded(sample: sample) }
+        // Seed the draft as soon as the controls appear so the waveform shows a
+        // live preview and Apply always has slices to commit (fixes the
+        // "0 slices" bug). Reproposing on every change keeps the preview live.
+        .onAppear { proposeAutoSlices(sample: sample) }
+        .onChange(of: analysisMode) { _, _ in proposeAutoSlices(sample: sample) }
+        .onChange(of: analysisSensitivity) { _, _ in proposeAutoSlices(sample: sample) }
+        .onChange(of: analysisBars) { _, _ in proposeAutoSlices(sample: sample) }
+    }
+
+    // Slice count for the detection readout: the live draft when present,
+    // otherwise the committed set so the badge never falsely reads 0.
+    private var detectionSliceCount: Int {
+        analysisDraft?.userSliceCount ?? currentSliceSet?.userSliceCount ?? 0
     }
 
     // MARK: - Routing / macros / FX support (reused from the melodic detail)
@@ -1293,9 +1326,19 @@ private extension SliceTrackWorkspaceView {
     }
 
     func proposeAutoSlices(sample: AudioSample) {
-        guard var set = analyzedSliceSet(sample: sample) else {
+        guard let set = proposedAutoSliceSet(sample: sample) else {
             analysisMessage = "Could not analyse \(sample.name)."
             return
+        }
+        analysisDraft = set
+        analysisMessage = nil
+    }
+
+    // Computes (but does not store) the slice set implied by the current
+    // detection params, preserving the existing whole-sample boundaries.
+    func proposedAutoSliceSet(sample: AudioSample) -> SliceSet? {
+        guard var set = analyzedSliceSet(sample: sample) else {
+            return nil
         }
         if let currentSliceSet {
             set.id = currentSliceSet.id
@@ -1305,28 +1348,14 @@ private extension SliceTrackWorkspaceView {
                 set.normalize(sampleLengthFrames: sampleLengthFrames(sample: sample))
             }
         }
-        analysisDraft = set
-        analysisMessage = nil
-    }
-
-    func toggleAnalysis(sample: AudioSample) {
-        if analysisDraft == nil {
-            proposeAutoSlices(sample: sample)
-        } else {
-            analysisDraft = nil
-            analysisMessage = nil
-        }
-    }
-
-    func refreshAutoSlicesIfNeeded(sample: AudioSample) {
-        guard analysisDraft != nil else {
-            return
-        }
-        proposeAutoSlices(sample: sample)
+        return set
     }
 
     func applyAnalysis(sample: AudioSample) {
-        guard var set = analysisDraft else {
+        // Prefer the live draft, but fall back to computing it on demand so Apply
+        // always commits the slices implied by the current detection params even
+        // if the draft was never seeded (fixes the "Apply → 0 slices" bug).
+        guard var set = analysisDraft ?? proposedAutoSliceSet(sample: sample) else {
             return
         }
         if let currentSliceSet {

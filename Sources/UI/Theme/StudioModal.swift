@@ -3,13 +3,14 @@ import SwiftUI
 /// Shared chrome for modal sheets. Every sheet gets the same dark stage
 /// background (no system white bleed at the sheet corners), the same title
 /// row, and a single ✕ close affordance in the top-right corner.
-struct StudioModal<Content: View>: View {
+struct StudioModal<Content: View, HeaderAccessory: View>: View {
     let title: String
     var subtitle: String? = nil
     var accent: Color = StudioTheme.cyan
     var minWidth: CGFloat = 480
     var minHeight: CGFloat? = nil
     var onClose: () -> Void
+    @ViewBuilder var headerAccessory: HeaderAccessory
     @ViewBuilder var content: Content
 
     var body: some View {
@@ -47,8 +48,35 @@ struct StudioModal<Content: View>: View {
 
             Spacer(minLength: 12)
 
+            // Optional title-bar accessory (e.g. a Normalize button) sits to the
+            // left of the close affordance.
+            headerAccessory
+
             StudioModalCloseButton(action: onClose)
         }
+    }
+}
+
+extension StudioModal where HeaderAccessory == EmptyView {
+    init(
+        title: String,
+        subtitle: String? = nil,
+        accent: Color = StudioTheme.cyan,
+        minWidth: CGFloat = 480,
+        minHeight: CGFloat? = nil,
+        onClose: @escaping () -> Void,
+        @ViewBuilder content: () -> Content
+    ) {
+        self.init(
+            title: title,
+            subtitle: subtitle,
+            accent: accent,
+            minWidth: minWidth,
+            minHeight: minHeight,
+            onClose: onClose,
+            headerAccessory: { EmptyView() },
+            content: content
+        )
     }
 }
 

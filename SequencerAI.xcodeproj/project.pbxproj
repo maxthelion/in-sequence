@@ -109,6 +109,7 @@
 		350297ECD76C2570D5737ECA /* LiveStoreTestSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC93B37FCC34C9AA162F46BB /* LiveStoreTestSupport.swift */; };
 		355B1BA8787A8D09DAE1D532 /* AudioInstrumentChoicesCacheTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94A1A57D4113E76D994A46D2 /* AudioInstrumentChoicesCacheTests.swift */; };
 		3589EDEB90D279A15C7336DE /* PhraseButtonControlPresentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C253B8AF9E412486C898ED50 /* PhraseButtonControlPresentationTests.swift */; };
+		35F2A3E03B2BF95843670B52 /* SlicerApplyAnalysisCreatesSlicesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F23BBA137E377791E769948 /* SlicerApplyAnalysisCreatesSlicesTests.swift */; };
 		36327AB930FAABAD74D246EC /* AudioDeviceSwitchCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AEF8D4D7433B457D193EACF /* AudioDeviceSwitchCoordinator.swift */; };
 		3673592D97299B3CE70000BD /* SessionBatchHelperTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2983B1B1D605847576E2029 /* SessionBatchHelperTests.swift */; };
 		36855EE41C5EF70BDED18E7F /* TrackMacroApplierTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8A7DE63635A6763B696BB09 /* TrackMacroApplierTests.swift */; };
@@ -627,6 +628,7 @@
 		0E66581AF965A5F587B45EFB /* note.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = note.md; sourceTree = "<group>"; };
 		0EC3216D89B7D3D550E597D4 /* SessionDestinationMacroTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionDestinationMacroTests.swift; sourceTree = "<group>"; };
 		0EF43FD057618F7C7610DE4F /* TrackPatternBankSyncedTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackPatternBankSyncedTests.swift; sourceTree = "<group>"; };
+		0F23BBA137E377791E769948 /* SlicerApplyAnalysisCreatesSlicesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SlicerApplyAnalysisCreatesSlicesTests.swift; sourceTree = "<group>"; };
 		0F2CBD936EE85AC60F94B92D /* AudioSampleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioSampleTests.swift; sourceTree = "<group>"; };
 		0F422227FF5C6BA42C69CB5E /* 2026-06-04-layer-integration-feedback.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2026-06-04-layer-integration-feedback.md"; sourceTree = "<group>"; };
 		0F5901836476E9360606315D /* TrackSourceEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackSourceEditorView.swift; sourceTree = "<group>"; };
@@ -3168,6 +3170,7 @@
 				1B1DBE1A94E5A98378041201 /* SessionMacroSlotTests.swift */,
 				82A3535947AAA3671C9B3D2A /* SessionSnapshotPublisherTests.swift */,
 				C7D67B1477FA156C5DB921E8 /* SessionTestSupport.swift */,
+				0F23BBA137E377791E769948 /* SlicerApplyAnalysisCreatesSlicesTests.swift */,
 				4E85AF51231E7ED41477BCAB /* TerminateFlushTests.swift */,
 				6F713C37F21B3FA3E2D8AD34 /* TrackFillPreviewSessionTests.swift */,
 				F269DFB7355DB1327BA4D6A9 /* TrackFXInsertTests.swift */,
@@ -6304,6 +6307,7 @@
 				64645F74EDC54A22604EE436 /* SessionTestSupport.swift in Sources */,
 				545F5682AD665A92AA1EF3B1 /* SliceAnalyzerTests.swift in Sources */,
 				EB4540B3F1F0454C7AE87E33 /* SliceSetTests.swift in Sources */,
+				35F2A3E03B2BF95843670B52 /* SlicerApplyAnalysisCreatesSlicesTests.swift in Sources */,
 				863F457B1A9AF8F08E6F39FE /* SlicerSettingsTests.swift in Sources */,
 				E37A5DC0BED5FFB5F127AD4F /* SnapshotChangeTypeTests.swift in Sources */,
 				7FCBEA8A63FB2A7CEB0623BC /* SourceRefNormalizationTests.swift in Sources */,

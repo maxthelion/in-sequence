@@ -1,0 +1,7 @@
+take out grey sub heading. view doesn't need to be a separate box, just controls under waveform.
+
+Detection box is messy. Doesn't need the subelement with purple outline or title. Changing values should show live preview of where slice points will be on the waveform. Apply should be a bigger button at the bottom that closes the modal. with cancel. Currently, it doesn't seem like changing the sensitivity and hitting apply actually creates slices. Normalize can potentiallly be nearer the top as a button in the title bar. Remove sample shouldn't be here
+
+---
+RESOLVED 2026-06-22: Slice Source modal redesigned — removed grey subtitle; Zoom/Scroll inline (no VIEW box); plain Method/Bars/Sensitivity (no purple DETECTION box); Normalize moved to the title bar; removed Remove Sample; big full-width Apply+Cancel at the bottom (Apply closes). FUNCTIONAL FIX: Apply produced 0 slices because analysisDraft was never seeded (the only seeder was dead code); detection now seeds the draft on appear + on every param change, with a fallback in applyAnalysis. Live slice-point markers now preview on the waveform. Added a 23f-slice-source-modal capture row + open command.
+VERIFIED — independent agent PASS C1-C7 (no subtitle/VIEW box/DETECTION box/Remove Sample; Normalize in title; bottom Apply+Cancel; "5 slices" non-zero with markers); evidence: 23f-slice-source-modal.png. FUNCTIONAL: independent re-run of SlicerApplyAnalysisCreatesSlicesTests PASS 0.41s (slices 0 -> N>0).

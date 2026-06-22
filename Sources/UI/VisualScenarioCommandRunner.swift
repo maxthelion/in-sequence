@@ -63,6 +63,7 @@ enum VisualScenarioCommandRunner {
     private static var slicerFixtureState = "none"
     private static var slicerLayerState = SliceTrackClipLayer.steps.rawValue
     private static var slicerTabState = "source"
+    private static var sliceSourceModalState = "closed"
     private static var audioInputTabState = "source"
     private static var drumGroupRoutingEditorRenderedState = false
     private static var drumGroupRoutingEditorMode = "none"
@@ -600,6 +601,7 @@ enum VisualScenarioCommandRunner {
         slicerFixture=\(slicerFixtureState)
         slicerLayer=\(slicerLayerState)
         slicerTab=\(slicerTabState)
+        sliceSourceModal=\(sliceSourceModalState)
         slicerSampleName=\(selectedSlicer.sampleName)
         slicerSliceCount=\(selectedSlicer.sliceCount)
         slicerClipStepCount=\(selectedSlicer.clipStepCount)
@@ -1496,7 +1498,8 @@ enum VisualScenarioCommandRunner {
         session: SequencerDocumentSession
     ) {
         guard command["slicerFixture"] != nil ||
-              command["slicerLayer"] != nil
+              command["slicerLayer"] != nil ||
+              command["sliceSourceModal"] != nil
         else { return }
 
         section.wrappedValue = .track
@@ -1529,6 +1532,17 @@ enum VisualScenarioCommandRunner {
            ["source", "slice", "fx", "macros", "mixer"].contains(rawTab) {
             slicerTabState = rawTab
             postRepeatedVisualCommand(name: .sliceTrackWorkspaceVisualCommand, object: "tab:\(rawTab)")
+        }
+
+        switch command["sliceSourceModal"] {
+        case "open", "visible", "true":
+            sliceSourceModalState = "open"
+            postRepeatedVisualCommand(name: .sliceTrackWorkspaceVisualCommand, object: "sliceModal:open")
+        case "close", "hidden", "false":
+            sliceSourceModalState = "closed"
+            postRepeatedVisualCommand(name: .sliceTrackWorkspaceVisualCommand, object: "sliceModal:close")
+        default:
+            break
         }
     }
 
