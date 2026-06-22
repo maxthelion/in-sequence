@@ -335,8 +335,8 @@ struct MasterBusScene: Codable, Equatable, Identifiable, Sendable {
     static let sceneAID = UUID(uuidString: "00000000-0000-0000-0000-000000000001")!
     static let sceneBID = UUID(uuidString: "00000000-0000-0000-0000-000000000002")!
     static let cleanID = sceneAID
-    static let sceneA = MasterBusScene(id: sceneAID, name: "Scene A", inserts: [], outputGain: 1, macroBindings: [])
-    static let sceneB = MasterBusScene(id: sceneBID, name: "Scene B", inserts: [], outputGain: 1, macroBindings: [])
+    static let sceneA = MasterBusScene(id: sceneAID, name: "1", inserts: [], outputGain: 1, macroBindings: [])
+    static let sceneB = MasterBusScene(id: sceneBID, name: "2", inserts: [], outputGain: 1, macroBindings: [])
     static let clean = sceneA
 
     var id: UUID

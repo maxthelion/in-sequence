@@ -476,13 +476,8 @@ struct PhraseWorkspaceView: View {
                 phraseSceneSlot(title: "Slot B", scene: sceneB, slot: .b, isDominant: crossfader > 0.5)
                     .frame(maxWidth: .infinity, alignment: .topLeading)
             }
-
-            Text("Scene A, crossfader, and Scene B are phrase values. Macro moves remain live scene overrides until the per-scene automation model is added.")
-                .studioText(.micro)
-                .foregroundStyle(StudioTheme.mutedText)
-                .lineLimit(2)
         }
-        .frame(maxWidth: min(trackGridWidth + phraseColumnWidth + matrixGutterWidth * 2 + actionColumnWidth + gridSpacing * 4, 1120))
+        .frame(maxWidth: .infinity, alignment: .topLeading)
         .accessibilityIdentifier("phrase-scenes-surface")
     }
 
@@ -646,7 +641,6 @@ struct PhraseWorkspaceView: View {
     private func phraseSceneSlotPickerSheet(_ request: ScenePerformSlotPickerRequest) -> some View {
         StudioModal(
             title: request.slot.title,
-            subtitle: "Choose scene",
             minWidth: 560,
             minHeight: 430,
             onClose: { phraseSceneSlotPickerRequest = nil }
@@ -773,9 +767,9 @@ struct PhraseWorkspaceView: View {
                 .frame(width: 132)
 
             phraseCellToolButton(.value)
-                .frame(width: 84, height: 50)
+                .frame(width: 84)
             phraseCellToolButton(.automation)
-                .frame(width: 104, height: 50)
+                .frame(width: 104)
         }
         .fixedSize(horizontal: true, vertical: false)
     }
@@ -822,9 +816,9 @@ struct PhraseWorkspaceView: View {
         Button {
             phraseCellTool = tool
         } label: {
-            VStack(alignment: .leading, spacing: 5) {
+            HStack(spacing: 6) {
                 Image(systemName: tool.symbolName)
-                    .font(.system(size: 13, weight: .bold))
+                    .font(.system(size: 11, weight: .bold))
                 Text(tool.label.uppercased())
                     .studioText(.microEmphasis)
                     .tracking(0.8)
@@ -832,8 +826,9 @@ struct PhraseWorkspaceView: View {
                     .minimumScaleFactor(0.8)
             }
             .foregroundStyle(phraseCellTool == tool ? StudioTheme.background : StudioTheme.mutedText)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 10)
+            .padding(.vertical, 8)
             .background(phraseCellTool == tool ? activeLayerAccent : Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
@@ -988,6 +983,18 @@ struct PhraseWorkspaceView: View {
             return
         }
 
+        if command.hasPrefix("scene-select:") {
+            let rawSlot = String(command.dropFirst("scene-select:".count))
+            if rawSlot == "close" {
+                phraseSceneSlotPickerRequest = nil
+            } else if let slot = ScenePerformSlotPickerRequest.Slot(rawValue: rawSlot) {
+                phraseTab = .scenes
+                phraseSceneSlotPickerRequest = ScenePerformSlotPickerRequest(slot: slot)
+            }
+            postRenderedMatrixVisualState(isVisible: true)
+            return
+        }
+
         if command == "phrase-capture:open" {
             isPresentingPhraseCapture = session.phrasePerformOverlay.hasLiveCopy
             postRenderedMatrixVisualState(isVisible: true)
@@ -1026,6 +1033,7 @@ struct PhraseWorkspaceView: View {
                 "cellTool": isVisible ? phraseCellTool.rawValue : "none",
                 "globalApplyTrackSelectorVisible": isVisible && isPresentingGlobalApplyTrackSelector,
                 "captureVisible": isVisible && isPresentingPhraseCapture,
+                "sceneSelectVisible": isVisible && phraseSceneSlotPickerRequest != nil,
             ]
         )
     }

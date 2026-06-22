@@ -50,6 +50,7 @@ enum VisualScenarioCommandRunner {
     private static var phraseWorkspaceTab = "layers"
     private static var phraseCellTool = "value"
     private static var phraseGlobalApplyTrackSelectorVisible = false
+    private static var phraseSceneSelectVisible = false
     private static var phraseCaptureVisible = false
     private static var stepOrderFixtureState = "none"
     private static var trackSourceTabState = "none"
@@ -210,6 +211,7 @@ enum VisualScenarioCommandRunner {
                 phraseWorkspaceTab = userInfo["workspaceTab"] as? String ?? "layers"
                 phraseCellTool = userInfo["cellTool"] as? String ?? "value"
                 phraseGlobalApplyTrackSelectorVisible = userInfo["globalApplyTrackSelectorVisible"] as? Bool ?? false
+                phraseSceneSelectVisible = userInfo["sceneSelectVisible"] as? Bool ?? false
                 phraseCaptureVisible = userInfo["captureVisible"] as? Bool ?? false
             }
         }
@@ -632,6 +634,7 @@ enum VisualScenarioCommandRunner {
         phraseWorkspaceTab=\(phraseWorkspaceTab)
         phraseCellTool=\(phraseCellTool)
         phraseGlobalApplyTrackSelectorVisible=\(phraseGlobalApplyTrackSelectorVisible)
+        phraseSceneSelectVisible=\(phraseSceneSelectVisible)
         phraseCaptureVisible=\(phraseCaptureVisible)
         masterGain=\(session.store.masterBus.masterOutputGain)
         firstTrackSendA=\(session.store.tracks.first?.mix.sendA ?? 0)
@@ -904,6 +907,7 @@ enum VisualScenarioCommandRunner {
               command["phraseWorkspaceTab"] != nil ||
               command["phraseCellTool"] != nil ||
               command["phraseGlobalApplyTrackSelector"] != nil ||
+              command["phraseSceneSelect"] != nil ||
               command["phraseCapture"] != nil
         else { return }
 
@@ -989,6 +993,17 @@ enum VisualScenarioCommandRunner {
             posts.append("global-apply-track-selector:open")
         case "close", "hidden", "false":
             posts.append("global-apply-track-selector:close")
+        default:
+            break
+        }
+
+        switch command["phraseSceneSelect"] {
+        case "a", "slot-a", "open", "visible", "true":
+            posts.append("scene-select:a")
+        case "b", "slot-b":
+            posts.append("scene-select:b")
+        case "close", "hidden", "false":
+            posts.append("scene-select:close")
         default:
             break
         }
