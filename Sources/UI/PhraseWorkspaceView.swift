@@ -1351,100 +1351,55 @@ struct PhraseWorkspaceView: View {
         .frame(minHeight: 280)
     }
 
-    private func matrixGrid(trackColumnWidth: CGFloat) -> some View {
-        ScrollView([.horizontal, .vertical]) {
-            VStack(alignment: .leading, spacing: gridSpacing) {
-                let activeLayer = activeMatrixLayer
-                let accent = activeLayerAccent
-                HStack(spacing: gridSpacing) {
-                    trackPageArrow(.previous)
-                        .frame(width: matrixGutterWidth, height: 52)
-
-                    ForEach(Array(visibleTrackSlots.enumerated()), id: \.offset) { _, track in
-                        Group {
-                            if let track {
-                                Button {
-                                    session.setSelectedTrackID(track.id)
-                                } label: {
-                                    PhraseMatrixTrackHeaderCell(
-                                        track: track,
-                                        isSelected: selectedTrack.id == track.id,
-                                        accent: track.groupID == nil ? accent : StudioTheme.success
-                                    )
-                                }
-                                .buttonStyle(.plain)
-                            } else {
-                                PhraseMatrixEmptyTrackHeaderCell()
-                            }
+    private func matrixGrid(trackColumnWidth _: CGFloat) -> some View {
+        // By Track layer matrix: the SELECTED phrase's per-track cells, each
+        // showing that track's value for the active layer, as a full-width
+        // wrapping grid — no track headers, no paging arrows. Phrases-as-rows is
+        // the Song view's phrase matrix, not this (bug 20260623-134959).
+        let activeLayer = activeMatrixLayer
+        let accent = activeLayerAccent
+        let selectedTrackID = session.store.selectedTrackID
+        let displayedPhrase = selectedPhraseForEditing
+        let rowInherited = inheritedDefaults(for: displayedPhrase.id)
+        let columns = [GridItem(.adaptive(minimum: 104), spacing: gridSpacing)]
+        return ScrollView(.vertical) {
+            LazyVGrid(columns: columns, alignment: .leading, spacing: gridSpacing) {
+                ForEach(scopedLayerTracks, id: \.id) { track in
+                    Group {
+                        if let activeLayer {
+                            PhraseGridCell(
+                                layer: activeLayer,
+                                cell: displayedPhrase.cell(for: activeLayer.id, trackID: track.id),
+                                phrase: displayedPhrase,
+                                track: track,
+                                isSelected: track.id == selectedTrackID,
+                                accent: accent,
+                                inherited: rowInherited
+                            )
+                        } else {
+                            PhrasePerformancePlaceholderCell(
+                                selection: performanceLayerSelection,
+                                phrase: displayedPhrase,
+                                track: track,
+                                isSelected: track.id == selectedTrackID,
+                                accent: accent
+                            )
                         }
-                        .frame(maxWidth: .infinity)
                     }
-
-                    trackPageArrow(.next)
-                        .frame(width: matrixGutterWidth, height: 52)
-                }
-
-                // Full-width cell matrix: one row per phrase, one column per
-                // visible track. The leftmost phrase-label column and the
-                // per-row actions now live in SongWorkspaceView, so this view
-                // is a clean grid of (phrase × track) layer-value cells
-                // (bug 20260623-134959).
-                let selectedPhraseID = session.store.selectedPhraseID
-                let selectedTrackID = session.store.selectedTrackID
-                ForEach(Array(phrases.enumerated()), id: \.element.id) { _, phrase in
-                    let displayedPhrase = session.phraseWithPerformOverlay(phrase)
-                    let rowInherited = inheritedDefaults(for: phrase.id)
-                    HStack(alignment: .top, spacing: gridSpacing) {
-                        PhraseMatrixGutterCell()
-                            .frame(width: matrixGutterWidth)
-
-                        ForEach(Array(visibleTrackSlots.enumerated()), id: \.offset) { _, track in
-                            Group {
-                                if let track {
-                                    Group {
-                                        if let activeLayer {
-                                            PhraseGridCell(
-                                                layer: activeLayer,
-                                                cell: displayedPhrase.cell(for: activeLayer.id, trackID: track.id),
-                                                phrase: displayedPhrase,
-                                                track: track,
-                                                isSelected: phrase.id == selectedPhraseID && track.id == selectedTrackID,
-                                                accent: accent,
-                                                inherited: rowInherited
-                                            )
-                                        } else {
-                                            PhrasePerformancePlaceholderCell(
-                                                selection: performanceLayerSelection,
-                                                phrase: displayedPhrase,
-                                                track: track,
-                                                isSelected: phrase.id == selectedPhraseID && track.id == selectedTrackID,
-                                                accent: accent
-                                            )
-                                        }
-                                    }
-                                    .contentShape(Rectangle())
-                                    .gesture(
-                                        TapGesture()
-                                            .onEnded {
-                                                handleSingleTap(on: phrase.id, trackID: track.id)
-                                            }
-                                    )
-                                    .simultaneousGesture(
-                                        scalarDragGesture(phrase: displayedPhrase, track: track, layer: activeLayer)
-                                    )
-                                } else {
-                                    PhraseGridEmptyCell()
-                                }
+                    .frame(maxWidth: .infinity)
+                    .contentShape(Rectangle())
+                    .gesture(
+                        TapGesture()
+                            .onEnded {
+                                handleSingleTap(on: displayedPhrase.id, trackID: track.id)
                             }
-                            .frame(maxWidth: .infinity)
-                        }
-
-                        PhraseMatrixGutterCell()
-                            .frame(width: matrixGutterWidth)
-                    }
-                    .frame(height: PhraseMatrixLayoutPresentation.matrixRowHeight)
+                    )
+                    .simultaneousGesture(
+                        scalarDragGesture(phrase: displayedPhrase, track: track, layer: activeLayer)
+                    )
                 }
             }
+            .frame(maxWidth: .infinity)
             .padding(.vertical, 2)
         }
         .scrollIndicators(.never)
@@ -2520,16 +2475,27 @@ private struct PhraseGridCell: View {
     }
 
     var body: some View {
-        PhraseCellPreview(
-            layer: layer,
-            cell: cell,
-            resolvedValue: resolvedValue,
-            accent: accent,
-            summary: valueLabel(resolvedValue, layer: layer),
-            metrics: .matrix
-        )
-        .opacity(isInherited ? StudioOpacity.inheritedContent : 1)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        VStack(alignment: .leading, spacing: 6) {
+            // Track name header inside the cell (By Track has no separate header
+            // row), above the value/controls.
+            Text(track.name)
+                .studioText(.labelBold)
+                .foregroundStyle(track.groupID == nil ? StudioTheme.text : StudioTheme.success)
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            PhraseCellPreview(
+                layer: layer,
+                cell: cell,
+                resolvedValue: resolvedValue,
+                accent: accent,
+                summary: valueLabel(resolvedValue, layer: layer),
+                metrics: .matrix
+            )
+            .opacity(isInherited ? StudioOpacity.inheritedContent : 1)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        }
         .padding(StudioMetrics.Spacing.compact)
         // Bold-flat pass: no container fill — the cell preview is the block,
         // sitting directly on the ground (one less nesting level). The
