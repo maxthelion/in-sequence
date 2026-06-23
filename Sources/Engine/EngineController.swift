@@ -17,14 +17,17 @@ import Observation
 /// parameter setters via TrackMacroApplier are fire-and-forget. Tests
 /// install `violationHandlerForTesting` to observe violations without
 /// crashing the test host and to positively prove the detector fires
-/// (TickPathMainIsolationTests). Compiles to no-ops in release.
+/// (TickPathMainIsolationTests). Violation reporting compiles to no-ops in
+/// release; the tick marker stays live so runtime paths can choose async graph
+/// work instead of blocking playback.
 ///
 /// `reportImminentDeadlock` (lock re-entry / hop-under-lock) also TRAPS in
 /// DEBUG: the alternative is a guaranteed wedge a few instructions later.
 enum TickPathMainSyncGuard {
-    #if DEBUG
     private static let markerKey = "ai.sequencer.SequencerAI.TickPathMainSyncGuard.isOnTickPath"
+    #if DEBUG
     private static let stateLockDepthKey = "ai.sequencer.SequencerAI.TickPathMainSyncGuard.stateLockDepth"
+    #endif
 
     /// True while the current thread is executing the tick path.
     static var isOnTickPath: Bool {
@@ -32,6 +35,7 @@ enum TickPathMainSyncGuard {
         set { Thread.current.threadDictionary[markerKey] = newValue }
     }
 
+    #if DEBUG
     /// Per-thread `EngineController.stateLock` hold depth. Maintained by
     /// `EngineController.withStateLock` (NSLock has no owner readout).
     /// Shared here — not private to EngineController — so the sync-to-main
@@ -51,11 +55,9 @@ enum TickPathMainSyncGuard {
 
     /// Marks the current thread as the tick path for the duration of `body`.
     static func withTickPathMarker<T>(_ body: () -> T) -> T {
-        #if DEBUG
         let wasMarked = isOnTickPath
         isOnTickPath = true
         defer { isOnTickPath = wasMarked }
-        #endif
         return body()
     }
 

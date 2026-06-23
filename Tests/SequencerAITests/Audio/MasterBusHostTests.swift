@@ -285,6 +285,41 @@ final class MasterBusHostTests: XCTestCase {
     }
 
     @MainActor
+    func test_tickPathMasterApplyDefersGraphRebuildWithoutMainSync() throws {
+        let graph = MainAudioGraph()
+        let host = MasterBusHost()
+        let scene = MasterBusScene(name: "Dry")
+        let masterInsert = MasterBusInsert(name: "Master Filter", kind: .nativeFilter(.default))
+        host.attach(to: graph)
+        host.apply(MasterBusState(scenes: [scene], activeSceneID: scene.id))
+
+        var violations: [String] = []
+        TickPathMainSyncGuard.violationHandlerForTesting = { violations.append($0) }
+        defer { TickPathMainSyncGuard.violationHandlerForTesting = nil }
+
+        DispatchQueue(label: "test.master-bus.tick-apply").sync {
+            TickPathMainSyncGuard.withTickPathMarker {
+                host.apply(MasterBusState(
+                    scenes: [scene],
+                    activeSceneID: scene.id,
+                    masterOutputGain: 0.5,
+                    masterInserts: [masterInsert]
+                ))
+            }
+        }
+
+        XCTAssertEqual(violations, [], "tick-path master applies must not synchronously wait on main")
+        XCTAssertEqual(host.appliedState.masterOutputGain, 0.5)
+        XCTAssertEqual(host.appliedState.masterInserts.first?.id, masterInsert.id)
+
+        waitUntil(timeout: 1) {
+            graph.postBlendMasterInsertNodesForTesting.count == 1
+        }
+        XCTAssertEqual(graph.masterOutputGainForTesting, 0.5, accuracy: 0.0001)
+        XCTAssertTrue(graph.postBlendMasterInsertNodesForTesting.first is AVAudioUnitEQ)
+    }
+
+    @MainActor
     func test_auParameterMacroWritesLiveEffectWithoutReapply() throws {
         let graph = MainAudioGraph()
         let eq = AVAudioUnitEQ(numberOfBands: 1)

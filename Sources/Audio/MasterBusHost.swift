@@ -47,6 +47,7 @@ final class MasterBusHost: MasterBusHosting {
     private var pendingAUEffectIDs: Set<UUID> = []
     private var installedShape: MasterBusGraphShape?
     private var installedNodesByInsertID: [UUID: AVAudioNode] = [:]
+    private var pendingMainGraphRebuild = false
 
     private struct CachedAUEffect {
         let componentID: AudioComponentID
@@ -225,6 +226,10 @@ final class MasterBusHost: MasterBusHosting {
     }
 
     private func rebuildAudioGraph() {
+        if deferRebuildAudioGraphFromTickPath() {
+            return
+        }
+
         let (state, audioGraph, installedShape) = lock.withLock {
             (
                 self.state.applyingPerformanceOverlay(self.performanceOverlay.normalized(for: self.state)),
@@ -396,6 +401,10 @@ final class MasterBusHost: MasterBusHosting {
     }
 
     private func refreshAudioGraphForPerformanceChange() {
+        if deferRebuildAudioGraphFromTickPath() {
+            return
+        }
+
         let (state, audioGraph, installedShape, nodesByInsertID) = lock.withLock {
             (
                 self.state.applyingPerformanceOverlay(self.performanceOverlay.normalized(for: self.state)),
@@ -608,6 +617,28 @@ final class MasterBusHost: MasterBusHosting {
                 self.rebuildAudioGraph()
             }
         }
+    }
+
+    private func deferRebuildAudioGraphFromTickPath() -> Bool {
+        guard TickPathMainSyncGuard.isOnTickPath, !Thread.isMainThread else {
+            return false
+        }
+
+        let shouldSchedule = lock.withLock { () -> Bool in
+            guard !pendingMainGraphRebuild else { return false }
+            pendingMainGraphRebuild = true
+            return true
+        }
+        guard shouldSchedule else { return true }
+
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.lock.withLock {
+                self.pendingMainGraphRebuild = false
+            }
+            self.rebuildAudioGraph()
+        }
+        return true
     }
 
     private func performOnMain(_ work: @escaping @MainActor () -> Void) {
