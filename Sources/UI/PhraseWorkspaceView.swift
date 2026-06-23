@@ -153,8 +153,10 @@ struct PhraseWorkspaceView: View {
                 }
             }
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 10)
+        // Standard workspace surface inset (matches Tracks/Mixer/Track/Drum):
+        // every page roots its content at `.section` so the left/top gap from
+        // the nav chrome is identical across surfaces.
+        .padding(StudioMetrics.Spacing.section)
         .sheet(item: $editingCellTarget) { target in
             PhraseCellEditorSheet(
                 target: target,

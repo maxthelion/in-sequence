@@ -81,6 +81,10 @@ struct ScenesWorkspaceView: View {
                 performView
             }
         }
+        // Standard workspace surface inset (matches Tracks/Mixer/Track/Drum):
+        // the borderless scene-browser panel had no outer padding, so it sat
+        // tighter to the left/top than the other pages.
+        .padding(StudioMetrics.Spacing.section)
         .onAppear {
             selectedInsertID = selectedSceneID.flatMap { masterBus.scene(id: $0)?.inserts.first?.id }
         }
