@@ -376,7 +376,8 @@ final class SamplePlaybackEngineTests: XCTestCase {
     /// handles are only meaningful to main-thread callers) and must never
     /// sync onto the main thread — that hop deadlocked against
     /// TickClock.stop()'s tick-queue join. Prepared voices can schedule on
-    /// the fast path; graph repair still lands via an async main hop.
+    /// the fast path. If a prepared voice fails during that fast path, repair is
+    /// deferred instead of queued from the trigger path.
     func test_playFromBackgroundQueue_isFireAndForgetWithoutBlocking() throws {
         guard let engine = makeEngine() else { return }
         defer { engine.stop() }
@@ -406,6 +407,37 @@ final class SamplePlaybackEngineTests: XCTestCase {
         let drained = expectation(description: "main hop drained")
         DispatchQueue.main.async { drained.fulfill() }
         wait(for: [drained], timeout: 2)
+    }
+
+    func test_backgroundFastPathFailureDefersRepairInsteadOfMainHopRepairStorm() throws {
+        guard let engine = makeEngine() else { return }
+        defer { engine.stop() }
+
+        let returned = expectation(description: "background failed sample play returns")
+        let trackID = UUID()
+        engine.prepareTrack(trackID: trackID)
+        engine.disconnectFirstPreparedVoiceForFastPathFailureForTesting(trackID: trackID)
+        XCTAssertFalse(engine.isFirstPreparedVoiceConnectedForTesting(trackID: trackID))
+
+        DispatchQueue(label: "SamplePlaybackEngineTests.background-failed-play").async {
+            _ = engine.play(sampleURL: self.fixtureURL, settings: .default, trackID: trackID, at: nil)
+            returned.fulfill()
+        }
+
+        wait(for: [returned], timeout: 2)
+        XCTAssertEqual(engine.deferredPreparedTrackRepairIDsForTesting, [trackID])
+
+        let drained = expectation(description: "main queue drained")
+        DispatchQueue.main.async { drained.fulfill() }
+        wait(for: [drained], timeout: 2)
+        XCTAssertFalse(
+            engine.isFirstPreparedVoiceConnectedForTesting(trackID: trackID),
+            "Failed fast-path playback must not queue a main-thread graph repair"
+        )
+
+        engine.prepareTrack(trackID: trackID)
+        XCTAssertTrue(engine.isFirstPreparedVoiceConnectedForTesting(trackID: trackID))
+        XCTAssertTrue(engine.deferredPreparedTrackRepairIDsForTesting.isEmpty)
     }
 
     /// Main-thread play keeps returning a live voice handle.

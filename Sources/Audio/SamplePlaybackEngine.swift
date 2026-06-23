@@ -200,6 +200,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
     private var trackOutputBusIDs: [UUID: UUID] = [:]
     private var trackSendLevels: [UUID: MainAudioGraph.TrackSendLevels] = [:]
     private var fastPathReadyTrackIDs: Set<UUID> = []
+    private var deferredPreparedTrackRepairIDs: Set<UUID> = []
     /// Per-track, per-kind voice params. Applied at voice scheduling time (next trigger).
     private var voiceParams: [UUID: [BuiltinMacroKind: Double]] = [:]
     #if DEBUG
@@ -211,6 +212,12 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
             Set(trackVoicePools.keys).union(busVoicePools.keys)
         }
     }
+
+    #if DEBUG
+    var deferredPreparedTrackRepairIDsForTesting: Set<UUID> {
+        lifecycleLock.withLock { deferredPreparedTrackRepairIDs }
+    }
+    #endif
 
     init(audioGraph: MainAudioGraph = MainAudioGraph()) {
         self.audioGraph = audioGraph
@@ -259,6 +266,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
                    audioGraph.mixerBusReadoutForTesting(busID: busID) != nil {
                     prepareBusVoicePool(trackID: trackID, busID: busID)
                     _ = fastPathReadyTrackIDs.insert(trackID)
+                    _ = deferredPreparedTrackRepairIDs.remove(trackID)
                     return
                 }
                 if let pool = trackVoicePools[trackID] {
@@ -266,6 +274,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
                         repairPreparedTrackGraph(trackID: trackID, pool: pool)
                     }
                     _ = fastPathReadyTrackIDs.insert(trackID)
+                    _ = deferredPreparedTrackRepairIDs.remove(trackID)
                     return
                 }
                 _ = trackMixer(for: trackID)
@@ -294,6 +303,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
                 trackVoicePools[trackID] = pool
                 repairPreparedTrackGraph(trackID: trackID, pool: pool)
                 _ = fastPathReadyTrackIDs.insert(trackID)
+                _ = deferredPreparedTrackRepairIDs.remove(trackID)
             }
         }
     }
@@ -449,10 +459,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
             completionHandler: nil
         )
         guard startVoiceSafely(voice, at: effectiveWhen) else {
-            lifecycleLock.withLock {
-                _ = fastPathReadyTrackIDs.remove(trackID)
-            }
-            requestPreparedTrackRepair(trackID: trackID)
+            deferPreparedTrackRepair(trackID: trackID, scheduled: scheduled)
             SequencerTimingProbe.sampleFastPath(
                 trackID: trackID,
                 scheduled: scheduled,
@@ -757,6 +764,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
                     )
                 }
                 _ = fastPathReadyTrackIDs.insert(trackID)
+                _ = deferredPreparedTrackRepairIDs.remove(trackID)
             }
         }
     }
@@ -790,6 +798,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
             trackMixValues.removeValue(forKey: trackID)
             trackFilterFanouts.removeValue(forKey: trackID)
             _ = fastPathReadyTrackIDs.remove(trackID)
+            _ = deferredPreparedTrackRepairIDs.remove(trackID)
             guard let mixer = trackMixers.removeValue(forKey: trackID) else { return }
             // realtime-allow-graph-mutation: track teardown is document/routing cleanup, not tick dispatch. Test: RealtimePathLintTests.
             audioGraph.disconnectOutput(mixer)
@@ -902,6 +911,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
 
         let pool = BusVoicePool(voices: voices, voiceMixers: mixers, handles: handles, cursor: 0)
         busVoicePools[trackID] = pool
+        _ = deferredPreparedTrackRepairIDs.remove(trackID)
         filterFanout(for: trackID).setTargets([])
         applyBusVoiceMix(trackID: trackID, pool: pool)
         // realtime-allow-graph-mutation: prepared bus voice setup occurs during document apply/setup, not tick dispatch. Test: RealtimePathLintTests.
@@ -977,6 +987,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
             lifecycleLock.withLock {
                 for (trackID, pool) in trackVoicePools {
                     guard !isPreparedTrackPoolReadyForPlayback(trackID: trackID, pool: pool) else {
+                        _ = deferredPreparedTrackRepairIDs.remove(trackID)
                         continue
                     }
                     repairPreparedTrackGraph(trackID: trackID, pool: pool)
@@ -990,6 +1001,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
                         }
                         continue
                     }
+                    _ = deferredPreparedTrackRepairIDs.remove(trackID)
                     applyBusVoiceMix(trackID: trackID, pool: pool)
                 }
             }
@@ -1194,6 +1206,16 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
             return nil
         }
 
+        guard !isPreparedTrackRepairDeferred(trackID: trackID) else {
+            SequencerTimingProbe.sampleFastPath(
+                trackID: trackID,
+                scheduled: scheduled,
+                actual: ProcessInfo.processInfo.systemUptime,
+                result: "repair-deferred"
+            )
+            return nil
+        }
+
         // Broken/missing graph state still repairs on main. The normal
         // prepared path above schedules directly from the tick/event queue,
         // so tab rendering no longer sits between the tick and sample start.
@@ -1299,10 +1321,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
             return true
         }
 
-        lifecycleLock.withLock {
-            _ = fastPathReadyTrackIDs.remove(trackID)
-        }
-        requestPreparedTrackRepair(trackID: trackID)
+        deferPreparedTrackRepair(trackID: trackID, scheduled: scheduled)
         SequencerTimingProbe.sampleFastPath(
             trackID: trackID,
             scheduled: scheduled,
@@ -1407,12 +1426,13 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
                 if schedule(voice, voiceFilter, selectedParams) {
                     lifecycleLock.withLock {
                         _ = fastPathReadyTrackIDs.insert(trackID)
+                        _ = deferredPreparedTrackRepairIDs.remove(trackID)
                     }
                     return VoiceHandle(id: handleID)
                 }
 
                 lifecycleLock.withLock {
-                    _ = fastPathReadyTrackIDs.remove(trackID)
+                    markPreparedTrackRepairDeferredLocked(trackID: trackID)
                 }
                 guard !didRepair else { return nil }
                 didRepair = true
@@ -1546,37 +1566,36 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         }
         trackVoicePools[trackID] = pool
         _ = fastPathReadyTrackIDs.insert(trackID)
+        _ = deferredPreparedTrackRepairIDs.remove(trackID)
     }
 
-    private func requestPreparedTrackRepair(trackID: UUID) {
-        let enqueued = ProcessInfo.processInfo.systemUptime
-        SequencerTimingProbe.sampleMainHopQueued(
-            trackID: trackID,
-            scheduled: nil,
-            enqueued: enqueued,
-            reason: "post-failure-repair"
-        )
-        // realtime-allow-main-async: post-failure graph repair only, logged by timing probe. Test: RealtimePathLintTests.
-        DispatchQueue.main.async { [self] in
-            SequencerTimingProbe.sampleMainHopStarted(
-                trackID: trackID,
-                scheduled: nil,
-                enqueued: enqueued,
-                actual: ProcessInfo.processInfo.systemUptime,
-                reason: "post-failure-repair"
+    private func deferPreparedTrackRepair(trackID: UUID, scheduled: TimeInterval?) {
+        let didInsert = lifecycleLock.withLock {
+            markPreparedTrackRepairDeferredLocked(trackID: trackID)
+        }
+        if didInsert {
+            DevActivity.trace(
+                DevActivity.audioGraph,
+                "deferred prepared sample graph repair track=\(trackID.uuidString) reason=post-failure"
             )
-            MainActor.assumeIsolated {
-                lifecycleLock.withLock {
-                    if let pool = busVoicePools[trackID],
-                       let busID = trackOutputBusIDs[trackID] {
-                        guard !isBusVoicePoolReadyForPlayback(pool: pool, busID: busID) else { return }
-                        prepareBusVoicePool(trackID: trackID, busID: busID)
-                        return
-                    }
-                    guard let pool = trackVoicePools[trackID] else { return }
-                    repairPreparedTrackGraph(trackID: trackID, pool: pool)
-                }
-            }
+        }
+        SequencerTimingProbe.sampleFastPath(
+            trackID: trackID,
+            scheduled: scheduled,
+            actual: ProcessInfo.processInfo.systemUptime,
+            result: didInsert ? "repair-deferred" : "repair-deferred-pending"
+        )
+    }
+
+    @discardableResult
+    private func markPreparedTrackRepairDeferredLocked(trackID: UUID) -> Bool {
+        _ = fastPathReadyTrackIDs.remove(trackID)
+        return deferredPreparedTrackRepairIDs.insert(trackID).inserted
+    }
+
+    private func isPreparedTrackRepairDeferred(trackID: UUID) -> Bool {
+        lifecycleLock.withLock {
+            deferredPreparedTrackRepairIDs.contains(trackID)
         }
     }
 
@@ -1668,6 +1687,17 @@ extension SamplePlaybackEngine {
                 guard let voice = trackVoicePools[trackID]?.voices.first else { return }
                 _ = fastPathReadyTrackIDs.remove(trackID)
                 // realtime-allow-graph-mutation: test hook deliberately breaks prepared graph. Test: RealtimePathLintTests.
+                audioGraph.disconnectOutput(voice)
+            }
+        }
+    }
+
+    func disconnectFirstPreparedVoiceForFastPathFailureForTesting(trackID: UUID) {
+        performOnMain { [self] in
+            lifecycleLock.withLock {
+                guard let voice = trackVoicePools[trackID]?.voices.first else { return }
+                _ = fastPathReadyTrackIDs.insert(trackID)
+                // realtime-allow-graph-mutation: test hook deliberately breaks prepared fast path. Test: RealtimePathLintTests.
                 audioGraph.disconnectOutput(voice)
             }
         }
