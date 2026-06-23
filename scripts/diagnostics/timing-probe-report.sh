@@ -9,8 +9,6 @@ out="${2:-.meta/timing-probe-$(date +%Y%m%d-%H%M%S).log}"
 threshold="${TIMING_PROBE_LATE_MS:-2}"
 failure_threshold="${TIMING_PROBE_FAILURE_MS:-5}"
 
-mkdir -p "$(dirname "$out")"
-
 if [[ -f "$input" ]]; then
   out="$input"
   printf 'analyzing %s\n' "$out"
@@ -19,6 +17,7 @@ elif [[ "$input" =~ ^[0-9]+[mhd]?$ ]]; then
   if [[ "$window" =~ ^[0-9]+$ ]]; then
     window="${window}m"
   fi
+  mkdir -p "$(dirname "$out")"
   /usr/bin/log show --info --last "$window" --style compact \
     --predicate 'subsystem == "ai.sequencer.SequencerAI.activity" AND category == "timing-probe"' \
     > "$out"

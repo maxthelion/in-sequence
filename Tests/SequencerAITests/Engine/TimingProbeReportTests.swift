@@ -169,6 +169,7 @@ final class TimingProbeReportTests: XCTestCase {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/bin/bash")
         process.arguments = [script.path] + arguments
+        process.currentDirectoryURL = repoRoot
 
         var mergedEnvironment = ProcessInfo.processInfo.environment
         for (key, value) in environment {
