@@ -2,9 +2,14 @@ import Foundation
 
 /// Pure value/derivation model for the kit matrix. Resolves a drum group's
 /// members into ordered rows, each carrying its active pattern slot's content
-/// (editable note grid, generator badge, or read-only source), plus group-level
-/// derivations (pattern mismatch, shared slot, link-broken state). Holds no
-/// SwiftUI — it is built from store snapshots and is unit-testable in isolation.
+/// (editable note grid, generator badge, or read-only source), plus the
+/// group-level shared pattern slot. Holds no SwiftUI — it is built from store
+/// snapshots and is unit-testable in isolation.
+///
+/// Patterns are GLOBAL across the kit: selecting a slot fans the same index to
+/// every member, so members never diverge through the UI. The former per-kit
+/// "pattern mismatch" / "link broken" / per-row divergence badges modelled an
+/// older per-kit-pattern design and have been removed.
 struct DrumKitMatrixModel: Equatable {
     struct Row: Identifiable, Equatable {
         /// What the row's active pattern slot resolves to.
@@ -26,7 +31,6 @@ struct DrumKitMatrixModel: Equatable {
         var patternSlotIndex: Int
         var sourceMode: TrackSourceMode
         var content: Content
-        var isDivergentPattern: Bool
         var defaultNote: ClipStepNote
 
         var patternBadge: String {
@@ -71,29 +75,17 @@ struct DrumKitMatrixModel: Equatable {
     var staleMemberCount: Int
     /// Pattern slots where at least one member holds a non-empty source.
     var occupiedSlotIndexes: Set<Int>
-    /// The group's explicit pattern-link intent (AC17). Linking gangs pattern
-    /// slot selection only; mute/fill/macros stay per-part.
-    var isPatternLinked: Bool
 
     var memberCountLabel: String {
         "\(rows.count) part\(rows.count == 1 ? "" : "s")"
     }
 
-    var hasPatternMismatch: Bool {
-        rows.contains(where: \.isDivergentPattern)
-    }
-
-    /// The slot every member shares, or nil when members diverge (mixed state).
+    /// The shared pattern slot for the whole kit. Patterns are global, so the
+    /// kit selects ONE slot for all members; this resolves to the first row's
+    /// slot. (Legacy documents may carry per-member divergence; the slot
+    /// binding's first write re-aligns every member.)
     var groupSelectedSlotIndex: Int? {
-        guard let first = rows.first?.patternSlotIndex else { return nil }
-        return rows.allSatisfy { $0.patternSlotIndex == first } ? first : nil
-    }
-
-    /// Structural divergence (AC20): the kit intends to be linked, but members
-    /// sit on different pattern slots, so the link is effectively broken until
-    /// re-linked. This is the condition that surfaces the one-click "Re-link".
-    var isLinkBroken: Bool {
-        isPatternLinked && groupSelectedSlotIndex == nil && rows.count > 1
+        rows.first?.patternSlotIndex
     }
 
     init?(
@@ -121,9 +113,6 @@ struct DrumKitMatrixModel: Equatable {
         }
         let resolvedMemberIDs = Set(orderedMembers.map(\.id))
         let staleMemberCount = Set(group.memberIDs).subtracting(resolvedMemberIDs).count
-        let firstPatternSlot = orderedMembers.first.map {
-            selectedPhrase.patternIndex(for: $0.id, layers: layers)
-        }
 
         self.groupID = group.id
         self.groupName = group.name
@@ -131,7 +120,6 @@ struct DrumKitMatrixModel: Equatable {
         self.originatingPartID = originatingPartID
         self.displayStepCount = resolvedDisplayStepCount
         self.staleMemberCount = staleMemberCount
-        self.isPatternLinked = group.isPatternLinked
         self.rows = orderedMembers.map { track in
             let patternSlotIndex = selectedPhrase.patternIndex(for: track.id, layers: layers)
             let patternBank = Self.patternBank(
@@ -150,7 +138,6 @@ struct DrumKitMatrixModel: Equatable {
                     clipPool: clipPool,
                     generatorPool: generatorPool
                 ),
-                isDivergentPattern: firstPatternSlot.map { patternSlotIndex != $0 } ?? false,
                 defaultNote: ClipStepNote(
                     pitch: track.pitches.first ?? 60,
                     velocity: track.velocity,

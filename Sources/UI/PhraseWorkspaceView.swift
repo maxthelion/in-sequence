@@ -276,18 +276,21 @@ struct PhraseWorkspaceView: View {
                     globalApplyTrackScopeButton
                 }
 
-                // Left-anchored perform actions. Capture/Discard are always
-                // present (disabled until there are staged changes) so they
-                // never shift when Mom/Latch appear; those timing controls
-                // only exist in perform mode and sit to their right, before the
-                // Spacer, so they push nothing around. Perform stays rightmost.
-                phraseCaptureActions
-
+                // Timing controls only exist in perform mode and sit on the
+                // left before the Spacer, so they push nothing around.
                 if session.workspaceMode == .perform {
                     phraseLatchTimingControls
                 }
 
                 Spacer(minLength: 8)
+
+                // Capture/Discard sit immediately to the LEFT of Perform and
+                // only appear when there's a live perform copy to act on —
+                // i.e. perform is on and changes have been staged
+                // (bug 20260623-130017). Otherwise they're hidden entirely.
+                if phrasePerformActionAvailability.canCapture {
+                    phraseCaptureActions
+                }
 
                 phrasePerformToggle
             }
@@ -400,8 +403,10 @@ struct PhraseWorkspaceView: View {
 
     // Capture + Discard sit right next to Perform On — they're only useful
     // while perform is on and share its capsule grammar (bug 20260620-135423).
-    // Capture is the primary action (solid amber when live), Discard is the
-    // outline-only secondary.
+    // The caller only renders this row when there's a live copy to act on
+    // (perform on + staged changes, bug 20260623-130017), so these buttons are
+    // always actionable here. Capture is the primary action (solid green when
+    // live), Discard is the outline-only secondary.
     private var phraseCaptureActions: some View {
         let availability = phrasePerformActionAvailability
 
@@ -1372,65 +1377,73 @@ struct PhraseWorkspaceView: View {
                                 PhraseMatrixEmptyTrackHeaderCell()
                             }
                         }
-                        .frame(width: trackColumnWidth)
+                        .frame(maxWidth: .infinity)
                     }
 
                     trackPageArrow(.next)
                         .frame(width: matrixGutterWidth, height: 52)
                 }
 
-                let displayedPhrase = selectedPhraseForEditing
+                // Full-width cell matrix: one row per phrase, one column per
+                // visible track. The leftmost phrase-label column and the
+                // per-row actions now live in SongWorkspaceView, so this view
+                // is a clean grid of (phrase × track) layer-value cells
+                // (bug 20260623-134959).
+                let selectedPhraseID = session.store.selectedPhraseID
                 let selectedTrackID = session.store.selectedTrackID
-                let displayedInherited = inheritedDefaults(for: displayedPhrase.id)
-                HStack(alignment: .top, spacing: gridSpacing) {
-                    PhraseMatrixGutterCell()
-                        .frame(width: matrixGutterWidth)
+                ForEach(Array(phrases.enumerated()), id: \.element.id) { _, phrase in
+                    let displayedPhrase = session.phraseWithPerformOverlay(phrase)
+                    let rowInherited = inheritedDefaults(for: phrase.id)
+                    HStack(alignment: .top, spacing: gridSpacing) {
+                        PhraseMatrixGutterCell()
+                            .frame(width: matrixGutterWidth)
 
-                    ForEach(Array(visibleTrackSlots.enumerated()), id: \.offset) { _, track in
-                        Group {
-                            if let track {
-                                Group {
-                                    if let activeLayer {
-                                        PhraseGridCell(
-                                            layer: activeLayer,
-                                            cell: displayedPhrase.cell(for: activeLayer.id, trackID: track.id),
-                                            phrase: displayedPhrase,
-                                            track: track,
-                                            isSelected: track.id == selectedTrackID,
-                                            accent: accent,
-                                            inherited: displayedInherited
-                                        )
-                                    } else {
-                                        PhrasePerformancePlaceholderCell(
-                                            selection: performanceLayerSelection,
-                                            phrase: displayedPhrase,
-                                            track: track,
-                                            isSelected: track.id == selectedTrackID,
-                                            accent: accent
-                                        )
-                                    }
-                                }
-                                .contentShape(Rectangle())
-                                .gesture(
-                                    TapGesture()
-                                        .onEnded {
-                                            handleSingleTap(on: displayedPhrase.id, trackID: track.id)
+                        ForEach(Array(visibleTrackSlots.enumerated()), id: \.offset) { _, track in
+                            Group {
+                                if let track {
+                                    Group {
+                                        if let activeLayer {
+                                            PhraseGridCell(
+                                                layer: activeLayer,
+                                                cell: displayedPhrase.cell(for: activeLayer.id, trackID: track.id),
+                                                phrase: displayedPhrase,
+                                                track: track,
+                                                isSelected: phrase.id == selectedPhraseID && track.id == selectedTrackID,
+                                                accent: accent,
+                                                inherited: rowInherited
+                                            )
+                                        } else {
+                                            PhrasePerformancePlaceholderCell(
+                                                selection: performanceLayerSelection,
+                                                phrase: displayedPhrase,
+                                                track: track,
+                                                isSelected: phrase.id == selectedPhraseID && track.id == selectedTrackID,
+                                                accent: accent
+                                            )
                                         }
-                                )
-                                .simultaneousGesture(
-                                    scalarDragGesture(phrase: displayedPhrase, track: track, layer: activeLayer)
-                                )
-                            } else {
-                                PhraseGridEmptyCell()
+                                    }
+                                    .contentShape(Rectangle())
+                                    .gesture(
+                                        TapGesture()
+                                            .onEnded {
+                                                handleSingleTap(on: phrase.id, trackID: track.id)
+                                            }
+                                    )
+                                    .simultaneousGesture(
+                                        scalarDragGesture(phrase: displayedPhrase, track: track, layer: activeLayer)
+                                    )
+                                } else {
+                                    PhraseGridEmptyCell()
+                                }
                             }
+                            .frame(maxWidth: .infinity)
                         }
-                        .frame(width: trackColumnWidth)
-                    }
 
-                    PhraseMatrixGutterCell()
-                        .frame(width: matrixGutterWidth)
+                        PhraseMatrixGutterCell()
+                            .frame(width: matrixGutterWidth)
+                    }
+                    .frame(height: PhraseMatrixLayoutPresentation.matrixRowHeight)
                 }
-                .frame(height: PhraseMatrixLayoutPresentation.matrixRowHeight)
             }
             .padding(.vertical, 2)
         }

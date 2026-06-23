@@ -495,6 +495,10 @@ struct SliceTrackWaveformEditor: View {
     let zoom: Double
     let scroll: Double
     let onSelectMarker: (UUID) -> Void
+    // Tapping inside a slice region (not on a boundary handle) maps that slice
+    // to the currently selected step. The Int is the slice index into
+    // `sliceSet.markers` (0 == whole, 1...N == user slices).
+    var onSelectSliceRegion: ((Int) -> Void)? = nil
     let onMoveWholeStart: (Int64) -> Void
     let onMoveWholeEnd: (Int64) -> Void
     let onMoveSliceBoundary: (UUID, Int64) -> Void
@@ -524,7 +528,11 @@ struct SliceTrackWaveformEditor: View {
                 .offset(x: 10, y: 10)
             }
             .contentShape(Rectangle())
+            // Boundary drags take priority; a plain click that lands inside a
+            // slice region (away from any handle) maps that slice to the
+            // selected step.
             .gesture(dragGesture(width: contentWidth))
+            .gesture(regionTapGesture(width: contentWidth))
         }
     }
 
@@ -611,6 +619,50 @@ struct SliceTrackWaveformEditor: View {
                     break
                 }
             }
+    }
+
+    private func regionTapGesture(width: CGFloat) -> some Gesture {
+        SpatialTapGesture()
+            .onEnded { value in
+                guard let onSelectSliceRegion else { return }
+                let localX = min(max(value.location.x - 10, 0), width)
+                // A tap that lands on a draggable handle is a boundary
+                // interaction, not a region pick — ignore it so the two
+                // gestures don't fight over the same spot.
+                guard nearestHandle(to: localX, width: width) == nil else { return }
+                guard let index = sliceIndex(forLocalX: localX, width: width) else { return }
+                onSelectSliceRegion(index)
+            }
+    }
+
+    // Resolves which slice region the x position falls in and returns its index
+    // into `sliceSet.markers` (0 == whole). User-slice regions run from a
+    // marker's startFrame up to the next marker's startFrame (boundaries are
+    // shared), with the last region ending at the whole-sample end.
+    private func sliceIndex(forLocalX x: CGFloat, width: CGFloat) -> Int? {
+        guard !sliceSet.markers.isEmpty else { return nil }
+        let frame = framePosition(for: x, width: width)
+        let userMarkers = Array(sliceSet.markers.enumerated().dropFirst())
+        guard !userMarkers.isEmpty else {
+            // No user slices: only the whole sample exists.
+            return 0
+        }
+        let wholeEnd = sliceSet.markers.first?.endFrame ?? sampleLengthFrames
+        for position in userMarkers.indices {
+            let marker = userMarkers[position].element
+            let regionEnd = position + 1 < userMarkers.count
+                ? userMarkers[position + 1].element.startFrame
+                : wholeEnd
+            if frame >= marker.startFrame, frame < regionEnd {
+                return userMarkers[position].offset
+            }
+        }
+        // Fell before the first user slice (inside the whole-sample lead-in) or
+        // past the last region: clamp to the nearest user slice.
+        if let first = userMarkers.first, frame < first.element.startFrame {
+            return first.offset
+        }
+        return userMarkers.last?.offset
     }
 
     private func nearestHandle(to x: CGFloat, width: CGFloat) -> SliceTrackWaveformHandle? {

@@ -2,16 +2,16 @@ import XCTest
 import SwiftUI
 @testable import SequencerAI
 
-// MARK: - Slice 6a: drum tracks default to the kit matrix view
+// MARK: - Slice 6a: drum tracks ALWAYS show the kit matrix view
 //
-// A drum-group/kit track now lands on the kit matrix (all parts together) by
-// default; the per-part editor is the dive-in, reached by selecting a part.
-// Non-drum tracks (mono/poly/slice/audio-in) are unaffected.
+// A drum-group/kit track always lands on (and stays on) the kit matrix — all
+// parts together. Per-part editing lives inline in the matrix's expanded-row
+// accordion, so there is no longer a per-part dive-in. Non-drum tracks
+// (mono/poly/slice/audio-in) are unaffected and keep their single-source editor.
 //
-// `TrackWorkspaceView` derives the view it shows from
-// `DrumKitWorkspaceNavigationState.defaultForOpening(headerModel:)` plus a
-// dive-in flag. These tests cover that pure default-view decision and the
-// dive-in / dive-out transitions over the same header model.
+// `TrackWorkspaceView` derives the view it shows purely from
+// `DrumKitWorkspaceNavigationState.defaultForOpening(headerModel:)`: a drum
+// track resolves a matrix nav state; a non-drum track resolves nil.
 
 @MainActor
 final class DrumTrackKitFirstRoutingTests: XCTestCase {
@@ -108,66 +108,24 @@ final class DrumTrackKitFirstRoutingTests: XCTestCase {
         )
     }
 
-    // MARK: - Dive-in / dive-out transitions
+    // MARK: - The matrix stays put across part selection (no dive-in)
 
-    /// Mirrors `TrackWorkspaceView`'s `kitNavigationState` derivation: a drum
-    /// track shows the matrix unless the user has dived into the selected part.
-    private func resolvedNavState(
-        headerModel model: DrumPartWorkspaceHeaderModel?,
-        divedInPartID: UUID?
-    ) -> DrumKitWorkspaceNavigationState? {
-        guard let model else { return nil }
-        if divedInPartID == model.currentPartID { return nil }
-        return DrumKitWorkspaceNavigationState.defaultForOpening(headerModel: model)
-    }
-
-    func test_diveIntoPart_showsPartEditor_thenDiveOutReturnsToMatrix() {
-        let (session, _) = makeSession()
-        let groupID = makeDrumGroup(in: session)
-        let memberIDs = session.store.trackGroups.first { $0.id == groupID }!.memberIDs
-        session.setSelectedTrackID(memberIDs[0]) // Kick
-        let model = headerModel(for: session)
-        XCTAssertNotNil(model)
-
-        // Default: matrix is shown (no dive-in).
-        XCTAssertNotNil(
-            resolvedNavState(headerModel: model, divedInPartID: nil),
-            "drum track lands on the kit matrix by default"
-        )
-
-        // Dive into the selected part: part editor shows (no matrix nav state).
-        XCTAssertNil(
-            resolvedNavState(headerModel: model, divedInPartID: model?.currentPartID),
-            "diving into the selected part shows the per-part editor"
-        )
-
-        // Dive back out (clear the dived-in part): matrix returns.
-        XCTAssertNotNil(
-            resolvedNavState(headerModel: model, divedInPartID: nil),
-            "diving back out returns to the kit matrix"
-        )
-    }
-
-    func test_diveInForOnePart_doesNotLeakToAnotherSelectedPart() {
+    func test_selectingDifferentParts_alwaysResolvesTheKitMatrix() {
         let (session, _) = makeSession()
         let groupID = makeDrumGroup(in: session)
         let memberIDs = session.store.trackGroups.first { $0.id == groupID }!.memberIDs
 
-        // Dive into Kick.
+        // Selecting Kick: matrix.
         session.setSelectedTrackID(memberIDs[0])
-        let kickModel = headerModel(for: session)
-        XCTAssertNil(
-            resolvedNavState(headerModel: kickModel, divedInPartID: memberIDs[0]),
-            "Kick dive-in shows the Kick part editor"
+        XCTAssertNotNil(
+            DrumKitWorkspaceNavigationState.defaultForOpening(headerModel: headerModel(for: session)),
+            "selecting a drum part keeps the kit matrix on screen"
         )
 
-        // A different part selected with the SAME dived-in id must NOT be
-        // treated as dived-in: it falls back to the matrix default.
+        // Selecting a different part: still the matrix, scoped to the same group.
         session.setSelectedTrackID(memberIDs[2])
-        let hatModel = headerModel(for: session)
-        XCTAssertNotNil(
-            resolvedNavState(headerModel: hatModel, divedInPartID: memberIDs[0]),
-            "selecting a different part shows the kit matrix, not a stale dive-in"
-        )
+        let hatNav = DrumKitWorkspaceNavigationState.defaultForOpening(headerModel: headerModel(for: session))
+        XCTAssertNotNil(hatNav, "selecting another drum part still shows the kit matrix")
+        XCTAssertEqual(hatNav?.groupID, groupID)
     }
 }

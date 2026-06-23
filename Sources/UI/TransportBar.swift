@@ -2,9 +2,11 @@ import SwiftUI
 
 struct TransportPhraseNavigationPresentation: Equatable {
     var currentName: String
+    var currentID: UUID?
     var hasCurrent: Bool
     var nextLabel: String
     var nextName: String
+    var nextID: UUID?
     var hasNext: Bool
     var helpText: String
 
@@ -44,9 +46,11 @@ struct TransportPhraseNavigationPresentation: Equatable {
 
         return TransportPhraseNavigationPresentation(
             currentName: currentName,
+            currentID: currentPhrase?.id,
             hasCurrent: currentPhrase != nil,
             nextLabel: nextLabel,
             nextName: nextName,
+            nextID: nextPhrase?.id,
             hasNext: nextPhrase != nil,
             helpText: helpComponents.joined(separator: ". ")
         )
@@ -248,49 +252,35 @@ struct TransportBar: View {
     }
 
     private var phraseNavigationControl: some View {
-        Button {
-            phrasePickerPresented.toggle()
-        } label: {
-            HStack(spacing: 6) {
-                phraseButton(
-                    eyebrow: "CURRENT",
-                    title: phrasePresentation.currentName,
-                    icon: engineController.isRunning ? "music.note.list" : "music.note",
-                    accent: StudioTheme.cyan,
-                    isPrimary: phrasePresentation.hasCurrent
-                )
-
-                phraseButton(
-                    eyebrow: phrasePresentation.nextLabel,
-                    title: phrasePresentation.nextName,
-                    icon: queuedPhrase == nil ? "clock" : "clock.fill",
-                    accent: phrasePresentation.hasNext ? StudioTheme.amber : StudioTheme.border,
-                    isPrimary: phrasePresentation.hasNext
-                )
-
-                TransportPhraseProgress(phrase: currentPhrase)
-                    .frame(width: 64, height: 24)
-
-                Image(systemName: "square.grid.3x3")
-                    .font(.system(size: 10, weight: .bold))
-                    .foregroundStyle(StudioTheme.mutedText)
-            }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .frame(maxWidth: 300, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-                    .fill(Color.white.opacity(StudioOpacity.subtleFill))
+        HStack(spacing: 6) {
+            // CURRENT phrase button: tap opens the phrase; embedded matrix icon
+            // opens the launch grid to schedule a new phrase; a thin progress
+            // bar runs along the bottom (no text).
+            phraseButton(
+                title: phrasePresentation.currentName,
+                accent: StudioTheme.cyan,
+                isPrimary: phrasePresentation.hasCurrent,
+                openPhraseID: phrasePresentation.currentID,
+                showProgress: true
             )
-            .overlay(
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-                    .stroke(currentPhrase == nil ? StudioTheme.border : StudioTheme.cyan.opacity(StudioOpacity.mediumStroke), lineWidth: StudioMetrics.borderWidth)
+
+            // Chevron conveys "current → next".
+            Image(systemName: "chevron.compact.right")
+                .font(.system(size: 12, weight: .bold))
+                .foregroundStyle(StudioTheme.mutedText)
+                .accessibilityHidden(true)
+
+            // NEXT / QUEUED phrase button.
+            phraseButton(
+                title: phrasePresentation.nextName,
+                accent: phrasePresentation.hasNext ? StudioTheme.amber : StudioTheme.border,
+                isPrimary: phrasePresentation.hasNext,
+                openPhraseID: phrasePresentation.nextID,
+                showProgress: false
             )
-            .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
         }
-        .buttonStyle(.plain)
-        .disabled(phrases.isEmpty)
         .help(phrases.isEmpty ? "No phrases available" : phrasePresentation.helpText)
+        .accessibilityElement(children: .contain)
         .accessibilityLabel(phrasePresentation.helpText)
         .accessibilityIdentifier("transport-phrase-navigation")
         .sheet(isPresented: $phrasePickerPresented) {
@@ -304,32 +294,68 @@ struct TransportBar: View {
     }
 
     private func phraseButton(
-        eyebrow: String,
         title: String,
-        icon: String,
         accent: Color,
-        isPrimary: Bool
+        isPrimary: Bool,
+        openPhraseID: UUID?,
+        showProgress: Bool
     ) -> some View {
-        HStack(spacing: 5) {
-            Image(systemName: icon)
-                .font(.system(size: 10, weight: .bold))
-                .foregroundStyle(isPrimary ? accent : StudioTheme.mutedText)
-                .frame(width: 11)
-
-            VStack(alignment: .leading, spacing: 1) {
-                Text(eyebrow)
-                    .studioText(.micro)
-                    .foregroundStyle(isPrimary ? accent : StudioTheme.mutedText)
-                    .lineLimit(1)
-
+        // Tapping the body opens the phrase; the trailing matrix icon is a
+        // separate tap target that opens the launch grid for scheduling.
+        Button {
+            if let openPhraseID {
+                session.setSelectedPhraseID(openPhraseID)
+            } else if !phrases.isEmpty {
+                phrasePickerPresented = true
+            }
+        } label: {
+            HStack(spacing: 5) {
                 Text(title)
                     .studioText(.microEmphasis)
                     .foregroundStyle(isPrimary ? StudioTheme.text : StudioTheme.mutedText)
                     .lineLimit(1)
                     .truncationMode(.tail)
+
+                Spacer(minLength: 4)
+
+                // Matrix icon: schedule a new phrase in this slot.
+                Button {
+                    if !phrases.isEmpty {
+                        phrasePickerPresented = true
+                    }
+                } label: {
+                    Image(systemName: "square.grid.3x3")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(StudioTheme.mutedText)
+                }
+                .buttonStyle(.plain)
+                .disabled(phrases.isEmpty)
+                .help("Schedule a phrase")
+                .accessibilityLabel("Schedule a phrase")
             }
+            .frame(width: 96, alignment: .leading)
+            .padding(.horizontal, 8)
+            .padding(.top, 5)
+            .padding(.bottom, showProgress ? 6 : 5)
+            .background(
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                    .fill(Color.white.opacity(StudioOpacity.subtleFill))
+            )
+            .overlay(alignment: .bottom) {
+                if showProgress {
+                    TransportPhraseProgressBar(phrase: currentPhrase)
+                        .padding(.horizontal, 4)
+                        .padding(.bottom, 3)
+                }
+            }
+            .overlay(
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                    .stroke(isPrimary ? accent.opacity(StudioOpacity.mediumStroke) : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+            )
+            .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
         }
-        .frame(width: 76, alignment: .leading)
+        .buttonStyle(.plain)
+        .disabled(phrases.isEmpty)
     }
 
     private func phrase(for phraseID: UUID) -> PhraseModel? {
@@ -368,7 +394,7 @@ struct TransportBar: View {
     }
 }
 
-private struct TransportPhraseProgress: View {
+private struct TransportPhraseProgressBar: View {
     @Environment(EngineController.self) private var engineController
     let phrase: PhraseModel?
 
@@ -379,25 +405,19 @@ private struct TransportPhraseProgress: View {
             phrase: phrase,
             transportTickIndex: engineController.transportTickIndex
         )
-        VStack(alignment: .leading, spacing: 3) {
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    Capsule()
-                        .fill(Color.white.opacity(StudioOpacity.borderFaint))
+        // Thin progress bar along the bottom of the current-phrase button — no
+        // accompanying "bar x/y" text per the rework.
+        GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                Capsule()
+                    .fill(Color.white.opacity(StudioOpacity.borderFaint))
 
-                    Capsule()
-                        .fill(phrase == nil ? StudioTheme.border : StudioTheme.cyan)
-                        .frame(width: geo.size.width * CGFloat(progress.fraction))
-                }
+                Capsule()
+                    .fill(phrase == nil ? StudioTheme.border : StudioTheme.cyan)
+                    .frame(width: geo.size.width * CGFloat(progress.fraction))
             }
-            .frame(height: 4)
-
-            Text(progress.label)
-                .studioText(.micro)
-                .foregroundStyle(StudioTheme.mutedText)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
         }
+        .frame(height: 3)
         .accessibilityLabel("Phrase progress \(progress.label)")
     }
 }

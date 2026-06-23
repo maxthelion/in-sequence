@@ -237,6 +237,7 @@ struct SliceTrackWorkspaceView: View {
                 zoom: 1,
                 scroll: 0,
                 onSelectMarker: selectMarker,
+                onSelectSliceRegion: assignSliceRegionToSelectedStep,
                 onMoveWholeStart: { moveWholeBoundary(isStart: true, to: $0, sample: sample) },
                 onMoveWholeEnd: { moveWholeBoundary(isStart: false, to: $0, sample: sample) },
                 onMoveSliceBoundary: { moveSliceBoundary(markerID: $0, to: $1, sample: sample) }
@@ -571,6 +572,7 @@ struct SliceTrackWorkspaceView: View {
                 zoom: waveformZoom,
                 scroll: waveformScroll,
                 onSelectMarker: selectMarker,
+                onSelectSliceRegion: assignSliceRegionToSelectedStep,
                 onMoveWholeStart: { moveWholeBoundary(isStart: true, to: $0, sample: sample) },
                 onMoveWholeEnd: { moveWholeBoundary(isStart: false, to: $0, sample: sample) },
                 onMoveSliceBoundary: { moveSliceBoundary(markerID: $0, to: $1, sample: sample) }
@@ -1288,6 +1290,29 @@ private extension SliceTrackWorkspaceView {
                 stepParameters: steps.stepParameters
             )
             entry.macroLanes = entry.macroLanes.mapValues { $0.synced(stepCount: steps.count) }
+        }
+    }
+
+    // Maps the clicked slice region to the currently selected step. This is the
+    // "select a step, then click a portion of the waveform" interaction: the
+    // region's slice index is written to `selectedStepIndex` (and the step is
+    // turned on). Gated to the committed slice set — while a detection draft is
+    // live the waveform is a preview, not an assignable target.
+    func assignSliceRegionToSelectedStep(_ sliceIndex: Int) {
+        guard analysisDraft == nil,
+              let steps = sliceTriggerSteps,
+              let sliceSet = currentSliceSet,
+              sliceSet.userSliceCount > 0
+        else {
+            return
+        }
+        // Only user slices (1...N) are assignable; index 0 is the whole sample.
+        let clamped = min(max(sliceIndex, 1), sliceSet.userSliceCount)
+        assignSliceIndex(clamped, steps: steps)
+        // Surface the step-layer view so the freshly written slice number is
+        // visible on the step, matching the marker-click behaviour.
+        if selectedLayer != .steps {
+            selectedLayer = .steps
         }
     }
 

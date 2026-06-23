@@ -23,6 +23,18 @@ extension DrumKitMatrixView {
         .sheet(item: $expandedFXTarget) { target in
             expandedFXChooserSheet(memberID: target.memberID)
         }
+        .sheet(item: $expandedMacroTarget) { target in
+            SingleMacroSlotPickerSheet(
+                slotIndex: target.slotIndex,
+                currentBindingAddresses: memberAUMacroAddresses(target.memberID),
+                readParameters: {
+                    engineController.audioInstrumentHost(for: target.memberID)?.parameterReadout()
+                }
+            ) { descriptor in
+                assignMemberMacro(descriptor, memberID: target.memberID, slotIndex: target.slotIndex)
+            }
+            .presentationBackground(.clear)
+        }
     }
 
     var expandedRowTabBar: some View {
@@ -391,8 +403,10 @@ extension DrumKitMatrixView {
 
     /// Macros mini-tab (AC21). Renders THIS member's real M1–M8 slot bindings
     /// via `AUMacroSlotKnob`. Value changes write through the real session
-    /// mutation (`setMacroLayerDefault`); assigning a NEW slot opens the full
-    /// editor (the AU-parameter picker is impractical inline) — see report.
+    /// mutation (`setMacroLayerDefault`); assigning a NEW slot presents the
+    /// AU-parameter picker sheet in-place (the same `SingleMacroSlotPickerSheet`
+    /// the per-track editor uses), so macro assignment lives entirely inside the
+    /// kit view — no dive-in required.
     @ViewBuilder
     func expandedMacrosTab(_ row: DrumKitMatrixModel.Row) -> some View {
         let memberID = row.memberID
@@ -405,7 +419,7 @@ extension DrumKitMatrixView {
                         slotIndex: slot.slotIndex,
                         binding: slot.binding,
                         value: slot.binding.flatMap { fallbacks[$0.id] },
-                        onAssign: { onSelectPart(memberID) },
+                        onAssign: { prepareAndPresentMemberMacroPicker(memberID: memberID, slotIndex: slot.slotIndex) },
                         onChange: { newValue in
                             guard let binding = slot.binding else { return }
                             session.setMacroLayerDefault(value: newValue, bindingID: binding.id, trackID: memberID)
@@ -416,10 +430,47 @@ extension DrumKitMatrixView {
                     )
                 }
             }
-            Text("Drum-part macro defaults. Assign new slots in the full editor.")
+            Text("Drum-part macro defaults. Tap an empty slot to assign an AU parameter.")
                 .studioText(.label)
                 .foregroundStyle(StudioTheme.mutedText)
         }
+    }
+
+    /// Whether the member's resolved destination is an AU instrument (only AU
+    /// instruments expose assignable parameters). Mirrors the per-track editor's
+    /// `canAssignAUMacros` gate.
+    func memberCanAssignAUMacros(_ memberID: UUID) -> Bool {
+        if case .auInstrument = session.store.resolvedDestination(for: memberID).withoutTransientState {
+            return true
+        }
+        return false
+    }
+
+    /// AU parameter addresses already bound to one of the member's macro slots,
+    /// so the picker can hide already-assigned parameters.
+    func memberAUMacroAddresses(_ memberID: UUID) -> Set<UInt64> {
+        Set((memberTrack(memberID)?.macros ?? []).compactMap { binding in
+            if case let .auParameter(address, _) = binding.source {
+                return address
+            }
+            return nil
+        })
+    }
+
+    /// Prepare the member's AU host then present the AU-parameter picker sheet
+    /// for the given slot (mirrors TrackSourceEditorView's
+    /// `prepareAndPresentMacroSlotPicker`, scoped to the member).
+    func prepareAndPresentMemberMacroPicker(memberID: UUID, slotIndex: Int) {
+        guard memberCanAssignAUMacros(memberID) else { return }
+        engineController.prepareAudioUnit(for: memberID)
+        expandedMacroTarget = ExpandedMacroTarget(memberID: memberID, slotIndex: slotIndex)
+    }
+
+    /// Commit the chosen AU parameter to the member's macro slot via the shared
+    /// session mutator.
+    func assignMemberMacro(_ parameter: AUParameterDescriptor, memberID: UUID, slotIndex: Int) {
+        let descriptor = TrackMacroDescriptor(auParameter: parameter)
+        _ = session.assignAUMacroToSlot(descriptor, to: memberID, slotIndex: slotIndex)
     }
 
     func memberMacroSlots(_ memberID: UUID) -> [MacroSlot] {

@@ -123,23 +123,6 @@ extension DrumKitMatrixView {
         .accessibilityValue(isSelected ? "Selected" : "Not selected")
     }
 
-    var mismatchBadge: some View {
-        HStack(spacing: 6) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .font(.system(size: 10, weight: .bold))
-                .foregroundStyle(StudioTheme.background)
-            Text("PATTERN MISMATCH")
-                .studioText(.microEmphasis)
-                .tracking(0.6)
-                .foregroundStyle(StudioTheme.background)
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .background(StudioTheme.amber, in: Capsule())
-        .help("Pattern mismatch: parts are showing different active pattern slots.")
-        .accessibilityLabel("Pattern mismatch: parts are showing different active pattern slots.")
-    }
-
     func staleMemberBanner(count: Int) -> some View {
         Text("\(count) stale member ID\(count == 1 ? "" : "s") skipped")
             .studioText(.label)

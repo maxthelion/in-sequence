@@ -577,61 +577,24 @@ final class DrumKitMatrixModelTests: XCTestCase {
         XCTAssertEqual(model.rows.map(\.memberID), [fixture.snare.id, fixture.kick.id, fixture.hat.id])
         XCTAssertEqual(model.rows.map(\.partName), ["Snare", "Kick", "Closed Hat"])
         XCTAssertEqual(model.rows.map(\.patternBadge), ["P3", "P3", "P3"])
-        XCTAssertFalse(model.hasPatternMismatch)
         XCTAssertEqual(model.groupSelectedSlotIndex, 2, "Coherent members report a shared group slot")
     }
 
-    func test_mixedActivePatternSlotsShowMismatchAndDivergentBadges() throws {
+    func test_groupSelectedSlotIndexReportsSharedSlot() throws {
+        // Patterns are GLOBAL across the kit: the matrix selects one slot for the
+        // whole kit and the binding's first write fans the same index to every
+        // member. The model therefore reports a single shared slot (the first
+        // row's slot) rather than the older "mixed / mismatch / link-broken"
+        // states that the per-kit-pattern design surfaced. Legacy documents may
+        // carry divergent per-member indices; the model still resolves a slot
+        // (no nil / "mixed" through the UI) and re-aligns on the next selection.
         var fixture = makeMatrixFixture()
-        fixture.phrase.setPatternIndex(0, for: fixture.snare.id, layers: fixture.layers)
-        fixture.phrase.setPatternIndex(1, for: fixture.kick.id, layers: fixture.layers)
-        fixture.phrase.setPatternIndex(0, for: fixture.hat.id, layers: fixture.layers)
+        fixture.phrase.setPatternIndex(2, for: fixture.snare.id, layers: fixture.layers)
+        fixture.phrase.setPatternIndex(2, for: fixture.kick.id, layers: fixture.layers)
+        fixture.phrase.setPatternIndex(2, for: fixture.hat.id, layers: fixture.layers)
 
         let model = try XCTUnwrap(fixture.model(displayStepCount: 16))
-
-        XCTAssertTrue(model.hasPatternMismatch)
-        XCTAssertEqual(model.rows.map(\.patternBadge), ["P1", "P2", "P1"])
-        XCTAssertEqual(model.rows.map(\.isDivergentPattern), [false, true, false])
-        XCTAssertNil(model.groupSelectedSlotIndex, "Divergent members render a mixed group pattern row")
-    }
-
-    func test_linkBrokenDerivationGatesTheReLinkAffordance() throws {
-        // AC20: the one-click "Re-link" only surfaces when the kit INTENDS to be
-        // linked but its members have drifted onto different pattern slots. This
-        // is the model derivation (`isLinkBroken`) that previously could only be
-        // observed through the rendered view; it is now testable in isolation.
-
-        // Linked + divergent slots + >1 member -> link is broken.
-        var brokenFixture = makeMatrixFixture()
-        brokenFixture.group.isPatternLinked = true
-        brokenFixture.phrase.setPatternIndex(0, for: brokenFixture.snare.id, layers: brokenFixture.layers)
-        brokenFixture.phrase.setPatternIndex(1, for: brokenFixture.kick.id, layers: brokenFixture.layers)
-        brokenFixture.phrase.setPatternIndex(0, for: brokenFixture.hat.id, layers: brokenFixture.layers)
-        let broken = try XCTUnwrap(brokenFixture.model(displayStepCount: 16))
-        XCTAssertNil(broken.groupSelectedSlotIndex, "Members diverge, so there is no shared slot")
-        XCTAssertTrue(broken.isPatternLinked)
-        XCTAssertTrue(broken.isLinkBroken, "Linked intent + divergent slots surfaces Re-link")
-
-        // Same divergence, but the kit is explicitly unlinked -> NOT broken
-        // (unlinked parts are allowed to sit on their own slots).
-        var unlinkedFixture = makeMatrixFixture()
-        unlinkedFixture.group.isPatternLinked = false
-        unlinkedFixture.phrase.setPatternIndex(0, for: unlinkedFixture.snare.id, layers: unlinkedFixture.layers)
-        unlinkedFixture.phrase.setPatternIndex(1, for: unlinkedFixture.kick.id, layers: unlinkedFixture.layers)
-        unlinkedFixture.phrase.setPatternIndex(0, for: unlinkedFixture.hat.id, layers: unlinkedFixture.layers)
-        let unlinked = try XCTUnwrap(unlinkedFixture.model(displayStepCount: 16))
-        XCTAssertNil(unlinked.groupSelectedSlotIndex)
-        XCTAssertFalse(unlinked.isLinkBroken, "Unlinked kits never surface Re-link, even when slots diverge")
-
-        // Linked + coherent slots -> NOT broken (nothing to re-link).
-        var coherentFixture = makeMatrixFixture()
-        coherentFixture.group.isPatternLinked = true
-        coherentFixture.phrase.setPatternIndex(2, for: coherentFixture.snare.id, layers: coherentFixture.layers)
-        coherentFixture.phrase.setPatternIndex(2, for: coherentFixture.kick.id, layers: coherentFixture.layers)
-        coherentFixture.phrase.setPatternIndex(2, for: coherentFixture.hat.id, layers: coherentFixture.layers)
-        let coherent = try XCTUnwrap(coherentFixture.model(displayStepCount: 16))
-        XCTAssertEqual(coherent.groupSelectedSlotIndex, 2)
-        XCTAssertFalse(coherent.isLinkBroken, "Coherent members keep the link intact")
+        XCTAssertEqual(model.groupSelectedSlotIndex, 2)
     }
 
     func test_clipRowsExposeEditableNoteGridContent() throws {

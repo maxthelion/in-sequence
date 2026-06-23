@@ -48,7 +48,7 @@ struct DrumKitMatrixRowView<DetailPanel: View>: View {
                 .stroke(
                     isExpanded
                         ? accent.opacity(StudioOpacity.mediumStroke)
-                        : (row.isDivergentPattern ? StudioTheme.amber.opacity(StudioOpacity.mediumStroke) : StudioTheme.border),
+                        : StudioTheme.border,
                     lineWidth: StudioMetrics.borderWidth
                 )
         )
@@ -86,16 +86,6 @@ struct DrumKitMatrixRowView<DetailPanel: View>: View {
                     .minimumScaleFactor(0.8)
                     .accessibilityIdentifier("kit-row-clip-length")
                     .help("Clip length for \(row.partName)")
-            }
-
-            if row.isDivergentPattern {
-                Text(row.patternBadge)
-                    .studioText(.microEmphasis)
-                    .foregroundStyle(StudioTheme.background)
-                    .padding(.horizontal, 7)
-                    .padding(.vertical, 3)
-                    .background(StudioTheme.amber, in: Capsule())
-                    .help("This part is on \(row.patternBadge), diverging from the group.")
             }
 
             readOnlyBadge

@@ -8,13 +8,6 @@ struct TrackWorkspaceView: View {
     @State private var editingTrackID: UUID?
     @State private var stepGridWorkspaceModel = TrackStepGridWorkspaceModel()
     @State private var draftTrackName = ""
-    // Slice 6a "kit view first": a drum-group track now lands on the kit matrix
-    // by default. The single-part editor is the dive-in, reached by selecting a
-    // part from the matrix; `divedInPartID` records which part the user drilled
-    // into (matched against the currently selected track). When `nil`, a drum
-    // track shows the matrix; when it equals the selected drum part, that part's
-    // editor is shown. Non-drum tracks ignore this entirely.
-    @State private var divedInPartID: UUID?
     /// Drives the delete-track confirmation on the single-track detail header.
     @State private var isConfirmingTrackDelete = false
     @FocusState private var trackNameFieldFocused: Bool
@@ -31,16 +24,12 @@ struct TrackWorkspaceView: View {
         )
     }
 
-    /// The kit matrix navigation state to show, or `nil` when the per-part
-    /// editor should be shown instead. A drum-group track defaults to the
-    /// matrix (kit-first) and only shows the part editor once the user has
-    /// dived into the currently selected part.
+    /// The kit matrix navigation state to show, or `nil` for a non-drum track
+    /// (which keeps its single-source editor). A drum-group track ALWAYS shows
+    /// the kit matrix — per-part editing now lives inline in the matrix's
+    /// expanded-row accordion, so there is no per-part dive-in.
     private var kitNavigationState: DrumKitWorkspaceNavigationState? {
-        guard let headerModel = drumPartHeaderModel else { return nil }
-        if divedInPartID == headerModel.currentPartID {
-            return nil
-        }
-        return DrumKitWorkspaceNavigationState.defaultForOpening(headerModel: headerModel)
+        DrumKitWorkspaceNavigationState.defaultForOpening(headerModel: drumPartHeaderModel)
     }
 
     private var outboundRouteCount: Int {
@@ -74,13 +63,6 @@ struct TrackWorkspaceView: View {
                     self.editingTrackID = nil
                     draftTrackName = ""
                 }
-                // Selecting a different track resets the dive-in: a newly opened
-                // drum track lands on the kit matrix (kit-first), and a non-drum
-                // track is unaffected. We only keep the dive-in when the matrix
-                // itself drilled into a specific part (handled in onSelectPart).
-                if divedInPartID != track.id {
-                    divedInPartID = nil
-                }
                 stepGridWorkspaceModel.reset()
             }
             .onChange(of: kitNavigationState) {
@@ -110,17 +92,6 @@ struct TrackWorkspaceView: View {
                     editingTrackID = nil
                     draftTrackName = ""
                     trackNameFieldFocused = false
-                case "open-kit-view":
-                    // Kit-first: the matrix is the default home. From the
-                    // part-editor dive-in this dives back out to the matrix by
-                    // clearing the dived-in part.
-                    divedInPartID = nil
-                case "dive-into-part":
-                    // Drill from the kit matrix into the currently selected
-                    // part's editor (the dive-in). Mirrors selecting a part row.
-                    if let drumPartHeaderModel {
-                        divedInPartID = drumPartHeaderModel.currentPartID
-                    }
                 default:
                     break
                 }
@@ -137,11 +108,11 @@ struct TrackWorkspaceView: View {
                 // no "back" target above it — the back affordance is hidden.
                 showsBackButton: false,
                 onBack: {},
+                // The per-part dive-in is gone: per-part editing lives inline in
+                // the matrix's expanded-row accordion. Selecting a part keeps it
+                // as the selected track but does not navigate away from the kit.
                 onSelectPart: { partID in
-                    // Dive into the selected part: keep it as the selected track
-                    // and remember the dive-in so its part editor is shown.
                     session.setSelectedTrackID(partID)
-                    divedInPartID = partID
                 }
             )
         } else {
@@ -191,21 +162,10 @@ struct TrackWorkspaceView: View {
         }
     }
 
-    @ViewBuilder
+    // A drum-group track always renders the kit matrix (handled above), so the
+    // workspace header here only ever covers the non-drum single-track surfaces.
     private var trackHeader: some View {
-        if let drumPartHeaderModel {
-            DrumPartWorkspaceHeader(
-                model: drumPartHeaderModel,
-                title: { trackNameEditor },
-                onSelectPart: { session.setSelectedTrackID($0) },
-                onOpenKitView: {
-                    // Dive back out of the part editor to the kit matrix home.
-                    divedInPartID = nil
-                }
-            )
-        } else {
-            defaultTrackHeader
-        }
+        defaultTrackHeader
     }
 
     private var defaultTrackHeader: some View {
@@ -392,98 +352,6 @@ struct DrumPartWorkspaceHeaderModel: Equatable {
     }
 }
 
-private struct DrumPartWorkspaceHeader<Title: View>: View {
-    let model: DrumPartWorkspaceHeaderModel
-    @ViewBuilder let title: () -> Title
-    let onSelectPart: (UUID) -> Void
-    let onOpenKitView: () -> Void
-
-    private var accent: Color {
-        Color(hex: model.groupColorHex) ?? StudioTheme.success
-    }
-
-    var body: some View {
-        VStack(spacing: 0) {
-            HStack(alignment: .center, spacing: 12) {
-                StudioCircleIconButton(
-                    systemName: "chevron.left",
-                    size: StudioMetrics.ControlSize.large,
-                    isEnabled: model.previousPartID != nil,
-                    help: "Previous Part"
-                ) {
-                    if let targetID = model.previousPartID {
-                        onSelectPart(targetID)
-                    }
-                }
-
-                VStack(alignment: .leading, spacing: 4) {
-                    title()
-                        .frame(maxWidth: .infinity, alignment: .leading)
-
-                    Text(model.positionLabel)
-                        .studioText(.eyebrowBold)
-                        .foregroundStyle(StudioTheme.mutedText)
-                }
-                .frame(minWidth: 180, maxWidth: .infinity, alignment: .leading)
-
-                StudioCircleIconButton(
-                    systemName: "chevron.right",
-                    size: StudioMetrics.ControlSize.large,
-                    isEnabled: model.nextPartID != nil,
-                    help: "Next Part"
-                ) {
-                    if let targetID = model.nextPartID {
-                        onSelectPart(targetID)
-                    }
-                }
-
-                Spacer(minLength: 16)
-
-                VStack(alignment: .trailing, spacing: 7) {
-                    HStack(spacing: 6) {
-                        Circle()
-                            .fill(accent)
-                            .frame(width: 9, height: 9)
-
-                        Text("Kit: \(model.groupName)")
-                            .studioText(.labelBold)
-                            .foregroundStyle(StudioTheme.text)
-                            .lineLimit(1)
-                            .truncationMode(.tail)
-                    }
-                    .frame(maxWidth: 220, alignment: .trailing)
-
-                    Button {
-                        onOpenKitView()
-                    } label: {
-                        Label("Back to Kit", systemImage: "square.grid.3x3")
-                            .studioText(.labelBold)
-                    }
-                    .buttonStyle(.plain)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .foregroundStyle(StudioTheme.background)
-                    .background(accent, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
-                    .help("Dive back out to the kit matrix from \(model.currentPartName)")
-                }
-                .frame(maxWidth: 240, alignment: .trailing)
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 12)
-
-            Rectangle()
-                .fill(accent)
-                .frame(height: 3)
-        }
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.section, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.section, style: .continuous)
-                .stroke(accent.opacity(StudioOpacity.hoverFill), lineWidth: StudioMetrics.borderWidth)
-        )
-    }
-
-}
-
 /// Perform header button (AC22): posts `.trackPerformRequested` with the
 /// track id. Shared by the compact track-detail headers so the melodic, slicer
 /// and audio surfaces present an identical Perform affordance.
@@ -583,22 +451,6 @@ extension Notification.Name {
     /// Drives the tracks-navigator creation modals from the capture harness
     /// (objects "create-track-modal:open" / "add-drum-group-modal:open").
     static let tracksMatrixVisualCommand = Notification.Name("SequencerAITracksMatrixVisualCommand")
-}
-
-private extension Color {
-    init?(hex: String) {
-        var string = hex.trimmingCharacters(in: .whitespacesAndNewlines)
-        string = string.replacingOccurrences(of: "#", with: "")
-        guard string.count == 6, let value = UInt64(string, radix: 16) else {
-            return nil
-        }
-
-        self.init(
-            red: Double((value & 0xFF0000) >> 16) / 255.0,
-            green: Double((value & 0x00FF00) >> 8) / 255.0,
-            blue: Double(value & 0x0000FF) / 255.0
-        )
-    }
 }
 
 private enum AudioInputTrackDetailTab: String, CaseIterable, Identifiable {

@@ -98,6 +98,58 @@ final class EngineControllerSetMixScopedTests: XCTestCase {
         ])
     }
 
+    /// Mixer render-livelock invariant (RT-7 / send-amount-hang fix): a scoped
+    /// per-drag `setMix` must NOT bump the observed `documentModelUIRevision`.
+    /// That revision is the ONLY observation trigger for `currentDocumentModel`-
+    /// derived UI (now @ObservationIgnored); if `setMix` bumped it, a continuous
+    /// send/fader drag would re-trigger the synchronous SwiftUI layout fan-out
+    /// per mouse-move — the cycle that deadlocked the tick + audio render.
+    func test_setMix_does_not_bump_document_model_ui_revision() {
+        let sampleEngine = CapturingScopedSampleSink()
+        let controller = EngineController(
+            client: nil,
+            endpoint: nil,
+            sampleEngine: sampleEngine
+        )
+
+        let track = StepSequenceTrack(
+            name: "Kick",
+            trackType: .monoMelodic,
+            pitches: [60],
+            stepPattern: [true],
+            destination: .sample(sampleID: UUID(), settings: .default),
+            velocity: 100,
+            gateLength: 4
+        )
+        controller.apply(track: track)
+
+        // A full document apply (apply(track:)) is a structural change and MUST
+        // bump the UI revision so summaries like TransportBar.statusSummary refresh.
+        let revisionAfterApply = controller.documentModelUIRevision
+        XCTAssertGreaterThan(revisionAfterApply, 0, "document apply should bump the UI revision")
+
+        // Simulate a continuous send-amount drag: many scoped setMix calls.
+        for step in 0..<32 {
+            let value = Double(step) / 32.0
+            controller.setMix(
+                trackID: track.id,
+                mix: TrackMixSettings(level: 0.5, pan: 0, isMuted: false, sendA: value, sendB: 0)
+            )
+        }
+
+        XCTAssertEqual(
+            controller.documentModelUIRevision,
+            revisionAfterApply,
+            "scoped setMix (per-drag hot path) must not bump documentModelUIRevision — bumping it would re-introduce the synchronous mixer layout fan-out / render-livelock"
+        )
+
+        // Audio still takes effect: the last send value reached the sample engine.
+        XCTAssertEqual(
+            sampleEngine.calls.last,
+            .setTrackSends(trackID: track.id, sendA: 31.0 / 32.0, sendB: 0)
+        )
+    }
+
     func test_setMix_for_unknown_track_is_noop() {
         let host = CapturingScopedAudioSink()
         let sampleEngine = CapturingScopedSampleSink()

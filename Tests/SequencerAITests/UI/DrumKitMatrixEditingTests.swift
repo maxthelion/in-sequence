@@ -334,7 +334,6 @@ final class DrumKitMatrixEditingTests: XCTestCase {
             }
             _ = model?.groupSelectedSlotIndex
             _ = model?.occupiedSlotIndexes
-            _ = model?.hasPatternMismatch
         }
     }
 
@@ -347,19 +346,14 @@ final class DrumKitMatrixEditingTests: XCTestCase {
             session.store.trackGroups.first(where: { $0.id == groupID })?.memberIDs
         )
 
-        // Diverge one member so the row starts mixed.
-        session.setSelectedPatternIndex(2, for: memberIDs[1])
-        XCTAssertNil(matrixModel(session, groupID: groupID)?.groupSelectedSlotIndex)
-        XCTAssertEqual(matrixModel(session, groupID: groupID)?.hasPatternMismatch, true)
-
-        // Fan-out: every member realigns to slot 5.
+        // Fan-out: every member realigns to slot 5. (Patterns are global, so a
+        // single slot selection writes the same index to every member.)
         session.setDrumGroupSelectedPatternIndex(4, groupID: groupID)
         let fannedOut = session.store.exportToProject()
         for memberID in memberIDs {
             XCTAssertEqual(fannedOut.selectedPatternIndex(for: memberID), 4)
         }
         XCTAssertEqual(matrixModel(session, groupID: groupID)?.groupSelectedSlotIndex, 4)
-        XCTAssertEqual(matrixModel(session, groupID: groupID)?.hasPatternMismatch, false)
 
         // The fan-out is exactly N individual switches: reset, switch each
         // member individually, and compare the resulting phrase state.
@@ -463,7 +457,12 @@ final class DrumKitMatrixEditingTests: XCTestCase {
     func test_newDrumGroup_defaultsLinked() throws {
         let (session, _) = makeSession()
         let groupID = makeDrumGroup(in: session)
-        XCTAssertEqual(matrixModel(session, groupID: groupID)?.isPatternLinked, true)
+        // Patterns are global, so the matrix model no longer carries a per-kit
+        // link flag; the group-level intent still defaults to linked.
+        XCTAssertEqual(
+            session.store.trackGroups.first(where: { $0.id == groupID })?.isPatternLinked,
+            true
+        )
     }
 
     func test_linking_doesNotGangMute() throws {
@@ -492,7 +491,6 @@ final class DrumKitMatrixEditingTests: XCTestCase {
         let groupID = makeDrumGroup(in: session)
         let model = try XCTUnwrap(matrixModel(session, groupID: groupID))
         let row = try XCTUnwrap(model.rows.first)
-        XCTAssertEqual(model.isPatternLinked, true)
         XCTAssertNotNil(model.groupSelectedSlotIndex)
 
         // Edit one part's step content in the shared slot (AC19).
@@ -511,9 +509,7 @@ final class DrumKitMatrixEditingTests: XCTestCase {
         commitMatrixEdit(session, row: row, content: edit)
 
         let after = try XCTUnwrap(matrixModel(session, groupID: groupID))
-        XCTAssertEqual(after.isPatternLinked, true, "Editing step content keeps linking")
         XCTAssertNotNil(after.groupSelectedSlotIndex, "All parts still share the slot")
-        XCTAssertFalse(after.isLinkBroken)
     }
 
 }

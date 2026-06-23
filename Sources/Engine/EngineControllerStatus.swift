@@ -5,6 +5,12 @@ import Foundation
 /// (engine carve-up stage: status/presentation); no behavior change.
 extension EngineController {
     var statusSummary: String {
+        // `currentDocumentModel` is @ObservationIgnored (mixer render-livelock
+        // fix), so read the observed structural-change trigger here to register
+        // SwiftUI observation: the status string re-evaluates when the document
+        // structure (destination/port/mute) changes, but NOT on per-drag mixer
+        // moves (which never bump this revision).
+        _ = documentModelUIRevision
         guard canStart else {
             return "Engine unavailable"
         }

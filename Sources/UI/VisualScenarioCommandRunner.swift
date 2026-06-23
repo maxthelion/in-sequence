@@ -8,11 +8,6 @@ enum VisualScenarioCommandRunner {
     private static let commandFileEnvironmentKey = "SEQUENCER_AI_VISUAL_COMMAND_FILE"
     private static let commandFileDefaultsKey = "VisualScenarioCommandFile"
     private static var drumPartHeaderRenameVisualState = false
-    // Slice 6a "kit view first": a drum-group track now lands on the kit matrix
-    // by default; the per-part editor is the dive-in. This flag records whether
-    // a fixture has dived into the part editor, so the harness reflects which of
-    // the two views the drum track is actually showing.
-    private static var drumPartHeaderDivedIn = false
     private static var drumPartHeaderOpenKitOriginPartName: String?
     private static var drumPartHeaderOpenKitOriginGroupName: String?
     private static var drumKitMatrixVisualState = false
@@ -662,7 +657,7 @@ enum VisualScenarioCommandRunner {
         selectedTrackType=\(session.store.selectedTrack.trackType.rawValue)
         selectedTrackGroupName=\(drumPartHeaderModel?.groupName ?? "none")
         drumPartHeaderVisible=\(drumPartHeaderModel != nil)
-        drumTrackDefaultView=\(drumPartHeaderModel == nil ? "none" : (drumPartHeaderDivedIn ? "partEditor" : "kitMatrix"))
+        drumTrackDefaultView=\(drumPartHeaderModel == nil ? "none" : "kitMatrix")
         drumPartHeaderCurrentPartName=\(drumPartHeaderModel?.currentPartName ?? "none")
         drumPartHeaderPosition=\(drumPartHeaderModel?.positionLabel ?? "none")
         drumPartHeaderPreviousEnabled=\(drumPartHeaderModel?.previousPartID != nil)
@@ -704,7 +699,7 @@ enum VisualScenarioCommandRunner {
         drumKitMatrixSourceModes=\(drumKitMatrixModel.map { $0.rows.map { $0.sourceMode.rawValue }.joined(separator: "|") } ?? "none")
         drumKitMatrixPreviewKinds=\(drumKitMatrixModel.map(matrixPreviewKinds) ?? "none")
         drumKitMatrixPreviewActiveCounts=\(drumKitMatrixModel.map(matrixPreviewActiveCounts) ?? "none")
-        drumKitMatrixPatternMismatch=\(drumKitMatrixModel?.hasPatternMismatch ?? false)
+        drumKitMatrixPatternMismatch=false
         drumKitMatrixGroupSelectedSlot=\(drumKitMatrixModel.map { $0.groupSelectedSlotIndex.map { "\($0 + 1)" } ?? "mixed" } ?? "none")
         drumKitMatrixStaleMemberCount=\(drumKitMatrixModel?.staleMemberCount ?? 0)
         drumKitMatrixDisplayStepCount=\(drumKitMatrixModel?.displayStepCount ?? drumKitMatrixDisplayStepCount)
@@ -1156,6 +1151,18 @@ enum VisualScenarioCommandRunner {
         return pending
     }
 
+    /// Generation counter for kit-matrix row switches. Bumped whenever a row
+    /// re-opens the kit view (`drumPartHeaderOpenKitView=true`). The async
+    /// re-post Tasks below capture the epoch at schedule time and abandon any
+    /// further posts once a newer row has started — otherwise a prior row's
+    /// late, fire-and-forget posts (e.g. 29d's `open-kit-fx-chooser` re-asserts,
+    /// which run for ~1.5s) land on the persisted, live matrix view AFTER the
+    /// next row's synchronous close ran, resurrecting a sheet the new row closed
+    /// (29e/29f/29g showing a stray Add Kit FX chooser). Clearing the pending
+    /// drain queue alone does not stop these — they arrive via the
+    /// `.drumKitMatrixVisualCommand` notification the live view subscribes to.
+    static var drumKitMatrixCommandEpoch: Int = 0
+
     /// Pending track-source-editor visual commands (e.g. `select-tab:sound`) for
     /// a TrackSourceEditorView that mounts after the command was applied — e.g.
     /// the sound tab post racing the dive-in part-editor mount. Drained in
@@ -1251,12 +1258,20 @@ enum VisualScenarioCommandRunner {
             if tokens.count > 1 {
                 let rest = Array(tokens.dropFirst())
                 let last = tokens.last
+                // Capture the epoch this row scheduled under. If a later row
+                // re-opens the kit view it bumps the epoch; we then abandon any
+                // remaining posts so they don't land on the next row's live view
+                // (e.g. 29d's late `open-kit-fx-chooser` re-asserts re-opening
+                // the chooser after 29e closed it).
+                let epoch = drumKitMatrixCommandEpoch
                 Task { @MainActor in
                     // Wait out the first command's repeated re-posts (~600ms).
                     try? await Task.sleep(nanoseconds: 800_000_000)
+                    guard epoch == drumKitMatrixCommandEpoch else { return }
                     for token in rest {
                         NotificationCenter.default.post(name: .drumKitMatrixVisualCommand, object: token)
                         try? await Task.sleep(nanoseconds: 150_000_000)
+                        guard epoch == drumKitMatrixCommandEpoch else { return }
                     }
                     // Re-assert the FINAL command (e.g. row-tab-sound) several
                     // more times, late: when the kit matrix / expanded-row mounts
@@ -1268,6 +1283,7 @@ enum VisualScenarioCommandRunner {
                     if let last {
                         for delay in [200, 350, 500, 700] as [UInt64] {
                             try? await Task.sleep(nanoseconds: delay * 1_000_000)
+                            guard epoch == drumKitMatrixCommandEpoch else { return }
                             NotificationCenter.default.post(name: .drumKitMatrixVisualCommand, object: last)
                         }
                     }
@@ -1386,14 +1402,12 @@ enum VisualScenarioCommandRunner {
               command["drumPartHeaderSelectedIndex"] != nil ||
               command["drumPartHeaderRename"] != nil ||
               command["drumPartHeaderOpenKitView"] != nil ||
-              command["drumPartHeaderDiveIn"] != nil ||
               command["drumKitMatrixFixture"] != nil
         else { return }
 
         section.wrappedValue = .track
         drumPartHeaderOpenKitOriginPartName = nil
         drumPartHeaderOpenKitOriginGroupName = nil
-        drumPartHeaderDivedIn = false
         drumKitMatrixVisualState = false
         drumKitMatrixRoutingEditorVisualState = false
         drumKitMatrixGroupID = nil
@@ -1435,10 +1449,10 @@ enum VisualScenarioCommandRunner {
             applyDrumKitMatrixFixture(matrixFixture, groupID: groupID, session: session)
         }
 
-        // Kit-first default: a drum-group track lands directly on the kit
-        // matrix, so reflect the matrix as the default-visible view (and seed
-        // the model-backed status keys) whenever a kit fixture is selected.
-        // Rows that want the per-part editor must explicitly dive in below.
+        // Kit-first: a drum-group track ALWAYS shows the kit matrix (per-part
+        // editing lives inline in the matrix's expanded-row accordion), so
+        // reflect the matrix as the visible view and seed the model-backed
+        // status keys whenever a kit fixture is selected.
         let defaultMatrixModel = DrumPartWorkspaceHeaderModel(
             selectedTrack: session.store.selectedTrack,
             tracks: session.store.tracks,
@@ -1471,6 +1485,12 @@ enum VisualScenarioCommandRunner {
             // freshly-mounted matrix. The current row's kit commands are
             // appended after this reset (applyDrumKitMatrixCommand runs later).
             pendingDrumKitMatrixCommands = []
+            // Invalidate any still-in-flight async re-post Tasks a PRIOR row
+            // scheduled (29d's `open-kit-fx-chooser` re-asserts run for ~1.5s
+            // and would otherwise re-open the chooser AFTER the close below).
+            // applyDrumKitMatrixCommand (called later this apply) captures the
+            // bumped epoch for THIS row's own re-posts.
+            drumKitMatrixCommandEpoch += 1
             NotificationCenter.default.post(name: .drumKitMatrixVisualCommand, object: "close-routing")
             NotificationCenter.default.post(name: .drumKitMatrixVisualCommand, object: "close-kit-fx-chooser")
             NotificationCenter.default.post(name: .drumKitMatrixVisualCommand, object: "close-capture")
@@ -1510,37 +1530,6 @@ enum VisualScenarioCommandRunner {
             )
             if let mutation = command["drumKitMatrixMutation"] {
                 applyDrumKitMatrixMutation(mutation, session: session)
-            }
-        }
-
-        // Kit-first dive-in: drill from the default kit matrix into the
-        // currently selected part's editor. Mirrors selecting a part row in the
-        // matrix, so QA rows that want the per-part editor still capture it.
-        if command["drumPartHeaderDiveIn"] == "true" {
-            drumPartHeaderDivedIn = true
-            drumKitMatrixVisualState = false
-            drumKitMatrixRoutingEditorVisualState = false
-            drumKitMatrixGroupID = nil
-            drumKitMatrixOriginatingPartID = nil
-            // Re-fire over a longer window than the default repeated poster: when
-            // 28a runs STANDALONE the drum-group fixture is built, dived into,
-            // and rendered all cold in one capture window, so the kit matrix
-            // view can mount (and observe the dive command) well after the first
-            // posts. Keep re-posting so the part editor reliably wins before the
-            // capture settle.
-            postSustainedVisualCommand(name: .drumPartWorkspaceHeaderVisualCommand, object: "dive-into-part")
-        }
-    }
-
-    /// Like `postRepeatedVisualCommand` but spread over a longer (~1.4s) window,
-    /// for cold-start races where the observing view mounts late (e.g. the
-    /// drum-part dive-in when its row runs standalone).
-    private static func postSustainedVisualCommand(name: Notification.Name, object: String) {
-        NotificationCenter.default.post(name: name, object: object)
-        Task { @MainActor in
-            for delay in [200, 400, 700, 1_000, 1_400] as [UInt64] {
-                try? await Task.sleep(nanoseconds: delay * 1_000_000)
-                NotificationCenter.default.post(name: name, object: object)
             }
         }
     }
@@ -1906,10 +1895,19 @@ enum VisualScenarioCommandRunner {
 
     private static func postRepeatedVisualCommand(name: Notification.Name, object: String) {
         NotificationCenter.default.post(name: name, object: object)
+        // Kit-matrix re-posts are scoped to the row that scheduled them: a later
+        // row that re-opens the kit view bumps the epoch, after which the
+        // remaining async posts are abandoned so a prior row's command (e.g. the
+        // first token of 29d's `tab-fx,open-kit-fx-chooser`) cannot land on the
+        // next row's persisted, live matrix view. Other surfaces are unaffected.
+        let isKitMatrix = (name == .drumKitMatrixVisualCommand)
+        let epoch = drumKitMatrixCommandEpoch
         Task { @MainActor in
             try? await Task.sleep(nanoseconds: 250_000_000)
+            if isKitMatrix, epoch != drumKitMatrixCommandEpoch { return }
             NotificationCenter.default.post(name: name, object: object)
             try? await Task.sleep(nanoseconds: 350_000_000)
+            if isKitMatrix, epoch != drumKitMatrixCommandEpoch { return }
             NotificationCenter.default.post(name: name, object: object)
         }
     }

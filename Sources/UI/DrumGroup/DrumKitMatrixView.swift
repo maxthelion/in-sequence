@@ -64,6 +64,16 @@ struct ExpandedFXTarget: Identifiable {
     var id: UUID { memberID }
 }
 
+/// Identifiable wrapper driving `.sheet(item:)` for the expanded row's macro
+/// "assign slot" picker (Macros mini-tab). Carries both the member whose macro
+/// slot is being assigned and the slot index, so the AU-parameter picker can be
+/// presented in-place without leaving the kit view.
+struct ExpandedMacroTarget: Identifiable {
+    let memberID: UUID
+    let slotIndex: Int
+    var id: String { "\(memberID.uuidString)-\(slotIndex)" }
+}
+
 enum DrumKitMatrixLayer: String, CaseIterable, Identifiable {
     case steps
     case velocity
@@ -218,6 +228,10 @@ struct DrumKitMatrixView: View {
     /// "+ FX" picker target for the expanded part's per-track FX chain (AC21
     /// FX mini-tab). nil when closed. Wrapped so it can drive `.sheet(item:)`.
     @State var expandedFXTarget: ExpandedFXTarget?
+    /// Macro "assign slot" picker target for the expanded part's Macros
+    /// mini-tab. nil when closed. Drives the AU-parameter picker sheet so a
+    /// macro slot can be assigned/changed without leaving the kit view.
+    @State var expandedMacroTarget: ExpandedMacroTarget?
 
     var model: DrumKitMatrixModel? {
         DrumKitMatrixModel(
@@ -459,8 +473,12 @@ struct DrumKitMatrixView: View {
             barPageCount: isVisible ? (longest.map(barPageCount(longestRowLength:)) ?? 1) : 1,
             layer: isVisible ? selectedLayer.rawValue : "none",
             groupPatternSlot: isVisible ? (groupSlot.map { "\($0 + 1)" } ?? "mixed") : "none",
-            patternLinked: isVisible && (model?.isPatternLinked ?? false),
-            patternLinkBroken: isVisible && (model?.isLinkBroken ?? false),
+            // Patterns are global across the kit: members always share one slot
+            // and can never diverge through the UI, so the kit is always
+            // "linked" and the link can never be "broken". The wire keys stay
+            // for QA-harness stability.
+            patternLinked: isVisible,
+            patternLinkBroken: false,
             groupName: isVisible ? model?.groupName ?? "none" : "none",
             memberCount: isVisible ? model?.rows.count ?? 0 : 0,
             kitTab: isVisible ? (isCaptureOpen ? "capture" : kitTab.rawValue) : "none",
@@ -556,10 +574,6 @@ struct DrumKitMatrixView: View {
                     barPager(model)
 
                     Spacer(minLength: 0)
-
-                    if model.hasPatternMismatch {
-                        mismatchBadge
-                    }
 
                     headerActionButton(title: "Apply Template…", systemImage: "square.grid.2x2") {
                         isPresentingTemplateChooser = true

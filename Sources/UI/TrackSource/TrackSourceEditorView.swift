@@ -675,12 +675,6 @@ struct TrackSourceEditorView: View {
     private var macrosTab: some View {
         TrackSourceSelectedWellBody(accent: StudioTheme.amber, isEmpty: false) {
             VStack(alignment: .leading, spacing: 10) {
-                Text("Macros")
-                    .studioText(.bodyBold)
-                    .foregroundStyle(StudioTheme.text)
-                Text("M1–M8 slot assignments. Drag to set, right-click to change or remove.")
-                    .studioText(.body)
-                    .foregroundStyle(StudioTheme.mutedText)
                 macroSlotGrid
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -689,7 +683,7 @@ struct TrackSourceEditorView: View {
     }
 
     private let macroSlotColumns = [
-        GridItem(.adaptive(minimum: 58, maximum: 72), spacing: 10, alignment: .top)
+        GridItem(.adaptive(minimum: 92, maximum: 120), spacing: 16, alignment: .top)
     ]
 
     @ViewBuilder
@@ -709,6 +703,8 @@ struct TrackSourceEditorView: View {
             slotIndex: slot.slotIndex,
             binding: binding,
             value: slotValue,
+            knobSize: 76,
+            showSlotLabel: false,
             onAssign: { prepareAndPresentMacroSlotPicker(slotIndex: slot.slotIndex) },
             onChange: { newValue in
                 guard let binding else { return }

@@ -20,7 +20,17 @@ enum SliceAnalyzer {
         return markers
     }
 
-    static func transientSlices(file: AVAudioFile, sensitivity: Double = 1.5) -> [SliceMarker] {
+    /// Detects onsets via a spectral-flux-style novelty function with an
+    /// adaptive local threshold.
+    ///
+    /// `sensitivity` is the UI control (slider range ~0.15...0.75). It is
+    /// mapped so that *higher* values detect *more* transients. Internally it
+    /// drives three coupled parameters: the local threshold margin (how far a
+    /// peak must exceed its neighbourhood), the peak-picking exclusion radius
+    /// (how close two onsets may sit), and the minimum slice length. This makes
+    /// the slider meaningfully change the result instead of only nudging a
+    /// single global threshold.
+    static func transientSlices(file: AVAudioFile, sensitivity: Double = 0.35) -> [SliceMarker] {
         let length = max(0, Int64(file.length))
         guard length > 0,
               let samples = monoSamples(from: file),
@@ -29,36 +39,70 @@ enum SliceAnalyzer {
             return [SliceMarker(startFrame: 0, endFrame: length)]
         }
 
+        let sampleRate = file.processingFormat.sampleRate
+        // Map the (clamped) UI sensitivity to a 0...1 "detail" amount. The UI
+        // slider is 0.15...0.75; clamp defensively and re-base so the full
+        // travel maps across the detail range.
+        let clampedSensitivity = min(max(sensitivity, 0.05), 0.95)
+        let detail = min(max((clampedSensitivity - 0.05) / 0.90, 0), 1)
+
+        // Finer time resolution than the old 1024 non-overlapping windows:
+        // a 1024-sample window with a 256-sample hop (75% overlap) localises
+        // sharp onsets far better and stops a coarse window from straddling
+        // (and diluting) two close hits.
         let windowSize = 1_024
-        let energies = rmsWindows(samples: samples, windowSize: windowSize)
+        let hopSize = 256
+        let energies = rmsWindows(samples: samples, windowSize: windowSize, hopSize: hopSize)
         guard energies.count > 2 else {
             return [SliceMarker(startFrame: 0, endFrame: length)]
         }
 
+        // Spectral-flux-style novelty: positive frame-to-frame energy rise.
         let flux = zip(energies.dropFirst(), energies).map { current, previous in
             max(0, current - previous)
         }
-        let smoothed = movingAverage(Array(flux), radius: 2)
-        let mean = smoothed.reduce(0, +) / Double(max(1, smoothed.count))
-        let variance = smoothed.reduce(0) { partial, value in
-            let delta = value - mean
-            return partial + delta * delta
-        } / Double(max(1, smoothed.count))
-        let threshold = mean + max(0, sensitivity) * sqrt(variance)
-        let minDistanceFrames = max(1, Int(file.processingFormat.sampleRate * 0.05))
+        let smoothed = movingAverage(Array(flux), radius: 1)
+
+        // Adaptive local threshold: a peak must exceed the local mean of the
+        // novelty curve (over ~250ms) by a sensitivity-scaled margin, with a
+        // small global-derived floor so silence-to-quiet rises do not trigger.
+        // This is robust to a loud opening hit inflating a global mean/std and
+        // then masking a quieter mid-loop transient.
+        let localRadius = max(1, Int(0.250 * sampleRate / Double(hopSize)))
+        let localMean = movingAverage(smoothed, radius: localRadius)
+        let globalMean = smoothed.reduce(0, +) / Double(max(1, smoothed.count))
+        // detail 0 -> ~2.2x local mean required; detail 1 -> ~1.05x. Higher
+        // sensitivity => lower bar => more onsets.
+        let marginMultiplier = 2.2 - 1.15 * detail
+        let globalFloor = globalMean * (0.6 - 0.45 * detail)
+
+        // Peak-picking exclusion radius (in hops): how close two detected
+        // onsets may sit. At high sensitivity this shrinks to ~12ms so genuinely
+        // close transients both survive; at low sensitivity it widens to ~90ms.
+        let pickRadiusSeconds = 0.012 + (1 - detail) * 0.078
+        let pickRadius = max(1, Int(pickRadiusSeconds * sampleRate / Double(hopSize)))
+
+        // Minimum slice length follows the same control: down to ~20ms at full
+        // sensitivity (catches fast double-hits) up to ~70ms at low sensitivity.
+        let minSliceSeconds = 0.020 + (1 - detail) * 0.050
+        let minDistanceFrames = max(1, Int(sampleRate * minSliceSeconds))
+
         var transientFrames: [Int64] = []
         var transientScores: [Double] = []
 
         for index in smoothed.indices {
-            guard smoothed[index] > threshold,
-                  isLocalMaximum(values: smoothed, index: index, radius: 5)
+            let localThreshold = max(localMean[index] * marginMultiplier, globalFloor)
+            guard smoothed[index] > localThreshold,
+                  isLocalMaximum(values: smoothed, index: index, radius: pickRadius)
             else {
                 continue
             }
+            // Centre of this window in frames (window start + half window).
+            let roughFrame = Int64(index * hopSize + windowSize / 2)
             let frame = refinedTransientFrame(
-                around: Int64((index + 1) * windowSize),
+                around: roughFrame,
                 samples: samples,
-                sampleRate: file.processingFormat.sampleRate,
+                sampleRate: sampleRate,
                 length: length
             )
             if let last = transientFrames.last,
@@ -240,8 +284,11 @@ enum SliceAnalyzer {
         return mono
     }
 
-    private static func rmsWindows(samples: [Float], windowSize: Int) -> [Double] {
-        stride(from: 0, to: samples.count, by: max(1, windowSize)).map { start in
+    /// RMS energy per analysis window. `hopSize` controls window overlap; when
+    /// omitted it defaults to a non-overlapping (`hopSize == windowSize`) scan.
+    private static func rmsWindows(samples: [Float], windowSize: Int, hopSize: Int? = nil) -> [Double] {
+        let hop = max(1, hopSize ?? windowSize)
+        return stride(from: 0, to: samples.count, by: hop).map { start in
             let end = min(samples.count, start + windowSize)
             let slice = samples[start..<end]
             guard !slice.isEmpty else { return 0 }

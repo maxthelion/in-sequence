@@ -23,6 +23,8 @@ struct AUMacroSlotKnob: View {
     let slotIndex: Int
     let binding: TrackMacroBinding?
     let value: Double?
+    let knobSize: CGFloat
+    let showSlotLabel: Bool
     let onAssign: () -> Void
     let onChange: (Double) -> Void
     let onRemove: (() -> Void)?
@@ -31,6 +33,8 @@ struct AUMacroSlotKnob: View {
         slotIndex: Int,
         binding: TrackMacroBinding?,
         value: Double?,
+        knobSize: CGFloat = 40,
+        showSlotLabel: Bool = true,
         onAssign: @escaping () -> Void,
         onChange: @escaping (Double) -> Void,
         onRemove: (() -> Void)? = nil
@@ -38,6 +42,8 @@ struct AUMacroSlotKnob: View {
         self.slotIndex = slotIndex
         self.binding = binding
         self.value = value
+        self.knobSize = knobSize
+        self.showSlotLabel = showSlotLabel
         self.onAssign = onAssign
         self.onChange = onChange
         self.onRemove = onRemove
@@ -54,6 +60,8 @@ struct AUMacroSlotKnob: View {
             },
             value: value,
             accent: StudioTheme.cyan,
+            knobSize: knobSize,
+            showSlotLabel: showSlotLabel,
             onAssign: onAssign,
             onChange: onChange,
             onRemove: onRemove
@@ -67,6 +75,8 @@ struct MacroSlotKnob: View {
     let value: Double?
     let accent: Color
     let emptyLabel: String
+    let knobSize: CGFloat
+    let showSlotLabel: Bool
     let onAssign: (() -> Void)?
     let onEdit: (() -> Void)?
     let onChange: (Double) -> Void
@@ -75,14 +85,14 @@ struct MacroSlotKnob: View {
     @State private var dragStartValue: Double?
     @State private var displayValue: Double
 
-    private let knobSize: CGFloat = 40
-
     init(
         slotIndex: Int,
         descriptor: MacroSlotKnobDescriptor?,
         value: Double?,
         accent: Color,
         emptyLabel: String = "Assign",
+        knobSize: CGFloat = 40,
+        showSlotLabel: Bool = true,
         onAssign: (() -> Void)?,
         onEdit: (() -> Void)? = nil,
         onChange: @escaping (Double) -> Void,
@@ -93,6 +103,8 @@ struct MacroSlotKnob: View {
         self.value = value
         self.accent = accent
         self.emptyLabel = emptyLabel
+        self.knobSize = knobSize
+        self.showSlotLabel = showSlotLabel
         self.onAssign = onAssign
         self.onEdit = onEdit
         self.onChange = onChange
@@ -120,10 +132,12 @@ struct MacroSlotKnob: View {
 
     var body: some View {
         VStack(spacing: 8) {
-            Text("M\(slotIndex + 1)")
-                .studioText(.eyebrow)
-                .tracking(0.8)
-                .foregroundStyle(StudioTheme.mutedText)
+            if showSlotLabel {
+                Text("M\(slotIndex + 1)")
+                    .studioText(.eyebrow)
+                    .tracking(0.8)
+                    .foregroundStyle(StudioTheme.mutedText)
+            }
 
             ZStack {
                 Circle()
@@ -135,7 +149,7 @@ struct MacroSlotKnob: View {
 
                 if descriptor == nil {
                     Image(systemName: "plus")
-                        .font(.system(size: 14, weight: .bold))
+                        .font(.system(size: max(14, knobSize * 0.35), weight: .bold))
                         .foregroundStyle(StudioTheme.mutedText)
                 } else {
                     Circle()
@@ -145,7 +159,7 @@ struct MacroSlotKnob: View {
                         .rotationEffect(.degrees(-90))
 
                     Text(shortLabel(displayValue))
-                        .font(.system(size: 9, weight: .medium, design: .rounded))
+                        .font(.system(size: max(9, knobSize * 0.22), weight: .medium, design: .rounded))
                         .foregroundStyle(StudioTheme.mutedText)
                 }
             }

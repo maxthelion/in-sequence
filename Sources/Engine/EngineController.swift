@@ -278,10 +278,56 @@ final class EngineController: RouterDispatcher {
     /// high-frequency state goes through narrow dedicated publishers).
     var noteRepeatRuntimeUIRevision = 0
 
+    // RT-7 / mixer render-livelock note: `currentTrackMix` is engine-internal
+    // state, NOT read by any SwiftUI view (verified: no references outside
+    // Sources/Engine), so its `@Observable` tracking only generated spurious
+    // observation fan-out. It was written on the per-drag `setMix` hot path; that
+    // write fired the ObservationRegistrar's synchronous willSet/didSet callbacks
+    // and, during a continuous send-amount drag, contributed to the unbounded
+    // synchronous SwiftUI layout storm on main (ObservationGraphMutation.apply →
+    // layoutSubtreeIfNeeded) that starved the tick + audio render. Marked
+    // @ObservationIgnored: every read is engine-side, so audio is unaffected.
+    @ObservationIgnored
     var currentTrackMix = TrackMixSettings.default
     // Access widened from `private` for the carve-up extension files
     // (EngineControllerStatus.swift etc.) — same module, no semantic change.
+    //
+    // RT-7 / mixer render-livelock fix: this is now @ObservationIgnored. It used
+    // to be an observed @Observable property, and the per-drag mixer hot paths
+    // (EngineControllerMixSync.setMix / setMixerBusMix / apply(sendBus:)) write
+    // it in place on every mouse-move. Each observed write fired the
+    // ObservationRegistrar's *synchronous* willSet/didSet tracking callbacks,
+    // which during a continuous send-amount drag drove an unbounded synchronous
+    // SwiftUI/AppKit layout storm on the main thread (ObservationGraphMutation.apply
+    // → CATransaction commit → layoutSubtreeIfNeeded, never returning to the run
+    // loop). That starved the TickClock + audio render (the tick thread parked on
+    // the sample-engine `lifecycleLock` it could no longer drain) → hard hang.
+    //
+    // UI that needs to refresh when the *structure* of the document changes
+    // (TransportBar.statusSummary: destination/port/mute of the selected track)
+    // now observes `documentModelUIRevision`, which is bumped ONLY on the
+    // low-frequency apply paths (full document apply, destination/master change) —
+    // never on the high-frequency fader/send drag path. So the audible send level
+    // still takes effect immediately (engine reads this field directly), the
+    // status string still refreshes on the events that actually change it, and the
+    // drag no longer fans out to a synchronous whole-mixer layout.
+    @ObservationIgnored
     var currentDocumentModel: Project = .empty
+
+    /// Observed UI trigger for structural changes to `currentDocumentModel`
+    /// (which is itself @ObservationIgnored — see above). Bumped only on the
+    /// low-frequency document-apply / destination / master paths, NOT on the
+    /// per-drag mixer hot path. Views that read `currentDocumentModel`-derived
+    /// summaries (e.g. TransportBar.statusSummary) read this to register
+    /// observation without re-introducing the per-drag layout storm.
+    private(set) var documentModelUIRevision = 0
+
+    /// Bump the structural-change UI trigger. Call after a low-frequency write
+    /// to `currentDocumentModel` that UI summaries depend on. Deliberately NOT
+    /// called from the per-drag mixer hot path.
+    func bumpDocumentModelUIRevision() {
+        documentModelUIRevision &+= 1
+    }
     let tickState = TickStateBuffer(playbackSnapshot: SequencerSnapshotCompiler.compile(state: .empty))
     let trackRuntime = TrackRuntimeRegistry()
     let routerDispatch = RouterDispatchState()
@@ -942,6 +988,7 @@ final class EngineController: RouterDispatcher {
         flushDetachedMIDINoteOffs(from: previousDocumentModel, to: documentModel, now: ProcessInfo.processInfo.systemUptime)
         let deltas = documentModel.deltas(from: previousDocumentModel)
         currentDocumentModel = documentModel
+        bumpDocumentModelUIRevision()
         sendBusStates = [
             .sendA: documentModel.sendBusA.normalized(expectedID: .sendA),
             .sendB: documentModel.sendBusB.normalized(expectedID: .sendB),
@@ -2150,6 +2197,7 @@ final class EngineController: RouterDispatcher {
         syncAudioInputRuntimes(for: documentModel)
         syncAudioInputRouting(for: documentModel)
         currentDocumentModel = documentModel
+        bumpDocumentModelUIRevision()
         selectedOutput = Self.effectiveDestination(for: documentModel.selectedTrack.id, in: documentModel).destination.kind
         currentTrackMix = documentModel.selectedTrack.mix
     }

@@ -72,7 +72,7 @@ CAPTURES=$(cat <<'TABLE'
 05a-scenes-edit-empty|workspace=scenes,scenesMode=browseEdit,sceneEditorFixture=empty|scenesMode=browseEdit;sceneEditorFixture=empty;transport=stop
 05b-scenes-edit-content|workspace=scenes,scenesMode=browseEdit,sceneEditorFixture=content|scenesMode=browseEdit;sceneEditorFixture=content;transport=stop
 05c-scenes-add-fx|workspace=scenes,scenesMode=browseEdit,sceneEditorFixture=content,scenesAddFXModalVisible=true|scenesMode=browseEdit;sceneEditorFixture=content;scenesAddFXModal=open;transport=stop
-05d-scenes-bitcrusher-editor|workspace=scenes,scenesMode=browseEdit,sceneEditorFixture=content,scenesSelectedInsertIndex=1|scenesMode=browseEdit;sceneEditorFixture=content;scenesSelectInsert=1;transport=stop
+05d-scenes-bitcrusher-editor|workspace=scenes,scenesMode=browseEdit,sceneEditorFixture=content,scenesSelectedInsertIndex=1|scenesMode=browseEdit;sceneEditorFixture=content;scenesAddFXModal=close;scenesSelectInsert=1;transport=stop
 06-phrase-scenes-perform|workspace=phrase,workspaceMode=perform,phraseWorkspaceTab=scenes|workspace=phrase;workspaceMode=perform;phraseWorkspaceTab=scenes;transport=stop
 06a-phrase-scene-select|workspace=phrase,phraseWorkspaceTab=scenes,phraseSceneSelectVisible=true|phraseMatrixTrackCount=8;phraseMatrixPhraseCount=8;phraseWorkspaceTab=scenes;phraseSceneSelect=a;transport=stop
 07-library|workspace=library|workspace=library;transport=stop
@@ -84,7 +84,7 @@ CAPTURES=$(cat <<'TABLE'
 13-phrase-global-apply|workspace=phrase,phraseWorkspaceTab=globalApply|phraseMatrixTrackCount=8;phraseMatrixPhraseCount=8;phraseWorkspaceTab=globalApply;transport=stop
 13a-phrase-global-apply-track-selector|workspace=phrase,phraseWorkspaceTab=globalApply,phraseGlobalApplyTrackSelectorVisible=true|phraseMatrixTrackCount=8;phraseMatrixPhraseCount=8;phraseWorkspaceTab=globalApply;phraseGlobalApplyTrackSelector=open;transport=stop
 13b-phrase-perform-capture|workspace=phrase,workspaceMode=perform,phraseCaptureVisible=true|phraseMatrixTrackCount=8;phraseMatrixPhraseCount=8;workspaceMode=perform;phraseWorkspaceTab=layers;phraseCapture=open;transport=stop
-13c-phrase-global-apply-selected|workspace=phrase,phraseWorkspaceTab=globalApply,phraseGlobalApplyTrackSelectorVisible=true|phraseMatrixTrackCount=8;phraseWorkspaceTab=globalApply;phraseGlobalApplyTrackSelector=open;phraseGlobalApplySelect=2;transport=stop
+13c-phrase-global-apply-selected|workspace=phrase,phraseWorkspaceTab=globalApply,phraseGlobalApplyTrackSelectorVisible=true|phraseMatrixTrackCount=8;phraseCapture=close;phraseWorkspaceTab=globalApply;phraseGlobalApplyTrackSelector=open;phraseGlobalApplySelect=2;transport=stop
 # 14-17 RETIRED: the tracks Perform LAYER surface (TRACK LAYER selector +
 # mute/fill/note-repeat layer cells) was removed. Tracks Perform is now
 # navigation + selection; layer perform launches scoped from the selection
@@ -110,7 +110,7 @@ CAPTURES=$(cat <<'TABLE'
 # the honest capture of the rotary cluster selects a step on a melodic track's
 # Steps/Clip grid. (The slicer step-selection command exists too — slicerSelectStep
 # — and highlights a slice step, but shows no rotary cluster.)
-23g-step-edit-rotaries|workspace=track,trackSourceTab=steps-clip|trackFillSource=clip;trackSourceTab=steps-clip;trackSelectStep=2;transport=stop
+23g-step-edit-rotaries|workspace=track,trackSourceTab=steps-clip|sliceSourceModal=close;trackFillSource=clip;trackSourceTab=steps-clip;trackSelectStep=2;transport=stop
 24-audio-idle|workspace=track,selectedTrackType=audioInput|audioInputFixture=idle;audioInputAvailableChannels=0;transport=stop
 25-audio-live|workspace=track,audioInputArmState=idle|audioInputState=live;transport=stop
 26-audio-recording|workspace=track,audioInputArmState=recording|audioInputState=recording;transport=stop
@@ -118,8 +118,6 @@ CAPTURES=$(cat <<'TABLE'
 27a-audio-source-tab|workspace=track,audioInputTab=source|audioInputState=live;audioInputTab=source;transport=stop
 27b-audio-mixer-tab|workspace=track,audioInputArmState=hasLoop,audioInputTab=mixer|audioInputState=completed;audioInputTab=mixer;transport=stop
 27c-audio-playback|workspace=track,audioInputArmState=hasLoop,audioInputMonitorMode=loop,audioInputTab=source|audioInputState=playback;audioInputTab=source;transport=stop
-28-drum-part|workspace=track,drumPartHeaderVisible=true,drumTrackDefaultView=partEditor|drumPartHeaderFixture=kit;drumPartHeaderSelectedIndex=2;drumPartHeaderDiveIn=true;transport=stop
-28a-drum-part-sound|workspace=track,drumPartHeaderVisible=true,drumTrackDefaultView=partEditor,trackSourceTab=sound|drumPartHeaderFixture=kit;drumPartHeaderSelectedIndex=2;drumPartHeaderDiveIn=true;trackSourceTab=sound;transport=stop
 28b-drum-track-default-kit|workspace=track,drumPartHeaderVisible=true,drumTrackDefaultView=kitMatrix,drumKitMatrixRenderedVisible=true|drumPartHeaderFixture=kit;drumPartHeaderSelectedIndex=2;transport=stop
 29-drum-kit-matrix|workspace=track,drumKitMatrixRenderedVisible=true,drumTrackDefaultView=kitMatrix,drumKitMatrixRenderedGroupPatternSlot=mixed|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixDisplayStepCount=16;transport=stop
 30-drum-kit-matrix-32|workspace=track,drumKitMatrixRenderedVisible=true,drumKitMatrixRenderedDisplayStepCount=32|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixDisplayStepCount=32;transport=stop
@@ -128,9 +126,9 @@ CAPTURES=$(cat <<'TABLE'
 29b-drum-kit-macros-tab|workspace=track,drumKitMatrixRenderedVisible=true,drumKitMatrixRenderedKitTab=macros|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixCommand=tab-macros;transport=stop
 29c-drum-kit-mixer-tab|workspace=track,drumKitMatrixRenderedVisible=true,drumKitMatrixRenderedKitTab=mixer|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixCommand=tab-mixer;transport=stop
 29d-drum-kit-fx-chooser|workspace=track,drumKitMatrixRenderedKitFXChooserVisible=true|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixCommands=tab-fx,open-kit-fx-chooser;transport=stop
-29e-drum-kit-capture|workspace=track,drumKitMatrixRenderedCaptureOpen=true|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixCommand=open-capture;transport=stop
-29f-drum-kit-capture-save-slot|workspace=track,drumKitMatrixRenderedSaveSlotPickerVisible=true|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixCommands=open-capture,history-save-open;transport=stop
-29g-drum-kit-expanded-row|workspace=track,drumKitMatrixRenderedRowExpanded=true,drumKitMatrixRenderedExpandedRowTab=sound|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixCommands=expand-part:0,row-tab-sound;transport=stop
+29e-drum-kit-capture|workspace=track,drumKitMatrixRenderedCaptureOpen=true|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixCommands=close-kit-fx-chooser,open-capture;transport=stop
+29f-drum-kit-capture-save-slot|workspace=track,drumKitMatrixRenderedSaveSlotPickerVisible=true|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixCommands=close-kit-fx-chooser,open-capture,history-save-open;transport=stop
+29g-drum-kit-expanded-row|workspace=track,drumKitMatrixRenderedRowExpanded=true,drumKitMatrixRenderedExpandedRowTab=sound|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixCommands=close-kit-fx-chooser,expand-part:0,row-tab-sound;transport=stop
 35-drum-kit-matrix-velocity-layer|workspace=track,drumKitMatrixRenderedLayer=velocity|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixLayer=velocity;transport=stop
 36-drum-kit-matrix-chance-layer|workspace=track,drumKitMatrixRenderedLayer=chance|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixLayer=chance;transport=stop
 37-drum-kit-matrix-pattern-realign|workspace=track,drumKitMatrixRenderedGroupPatternSlot=2|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixPattern=2;transport=stop
@@ -225,16 +223,14 @@ $payload"
   done
   unset IFS
 
-  # Most surfaces render well within 0.8s. The drum-part dive-in rows
-  # (drumPartHeaderDiveIn / expanded kit row) build a drum-group fixture, dive
-  # into a part, AND render all cold when run standalone, so the part editor /
+  # Most surfaces render well within 0.8s. The expanded kit-row detail rows
+  # build a drum-group fixture AND render all cold when run standalone, so the
   # expanded-row detail mounts (and observes its visual commands) late — the
-  # runner re-fires those posts over ~1.4s, so give these rows a longer settle
-  # so the intended surface is on screen at capture time. Harness-only timing;
-  # no product behaviour changes.
+  # runner re-fires those posts, so give these rows a longer settle so the
+  # intended surface is on screen at capture time. Harness-only timing; no
+  # product behaviour changes.
   local settle=0.8
   case "$name" in
-    28a-*) settle=2.0 ;;
     29g-*) settle=2.8 ;;
   esac
   sleep "$settle"
