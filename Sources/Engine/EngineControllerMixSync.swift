@@ -311,16 +311,21 @@ extension EngineController {
     private func syncSampleMixers(for documentModel: Project) {
         let effectiveMuteState = Self.effectiveMixerMuteState(for: documentModel)
         var sampleTrackIDs: Set<UUID> = []
+        var sampleIDsToWarm: Set<UUID> = []
         for track in documentModel.tracks {
             switch Self.effectiveDestination(for: track.id, in: documentModel).destination {
-            case .sample, .slicer:
-                break
+            case let .sample(sampleID, _):
+                sampleIDsToWarm.insert(sampleID)
+            case let .slicer(sliceSetID, _):
+                if let sampleID = documentModel.sliceSet(id: sliceSetID)?.sampleID {
+                    sampleIDsToWarm.insert(sampleID)
+                }
             default:
                 continue
             }
             sampleTrackIDs.insert(track.id)
-            sampleEngine.prepareTrack(trackID: track.id)
             sampleEngine.setTrackOutputBus(trackID: track.id, busID: track.outputBusID)
+            sampleEngine.prepareTrack(trackID: track.id)
             let mix = Self.effectiveMix(for: track.mix, isMuted: effectiveMuteState.mutedTrackIDs.contains(track.id))
             sampleEngine.setTrackMix(
                 trackID: track.id,
@@ -330,11 +335,24 @@ extension EngineController {
             sampleEngine.setTrackSends(trackID: track.id, sendA: mix.sendA, sendB: mix.sendB)
         }
 
+        warmSampleAssets(sampleIDs: sampleIDsToWarm)
+
         let previouslyLiveTrackIDs = withStateLock { trackRuntime.liveSampleTrackIDs }
         for removed in previouslyLiveTrackIDs.subtracting(sampleTrackIDs) {
             sampleEngine.removeTrack(trackID: removed)
         }
 
         withStateLock { trackRuntime.liveSampleTrackIDs = sampleTrackIDs }
+    }
+
+    private func warmSampleAssets(sampleIDs: Set<UUID>) {
+        let samples = sampleIDs.compactMap { sampleLibrary.sample(id: $0) }
+        sampleAssetCache.retain(sampleIDs: sampleIDs)
+        if isRunning {
+            sampleAssetCache.warmAsync(samples: samples, libraryRoot: sampleLibraryRoot, pinnedSampleIDs: sampleIDs)
+        } else {
+            sampleAssetCache.warm(samples: samples, libraryRoot: sampleLibraryRoot)
+        }
+        sampleAssetCache.retain(sampleIDs: sampleIDs)
     }
 }

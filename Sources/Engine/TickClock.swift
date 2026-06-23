@@ -9,6 +9,7 @@ final class TickClock {
     private var timer: DispatchSourceTimer?
     private var storedBPM: Double
     private var nextTickIndex: UInt64 = 0
+    private var nextExpectedUptime: TimeInterval?
 
     init(stepsPerBar: Int = 16, bpm: Double = 120) {
         self.stepsPerBar = max(1, stepsPerBar)
@@ -44,6 +45,7 @@ final class TickClock {
             }
 
             nextTickIndex = 0
+            nextExpectedUptime = ProcessInfo.processInfo.systemUptime
 
             let timer = DispatchSource.makeTimerSource(queue: queue)
             timer.schedule(
@@ -56,9 +58,20 @@ final class TickClock {
                     return
                 }
 
+                let actual = ProcessInfo.processInfo.systemUptime
                 let tickIndex = self.nextTickIndex
+                let interval = self.intervalSecondsForCurrentBPM()
+                let expected = self.nextExpectedUptime ?? actual
                 self.nextTickIndex += 1
-                onTick(tickIndex, ProcessInfo.processInfo.systemUptime)
+                self.nextExpectedUptime = expected + interval
+                SequencerTimingProbe.tickClock(
+                    tickIndex: tickIndex,
+                    expected: expected,
+                    actual: actual,
+                    interval: interval,
+                    bpm: self.storedBPM
+                )
+                onTick(tickIndex, actual)
             }
             self.timer = timer
             timer.resume()
@@ -74,12 +87,16 @@ final class TickClock {
             timer.setEventHandler {}
             timer.cancel()
             self.timer = nil
+            self.nextExpectedUptime = nil
         }
     }
 
     private func intervalForCurrentBPM() -> DispatchTimeInterval {
-        let seconds = 60.0 / storedBPM / Double(stepsPerBar) * beatsPerBar
-        return .nanoseconds(Int(seconds * 1_000_000_000))
+        .nanoseconds(Int(intervalSecondsForCurrentBPM() * 1_000_000_000))
+    }
+
+    private func intervalSecondsForCurrentBPM() -> TimeInterval {
+        60.0 / storedBPM / Double(stepsPerBar) * beatsPerBar
     }
 
     private func rescheduleTimerIfNeeded() {
@@ -92,6 +109,7 @@ final class TickClock {
             repeating: intervalForCurrentBPM(),
             leeway: .milliseconds(1)
         )
+        nextExpectedUptime = ProcessInfo.processInfo.systemUptime + intervalSecondsForCurrentBPM()
     }
 
     private func syncOnQueue<T>(_ body: () -> T) -> T {

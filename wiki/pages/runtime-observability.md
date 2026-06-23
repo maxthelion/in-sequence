@@ -109,6 +109,45 @@ For the missing hi-hat class of bugs:
   is upstream: pattern contents, track mute/layer resolution, drum group
   inheritance, or generator output.
 
+## Timing Probe POC
+
+For UI-induced lag investigations, the debug build also has an opt-in
+`timing-probe` category. It records a shared monotonic timestamp for:
+
+- view switches and setup/perform mode changes;
+- tick-clock expected vs actual fire time;
+- `processTick` duration and drained event count;
+- audio event dispatch lateness;
+- sample schedules with normalized start/length;
+- slice schedules with start/end frames, choke, reverse, and voice mode;
+- sample-engine voice selection, including whether mono scheduling stops the
+  prior voice.
+
+Enable it with:
+
+```sh
+defaults write ai.sequencer.SequencerAI TimingProbeEnabled -bool YES
+```
+
+Then restart the app, press Play, reproduce the lag, and collect a bounded
+report:
+
+```sh
+scripts/diagnostics/timing-probe-report.sh 10
+```
+
+Set `TIMING_PROBE_LATE_MS` to change the report threshold:
+
+```sh
+TIMING_PROBE_LATE_MS=5 scripts/diagnostics/timing-probe-report.sh 10
+```
+
+Disable it with:
+
+```sh
+defaults delete ai.sequencer.SequencerAI TimingProbeEnabled
+```
+
 ## Future Audio Capture
 
 Some bugs cannot be answered from events alone. UI interaction causing audio lag,

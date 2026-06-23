@@ -47,12 +47,14 @@ final class EngineControllerSampleTriggerTests: XCTestCase {
     private var libraryRoot: URL!
 
     override func setUpWithError() throws {
+        MainAudioGraph.useManualRenderingForAutomation = true
         libraryRoot = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: libraryRoot.appendingPathComponent("kick"), withIntermediateDirectories: true)
         try writeSilentWAV(to: libraryRoot.appendingPathComponent("kick/test-kick.wav"), sampleRate: 48_000)
     }
 
     override func tearDownWithError() throws {
+        MainAudioGraph.useManualRenderingForAutomation = false
         try? FileManager.default.removeItem(at: libraryRoot)
     }
 
@@ -141,6 +143,248 @@ final class EngineControllerSampleTriggerTests: XCTestCase {
         }
 
         XCTAssertEqual(spy.playCalls.count, 4, "manual processTick driving should dispatch one sample trigger per fired step")
+    }
+
+    func test_sampleDestination_opensSampleOnceDuringWarmupNotPerDispatch() throws {
+        let library = AudioSampleLibrary(libraryRoot: libraryRoot)
+        let kick = try XCTUnwrap(library.firstSample(in: .kick))
+        let spy = SpySamplePlaybackSink()
+        var openedURLs: [URL] = []
+        let cache = SampleAssetCache { url in
+            openedURLs.append(url)
+            return try AVAudioFile(forReading: url)
+        }
+
+        let track = StepSequenceTrack(
+            name: "K",
+            pitches: [DrumKitNoteMap.baselineNote],
+            stepPattern: [true],
+            destination: .sample(sampleID: kick.id, settings: .default),
+            velocity: 100,
+            gateLength: 4
+        )
+        let generator = makeAlwaysOnGenerator(id: UUID(), trackType: track.trackType)
+        let layers = PhraseLayerDefinition.defaultSet(for: [track])
+        let phrase = PhraseModel.default(tracks: [track], layers: layers)
+        let project = makeProject(track: track, generator: generator, phrase: phrase, layers: layers)
+        let controller = EngineController(
+            client: nil,
+            endpoint: nil,
+            sampleEngine: spy,
+            sampleAssetCache: cache,
+            sampleLibrary: library
+        )
+
+        controller.apply(documentModel: project)
+        XCTAssertEqual(openedURLs.count, 1)
+
+        for step in 0..<4 {
+            controller.processTick(tickIndex: UInt64(step), now: Double(step) * 0.125)
+        }
+
+        XCTAssertEqual(spy.playCalls.count, 4)
+        XCTAssertEqual(openedURLs.count, 1, "dispatch should reuse the prepared asset instead of opening the sample per trigger")
+    }
+
+    func test_denseRepeatedSampleHitsUseWarmedAssetsWithoutAdditionalFileOpens() throws {
+        for category in ["snare", "hatClosed"] {
+            let directory = libraryRoot.appendingPathComponent(category)
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            try writeSilentWAV(to: directory.appendingPathComponent("\(category)-default.wav"), sampleRate: 48_000)
+        }
+
+        let library = AudioSampleLibrary(libraryRoot: libraryRoot)
+        let fixtures: [(name: String, sample: AudioSample)] = [
+            ("Kick", try XCTUnwrap(library.firstSample(in: .kick))),
+            ("Snare", try XCTUnwrap(library.firstSample(in: .snare))),
+            ("Hat", try XCTUnwrap(library.firstSample(in: .hatClosed)))
+        ]
+        let expectedURLs = try Set(fixtures.map { try $0.sample.fileRef.resolve(libraryRoot: library.libraryRoot) })
+        let spy = SpySamplePlaybackSink()
+        var openedURLs: [URL] = []
+        let cache = SampleAssetCache { url in
+            openedURLs.append(url)
+            return try AVAudioFile(forReading: url)
+        }
+
+        let tracks = fixtures.map { fixture in
+            StepSequenceTrack(
+                name: fixture.name,
+                pitches: [DrumKitNoteMap.baselineNote],
+                stepPattern: [true],
+                destination: .sample(sampleID: fixture.sample.id, settings: .default),
+                velocity: 100,
+                gateLength: 4
+            )
+        }
+        let generators = tracks.map { makeAlwaysOnGenerator(id: UUID(), trackType: $0.trackType) }
+        let layers = PhraseLayerDefinition.defaultSet(for: tracks)
+        let phrase = PhraseModel.default(tracks: tracks, layers: layers, generatorPool: generators)
+        let patternBanks = zip(tracks, generators).map { track, generator in
+            TrackPatternBank(
+                trackID: track.id,
+                slots: [TrackPatternSlot(slotIndex: 0, sourceRef: .generator(generator.id))]
+            )
+        }
+        let project = Project(
+            version: 1,
+            tracks: tracks,
+            generatorPool: generators,
+            layers: layers,
+            patternBanks: patternBanks,
+            selectedTrackID: tracks[0].id,
+            phrases: [phrase],
+            selectedPhraseID: phrase.id
+        )
+        let controller = EngineController(
+            client: nil,
+            endpoint: nil,
+            sampleEngine: spy,
+            sampleAssetCache: cache,
+            sampleLibrary: library
+        )
+
+        controller.apply(documentModel: project)
+        XCTAssertEqual(Set(openedURLs), expectedURLs)
+
+        let tickCount = 64
+        let now = ProcessInfo.processInfo.systemUptime
+        for step in 0..<tickCount {
+            controller.processTick(tickIndex: UInt64(step), now: now + Double(step) * 0.083_333_333)
+        }
+
+        XCTAssertEqual(spy.playCalls.count, tracks.count * tickCount)
+        XCTAssertEqual(Set(spy.playCalls.map(\.0)), expectedURLs)
+        XCTAssertEqual(openedURLs.count, expectedURLs.count, "dense repeated dispatch should stay on warmed cache assets instead of reopening files")
+    }
+
+    func test_denseDrumPlaybackForSixtySecondsAtMultipleBPMsUsesWarmedAssetsWithoutAdditionalFileOpens() throws {
+        for category in ["snare", "hatClosed"] {
+            let directory = libraryRoot.appendingPathComponent(category)
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            try writeSilentWAV(to: directory.appendingPathComponent("\(category)-default.wav"), sampleRate: 48_000)
+        }
+
+        let library = AudioSampleLibrary(libraryRoot: libraryRoot)
+        let fixtures: [(name: String, sample: AudioSample)] = [
+            ("Kick", try XCTUnwrap(library.firstSample(in: .kick))),
+            ("Snare", try XCTUnwrap(library.firstSample(in: .snare))),
+            ("Hat", try XCTUnwrap(library.firstSample(in: .hatClosed)))
+        ]
+        let expectedURLs = try Set(fixtures.map { try $0.sample.fileRef.resolve(libraryRoot: library.libraryRoot) })
+        let spy = SpySamplePlaybackSink()
+        var openedURLs: [URL] = []
+        let cache = SampleAssetCache { url in
+            openedURLs.append(url)
+            return try AVAudioFile(forReading: url)
+        }
+
+        let tracks = fixtures.map { fixture in
+            StepSequenceTrack(
+                name: fixture.name,
+                pitches: [DrumKitNoteMap.baselineNote],
+                stepPattern: [true],
+                destination: .sample(sampleID: fixture.sample.id, settings: .default),
+                velocity: 100,
+                gateLength: 4
+            )
+        }
+        let generators = tracks.map { makeAlwaysOnGenerator(id: UUID(), trackType: $0.trackType) }
+        let layers = PhraseLayerDefinition.defaultSet(for: tracks)
+        let phrase = PhraseModel.default(tracks: tracks, layers: layers, generatorPool: generators)
+        let patternBanks = zip(tracks, generators).map { track, generator in
+            TrackPatternBank(
+                trackID: track.id,
+                slots: [TrackPatternSlot(slotIndex: 0, sourceRef: .generator(generator.id))]
+            )
+        }
+        let project = Project(
+            version: 1,
+            tracks: tracks,
+            generatorPool: generators,
+            layers: layers,
+            patternBanks: patternBanks,
+            selectedTrackID: tracks[0].id,
+            phrases: [phrase],
+            selectedPhraseID: phrase.id
+        )
+        let controller = EngineController(
+            client: nil,
+            endpoint: nil,
+            sampleEngine: spy,
+            sampleAssetCache: cache,
+            sampleLibrary: library
+        )
+
+        controller.apply(documentModel: project)
+        XCTAssertEqual(Set(openedURLs), expectedURLs)
+
+        let bpms = [120.0, 150.0, 180.0]
+        var tickBase: UInt64 = 0
+        var totalTickCount = 0
+        var runStart = ProcessInfo.processInfo.systemUptime
+
+        for bpm in bpms {
+            controller.setBPM(bpm)
+            let secondsPerStep = 60.0 / bpm / 4.0
+            let tickCount = Int((60.0 / secondsPerStep).rounded())
+            totalTickCount += tickCount
+            for step in 0..<tickCount {
+                controller.processTick(
+                    tickIndex: tickBase + UInt64(step),
+                    now: runStart + Double(step) * secondsPerStep
+                )
+            }
+            tickBase += UInt64(tickCount)
+            runStart += Double(tickCount) * secondsPerStep
+        }
+
+        XCTAssertEqual(spy.playCalls.count, tracks.count * totalTickCount)
+        XCTAssertEqual(Set(spy.playCalls.map(\.0)), expectedURLs)
+        XCTAssertEqual(
+            openedURLs.count,
+            expectedURLs.count,
+            "60s dense drum runs at 120/150/180 BPM should reuse warmed assets and never reopen sample files per trigger"
+        )
+    }
+
+    func test_sampleDestination_schedulesPreparedNextStepAtNextTickTime() throws {
+        MainAudioGraph.useManualRenderingForAutomation = true
+        defer { MainAudioGraph.useManualRenderingForAutomation = false }
+
+        let library = AudioSampleLibrary(libraryRoot: libraryRoot)
+        let kick = try XCTUnwrap(library.firstSample(in: .kick))
+        let spy = SpySamplePlaybackSink()
+
+        let track = StepSequenceTrack(
+            name: "K",
+            pitches: [DrumKitNoteMap.baselineNote],
+            stepPattern: [true],
+            destination: .sample(sampleID: kick.id, settings: .default),
+            velocity: 100,
+            gateLength: 4
+        )
+        let generator = makeAlwaysOnGenerator(id: UUID(), trackType: track.trackType)
+        let layers = PhraseLayerDefinition.defaultSet(for: [track])
+        let phrase = PhraseModel.default(tracks: [track], layers: layers)
+        let project = makeProject(track: track, generator: generator, phrase: phrase, layers: layers)
+        let controller = EngineController(
+            client: nil,
+            endpoint: nil,
+            sampleEngine: spy,
+            sampleLibrary: library
+        )
+
+        controller.apply(documentModel: project)
+        controller.processTick(tickIndex: 0, now: 100)
+        controller.processTick(tickIndex: 1, now: 100.125)
+
+        let scheduledSeconds = spy.playCalls.compactMap { call in
+            call.3.map { AVAudioTime.seconds(forHostTime: $0.hostTime) }
+        }
+        XCTAssertEqual(scheduledSeconds.count, 2)
+        XCTAssertEqual(scheduledSeconds[0], 100, accuracy: 0.000001)
+        XCTAssertEqual(scheduledSeconds[1], 100.125, accuracy: 0.000001)
     }
 
     func test_factory808Kit_dispatchesKickAndHatWhenBothFireOnSameStep() throws {
@@ -693,6 +937,103 @@ final class EngineControllerSampleTriggerTests: XCTestCase {
         XCTAssertEqual(call?.7?.attackMs, 12)
         XCTAssertEqual(call?.7?.releaseMs, 80)
         XCTAssertEqual(call?.7?.choke, false)
+    }
+
+    func test_slicerRapidAlternatingSlicesUseWarmedAssetAndRemainMono() throws {
+        let library = AudioSampleLibrary(libraryRoot: libraryRoot)
+        let sample = try XCTUnwrap(library.firstSample(in: .kick))
+        let expectedURL = try sample.fileRef.resolve(libraryRoot: library.libraryRoot)
+        let spy = SpySamplePlaybackSink()
+        var openedURLs: [URL] = []
+        let cache = SampleAssetCache { url in
+            openedURLs.append(url)
+            return try AVAudioFile(forReading: url)
+        }
+
+        let sliceSet = SliceSet(
+            sampleID: sample.id,
+            markers: [
+                SliceMarker(startFrame: 0, endFrame: 1_200),
+                SliceMarker(startFrame: 1_200, endFrame: 2_400, gain: 1),
+                SliceMarker(startFrame: 2_400, endFrame: 3_600, reverse: true),
+                SliceMarker(startFrame: 3_600, endFrame: 4_800, gain: -2)
+            ]
+        )
+        let stepCount = 16
+        let stepParameters = (0..<stepCount).map { index in
+            SliceTriggerStepParameters(
+                gain: Double((index % 5) - 2),
+                pitch: Double((index % 3) - 1),
+                startTrim: index.isMultiple(of: 3) ? 0.10 : 0,
+                endTrim: index.isMultiple(of: 4) ? 0.15 : 0,
+                pan: index.isMultiple(of: 2) ? -0.35 : 0.35,
+                filter: Double(index % 10) / 10,
+                attackMs: index.isMultiple(of: 5) ? 2 : 0,
+                releaseMs: index.isMultiple(of: 6) ? 4 : 0,
+                reverse: index.isMultiple(of: 7),
+                choke: true
+            )
+        }
+        let clip = ClipPoolEntry(
+            id: UUID(),
+            name: "Rapid Slice Clip",
+            trackType: .slice,
+            content: .sliceTriggers(
+                stepPattern: Array(repeating: true, count: stepCount),
+                sliceIndexes: (0..<stepCount).map { $0 % sliceSet.markers.count },
+                stepModes: Array(repeating: .single, count: stepCount),
+                stepParameters: stepParameters
+            )
+        )
+        let track = StepSequenceTrack(
+            name: "Slice",
+            trackType: .slice,
+            pitches: [60],
+            stepPattern: Array(repeating: true, count: stepCount),
+            destination: .slicer(sliceSetID: sliceSet.id, settings: SlicerSettings(gain: -1, transpose: 0, voiceMode: .mono)),
+            velocity: 100,
+            gateLength: 4
+        )
+        let generator = makeAlwaysOnGenerator(id: UUID(), trackType: track.trackType)
+        let layers = PhraseLayerDefinition.defaultSet(for: [track])
+        let phrase = PhraseModel.default(tracks: [track], layers: layers, generatorPool: [generator], clipPool: [clip])
+        let bank = TrackPatternBank(
+            trackID: track.id,
+            slots: [TrackPatternSlot(slotIndex: 0, sourceRef: .clip(clip.id))]
+        )
+        let project = makeProject(
+            track: track,
+            generator: generator,
+            phrase: phrase,
+            layers: layers,
+            clipPool: [clip],
+            patternBank: bank,
+            sliceSetPool: [sliceSet]
+        )
+        let controller = EngineController(
+            client: nil,
+            endpoint: nil,
+            sampleEngine: spy,
+            sampleAssetCache: cache,
+            sampleLibrary: library
+        )
+
+        controller.apply(documentModel: project)
+        XCTAssertEqual(openedURLs, [expectedURL])
+
+        let tickCount = 128
+        let now = ProcessInfo.processInfo.systemUptime
+        for step in 0..<tickCount {
+            controller.processTick(tickIndex: UInt64(step), now: now + Double(step) * 0.0625)
+        }
+
+        XCTAssertEqual(spy.playSliceCalls.count, tickCount)
+        XCTAssertEqual(Set(spy.playSliceCalls.map(\.0)), [expectedURL])
+        XCTAssertEqual(openedURLs.count, 1, "rapid slicer dispatch should reuse the warmed source sample instead of reopening it per slice")
+        XCTAssertEqual(Set(spy.playSliceCalls.map(\.3.voiceMode)), [.mono])
+        XCTAssertTrue(spy.playSliceCalls.allSatisfy { $0.7?.choke == true })
+        XCTAssertTrue(spy.playSliceCalls.contains { $0.6 }, "stress clip should exercise reverse slice dispatch")
+        XCTAssertGreaterThan(Set(spy.playSliceCalls.map(\.1)).count, 1, "stress clip should alternate slice start frames")
     }
 
     func test_slicerDestination_appliesMicroTimingAtSampleRate() {

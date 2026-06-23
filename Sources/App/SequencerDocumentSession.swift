@@ -40,6 +40,12 @@ final class SequencerDocumentSession {
     /// and is intentionally NEVER flushed into the document.
     var workspaceMode: WorkspaceMode = .setup {
         didSet {
+            if oldValue != workspaceMode {
+                SequencerTimingProbe.activity(
+                    "workspace-mode",
+                    detail: "from=\(oldValue.rawValue) to=\(workspaceMode.rawValue)"
+                )
+            }
             // Leaving perform mode abandons the arm window: armed quantised
             // changes would otherwise commit invisibly at the next bar.
             if oldValue != workspaceMode, workspaceMode == .setup {

@@ -13,7 +13,7 @@ struct ScheduledEvent: Equatable, Sendable {
         case sampleTrigger(trackID: UUID, sampleID: UUID, settings: SamplerSettings, scheduledHostTime: TimeInterval)
         case sliceTrigger(
             trackID: UUID,
-            sampleURL: URL,
+            sampleID: UUID,
             startFrame: Int64,
             endFrame: Int64,
             settings: SlicerSettings,

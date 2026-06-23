@@ -358,7 +358,13 @@ final class MainAudioGraph {
 
     func connect(_ source: AVAudioNode, to destination: AVAudioNode, format: AVAudioFormat? = nil) {
         performOnMain {
-            self.engine.connect(source, to: destination, format: format)
+            self.engine.connect(
+                source,
+                to: destination,
+                fromBus: 0,
+                toBus: self.inputBus(for: destination),
+                format: format
+            )
         }
     }
 
@@ -649,6 +655,8 @@ final class MainAudioGraph {
                 host.install(bus: bus, in: self, effectiveMute: effectiveMuteByBusID[bus.id] ?? bus.mix.isMuted)
             }
 
+            self.reconnectMixerBusTerminalsOnMain()
+
             // Re-wire every track whose output feeds a mixer bus, mirroring
             // installSendBuses. A freshly created bus host (or one whose
             // topology just rebuilt — inserts added/removed) is a NEW input
@@ -801,6 +809,33 @@ final class MainAudioGraph {
                 try? self.engine.start()
                 self.isStarted = self.engine.isRunning
             }
+        }
+    }
+
+    func connectPreparedSampleVoiceOutput(
+        _ source: AVAudioNode,
+        toMixerBus busID: UUID,
+        inputBus: AVAudioNodeBus
+    ) {
+        performOnMain {
+            self.lockGraphLock()
+            defer { self.unlockGraphLock() }
+            guard source.engine === self.engine,
+                  let destination = self.mixerBusHosts[busID]?.destinationNode()
+            else {
+                return
+            }
+            // realtime-allow-graph-mutation: prepared sample bus-safe route setup/repair only, not event scheduling. Test: RealtimePathLintTests.
+            self.engine.disconnectNodeOutput(source)
+            // realtime-allow-graph-mutation: prepared sample bus-safe route setup/repair only, not event scheduling. Test: RealtimePathLintTests.
+            self.engine.connect(
+                source,
+                to: destination,
+                fromBus: 0,
+                toBus: inputBus,
+                format: nil
+            )
+            self.trackOutputDestinationsForTesting[ObjectIdentifier(source)] = destination
         }
     }
 
@@ -1340,6 +1375,24 @@ final class MainAudioGraph {
         writeMasterRenderBufferIfActive(buffer)
     }
 
+    #if DEBUG
+    /// Test hook: advances AVAudioEngine offline manual rendering so taps and
+    /// scheduled player nodes produce deterministic buffers without the HAL.
+    func renderOfflineForTesting(frameCount: AVAudioFrameCount) throws {
+        let format = engine.manualRenderingFormat
+        let capacity = min(max(1, frameCount), engine.manualRenderingMaximumFrameCount)
+        guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: capacity) else {
+            return
+        }
+        var remaining = frameCount
+        while remaining > 0 {
+            let chunk = min(remaining, capacity)
+            _ = try engine.renderOffline(chunk, to: buffer)
+            remaining -= chunk
+        }
+    }
+    #endif
+
     @MainActor
     private func installMasterMeterTapIfNeeded() {
         installChannelMeterTapsIfNeeded()
@@ -1669,6 +1722,22 @@ final class MainAudioGraph {
         trackOutputDestinationsForTesting[ObjectIdentifier(source)] = dryDestination
     }
 
+    @MainActor
+    private func reconnectMixerBusTerminalsOnMain() {
+        var inputBusCursor: [ObjectIdentifier: AVAudioNodeBus] = [:]
+        for readout in mixerBusHosts.values.compactMap({ $0.readout() }) {
+            let terminal = readout.terminalSourceNode ?? readout.inputMixer
+            engine.disconnectNodeOutput(terminal)
+            engine.connect(
+                terminal,
+                to: preMasterMixer,
+                fromBus: 0,
+                toBus: inputBus(for: preMasterMixer, cursor: &inputBusCursor),
+                format: nil
+            )
+        }
+    }
+
     /// Resolve the trackID whose registered meter source is `node`, so the
     /// insert chain (keyed by trackID) can be located from the output source
     /// node `reconnectTrackOutput` operates on.
@@ -1894,9 +1963,31 @@ final class MainAudioGraph {
     @MainActor
     private func inputBus(for destination: AVAudioNode) -> AVAudioNodeBus {
         if let mixer = destination as? AVAudioMixerNode {
-            return mixer.nextAvailableInputBus
+            return firstFreeInputBus(for: mixer)
         }
         return 0
+    }
+
+    @MainActor
+    private func inputBus(
+        for destination: AVAudioNode,
+        cursor: inout [ObjectIdentifier: AVAudioNodeBus]
+    ) -> AVAudioNodeBus {
+        guard let mixer = destination as? AVAudioMixerNode else { return 0 }
+        let key = ObjectIdentifier(mixer)
+        let bus = cursor[key] ?? firstFreeInputBus(for: mixer)
+        cursor[key] = bus + 1
+        return bus
+    }
+
+    @MainActor
+    private func firstFreeInputBus(for mixer: AVAudioMixerNode) -> AVAudioNodeBus {
+        for bus in AVAudioNodeBus(0)..<AVAudioNodeBus(64) {
+            if engine.inputConnectionPoint(for: mixer, inputBus: bus) == nil {
+                return bus
+            }
+        }
+        return mixer.nextAvailableInputBus
     }
 
     @MainActor
@@ -1948,6 +2039,7 @@ final class MainAudioGraph {
 
         TickPathMainSyncGuard.assertNotSyncingToMainFromTickPath("MainAudioGraph.performOnMain")
         debugAssertNotHoldingGraphLockForMainHop("MainAudioGraph.performOnMain")
+        // realtime-allow-main-sync: graph-owner control path guarded against tick-thread use. Test: TickPathMainIsolationTests.
         DispatchQueue.main.sync {
             MainActor.assumeIsolated {
                 work()
@@ -1966,6 +2058,7 @@ final class MainAudioGraph {
         TickPathMainSyncGuard.assertNotSyncingToMainFromTickPath("MainAudioGraph.performOnMainThrowing")
         debugAssertNotHoldingGraphLockForMainHop("MainAudioGraph.performOnMainThrowing")
         var thrownError: Error?
+        // realtime-allow-main-sync: throwing graph-owner control path guarded against tick-thread use. Test: TickPathMainIsolationTests.
         DispatchQueue.main.sync {
             do {
                 try MainActor.assumeIsolated {
@@ -1990,6 +2083,7 @@ final class MainAudioGraph {
         TickPathMainSyncGuard.assertNotSyncingToMainFromTickPath("MainAudioGraph.performOnMainReturning")
         debugAssertNotHoldingGraphLockForMainHop("MainAudioGraph.performOnMainReturning")
         var output: T?
+        // realtime-allow-main-sync: graph-owner read/control path guarded against tick-thread use. Test: TickPathMainIsolationTests.
         DispatchQueue.main.sync {
             output = MainActor.assumeIsolated {
                 work()
@@ -2009,6 +2103,7 @@ final class MainAudioGraph {
         debugAssertNotHoldingGraphLockForMainHop("MainAudioGraph.performOnMainThrowingReturning")
         var output: T?
         var thrownError: Error?
+        // realtime-allow-main-sync: throwing graph-owner read/control path guarded against tick-thread use. Test: TickPathMainIsolationTests.
         DispatchQueue.main.sync {
             do {
                 output = try MainActor.assumeIsolated {
@@ -2113,6 +2208,7 @@ final class MasterMeterPublisher {
 
     func publishPendingToMain(now: TimeInterval = ProcessInfo.processInfo.systemUptime) {
         guard Thread.isMainThread else {
+            // realtime-allow-main-async: UI-only meter publication, not event scheduling. Test: RealtimePathLintTests.
             DispatchQueue.main.async { [weak self] in
                 self?.publishPendingToMain()
             }
@@ -2168,6 +2264,7 @@ final class MasterMeterPublisher {
     func clearClip() {
         transport.clearClip()
         guard Thread.isMainThread else {
+            // realtime-allow-main-async: UI-only meter clip-latch publication, not event scheduling. Test: RealtimePathLintTests.
             DispatchQueue.main.async { [weak self] in
                 self?.clearClip()
             }
@@ -2184,6 +2281,7 @@ final class MasterMeterPublisher {
     func resetToSilence() {
         _ = transport.snapshot() // drain any pending peaks
         guard Thread.isMainThread else {
+            // realtime-allow-main-async: UI-only meter reset publication, not event scheduling. Test: RealtimePathLintTests.
             DispatchQueue.main.async { [weak self] in
                 self?.resetToSilence()
             }

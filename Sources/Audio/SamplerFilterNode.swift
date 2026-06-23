@@ -205,6 +205,7 @@ final class SamplerFilterNode: SamplerFilterControlling {
 
         TickPathMainSyncGuard.assertNotSyncingToMainFromTickPath("SamplerFilterNode.performOnMain")
         var result: T?
+        // realtime-allow-main-sync: sampler filter node construction/setup only; tick mutators use async path. Test: RealtimePathLintTests.
         DispatchQueue.main.sync {
             result = MainActor.assumeIsolated {
                 work()
@@ -225,6 +226,7 @@ final class SamplerFilterNode: SamplerFilterControlling {
             return
         }
 
+        // realtime-allow-main-async: sampler filter parameter update debt; sound continues but value timing is logged/classified by realtime audit. Test: RealtimePathLintTests.
         DispatchQueue.main.async {
             MainActor.assumeIsolated {
                 work()

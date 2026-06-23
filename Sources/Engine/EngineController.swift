@@ -222,6 +222,7 @@ final class EngineController: RouterDispatcher {
 
     let eventQueue = EventQueue()
     let sampleEngine: SamplePlaybackSink
+    let sampleAssetCache: SampleAssetCache
     let audioInputCaptureStore = AudioInputCaptureStore()
     let audioInputCaptureTransport = AudioInputCaptureSummaryRing(capacity: 1024)
     let audioInputCapturePCMWriterSlot = AudioInputCapturePCMWriterSlot()
@@ -348,6 +349,7 @@ final class EngineController: RouterDispatcher {
         if Thread.isMainThread {
             body()
         } else {
+            // realtime-allow-main-async: UI mirrors are published asynchronously after tick-state writes. Test: RealtimePathLintTests.
             DispatchQueue.main.async(execute: body)
         }
     }
@@ -365,6 +367,10 @@ final class EngineController: RouterDispatcher {
             return scheduledAudioTimeOverrideForTesting(scheduledHostTime)
         }
         return AVAudioTime(hostTime: AVAudioTime.hostTime(forSeconds: max(0, scheduledHostTime)))
+    }
+
+    private func stepDurationSeconds(bpm: Double) -> TimeInterval {
+        (60.0 / max(1, bpm)) * (4.0 / Double(max(1, stepsPerBar)))
     }
 
     func publishNoteActivity(uptime: TimeInterval, count: Int) {
@@ -671,6 +677,7 @@ final class EngineController: RouterDispatcher {
         stepsPerBar: Int = 16,
         mainAudioGraph: MainAudioGraph = MainAudioGraph(),
         sampleEngine: SamplePlaybackSink? = nil,
+        sampleAssetCache: SampleAssetCache = SampleAssetCache(),
         sampleLibrary: AudioSampleLibrary = .shared,
         masterBusHost: MasterBusHosting = MasterBusHost(),
         publishesAudioInputCapture: Bool = false,
@@ -686,6 +693,7 @@ final class EngineController: RouterDispatcher {
     ) {
         self.mainAudioGraph = mainAudioGraph
         self.sampleEngine = sampleEngine ?? SamplePlaybackEngine(audioGraph: mainAudioGraph)
+        self.sampleAssetCache = sampleAssetCache
         self.sampleLibrary = sampleLibrary
         self.recordingLibrary = recordingLibrary
         self.masterBusHost = masterBusHost
@@ -1625,12 +1633,20 @@ final class EngineController: RouterDispatcher {
         // The whole tick scope runs under the DEBUG tick-path marker: any
         // synchronous main hop reached from here trips
         // TickPathMainSyncGuard (architecture verdict §1).
-        TickPathMainSyncGuard.withTickPathMarker {
+        let started = SequencerTimingProbe.isEnabled ? ProcessInfo.processInfo.systemUptime : 0
+        let eventCount = TickPathMainSyncGuard.withTickPathMarker {
             processTickMarked(tickIndex: tickIndex, now: now)
+        }
+        if SequencerTimingProbe.isEnabled {
+            SequencerTimingProbe.processTick(
+                tickIndex: tickIndex,
+                duration: ProcessInfo.processInfo.systemUptime - started,
+                eventCount: eventCount
+            )
         }
     }
 
-    private func processTickMarked(tickIndex: UInt64, now: TimeInterval) {
+    private func processTickMarked(tickIndex: UInt64, now: TimeInterval) -> Int {
         // Audio-input graph work hops to main FIRE-AND-FORGET (inline when
         // already on main, e.g. synchronous test drivers). A synchronous
         // main hop from the tick queue here closes the D2 deadlock cycle
@@ -1662,12 +1678,18 @@ final class EngineController: RouterDispatcher {
         }
         promotePreparedNoteRepeatCapture(for: tickIndex)
         scheduleActiveNoteRepeatsForCurrentTick(tickIndex: tickIndex, now: now)
-        dispatchTick()
-        prepareTick(upcomingStep: tickIndex &+ 1, now: now)
+        let eventCount = dispatchTick()
+        let nextStepBPM = withStateLock { executor?.currentBPM } ?? clock.bpm
+        prepareTick(upcomingStep: tickIndex &+ 1, now: now, scheduledHostTime: now + stepDurationSeconds(bpm: nextStepBPM))
         tickState.markPreparedTick(tickIndex &+ 1)
+        return eventCount
     }
 
-    private func prepareTick(upcomingStep: UInt64, now: TimeInterval) {
+    private func prepareTick(
+        upcomingStep: UInt64,
+        now: TimeInterval,
+        scheduledHostTime explicitScheduledHostTime: TimeInterval? = nil
+    ) {
         let (
             executor,
             audioRuntimes,
@@ -1800,6 +1822,7 @@ final class EngineController: RouterDispatcher {
             preparedNotesByBlockID: capturableNotesByBlockID
         )
         let newCurrentBPM = executor.currentBPM
+        let eventScheduledHostTime = explicitScheduledHostTime ?? now
         let completedStep = upcomingStep == 0 ? 0 : upcomingStep &- 1
         // Written here on the tick queue so cross-thread readers
         // (currentTransportTick) see the fresh value immediately; the
@@ -1847,7 +1870,7 @@ final class EngineController: RouterDispatcher {
 
             eventQueue.enqueue(
                 ScheduledEvent(
-                    scheduledHostTime: now,
+                    scheduledHostTime: eventScheduledHostTime,
                     payload: .trackAU(
                         trackID: runtime.trackID,
                         destination: runtime.destination,
@@ -1873,12 +1896,12 @@ final class EngineController: RouterDispatcher {
             case let .sample(sampleID, settings):
                 for _ in events {
                     eventQueue.enqueue(ScheduledEvent(
-                        scheduledHostTime: now,
+                        scheduledHostTime: eventScheduledHostTime,
                         payload: .sampleTrigger(
                             trackID: track.id,
                             sampleID: sampleID,
                             settings: settings,
-                            scheduledHostTime: now
+                            scheduledHostTime: eventScheduledHostTime
                         )
                     ))
                 }
@@ -1891,10 +1914,9 @@ final class EngineController: RouterDispatcher {
                     settings: settings,
                     snapshot: playbackSnapshot,
                     sampleLibrary: sampleLibrary,
-                    sampleLibraryRoot: sampleLibraryRoot,
                     stepsPerBar: stepsPerBar,
                     bpm: executor.currentBPM,
-                    now: now,
+                    scheduledHostTime: eventScheduledHostTime,
                     eventQueue: eventQueue
                 )
 
@@ -1903,7 +1925,7 @@ final class EngineController: RouterDispatcher {
             }
         }
 
-        routerDispatch.beginTick(now: now)
+        routerDispatch.beginTick(now: eventScheduledHostTime)
         // Phase 1b: iterate snapshot-carried tracks, not currentDocumentModel.tracks.
         let trackInputs = playbackSnapshot.tracks.compactMap { track -> RouterTickInput? in
             guard !effectiveMutedTrackIDs.contains(track.id),
@@ -1926,13 +1948,20 @@ final class EngineController: RouterDispatcher {
         )
     }
 
-    private func dispatchTick() {
+    private func dispatchTick() -> Int {
         let events = eventQueue.drain()
         let (audioOutputs, outputKeys) = withStateLock { (trackRuntime.audioOutputsByTrackID, trackRuntime.audioOutputKeysByTrackID) }
 
         for event in events {
+            let dispatchNow = SequencerTimingProbe.isEnabled ? ProcessInfo.processInfo.systemUptime : 0
             switch event.payload {
             case let .trackAU(trackID, destination, notes, bpm, stepsPerBar):
+                SequencerTimingProbe.eventDispatch(
+                    kind: "track-au",
+                    trackID: trackID,
+                    scheduled: event.scheduledHostTime,
+                    actual: dispatchNow
+                )
                 guard let host = audioOutputs[trackID] else {
                     continue
                 }
@@ -1943,6 +1972,12 @@ final class EngineController: RouterDispatcher {
                 host.play(noteEvents: notes, bpm: bpm, stepsPerBar: stepsPerBar)
 
             case let .routedAU(trackID, destination, notes, bpm, stepsPerBar):
+                SequencerTimingProbe.eventDispatch(
+                    kind: "routed-au",
+                    trackID: trackID,
+                    scheduled: event.scheduledHostTime,
+                    actual: dispatchNow
+                )
                 guard let host = audioOutputs[trackID] else {
                     continue
                 }
@@ -1964,31 +1999,43 @@ final class EngineController: RouterDispatcher {
                 break
 
             case let .sampleTrigger(trackID, sampleID, settings, _):
-                guard let sample = sampleLibrary.sample(id: sampleID) else {
-                    SampleTriggerTrace.drop(trackID: trackID, sampleID: sampleID, reason: "missing-sample")
-                    continue
-                }
-                guard let url = try? sample.fileRef.resolve(libraryRoot: sampleLibraryRoot) else {
-                    SampleTriggerTrace.drop(trackID: trackID, sampleID: sampleID, reason: "unresolved-file")
+                SequencerTimingProbe.eventDispatch(
+                    kind: "sample",
+                    trackID: trackID,
+                    scheduled: event.scheduledHostTime,
+                    actual: dispatchNow
+                )
+                guard let sampleAsset = sampleAssetCache.asset(sampleID: sampleID, trackID: trackID) else {
+                    SampleTriggerTrace.drop(trackID: trackID, sampleID: sampleID, reason: "missing-prepared-asset")
                     continue
                 }
                 SampleTriggerTrace.dispatch(
                     trackID: trackID,
                     sampleID: sampleID,
-                    sampleURL: url,
+                    sampleURL: sampleAsset.url,
                     scheduledHostTime: event.scheduledHostTime,
                     gain: settings.gain
                 )
                 _ = sampleEngine.play(
-                    sampleURL: url,
+                    sampleAsset: sampleAsset,
                     settings: settings,
                     trackID: trackID,
                     at: scheduledAudioTime(for: event.scheduledHostTime)
                 )
 
-            case let .sliceTrigger(trackID, sampleURL, startFrame, endFrame, settings, reverse, stepParameters, _):
+            case let .sliceTrigger(trackID, sampleID, startFrame, endFrame, settings, reverse, stepParameters, _):
+                SequencerTimingProbe.eventDispatch(
+                    kind: "slice",
+                    trackID: trackID,
+                    scheduled: event.scheduledHostTime,
+                    actual: dispatchNow
+                )
+                guard let sampleAsset = sampleAssetCache.asset(sampleID: sampleID, trackID: trackID) else {
+                    SampleTriggerTrace.drop(trackID: trackID, sampleID: sampleID, reason: "missing-prepared-asset")
+                    continue
+                }
                 _ = sampleEngine.playSlice(
-                    sampleURL: sampleURL,
+                    sampleAsset: sampleAsset,
                     startFrame: AVAudioFramePosition(startFrame),
                     endFrame: AVAudioFramePosition(endFrame),
                     settings: settings,
@@ -1999,6 +2046,7 @@ final class EngineController: RouterDispatcher {
                 )
             }
         }
+        return events.count
     }
 
     private func applyDestinationIfNeeded(
@@ -2294,10 +2342,9 @@ final class EngineController: RouterDispatcher {
                 settings: settings,
                 snapshot: snapshot,
                 sampleLibrary: sampleLibrary,
-                sampleLibraryRoot: sampleLibraryRoot,
                 stepsPerBar: stepsPerBar,
                 bpm: bpm,
-                now: routerDispatch.dispatchNow,
+                scheduledHostTime: routerDispatch.dispatchNow,
                 eventQueue: eventQueue,
                 repeatOwnerTrackID: repeatOwnerTrackID
             )

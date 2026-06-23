@@ -16,8 +16,19 @@ protocol SamplePlaybackSink: AnyObject {
     /// The track mixer's `outputVolume` and `pan` (controlled via `setTrackMix`) are
     /// what the UI fader writes to — this call does not take a mix level.
     func play(sampleURL: URL, settings: SamplerSettings, trackID: UUID, at when: AVAudioTime?) -> VoiceHandle?
+    func play(sampleAsset: PreparedSampleAsset, settings: SamplerSettings, trackID: UUID, at when: AVAudioTime?) -> VoiceHandle?
     func playSlice(
         sampleURL: URL,
+        startFrame: AVAudioFramePosition,
+        endFrame: AVAudioFramePosition,
+        settings: SlicerSettings,
+        trackID: UUID,
+        at when: AVAudioTime?,
+        reverse: Bool,
+        stepParameters: SliceTriggerStepParameters?
+    ) -> VoiceHandle?
+    func playSlice(
+        sampleAsset: PreparedSampleAsset,
         startFrame: AVAudioFramePosition,
         endFrame: AVAudioFramePosition,
         settings: SlicerSettings,
@@ -62,6 +73,10 @@ extension SamplePlaybackSink {
 
     func setTrackSends(trackID: UUID, sendA: Double, sendB: Double) {}
 
+    func play(sampleAsset: PreparedSampleAsset, settings: SamplerSettings, trackID: UUID, at when: AVAudioTime?) -> VoiceHandle? {
+        play(sampleURL: sampleAsset.url, settings: settings, trackID: trackID, at: when)
+    }
+
     func playSlice(
         sampleURL: URL,
         startFrame: AVAudioFramePosition,
@@ -73,6 +88,28 @@ extension SamplePlaybackSink {
         stepParameters: SliceTriggerStepParameters?
     ) -> VoiceHandle? {
         nil
+    }
+
+    func playSlice(
+        sampleAsset: PreparedSampleAsset,
+        startFrame: AVAudioFramePosition,
+        endFrame: AVAudioFramePosition,
+        settings: SlicerSettings,
+        trackID: UUID,
+        at when: AVAudioTime?,
+        reverse: Bool,
+        stepParameters: SliceTriggerStepParameters?
+    ) -> VoiceHandle? {
+        playSlice(
+            sampleURL: sampleAsset.url,
+            startFrame: startFrame,
+            endFrame: endFrame,
+            settings: settings,
+            trackID: trackID,
+            at: when,
+            reverse: reverse,
+            stepParameters: stepParameters
+        )
     }
 }
 
@@ -89,6 +126,64 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         var cursor: Int
     }
 
+    private struct BusVoicePool {
+        var voices: [AVAudioPlayerNode]
+        var voiceMixers: [AVAudioMixerNode]
+        var handles: [UUID]
+        var cursor: Int
+    }
+
+    private final class SamplerFilterFanout: SamplerFilterControlling {
+        private let lock = NSLock()
+        private var targets: [SamplerFilterNode] = []
+
+        func setTargets(_ targets: [SamplerFilterNode]) {
+            lock.withLock {
+                self.targets = targets
+            }
+        }
+
+        func apply(_ settings: SamplerFilterSettings) {
+            for target in snapshotTargets() {
+                target.apply(settings)
+            }
+        }
+
+        func setType(_ type: SamplerFilterType) {
+            for target in snapshotTargets() {
+                target.setType(type)
+            }
+        }
+
+        func setPoles(_ poles: SamplerFilterPoles) {
+            for target in snapshotTargets() {
+                target.setPoles(poles)
+            }
+        }
+
+        func setCutoff(hz: Double) {
+            for target in snapshotTargets() {
+                target.setCutoff(hz: hz)
+            }
+        }
+
+        func setResonance(_ normalized: Double) {
+            for target in snapshotTargets() {
+                target.setResonance(normalized)
+            }
+        }
+
+        func setDrive(_ normalized: Double) {
+            for target in snapshotTargets() {
+                target.setDrive(normalized)
+            }
+        }
+
+        private func snapshotTargets() -> [SamplerFilterNode] {
+            lock.withLock { targets }
+        }
+    }
+
     private static let voicesPerTrack = 4
     private let audioGraph: MainAudioGraph
     private let previewNode = AVAudioPlayerNode()
@@ -96,24 +191,35 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
     private var fileCache: [URL: AVAudioFile] = [:]
     private var isStarted = false
     private var trackVoicePools: [UUID: TrackVoicePool] = [:]
+    private var busVoicePools: [UUID: BusVoicePool] = [:]
     private var trackMixers: [UUID: AVAudioMixerNode] = [:]
     /// Per-track filter nodes inserted between the track mixer and the main mixer.
     private var trackFilters: [UUID: SamplerFilterNode] = [:]
+    private var trackFilterFanouts: [UUID: SamplerFilterFanout] = [:]
+    private var trackMixValues: [UUID: (level: Float, pan: Float)] = [:]
     private var trackOutputBusIDs: [UUID: UUID] = [:]
     private var trackSendLevels: [UUID: MainAudioGraph.TrackSendLevels] = [:]
+    private var fastPathReadyTrackIDs: Set<UUID> = []
     /// Per-track, per-kind voice params. Applied at voice scheduling time (next trigger).
     private var voiceParams: [UUID: [BuiltinMacroKind: Double]] = [:]
+    #if DEBUG
+    private(set) var voiceSelectionsForTesting: [(trackID: UUID, voiceMode: SlicerVoiceMode, voiceIndex: Int, stoppedPriorVoice: Bool)] = []
+    #endif
 
     var preparedTrackIDs: Set<UUID> {
         lifecycleLock.withLock {
-            Set(trackVoicePools.keys)
+            Set(trackVoicePools.keys).union(busVoicePools.keys)
         }
     }
 
     init(audioGraph: MainAudioGraph = MainAudioGraph()) {
         self.audioGraph = audioGraph
+        // realtime-allow-graph-mutation: constructor preview wiring only, not tick dispatch. Test: RealtimePathLintTests.
         audioGraph.attach(previewNode)
+        // realtime-allow-graph-mutation: constructor preview wiring only, not tick dispatch. Test: RealtimePathLintTests.
         audioGraph.connect(previewNode, to: audioGraph.preMasterMixer)
+        // realtime-allow-graph-mutation: constructor graph preparation only, not tick dispatch. Test: RealtimePathLintTests.
+        audioGraph.engine.prepare()
     }
 
     func start() throws {
@@ -126,13 +232,18 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
     }
 
     func stop() {
-        let (shouldStop, pools) = lifecycleLock.withLock { () -> (Bool, [TrackVoicePool]) in
-            guard isStarted else { return (false, []) }
+        let (shouldStop, pools, busPools) = lifecycleLock.withLock { () -> (Bool, [TrackVoicePool], [BusVoicePool]) in
+            guard isStarted else { return (false, [], []) }
             isStarted = false
-            return (true, Array(trackVoicePools.values))
+            return (true, Array(trackVoicePools.values), Array(busVoicePools.values))
         }
         guard shouldStop else { return }
         for pool in pools {
+            for voice in pool.voices {
+                voice.stop()
+            }
+        }
+        for pool in busPools {
             for voice in pool.voices {
                 voice.stop()
             }
@@ -144,11 +255,20 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
     func prepareTrack(trackID: UUID) {
         performOnMain { [self] in
             lifecycleLock.withLock {
-                if let pool = trackVoicePools[trackID] {
-                    repairPreparedTrackGraph(trackID: trackID, pool: pool)
+                if let busID = trackOutputBusIDs[trackID],
+                   audioGraph.mixerBusReadoutForTesting(busID: busID) != nil {
+                    prepareBusVoicePool(trackID: trackID, busID: busID)
+                    _ = fastPathReadyTrackIDs.insert(trackID)
                     return
                 }
-                let mixer = trackMixer(for: trackID)
+                if let pool = trackVoicePools[trackID] {
+                    if !isPreparedTrackPoolReadyForPlayback(trackID: trackID, pool: pool) {
+                        repairPreparedTrackGraph(trackID: trackID, pool: pool)
+                    }
+                    _ = fastPathReadyTrackIDs.insert(trackID)
+                    return
+                }
+                _ = trackMixer(for: trackID)
                 var voices: [AVAudioPlayerNode] = []
                 var voiceFilters: [SamplerFilterNode] = []
                 var handles: [UUID] = []
@@ -156,21 +276,24 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
                 for _ in 0..<Self.voicesPerTrack {
                     let voice = AVAudioPlayerNode()
                     let voiceFilter = SamplerFilterNode()
+                    // realtime-allow-graph-mutation: prepared track setup occurs during document apply/setup, not tick dispatch. Test: RealtimePathLintTests.
                     audioGraph.attach(voice)
+                    // realtime-allow-graph-mutation: prepared track setup occurs during document apply/setup, not tick dispatch. Test: RealtimePathLintTests.
                     audioGraph.attach(voiceFilter.avNode)
-                    audioGraph.connect(voice, to: voiceFilter.avNode)
-                    audioGraph.connect(voiceFilter.avNode, to: mixer)
                     voices.append(voice)
                     voiceFilters.append(voiceFilter)
                     handles.append(UUID())
                 }
 
-                trackVoicePools[trackID] = TrackVoicePool(
+                let pool = TrackVoicePool(
                     voices: voices,
                     voiceFilters: voiceFilters,
                     handles: handles,
                     cursor: 0
                 )
+                trackVoicePools[trackID] = pool
+                repairPreparedTrackGraph(trackID: trackID, pool: pool)
+                _ = fastPathReadyTrackIDs.insert(trackID)
             }
         }
     }
@@ -179,23 +302,173 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
     func play(sampleURL: URL, settings: SamplerSettings, trackID: UUID, at when: AVAudioTime? = nil) -> VoiceHandle? {
         guard lifecycleLock.withLock({ isStarted }) else { return nil }
         guard let file = cachedFile(url: sampleURL) else { return nil }
-        return playWithPreparedVoice(trackID: trackID, voiceMode: .polyphonic) { [self] voice, voiceFilter, params in
+        return playPreparedSample(file: file, sampleURL: sampleURL, settings: settings, trackID: trackID, at: when)
+    }
+
+    @discardableResult
+    func play(sampleAsset: PreparedSampleAsset, settings: SamplerSettings, trackID: UUID, at when: AVAudioTime? = nil) -> VoiceHandle? {
+        guard lifecycleLock.withLock({ isStarted }) else { return nil }
+        return playPreparedSample(
+            file: sampleAsset.file,
+            sampleURL: sampleAsset.url,
+            settings: settings,
+            trackID: trackID,
+            at: when
+        )
+    }
+
+    private func playPreparedSample(
+        file: AVAudioFile,
+        sampleURL: URL,
+        settings: SamplerSettings,
+        trackID: UUID,
+        at when: AVAudioTime?
+    ) -> VoiceHandle? {
+        if lifecycleLock.withLock({ busVoicePools[trackID] != nil }) {
+            return playPreparedBusSample(
+                file: file,
+                sampleURL: sampleURL,
+                settings: settings,
+                trackID: trackID,
+                at: when
+            )
+        }
+        let scheduled = when.map { AVAudioTime.seconds(forHostTime: $0.hostTime) }
+        return playWithPreparedVoice(trackID: trackID, voiceMode: .polyphonic, scheduled: scheduled) { [self] voice, voiceFilter, params in
             let effectiveWhen = Self.effectivePlaybackTime(for: when)
+            let actual = ProcessInfo.processInfo.systemUptime
+            let frameRange = Self.sampleFrameRange(file: file, settings: settings, params: params)
+            SequencerTimingProbe.sampleSchedule(
+                trackID: trackID,
+                file: sampleURL.lastPathComponent,
+                scheduled: scheduled,
+                actual: actual,
+                mode: effectiveWhen == nil ? "immediate" : "scheduled",
+                start: params?[.sampleStart] ?? settings.start,
+                length: params?[.sampleLength] ?? settings.length,
+                gain: params?[.sampleGain] ?? settings.gain,
+                startFrame: Int64(frameRange.startFrame),
+                endFrame: Int64(frameRange.startFrame + AVAudioFramePosition(frameRange.frameLength))
+            )
             SampleTriggerTrace.schedule(
                 trackID: trackID,
                 sampleURL: sampleURL,
                 scheduledHostTime: when.map { AVAudioTime.seconds(forHostTime: $0.hostTime) },
                 mode: effectiveWhen == nil ? "immediate" : "scheduled"
             )
-            self.scheduleAndStart(
+            return self.scheduleAndStart(
                 voice,
-                voiceFilter: voiceFilter,
+                voiceFilter: self.trackOutputBusIDs[trackID] == nil ? voiceFilter : nil,
                 file: file,
                 settings: settings,
                 params: params,
                 at: effectiveWhen
             )
         }
+    }
+
+    private func playPreparedBusSample(
+        file: AVAudioFile,
+        sampleURL: URL,
+        settings: SamplerSettings,
+        trackID: UUID,
+        at when: AVAudioTime?
+    ) -> VoiceHandle? {
+        let scheduled = when.map { AVAudioTime.seconds(forHostTime: $0.hostTime) }
+        let effectiveWhen = Self.effectivePlaybackTime(for: when)
+        let actual = ProcessInfo.processInfo.systemUptime
+        let frameRange = Self.sampleFrameRange(file: file, settings: settings, params: nil)
+        SequencerTimingProbe.sampleSchedule(
+            trackID: trackID,
+            file: sampleURL.lastPathComponent,
+            scheduled: scheduled,
+            actual: actual,
+            mode: effectiveWhen == nil ? "immediate" : "scheduled",
+            start: settings.start,
+            length: settings.length,
+            gain: settings.gain,
+            startFrame: Int64(frameRange.startFrame),
+            endFrame: Int64(frameRange.startFrame + AVAudioFramePosition(frameRange.frameLength))
+        )
+        SampleTriggerTrace.schedule(
+            trackID: trackID,
+            sampleURL: sampleURL,
+            scheduledHostTime: scheduled,
+            mode: effectiveWhen == nil ? "immediate" : "scheduled"
+        )
+
+        var selectedVoice: AVAudioPlayerNode?
+        var handleID: UUID?
+        lifecycleLock.withLock {
+            guard var pool = busVoicePools[trackID],
+                  !pool.voices.isEmpty
+            else {
+                return
+            }
+            let index = pool.cursor % pool.voices.count
+            selectedVoice = pool.voices[index]
+            let nextHandle = UUID()
+            pool.handles[index] = nextHandle
+            pool.cursor = (index &+ 1) % pool.voices.count
+            busVoicePools[trackID] = pool
+            handleID = nextHandle
+            #if DEBUG
+            voiceSelectionsForTesting.append((
+                trackID: trackID,
+                voiceMode: .polyphonic,
+                voiceIndex: index,
+                stoppedPriorVoice: false
+            ))
+            #endif
+            SequencerTimingProbe.voiceSelected(
+                trackID: trackID,
+                voiceMode: SlicerVoiceMode.polyphonic.rawValue,
+                voiceIndex: index,
+                stoppedPriorVoice: false
+            )
+        }
+
+        guard let voice = selectedVoice,
+              let handleID
+        else {
+            SequencerTimingProbe.sampleFastPath(
+                trackID: trackID,
+                scheduled: scheduled,
+                actual: ProcessInfo.processInfo.systemUptime,
+                result: "unprepared"
+            )
+            return nil
+        }
+
+        voice.stop()
+        voice.scheduleSegment(
+            file,
+            startingFrame: frameRange.startFrame,
+            frameCount: frameRange.frameLength,
+            at: effectiveWhen,
+            completionHandler: nil
+        )
+        guard startVoiceSafely(voice, at: effectiveWhen) else {
+            lifecycleLock.withLock {
+                _ = fastPathReadyTrackIDs.remove(trackID)
+            }
+            requestPreparedTrackRepair(trackID: trackID)
+            SequencerTimingProbe.sampleFastPath(
+                trackID: trackID,
+                scheduled: scheduled,
+                actual: ProcessInfo.processInfo.systemUptime,
+                result: "schedule-failed"
+            )
+            return nil
+        }
+
+        SequencerTimingProbe.sampleFastPath(
+            trackID: trackID,
+            scheduled: scheduled,
+            actual: ProcessInfo.processInfo.systemUptime,
+            result: "scheduled"
+        )
+        return VoiceHandle(id: handleID)
     }
 
     @discardableResult
@@ -211,29 +484,92 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
     ) -> VoiceHandle? {
         guard lifecycleLock.withLock({ isStarted }) else { return nil }
         guard let file = cachedFile(url: sampleURL) else { return nil }
+        return playPreparedSlice(
+            file: file,
+            pcmBuffer: nil,
+            sampleURL: sampleURL,
+            startFrame: startFrame,
+            endFrame: endFrame,
+            settings: settings,
+            trackID: trackID,
+            at: when,
+            reverse: reverse,
+            stepParameters: stepParameters
+        )
+    }
 
+    @discardableResult
+    func playSlice(
+        sampleAsset: PreparedSampleAsset,
+        startFrame: AVAudioFramePosition,
+        endFrame: AVAudioFramePosition,
+        settings: SlicerSettings,
+        trackID: UUID,
+        at when: AVAudioTime? = nil,
+        reverse: Bool = false,
+        stepParameters: SliceTriggerStepParameters? = nil
+    ) -> VoiceHandle? {
+        guard lifecycleLock.withLock({ isStarted }) else { return nil }
+        return playPreparedSlice(
+            file: sampleAsset.file,
+            pcmBuffer: sampleAsset.pcmBuffer,
+            sampleURL: sampleAsset.url,
+            startFrame: startFrame,
+            endFrame: endFrame,
+            settings: settings,
+            trackID: trackID,
+            at: when,
+            reverse: reverse,
+            stepParameters: stepParameters
+        )
+    }
+
+    private func playPreparedSlice(
+        file: AVAudioFile,
+        pcmBuffer: AVAudioPCMBuffer?,
+        sampleURL: URL,
+        startFrame: AVAudioFramePosition,
+        endFrame: AVAudioFramePosition,
+        settings: SlicerSettings,
+        trackID: UUID,
+        at when: AVAudioTime?,
+        reverse: Bool,
+        stepParameters: SliceTriggerStepParameters?
+    ) -> VoiceHandle? {
         let clampedSettings = settings.clamped
         let sliceParameters = (stepParameters ?? .default).clamped
         let resolvedStart = max(0, min(startFrame, max(file.length - 1, 0)))
         let resolvedEnd = max(resolvedStart + 1, min(endFrame, file.length))
         guard resolvedEnd > resolvedStart else { return nil }
 
-        // Slicer playback is always polyphonic; per-slice Choke is the single
-        // voice-cutting mechanism. The legacy `voiceMode` setting no longer
-        // affects playback (kept only for Codable backward-compat).
-        return playWithPreparedVoice(trackID: trackID, voiceMode: .polyphonic) { [self] voice, voiceFilter, params in
+        let scheduled = when.map { AVAudioTime.seconds(forHostTime: $0.hostTime) }
+        return playWithPreparedVoice(trackID: trackID, voiceMode: clampedSettings.voiceMode, scheduled: scheduled) { [self] voice, voiceFilter, params in
             let effectiveWhen = Self.effectivePlaybackTime(for: when)
+            let actual = ProcessInfo.processInfo.systemUptime
+            SequencerTimingProbe.sliceSchedule(
+                trackID: trackID,
+                file: sampleURL.lastPathComponent,
+                scheduled: scheduled,
+                actual: actual,
+                mode: effectiveWhen == nil ? "immediate" : "scheduled",
+                startFrame: Int64(resolvedStart),
+                endFrame: Int64(resolvedEnd),
+                voiceMode: clampedSettings.voiceMode.rawValue,
+                reverse: reverse,
+                choke: sliceParameters.choke
+            )
             SampleTriggerTrace.schedule(
                 trackID: trackID,
                 sampleURL: sampleURL,
                 scheduledHostTime: when.map { AVAudioTime.seconds(forHostTime: $0.hostTime) },
                 mode: effectiveWhen == nil ? "immediate" : "scheduled"
             )
-            self.scheduleAndStartSlice(
+            return self.scheduleAndStartSlice(
                 voice,
-                voiceFilter: voiceFilter,
+                voiceFilter: self.trackOutputBusIDs[trackID] == nil ? voiceFilter : nil,
                 sampleURL: sampleURL,
                 file: file,
+                pcmBuffer: pcmBuffer,
                 startFrame: resolvedStart,
                 endFrame: resolvedEnd,
                 settings: clampedSettings,
@@ -251,8 +587,8 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
     /// the engine from its own thread (configuration change) between check
     /// and play, so the ObjC catcher is the only airtight guard: a failed
     /// start drops the trigger instead of killing the app.
-    private func startVoiceSafely(_ voice: AVAudioPlayerNode, at when: AVAudioTime? = nil) {
-        guard audioGraph.isNodePlayableNow(voice) else { return }
+    private func startVoiceSafely(_ voice: AVAudioPlayerNode, at when: AVAudioTime? = nil) -> Bool {
+        guard audioGraph.isNodePlayableNow(voice) else { return false }
         if let exception = SEQRunCatchingObjCException({
             if let when {
                 voice.play(at: when)
@@ -261,7 +597,9 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
             }
         }) {
             DevActivity.trace(DevActivity.audioGraph, "dropped sample trigger: play threw \(exception.name.rawValue): \(exception.reason ?? "no reason")")
+            return false
         }
+        return true
     }
 
     private func scheduleAndStart(
@@ -271,25 +609,28 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         settings: SamplerSettings,
         params: [BuiltinMacroKind: Double]?,
         at when: AVAudioTime?
-    ) {
+    ) -> Bool {
         voice.stop()
 
-        // Apply built-in macro voice params (set by TrackMacroApplier for the current step).
-        let gainDB = params?[.sampleGain] ?? settings.gain
-        voice.volume = linearGain(dB: gainDB)
-        voice.pan = 0
-        voice.rate = 1
-        voiceFilter?.apply(SamplerFilterSettings())
+        if let voiceFilter {
+            // Apply built-in macro voice params (set by TrackMacroApplier for the current step).
+            let gainDB = params?[.sampleGain] ?? settings.gain
+            voice.volume = linearGain(dB: gainDB)
+            voice.pan = 0
+            voice.rate = 1
+            voiceFilter.apply(SamplerFilterSettings())
+        }
 
         // Sample start / length: schedule a segment of the file if set.
-        let startNorm = min(max(params?[.sampleStart] ?? settings.start, 0), 1)
-        let lengthNorm = min(max(params?[.sampleLength] ?? settings.length, 0), 1)
-        let frameCount = Double(file.length)
-        let startFrame = AVAudioFramePosition(min(startNorm * frameCount, max(frameCount - 1, 0)))
-        let remainingFrames = max(1, Double(file.length) - Double(startFrame))
-        let frameLength = AVAudioFrameCount(min(max(1, lengthNorm * frameCount), remainingFrames))
-        voice.scheduleSegment(file, startingFrame: startFrame, frameCount: frameLength, at: when, completionHandler: nil)
-        startVoiceSafely(voice, at: when)
+        let frameRange = Self.sampleFrameRange(file: file, settings: settings, params: params)
+        voice.scheduleSegment(
+            file,
+            startingFrame: frameRange.startFrame,
+            frameCount: frameRange.frameLength,
+            at: when,
+            completionHandler: nil
+        )
+        return startVoiceSafely(voice, at: when)
     }
 
     private func scheduleAndStartSlice(
@@ -297,6 +638,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         voiceFilter: SamplerFilterNode?,
         sampleURL: URL,
         file: AVAudioFile,
+        pcmBuffer: AVAudioPCMBuffer?,
         startFrame: AVAudioFramePosition,
         endFrame: AVAudioFramePosition,
         settings: SlicerSettings,
@@ -304,18 +646,20 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         at when: AVAudioTime?,
         reverse: Bool,
         sliceParameters: SliceTriggerStepParameters
-    ) {
+    ) -> Bool {
         voice.stop()
-        let gainDB = params?[.sampleGain] ?? settings.gain
-        voice.volume = linearGain(dB: gainDB)
-        voice.pan = Float(sliceParameters.pan)
-        voice.rate = Float(playbackRate(forSemitoneOffset: settings.transpose))
-        voiceFilter?.setCutoff(hz: cutoffHz(for: sliceParameters.filter))
+        if let voiceFilter {
+            let gainDB = params?[.sampleGain] ?? settings.gain
+            voice.volume = linearGain(dB: gainDB)
+            voice.pan = Float(sliceParameters.pan)
+            voice.rate = Float(playbackRate(forSemitoneOffset: settings.transpose))
+            voiceFilter.setCutoff(hz: cutoffHz(for: sliceParameters.filter))
+        }
 
         let shouldBuffer = reverse || sliceParameters.attackMs > 0 || sliceParameters.releaseMs > 0
         if shouldBuffer,
            let buffer = sliceBuffer(
-               sampleURL: sampleURL,
+               pcmBuffer: pcmBuffer,
                fileFormat: file.processingFormat,
                playbackFormat: voice.outputFormat(forBus: 0),
                startFrame: startFrame,
@@ -340,7 +684,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
                 completionHandler: nil
             )
         }
-        startVoiceSafely(voice, at: when)
+        return startVoiceSafely(voice, at: when)
     }
 
     func stopVoice(_ handle: VoiceHandle) {
@@ -353,11 +697,23 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
             pool.voices[index].stop()
             return
         }
+        for pool in busVoicePools.values {
+            guard let index = pool.handles.firstIndex(of: handle.id) else {
+                continue
+            }
+            pool.voices[index].stop()
+            return
+        }
     }
 
     func stopAllMainVoices() {
-        let pools = lifecycleLock.withLock { Array(trackVoicePools.values) }
+        let (pools, busPools) = lifecycleLock.withLock { (Array(trackVoicePools.values), Array(busVoicePools.values)) }
         for pool in pools {
+            for voice in pool.voices {
+                voice.stop()
+            }
+        }
+        for pool in busPools {
             for voice in pool.voices {
                 voice.stop()
             }
@@ -368,9 +724,16 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         prepareTrack(trackID: trackID)
         performOnMain { [self] in
             lifecycleLock.withLock {
+                let clampedLevel = Float(min(max(level, 0), 1))
+                let clampedPan = Float(min(max(pan, -1), 1))
+                trackMixValues[trackID] = (level: clampedLevel, pan: clampedPan)
+                if let pool = busVoicePools[trackID] {
+                    applyBusVoiceMix(trackID: trackID, pool: pool)
+                    return
+                }
                 let mixer = trackMixer(for: trackID)
-                mixer.outputVolume = Float(min(max(level, 0), 1))
-                mixer.pan = Float(min(max(pan, -1), 1))
+                mixer.outputVolume = clampedLevel
+                mixer.pan = clampedPan
             }
         }
     }
@@ -379,12 +742,21 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         performOnMain { [self] in
             lifecycleLock.withLock {
                 trackOutputBusIDs[trackID] = busID
-                guard let filter = trackFilters[trackID] else { return }
-                audioGraph.connectTrackOutput(
-                    filter.avNode,
-                    to: busID,
-                    sends: trackSendLevels[trackID] ?? .zero
-                )
+                if let busID,
+                   audioGraph.mixerBusReadoutForTesting(busID: busID) != nil {
+                    prepareBusVoicePool(trackID: trackID, busID: busID)
+                } else if let pool = busVoicePools.removeValue(forKey: trackID) {
+                    teardownBusVoicePool(pool)
+                } else if let pool = trackVoicePools[trackID] {
+                    repairPreparedTrackGraph(trackID: trackID, pool: pool)
+                } else if let filter = trackFilters[trackID] {
+                    audioGraph.connectTrackOutput(
+                        filter.avNode,
+                        to: busID,
+                        sends: trackSendLevels[trackID] ?? .zero
+                    )
+                }
+                _ = fastPathReadyTrackIDs.insert(trackID)
             }
         }
     }
@@ -407,25 +779,27 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
             defer { lifecycleLock.unlock() }
 
             if let pool = trackVoicePools.removeValue(forKey: trackID) {
-                for voice in pool.voices {
-                    voice.stop()
-                    audioGraph.disconnectOutput(voice)
-                    audioGraph.detach(voice)
-                }
-                for filter in pool.voiceFilters {
-                    audioGraph.disconnectOutput(filter.avNode)
-                    audioGraph.detach(filter.avNode)
-                }
+                teardownTrackVoicePool(pool)
+            }
+            if let pool = busVoicePools.removeValue(forKey: trackID) {
+                teardownBusVoicePool(pool)
             }
             voiceParams.removeValue(forKey: trackID)
             trackOutputBusIDs.removeValue(forKey: trackID)
             trackSendLevels.removeValue(forKey: trackID)
+            trackMixValues.removeValue(forKey: trackID)
+            trackFilterFanouts.removeValue(forKey: trackID)
+            _ = fastPathReadyTrackIDs.remove(trackID)
             guard let mixer = trackMixers.removeValue(forKey: trackID) else { return }
+            // realtime-allow-graph-mutation: track teardown is document/routing cleanup, not tick dispatch. Test: RealtimePathLintTests.
             audioGraph.disconnectOutput(mixer)
+            // realtime-allow-graph-mutation: track teardown is document/routing cleanup, not tick dispatch. Test: RealtimePathLintTests.
             audioGraph.detach(mixer)
             // Also tear down the filter inserted after this mixer.
             if let filter = trackFilters.removeValue(forKey: trackID) {
+                // realtime-allow-graph-mutation: track teardown is document/routing cleanup, not tick dispatch. Test: RealtimePathLintTests.
                 audioGraph.disconnectOutput(filter.avNode)
+                // realtime-allow-graph-mutation: track teardown is document/routing cleanup, not tick dispatch. Test: RealtimePathLintTests.
                 audioGraph.detach(filter.avNode)
             }
         }
@@ -437,7 +811,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         previewNode.stop()
         previewNode.volume = 1.0
         previewNode.scheduleFile(file, at: nil, completionHandler: nil)
-        startVoiceSafely(previewNode)
+        _ = startVoiceSafely(previewNode)
     }
 
     func stopAudition() {
@@ -453,12 +827,15 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
     private func trackMixer(for trackID: UUID) -> AVAudioMixerNode {
         if let mixer = trackMixers[trackID] { return mixer }
         let mixer = AVAudioMixerNode()
+        // realtime-allow-graph-mutation: prepared track output setup occurs during setup/repair, not tick dispatch. Test: RealtimePathLintTests.
         audioGraph.attach(mixer)
 
         // Insert a filter between the track mixer and the main mixer.
         // Graph: voices -> mixer -> filter.avNode -> shared pre-master mixer
         let filter = SamplerFilterNode()
+        // realtime-allow-graph-mutation: prepared track output setup occurs during setup/repair, not tick dispatch. Test: RealtimePathLintTests.
         audioGraph.attach(filter.avNode)
+        // realtime-allow-graph-mutation: prepared track output setup occurs during setup/repair, not tick dispatch. Test: RealtimePathLintTests.
         audioGraph.connect(mixer, to: filter.avNode)
         audioGraph.connectTrackOutput(
             filter.avNode,
@@ -469,16 +846,151 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         // post filter) — register it as the strip's meter source.
         audioGraph.setTrackMeterSources(trackIDs: [trackID], node: filter.avNode)
         trackFilters[trackID] = filter
+        filterFanout(for: trackID).setTargets([filter])
 
         trackMixers[trackID] = mixer
         return mixer
+    }
+
+    @MainActor
+    private func prepareBusVoicePool(trackID: UUID, busID: UUID) {
+        if let pool = busVoicePools[trackID],
+           isBusVoicePoolReadyForPlayback(pool: pool, busID: busID)
+        {
+            applyBusVoiceMix(trackID: trackID, pool: pool)
+            return
+        }
+
+        if let pool = trackVoicePools.removeValue(forKey: trackID) {
+            teardownTrackVoicePool(pool)
+        }
+        if let mixer = trackMixers.removeValue(forKey: trackID) {
+            // realtime-allow-graph-mutation: prepared route switch setup only, not tick dispatch. Test: RealtimePathLintTests.
+            audioGraph.disconnectOutput(mixer)
+            // realtime-allow-graph-mutation: prepared route switch setup only, not tick dispatch. Test: RealtimePathLintTests.
+            audioGraph.detach(mixer)
+        }
+        if let filter = trackFilters.removeValue(forKey: trackID) {
+            // realtime-allow-graph-mutation: prepared route switch setup only, not tick dispatch. Test: RealtimePathLintTests.
+            audioGraph.disconnectOutput(filter.avNode)
+            // realtime-allow-graph-mutation: prepared route switch setup only, not tick dispatch. Test: RealtimePathLintTests.
+            audioGraph.detach(filter.avNode)
+        }
+
+        var voices: [AVAudioPlayerNode] = []
+        var mixers: [AVAudioMixerNode] = []
+        var handles: [UUID] = []
+        for index in 0..<Self.voicesPerTrack {
+            let voice = AVAudioPlayerNode()
+            let mixer = AVAudioMixerNode()
+            // realtime-allow-graph-mutation: prepared bus voice setup occurs during document apply/setup, not tick dispatch. Test: RealtimePathLintTests.
+            audioGraph.attach(voice)
+            // realtime-allow-graph-mutation: prepared bus voice setup occurs during document apply/setup, not tick dispatch. Test: RealtimePathLintTests.
+            audioGraph.attach(mixer)
+            // realtime-allow-graph-mutation: prepared bus voice setup occurs during document apply/setup, not tick dispatch. Test: RealtimePathLintTests.
+            audioGraph.engine.connect(voice, to: mixer, fromBus: 0, toBus: 0, format: nil)
+            // realtime-allow-graph-mutation: prepared bus voice setup occurs during document apply/setup, not tick dispatch. Test: RealtimePathLintTests.
+            audioGraph.connectPreparedSampleVoiceOutput(
+                mixer,
+                toMixerBus: busID,
+                inputBus: AVAudioNodeBus(index)
+            )
+            voices.append(voice)
+            mixers.append(mixer)
+            handles.append(UUID())
+        }
+
+        let pool = BusVoicePool(voices: voices, voiceMixers: mixers, handles: handles, cursor: 0)
+        busVoicePools[trackID] = pool
+        filterFanout(for: trackID).setTargets([])
+        applyBusVoiceMix(trackID: trackID, pool: pool)
+        // realtime-allow-graph-mutation: prepared bus voice setup occurs during document apply/setup, not tick dispatch. Test: RealtimePathLintTests.
+        audioGraph.engine.prepare()
+    }
+
+    @MainActor
+    private func isBusVoicePoolReadyForPlayback(pool: BusVoicePool, busID: UUID) -> Bool {
+        guard audioGraph.mixerBusReadoutForTesting(busID: busID) != nil,
+              !pool.voices.isEmpty,
+              pool.voices.count == pool.voiceMixers.count
+        else {
+            return false
+        }
+        for index in pool.voices.indices {
+            let voice = pool.voices[index]
+            let mixer = pool.voiceMixers[index]
+            guard voice.engine === audioGraph.engine,
+                  mixer.engine === audioGraph.engine,
+                  outputConnectionExists(from: voice, to: mixer),
+                  outputConnectionExists(from: mixer)
+            else {
+                return false
+            }
+        }
+        return true
+    }
+
+    private func applyBusVoiceMix(trackID: UUID, pool: BusVoicePool) {
+        let mix = trackMixValues[trackID] ?? (level: 1, pan: 0)
+        for mixer in pool.voiceMixers {
+            mixer.outputVolume = mix.level
+            mixer.pan = mix.pan
+        }
+    }
+
+    @MainActor
+    private func teardownTrackVoicePool(_ pool: TrackVoicePool) {
+        for voice in pool.voices {
+            voice.stop()
+            // realtime-allow-graph-mutation: prepared route switch setup only, not tick dispatch. Test: RealtimePathLintTests.
+            audioGraph.disconnectOutput(voice)
+            // realtime-allow-graph-mutation: prepared route switch setup only, not tick dispatch. Test: RealtimePathLintTests.
+            audioGraph.detach(voice)
+        }
+        for filter in pool.voiceFilters {
+            // realtime-allow-graph-mutation: prepared route switch setup only, not tick dispatch. Test: RealtimePathLintTests.
+            audioGraph.disconnectOutput(filter.avNode)
+            // realtime-allow-graph-mutation: prepared route switch setup only, not tick dispatch. Test: RealtimePathLintTests.
+            audioGraph.detach(filter.avNode)
+        }
+    }
+
+    @MainActor
+    private func teardownBusVoicePool(_ pool: BusVoicePool) {
+        for voice in pool.voices {
+            voice.stop()
+            // realtime-allow-graph-mutation: prepared route switch setup only, not tick dispatch. Test: RealtimePathLintTests.
+            audioGraph.disconnectOutput(voice)
+            // realtime-allow-graph-mutation: prepared route switch setup only, not tick dispatch. Test: RealtimePathLintTests.
+            audioGraph.detach(voice)
+        }
+        for mixer in pool.voiceMixers {
+            // realtime-allow-graph-mutation: prepared route switch setup only, not tick dispatch. Test: RealtimePathLintTests.
+            audioGraph.disconnectOutput(mixer)
+            // realtime-allow-graph-mutation: prepared route switch setup only, not tick dispatch. Test: RealtimePathLintTests.
+            audioGraph.detach(mixer)
+        }
     }
 
     private func validatePreparedTrackGraphs() {
         performOnMain { [self] in
             lifecycleLock.withLock {
                 for (trackID, pool) in trackVoicePools {
+                    guard !isPreparedTrackPoolReadyForPlayback(trackID: trackID, pool: pool) else {
+                        continue
+                    }
                     repairPreparedTrackGraph(trackID: trackID, pool: pool)
+                }
+                for (trackID, pool) in busVoicePools {
+                    guard let busID = trackOutputBusIDs[trackID],
+                          isBusVoicePoolReadyForPlayback(pool: pool, busID: busID)
+                    else {
+                        if let busID = trackOutputBusIDs[trackID] {
+                            prepareBusVoicePool(trackID: trackID, busID: busID)
+                        }
+                        continue
+                    }
+                    applyBusVoiceMix(trackID: trackID, pool: pool)
                 }
             }
         }
@@ -490,8 +1002,11 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
     /// (e.g. via `SamplerDestinationWidget`). Per-step macro dispatch uses
     /// `filterNode(for:)` and the fine-grained setters instead.
     func applyFilter(_ settings: SamplerFilterSettings, trackID: UUID) {
-        let filter = lifecycleLock.withLock {
-            trackFilters[trackID]
+        let filter: (any SamplerFilterControlling)? = lifecycleLock.withLock {
+            if let fanout = trackFilterFanouts[trackID] {
+                return fanout
+            }
+            return trackFilters[trackID]
         }
         filter?.apply(settings)
     }
@@ -501,13 +1016,17 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
     /// Used by `TrackMacroApplier` to dispatch per-step filter macro values.
     func filterNode(for trackID: UUID) -> (any SamplerFilterControlling)? {
         lifecycleLock.withLock {
-            trackFilters[trackID]
+            if let fanout = trackFilterFanouts[trackID] {
+                return fanout
+            }
+            return trackFilters[trackID]
         }
     }
 
     private func cachedFile(url: URL) -> AVAudioFile? {
         lifecycleLock.withLock {
             if let f = fileCache[url] { return f }
+            // realtime-allow-file-open: legacy audition/URL fallback; tick dispatch must use PreparedSampleAsset. Test: RealtimePathLintTests.
             guard let f = try? AVAudioFile(forReading: url) else { return nil }
             if fileCache.count >= 64 {
                 fileCache.removeAll(keepingCapacity: true)
@@ -518,26 +1037,45 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
     }
 
     private func sliceBuffer(
-        sampleURL: URL,
+        pcmBuffer: AVAudioPCMBuffer?,
         fileFormat: AVAudioFormat,
         playbackFormat: AVAudioFormat,
         startFrame: AVAudioFramePosition,
         endFrame: AVAudioFramePosition
     ) -> AVAudioPCMBuffer? {
-        guard let file = try? AVAudioFile(forReading: sampleURL) else {
-            return nil
-        }
         let frameCount = AVAudioFrameCount(max(1, endFrame - startFrame))
-        guard let buffer = AVAudioPCMBuffer(pcmFormat: fileFormat, frameCapacity: frameCount) else {
-            return nil
-        }
-        do {
-            file.framePosition = startFrame
-            try file.read(into: buffer, frameCount: frameCount)
-        } catch {
+        guard let source = pcmBuffer,
+              let buffer = AVAudioPCMBuffer(pcmFormat: fileFormat, frameCapacity: frameCount),
+              Self.copyFrames(from: source, startFrame: startFrame, frameCount: frameCount, into: buffer)
+        else {
             return nil
         }
         return buffer.convertingForPlayback(to: playbackFormat) ?? buffer
+    }
+
+    private static func copyFrames(
+        from source: AVAudioPCMBuffer,
+        startFrame: AVAudioFramePosition,
+        frameCount: AVAudioFrameCount,
+        into destination: AVAudioPCMBuffer
+    ) -> Bool {
+        let offset = Int(startFrame)
+        let count = Int(frameCount)
+        guard offset >= 0,
+              count > 0,
+              offset + count <= Int(source.frameLength),
+              let sourceChannels = source.floatChannelData,
+              let destinationChannels = destination.floatChannelData
+        else {
+            return false
+        }
+
+        let channelCount = min(Int(source.format.channelCount), Int(destination.format.channelCount))
+        for channel in 0..<channelCount {
+            destinationChannels[channel].update(from: sourceChannels[channel] + offset, count: count)
+        }
+        destination.frameLength = frameCount
+        return true
     }
 
     private static func reverse(_ buffer: AVAudioPCMBuffer) {
@@ -610,6 +1148,20 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         return scheduled > now ? when : nil
     }
 
+    private static func sampleFrameRange(
+        file: AVAudioFile,
+        settings: SamplerSettings,
+        params: [BuiltinMacroKind: Double]?
+    ) -> (startFrame: AVAudioFramePosition, frameLength: AVAudioFrameCount) {
+        let startNorm = min(max(params?[.sampleStart] ?? settings.start, 0), 1)
+        let lengthNorm = min(max(params?[.sampleLength] ?? settings.length, 0), 1)
+        let frameCount = Double(file.length)
+        let startFrame = AVAudioFramePosition(min(startNorm * frameCount, max(frameCount - 1, 0)))
+        let remainingFrames = max(1, Double(file.length) - Double(startFrame))
+        let frameLength = AVAudioFrameCount(min(max(1, lengthNorm * frameCount), remainingFrames))
+        return (startFrame, frameLength)
+    }
+
     private func playbackRate(forSemitoneOffset semitones: Int) -> Double {
         min(max(pow(2, Double(semitones) / 12), 0.25), 4)
     }
@@ -624,7 +1176,8 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
     private func playWithPreparedVoice(
         trackID: UUID,
         voiceMode: SlicerVoiceMode,
-        schedule: @escaping (AVAudioPlayerNode, SamplerFilterNode, [BuiltinMacroKind: Double]?) -> Void
+        scheduled: TimeInterval?,
+        schedule: @escaping (AVAudioPlayerNode, SamplerFilterNode, [BuiltinMacroKind: Double]?) -> Bool
     ) -> VoiceHandle? {
         if Thread.isMainThread {
             return MainActor.assumeIsolated {
@@ -632,12 +1185,34 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
             }
         }
 
-        // Tick/event-queue callers dispatch fire-and-forget: start times ride
-        // on the scheduled AVAudioTime, so async preserves timing — and a
-        // sync hop here deadlocks against TickClock.stop()'s queue join
-        // (main waits for the tick queue, the tick waits for main; observed
-        // as a full app hang). Engine callers discard the handle anyway.
+        if preparedVoicePlaybackFastPath(
+            trackID: trackID,
+            voiceMode: voiceMode,
+            scheduled: scheduled,
+            schedule: schedule
+        ) {
+            return nil
+        }
+
+        // Broken/missing graph state still repairs on main. The normal
+        // prepared path above schedules directly from the tick/event queue,
+        // so tab rendering no longer sits between the tick and sample start.
+        let enqueued = ProcessInfo.processInfo.systemUptime
+        SequencerTimingProbe.sampleMainHopQueued(
+            trackID: trackID,
+            scheduled: scheduled,
+            enqueued: enqueued,
+            reason: "repair"
+        )
+        // realtime-allow-main-async: exceptional graph repair only; normal prepared playback uses fast path. Test: RealtimePathLintTests.
         DispatchQueue.main.async { [self] in
+            SequencerTimingProbe.sampleMainHopStarted(
+                trackID: trackID,
+                scheduled: scheduled,
+                enqueued: enqueued,
+                actual: ProcessInfo.processInfo.systemUptime,
+                reason: "repair"
+            )
             MainActor.assumeIsolated {
                 _ = preparedVoicePlaybackOnMain(trackID: trackID, voiceMode: voiceMode, schedule: schedule)
             }
@@ -645,11 +1220,103 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         return nil
     }
 
+    private func preparedVoicePlaybackFastPath(
+        trackID: UUID,
+        voiceMode: SlicerVoiceMode,
+        scheduled: TimeInterval?,
+        schedule: (AVAudioPlayerNode, SamplerFilterNode, [BuiltinMacroKind: Double]?) -> Bool
+    ) -> Bool {
+        var selectedVoice: AVAudioPlayerNode?
+        var selectedFilter: SamplerFilterNode?
+        var selectedParams: [BuiltinMacroKind: Double]?
+
+        lifecycleLock.withLock {
+            guard fastPathReadyTrackIDs.contains(trackID),
+                  var pool = trackVoicePools[trackID],
+                  !pool.voices.isEmpty
+            else {
+                return
+            }
+
+            let voiceIndex: Int
+            switch voiceMode {
+            case .mono:
+                voiceIndex = 0
+            case .polyphonic:
+                voiceIndex = pool.cursor % pool.voices.count
+            }
+
+            guard voiceIndex < pool.voiceFilters.count,
+                  voiceIndex < pool.handles.count
+            else {
+                _ = fastPathReadyTrackIDs.remove(trackID)
+                return
+            }
+
+            selectedVoice = pool.voices[voiceIndex]
+            selectedFilter = pool.voiceFilters[voiceIndex]
+            selectedParams = voiceParams[trackID]
+            pool.handles[voiceIndex] = UUID()
+            if voiceMode == .polyphonic {
+                pool.cursor = (voiceIndex &+ 1) % pool.voices.count
+            }
+            trackVoicePools[trackID] = pool
+            #if DEBUG
+            voiceSelectionsForTesting.append((
+                trackID: trackID,
+                voiceMode: voiceMode,
+                voiceIndex: voiceIndex,
+                stoppedPriorVoice: voiceMode == .mono
+            ))
+            #endif
+            SequencerTimingProbe.voiceSelected(
+                trackID: trackID,
+                voiceMode: voiceMode.rawValue,
+                voiceIndex: voiceIndex,
+                stoppedPriorVoice: voiceMode == .mono
+            )
+        }
+
+        guard let voice = selectedVoice,
+              let filter = selectedFilter
+        else {
+            SequencerTimingProbe.sampleFastPath(
+                trackID: trackID,
+                scheduled: scheduled,
+                actual: ProcessInfo.processInfo.systemUptime,
+                result: "unprepared"
+            )
+            return false
+        }
+
+        if schedule(voice, filter, selectedParams) {
+            SequencerTimingProbe.sampleFastPath(
+                trackID: trackID,
+                scheduled: scheduled,
+                actual: ProcessInfo.processInfo.systemUptime,
+                result: "scheduled"
+            )
+            return true
+        }
+
+        lifecycleLock.withLock {
+            _ = fastPathReadyTrackIDs.remove(trackID)
+        }
+        requestPreparedTrackRepair(trackID: trackID)
+        SequencerTimingProbe.sampleFastPath(
+            trackID: trackID,
+            scheduled: scheduled,
+            actual: ProcessInfo.processInfo.systemUptime,
+            result: "schedule-failed"
+        )
+        return true
+    }
+
     @MainActor
     private func preparedVoicePlaybackOnMain(
         trackID: UUID,
         voiceMode: SlicerVoiceMode,
-        schedule: (AVAudioPlayerNode, SamplerFilterNode, [BuiltinMacroKind: Double]?) -> Void
+        schedule: (AVAudioPlayerNode, SamplerFilterNode, [BuiltinMacroKind: Double]?) -> Bool
     ) -> VoiceHandle? {
         do {
             var didRepair = false
@@ -700,6 +1367,20 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
                         pool.cursor = (voiceIndex &+ 1) % pool.voices.count
                     }
                     trackVoicePools[trackID] = pool
+                    #if DEBUG
+                    voiceSelectionsForTesting.append((
+                        trackID: trackID,
+                        voiceMode: voiceMode,
+                        voiceIndex: voiceIndex,
+                        stoppedPriorVoice: voiceMode == .mono
+                    ))
+                    #endif
+                    SequencerTimingProbe.voiceSelected(
+                        trackID: trackID,
+                        voiceMode: voiceMode.rawValue,
+                        voiceIndex: voiceIndex,
+                        stoppedPriorVoice: voiceMode == .mono
+                    )
                     selectedVoice = voice
                     selectedFilter = voiceFilter
                     selectedParams = voiceParams[trackID]
@@ -723,8 +1404,22 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
                     return nil
                 }
 
-                schedule(voice, voiceFilter, selectedParams)
-                return VoiceHandle(id: handleID)
+                if schedule(voice, voiceFilter, selectedParams) {
+                    lifecycleLock.withLock {
+                        _ = fastPathReadyTrackIDs.insert(trackID)
+                    }
+                    return VoiceHandle(id: handleID)
+                }
+
+                lifecycleLock.withLock {
+                    _ = fastPathReadyTrackIDs.remove(trackID)
+                }
+                guard !didRepair else { return nil }
+                didRepair = true
+                lifecycleLock.withLock {
+                    guard let pool = trackVoicePools[trackID] else { return }
+                    repairPreparedTrackGraph(trackID: trackID, pool: pool)
+                }
             }
         }
     }
@@ -744,32 +1439,150 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         else {
             return false
         }
-
         return outputConnectionExists(from: voice, to: voiceFilter.avNode) &&
             outputConnectionExists(from: voiceFilter.avNode, to: mixer) &&
             outputConnectionExists(from: mixer, to: trackFilter.avNode) &&
-            audioGraph.trackOutputDestinationForTesting(trackFilter.avNode) != nil
+            outputConnectionExists(from: trackFilter.avNode)
+    }
+
+    @MainActor
+    private func isPreparedTrackPoolReadyForPlayback(trackID: UUID, pool: TrackVoicePool) -> Bool {
+        guard !pool.voices.isEmpty,
+              pool.voices.count == pool.voiceFilters.count
+        else {
+            return false
+        }
+
+        for index in pool.voices.indices {
+            guard isPreparedTrackRouteReadyForPlayback(
+                trackID: trackID,
+                voice: pool.voices[index],
+                voiceFilter: pool.voiceFilters[index]
+            ) else {
+                return false
+            }
+        }
+        return true
     }
 
     @MainActor
     private func repairPreparedTrackGraph(trackID: UUID, pool: TrackVoicePool) {
+        let started = ProcessInfo.processInfo.systemUptime
+        var mutationCount = 0
+        defer {
+            SequencerTimingProbe.graphRepair(
+                subsystem: "sample",
+                trackID: trackID,
+                cause: "prepared-track",
+                duration: ProcessInfo.processInfo.systemUptime - started,
+                mutationCount: mutationCount
+            )
+        }
+        let pool = pool
         let mixer = trackMixer(for: trackID)
         repairTrackMixerOutput(trackID: trackID, mixer: mixer)
+
+        var disconnectedMixerInputs = false
+        for index in pool.voices.indices {
+            let voice = pool.voices[index]
+            guard index < pool.voiceFilters.count else { continue }
+            let filter = pool.voiceFilters[index]
+            if outputConnectionExists(from: voice) {
+                // realtime-allow-graph-mutation: exceptional prepared graph repair only; normal playback uses fast path and logs repair. Test: RealtimePathLintTests.
+                audioGraph.disconnectOutput(voice)
+                mutationCount += 1
+                // realtime-allow-graph-mutation: exceptional prepared graph repair only; normal playback uses fast path and logs repair. Test: RealtimePathLintTests.
+                audioGraph.disconnectInput(filter.avNode)
+                mutationCount += 1
+            }
+            if outputConnectionExists(from: filter.avNode) {
+                // realtime-allow-graph-mutation: exceptional prepared graph repair only; normal playback uses fast path and logs repair. Test: RealtimePathLintTests.
+                audioGraph.disconnectOutput(filter.avNode)
+                mutationCount += 1
+                disconnectedMixerInputs = true
+            }
+        }
+        if disconnectedMixerInputs {
+            // realtime-allow-graph-mutation: exceptional prepared graph repair only; normal playback uses fast path and logs repair. Test: RealtimePathLintTests.
+            audioGraph.disconnectInput(mixer)
+            mutationCount += 1
+        }
+        // `disconnectNodeOutput` removes these sources from the mixer, but
+        // `nextAvailableInputBus` can still advance after repeated repair
+        // passes. Rebuild the fan-in deterministically from bus 0 once all
+        // prepared voice-filter outputs are clear.
+        var mixerInputBus: AVAudioNodeBus = 0
 
         for index in pool.voices.indices {
             let voice = pool.voices[index]
             guard index < pool.voiceFilters.count else { continue }
             let filter = pool.voiceFilters[index]
 
+            // realtime-allow-graph-mutation: exceptional prepared graph repair only; normal playback uses fast path and logs repair. Test: RealtimePathLintTests.
             audioGraph.attach(voice)
+            mutationCount += 1
+            // realtime-allow-graph-mutation: exceptional prepared graph repair only; normal playback uses fast path and logs repair. Test: RealtimePathLintTests.
             audioGraph.attach(filter.avNode)
-            connectOutputIfNeeded(voice, to: filter.avNode)
-            connectOutputIfNeeded(filter.avNode, to: mixer)
+            mutationCount += 1
+            // realtime-allow-graph-mutation: exceptional prepared graph repair only; normal playback uses fast path and logs repair. Test: RealtimePathLintTests.
+            audioGraph.engine.connect(
+                voice,
+                to: filter.avNode,
+                fromBus: 0,
+                toBus: 0,
+                format: nil
+            )
+            mutationCount += 1
+            // realtime-allow-graph-mutation: exceptional prepared graph repair only; normal playback uses fast path and logs repair. Test: RealtimePathLintTests.
+            audioGraph.engine.connect(
+                filter.avNode,
+                to: mixer,
+                fromBus: 0,
+                toBus: mixerInputBus,
+                format: nil
+            )
+            mutationCount += 1
+            mixerInputBus += 1
+        }
+        trackVoicePools[trackID] = pool
+        _ = fastPathReadyTrackIDs.insert(trackID)
+    }
+
+    private func requestPreparedTrackRepair(trackID: UUID) {
+        let enqueued = ProcessInfo.processInfo.systemUptime
+        SequencerTimingProbe.sampleMainHopQueued(
+            trackID: trackID,
+            scheduled: nil,
+            enqueued: enqueued,
+            reason: "post-failure-repair"
+        )
+        // realtime-allow-main-async: post-failure graph repair only, logged by timing probe. Test: RealtimePathLintTests.
+        DispatchQueue.main.async { [self] in
+            SequencerTimingProbe.sampleMainHopStarted(
+                trackID: trackID,
+                scheduled: nil,
+                enqueued: enqueued,
+                actual: ProcessInfo.processInfo.systemUptime,
+                reason: "post-failure-repair"
+            )
+            MainActor.assumeIsolated {
+                lifecycleLock.withLock {
+                    if let pool = busVoicePools[trackID],
+                       let busID = trackOutputBusIDs[trackID] {
+                        guard !isBusVoicePoolReadyForPlayback(pool: pool, busID: busID) else { return }
+                        prepareBusVoicePool(trackID: trackID, busID: busID)
+                        return
+                    }
+                    guard let pool = trackVoicePools[trackID] else { return }
+                    repairPreparedTrackGraph(trackID: trackID, pool: pool)
+                }
+            }
         }
     }
 
     @MainActor
     private func repairTrackMixerOutput(trackID: UUID, mixer: AVAudioMixerNode) {
+        // realtime-allow-graph-mutation: prepared track output setup/repair only, not event scheduling. Test: RealtimePathLintTests.
         audioGraph.attach(mixer)
         let filter: SamplerFilterNode
         if let existing = trackFilters[trackID] {
@@ -780,9 +1593,12 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
             filter = next
         }
 
+        // realtime-allow-graph-mutation: prepared track output setup/repair only, not event scheduling. Test: RealtimePathLintTests.
         audioGraph.attach(filter.avNode)
         connectOutputIfNeeded(mixer, to: filter.avNode)
-        if audioGraph.trackOutputDestinationForTesting(filter.avNode) == nil {
+        if audioGraph.trackOutputDestinationForTesting(filter.avNode) == nil ||
+            !outputConnectionExists(from: filter.avNode)
+        {
             audioGraph.connectTrackOutput(
                 filter.avNode,
                 to: trackOutputBusIDs[trackID],
@@ -798,6 +1614,19 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         }
     }
 
+    private func outputConnectionExists(from source: AVAudioNode) -> Bool {
+        !audioGraph.engine.outputConnectionPoints(for: source, outputBus: 0).isEmpty
+    }
+
+    private func filterFanout(for trackID: UUID) -> SamplerFilterFanout {
+        if let fanout = trackFilterFanouts[trackID] {
+            return fanout
+        }
+        let fanout = SamplerFilterFanout()
+        trackFilterFanouts[trackID] = fanout
+        return fanout
+    }
+
     @MainActor
     private func connectOutputIfNeeded(_ source: AVAudioNode, to destination: AVAudioNode) {
         guard source.engine === audioGraph.engine,
@@ -807,7 +1636,9 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
             return
         }
 
+        // realtime-allow-graph-mutation: prepared graph setup/repair connection only, not tick dispatch. Test: RealtimePathLintTests.
         audioGraph.disconnectOutput(source)
+        // realtime-allow-graph-mutation: prepared graph setup/repair connection only, not tick dispatch. Test: RealtimePathLintTests.
         audioGraph.connect(source, to: destination)
     }
 
@@ -820,6 +1651,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
 
         TickPathMainSyncGuard.assertNotSyncingToMainFromTickPath("SamplePlaybackEngine.performOnMain")
         var result: T?
+        // realtime-allow-main-sync: document apply/setup path guarded against tick-thread use. Test: RealtimePathLintTests.
         DispatchQueue.main.sync {
             result = MainActor.assumeIsolated {
                 work()
@@ -834,6 +1666,8 @@ extension SamplePlaybackEngine {
         performOnMain { [self] in
             lifecycleLock.withLock {
                 guard let voice = trackVoicePools[trackID]?.voices.first else { return }
+                _ = fastPathReadyTrackIDs.remove(trackID)
+                // realtime-allow-graph-mutation: test hook deliberately breaks prepared graph. Test: RealtimePathLintTests.
                 audioGraph.disconnectOutput(voice)
             }
         }
@@ -857,6 +1691,8 @@ extension SamplePlaybackEngine {
         performOnMain { [self] in
             lifecycleLock.withLock {
                 guard let mixer = trackMixers[trackID] else { return }
+                _ = fastPathReadyTrackIDs.remove(trackID)
+                // realtime-allow-graph-mutation: test hook deliberately breaks prepared graph. Test: RealtimePathLintTests.
                 audioGraph.disconnectOutput(mixer)
             }
         }
@@ -871,6 +1707,69 @@ extension SamplePlaybackEngine {
                     return false
                 }
                 return outputConnectionExists(from: mixer, to: filter.avNode)
+            }
+        }
+    }
+
+    func disconnectPreparedTrackTerminalOutputForTesting(trackID: UUID) {
+        performOnMain { [self] in
+            lifecycleLock.withLock {
+                guard let filter = trackFilters[trackID] else { return }
+                _ = fastPathReadyTrackIDs.remove(trackID)
+                // realtime-allow-graph-mutation: test hook deliberately breaks prepared graph. Test: RealtimePathLintTests.
+                audioGraph.disconnectOutput(filter.avNode)
+            }
+        }
+    }
+
+    func isPreparedTrackTerminalOutputConnectedForTesting(trackID: UUID) -> Bool {
+        performOnMain { [self] in
+            lifecycleLock.withLock {
+                guard let filter = trackFilters[trackID] else {
+                    return false
+                }
+                return outputConnectionExists(from: filter.avNode)
+            }
+        }
+    }
+
+    func preparedTrackRouteReadoutForTesting(trackID: UUID) -> [String: Bool] {
+        performOnMain { [self] in
+            lifecycleLock.withLock {
+                if let pool = busVoicePools[trackID],
+                   let voice = pool.voices.first,
+                   let mixer = pool.voiceMixers.first
+                {
+                    return [
+                        "prepared": true,
+                        "busSafeRoute": true,
+                        "voiceToVoiceFilter": false,
+                        "voiceFilterToMixer": outputConnectionExists(from: voice, to: mixer),
+                        "mixerToTrackFilter": false,
+                        "trackFilterHasOutput": outputConnectionExists(from: mixer),
+                        "voicePlayable": audioGraph.isNodePlayableNow(voice),
+                    ]
+                }
+                guard let pool = trackVoicePools[trackID],
+                      let voice = pool.voices.first,
+                      let voiceFilter = pool.voiceFilters.first
+                else {
+                    return ["prepared": false]
+                }
+                guard let mixer = trackMixers[trackID],
+                      let trackFilter = trackFilters[trackID]
+                else {
+                    return ["prepared": false]
+                }
+                return [
+                    "prepared": true,
+                    "busSafeRoute": false,
+                    "voiceToVoiceFilter": outputConnectionExists(from: voice, to: voiceFilter.avNode),
+                    "voiceFilterToMixer": outputConnectionExists(from: voiceFilter.avNode, to: mixer),
+                    "mixerToTrackFilter": outputConnectionExists(from: mixer, to: trackFilter.avNode),
+                    "trackFilterHasOutput": outputConnectionExists(from: trackFilter.avNode),
+                    "voicePlayable": audioGraph.isNodePlayableNow(voice),
+                ]
             }
         }
     }

@@ -70,6 +70,7 @@ final class AudioInstrumentHost: TrackPlaybackSink {
         }
 
         TickPathMainSyncGuard.assertNotSyncingToMainFromTickPath("AudioInstrumentHost.performOnMain")
+        // realtime-allow-main-sync: AU graph/setup control path guarded against tick-thread use. Test: RealtimePathLintTests.
         DispatchQueue.main.sync {
             MainActor.assumeIsolated {
                 work()
@@ -91,6 +92,7 @@ final class AudioInstrumentHost: TrackPlaybackSink {
             return
         }
 
+        // realtime-allow-main-async: AU note/control dispatch debt; avoids deadlock but remains classified for timing work. Test: RealtimePathLintTests.
         DispatchQueue.main.async {
             MainActor.assumeIsolated {
                 work()
@@ -108,6 +110,7 @@ final class AudioInstrumentHost: TrackPlaybackSink {
         TickPathMainSyncGuard.assertNotSyncingToMainFromTickPath("AudioInstrumentHost.performOnMainThrowing")
         var output: T?
         var thrownError: Error?
+        // realtime-allow-main-sync: AU read/setup control path guarded against tick-thread use. Test: RealtimePathLintTests.
         DispatchQueue.main.sync {
             do {
                 output = try MainActor.assumeIsolated {
@@ -231,12 +234,16 @@ final class AudioInstrumentHost: TrackPlaybackSink {
             self.performOnMain {
                 if let instrument = self.instrument {
                     self.log("shutdown detach instrument")
+                    // realtime-allow-graph-mutation: AU shutdown teardown only, not tick dispatch. Test: RealtimePathLintTests.
                     self.audioGraph.disconnectOutput(instrument)
+                    // realtime-allow-graph-mutation: AU shutdown teardown only, not tick dispatch. Test: RealtimePathLintTests.
                     self.audioGraph.detach(instrument)
                     self.instrument = nil
                 }
                 if let outputMixer = self.outputMixer {
+                    // realtime-allow-graph-mutation: AU shutdown teardown only, not tick dispatch. Test: RealtimePathLintTests.
                     self.audioGraph.disconnectOutput(outputMixer)
+                    // realtime-allow-graph-mutation: AU shutdown teardown only, not tick dispatch. Test: RealtimePathLintTests.
                     self.audioGraph.detach(outputMixer)
                     self.outputMixer = nil
                 }
@@ -516,16 +523,19 @@ final class AudioInstrumentHost: TrackPlaybackSink {
             self.instrument = nextInstrument
             self.updateSnapshotInstrument(nextInstrument)
             if nextInstrument.engine == nil {
+                // realtime-allow-graph-mutation: AU load/setup connection only, not tick dispatch. Test: RealtimePathLintTests.
                 self.audioGraph.attach(nextInstrument)
             }
             let mixer = self.outputMixer ?? AVAudioMixerNode()
             if self.outputMixer == nil {
                 self.outputMixer = mixer
+                // realtime-allow-graph-mutation: AU load/setup connection only, not tick dispatch. Test: RealtimePathLintTests.
                 self.audioGraph.attach(mixer)
                 self.audioGraph.connectTrackOutput(mixer, to: self.currentOutputBusID, sends: self.currentMix.graphSendLevels)
                 self.audioGraph.setTrackMeterSources(trackIDs: self.currentMeterTrackIDs, node: mixer)
             }
             if self.audioGraph.engine.outputConnectionPoints(for: nextInstrument, outputBus: 0).isEmpty {
+                // realtime-allow-graph-mutation: AU load/setup connection only, not tick dispatch. Test: RealtimePathLintTests.
                 self.audioGraph.connect(nextInstrument, to: mixer)
             }
         }
@@ -581,7 +591,9 @@ final class AudioInstrumentHost: TrackPlaybackSink {
 
         performOnMain {
             self.log("disconnectCurrentInstrument detach instrument")
+            // realtime-allow-graph-mutation: AU destination teardown only, not tick dispatch. Test: RealtimePathLintTests.
             self.audioGraph.disconnectOutput(instrument)
+            // realtime-allow-graph-mutation: AU destination teardown only, not tick dispatch. Test: RealtimePathLintTests.
             self.audioGraph.detach(instrument)
             self.instrument = nil
             self.updateSnapshotInstrument(nil)

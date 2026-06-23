@@ -13,10 +13,18 @@ struct ContentView: View {
         Binding(
             get: { section },
             set: { newSection in
+                let previousSection = section
                 if newSection == .scenes {
                     scenesResetToken += 1
                 }
                 section = newSection
+                if previousSection != newSection {
+                    SequencerTimingProbe.viewSwitch(
+                        from: previousSection.rawValue,
+                        to: newSection.rawValue,
+                        mode: session.workspaceMode.rawValue
+                    )
+                }
             }
         )
     }

@@ -6,12 +6,14 @@ final class SamplePlaybackEngineTests: XCTestCase {
     private var fixtureURL: URL!
 
     override func setUpWithError() throws {
+        MainAudioGraph.useManualRenderingForAutomation = true
         fixtureURL = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID()).wav")
         try writeSilentWAV(to: fixtureURL, durationSeconds: 0.1)
     }
 
     override func tearDownWithError() throws {
         try? FileManager.default.removeItem(at: fixtureURL)
+        MainAudioGraph.useManualRenderingForAutomation = false
     }
 
     private func writeSilentWAV(to url: URL, durationSeconds: Double) throws {
@@ -92,6 +94,91 @@ final class SamplePlaybackEngineTests: XCTestCase {
         XCTAssertNotNil(handle)
     }
 
+    func test_playSliceMonoReusesAndStopsSingleVoice() throws {
+        guard let engine = makeEngine() else { return }
+        defer { engine.stop() }
+        let trackID = UUID()
+        engine.prepareTrack(trackID: trackID)
+
+        _ = engine.playSlice(
+            sampleURL: fixtureURL,
+            startFrame: 0,
+            endFrame: 100,
+            settings: SlicerSettings(voiceMode: .mono),
+            trackID: trackID,
+            at: nil,
+            reverse: false,
+            stepParameters: nil
+        )
+        _ = engine.playSlice(
+            sampleURL: fixtureURL,
+            startFrame: 100,
+            endFrame: 200,
+            settings: SlicerSettings(voiceMode: .mono),
+            trackID: trackID,
+            at: nil,
+            reverse: false,
+            stepParameters: nil
+        )
+
+        XCTAssertEqual(engine.voiceSelectionsForTesting.map(\.voiceMode), [.mono, .mono])
+        XCTAssertEqual(engine.voiceSelectionsForTesting.map(\.voiceIndex), [0, 0])
+        XCTAssertEqual(engine.voiceSelectionsForTesting.map(\.stoppedPriorVoice), [true, true])
+    }
+
+    func test_playSliceMonoRapidAlternatingSlicesAlwaysReusesSingleVoice() throws {
+        guard let engine = makeEngine() else { return }
+        defer { engine.stop() }
+        let trackID = UUID()
+        engine.prepareTrack(trackID: trackID)
+
+        let settings = SlicerSettings(voiceMode: .mono)
+        for index in 0..<32 {
+            let start = AVAudioFramePosition((index % 8) * 64)
+            let parameters = SliceTriggerStepParameters(
+                gain: Double((index % 5) - 2),
+                startTrim: index.isMultiple(of: 3) ? 0.15 : 0,
+                endTrim: index.isMultiple(of: 4) ? 0.2 : 0,
+                pan: index.isMultiple(of: 2) ? -0.5 : 0.5,
+                filter: Double(index % 10) / 10,
+                attackMs: index.isMultiple(of: 5) ? 2 : 0,
+                releaseMs: index.isMultiple(of: 6) ? 3 : 0,
+                reverse: index.isMultiple(of: 7),
+                choke: false
+            )
+
+            _ = engine.playSlice(
+                sampleURL: fixtureURL,
+                startFrame: start,
+                endFrame: start + 512,
+                settings: settings,
+                trackID: trackID,
+                at: nil,
+                reverse: parameters.reverse,
+                stepParameters: parameters
+            )
+        }
+
+        XCTAssertEqual(engine.voiceSelectionsForTesting.count, 32)
+        XCTAssertEqual(Set(engine.voiceSelectionsForTesting.map(\.voiceMode)), [.mono])
+        XCTAssertEqual(Set(engine.voiceSelectionsForTesting.map(\.voiceIndex)), [0])
+        XCTAssertEqual(Set(engine.voiceSelectionsForTesting.map(\.stoppedPriorVoice)), [true])
+    }
+
+    func test_samplePlaybackRemainsPolyphonicByDefault() throws {
+        guard let engine = makeEngine() else { return }
+        defer { engine.stop() }
+        let trackID = UUID()
+        engine.prepareTrack(trackID: trackID)
+
+        _ = engine.play(sampleURL: fixtureURL, settings: .default, trackID: trackID, at: nil)
+        _ = engine.play(sampleURL: fixtureURL, settings: .default, trackID: trackID, at: nil)
+
+        XCTAssertEqual(engine.voiceSelectionsForTesting.map(\.voiceMode), [.polyphonic, .polyphonic])
+        XCTAssertEqual(engine.voiceSelectionsForTesting.map(\.voiceIndex), [0, 1])
+        XCTAssertEqual(engine.voiceSelectionsForTesting.map(\.stoppedPriorVoice), [false, false])
+    }
+
     func test_effectivePlaybackTime_clampsStaleHostTimeToImmediate() {
         let now = ProcessInfo.processInfo.systemUptime
         let stale = AVAudioTime(hostTime: AVAudioTime.hostTime(forSeconds: now - 0.05))
@@ -151,6 +238,76 @@ final class SamplePlaybackEngineTests: XCTestCase {
 
         XCTAssertNotNil(handle)
         XCTAssertTrue(engine.isPreparedTrackMixerOutputConnectedForTesting(trackID: trackID))
+    }
+
+    func test_playRepairsDisconnectedPreparedTrackTerminalAfterStart() throws {
+        guard let engine = makeEngine() else { return }
+        defer { engine.stop() }
+
+        let trackID = UUID()
+        engine.prepareTrack(trackID: trackID)
+        engine.disconnectPreparedTrackTerminalOutputForTesting(trackID: trackID)
+        XCTAssertFalse(engine.isPreparedTrackTerminalOutputConnectedForTesting(trackID: trackID))
+
+        let handle = engine.play(sampleURL: fixtureURL, settings: .default, trackID: trackID, at: nil)
+
+        XCTAssertNotNil(handle)
+        XCTAssertTrue(engine.isPreparedTrackTerminalOutputConnectedForTesting(trackID: trackID))
+    }
+
+    @MainActor
+    func test_preparedTrackRoutedToExistingMixerBusFeedsBusInput() throws {
+        let graph = MainAudioGraph()
+        let engine = SamplePlaybackEngine(audioGraph: graph)
+        let trackID = UUID()
+        let busID = UUID()
+
+        graph.installMixerBuses([MixerBus(id: busID, name: "Drum Bus")])
+        engine.prepareTrack(trackID: trackID)
+        engine.setTrackOutputBus(trackID: trackID, busID: busID)
+
+        XCTAssertNotNil(graph.mixerBusReadoutForTesting(busID: busID))
+        XCTAssertEqual(
+            engine.preparedTrackRouteReadoutForTesting(trackID: trackID),
+            [
+                "prepared": true,
+                "busSafeRoute": true,
+                "voiceToVoiceFilter": false,
+                "voiceFilterToMixer": true,
+                "mixerToTrackFilter": false,
+                "trackFilterHasOutput": true,
+                "voicePlayable": false,
+            ]
+        )
+    }
+
+    @MainActor
+    func test_preparedTrackRoutedToMixerBusInstalledAfterRouteRefeedsBusInput() throws {
+        let graph = MainAudioGraph()
+        let engine = SamplePlaybackEngine(audioGraph: graph)
+        let trackID = UUID()
+        let busID = UUID()
+
+        engine.prepareTrack(trackID: trackID)
+        engine.setTrackOutputBus(trackID: trackID, busID: busID)
+        XCTAssertEqual(engine.preparedTrackRouteReadoutForTesting(trackID: trackID)["busSafeRoute"], false)
+
+        graph.installMixerBuses([MixerBus(id: busID, name: "Drum Bus")])
+        engine.setTrackOutputBus(trackID: trackID, busID: busID)
+
+        XCTAssertNotNil(graph.mixerBusReadoutForTesting(busID: busID))
+        XCTAssertEqual(
+            engine.preparedTrackRouteReadoutForTesting(trackID: trackID),
+            [
+                "prepared": true,
+                "busSafeRoute": true,
+                "voiceToVoiceFilter": false,
+                "voiceFilterToMixer": true,
+                "mixerToTrackFilter": false,
+                "trackFilterHasOutput": true,
+                "voicePlayable": false,
+            ]
+        )
     }
 
     func test_applyEnvelope_shapesAttackAndRelease() throws {
@@ -218,8 +375,8 @@ final class SamplePlaybackEngineTests: XCTestCase {
     /// Off-main play is fire-and-forget: it returns nil immediately (voice
     /// handles are only meaningful to main-thread callers) and must never
     /// sync onto the main thread — that hop deadlocked against
-    /// TickClock.stop()'s tick-queue join. The scheduling still lands via
-    /// the async main hop.
+    /// TickClock.stop()'s tick-queue join. Prepared voices can schedule on
+    /// the fast path; graph repair still lands via an async main hop.
     func test_playFromBackgroundQueue_isFireAndForgetWithoutBlocking() throws {
         guard let engine = makeEngine() else { return }
         defer { engine.stop() }

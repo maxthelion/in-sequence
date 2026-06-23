@@ -8,17 +8,15 @@ enum EngineSlicerDispatcher {
         settings: SlicerSettings,
         snapshot: PlaybackSnapshot,
         sampleLibrary: AudioSampleLibrary,
-        sampleLibraryRoot: URL,
         stepsPerBar: Int,
         bpm: Double,
-        now: TimeInterval,
+        scheduledHostTime: TimeInterval,
         eventQueue: EventQueue,
         repeatOwnerTrackID: UUID? = nil
     ) {
         guard let sliceSet = snapshot.sliceSet(id: sliceSetID),
               let sampleID = sliceSet.sampleID,
-              let sample = sampleLibrary.sample(id: sampleID),
-              let url = try? sample.fileRef.resolve(libraryRoot: sampleLibraryRoot)
+              let sample = sampleLibrary.sample(id: sampleID)
         else {
             return
         }
@@ -51,16 +49,16 @@ enum EngineSlicerDispatcher {
             ).clamped
 
             eventQueue.enqueue(ScheduledEvent(
-                scheduledHostTime: now,
+                scheduledHostTime: scheduledHostTime,
                 payload: .sliceTrigger(
                     trackID: trackID,
-                    sampleURL: url,
+                    sampleID: sampleID,
                     startFrame: startFrame,
                     endFrame: endFrame,
                     settings: effectiveSettings,
                     reverse: marker.reverse || stepParameters.reverse,
                     stepParameters: stepParameters,
-                    scheduledHostTime: now
+                    scheduledHostTime: scheduledHostTime
                 ),
                 repeatOwnerTrackID: repeatOwnerTrackID
             ))

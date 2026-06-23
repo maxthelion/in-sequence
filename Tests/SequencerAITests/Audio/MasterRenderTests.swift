@@ -130,6 +130,59 @@ final class MasterRenderTests: XCTestCase {
         XCTAssertGreaterThan(rms, 0.01, "A real sample track should reach the master output render tap.")
     }
 
+    func test_sampleTrackRoutedToMixerBusAudibilityRegressionIsCaptured() throws {
+        MainAudioGraph.useManualRenderingForAutomation = true
+        defer { MainAudioGraph.useManualRenderingForAutomation = false }
+
+        let sampleURL = tmpURL()
+        defer { try? FileManager.default.removeItem(at: sampleURL) }
+        try writeClickWAV(to: sampleURL)
+        let preparedAsset = PreparedSampleAsset(
+            sampleID: UUID(),
+            name: "Prepared Drum",
+            url: sampleURL,
+            fileIdentity: SampleAssetFileIdentity(path: sampleURL.path, modifiedAt: nil, fileSize: nil),
+            file: try AVAudioFile(forReading: sampleURL),
+            pcmBuffer: nil
+        )
+
+        let bus = MixerBus(name: "Drum Bus")
+        let audioGraph = MainAudioGraph()
+        let sampleEngine = SamplePlaybackEngine(audioGraph: audioGraph)
+        try audioGraph.start()
+        audioGraph.stop()
+        audioGraph.installMixerBuses([bus])
+        let trackID = UUID()
+        sampleEngine.setTrackOutputBus(trackID: trackID, busID: bus.id)
+        sampleEngine.prepareTrack(trackID: trackID)
+
+        XCTAssertNotNil(audioGraph.mixerBusReadoutForTesting(busID: bus.id))
+
+        let renderURL = tmpURL()
+        defer { try? FileManager.default.removeItem(at: renderURL) }
+        XCTAssertTrue(audioGraph.startMasterRender(to: renderURL))
+        try sampleEngine.start()
+        XCTAssertEqual(
+            sampleEngine.preparedTrackRouteReadoutForTesting(trackID: trackID),
+            [
+                "prepared": true,
+                "busSafeRoute": true,
+                "voiceToVoiceFilter": false,
+                "voiceFilterToMixer": true,
+                "mixerToTrackFilter": false,
+                "trackFilterHasOutput": true,
+                "voicePlayable": true,
+            ]
+        )
+        XCTAssertNotNil(sampleEngine.play(sampleAsset: preparedAsset, settings: .default, trackID: trackID, at: nil))
+        try audioGraph.renderOfflineForTesting(frameCount: 44_100)
+        sampleEngine.stop()
+        XCTAssertEqual(audioGraph.stopMasterRender(), renderURL)
+
+        let rms = try rmsOfFirstChannel(at: renderURL)
+        XCTAssertGreaterThan(rms, 0.01, "A sample track routed through a mixer bus should remain audible at master.")
+    }
+
     func test_directSamplePlaybackEngineRendersNonSilentAudioAtMasterOutput() throws {
         let sampleURL = tmpURL()
         defer { try? FileManager.default.removeItem(at: sampleURL) }
@@ -152,6 +205,635 @@ final class MasterRenderTests: XCTestCase {
 
         let rms = try rmsOfFirstChannel(at: renderURL)
         XCTAssertGreaterThan(rms, 0.01, "Direct sample playback should reach the master output render tap.")
+    }
+
+    func test_directSamplePlaybackEngineRendersNonSilentAudioInManualRendering() throws {
+        MainAudioGraph.useManualRenderingForAutomation = true
+        defer { MainAudioGraph.useManualRenderingForAutomation = false }
+
+        let sampleURL = tmpURL()
+        defer { try? FileManager.default.removeItem(at: sampleURL) }
+        try writeClickWAV(to: sampleURL)
+
+        let audioGraph = MainAudioGraph()
+        let sampleEngine = SamplePlaybackEngine(audioGraph: audioGraph)
+        let trackID = UUID()
+        sampleEngine.prepareTrack(trackID: trackID)
+
+        let renderURL = tmpURL()
+        defer { try? FileManager.default.removeItem(at: renderURL) }
+        XCTAssertTrue(audioGraph.startMasterRender(to: renderURL))
+        try sampleEngine.start()
+        XCTAssertNotNil(sampleEngine.play(sampleURL: sampleURL, settings: .default, trackID: trackID, at: nil))
+        try audioGraph.renderOfflineForTesting(frameCount: 44_100)
+        sampleEngine.stop()
+        XCTAssertEqual(audioGraph.stopMasterRender(), renderURL)
+
+        let rms = try rmsOfFirstChannel(at: renderURL)
+        XCTAssertGreaterThan(rms, 0.01, "Direct sample playback should render offline in automation/manual mode.")
+    }
+
+    func test_rawPlayerRoutedToMixerBusRendersNonSilentAudioInManualRendering() throws {
+        MainAudioGraph.useManualRenderingForAutomation = true
+        defer { MainAudioGraph.useManualRenderingForAutomation = false }
+
+        let sampleURL = tmpURL()
+        defer { try? FileManager.default.removeItem(at: sampleURL) }
+        try writeClickWAV(to: sampleURL)
+        let file = try AVAudioFile(forReading: sampleURL)
+
+        let bus = MixerBus(name: "Raw Bus")
+        let audioGraph = MainAudioGraph()
+        try audioGraph.start()
+        audioGraph.stop()
+        audioGraph.installMixerBuses([bus])
+        let player = AVAudioPlayerNode()
+        audioGraph.attach(player)
+        let busReadout = try XCTUnwrap(audioGraph.mixerBusReadoutForTesting(busID: bus.id))
+        audioGraph.connect(player, to: busReadout.inputMixer)
+
+        let renderURL = tmpURL()
+        defer { try? FileManager.default.removeItem(at: renderURL) }
+        XCTAssertTrue(audioGraph.startMasterRender(to: renderURL))
+        try audioGraph.start()
+        player.stop()
+        player.scheduleSegment(
+            file,
+            startingFrame: 0,
+            frameCount: AVAudioFrameCount(file.length),
+            at: nil,
+            completionHandler: nil
+        )
+        player.play()
+        try audioGraph.renderOfflineForTesting(frameCount: 44_100)
+        audioGraph.stop()
+        XCTAssertEqual(audioGraph.stopMasterRender(), renderURL)
+
+        let rms = try rmsOfFirstChannel(at: renderURL)
+        XCTAssertGreaterThan(rms, 0.01, "A raw player should render through a mixer bus in manual mode.")
+    }
+
+    func test_rawPlayerThroughSampleStyleChainRoutedToMixerBusRendersInManualRendering() throws {
+        MainAudioGraph.useManualRenderingForAutomation = true
+        defer { MainAudioGraph.useManualRenderingForAutomation = false }
+
+        let sampleURL = tmpURL()
+        defer { try? FileManager.default.removeItem(at: sampleURL) }
+        try writeClickWAV(to: sampleURL)
+        let file = try AVAudioFile(forReading: sampleURL)
+
+        let bus = MixerBus(name: "Raw Chain Bus")
+        let audioGraph = MainAudioGraph()
+        try audioGraph.start()
+        audioGraph.stop()
+        audioGraph.installMixerBuses([bus])
+
+        let player = AVAudioPlayerNode()
+        let voiceFilter = SamplerFilterNode()
+        let mixer = AVAudioMixerNode()
+        let trackFilter = SamplerFilterNode()
+        audioGraph.attach(player)
+        audioGraph.attach(voiceFilter.avNode)
+        audioGraph.attach(mixer)
+        audioGraph.attach(trackFilter.avNode)
+        audioGraph.connect(player, to: voiceFilter.avNode)
+        audioGraph.connect(voiceFilter.avNode, to: mixer)
+        audioGraph.connect(mixer, to: trackFilter.avNode)
+        audioGraph.connectTrackOutput(trackFilter.avNode, to: bus.id)
+
+        let renderURL = tmpURL()
+        defer { try? FileManager.default.removeItem(at: renderURL) }
+        XCTAssertTrue(audioGraph.startMasterRender(to: renderURL))
+        try audioGraph.start()
+        player.scheduleFile(file, at: nil)
+        player.play()
+        try audioGraph.renderOfflineForTesting(frameCount: 44_100)
+        audioGraph.stop()
+        XCTAssertEqual(audioGraph.stopMasterRender(), renderURL)
+
+        let rms = try rmsOfFirstChannel(at: renderURL)
+        XCTAssertGreaterThan(rms, 0.01, "A raw player should render through the sample-style chain into a mixer bus.")
+    }
+
+    func test_rawPreparedStyleFanInThroughTrackFilterToMasterRendersInManualRendering() throws {
+        MainAudioGraph.useManualRenderingForAutomation = true
+        defer { MainAudioGraph.useManualRenderingForAutomation = false }
+
+        let sampleURL = tmpURL()
+        defer { try? FileManager.default.removeItem(at: sampleURL) }
+        try writeClickWAV(to: sampleURL)
+        let file = try AVAudioFile(forReading: sampleURL)
+
+        let audioGraph = MainAudioGraph()
+        try audioGraph.start()
+        audioGraph.stop()
+
+        let players = (0..<4).map { _ in AVAudioPlayerNode() }
+        let voiceFilters = (0..<4).map { _ in SamplerFilterNode() }
+        let mixer = AVAudioMixerNode()
+        let trackFilter = SamplerFilterNode()
+        audioGraph.attach(mixer)
+        audioGraph.attach(trackFilter.avNode)
+        audioGraph.connect(mixer, to: trackFilter.avNode)
+        audioGraph.connectTrackOutput(trackFilter.avNode, to: nil)
+
+        for index in players.indices {
+            audioGraph.attach(players[index])
+            audioGraph.attach(voiceFilters[index].avNode)
+            audioGraph.engine.connect(players[index], to: voiceFilters[index].avNode, fromBus: 0, toBus: 0, format: nil)
+            audioGraph.engine.connect(voiceFilters[index].avNode, to: mixer, fromBus: 0, toBus: AVAudioNodeBus(index), format: nil)
+        }
+
+        let renderURL = tmpURL()
+        defer { try? FileManager.default.removeItem(at: renderURL) }
+        XCTAssertTrue(audioGraph.startMasterRender(to: renderURL))
+        try audioGraph.start()
+        players[0].stop()
+        players[0].scheduleSegment(
+            file,
+            startingFrame: 0,
+            frameCount: AVAudioFrameCount(file.length),
+            at: nil,
+            completionHandler: nil
+        )
+        let exception = SEQRunCatchingObjCException {
+            players[0].play()
+        }
+        XCTAssertNil(exception)
+        try audioGraph.renderOfflineForTesting(frameCount: 44_100)
+        audioGraph.stop()
+        XCTAssertEqual(audioGraph.stopMasterRender(), renderURL)
+
+        let rms = try rmsOfFirstChannel(at: renderURL)
+        XCTAssertGreaterThan(rms, 0.01, "A prepared-style fan-in should render through the master bus.")
+    }
+
+    func test_rawPreparedStyleFanInToMixerBusAudibilityRegressionIsCaptured() throws {
+        MainAudioGraph.useManualRenderingForAutomation = true
+        defer { MainAudioGraph.useManualRenderingForAutomation = false }
+
+        let sampleURL = tmpURL()
+        defer { try? FileManager.default.removeItem(at: sampleURL) }
+        try writeClickWAV(to: sampleURL)
+        let file = try AVAudioFile(forReading: sampleURL)
+
+        let bus = MixerBus(name: "Raw Prepared Bus")
+        let audioGraph = MainAudioGraph()
+        try audioGraph.start()
+        audioGraph.stop()
+        audioGraph.installMixerBuses([bus])
+
+        let players = (0..<4).map { _ in AVAudioPlayerNode() }
+        let voiceFilters = (0..<4).map { _ in SamplerFilterNode() }
+        let mixer = AVAudioMixerNode()
+        audioGraph.attach(mixer)
+        audioGraph.connectTrackOutput(mixer, to: bus.id)
+
+        for index in players.indices {
+            audioGraph.attach(players[index])
+            audioGraph.attach(voiceFilters[index].avNode)
+        }
+
+        let renderURL = tmpURL()
+        defer { try? FileManager.default.removeItem(at: renderURL) }
+        XCTAssertTrue(audioGraph.startMasterRender(to: renderURL))
+        try audioGraph.start()
+        for index in players.indices {
+            audioGraph.engine.connect(players[index], to: voiceFilters[index].avNode, fromBus: 0, toBus: 0, format: nil)
+            audioGraph.connect(voiceFilters[index].avNode, to: mixer)
+        }
+        players[0].scheduleSegment(
+            file,
+            startingFrame: 0,
+            frameCount: AVAudioFrameCount(file.length),
+            at: nil,
+            completionHandler: nil
+        )
+        let exception = SEQRunCatchingObjCException {
+            players[0].play()
+        }
+        XCTExpectFailure("Known CoreAudio graph-shape regression: prepared-style multi-voice fan-in routed into a mixer bus reports disconnected state.")
+        XCTAssertNil(exception)
+        try audioGraph.renderOfflineForTesting(frameCount: 44_100)
+        audioGraph.stop()
+        XCTAssertEqual(audioGraph.stopMasterRender(), renderURL)
+
+        let rms = try rmsOfFirstChannel(at: renderURL)
+        XCTExpectFailure("Known CoreAudio graph-shape regression: prepared-style fan-in routed through a mixer bus is currently silent.")
+        XCTAssertGreaterThan(rms, 0.01, "A repaired prepared-style fan-in should still render through a mixer bus.")
+    }
+
+    func test_rawPreparedStyleFanInThroughTrackFilterToMixerBusRendersInManualRendering() throws {
+        MainAudioGraph.useManualRenderingForAutomation = true
+        defer { MainAudioGraph.useManualRenderingForAutomation = false }
+
+        let sampleURL = tmpURL()
+        defer { try? FileManager.default.removeItem(at: sampleURL) }
+        try writeClickWAV(to: sampleURL)
+        let file = try AVAudioFile(forReading: sampleURL)
+
+        let bus = MixerBus(name: "Raw Prepared Filtered Bus")
+        let audioGraph = MainAudioGraph()
+        try audioGraph.start()
+        audioGraph.stop()
+        audioGraph.installMixerBuses([bus])
+
+        let players = (0..<4).map { _ in AVAudioPlayerNode() }
+        let voiceFilters = (0..<4).map { _ in SamplerFilterNode() }
+        let mixer = AVAudioMixerNode()
+        let trackFilter = SamplerFilterNode()
+        audioGraph.attach(mixer)
+        audioGraph.attach(trackFilter.avNode)
+        audioGraph.connect(mixer, to: trackFilter.avNode)
+        audioGraph.connectTrackOutput(trackFilter.avNode, to: bus.id)
+
+        for index in players.indices {
+            audioGraph.attach(players[index])
+            audioGraph.attach(voiceFilters[index].avNode)
+            audioGraph.engine.connect(players[index], to: voiceFilters[index].avNode, fromBus: 0, toBus: 0, format: nil)
+            audioGraph.engine.connect(voiceFilters[index].avNode, to: mixer, fromBus: 0, toBus: AVAudioNodeBus(index), format: nil)
+        }
+
+        let renderURL = tmpURL()
+        defer { try? FileManager.default.removeItem(at: renderURL) }
+        XCTAssertTrue(audioGraph.startMasterRender(to: renderURL))
+        try audioGraph.start()
+        players[0].scheduleSegment(
+            file,
+            startingFrame: 0,
+            frameCount: AVAudioFrameCount(file.length),
+            at: nil,
+            completionHandler: nil
+        )
+        let exception = SEQRunCatchingObjCException {
+            players[0].play()
+        }
+        XCTExpectFailure("Known CoreAudio graph-shape regression: prepared-style fan-in through track filter into a mixer bus reports disconnected state.")
+        XCTAssertNil(exception)
+        try audioGraph.renderOfflineForTesting(frameCount: 44_100)
+        audioGraph.stop()
+        XCTAssertEqual(audioGraph.stopMasterRender(), renderURL)
+
+        let rms = try rmsOfFirstChannel(at: renderURL)
+        XCTExpectFailure("Known CoreAudio graph-shape regression: prepared-style fan-in through track filter into a mixer bus is currently silent.")
+        XCTAssertGreaterThan(rms, 0.01, "A prepared-style fan-in through the sample track filter should render through a mixer bus.")
+    }
+
+    func test_rawPreparedStyleFanInThroughBridgeMixerToMixerBusRendersInManualRendering() throws {
+        MainAudioGraph.useManualRenderingForAutomation = true
+        defer { MainAudioGraph.useManualRenderingForAutomation = false }
+
+        let sampleURL = tmpURL()
+        defer { try? FileManager.default.removeItem(at: sampleURL) }
+        try writeClickWAV(to: sampleURL)
+        let file = try AVAudioFile(forReading: sampleURL)
+
+        let bus = MixerBus(name: "Raw Prepared Bridge Bus")
+        let audioGraph = MainAudioGraph()
+        try audioGraph.start()
+        audioGraph.stop()
+        audioGraph.installMixerBuses([bus])
+
+        let players = (0..<4).map { _ in AVAudioPlayerNode() }
+        let voiceFilters = (0..<4).map { _ in SamplerFilterNode() }
+        let mixer = AVAudioMixerNode()
+        let trackFilter = SamplerFilterNode()
+        let bridge = AVAudioMixerNode()
+        audioGraph.attach(mixer)
+        audioGraph.attach(trackFilter.avNode)
+        audioGraph.attach(bridge)
+        audioGraph.connect(mixer, to: trackFilter.avNode)
+        audioGraph.connect(trackFilter.avNode, to: bridge)
+        audioGraph.connectTrackOutput(bridge, to: bus.id)
+
+        for index in players.indices {
+            audioGraph.attach(players[index])
+            audioGraph.attach(voiceFilters[index].avNode)
+            audioGraph.engine.connect(players[index], to: voiceFilters[index].avNode, fromBus: 0, toBus: 0, format: nil)
+            audioGraph.engine.connect(voiceFilters[index].avNode, to: mixer, fromBus: 0, toBus: AVAudioNodeBus(index), format: nil)
+        }
+
+        let renderURL = tmpURL()
+        defer { try? FileManager.default.removeItem(at: renderURL) }
+        XCTAssertTrue(audioGraph.startMasterRender(to: renderURL))
+        try audioGraph.start()
+        players[0].scheduleSegment(
+            file,
+            startingFrame: 0,
+            frameCount: AVAudioFrameCount(file.length),
+            at: nil,
+            completionHandler: nil
+        )
+        let exception = SEQRunCatchingObjCException {
+            players[0].play()
+        }
+        XCTExpectFailure("Known CoreAudio graph-shape regression: bridge mixer does not rescue prepared-style fan-in into a mixer bus.")
+        XCTAssertNil(exception)
+        try audioGraph.renderOfflineForTesting(frameCount: 44_100)
+        audioGraph.stop()
+        XCTAssertEqual(audioGraph.stopMasterRender(), renderURL)
+
+        let rms = try rmsOfFirstChannel(at: renderURL)
+        XCTExpectFailure("Known CoreAudio graph-shape regression: bridge mixer route is currently silent.")
+        XCTAssertGreaterThan(rms, 0.01, "A bridge mixer should keep a prepared-style fan-in audible through a mixer bus.")
+    }
+
+    func test_rawPreparedVoicesDirectToMixerBusRenderInManualRendering() throws {
+        MainAudioGraph.useManualRenderingForAutomation = true
+        defer { MainAudioGraph.useManualRenderingForAutomation = false }
+
+        let sampleURL = tmpURL()
+        defer { try? FileManager.default.removeItem(at: sampleURL) }
+        try writeClickWAV(to: sampleURL)
+        let file = try AVAudioFile(forReading: sampleURL)
+
+        let bus = MixerBus(name: "Raw Direct Voice Bus")
+        let audioGraph = MainAudioGraph()
+        try audioGraph.start()
+        audioGraph.stop()
+        audioGraph.installMixerBuses([bus])
+        XCTAssertNotNil(audioGraph.mixerBusReadoutForTesting(busID: bus.id))
+
+        let players = (0..<4).map { _ in AVAudioPlayerNode() }
+        let voiceFilters = (0..<4).map { _ in SamplerFilterNode() }
+        for index in players.indices {
+            audioGraph.attach(players[index])
+            audioGraph.attach(voiceFilters[index].avNode)
+            audioGraph.engine.connect(players[index], to: voiceFilters[index].avNode, fromBus: 0, toBus: 0, format: nil)
+            audioGraph.connectPreparedSampleVoiceOutput(
+                voiceFilters[index].avNode,
+                toMixerBus: bus.id,
+                inputBus: AVAudioNodeBus(index)
+            )
+        }
+
+        let renderURL = tmpURL()
+        defer { try? FileManager.default.removeItem(at: renderURL) }
+        XCTAssertTrue(audioGraph.startMasterRender(to: renderURL))
+        try audioGraph.start()
+        players[0].scheduleSegment(
+            file,
+            startingFrame: 0,
+            frameCount: AVAudioFrameCount(file.length),
+            at: nil,
+            completionHandler: nil
+        )
+        let exception = SEQRunCatchingObjCException {
+            players[0].play()
+        }
+        XCTAssertNil(exception)
+        try audioGraph.renderOfflineForTesting(frameCount: 44_100)
+        audioGraph.stop()
+        XCTAssertEqual(audioGraph.stopMasterRender(), renderURL)
+
+        let rms = try rmsOfFirstChannel(at: renderURL)
+        XCTAssertGreaterThan(rms, 0.01, "Prepared voices should be able to feed a mixer bus directly.")
+    }
+
+    func test_rawPreparedVoicesDirectToMixerBusWithSampleEnginePreviewWiringRenderInManualRendering() throws {
+        MainAudioGraph.useManualRenderingForAutomation = true
+        defer { MainAudioGraph.useManualRenderingForAutomation = false }
+
+        let sampleURL = tmpURL()
+        defer { try? FileManager.default.removeItem(at: sampleURL) }
+        try writeClickWAV(to: sampleURL)
+        let file = try AVAudioFile(forReading: sampleURL)
+
+        let bus = MixerBus(name: "Raw Direct Voice Bus With Preview")
+        let audioGraph = MainAudioGraph()
+        _ = SamplePlaybackEngine(audioGraph: audioGraph)
+        try audioGraph.start()
+        audioGraph.stop()
+        audioGraph.installMixerBuses([bus])
+        XCTAssertNotNil(audioGraph.mixerBusReadoutForTesting(busID: bus.id))
+
+        let players = (0..<4).map { _ in AVAudioPlayerNode() }
+        for index in players.indices {
+            audioGraph.attach(players[index])
+            audioGraph.connectPreparedSampleVoiceOutput(
+                players[index],
+                toMixerBus: bus.id,
+                inputBus: AVAudioNodeBus(index)
+            )
+        }
+
+        let renderURL = tmpURL()
+        defer { try? FileManager.default.removeItem(at: renderURL) }
+        XCTAssertTrue(audioGraph.startMasterRender(to: renderURL))
+        try audioGraph.start()
+        players[0].stop()
+        players[0].scheduleSegment(
+            file,
+            startingFrame: 0,
+            frameCount: AVAudioFrameCount(file.length),
+            at: nil,
+            completionHandler: nil
+        )
+        let exception = SEQRunCatchingObjCException {
+            players[0].play()
+        }
+        XCTAssertNil(exception)
+        try audioGraph.renderOfflineForTesting(frameCount: 44_100)
+        audioGraph.stop()
+        XCTAssertEqual(audioGraph.stopMasterRender(), renderURL)
+
+        let rms = try rmsOfFirstChannel(at: renderURL)
+        XCTAssertGreaterThan(rms, 0.01, "Preview wiring should not make a direct prepared voice bus route silent.")
+    }
+
+    func test_rawPreparedVoicesThroughPerVoiceMixersToMixerBusRenderInManualRendering() throws {
+        MainAudioGraph.useManualRenderingForAutomation = true
+        defer { MainAudioGraph.useManualRenderingForAutomation = false }
+
+        let sampleURL = tmpURL()
+        defer { try? FileManager.default.removeItem(at: sampleURL) }
+        try writeClickWAV(to: sampleURL)
+        let file = try AVAudioFile(forReading: sampleURL)
+
+        let bus = MixerBus(name: "Raw Per Voice Mixer Bus")
+        let audioGraph = MainAudioGraph()
+        _ = SamplePlaybackEngine(audioGraph: audioGraph)
+        try audioGraph.start()
+        audioGraph.stop()
+        audioGraph.installMixerBuses([bus])
+        XCTAssertNotNil(audioGraph.mixerBusReadoutForTesting(busID: bus.id))
+
+        let players = (0..<4).map { _ in AVAudioPlayerNode() }
+        let voiceMixers = (0..<4).map { _ in AVAudioMixerNode() }
+        for index in players.indices {
+            audioGraph.attach(players[index])
+            audioGraph.attach(voiceMixers[index])
+            audioGraph.engine.connect(players[index], to: voiceMixers[index], fromBus: 0, toBus: 0, format: nil)
+            voiceMixers[index].outputVolume = 1
+            voiceMixers[index].pan = 0
+            audioGraph.connectPreparedSampleVoiceOutput(
+                voiceMixers[index],
+                toMixerBus: bus.id,
+                inputBus: AVAudioNodeBus(index)
+            )
+        }
+
+        let renderURL = tmpURL()
+        defer { try? FileManager.default.removeItem(at: renderURL) }
+        XCTAssertTrue(audioGraph.startMasterRender(to: renderURL))
+        try audioGraph.start()
+        players[0].stop()
+        players[0].scheduleSegment(
+            file,
+            startingFrame: 0,
+            frameCount: AVAudioFrameCount(file.length),
+            at: nil,
+            completionHandler: nil
+        )
+        let exception = SEQRunCatchingObjCException {
+            players[0].play()
+        }
+        XCTAssertNil(exception)
+        try audioGraph.renderOfflineForTesting(frameCount: 44_100)
+        audioGraph.stop()
+        XCTAssertEqual(audioGraph.stopMasterRender(), renderURL)
+
+        let rms = try rmsOfFirstChannel(at: renderURL)
+        XCTAssertGreaterThan(rms, 0.01, "Per-voice mixers should keep prepared voices audible through a mixer bus.")
+    }
+
+    func test_rawPreparedVoicesThroughPerVoiceMixersToPreexistingMixerBusRenderInManualRendering() throws {
+        MainAudioGraph.useManualRenderingForAutomation = true
+        defer { MainAudioGraph.useManualRenderingForAutomation = false }
+
+        let sampleURL = tmpURL()
+        defer { try? FileManager.default.removeItem(at: sampleURL) }
+        try writeClickWAV(to: sampleURL)
+        let file = try AVAudioFile(forReading: sampleURL)
+
+        let bus = MixerBus(name: "Raw Preexisting Per Voice Mixer Bus")
+        let audioGraph = MainAudioGraph()
+        try audioGraph.start()
+        audioGraph.stop()
+        audioGraph.installMixerBuses([bus])
+        _ = SamplePlaybackEngine(audioGraph: audioGraph)
+        XCTAssertNotNil(audioGraph.mixerBusReadoutForTesting(busID: bus.id))
+
+        let players = (0..<4).map { _ in AVAudioPlayerNode() }
+        let voiceMixers = (0..<4).map { _ in AVAudioMixerNode() }
+        for index in players.indices {
+            audioGraph.attach(players[index])
+            audioGraph.attach(voiceMixers[index])
+            audioGraph.engine.connect(players[index], to: voiceMixers[index], fromBus: 0, toBus: 0, format: nil)
+            voiceMixers[index].outputVolume = 1
+            voiceMixers[index].pan = 0
+            audioGraph.connectPreparedSampleVoiceOutput(
+                voiceMixers[index],
+                toMixerBus: bus.id,
+                inputBus: AVAudioNodeBus(index)
+            )
+        }
+
+        let renderURL = tmpURL()
+        defer { try? FileManager.default.removeItem(at: renderURL) }
+        XCTAssertTrue(audioGraph.startMasterRender(to: renderURL))
+        try audioGraph.start()
+        players[0].stop()
+        players[0].scheduleSegment(
+            file,
+            startingFrame: 0,
+            frameCount: AVAudioFrameCount(file.length),
+            at: nil,
+            completionHandler: nil
+        )
+        let exception = SEQRunCatchingObjCException {
+            players[0].play()
+        }
+        if exception != nil {
+            audioGraph.stop()
+            XCTAssertEqual(audioGraph.stopMasterRender(), renderURL)
+            throw XCTSkip("Documents a separate CoreAudio graph-order hazard: constructing SamplePlaybackEngine after a preexisting bus can leave newly added raw player nodes disconnected. The app lifecycle constructs the engine before document bus sync.")
+        }
+        XCTAssertNil(exception)
+        try audioGraph.renderOfflineForTesting(frameCount: 44_100)
+        audioGraph.stop()
+        XCTAssertEqual(audioGraph.stopMasterRender(), renderURL)
+
+        let rms = try rmsOfFirstChannel(at: renderURL)
+        XCTAssertGreaterThan(rms, 0.01, "Per-voice mixers should also work when the sample engine is constructed after the bus.")
+    }
+
+    func test_rawMasterPreparedPoolRebuiltDirectToMixerBusRendersInManualRendering() throws {
+        MainAudioGraph.useManualRenderingForAutomation = true
+        defer { MainAudioGraph.useManualRenderingForAutomation = false }
+
+        let sampleURL = tmpURL()
+        defer { try? FileManager.default.removeItem(at: sampleURL) }
+        try writeClickWAV(to: sampleURL)
+        let file = try AVAudioFile(forReading: sampleURL)
+
+        let bus = MixerBus(name: "Raw Rebuilt Direct Voice Bus")
+        let audioGraph = MainAudioGraph()
+        try audioGraph.start()
+        audioGraph.stop()
+        audioGraph.installMixerBuses([bus])
+        let busReadout = try XCTUnwrap(audioGraph.mixerBusReadoutForTesting(busID: bus.id))
+
+        let oldPlayers = (0..<4).map { _ in AVAudioPlayerNode() }
+        let oldVoiceFilters = (0..<4).map { _ in SamplerFilterNode() }
+        let mixer = AVAudioMixerNode()
+        let trackFilter = SamplerFilterNode()
+        audioGraph.attach(mixer)
+        audioGraph.attach(trackFilter.avNode)
+        audioGraph.connect(mixer, to: trackFilter.avNode)
+        audioGraph.connectTrackOutput(trackFilter.avNode, to: nil)
+        for index in oldPlayers.indices {
+            audioGraph.attach(oldPlayers[index])
+            audioGraph.attach(oldVoiceFilters[index].avNode)
+            audioGraph.engine.connect(oldPlayers[index], to: oldVoiceFilters[index].avNode, fromBus: 0, toBus: 0, format: nil)
+            audioGraph.engine.connect(oldVoiceFilters[index].avNode, to: mixer, fromBus: 0, toBus: AVAudioNodeBus(index), format: nil)
+        }
+
+        for index in oldPlayers.indices {
+            oldPlayers[index].stop()
+            audioGraph.disconnectOutput(oldPlayers[index])
+            audioGraph.detach(oldPlayers[index])
+            audioGraph.disconnectOutput(oldVoiceFilters[index].avNode)
+            audioGraph.detach(oldVoiceFilters[index].avNode)
+        }
+        audioGraph.disconnectOutput(mixer)
+        audioGraph.disconnectOutput(trackFilter.avNode)
+        audioGraph.detach(mixer)
+        audioGraph.detach(trackFilter.avNode)
+
+        let players = (0..<4).map { _ in AVAudioPlayerNode() }
+        let voiceFilters = (0..<4).map { _ in SamplerFilterNode() }
+        for index in players.indices {
+            audioGraph.attach(players[index])
+            audioGraph.attach(voiceFilters[index].avNode)
+            audioGraph.engine.connect(players[index], to: voiceFilters[index].avNode, fromBus: 0, toBus: 0, format: nil)
+            audioGraph.engine.connect(voiceFilters[index].avNode, to: busReadout.inputMixer, fromBus: 0, toBus: AVAudioNodeBus(index), format: nil)
+        }
+
+        let renderURL = tmpURL()
+        defer { try? FileManager.default.removeItem(at: renderURL) }
+        XCTAssertTrue(audioGraph.startMasterRender(to: renderURL))
+        try audioGraph.start()
+        players[0].stop()
+        players[0].scheduleSegment(
+            file,
+            startingFrame: 0,
+            frameCount: AVAudioFrameCount(file.length),
+            at: nil,
+            completionHandler: nil
+        )
+        let exception = SEQRunCatchingObjCException {
+            players[0].play()
+        }
+        XCTExpectFailure("Known CoreAudio graph-shape regression: rebuilding a master-prepared pool direct to mixer bus still reports disconnected state.")
+        XCTAssertNil(exception)
+        try audioGraph.renderOfflineForTesting(frameCount: 44_100)
+        audioGraph.stop()
+        XCTAssertEqual(audioGraph.stopMasterRender(), renderURL)
+
+        let rms = try rmsOfFirstChannel(at: renderURL)
+        XCTExpectFailure("Known CoreAudio graph-shape regression: rebuilt direct prepared voice pool is currently silent.")
+        XCTAssertGreaterThan(rms, 0.01, "A rebuilt direct prepared voice pool should feed a mixer bus.")
     }
 
     func test_directSamplePlaybackWithMasterBusHostRendersNonSilentAudioAtMasterOutput() throws {
@@ -293,6 +975,9 @@ final class MasterRenderTests: XCTestCase {
 
     private func rmsOfFirstChannel(at url: URL) throws -> Float {
         let file = try AVAudioFile(forReading: url)
+        guard file.length > 0 else {
+            return 0
+        }
         let buffer = AVAudioPCMBuffer(
             pcmFormat: file.processingFormat,
             frameCapacity: AVAudioFrameCount(file.length)

@@ -238,10 +238,9 @@ extension EngineController {
                 settings: settings,
                 snapshot: snapshot,
                 sampleLibrary: sampleLibrary,
-                sampleLibraryRoot: sampleLibraryRoot,
                 stepsPerBar: stepsPerBar,
                 bpm: bpm,
-                now: scheduledHostTime,
+                scheduledHostTime: scheduledHostTime,
                 eventQueue: eventQueue,
                 repeatOwnerTrackID: track.id
             )

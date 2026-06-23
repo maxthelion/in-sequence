@@ -39,6 +39,20 @@ extension EngineController {
             return sampleStatusSummary(sampleID: sampleID, isMuted: selectedTrack.mix.isMuted)
         case let .slicer(sliceSetID, _):
             let sliceSet = tickState.currentPlaybackSnapshot().sliceSet(id: sliceSetID)
+            if let sampleID = sliceSet?.sampleID {
+                switch sampleAssetCache.readiness(sampleID: sampleID) {
+                case .ready:
+                    break
+                case .loading:
+                    return "Slicer playback pending"
+                case .failed:
+                    return "Slicer sample failed to load"
+                case .stale:
+                    return "Slicer sample stale, reload pending"
+                case .missing:
+                    return "Slicer playback pending"
+                }
+            }
             let count = sliceSet?.displaySliceCount ?? 0
             return count > 0 ? "Slicer • \(count) slices" : "Slicer • Choose a loop"
         case .inheritGroup, .none:
@@ -80,6 +94,18 @@ extension EngineController {
     private func sampleStatusSummary(sampleID: UUID, isMuted: Bool) -> String {
         guard let sample = sampleLibrary.sample(id: sampleID) else {
             return "Sample missing"
+        }
+        switch sampleAssetCache.readiness(sampleID: sampleID) {
+        case .ready:
+            break
+        case .loading:
+            return "Sample playback pending"
+        case .failed:
+            return "Sample failed to load"
+        case .stale:
+            return "Sample stale, reload pending"
+        case .missing:
+            return "Sample playback pending"
         }
         return "Sample: \(sample.name) via Main Mixer\(isMuted ? " (Muted)" : "")"
     }
