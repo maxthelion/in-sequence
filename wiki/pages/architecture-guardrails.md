@@ -44,7 +44,10 @@ When a feature affects playback, the architecture pass should ask:
 - what narrow invalidation should update the compiled runtime state?
 - what tests prove the runtime buffer matches the authored document truth?
 
-The current canonical note-resolution path is documented in [[playback-data-path]].
+The current canonical note-resolution path is documented in
+[[playback-data-path]]. The generated ownership diagrams live in
+`docs/diagrams/`, with editable D2 sources in `docs/diagrams/src/` and the
+review vocabulary in `docs/architecture/runtime-ownership-manifest.yml`.
 
 ## Performance-Time Mutation Rule
 
@@ -104,6 +107,12 @@ The current engine is timer-driven, but future audio-thread work should preserve
 - explicit threading contracts for every runtime object.
 
 These rules are listed in [[code-review-checklist]] and should inform architecture guardrails before implementation begins.
+
+Run `scripts/diagnostics/runtime-ownership-lint.sh` when a change touches tick,
+dispatch, sample, slicer, or audio graph code. The lint is deliberately small:
+it catches obvious owner drift such as UI imports in engine files,
+document/session reads from tick files, unannotated file IO in sample/slicer
+trigger paths, and malformed realtime allow comments.
 
 ## Small Boundaries Over Broad Rewrites
 

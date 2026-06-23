@@ -1,0 +1,71 @@
+direction: right
+
+SeqAIDocument: "SeqAIDocument\nlifetime=persisted\nowner=document"
+Project: "Project\ntracks, groups, pools, phrases, routes\nrealtime=main-only"
+Tracks: {
+  label: "Tracks"
+  StepSequenceTrack: "StepSequenceTrack\nid, type, destination, mix, macros"
+  TrackGroup: "TrackGroup\nmemberIDs, sharedDestination, mapping"
+  Destination: "Destination\nmidi | au | sampler | sample | slicer | group"
+}
+Sources: {
+  label: "Source Pools"
+  TrackPatternBank: "TrackPatternBank\ntrackID + 16 slots"
+  TrackPatternSlot: "TrackPatternSlot\nslotIndex + SourceRef"
+  SourceRef: "SourceRef\nmode + clipID + generatorID + modifier"
+  ClipPoolEntry: "ClipPoolEntry\nclip steps + macro lanes"
+  GeneratorPoolEntry: "GeneratorPoolEntry\nalgorithm + params"
+  SliceSet: "SliceSet\nslice markers"
+}
+Phrases: {
+  label: "Phrase / Layer State"
+  PhraseLayerDefinition: "PhraseLayerDefinition\npattern, mute, fill, macros"
+  PhraseModel: "PhraseModel\nlength + cells"
+  PhraseCellAssignment: "PhraseCellAssignment\ntrackID + layerID + cell"
+  PhraseCell: "PhraseCell\ninherit | single | bars | steps | curve"
+}
+Routing: {
+  label: "Routing / Mix"
+  Route: "Route\nsource + filter + destination"
+  MixerBusState: "MixerBusState\ntrack busses + send busses"
+  MasterBusState: "MasterBusState\nscenes + A/B selection"
+}
+
+SeqAIDocument -> Project: "owns"
+Project -> StepSequenceTrack: "owns tracks[]"
+Project -> TrackGroup: "owns trackGroups[]"
+Project -> TrackPatternBank: "owns patternBanks[]"
+Project -> ClipPoolEntry: "owns clipPool[]"
+Project -> GeneratorPoolEntry: "owns generatorPool[]"
+Project -> SliceSet: "owns sliceSetPool[]"
+Project -> PhraseLayerDefinition: "owns layers[]"
+Project -> PhraseModel: "owns phrases[]"
+Project -> Route: "owns routes[]"
+Project -> MixerBusState: "owns mixer state"
+Project -> MasterBusState: "owns master bus"
+
+StepSequenceTrack -> Destination: "owns destination"
+TrackGroup -> StepSequenceTrack: "memberIDs"
+StepSequenceTrack -> TrackGroup: "groupID"
+TrackGroup -> Destination: "sharedDestination"
+
+TrackPatternBank -> StepSequenceTrack: "trackID"
+TrackPatternBank -> TrackPatternSlot: "owns slots"
+TrackPatternSlot -> SourceRef: "owns"
+SourceRef -> ClipPoolEntry: "clipID"
+SourceRef -> GeneratorPoolEntry: "generatorID / modifierGeneratorID"
+ClipPoolEntry -> SliceSet: "slice-backed clip references sliceSetID"
+
+PhraseModel -> PhraseCellAssignment: "owns cells"
+PhraseCellAssignment -> StepSequenceTrack: "trackID"
+PhraseCellAssignment -> PhraseLayerDefinition: "layerID"
+PhraseCellAssignment -> PhraseCell: "owns value"
+
+Route -> StepSequenceTrack: "track source/target"
+Route -> Destination: "destination filter"
+
+Project.style.fill: "#f7f7f5"
+Tracks.style.fill: "#eef5ff"
+Sources.style.fill: "#eefaf1"
+Phrases.style.fill: "#fff4e6"
+Routing.style.fill: "#f3efff"

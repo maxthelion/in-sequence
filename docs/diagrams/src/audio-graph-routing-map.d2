@@ -1,0 +1,85 @@
+direction: right
+
+Triggers: {
+  label: "Playback Triggers"
+  Dispatch: "EngineController dispatch\nsample/slice events"
+  Schedule: "sample/slice schedule marker\nlateMs + start/end frames"
+}
+
+Cache: {
+  label: "Prepared Asset Cache"
+  Warmup: "document apply / route prepare\nwarms sample assets"
+  SampleAssetCache: "SampleAssetCache"
+  PreparedAsset: "PreparedSampleAsset\nAVAudioPCMBuffer + format"
+}
+
+Voices: {
+  label: "Sample Playback Engine"
+  PreparedTrack: "PreparedTrackState\ntrack route + mixer target"
+  VoicePool: "voice pool\npoly sample voices"
+  MonoSliceVoice: "mono slicer voice\nstop before new slice"
+  RepairDeferred: "deferred repair set\nno tick main-hop storm"
+}
+
+Graph: {
+  label: "Audio Graph"
+  TrackMixer: "track mixer/filter nodes"
+  MixerBus: "mixer bus input"
+  SendBus: "send bus + effects"
+  Master: "master/final output"
+  MeterTap: "meter taps"
+}
+
+Mutation: {
+  label: "Structural Mutations\nmain/audio-engine-main"
+  RouteChange: "track route change"
+  SendChange: "send effect assignment"
+  GraphRepair: "graph repair / reconnect"
+}
+
+Diagnostics: {
+  label: "Diagnostics"
+  CacheLog: "sample-cache hit/miss/loading"
+  MainHopLog: "sample-main-hop waitMs"
+  RepairLog: "graph-repair durationMs"
+}
+
+Dispatch -> SampleAssetCache: "lookup prepared asset"
+Dispatch -> Schedule: "records timing + start/end"
+Warmup -> SampleAssetCache: "load outside hot dispatch"
+SampleAssetCache -> PreparedAsset: "hit"
+PreparedAsset -> VoicePool: "sample playback"
+PreparedAsset -> MonoSliceVoice: "slice playback"
+VoicePool -> PreparedTrack: "uses prepared route"
+MonoSliceVoice -> PreparedTrack: "monophonic route"
+PreparedTrack -> TrackMixer: "track output"
+TrackMixer -> MixerBus: "bus route"
+TrackMixer -> SendBus: "send tap"
+MixerBus -> Master: "bus output"
+SendBus -> Master: "return"
+Master -> MeterTap: "meter"
+
+RouteChange -> PreparedTrack: "prepare/reprepare route"
+SendChange -> SendBus: "structural graph edit"
+GraphRepair -> PreparedTrack: "repair outside normal playback"
+PreparedTrack -> RepairDeferred: "fast-path failure defers"
+
+SampleAssetCache -> CacheLog: "lookup/load"
+RepairDeferred -> MainHopLog: "repair-deferred / wait markers"
+GraphRepair -> RepairLog: "duration + mutations"
+
+Dispatch -> GraphRepair: "forbidden normal playback repair" {
+  style.stroke: "#c73e1d"
+  style.stroke-dash: 5
+}
+Dispatch -> Warmup: "forbidden file IO on dispatch" {
+  style.stroke: "#c73e1d"
+  style.stroke-dash: 5
+}
+
+Triggers.style.fill: "#f7f7f5"
+Cache.style.fill: "#eefaf1"
+Voices.style.fill: "#eef5ff"
+Graph.style.fill: "#f3efff"
+Mutation.style.fill: "#fff4e6"
+Diagnostics.style.fill: "#f0f4f4"

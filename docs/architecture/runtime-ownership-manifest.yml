@@ -1,0 +1,209 @@
+# Runtime ownership manifest.
+#
+# This file is intentionally small and reviewable. It names the data structures
+# and files most likely to matter for realtime timing, and gives scripts and
+# reviewers a shared vocabulary for hot-path boundaries.
+
+version: 1
+classes:
+  safe-hot-read:
+    description: Immutable or bounded data that tick/dispatch paths may read.
+  realtime-adjacent:
+    description: May be touched near playback timing but must not block on UI, file IO, or graph repair.
+  main-only:
+    description: UI/session state that tick and render/tap callbacks must not read directly.
+  structural-edit:
+    description: Graph/document shape mutation that belongs outside normal playback dispatch.
+  forbidden-hot-path:
+    description: APIs or owners that must not appear in tick/render callback paths.
+
+entities:
+  Project:
+    lifetime: persisted
+    owner: document
+    thread: main
+    realtime_class: main-only
+    files:
+      - Sources/Model
+    read_by: [UI, session, compiler, persistence]
+    mutated_by: [UI, session, persistence]
+
+  LiveSequencerStoreState:
+    lifetime: session
+    owner: live-store
+    thread: main
+    realtime_class: main-only
+    files:
+      - Sources/Engine/LiveSequencerStore.swift
+    read_by: [session, compiler, UI]
+    mutated_by: [session]
+
+  SequencerDocumentSession:
+    lifetime: session
+    owner: session
+    thread: main
+    realtime_class: main-only
+    files:
+      - Sources/App/SequencerDocumentSession.swift
+      - Sources/App/SequencerDocumentSession+Mutations.swift
+    read_by: [UI, app]
+    mutated_by: [UI, app]
+
+  PlaybackSnapshot:
+    lifetime: compiled-snapshot
+    owner: engine
+    thread: main/tick-clock
+    realtime_class: safe-hot-read
+    files:
+      - Sources/Engine/PlaybackSnapshot.swift
+      - Sources/Engine/TickStateBuffer.swift
+    read_by: [tick, dispatch, UI]
+    mutated_by: [compiler, session]
+
+  PhrasePlaybackBuffer:
+    lifetime: compiled-snapshot
+    owner: engine
+    thread: tick-clock
+    realtime_class: safe-hot-read
+    files:
+      - Sources/Engine/PhrasePlaybackBuffer.swift
+    read_by: [tick]
+    mutated_by: [compiler]
+
+  TrackSourceProgram:
+    lifetime: compiled-snapshot
+    owner: engine
+    thread: tick-clock
+    realtime_class: safe-hot-read
+    files:
+      - Sources/Engine/TrackSourceProgram.swift
+    read_by: [tick]
+    mutated_by: [compiler]
+
+  ClipBuffer:
+    lifetime: compiled-snapshot
+    owner: engine
+    thread: tick-clock
+    realtime_class: safe-hot-read
+    files:
+      - Sources/Engine/ClipBuffer.swift
+    read_by: [tick]
+    mutated_by: [compiler]
+
+  EngineController:
+    lifetime: runtime
+    owner: engine
+    thread: main/tick-clock/background
+    realtime_class: realtime-adjacent
+    files:
+      - Sources/Engine/EngineController.swift
+      - Sources/Engine/EngineControllerRoutingHelpers.swift
+      - Sources/Engine/EngineSlicerDispatcher.swift
+    read_by: [session, tick, dispatch, diagnostics]
+    mutated_by: [session, tick, dispatch]
+
+  TickClock:
+    lifetime: runtime
+    owner: engine
+    thread: tick-clock
+    realtime_class: realtime-adjacent
+    files:
+      - Sources/Engine/TickClock.swift
+    read_by: [engine]
+    mutated_by: [engine]
+
+  EventQueue:
+    lifetime: runtime
+    owner: engine
+    thread: tick-clock/background
+    realtime_class: realtime-adjacent
+    files:
+      - Sources/Engine/EventQueue.swift
+      - Sources/Engine/ScheduledEvent.swift
+    read_by: [dispatch]
+    mutated_by: [tick]
+
+  SampleAssetCache:
+    lifetime: cache
+    owner: audio
+    thread: background/main
+    realtime_class: realtime-adjacent
+    files:
+      - Sources/Audio/SampleAssetCache.swift
+    read_by: [dispatch, audio-graph]
+    mutated_by: [session, background]
+
+  PreparedSampleAsset:
+    lifetime: cache
+    owner: audio
+    thread: background/main
+    realtime_class: safe-hot-read
+    files:
+      - Sources/Audio/SampleAssetCache.swift
+    read_by: [dispatch]
+    mutated_by: [background]
+
+  SamplePlaybackEngine:
+    lifetime: runtime
+    owner: audio
+    thread: main/audio-engine-main/background
+    realtime_class: realtime-adjacent
+    files:
+      - Sources/Audio/SamplePlaybackEngine.swift
+    read_by: [dispatch, audio-graph, diagnostics]
+    mutated_by: [session, dispatch, audio-graph]
+
+  MainAudioGraph:
+    lifetime: runtime
+    owner: audio
+    thread: audio-engine-main
+    realtime_class: structural-edit
+    files:
+      - Sources/Audio/MainAudioGraph.swift
+    read_by: [audio-graph, diagnostics]
+    mutated_by: [session, audio-graph]
+
+  MeterPublishers:
+    lifetime: diagnostic
+    owner: audio
+    thread: render/tap-callback/main
+    realtime_class: realtime-adjacent
+    files:
+      - Sources/Audio
+      - Sources/UI/Mixer
+    read_by: [UI, diagnostics]
+    mutated_by: [render/tap-callback, audio-graph]
+
+  MixerBusHosts:
+    lifetime: runtime
+    owner: audio
+    thread: main/audio-engine-main
+    realtime_class: structural-edit
+    files:
+      - Sources/Audio/MixerBusHost.swift
+      - Sources/Audio/TrackInsertChainHost.swift
+    read_by: [audio-graph, diagnostics]
+    mutated_by: [session, audio-graph]
+
+hot_paths:
+  tick:
+    files:
+      - Sources/Engine/EngineController.swift
+      - Sources/Engine/EngineControllerRoutingHelpers.swift
+      - Sources/Engine/EngineSlicerDispatcher.swift
+      - Sources/Engine/EngineControllerNoteRepeat.swift
+      - Sources/Engine/EventQueue.swift
+      - Sources/Engine/TickClock.swift
+      - Sources/Engine/TickStateBuffer.swift
+  audio_callbacks:
+    files:
+      - Sources/Audio
+
+forbidden_hot_path_patterns:
+  - SwiftUI
+  - AppKit
+  - SequencerDocumentSession
+  - LiveSequencerStore
+  - FileManager.default
+  - AVAudioFile(
+  - Data(contentsOf:

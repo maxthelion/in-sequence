@@ -26,6 +26,12 @@ LiveSequencerStoreState / Project
 
 The important rule is that the hot tick path reads a compiled `PlaybackSnapshot`, not the full document model.
 
+The canonical generated diagram for this path is
+`docs/diagrams/playback-snapshot-path.svg`, with editable source in
+`docs/diagrams/src/playback-snapshot-path.d2`. Runtime ownership labels for the
+structures on this path live in
+`docs/architecture/runtime-ownership-manifest.yml`.
+
 ## Authored State
 
 The persisted document owns the musical truth:
@@ -220,6 +226,9 @@ See [[track-macros]].
 - Clip and generator sources use the same final note payload type: `GeneratedNote`.
 - Modifier generators process source notes and should not fork the playback path.
 - Runtime-only audition or capture state should stay transient until explicitly saved into document state.
+- Any change that makes `prepareTick`, dispatch, sample, or slicer playback
+  touch document/session/UI state should update the D2 maps and pass
+  `scripts/diagnostics/runtime-ownership-lint.sh`.
 
 ## UI Observation Budget
 

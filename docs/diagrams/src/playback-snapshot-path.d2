@@ -1,0 +1,62 @@
+direction: right
+
+Authored: {
+  label: "Authored / Resident State\nmain-only"
+  Project: "Project\npersisted truth"
+  LiveState: "LiveSequencerStoreState\nresident edit truth"
+}
+
+Compiler: "SequencerSnapshotCompiler\nturns authored state into arrays"
+
+Snapshot: {
+  label: "PlaybackSnapshot\nsafe-hot-read"
+  Tracks: "tracks + trackOrder"
+  PhraseBuffers: "phraseBuffersByID"
+  SourcePrograms: "trackProgramsByTrackID"
+  ClipBuffers: "clipBuffersByID"
+  Pools: "clip/generator/slice pools"
+}
+
+Tick: {
+  label: "Tick Prepare\nthread=tick-clock"
+  Prepare: "EngineController.prepareTick"
+  Resolved: "ResolvedTrackPlaybackStep\nslot + mute + fill + macros"
+  Evaluator: "GeneratedSourceEvaluator"
+  Notes: "GeneratedNote[]"
+  Events: "NoteEvent[]"
+}
+
+Dispatch: {
+  label: "Dispatch"
+  Queue: "EventQueue"
+  Sinks: "MIDI / AU / sample / slicer / routes"
+}
+
+Project -> Compiler: "transitional input"
+LiveState -> Compiler: "canonical input"
+Compiler -> Snapshot: "install"
+Tracks -> Prepare: "hot read"
+PhraseBuffers -> Resolved: "hot read"
+SourcePrograms -> Resolved: "hot read"
+ClipBuffers -> Resolved: "hot read"
+Pools -> Evaluator: "bounded lookup"
+Prepare -> Resolved: "per track"
+Resolved -> Evaluator: "source program"
+Evaluator -> Notes: "clip/generator/modifier"
+Notes -> Events: "convert"
+Events -> Queue: "enqueue"
+Queue -> Sinks: "dispatch next tick"
+
+Prepare -> Project: "forbidden: document walk" {
+  style.stroke: "#c73e1d"
+  style.stroke-dash: 5
+}
+Prepare -> LiveState: "forbidden: live-store read" {
+  style.stroke: "#c73e1d"
+  style.stroke-dash: 5
+}
+
+Authored.style.fill: "#fff4e6"
+Snapshot.style.fill: "#eefaf1"
+Tick.style.fill: "#f7f7f5"
+Dispatch.style.fill: "#f3efff"

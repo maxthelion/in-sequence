@@ -1,0 +1,85 @@
+direction: down
+
+UI: {
+  label: "SwiftUI / AppKit Boundary\nthread=main"
+  Views: "Views\nread UI/session state\nrealtime=main-only"
+  MeterLeaves: "Meter / tick leaves\nnarrow publishers only"
+}
+
+Session: {
+  label: "Session And Resident Truth\nthread=main"
+  DocumentSession: "SequencerDocumentSession\nowner=session\nrealtime=main-only"
+  LiveStore: "LiveSequencerStoreState\nowner=live-store\nrealtime=main-only"
+  Project: "Project\npersisted document\nrealtime=main-only"
+}
+
+Compile: {
+  label: "Snapshot Compile\nthread=main/background-safe"
+  Compiler: "SequencerSnapshotCompiler"
+  Snapshot: "PlaybackSnapshot\nrealtime=safe-hot-read"
+  PhraseBuffer: "PhrasePlaybackBuffer\nsafe-hot-read"
+  SourceProgram: "TrackSourceProgram\nsafe-hot-read"
+  ClipBuffer: "ClipBuffer\nsafe-hot-read"
+}
+
+Runtime: {
+  label: "Tick / Dispatch Runtime\nthread=tick-clock"
+  TickClock: "TickClock\nrealtime-adjacent"
+  Engine: "EngineController.prepareTick / dispatchTick\nrealtime-adjacent"
+  EventQueue: "EventQueue + ScheduledEvent\nbounded handoff"
+}
+
+Audio: {
+  label: "Audio Graph / Cache\nthread=audio-engine-main + background"
+  SampleCache: "SampleAssetCache\nwarm outside dispatch"
+  SampleEngine: "SamplePlaybackEngine\nprepared fast path"
+  MixerGraph: "MainAudioGraph / MixerBusHost / SendBusHost\nstructural-edit"
+  Taps: "meter taps\nrender/tap-callback"
+}
+
+Diagnostics: {
+  label: "Diagnostics"
+  DevActivity: "DevActivity timing-probe\nsparse breadcrumbs"
+  Report: "timing-probe-report.sh\ncorrelates late events"
+}
+
+Views -> DocumentSession: "commands / selections"
+DocumentSession -> LiveStore: "mutates resident state"
+DocumentSession -> Project: "flushes persisted state"
+LiveStore -> Compiler: "compile state"
+Project -> Compiler: "transitional compile(project:)"
+Compiler -> Snapshot: "installs immutable runtime bundle"
+Snapshot -> PhraseBuffer: "contains"
+Snapshot -> SourceProgram: "contains"
+Snapshot -> ClipBuffer: "contains"
+Snapshot -> Engine: "hot read"
+TickClock -> Engine: "tick callback"
+Engine -> EventQueue: "prepare enqueues"
+EventQueue -> SampleEngine: "dispatch sample/slice"
+SampleCache -> SampleEngine: "prepared asset"
+SampleEngine -> MixerGraph: "prepared players / voices"
+MixerGraph -> Taps: "meter output"
+Taps -> MeterLeaves: "deduped UI publisher"
+Engine -> DevActivity: "timing markers"
+SampleEngine -> DevActivity: "cache/main-hop/sample schedule markers"
+DevActivity -> Report: "macOS unified log"
+
+Views -> Engine: "forbidden direct hot-path dependency" {
+  style.stroke: "#c73e1d"
+  style.stroke-dash: 5
+}
+Engine -> Project: "forbidden hot-path document walk" {
+  style.stroke: "#c73e1d"
+  style.stroke-dash: 5
+}
+Engine -> Views: "forbidden sync main hop" {
+  style.stroke: "#c73e1d"
+  style.stroke-dash: 5
+}
+
+UI.style.fill: "#eef5ff"
+Session.style.fill: "#fff4e6"
+Compile.style.fill: "#eefaf1"
+Runtime.style.fill: "#f7f7f5"
+Audio.style.fill: "#f3efff"
+Diagnostics.style.fill: "#f0f4f4"

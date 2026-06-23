@@ -1,7 +1,8 @@
 # System Entity And Runtime Ownership Map Plan
 
-**Status:** Proposed architecture/documentation plan. No production behavior
-changes in this slice.
+**Status:** Completed 2026-06-23. Shipped D2 diagram sources, rendered SVG
+artifacts, runtime ownership manifest, render/check scripts, ownership lint, and
+wiki links. No production behavior changes in this slice.
 
 **Context:** The current timing work showed that we need a better shared map of
 which data structures are persisted document truth, which are UI/session state,
@@ -306,4 +307,3 @@ scripts/diagnostics/timing-probe-report.sh <captured unified log>
 - CI hard-failure on missing D2 until the tool is available in the standard
   developer/agent environment.
 - Replacing existing wiki Mermaid snippets that are small and readable.
-

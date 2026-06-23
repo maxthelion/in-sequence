@@ -17,10 +17,40 @@ Different diagrams answer different questions:
 - **State machine:** best for modes like source slot empty/clip/generator, transport free/song mode, record armed/recording/auditioning/saved, or scene A/B crossfader modes.
 - **UX flow / activity diagram:** best for workflows where the pain is interaction sequencing rather than data shape.
 
-For this app, the useful set is: one class/ER hybrid for persisted entities, one data-flow diagram for playback, and smaller state machines for specific roadmap features.
+For this app, the useful set is: one class/ER hybrid for persisted entities,
+one runtime ownership map, one data-flow diagram for playback, one focused
+audio graph/routing map, and smaller state machines for specific roadmap
+features.
+
+Canonical architecture diagrams now live as D2 source under
+`docs/diagrams/src/`, with rendered SVG artifacts under `docs/diagrams/`.
+Inline Mermaid remains useful for quick local explanations, but the checked-in
+D2 files are the source of truth for system ownership boundaries.
+
+## Canonical D2 Maps
+
+- Persisted entity model:
+  `docs/diagrams/src/system-entity-model.d2` renders to
+  `docs/diagrams/system-entity-model.svg`.
+- Runtime ownership map:
+  `docs/diagrams/src/runtime-ownership-map.d2` renders to
+  `docs/diagrams/runtime-ownership-map.svg`.
+- Playback snapshot path:
+  `docs/diagrams/src/playback-snapshot-path.d2` renders to
+  `docs/diagrams/playback-snapshot-path.svg`.
+- Audio graph routing map:
+  `docs/diagrams/src/audio-graph-routing-map.d2` renders to
+  `docs/diagrams/audio-graph-routing-map.svg`.
+
+The shared ownership vocabulary lives in
+`docs/architecture/runtime-ownership-manifest.yml`. Run
+`scripts/diagrams/check-d2-rendered.sh` to verify SVGs match the D2 sources and
+`scripts/diagnostics/runtime-ownership-lint.sh` for the first mechanical
+runtime-boundary checks.
 
 ## Persisted Entity Model
 
+Source: `docs/diagrams/src/system-entity-model.d2`.
 Rendered SVG artifact: `docs/diagrams/system-entity-model.svg`.
 
 This diagram is a UML-ish view of the main document entities. Solid diamonds mean "owned in the `.seqai` project." Dashed arrows mean "referenced by ID."
@@ -243,6 +273,9 @@ Key invariants:
 - Modifier generators process source notes without forking the final note-event path.
 
 ## Runtime Snapshot Path
+
+Source: `docs/diagrams/src/playback-snapshot-path.d2`.
+Rendered SVG artifact: `docs/diagrams/playback-snapshot-path.svg`.
 
 This diagram is more appropriate than a class diagram for the engine. The important architecture rule is that the tick path reads compiled buffers, not arbitrary SwiftUI or document state.
 

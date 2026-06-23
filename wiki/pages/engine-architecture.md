@@ -162,6 +162,18 @@ The current playback path is snapshot-based. Runtime ticks should read compiled 
 
 The canonical per-step note path is documented in [[playback-data-path]]. Update that page whenever a feature changes how the engine decides what notes a track emits on a step.
 
+Generated architecture maps for this boundary live under `docs/diagrams/`:
+
+- `runtime-ownership-map.svg` shows UI/session/snapshot/tick/audio ownership
+  bands.
+- `playback-snapshot-path.svg` shows the hot-read path through compiled
+  buffers.
+- `audio-graph-routing-map.svg` shows sample, slicer, mixer, send, and graph
+  repair ownership.
+
+The editable sources are in `docs/diagrams/src/`, and the structured review
+vocabulary is `docs/architecture/runtime-ownership-manifest.yml`.
+
 ## Tick lifecycle
 
 The current tick loop is split into two phases:
@@ -277,6 +289,16 @@ Document → (independent)
 ```
 
 The document model does not import the engine, and the executor does not know about SwiftUI.
+
+Runtime ownership checks are intentionally mechanical and conservative. Run:
+
+```bash
+scripts/diagnostics/runtime-ownership-lint.sh
+```
+
+This lint catches obvious drift such as UI imports in engine hot files,
+document/session references from tick files, unannotated file IO in sample or
+slicer trigger paths, and malformed realtime allow comments.
 
 ## Test coverage
 

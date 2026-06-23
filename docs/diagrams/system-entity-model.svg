@@ -1,304 +1,136 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1060" viewBox="0 0 1600 1060" role="img" aria-labelledby="title desc">
-  <title id="title">SequencerAI System Entity Model</title>
-  <desc id="desc">A rendered entity relationship diagram showing persisted document entities, source and phrase relationships, routing, mixer state, and the compiled playback snapshot path.</desc>
-  <defs>
-    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
-      <path d="M 0 0 L 10 5 L 0 10 z" fill="#222"/>
-    </marker>
-    <marker id="softArrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
-      <path d="M 0 0 L 10 5 L 0 10 z" fill="#666"/>
-    </marker>
-    <style>
-      :root {
-        color-scheme: light;
-      }
-      text {
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        fill: #171717;
-      }
-      .title {
-        font-size: 31px;
-        font-weight: 700;
-      }
-      .subtitle {
-        font-size: 15px;
-        fill: #555;
-      }
-      .cluster-title {
-        font-size: 15px;
-        font-weight: 700;
-        letter-spacing: 0.02em;
-        fill: #333;
-      }
-      .box-title {
-        font-size: 16px;
-        font-weight: 700;
-      }
-      .box-detail {
-        font-size: 12px;
-        fill: #4a4a4a;
-      }
-      .tiny {
-        font-size: 11px;
-        fill: #555;
-      }
-      .cluster {
-        fill: #f8f8f8;
-        stroke: #b8b8b8;
-        stroke-width: 1.5;
-        stroke-dasharray: 7 5;
-      }
-      .entity {
-        fill: #fff;
-        stroke: #222;
-        stroke-width: 1.6;
-      }
-      .pool {
-        fill: #f4f8fb;
-        stroke: #1f5f83;
-        stroke-width: 1.6;
-      }
-      .runtime {
-        fill: #f7f4fb;
-        stroke: #684d92;
-        stroke-width: 1.6;
-      }
-      .performance {
-        fill: #f8fbf5;
-        stroke: #51713b;
-        stroke-width: 1.6;
-      }
-      .line {
-        fill: none;
-        stroke: #222;
-        stroke-width: 1.4;
-        marker-end: url(#arrow);
-      }
-      .ref {
-        fill: none;
-        stroke: #666;
-        stroke-width: 1.3;
-        stroke-dasharray: 5 5;
-        marker-end: url(#softArrow);
-      }
-      .flow {
-        fill: none;
-        stroke: #684d92;
-        stroke-width: 2;
-        marker-end: url(#softArrow);
-      }
-      .label-bg {
-        fill: #fff;
-        opacity: 0.92;
-      }
-      .label {
-        font-size: 11px;
-        fill: #333;
-      }
-    </style>
-  </defs>
+<?xml version="1.0" encoding="utf-8"?><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" data-d2-version="0.7.1" preserveAspectRatio="xMinYMin meet" viewBox="0 0 4020 2332"><svg class="d2-3339023581 d2-svg" width="4020" height="2332" viewBox="-89 -89 4020 2332"><rect x="-89.000000" y="-89.000000" width="4020.000000" height="2332.000000" rx="0.000000" fill="#FFFFFF" class=" fill-N7" stroke-width="0" /><style type="text/css"><![CDATA[
+.d2-3339023581 .text {
+	font-family: "d2-3339023581-font-regular";
+}
+@font-face {
+	font-family: d2-3339023581-font-regular;
+	src: url("data:application/font-woff;base64,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");
+}
+.d2-3339023581 .text-bold {
+	font-family: "d2-3339023581-font-bold";
+}
+@font-face {
+	font-family: d2-3339023581-font-bold;
+	src: url("data:application/font-woff;base64,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");
+}
+.d2-3339023581 .text-italic {
+	font-family: "d2-3339023581-font-italic";
+}
+@font-face {
+	font-family: d2-3339023581-font-italic;
+	src: url("data:application/font-woff;base64,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");
+}]]></style><style type="text/css"><![CDATA[.shape {
+  shape-rendering: geometricPrecision;
+  stroke-linejoin: round;
+}
+.connection {
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.blend {
+  mix-blend-mode: multiply;
+  opacity: 0.5;
+}
 
-  <rect x="0" y="0" width="1600" height="1060" fill="#ffffff"/>
-
-  <text x="48" y="52" class="title">SequencerAI System Entity Model</text>
-  <text x="48" y="79" class="subtitle">Persisted Project state, source and phrase relationships, routing, mixer state, and the compiled playback snapshot path.</text>
-
-  <rect x="44" y="112" width="1512" height="56" fill="#f6f6f6" stroke="#d0d0d0"/>
-  <text x="64" y="136" class="cluster-title">Legend</text>
-  <rect x="145" y="123" width="94" height="26" class="entity"/>
-  <text x="254" y="141" class="tiny">persisted entity</text>
-  <rect x="382" y="123" width="94" height="26" class="pool"/>
-  <text x="491" y="141" class="tiny">document pool</text>
-  <rect x="634" y="123" width="94" height="26" class="performance"/>
-  <text x="743" y="141" class="tiny">performance/mixer state</text>
-  <rect x="930" y="123" width="94" height="26" class="runtime"/>
-  <text x="1039" y="141" class="tiny">runtime snapshot</text>
-  <path d="M 1240 136 H 1300" class="line"/>
-  <text x="1314" y="141" class="tiny">owns / contains</text>
-  <path d="M 1430 136 H 1490" class="ref"/>
-  <text x="1504" y="141" class="tiny">ID reference</text>
-
-  <rect x="44" y="198" width="1512" height="582" class="cluster"/>
-  <text x="64" y="224" class="cluster-title">Persisted .seqai Document</text>
-
-  <rect x="82" y="258" width="230" height="116" class="entity"/>
-  <text x="104" y="286" class="box-title">SeqAIDocument</text>
-  <text x="104" y="312" class="box-detail">FileDocument wrapper</text>
-  <text x="104" y="332" class="box-detail">JSON encode/decode</text>
-  <text x="104" y="352" class="box-detail">owns Project model</text>
-
-  <rect x="370" y="238" width="262" height="162" class="entity"/>
-  <text x="392" y="266" class="box-title">Project</text>
-  <text x="392" y="292" class="box-detail">version</text>
-  <text x="392" y="312" class="box-detail">selectedTrackID</text>
-  <text x="392" y="332" class="box-detail">selectedPhraseID</text>
-  <text x="392" y="352" class="box-detail">normalizes tracks, phrases, banks</text>
-  <text x="392" y="372" class="box-detail">one song per document</text>
-
-  <path d="M 312 316 H 370" class="line"/>
-  <rect x="326" y="302" width="30" height="18" class="label-bg"/>
-  <text x="330" y="315" class="label">model</text>
-
-  <rect x="704" y="228" width="246" height="166" class="entity"/>
-  <text x="726" y="256" class="box-title">StepSequenceTrack</text>
-  <text x="726" y="282" class="box-detail">id, name, trackType</text>
-  <text x="726" y="302" class="box-detail">destination</text>
-  <text x="726" y="322" class="box-detail">groupID?</text>
-  <text x="726" y="342" class="box-detail">mix, velocity, gateLength</text>
-  <text x="726" y="362" class="box-detail">track macro bindings</text>
-
-  <rect x="1028" y="228" width="226" height="166" class="entity"/>
-  <text x="1050" y="256" class="box-title">TrackGroup</text>
-  <text x="1050" y="282" class="box-detail">id, name, color</text>
-  <text x="1050" y="302" class="box-detail">memberIDs</text>
-  <text x="1050" y="322" class="box-detail">sharedDestination?</text>
-  <text x="1050" y="342" class="box-detail">noteMapping</text>
-  <text x="1050" y="362" class="box-detail">mute, solo</text>
-
-  <rect x="1322" y="228" width="198" height="166" class="entity"/>
-  <text x="1344" y="256" class="box-title">Destination</text>
-  <text x="1344" y="282" class="box-detail">midi</text>
-  <text x="1344" y="302" class="box-detail">auInstrument</text>
-  <text x="1344" y="322" class="box-detail">sampler / slicer</text>
-  <text x="1344" y="342" class="box-detail">inheritGroup</text>
-  <text x="1344" y="362" class="box-detail">none</text>
-
-  <path d="M 632 300 H 704" class="line"/>
-  <text x="645" y="292" class="label">tracks[]</text>
-  <path d="M 632 342 C 744 430 914 430 1028 350" class="line"/>
-  <text x="760" y="430" class="label">trackGroups[]</text>
-  <path d="M 950 300 H 1322" class="line"/>
-  <text x="1083" y="292" class="label">destination</text>
-  <path d="M 1254 318 H 1322" class="line"/>
-  <text x="1262" y="310" class="label">shared</text>
-  <path d="M 1028 292 C 1000 250 982 246 950 266" class="ref"/>
-  <text x="968" y="244" class="label">memberIDs</text>
-  <path d="M 704 348 C 656 420 910 430 1028 338" class="ref"/>
-  <text x="820" y="457" class="label">groupID</text>
-
-  <rect x="82" y="462" width="238" height="156" class="entity"/>
-  <text x="104" y="490" class="box-title">TrackPatternBank</text>
-  <text x="104" y="516" class="box-detail">trackID</text>
-  <text x="104" y="536" class="box-detail">16 TrackPatternSlot values</text>
-  <text x="104" y="556" class="box-detail">attachedGeneratorID?</text>
-  <text x="104" y="576" class="box-detail">per-track pattern slots</text>
-
-  <rect x="378" y="462" width="224" height="156" class="entity"/>
-  <text x="400" y="490" class="box-title">SourceRef</text>
-  <text x="400" y="516" class="box-detail">mode: clip | generator</text>
-  <text x="400" y="536" class="box-detail">clipID?</text>
-  <text x="400" y="556" class="box-detail">generatorID?</text>
-  <text x="400" y="576" class="box-detail">modifierGeneratorID?</text>
-
-  <rect x="704" y="456" width="246" height="166" class="pool"/>
-  <text x="726" y="484" class="box-title">ClipPoolEntry</text>
-  <text x="726" y="510" class="box-detail">id, name, trackType</text>
-  <text x="726" y="530" class="box-detail">ClipContent</text>
-  <text x="726" y="550" class="box-detail">noteGrid or sliceTriggers</text>
-  <text x="726" y="570" class="box-detail">macroLanes</text>
-  <text x="726" y="590" class="box-detail">explicit authored steps</text>
-
-  <rect x="1028" y="456" width="226" height="166" class="pool"/>
-  <text x="1050" y="484" class="box-title">GeneratorPoolEntry</text>
-  <text x="1050" y="510" class="box-detail">id, name, trackType</text>
-  <text x="1050" y="530" class="box-detail">GeneratorKind</text>
-  <text x="1050" y="550" class="box-detail">GeneratorParams</text>
-  <text x="1050" y="570" class="box-detail">rule-based note source</text>
-
-  <rect x="1322" y="456" width="198" height="166" class="pool"/>
-  <text x="1344" y="484" class="box-title">SliceSet</text>
-  <text x="1344" y="510" class="box-detail">id</text>
-  <text x="1344" y="530" class="box-detail">sample reference</text>
-  <text x="1344" y="550" class="box-detail">slice markers</text>
-  <text x="1344" y="570" class="box-detail">slice trigger target</text>
-
-  <path d="M 462 400 C 322 432 248 444 202 462" class="line"/>
-  <text x="274" y="428" class="label">patternBanks[]</text>
-  <path d="M 320 540 H 378" class="line"/>
-  <text x="326" y="532" class="label">slots[]</text>
-  <path d="M 202 462 C 314 384 528 336 704 318" class="ref"/>
-  <text x="334" y="390" class="label">trackID</text>
-  <path d="M 602 522 H 704" class="ref"/>
-  <text x="627" y="514" class="label">clipID</text>
-  <path d="M 602 562 C 724 610 930 610 1028 560" class="ref"/>
-  <text x="760" y="638" class="label">generatorID / modifierGeneratorID</text>
-  <path d="M 1254 530 H 1322" class="ref"/>
-  <text x="1270" y="522" class="label">sliceSetID</text>
-
-  <rect x="82" y="670" width="238" height="78" class="performance"/>
-  <text x="104" y="699" class="box-title">MasterBusState</text>
-  <text x="104" y="725" class="box-detail">scenes, activeSceneID, A/B selection</text>
-
-  <rect x="378" y="670" width="224" height="78" class="performance"/>
-  <text x="400" y="699" class="box-title">Route</text>
-  <text x="400" y="725" class="box-detail">source, filter, destination, enabled</text>
-
-  <rect x="704" y="670" width="246" height="78" class="entity"/>
-  <text x="726" y="699" class="box-title">PhraseLayerDefinition</text>
-  <text x="726" y="725" class="box-detail">pattern, mute, fill, macro targets</text>
-
-  <rect x="1028" y="670" width="226" height="78" class="entity"/>
-  <text x="1050" y="699" class="box-title">PhraseModel</text>
-  <text x="1050" y="725" class="box-detail">length, stepsPerBar, cells</text>
-
-  <rect x="1322" y="670" width="198" height="78" class="entity"/>
-  <text x="1344" y="699" class="box-title">PhraseCell</text>
-  <text x="1344" y="725" class="box-detail">inherit, single, bars, steps, curve</text>
-
-  <path d="M 465 400 C 360 564 294 650 236 670" class="line"/>
-  <text x="292" y="620" class="label">masterBus</text>
-  <path d="M 506 400 C 492 520 484 612 490 670" class="line"/>
-  <text x="504" y="604" class="label">routes[]</text>
-  <path d="M 560 400 C 650 528 748 610 816 670" class="line"/>
-  <text x="682" y="626" class="label">layers[]</text>
-  <path d="M 602 400 C 776 540 934 620 1096 670" class="line"/>
-  <text x="868" y="602" class="label">phrases[]</text>
-  <path d="M 1254 708 H 1322" class="line"/>
-  <text x="1262" y="700" class="label">cells[]</text>
-  <path d="M 1322 720 C 1186 804 914 798 826 748" class="ref"/>
-  <text x="1030" y="808" class="label">layerID</text>
-  <path d="M 1322 694 C 1100 626 914 626 826 394" class="ref"/>
-  <text x="1038" y="622" class="label">trackID</text>
-
-  <rect x="44" y="814" width="1512" height="204" class="cluster"/>
-  <text x="64" y="840" class="cluster-title">Compiled Runtime Path</text>
-
-  <rect x="82" y="878" width="228" height="74" class="runtime"/>
-  <text x="104" y="907" class="box-title">LiveSequencerStoreState</text>
-  <text x="104" y="933" class="box-detail">resident editable project state</text>
-
-  <rect x="366" y="878" width="228" height="74" class="runtime"/>
-  <text x="388" y="907" class="box-title">SequencerSnapshotCompiler</text>
-  <text x="388" y="933" class="box-detail">compiles project into buffers</text>
-
-  <rect x="650" y="878" width="228" height="74" class="runtime"/>
-  <text x="672" y="907" class="box-title">PlaybackSnapshot</text>
-  <text x="672" y="933" class="box-detail">tick-safe runtime bundle</text>
-
-  <rect x="934" y="858" width="202" height="52" class="runtime"/>
-  <text x="956" y="889" class="box-title">PhrasePlaybackBuffer</text>
-
-  <rect x="934" y="926" width="202" height="52" class="runtime"/>
-  <text x="956" y="957" class="box-title">TrackSourceProgram</text>
-
-  <rect x="1190" y="858" width="162" height="52" class="runtime"/>
-  <text x="1212" y="889" class="box-title">ClipBuffer</text>
-
-  <rect x="1190" y="926" width="162" height="52" class="runtime"/>
-  <text x="1212" y="957" class="box-title">LayerSnapshot</text>
-
-  <rect x="1398" y="878" width="122" height="74" class="runtime"/>
-  <text x="1418" y="907" class="box-title">NoteEvent</text>
-  <text x="1418" y="933" class="box-detail">audio / MIDI</text>
-
-  <path d="M 310 915 H 366" class="flow"/>
-  <path d="M 594 915 H 650" class="flow"/>
-  <path d="M 878 902 C 904 890 910 886 934 884" class="flow"/>
-  <path d="M 878 922 C 904 938 910 950 934 952" class="flow"/>
-  <path d="M 1136 884 H 1190" class="flow"/>
-  <path d="M 1136 952 H 1190" class="flow"/>
-  <path d="M 1352 884 C 1380 894 1384 902 1398 910" class="flow"/>
-  <path d="M 1352 952 C 1380 944 1384 936 1398 930" class="flow"/>
-
-  <text x="64" y="1000" class="tiny">Rule of thumb: persisted entities describe authored musical state; runtime snapshot entities describe the hot path. Do not make SwiftUI state playback truth.</text>
-</svg>
+		.d2-3339023581 .fill-N1{fill:#0A0F25;}
+		.d2-3339023581 .fill-N2{fill:#676C7E;}
+		.d2-3339023581 .fill-N3{fill:#9499AB;}
+		.d2-3339023581 .fill-N4{fill:#CFD2DD;}
+		.d2-3339023581 .fill-N5{fill:#DEE1EB;}
+		.d2-3339023581 .fill-N6{fill:#EEF1F8;}
+		.d2-3339023581 .fill-N7{fill:#FFFFFF;}
+		.d2-3339023581 .fill-B1{fill:#0D32B2;}
+		.d2-3339023581 .fill-B2{fill:#0D32B2;}
+		.d2-3339023581 .fill-B3{fill:#E3E9FD;}
+		.d2-3339023581 .fill-B4{fill:#E3E9FD;}
+		.d2-3339023581 .fill-B5{fill:#EDF0FD;}
+		.d2-3339023581 .fill-B6{fill:#F7F8FE;}
+		.d2-3339023581 .fill-AA2{fill:#4A6FF3;}
+		.d2-3339023581 .fill-AA4{fill:#EDF0FD;}
+		.d2-3339023581 .fill-AA5{fill:#F7F8FE;}
+		.d2-3339023581 .fill-AB4{fill:#EDF0FD;}
+		.d2-3339023581 .fill-AB5{fill:#F7F8FE;}
+		.d2-3339023581 .stroke-N1{stroke:#0A0F25;}
+		.d2-3339023581 .stroke-N2{stroke:#676C7E;}
+		.d2-3339023581 .stroke-N3{stroke:#9499AB;}
+		.d2-3339023581 .stroke-N4{stroke:#CFD2DD;}
+		.d2-3339023581 .stroke-N5{stroke:#DEE1EB;}
+		.d2-3339023581 .stroke-N6{stroke:#EEF1F8;}
+		.d2-3339023581 .stroke-N7{stroke:#FFFFFF;}
+		.d2-3339023581 .stroke-B1{stroke:#0D32B2;}
+		.d2-3339023581 .stroke-B2{stroke:#0D32B2;}
+		.d2-3339023581 .stroke-B3{stroke:#E3E9FD;}
+		.d2-3339023581 .stroke-B4{stroke:#E3E9FD;}
+		.d2-3339023581 .stroke-B5{stroke:#EDF0FD;}
+		.d2-3339023581 .stroke-B6{stroke:#F7F8FE;}
+		.d2-3339023581 .stroke-AA2{stroke:#4A6FF3;}
+		.d2-3339023581 .stroke-AA4{stroke:#EDF0FD;}
+		.d2-3339023581 .stroke-AA5{stroke:#F7F8FE;}
+		.d2-3339023581 .stroke-AB4{stroke:#EDF0FD;}
+		.d2-3339023581 .stroke-AB5{stroke:#F7F8FE;}
+		.d2-3339023581 .background-color-N1{background-color:#0A0F25;}
+		.d2-3339023581 .background-color-N2{background-color:#676C7E;}
+		.d2-3339023581 .background-color-N3{background-color:#9499AB;}
+		.d2-3339023581 .background-color-N4{background-color:#CFD2DD;}
+		.d2-3339023581 .background-color-N5{background-color:#DEE1EB;}
+		.d2-3339023581 .background-color-N6{background-color:#EEF1F8;}
+		.d2-3339023581 .background-color-N7{background-color:#FFFFFF;}
+		.d2-3339023581 .background-color-B1{background-color:#0D32B2;}
+		.d2-3339023581 .background-color-B2{background-color:#0D32B2;}
+		.d2-3339023581 .background-color-B3{background-color:#E3E9FD;}
+		.d2-3339023581 .background-color-B4{background-color:#E3E9FD;}
+		.d2-3339023581 .background-color-B5{background-color:#EDF0FD;}
+		.d2-3339023581 .background-color-B6{background-color:#F7F8FE;}
+		.d2-3339023581 .background-color-AA2{background-color:#4A6FF3;}
+		.d2-3339023581 .background-color-AA4{background-color:#EDF0FD;}
+		.d2-3339023581 .background-color-AA5{background-color:#F7F8FE;}
+		.d2-3339023581 .background-color-AB4{background-color:#EDF0FD;}
+		.d2-3339023581 .background-color-AB5{background-color:#F7F8FE;}
+		.d2-3339023581 .color-N1{color:#0A0F25;}
+		.d2-3339023581 .color-N2{color:#676C7E;}
+		.d2-3339023581 .color-N3{color:#9499AB;}
+		.d2-3339023581 .color-N4{color:#CFD2DD;}
+		.d2-3339023581 .color-N5{color:#DEE1EB;}
+		.d2-3339023581 .color-N6{color:#EEF1F8;}
+		.d2-3339023581 .color-N7{color:#FFFFFF;}
+		.d2-3339023581 .color-B1{color:#0D32B2;}
+		.d2-3339023581 .color-B2{color:#0D32B2;}
+		.d2-3339023581 .color-B3{color:#E3E9FD;}
+		.d2-3339023581 .color-B4{color:#E3E9FD;}
+		.d2-3339023581 .color-B5{color:#EDF0FD;}
+		.d2-3339023581 .color-B6{color:#F7F8FE;}
+		.d2-3339023581 .color-AA2{color:#4A6FF3;}
+		.d2-3339023581 .color-AA4{color:#EDF0FD;}
+		.d2-3339023581 .color-AA5{color:#F7F8FE;}
+		.d2-3339023581 .color-AB4{color:#EDF0FD;}
+		.d2-3339023581 .color-AB5{color:#F7F8FE;}.appendix text.text{fill:#0A0F25}.md{--color-fg-default:#0A0F25;--color-fg-muted:#676C7E;--color-fg-subtle:#9499AB;--color-canvas-default:#FFFFFF;--color-canvas-subtle:#EEF1F8;--color-border-default:#0D32B2;--color-border-muted:#0D32B2;--color-neutral-muted:#EEF1F8;--color-accent-fg:#0D32B2;--color-accent-emphasis:#0D32B2;--color-attention-subtle:#676C7E;--color-danger-fg:red;}.sketch-overlay-B1{fill:url(#streaks-darker-d2-3339023581);mix-blend-mode:lighten}.sketch-overlay-B2{fill:url(#streaks-darker-d2-3339023581);mix-blend-mode:lighten}.sketch-overlay-B3{fill:url(#streaks-bright-d2-3339023581);mix-blend-mode:darken}.sketch-overlay-B4{fill:url(#streaks-bright-d2-3339023581);mix-blend-mode:darken}.sketch-overlay-B5{fill:url(#streaks-bright-d2-3339023581);mix-blend-mode:darken}.sketch-overlay-B6{fill:url(#streaks-bright-d2-3339023581);mix-blend-mode:darken}.sketch-overlay-AA2{fill:url(#streaks-dark-d2-3339023581);mix-blend-mode:overlay}.sketch-overlay-AA4{fill:url(#streaks-bright-d2-3339023581);mix-blend-mode:darken}.sketch-overlay-AA5{fill:url(#streaks-bright-d2-3339023581);mix-blend-mode:darken}.sketch-overlay-AB4{fill:url(#streaks-bright-d2-3339023581);mix-blend-mode:darken}.sketch-overlay-AB5{fill:url(#streaks-bright-d2-3339023581);mix-blend-mode:darken}.sketch-overlay-N1{fill:url(#streaks-darker-d2-3339023581);mix-blend-mode:lighten}.sketch-overlay-N2{fill:url(#streaks-dark-d2-3339023581);mix-blend-mode:overlay}.sketch-overlay-N3{fill:url(#streaks-normal-d2-3339023581);mix-blend-mode:color-burn}.sketch-overlay-N4{fill:url(#streaks-normal-d2-3339023581);mix-blend-mode:color-burn}.sketch-overlay-N5{fill:url(#streaks-bright-d2-3339023581);mix-blend-mode:darken}.sketch-overlay-N6{fill:url(#streaks-bright-d2-3339023581);mix-blend-mode:darken}.sketch-overlay-N7{fill:url(#streaks-bright-d2-3339023581);mix-blend-mode:darken}.light-code{display: block}.dark-code{display: none}]]></style><g class="U2VxQUlEb2N1bWVudA=="><g class="shape" ><rect x="274.000000" y="926.000000" width="175.000000" height="98.000000" stroke="#0D32B2" fill="#F7F8FE" class=" stroke-B1 fill-B6" style="stroke-width:2;" /></g><text x="361.500000" y="964.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px"><tspan x="361.500000" dy="0.000000">SeqAIDocument</tspan><tspan x="361.500000" dy="17.666667">lifetime=persisted</tspan><tspan x="361.500000" dy="17.666667">owner=document</tspan></text></g><g class="UHJvamVjdA=="><g class="shape" ><rect x="624.000000" y="755.000000" width="311.000000" height="440.000000" stroke="#0D32B2" fill="#f7f7f5" class=" stroke-B1" style="stroke-width:2;" /></g><text x="779.500000" y="964.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px"><tspan x="779.500000" dy="0.000000">Project</tspan><tspan x="779.500000" dy="17.666667">tracks, groups, pools, phrases, routes</tspan><tspan x="779.500000" dy="17.666667">realtime=main-only</tspan></text></g><g class="VHJhY2tz"><g class="shape" ><rect x="12.000000" y="12.000000" width="437.000000" height="386.000000" stroke="#0D32B2" fill="#eef5ff" class=" stroke-B1" style="stroke-width:2;" /></g><text x="230.500000" y="45.000000" fill="#0A0F25" class="text fill-N1" style="text-anchor:middle;font-size:28px">Tracks</text></g><g class="U291cmNlcw=="><g class="shape" ><rect x="22.000000" y="1450.000000" width="417.000000" height="692.000000" stroke="#0D32B2" fill="#eefaf1" class=" stroke-B1" style="stroke-width:2;" /></g><text x="230.500000" y="1483.000000" fill="#0A0F25" class="text fill-N1" style="text-anchor:middle;font-size:28px">Source Pools</text></g><g class="UGhyYXNlcw=="><g class="shape" ><rect x="37.000000" y="418.000000" width="386.000000" height="488.000000" stroke="#0D32B2" fill="#fff4e6" class=" stroke-B1" style="stroke-width:2;" /></g><text x="230.000000" y="451.000000" fill="#0A0F25" class="text fill-N1" style="text-anchor:middle;font-size:28px">Phrase / Layer State</text></g><g class="Um91dGluZw=="><g class="shape" ><rect x="61.000000" y="1044.000000" width="339.000000" height="386.000000" stroke="#0D32B2" fill="#f3efff" class=" stroke-B1" style="stroke-width:2;" /></g><text x="230.500000" y="1077.000000" fill="#0A0F25" class="text fill-N1" style="text-anchor:middle;font-size:28px">Routing / Mix</text></g><g class="U3RlcFNlcXVlbmNlVHJhY2s="><g class="shape" ><rect x="2433.000000" y="754.000000" width="187.000000" height="200.000000" stroke="#0D32B2" fill="#F7F8FE" class=" stroke-B1 fill-B6" style="stroke-width:2;" /></g><text x="2526.500000" y="859.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">StepSequenceTrack</text></g><g class="VHJhY2tHcm91cA=="><g class="shape" ><rect x="3081.000000" y="741.000000" width="129.000000" height="80.000000" stroke="#0D32B2" fill="#F7F8FE" class=" stroke-B1 fill-B6" style="stroke-width:2;" /></g><text x="3145.500000" y="786.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">TrackGroup</text></g><g class="VHJhY2tQYXR0ZXJuQmFuaw=="><g class="shape" ><rect x="1422.000000" y="1077.000000" width="176.000000" height="80.000000" stroke="#0D32B2" fill="#F7F8FE" class=" stroke-B1 fill-B6" style="stroke-width:2;" /></g><text x="1510.000000" y="1122.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">TrackPatternBank</text></g><g class="Q2xpcFBvb2xFbnRyeQ=="><g class="shape" ><rect x="3081.000000" y="1254.000000" width="144.000000" height="80.000000" stroke="#0D32B2" fill="#F7F8FE" class=" stroke-B1 fill-B6" style="stroke-width:2;" /></g><text x="3153.000000" y="1299.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">ClipPoolEntry</text></g><g class="R2VuZXJhdG9yUG9vbEVudHJ5"><g class="shape" ><rect x="3066.000000" y="1378.000000" width="189.000000" height="80.000000" stroke="#0D32B2" fill="#F7F8FE" class=" stroke-B1 fill-B6" style="stroke-width:2;" /></g><text x="3160.500000" y="1423.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">GeneratorPoolEntry</text></g><g class="U2xpY2VTZXQ="><g class="shape" ><rect x="3703.000000" y="1346.000000" width="102.000000" height="80.000000" stroke="#0D32B2" fill="#F7F8FE" class=" stroke-B1 fill-B6" style="stroke-width:2;" /></g><text x="3754.000000" y="1391.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">SliceSet</text></g><g class="UGhyYXNlTGF5ZXJEZWZpbml0aW9u"><g class="shape" ><rect x="2427.000000" y="1114.000000" width="203.000000" height="80.000000" stroke="#0D32B2" fill="#F7F8FE" class=" stroke-B1 fill-B6" style="stroke-width:2;" /></g><text x="2528.500000" y="1159.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">PhraseLayerDefinition</text></g><g class="UGhyYXNlTW9kZWw="><g class="shape" ><rect x="1441.000000" y="942.000000" width="137.000000" height="66.000000" stroke="#0D32B2" fill="#F7F8FE" class=" stroke-B1 fill-B6" style="stroke-width:2;" /></g><text x="1509.500000" y="980.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">PhraseModel</text></g><g class="Um91dGU="><g class="shape" ><rect x="1964.000000" y="662.000000" width="86.000000" height="80.000000" stroke="#0D32B2" fill="#F7F8FE" class=" stroke-B1 fill-B6" style="stroke-width:2;" /></g><text x="2007.000000" y="707.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">Route</text></g><g class="TWl4ZXJCdXNTdGF0ZQ=="><g class="shape" ><rect x="1422.000000" y="734.000000" width="147.000000" height="66.000000" stroke="#0D32B2" fill="#F7F8FE" class=" stroke-B1 fill-B6" style="stroke-width:2;" /></g><text x="1495.500000" y="772.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">MixerBusState</text></g><g class="TWFzdGVyQnVzU3RhdGU="><g class="shape" ><rect x="1422.000000" y="524.000000" width="156.000000" height="66.000000" stroke="#0D32B2" fill="#F7F8FE" class=" stroke-B1 fill-B6" style="stroke-width:2;" /></g><text x="1500.000000" y="562.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">MasterBusState</text></g><g class="RGVzdGluYXRpb24="><g class="shape" ><rect x="3703.000000" y="742.000000" width="127.000000" height="120.000000" stroke="#0D32B2" fill="#F7F8FE" class=" stroke-B1 fill-B6" style="stroke-width:2;" /></g><text x="3766.500000" y="807.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">Destination</text></g><g class="VHJhY2tQYXR0ZXJuU2xvdA=="><g class="shape" ><rect x="1903.000000" y="1227.000000" width="168.000000" height="66.000000" stroke="#0D32B2" fill="#F7F8FE" class=" stroke-B1 fill-B6" style="stroke-width:2;" /></g><text x="1987.000000" y="1265.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">TrackPatternSlot</text></g><g class="U291cmNlUmVm"><g class="shape" ><rect x="2483.000000" y="1220.000000" width="119.000000" height="80.000000" stroke="#0D32B2" fill="#F7F8FE" class=" stroke-B1 fill-B6" style="stroke-width:2;" /></g><text x="2542.500000" y="1265.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">SourceRef</text></g><g class="UGhyYXNlQ2VsbEFzc2lnbm1lbnQ="><g class="shape" ><rect x="1886.000000" y="1001.000000" width="203.000000" height="120.000000" stroke="#0D32B2" fill="#F7F8FE" class=" stroke-B1 fill-B6" style="stroke-width:2;" /></g><text x="1987.500000" y="1066.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">PhraseCellAssignment</text></g><g class="UGhyYXNlQ2VsbA=="><g class="shape" ><rect x="2427.000000" y="1028.000000" width="121.000000" height="66.000000" stroke="#0D32B2" fill="#F7F8FE" class=" stroke-B1 fill-B6" style="stroke-width:2;" /></g><text x="2487.500000" y="1066.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">PhraseCell</text></g><g class="VHJhY2tzLlN0ZXBTZXF1ZW5jZVRyYWNr"><g class="shape" ><rect x="89.000000" y="62.000000" width="283.000000" height="82.000000" stroke="#0D32B2" fill="#EDF0FD" class=" stroke-B1 fill-B5" style="stroke-width:2;" /></g><text x="230.500000" y="100.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px"><tspan x="230.500000" dy="0.000000">StepSequenceTrack</tspan><tspan x="230.500000" dy="18.500000">id, type, destination, mix, macros</tspan></text></g><g class="VHJhY2tzLlRyYWNrR3JvdXA="><g class="shape" ><rect x="62.000000" y="164.000000" width="337.000000" height="82.000000" stroke="#0D32B2" fill="#EDF0FD" class=" stroke-B1 fill-B5" style="stroke-width:2;" /></g><text x="230.500000" y="202.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px"><tspan x="230.500000" dy="0.000000">TrackGroup</tspan><tspan x="230.500000" dy="18.500000">memberIDs, sharedDestination, mapping</tspan></text></g><g class="VHJhY2tzLkRlc3RpbmF0aW9u"><g class="shape" ><rect x="62.000000" y="266.000000" width="336.000000" height="82.000000" stroke="#0D32B2" fill="#EDF0FD" class=" stroke-B1 fill-B5" style="stroke-width:2;" /></g><text x="230.000000" y="304.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px"><tspan x="230.000000" dy="0.000000">Destination</tspan><tspan x="230.000000" dy="18.500000">midi | au | sampler | sample | slicer | group</tspan></text></g><g class="U291cmNlcy5UcmFja1BhdHRlcm5CYW5r"><g class="shape" ><rect x="142.000000" y="1500.000000" width="176.000000" height="82.000000" stroke="#0D32B2" fill="#EDF0FD" class=" stroke-B1 fill-B5" style="stroke-width:2;" /></g><text x="230.000000" y="1538.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px"><tspan x="230.000000" dy="0.000000">TrackPatternBank</tspan><tspan x="230.000000" dy="18.500000">trackID + 16 slots</tspan></text></g><g class="U291cmNlcy5UcmFja1BhdHRlcm5TbG90"><g class="shape" ><rect x="130.000000" y="1602.000000" width="200.000000" height="82.000000" stroke="#0D32B2" fill="#EDF0FD" class=" stroke-B1 fill-B5" style="stroke-width:2;" /></g><text x="230.000000" y="1640.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px"><tspan x="230.000000" dy="0.000000">TrackPatternSlot</tspan><tspan x="230.000000" dy="18.500000">slotIndex + SourceRef</tspan></text></g><g class="U291cmNlcy5Tb3VyY2VSZWY="><g class="shape" ><rect x="72.000000" y="1704.000000" width="317.000000" height="82.000000" stroke="#0D32B2" fill="#EDF0FD" class=" stroke-B1 fill-B5" style="stroke-width:2;" /></g><text x="230.500000" y="1742.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px"><tspan x="230.500000" dy="0.000000">SourceRef</tspan><tspan x="230.500000" dy="18.500000">mode + clipID + generatorID + modifier</tspan></text></g><g class="U291cmNlcy5DbGlwUG9vbEVudHJ5"><g class="shape" ><rect x="124.000000" y="1806.000000" width="212.000000" height="82.000000" stroke="#0D32B2" fill="#EDF0FD" class=" stroke-B1 fill-B5" style="stroke-width:2;" /></g><text x="230.000000" y="1844.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px"><tspan x="230.000000" dy="0.000000">ClipPoolEntry</tspan><tspan x="230.000000" dy="18.500000">clip steps + macro lanes</tspan></text></g><g class="U291cmNlcy5HZW5lcmF0b3JQb29sRW50cnk="><g class="shape" ><rect x="136.000000" y="1908.000000" width="189.000000" height="82.000000" stroke="#0D32B2" fill="#EDF0FD" class=" stroke-B1 fill-B5" style="stroke-width:2;" /></g><text x="230.500000" y="1946.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px"><tspan x="230.500000" dy="0.000000">GeneratorPoolEntry</tspan><tspan x="230.500000" dy="18.500000">algorithm + params</tspan></text></g><g class="U291cmNlcy5TbGljZVNldA=="><g class="shape" ><rect x="161.000000" y="2010.000000" width="139.000000" height="82.000000" stroke="#0D32B2" fill="#EDF0FD" class=" stroke-B1 fill-B5" style="stroke-width:2;" /></g><text x="230.500000" y="2048.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px"><tspan x="230.500000" dy="0.000000">SliceSet</tspan><tspan x="230.500000" dy="18.500000">slice markers</tspan></text></g><g class="UGhyYXNlcy5QaHJhc2VMYXllckRlZmluaXRpb24="><g class="shape" ><rect x="115.000000" y="468.000000" width="230.000000" height="82.000000" stroke="#0D32B2" fill="#EDF0FD" class=" stroke-B1 fill-B5" style="stroke-width:2;" /></g><text x="230.000000" y="506.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px"><tspan x="230.000000" dy="0.000000">PhraseLayerDefinition</tspan><tspan x="230.000000" dy="18.500000">pattern, mute, fill, macros</tspan></text></g><g class="UGhyYXNlcy5QaHJhc2VNb2RlbA=="><g class="shape" ><rect x="162.000000" y="570.000000" width="137.000000" height="82.000000" stroke="#0D32B2" fill="#EDF0FD" class=" stroke-B1 fill-B5" style="stroke-width:2;" /></g><text x="230.500000" y="608.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px"><tspan x="230.500000" dy="0.000000">PhraseModel</tspan><tspan x="230.500000" dy="18.500000">length + cells</tspan></text></g><g class="UGhyYXNlcy5QaHJhc2VDZWxsQXNzaWdubWVudA=="><g class="shape" ><rect x="128.000000" y="672.000000" width="204.000000" height="82.000000" stroke="#0D32B2" fill="#EDF0FD" class=" stroke-B1 fill-B5" style="stroke-width:2;" /></g><text x="230.000000" y="710.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px"><tspan x="230.000000" dy="0.000000">PhraseCellAssignment</tspan><tspan x="230.000000" dy="18.500000">trackID + layerID + cell</tspan></text></g><g class="UGhyYXNlcy5QaHJhc2VDZWxs"><g class="shape" ><rect x="87.000000" y="774.000000" width="286.000000" height="82.000000" stroke="#0D32B2" fill="#EDF0FD" class=" stroke-B1 fill-B5" style="stroke-width:2;" /></g><text x="230.000000" y="812.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px"><tspan x="230.000000" dy="0.000000">PhraseCell</tspan><tspan x="230.000000" dy="18.500000">inherit | single | bars | steps | curve</tspan></text></g><g class="Um91dGluZy5Sb3V0ZQ=="><g class="shape" ><rect x="111.000000" y="1094.000000" width="239.000000" height="82.000000" stroke="#0D32B2" fill="#EDF0FD" class=" stroke-B1 fill-B5" style="stroke-width:2;" /></g><text x="230.500000" y="1132.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px"><tspan x="230.500000" dy="0.000000">Route</tspan><tspan x="230.500000" dy="18.500000">source + filter + destination</tspan></text></g><g class="Um91dGluZy5NaXhlckJ1c1N0YXRl"><g class="shape" ><rect x="114.000000" y="1196.000000" width="233.000000" height="82.000000" stroke="#0D32B2" fill="#EDF0FD" class=" stroke-B1 fill-B5" style="stroke-width:2;" /></g><text x="230.500000" y="1234.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px"><tspan x="230.500000" dy="0.000000">MixerBusState</tspan><tspan x="230.500000" dy="18.500000">track busses + send busses</tspan></text></g><g class="Um91dGluZy5NYXN0ZXJCdXNTdGF0ZQ=="><g class="shape" ><rect x="131.000000" y="1298.000000" width="199.000000" height="82.000000" stroke="#0D32B2" fill="#EDF0FD" class=" stroke-B1 fill-B5" style="stroke-width:2;" /></g><text x="230.500000" y="1336.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px"><tspan x="230.500000" dy="0.000000">MasterBusState</tspan><tspan x="230.500000" dy="18.500000">scenes + A/B selection</tspan></text></g><g class="KFNlcUFJRG9jdW1lbnQgLSZndDsgUHJvamVjdClbMF0="><marker id="mk-d2-3339023581-3488378134" markerWidth="10.000000" markerHeight="12.000000" refX="7.000000" refY="6.000000" viewBox="0.000000 0.000000 10.000000 12.000000" orient="auto" markerUnits="userSpaceOnUse"> <polygon points="0.000000,0.000000 10.000000,6.000000 0.000000,12.000000" fill="#0D32B2" class="connection fill-B1" stroke-width="2" /> </marker><path d="M 451.000000 975.000000 L 620.000000 975.000000" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-3339023581-3488378134)" mask="url(#d2-3339023581)" /><text x="536.500000" y="981.000000" fill="#676C7E" class="text-italic fill-N2" style="text-anchor:middle;font-size:16px">owns</text></g><g class="KFByb2plY3QgLSZndDsgU3RlcFNlcXVlbmNlVHJhY2spWzBd"><path d="M 937.000000 938.333008 L 1165.000000 938.333008 S 1175.000000 938.333008 1175.000000 928.333008 L 1175.000000 850.000000 S 1175.000000 840.000000 1185.000000 840.000000 L 2430.000000 840.000000" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-3339023581-3488378134)" mask="url(#d2-3339023581)" /><text x="1635.000000" y="846.000000" fill="#676C7E" class="text-italic fill-N2" style="text-anchor:middle;font-size:16px">owns tracks[]</text></g><g class="KFByb2plY3QgLSZndDsgVHJhY2tHcm91cClbMF0="><path d="M 937.000000 828.333008 L 1015.000000 828.333008 S 1025.000000 828.333008 1025.000000 818.333008 L 1025.000000 640.000000 S 1025.000000 630.000000 1035.000000 630.000000 L 2966.000000 630.000000 S 2976.000000 630.000000 2976.000000 640.000000 L 2976.000000 751.833008 S 2976.000000 761.833008 2986.000000 761.833008 L 3077.000000 761.833008" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-3339023581-3488378134)" mask="url(#d2-3339023581)" /><text x="1975.000000" y="636.000000" fill="#676C7E" class="text-italic fill-N2" style="text-anchor:middle;font-size:16px">owns trackGroups[]</text></g><g class="KFByb2plY3QgLSZndDsgVHJhY2tQYXR0ZXJuQmFuaylbMF0="><path d="M 937.000000 1011.666016 L 1165.000000 1011.666016 S 1175.000000 1011.666016 1175.000000 1021.666016 L 1175.000000 1107.666016 S 1175.000000 1117.666016 1185.000000 1117.666016 L 1418.000000 1117.666016" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-3339023581-3488378134)" mask="url(#d2-3339023581)" /><text x="1175.500000" y="1074.000000" fill="#676C7E" class="text-italic fill-N2" style="text-anchor:middle;font-size:16px">owns patternBanks[]</text></g><g class="KFByb2plY3QgLSZndDsgQ2xpcFBvb2xFbnRyeSlbMF0="><path d="M 937.000000 1085.000000 L 1065.000000 1085.000000 S 1075.000000 1085.000000 1075.000000 1095.000000 L 1075.000000 1330.666016 S 1075.000000 1340.666016 1085.000000 1340.666016 L 2966.000000 1340.666016 S 2976.000000 1340.666016 2976.000000 1330.666016 L 2976.000000 1317.333008 S 2976.000000 1307.333008 2986.000000 1307.333008 L 3077.000000 1307.333008" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-3339023581-3488378134)" mask="url(#d2-3339023581)" /><text x="1897.000000" y="1346.000000" fill="#676C7E" class="text-italic fill-N2" style="text-anchor:middle;font-size:16px">owns clipPool[]</text></g><g class="KFByb2plY3QgLSZndDsgR2VuZXJhdG9yUG9vbEVudHJ5KVswXQ=="><path d="M 937.000000 1121.666016 L 1015.000000 1121.666016 S 1025.000000 1121.666016 1025.000000 1131.666016 L 1025.000000 1434.666016 S 1025.000000 1444.666016 1035.000000 1444.666016 L 3062.000000 1444.666016" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-3339023581-3488378134)" mask="url(#d2-3339023581)" /><text x="1839.000000" y="1450.000000" fill="#676C7E" class="text-italic fill-N2" style="text-anchor:middle;font-size:16px">owns generatorPool[]</text></g><g class="KFByb2plY3QgLSZndDsgU2xpY2VTZXQpWzBd"><path d="M 937.000000 1158.333008 L 965.000000 1158.333008 S 975.000000 1158.333008 975.000000 1168.333008 L 975.000000 1494.000000 S 975.000000 1504.000000 985.000000 1504.000000 L 3603.000000 1504.000000 S 3613.000000 1504.000000 3613.000000 1494.000000 L 3613.000000 1409.333008 S 3613.000000 1399.333008 3623.000000 1399.333008 L 3699.000000 1399.333008" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-3339023581-3488378134)" mask="url(#d2-3339023581)" /><text x="2198.500000" y="1510.000000" fill="#676C7E" class="text-italic fill-N2" style="text-anchor:middle;font-size:16px">owns sliceSetPool[]</text></g><g class="KFByb2plY3QgLSZndDsgUGhyYXNlTGF5ZXJEZWZpbml0aW9uKVswXQ=="><path d="M 937.000000 1048.333008 L 1115.000000 1048.333008 S 1125.000000 1048.333008 1125.000000 1058.333008 L 1125.000000 1240.666016 S 1125.000000 1250.666016 1135.000000 1250.666016 L 1628.000000 1250.666016 S 1638.000000 1250.666016 1638.000000 1240.666016 L 1638.000000 1190.333008 S 1638.000000 1180.333008 1648.000000 1180.333008 L 2423.000000 1180.333008" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-3339023581-3488378134)" mask="url(#d2-3339023581)" /><text x="1615.500000" y="1256.000000" fill="#676C7E" class="text-italic fill-N2" style="text-anchor:middle;font-size:16px">owns layers[]</text></g><g class="KFByb2plY3QgLSZndDsgUGhyYXNlTW9kZWwpWzBd"><path d="M 936.500000 975.000000 L 1437.500000 975.000000" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-3339023581-3488378134)" mask="url(#d2-3339023581)" /><text x="1188.500000" y="981.000000" fill="#676C7E" class="text-italic fill-N2" style="text-anchor:middle;font-size:16px">owns phrases[]</text></g><g class="KFByb2plY3QgLSZndDsgUm91dGUpWzBd"><path d="M 937.000000 865.000000 L 1065.000000 865.000000 S 1075.000000 865.000000 1075.000000 855.000000 L 1075.000000 712.000000 S 1075.000000 702.000000 1085.000000 702.000000 L 1960.000000 702.000000" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-3339023581-3488378134)" mask="url(#d2-3339023581)" /><text x="1368.500000" y="708.000000" fill="#676C7E" class="text-italic fill-N2" style="text-anchor:middle;font-size:16px">owns routes[]</text></g><g class="KFByb2plY3QgLSZndDsgTWl4ZXJCdXNTdGF0ZSlbMF0="><path d="M 937.000000 901.666016 L 1115.000000 901.666016 S 1125.000000 901.666016 1125.000000 891.666016 L 1125.000000 777.000000 S 1125.000000 767.000000 1135.000000 767.000000 L 1418.000000 767.000000" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-3339023581-3488378134)" mask="url(#d2-3339023581)" /><text x="1125.500000" y="786.000000" fill="#676C7E" class="text-italic fill-N2" style="text-anchor:middle;font-size:16px">owns mixer state</text></g><g class="KFByb2plY3QgLSZndDsgTWFzdGVyQnVzU3RhdGUpWzBd"><path d="M 937.000000 791.666016 L 965.000000 791.666016 S 975.000000 791.666016 975.000000 781.666016 L 975.000000 567.000000 S 975.000000 557.000000 985.000000 557.000000 L 1418.000000 557.000000" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-3339023581-3488378134)" mask="url(#d2-3339023581)" /><text x="1061.000000" y="563.000000" fill="#676C7E" class="text-italic fill-N2" style="text-anchor:middle;font-size:16px">owns master bus</text></g><g class="KFN0ZXBTZXF1ZW5jZVRyYWNrIC0mZ3Q7IERlc3RpbmF0aW9uKVswXQ=="><path d="M 2623.000000 904.500000 L 2660.000000 904.500000 S 2670.000000 904.500000 2670.000000 914.500000 L 2670.000000 957.333008 S 2670.000000 967.333008 2680.000000 967.333008 L 3603.000000 967.333008 S 3613.000000 967.333008 3613.000000 957.333008 L 3613.000000 842.166016 S 3613.000000 832.166016 3623.000000 832.166016 L 3699.000000 832.166016" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-3339023581-3488378134)" mask="url(#d2-3339023581)" /><text x="3198.000000" y="973.000000" fill="#676C7E" class="text-italic fill-N2" style="text-anchor:middle;font-size:16px">owns destination</text></g><g class="KFRyYWNrR3JvdXAgLSZndDsgU3RlcFNlcXVlbmNlVHJhY2spWzBd"><path d="M 3079.000000 801.833008 L 3036.000000 801.833008 S 3026.000000 801.833008 3026.000000 811.833008 L 3026.000000 844.500000 S 3026.000000 854.500000 3016.000000 854.500000 L 2625.000000 854.500000" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-3339023581-3488378134)" mask="url(#d2-3339023581)" /><text x="2877.000000" y="860.000000" fill="#676C7E" class="text-italic fill-N2" style="text-anchor:middle;font-size:16px">memberIDs</text></g><g class="KFN0ZXBTZXF1ZW5jZVRyYWNrIC0mZ3Q7IFRyYWNrR3JvdXApWzBd"><path d="M 2623.000000 791.333008 L 2971.250000 791.333008 C 2980.750000 791.333008 2971.250000 781.833008 2980.750000 781.833008 L 3077.000000 781.833008" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-3339023581-3488378134)" mask="url(#d2-3339023581)" /><text x="2856.000000" y="797.000000" fill="#676C7E" class="text-italic fill-N2" style="text-anchor:middle;font-size:16px">groupID</text></g><g class="KFRyYWNrR3JvdXAgLSZndDsgRGVzdGluYXRpb24pWzBd"><path d="M 3212.000000 802.166016 L 3699.000000 802.166016" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-3339023581-3488378134)" mask="url(#d2-3339023581)" /><text x="3456.500000" y="808.000000" fill="#676C7E" class="text-italic fill-N2" style="text-anchor:middle;font-size:16px">sharedDestination</text></g><g class="KFRyYWNrUGF0dGVybkJhbmsgLSZndDsgU3RlcFNlcXVlbmNlVHJhY2spWzBd"><path d="M 1600.000000 1104.333008 L 1678.000000 1104.333008 S 1688.000000 1104.333008 1688.000000 1094.333008 L 1688.000000 978.833008 S 1688.000000 968.833008 1698.000000 968.833008 L 2377.000000 968.833008 S 2387.000000 968.833008 2387.000000 958.833008 L 2387.000000 924.500000 S 2387.000000 914.500000 2397.000000 914.500000 L 2430.000000 914.500000" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-3339023581-3488378134)" mask="url(#d2-3339023581)" /><text x="1975.000000" y="974.000000" fill="#676C7E" class="text-italic fill-N2" style="text-anchor:middle;font-size:16px">trackID</text></g><g class="KFRyYWNrUGF0dGVybkJhbmsgLSZndDsgVHJhY2tQYXR0ZXJuU2xvdClbMF0="><path d="M 1600.000000 1130.999023 L 1678.000000 1130.999023 S 1688.000000 1130.999023 1688.000000 1140.999023 L 1688.000000 1250.666016 S 1688.000000 1260.666016 1698.000000 1260.666016 L 1900.000000 1260.666016" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-3339023581-3488378134)" mask="url(#d2-3339023581)" /><text x="1688.500000" y="1264.000000" fill="#676C7E" class="text-italic fill-N2" style="text-anchor:middle;font-size:16px">owns slots</text></g><g class="KFRyYWNrUGF0dGVyblNsb3QgLSZndDsgU291cmNlUmVmKVswXQ=="><path d="M 2073.000000 1260.666016 L 2479.000000 1260.666016" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-3339023581-3488378134)" mask="url(#d2-3339023581)" /><text x="2277.500000" y="1266.000000" fill="#676C7E" class="text-italic fill-N2" style="text-anchor:middle;font-size:16px">owns</text></g><g class="KFNvdXJjZVJlZiAtJmd0OyBDbGlwUG9vbEVudHJ5KVswXQ=="><path d="M 2604.000000 1247.333008 L 2966.000000 1247.333008 S 2976.000000 1247.333008 2976.000000 1257.333008 L 2976.000000 1270.666016 S 2976.000000 1280.666016 2986.000000 1280.666016 L 3077.000000 1280.666016" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-3339023581-3488378134)" mask="url(#d2-3339023581)" /><text x="2858.000000" y="1253.000000" fill="#676C7E" class="text-italic fill-N2" style="text-anchor:middle;font-size:16px">clipID</text></g><g class="KFNvdXJjZVJlZiAtJmd0OyBHZW5lcmF0b3JQb29sRW50cnkpWzBd"><path d="M 2604.000000 1274.000000 L 2660.000000 1274.000000 S 2670.000000 1274.000000 2670.000000 1284.000000 L 2670.000000 1382.666016 S 2670.000000 1392.666016 2680.000000 1392.666016 L 3062.000000 1392.666016" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-3339023581-3488378134)" mask="url(#d2-3339023581)" /><text x="2775.000000" y="1398.000000" fill="#676C7E" class="text-italic fill-N2" style="text-anchor:middle;font-size:16px">generatorID / modifierGeneratorID</text></g><g class="KENsaXBQb29sRW50cnkgLSZndDsgU2xpY2VTZXQpWzBd"><path d="M 3227.000000 1294.000000 L 3603.000000 1294.000000 S 3613.000000 1294.000000 3613.000000 1304.000000 L 3613.000000 1362.666016 S 3613.000000 1372.666016 3623.000000 1372.666016 L 3699.000000 1372.666016" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-3339023581-3488378134)" mask="url(#d2-3339023581)" /><text x="3503.000000" y="1300.000000" fill="#676C7E" class="text-italic fill-N2" style="text-anchor:middle;font-size:16px">slice-backed clip references sliceSetID</text></g><g class="KFBocmFzZU1vZGVsIC0mZ3Q7IFBocmFzZUNlbGxBc3NpZ25tZW50KVswXQ=="><path d="M 1580.000000 975.000000 L 1628.000000 975.000000 S 1638.000000 975.000000 1638.000000 985.000000 L 1638.000000 1051.333008 S 1638.000000 1061.333008 1648.000000 1061.333008 L 1882.000000 1061.333008" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-3339023581-3488378134)" mask="url(#d2-3339023581)" /><text x="1689.000000" y="1067.000000" fill="#676C7E" class="text-italic fill-N2" style="text-anchor:middle;font-size:16px">owns cells</text></g><g class="KFBocmFzZUNlbGxBc3NpZ25tZW50IC0mZ3Q7IFN0ZXBTZXF1ZW5jZVRyYWNrKVswXQ=="><path d="M 2091.000000 1031.333008 L 2327.000000 1031.333008 S 2337.000000 1031.333008 2337.000000 1021.333008 L 2337.000000 884.500000 S 2337.000000 874.500000 2347.000000 874.500000 L 2430.000000 874.500000" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-3339023581-3488378134)" mask="url(#d2-3339023581)" /><text x="2337.000000" y="1034.000000" fill="#676C7E" class="text-italic fill-N2" style="text-anchor:middle;font-size:16px">trackID</text></g><g class="KFBocmFzZUNlbGxBc3NpZ25tZW50IC0mZ3Q7IFBocmFzZUxheWVyRGVmaW5pdGlvbilbMF0="><path d="M 2091.000000 1091.333008 L 2327.000000 1091.333008 S 2337.000000 1091.333008 2337.000000 1101.333008 L 2337.000000 1131.000000 S 2337.000000 1141.000000 2347.000000 1141.000000 L 2423.000000 1141.000000" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-3339023581-3488378134)" mask="url(#d2-3339023581)" /><text x="2282.500000" y="1097.000000" fill="#676C7E" class="text-italic fill-N2" style="text-anchor:middle;font-size:16px">layerID</text></g><g class="KFBocmFzZUNlbGxBc3NpZ25tZW50IC0mZ3Q7IFBocmFzZUNlbGwpWzBd"><path d="M 2091.000000 1061.333008 L 2423.000000 1061.333008" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-3339023581-3488378134)" mask="url(#d2-3339023581)" /><text x="2258.000000" y="1067.000000" fill="#676C7E" class="text-italic fill-N2" style="text-anchor:middle;font-size:16px">owns value</text></g><g class="KFJvdXRlIC0mZ3Q7IFN0ZXBTZXF1ZW5jZVRyYWNrKVswXQ=="><path d="M 2052.000000 715.333008 L 2327.000000 715.333008 S 2337.000000 715.333008 2337.000000 725.333008 L 2337.000000 784.500000 S 2337.000000 794.500000 2347.000000 794.500000 L 2430.000000 794.500000" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-3339023581-3488378134)" mask="url(#d2-3339023581)" /><text x="2282.000000" y="721.000000" fill="#676C7E" class="text-italic fill-N2" style="text-anchor:middle;font-size:16px">track source/target</text></g><g class="KFJvdXRlIC0mZ3Q7IERlc3RpbmF0aW9uKVswXQ=="><path d="M 2052.000000 688.666016 L 2119.000000 688.666016 S 2129.000000 688.666016 2129.000000 678.666016 L 2129.000000 583.500000 S 2129.000000 573.500000 2139.000000 573.500000 L 3653.000000 573.500000 S 3663.000000 573.500000 3663.000000 583.500000 L 3663.000000 762.166016 S 3663.000000 772.166016 3673.000000 772.166016 L 3699.000000 772.166016" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-3339023581-3488378134)" mask="url(#d2-3339023581)" /><text x="2918.000000" y="579.000000" fill="#676C7E" class="text-italic fill-N2" style="text-anchor:middle;font-size:16px">destination filter</text></g><mask id="d2-3339023581" maskUnits="userSpaceOnUse" x="-89" y="-89" width="4020" height="2332">
+<rect x="-89" y="-89" width="4020" height="2332" fill="white"></rect>
+<rect x="517.000000" y="965.000000" width="39" height="21" fill="black"></rect>
+<rect x="1589.000000" y="830.000000" width="92" height="21" fill="black"></rect>
+<rect x="1909.000000" y="620.000000" width="132" height="21" fill="black"></rect>
+<rect x="1105.000000" y="1058.000000" width="141" height="21" fill="black"></rect>
+<rect x="1845.000000" y="1330.000000" width="104" height="21" fill="black"></rect>
+<rect x="1766.000000" y="1434.000000" width="146" height="21" fill="black"></rect>
+<rect x="2133.000000" y="1494.000000" width="131" height="21" fill="black"></rect>
+<rect x="1570.000000" y="1240.000000" width="91" height="21" fill="black"></rect>
+<rect x="1137.000000" y="965.000000" width="103" height="21" fill="black"></rect>
+<rect x="1322.000000" y="692.000000" width="93" height="21" fill="black"></rect>
+<rect x="1068.000000" y="770.000000" width="115" height="21" fill="black"></rect>
+<rect x="1003.000000" y="547.000000" width="116" height="21" fill="black"></rect>
+<rect x="3140.000000" y="957.000000" width="116" height="21" fill="black"></rect>
+<rect x="2837.000000" y="844.000000" width="80" height="21" fill="black"></rect>
+<rect x="2827.000000" y="781.000000" width="58" height="21" fill="black"></rect>
+<rect x="3394.000000" y="792.000000" width="125" height="21" fill="black"></rect>
+<rect x="1949.000000" y="958.000000" width="52" height="21" fill="black"></rect>
+<rect x="1652.000000" y="1248.000000" width="73" height="21" fill="black"></rect>
+<rect x="2258.000000" y="1250.000000" width="39" height="21" fill="black"></rect>
+<rect x="2837.000000" y="1237.000000" width="42" height="21" fill="black"></rect>
+<rect x="2660.000000" y="1382.000000" width="230" height="21" fill="black"></rect>
+<rect x="3377.000000" y="1284.000000" width="252" height="21" fill="black"></rect>
+<rect x="1653.000000" y="1051.000000" width="72" height="21" fill="black"></rect>
+<rect x="2311.000000" y="1018.000000" width="52" height="21" fill="black"></rect>
+<rect x="2257.000000" y="1081.000000" width="51" height="21" fill="black"></rect>
+<rect x="2219.000000" y="1051.000000" width="78" height="21" fill="black"></rect>
+<rect x="2216.000000" y="705.000000" width="132" height="21" fill="black"></rect>
+<rect x="2861.000000" y="563.000000" width="114" height="21" fill="black"></rect>
+</mask></svg></svg>
