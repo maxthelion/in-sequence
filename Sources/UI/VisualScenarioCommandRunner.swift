@@ -293,19 +293,23 @@ enum VisualScenarioCommandRunner {
             }
         }
         // Drive the tracks actions nav: stash the selection as the perform
-        // scope and request navigation to the matching phrase tab, exactly as
-        // the Layer perform / Same value buttons do. `WorkspaceDetailView` and
+        // scope and request navigation to Phrase Layers, exactly as the By
+        // Track / By Value buttons do. `WorkspaceDetailView` and
         // `PhraseWorkspaceView` then complete the navigation.
         if let rawAction = command["tracksAction"] {
-            let tab: PhraseWorkspaceTab? = {
+            let mode: PhraseLayerEditMode? = {
                 switch rawAction {
-                case "layerPerform": return .layers
-                case "sameValue": return .globalApply
+                case "layerPerform", "byTrack": return .byTrack
+                case "sameValue", "byValue": return .byValue
                 default: return nil
                 }
             }()
-            if let tab {
-                session.requestPhrasePerform(tab: tab, trackIDs: session.tracksSelection)
+            if let mode {
+                session.requestPhrasePerform(
+                    tab: .layers,
+                    layerEditMode: mode,
+                    trackIDs: session.tracksSelection
+                )
             }
         }
 

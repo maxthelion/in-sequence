@@ -43,9 +43,10 @@ struct WorkspaceDetailView: View {
                 guard !memberIDs.isEmpty else { return }
                 enterScopedPerform(trackIDs: memberIDs)
             }
-            // Tracks actions nav (Layer perform / Same value): when a pending
+            // Tracks actions nav (By Track / By Value): when a pending
             // phrase-perform target is set, navigate to the Phrase workspace.
-            // The phrase view consumes the tab + scope and clears the target.
+            // The phrase view consumes the tab + layer mode + scope and clears
+            // the target.
             .onChange(of: session.pendingPhrasePerform) {
                 if session.pendingPhrasePerform != nil {
                     section = .phrase

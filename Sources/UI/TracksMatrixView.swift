@@ -265,8 +265,8 @@ struct TracksMatrixView: View {
     }
 
     /// A single horizontal bar with the Select toggle. With selection mode ON
-    /// and ≥1 track selected, the Clear control and the action buttons (Layer
-    /// perform / Same value / Create performance group) appear inline — there
+    /// and ≥1 track selected, the Clear control and the action buttons (By
+    /// Track / By Value / Create performance group) appear inline — there
     /// is no separate actions section and no "N selected" text.
     private func selectionTopBar(trackCount: Int) -> some View {
         let isOn = session.tracksSelectionMode
@@ -305,16 +305,16 @@ struct TracksMatrixView: View {
                     .frame(height: 22)
 
                 selectionActionButton(
-                    title: "Layer perform",
+                    title: "By Track",
                     accent: StudioTheme.violet,
-                    identifier: "tracks-action-layer-perform"
-                ) { requestPhrasePerform(tab: .layers) }
+                    identifier: "tracks-action-by-track"
+                ) { requestPhrasePerform(mode: .byTrack) }
 
                 selectionActionButton(
-                    title: "Same value",
+                    title: "By Value",
                     accent: StudioTheme.cyan,
-                    identifier: "tracks-action-same-value"
-                ) { requestPhrasePerform(tab: .globalApply) }
+                    identifier: "tracks-action-by-value"
+                ) { requestPhrasePerform(mode: .byValue) }
 
                 deferredGroupButton
 
@@ -387,9 +387,8 @@ struct TracksMatrixView: View {
         .help("Clear selection")
     }
 
-    /// A compact selection action button. Layer perform / Same value NAVIGATE
-    /// to the existing phrase surfaces (Layers / Global Apply) — nothing
-    /// perform-shaped is built here.
+    /// A compact selection action button. By Track / By Value navigate to the
+    /// phrase Layers surface with the selected tracks preloaded as scope.
     private func selectionActionButton(
         title: String,
         accent: Color,
@@ -438,10 +437,14 @@ struct TracksMatrixView: View {
         .help("Performance groups are coming soon")
     }
 
-    /// Layer perform / Same value: stash the current selection as the perform
-    /// scope and queue navigation into the matching phrase tab.
-    private func requestPhrasePerform(tab: PhraseWorkspaceTab) {
-        session.requestPhrasePerform(tab: tab, trackIDs: session.tracksSelection)
+    /// By Track / By Value: stash the current selection as the phrase layer
+    /// scope and queue navigation into Phrase -> Layers.
+    private func requestPhrasePerform(mode: PhraseLayerEditMode) {
+        session.requestPhrasePerform(
+            tab: .layers,
+            layerEditMode: mode,
+            trackIDs: session.tracksSelection
+        )
     }
 
     private func matrixSections(tracks: [StepSequenceTrack], selectedTrackID: UUID) -> some View {

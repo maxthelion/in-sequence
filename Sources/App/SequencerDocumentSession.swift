@@ -135,21 +135,31 @@ final class SequencerDocumentSession {
     // MARK: - Pending Tracks → Phrase navigation (transient)
 
     /// A pending request from the tracks actions nav to navigate to the phrase
-    /// workspace on a specific tab with the selection pre-loaded as the perform
-    /// scope. `WorkspaceDetailView` consumes the section switch; the phrase view
-    /// consumes the tab + scope, then clears it. Session-only runtime state.
+    /// workspace on a specific tab/layer mode with the selection pre-loaded as
+    /// the perform scope. `WorkspaceDetailView` consumes the section switch; the
+    /// phrase view consumes the tab + scope, then clears it. Session-only
+    /// runtime state.
     struct PendingPhrasePerform: Equatable {
         var tab: PhraseWorkspaceTab
+        var layerEditMode: PhraseLayerEditMode?
         var trackIDs: Set<UUID>
     }
 
     var pendingPhrasePerform: PendingPhrasePerform?
 
-    /// Layer perform / Same value actions: stash the selection as the perform
-    /// scope and queue navigation to the phrase workspace's requested tab.
-    func requestPhrasePerform(tab: PhraseWorkspaceTab, trackIDs: Set<UUID>) {
+    /// By Track / By Value actions: stash the selection as the perform scope and
+    /// queue navigation to the phrase workspace's requested tab and layer mode.
+    func requestPhrasePerform(
+        tab: PhraseWorkspaceTab,
+        layerEditMode: PhraseLayerEditMode? = nil,
+        trackIDs: Set<UUID>
+    ) {
         performTrackScope = trackIDs
-        pendingPhrasePerform = PendingPhrasePerform(tab: tab, trackIDs: trackIDs)
+        pendingPhrasePerform = PendingPhrasePerform(
+            tab: tab,
+            layerEditMode: layerEditMode,
+            trackIDs: trackIDs
+        )
     }
 
     /// Debounce interval used for `scheduleFlushToDocument`.

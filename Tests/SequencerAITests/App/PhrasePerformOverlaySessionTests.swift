@@ -4,6 +4,28 @@ import XCTest
 
 @MainActor
 final class PhrasePerformOverlaySessionTests: XCTestCase {
+    func test_requestPhrasePerformStoresLayerEditModeAndTrackScope() {
+        let fixture = makeSession()
+        defer { fixture.unregister() }
+
+        let scopedTrackIDs = Set(fixture.trackIDs.prefix(2))
+        fixture.session.requestPhrasePerform(
+            tab: .layers,
+            layerEditMode: .byValue,
+            trackIDs: scopedTrackIDs
+        )
+
+        XCTAssertEqual(fixture.session.performTrackScope, scopedTrackIDs)
+        XCTAssertEqual(fixture.session.pendingPhrasePerform?.tab, .layers)
+        XCTAssertEqual(fixture.session.pendingPhrasePerform?.layerEditMode, .byValue)
+        XCTAssertEqual(fixture.session.pendingPhrasePerform?.trackIDs, scopedTrackIDs)
+    }
+
+    func test_phraseTabsKeepLayerEditModesInsideLayers() {
+        XCTAssertEqual(PhraseWorkspaceTab.allCases, [.layers, .scenes])
+        XCTAssertEqual(PhraseLayerEditMode.allCases, [.byTrack, .byValue])
+    }
+
     func test_stagePhrasePerformCell_readsFromOverlayWithoutChangingCanonicalPhrase() throws {
         let fixture = makeSession()
         defer { fixture.unregister() }
@@ -118,12 +140,12 @@ final class PhrasePerformOverlaySessionTests: XCTestCase {
         )
     }
 
-    func test_scopedGlobalApplyInPerformModeStagesEveryRecipientTrack() throws {
+    func test_scopedByValueInPerformModeStagesEveryRecipientTrack() throws {
         let fixture = makeSession()
         defer { fixture.unregister() }
 
         let recipientTrackIDs = Array(fixture.trackIDs.prefix(2))
-        try XCTSkipIf(recipientTrackIDs.count < 2, "Fixture needs at least two tracks for scoped Global Apply coverage")
+        try XCTSkipIf(recipientTrackIDs.count < 2, "Fixture needs at least two tracks for scoped By Value coverage")
 
         fixture.session.workspaceMode = .perform
         fixture.session.setPhraseCell(

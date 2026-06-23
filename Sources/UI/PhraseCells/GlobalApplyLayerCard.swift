@@ -1,10 +1,10 @@
 import SwiftUI
 
-/// A Global Apply card. The INNER value is rendered with the same
+/// A By Value card. The INNER value is rendered with the same
 /// `PhraseCellPreview` the Layers matrix uses, so a given layer value looks
 /// identical in both views: mute → red "Muted" / green "Live"; pattern → the
 /// 4×4 slot matrix; scalar → the level well. The card adds only the framing
-/// Global Apply legitimately needs on top of that shared cell:
+/// the same-value picker legitimately needs on top of that shared cell:
 ///
 ///   - the layer NAME label (the matrix names the active layer in its header
 ///     once; here each card stands alone, so it carries its own name), and

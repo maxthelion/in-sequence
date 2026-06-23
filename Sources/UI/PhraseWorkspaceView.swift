@@ -10,6 +10,7 @@ struct PhraseWorkspaceView: View {
     @State private var editingCellTarget: PhraseCellEditorTarget?
     @State private var trackPage = 0
     @State private var phraseTab: PhraseWorkspaceTab = .layers
+    @State private var phraseLayerEditMode: PhraseLayerEditMode = .byTrack
     @State private var performanceLayerSelection = PerformanceLayerSelectionState()
     @State private var isPresentingPerformanceLayerSelection = false
     @State private var phraseCellTool: PhraseCellTool = .value
@@ -83,7 +84,7 @@ struct PhraseWorkspaceView: View {
     }
 
     private var matrixLayout: PhraseMatrixLayoutPresentation {
-        PhraseMatrixLayoutPresentation(trackCount: tracks.count, pageIndex: trackPage)
+        PhraseMatrixLayoutPresentation(trackCount: scopedLayerTracks.count, pageIndex: trackPage)
     }
 
     private var trackGridWidth: CGFloat {
@@ -92,13 +93,34 @@ struct PhraseWorkspaceView: View {
     }
 
     private var visibleTrackSlots: [StepSequenceTrack?] {
-        let startIndex = min(trackPage * trackPageSize, tracks.count)
-        let pagedTracks = Array(tracks.dropFirst(startIndex).prefix(trackPageSize))
+        let visibleTracks = scopedLayerTracks
+        let startIndex = min(trackPage * trackPageSize, visibleTracks.count)
+        let pagedTracks = Array(visibleTracks.dropFirst(startIndex).prefix(trackPageSize))
         return pagedTracks.map(Optional.some) + Array(repeating: nil, count: max(0, trackPageSize - pagedTracks.count))
+    }
+
+    private var scopedLayerTracks: [StepSequenceTrack] {
+        let scopedTrackIDs = phraseLayerTrackScopeIDs
+        return tracks.filter { scopedTrackIDs.contains($0.id) }
+    }
+
+    private var phraseLayerTrackScopeIDs: [UUID] {
+        let orderedTrackIDs = tracks.map(\.id)
+        if globalApplyScope.isEmpty {
+            return orderedTrackIDs
+        }
+        return orderedTrackIDs.filter { globalApplyScope.contains($0) }
     }
 
     private var selectedPhraseForEditing: PhraseModel {
         session.phraseWithPerformOverlay(session.store.selectedPhrase)
+    }
+
+    private var legacyVisualWorkspaceTab: String {
+        if phraseTab == .layers, phraseLayerEditMode == .byValue {
+            return "globalApply"
+        }
+        return phraseTab.rawValue
     }
 
     var body: some View {
@@ -110,8 +132,8 @@ struct PhraseWorkspaceView: View {
             showsHeader: false
         ) {
             VStack(alignment: .leading, spacing: 8) {
-                // The three-mode tab row (LAYERS / SCENES / GLOBAL APPLY) sits
-                // ABOVE the orange perform-copy bar. While the layer selector is
+                // The phrase-local tab row sits ABOVE the perform-copy bar.
+                // While the layer selector is
                 // open the tabs are hidden so the selection reads as part of the
                 // layer button.
                 if !(isPresentingPerformanceLayerSelection && phraseTab == .layers) {
@@ -120,11 +142,14 @@ struct PhraseWorkspaceView: View {
                 phrasePerformanceShell
                 switch phraseTab {
                 case .layers:
-                    selectedPhraseLayerMatrix
+                    switch phraseLayerEditMode {
+                    case .byTrack:
+                        selectedPhraseLayerMatrix
+                    case .byValue:
+                        globalApplySurface
+                    }
                 case .scenes:
                     phraseScenesSurface
-                case .globalApply:
-                    globalApplySurface
                 }
             }
         }
@@ -237,14 +262,17 @@ struct PhraseWorkspaceView: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .center, spacing: 10) {
                 if phraseTab == .layers {
+                    phraseLayerModeControl
+                }
+
+                if phraseTab == .layers {
                     shellLayerControls
                 }
 
-                // Bug 20260622-181714: the global-apply track scope count button
-                // lives in this perform bar (the purple/amber-outlined nav row),
-                // left-anchored, instead of up in the LAYERS/SCENES/GLOBAL APPLY
-                // menu row. It only appears while the GLOBAL APPLY tab is active.
-                if phraseTab == .globalApply {
+                // The track scope is useful in both layer orientations: By
+                // Track filters which tracks are shown; By Value chooses which
+                // tracks receive the same value.
+                if phraseTab == .layers {
                     globalApplyTrackScopeButton
                 }
 
@@ -451,7 +479,45 @@ struct PhraseWorkspaceView: View {
         }
     }
 
-    // Single toggle for the global-apply track scope. Its label is the live
+    private var phraseLayerModeControl: some View {
+        HStack(spacing: 0) {
+            ForEach(PhraseLayerEditMode.allCases) { mode in
+                Button {
+                    phraseLayerEditMode = mode
+                    isPresentingPerformanceLayerSelection = false
+                    isPresentingGlobalApplyTrackSelector = false
+                    clampTrackPage()
+                    postRenderedMatrixVisualState(isVisible: true)
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: mode.symbolName)
+                            .font(.system(size: 11, weight: .bold))
+                        Text(mode.label.uppercased())
+                            .studioText(.microEmphasis)
+                            .tracking(0.8)
+                    }
+                    .foregroundStyle(phraseLayerEditMode == mode ? StudioTheme.background : StudioTheme.mutedText)
+                    .frame(width: 96, height: 32)
+                    .background(
+                        phraseLayerEditMode == mode ? StudioTheme.violet : Color.white.opacity(StudioOpacity.subtleFill),
+                        in: Capsule()
+                    )
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("phrase-layer-edit-mode-\(mode.rawValue)")
+                .help(mode.help)
+            }
+        }
+        .padding(2)
+        .background(Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
+        .overlay(
+            Capsule()
+                .stroke(StudioTheme.violet.opacity(StudioOpacity.mediumStroke), lineWidth: StudioMetrics.borderWidth)
+        )
+        .accessibilityIdentifier("phrase-layer-edit-mode-control")
+    }
+
+    // Single toggle for the phrase layer track scope. Its label is the live
     // selection count; tapping it opens the selector and tapping it again closes
     // it. Bug 20260622-181714: it now lives in the perform bar, not the top menu.
     private var globalApplyTrackScopeButton: some View {
@@ -475,8 +541,8 @@ struct PhraseWorkspaceView: View {
             )
         }
         .buttonStyle(.plain)
-        .accessibilityIdentifier("phrase-global-apply-track-scope-button")
-        .help("Choose which tracks Global Apply writes to")
+        .accessibilityIdentifier("phrase-layer-track-scope-button")
+        .help(phraseLayerEditMode == .byTrack ? "Choose which tracks are visible in By Track" : "Choose which tracks receive By Value changes")
     }
 
     private var phraseScenesSurface: some View {
@@ -783,17 +849,20 @@ struct PhraseWorkspaceView: View {
     // Compact layer controls that live INSIDE the orange perform-copy bar on
     // the LAYERS tab (bug 20260619-213241). Same PHRASE LAYER pill + VALUE /
     // AUTOMATION cell tools as before, sized to share the bar's single line.
+    @ViewBuilder
     private var shellLayerControls: some View {
-        HStack(spacing: 8) {
-            phraseLayerSelectorButton
-                .frame(width: 132)
+        if phraseLayerEditMode == .byTrack {
+            HStack(spacing: 8) {
+                phraseLayerSelectorButton
+                    .frame(width: 132)
 
-            phraseCellToolButton(.value)
-                .frame(width: 84)
-            phraseCellToolButton(.automation)
-                .frame(width: 104)
+                phraseCellToolButton(.value)
+                    .frame(width: 84)
+                phraseCellToolButton(.automation)
+                    .frame(width: 104)
+            }
+            .fixedSize(horizontal: true, vertical: false)
         }
-        .fixedSize(horizontal: true, vertical: false)
     }
 
     private var phraseLayerSelectorButton: some View {
@@ -881,7 +950,8 @@ struct PhraseWorkspaceView: View {
     }
 
     private func syncTrackPageToSelection() {
-        guard let selectedIndex = tracks.firstIndex(where: { $0.id == session.store.selectedTrackID }) else {
+        guard let selectedIndex = scopedLayerTracks.firstIndex(where: { $0.id == session.store.selectedTrackID }) else {
+            clampTrackPage()
             return
         }
         trackPage = min(max(selectedIndex / trackPageSize, 0), trackPageCount - 1)
@@ -892,21 +962,23 @@ struct PhraseWorkspaceView: View {
     }
 
     /// Consume a pending Tracks→Phrase navigation request (set by the tracks
-    /// actions nav): open the requested tab, and for Same value (Global Apply)
-    /// seed the track selector from the selection. The perform scope itself is
-    /// already set on the session. Cleared once applied so it fires once.
+    /// actions nav): open the requested tab/mode and seed the shared layer track
+    /// scope from the selection. The perform scope itself is already set on the
+    /// session. Cleared once applied so it fires once.
     private func consumePendingPhrasePerform() {
         guard let pending = session.pendingPhrasePerform else { return }
         phraseTab = pending.tab
+        if let layerEditMode = pending.layerEditMode {
+            phraseLayerEditMode = layerEditMode
+        }
         if pending.tab != .layers {
             isPresentingPerformanceLayerSelection = false
         }
         // Re-assert the perform scope as the view mounts so it is authoritative
         // for the phrase surfaces regardless of any intervening navigation.
         session.performTrackScope = pending.trackIDs
-        if pending.tab == .globalApply {
-            globalApplyScope = TrackPerformSelectionState(selectedTrackIDs: pending.trackIDs)
-        }
+        globalApplyScope = TrackPerformSelectionState(selectedTrackIDs: pending.trackIDs)
+        clampTrackPage()
         session.pendingPhrasePerform = nil
         postRenderedMatrixVisualState(isVisible: true)
     }
@@ -973,7 +1045,12 @@ struct PhraseWorkspaceView: View {
 
         if command.hasPrefix("tab:") {
             let rawTab = String(command.dropFirst("tab:".count))
-            if let tab = PhraseWorkspaceTab(rawValue: rawTab) {
+            if rawTab == "globalApply" {
+                phraseTab = .layers
+                phraseLayerEditMode = .byValue
+                isPresentingPerformanceLayerSelection = false
+                postRenderedMatrixVisualState(isVisible: true)
+            } else if let tab = PhraseWorkspaceTab(rawValue: rawTab) {
                 phraseTab = tab
                 if tab != .layers {
                     isPresentingPerformanceLayerSelection = false
@@ -993,7 +1070,8 @@ struct PhraseWorkspaceView: View {
         }
 
         if command == "global-apply-track-selector:open" {
-            phraseTab = .globalApply
+            phraseTab = .layers
+            phraseLayerEditMode = .byValue
             isPresentingGlobalApplyTrackSelector = true
             postRenderedMatrixVisualState(isVisible: true)
             return
@@ -1012,7 +1090,8 @@ struct PhraseWorkspaceView: View {
         if command.hasPrefix("global-apply-select:"),
            let rawCount = command.split(separator: ":").last,
            let count = Int(rawCount) {
-            phraseTab = .globalApply
+            phraseTab = .layers
+            phraseLayerEditMode = .byValue
             isPresentingGlobalApplyTrackSelector = true
             var scope = TrackPerformSelectionState()
             for track in tracks.prefix(max(0, count)) {
@@ -1069,7 +1148,8 @@ struct PhraseWorkspaceView: View {
                 "performLayerMode": isVisible ? performanceLayerSelection.mode.rawValue : "none",
                 "performLayerSelectorVisible": isVisible && isPresentingPerformanceLayerSelection,
                 "performLayerVariant": isVisible ? performanceLayerSelection.variantLabel ?? "none" : "none",
-                "workspaceTab": isVisible ? phraseTab.rawValue : "none",
+                "workspaceTab": isVisible ? legacyVisualWorkspaceTab : "none",
+                "phraseLayerEditMode": isVisible ? phraseLayerEditMode.rawValue : "none",
                 "cellTool": isVisible ? phraseCellTool.rawValue : "none",
                 "globalApplyTrackSelectorVisible": isVisible && isPresentingGlobalApplyTrackSelector,
                 "captureVisible": isVisible && isPresentingPhraseCapture,
@@ -2008,10 +2088,43 @@ private enum PhraseCellTool: String, Equatable {
     }
 }
 
+enum PhraseLayerEditMode: String, CaseIterable, Identifiable {
+    case byTrack
+    case byValue
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .byTrack:
+            return "By Track"
+        case .byValue:
+            return "By Value"
+        }
+    }
+
+    var symbolName: String {
+        switch self {
+        case .byTrack:
+            return "square.grid.3x3"
+        case .byValue:
+            return "scope"
+        }
+    }
+
+    var help: String {
+        switch self {
+        case .byTrack:
+            return "Choose a layer and edit different values per track"
+        case .byValue:
+            return "Choose a value and apply it to the selected track scope"
+        }
+    }
+}
+
 enum PhraseWorkspaceTab: String, CaseIterable, Identifiable {
     case layers
     case scenes
-    case globalApply
 
     var id: String { rawValue }
 
@@ -2021,8 +2134,6 @@ enum PhraseWorkspaceTab: String, CaseIterable, Identifiable {
             return "Layers"
         case .scenes:
             return "Scenes"
-        case .globalApply:
-            return "Global Apply"
         }
     }
 
@@ -2032,8 +2143,6 @@ enum PhraseWorkspaceTab: String, CaseIterable, Identifiable {
             return "square.grid.3x3"
         case .scenes:
             return "square.2.layers.3d"
-        case .globalApply:
-            return "scope"
         }
     }
 
@@ -2043,8 +2152,6 @@ enum PhraseWorkspaceTab: String, CaseIterable, Identifiable {
             return StudioTheme.violet
         case .scenes:
             return StudioTheme.amber
-        case .globalApply:
-            return StudioTheme.cyan
         }
     }
 
@@ -2054,8 +2161,6 @@ enum PhraseWorkspaceTab: String, CaseIterable, Identifiable {
             return "Edit phrase layer values by track"
         case .scenes:
             return "Edit phrase scene values"
-        case .globalApply:
-            return "Apply one value to the current track scope"
         }
     }
 }
