@@ -121,10 +121,7 @@ struct TracksMatrixView: View {
     /// overriding collapse for display only — it never changes the link state.
     @State private var forceExpandedGroups: Set<TrackGroupID> = []
 
-    private let columns = Array(
-        repeating: GridItem(.flexible(minimum: 112, maximum: 190), spacing: 12),
-        count: 8
-    )
+    private let columns = StudioMetrics.Grid.matrixColumns(spacing: 12, minimum: 112, maximum: 190)
 
     private var groupedSections: [GroupedTrackSection] {
         session.store.trackGroups.compactMap { group in

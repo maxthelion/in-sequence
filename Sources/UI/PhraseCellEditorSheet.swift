@@ -226,7 +226,7 @@ struct PhraseCellEditorSheet: View {
                 }
             }
 
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 8), spacing: 8) {
+            LazyVGrid(columns: StudioMetrics.Grid.matrixColumns(spacing: 8), spacing: 8) {
                 ForEach(start..<end, id: \.self) { stepIndex in
                     Button {
                         var nextValues = values

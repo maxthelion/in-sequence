@@ -1,9 +1,31 @@
-import CoreGraphics
+import SwiftUI
 
 enum StudioMetrics {
     /// The one outline weight: outlines must read as drawn lines on the
     /// near-black ground, so every standard control stroke uses this.
     static let borderWidth: CGFloat = 1.5
+
+    /// Matrix grids (track/phrase matrices, perform-layer grids, the cell
+    /// editor) are a fixed 8 columns wide — the canonical "pattern" width.
+    /// Build columns through `matrixColumns(...)` so the count + spacing are
+    /// standardized in one place instead of repeated `count: 8` literals.
+    enum Grid {
+        static let matrixColumnCount = 8
+
+        static func matrixColumns(
+            spacing: CGFloat = Spacing.compact,
+            minimum: CGFloat? = nil,
+            maximum: CGFloat? = nil
+        ) -> [GridItem] {
+            let size: GridItem.Size
+            switch (minimum, maximum) {
+            case let (min?, max?): size = .flexible(minimum: min, maximum: max)
+            case let (min?, nil): size = .flexible(minimum: min)
+            default: size = .flexible()
+            }
+            return Array(repeating: GridItem(size, spacing: spacing), count: matrixColumnCount)
+        }
+    }
 
     enum CornerRadius {
         static let workspace: CGFloat = 30

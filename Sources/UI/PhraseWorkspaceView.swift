@@ -1361,7 +1361,8 @@ struct PhraseWorkspaceView: View {
         let selectedTrackID = session.store.selectedTrackID
         let displayedPhrase = selectedPhraseForEditing
         let rowInherited = inheritedDefaults(for: displayedPhrase.id)
-        let columns = [GridItem(.adaptive(minimum: 104), spacing: gridSpacing)]
+        // Standard 8-column matrix grid (always 8 columns, full or not).
+        let columns = StudioMetrics.Grid.matrixColumns(spacing: gridSpacing)
         return ScrollView(.vertical) {
             LazyVGrid(columns: columns, alignment: .leading, spacing: gridSpacing) {
                 ForEach(scopedLayerTracks, id: \.id) { track in
@@ -1689,7 +1690,7 @@ struct PhraseWorkspaceView: View {
     }
 
     private var globalApplyColumns: [GridItem] {
-        Array(repeating: GridItem(.flexible(minimum: 84, maximum: 190), spacing: 10), count: 8)
+        StudioMetrics.Grid.matrixColumns(spacing: 10, minimum: 84, maximum: 190)
     }
 
     private var globalApplyScopeTrackIDs: [UUID] {
@@ -1809,7 +1810,7 @@ struct PhraseWorkspaceView: View {
     }
 
     private var performanceLayerSelectionColumns: [GridItem] {
-        Array(repeating: GridItem(.flexible(minimum: 84, maximum: 190), spacing: 10), count: 8)
+        StudioMetrics.Grid.matrixColumns(spacing: 10, minimum: 84, maximum: 190)
     }
 
     private func choosePerformanceLayer(_ option: PerformanceLayerOption) {
@@ -1855,13 +1856,33 @@ struct SongWorkspaceView: View {
         session.store.selectedPhrase
     }
 
-    private var songColumns: [GridItem] {
-        Array(repeating: GridItem(.flexible(minimum: 118, maximum: 168), spacing: 10), count: 8)
+    private var tracks: [StepSequenceTrack] {
+        session.store.tracks
     }
 
-    private var songSlots: [PhraseModel?] {
-        let slotCount = max(8, Int(ceil(Double(phrases.count) / 8.0)) * 8)
-        return phrases.map(Optional.some) + Array(repeating: nil, count: max(0, slotCount - phrases.count))
+    private var layers: [PhraseLayerDefinition] {
+        session.store.layers
+    }
+
+    private let phraseColumnWidth: CGFloat = 150
+    private let trackColumnWidth: CGFloat = 126
+    private let gridSpacing: CGFloat = 10
+
+    /// The pattern layer is the canonical "what plays" surface, mirroring the
+    /// original phrase matrix. Fall back to the first selectable layer (and
+    /// finally the first layer) if a pattern layer can't be resolved.
+    private var matrixLayer: PhraseLayerDefinition? {
+        if let pattern = session.store.patternLayer {
+            return pattern
+        }
+        let selectable = PhraseLayerSelectorPresentation.selectableLayers(from: layers)
+        return selectable.first ?? layers.first
+    }
+
+    /// Forward-only inherited defaults so each row's cells display the value
+    /// they will actually play, matching the engine compile path.
+    private var inheritedDefaults: PhraseInheritedDefaults {
+        PhraseInheritedDefaults.build(phrases: phrases, layers: layers)
     }
 
     var body: some View {
@@ -1917,13 +1938,46 @@ struct SongWorkspaceView: View {
     }
 
     private var phraseGrid: some View {
-        ScrollView([.vertical]) {
-            LazyVGrid(columns: songColumns, alignment: .leading, spacing: 10) {
-                ForEach(Array(songSlots.enumerated()), id: \.offset) { index, slot in
-                    if let phrase = slot {
+        // Phrases as ROWS, tracks as COLUMNS — the original phrase×track matrix.
+        // A track-header row sits on top of the body columns; the leading
+        // phrase-label column lines up with the header's leading spacer.
+        let activeLayer = matrixLayer
+        let accent = activeLayer.map { layerAccent($0.id) } ?? StudioTheme.cyan
+        let defaults = inheritedDefaults
+        let selectedPhraseID = session.store.selectedPhraseID
+        let selectedTrackID = session.store.selectedTrackID
+
+        return ScrollView([.horizontal, .vertical]) {
+            VStack(alignment: .leading, spacing: gridSpacing) {
+                // Header row: leading spacer aligned to the phrase-label column,
+                // then one header per track.
+                HStack(spacing: gridSpacing) {
+                    Color.clear
+                        .frame(width: phraseColumnWidth, height: 52)
+
+                    ForEach(tracks, id: \.id) { track in
+                        Button {
+                            session.setSelectedTrackID(track.id)
+                        } label: {
+                            PhraseMatrixTrackHeaderCell(
+                                track: track,
+                                isSelected: selectedTrackID == track.id,
+                                accent: track.groupID == nil ? accent : StudioTheme.success
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        .frame(width: trackColumnWidth)
+                    }
+                }
+
+                // Body: one row per phrase.
+                ForEach(phrases, id: \.id) { phrase in
+                    let displayedPhrase = session.phraseWithPerformOverlay(phrase)
+                    let inherited = defaults.resolved(for: phrase.id)
+                    HStack(alignment: .top, spacing: gridSpacing) {
                         PhraseMatrixPhraseCell(
                             phrase: phrase,
-                            isSelected: phrase.id == session.store.selectedPhraseID,
+                            isSelected: selectedPhraseID == phrase.id,
                             isPlaying: PhraseButtonControlPresentation.isPlayingBadgeVisible(
                                 phraseID: phrase.id,
                                 engineIsRunning: engineController.isRunning,
@@ -1941,12 +1995,34 @@ struct SongWorkspaceView: View {
                                 session.setPhraseRepeatCount(nextRepeatCount, phraseID: phrase.id)
                             }
                         )
-                        .frame(minHeight: PhraseMatrixLayoutPresentation.matrixRowHeight)
-                    } else {
-                        SongEmptyPhraseCell(slotIndex: index) {
-                            session.insertPhrase(below: selectedPhrase.id)
+                        .frame(width: phraseColumnWidth)
+
+                        ForEach(tracks, id: \.id) { track in
+                            Group {
+                                if let activeLayer {
+                                    PhraseGridCell(
+                                        layer: activeLayer,
+                                        cell: displayedPhrase.cell(for: activeLayer.id, trackID: track.id),
+                                        phrase: displayedPhrase,
+                                        track: track,
+                                        isSelected: phrase.id == selectedPhraseID && track.id == selectedTrackID,
+                                        accent: track.groupID == nil ? accent : StudioTheme.success,
+                                        inherited: inherited,
+                                        showsTrackName: false
+                                    )
+                                } else {
+                                    PhraseGridEmptyCell()
+                                }
+                            }
+                            .frame(width: trackColumnWidth)
+                            .frame(minHeight: PhraseMatrixLayoutPresentation.matrixRowHeight)
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                session.setSelectedPhraseID(phrase.id)
+                                session.setSelectedTrackID(track.id)
+                                onOpenPhrase()
+                            }
                         }
-                        .frame(minHeight: PhraseMatrixLayoutPresentation.matrixRowHeight)
                     }
                 }
             }
@@ -2463,6 +2539,10 @@ private struct PhraseGridCell: View {
     let isSelected: Bool
     let accent: Color
     var inherited: PhraseInheritedDefaults.Resolved?
+    // By Track has no header row, so each cell carries the track name. The Song
+    // phrase matrix has its own track-header row, so it passes false to avoid
+    // showing the name twice.
+    var showsTrackName: Bool = true
 
     // Inherited cells are a muted variant of explicit ones — no
     // "SINGLE"/"INHERIT" chip repeated in every cell (ux-canon rules 1/3).
@@ -2477,13 +2557,16 @@ private struct PhraseGridCell: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             // Track name header inside the cell (By Track has no separate header
-            // row), above the value/controls.
-            Text(track.name)
-                .studioText(.labelBold)
-                .foregroundStyle(track.groupID == nil ? StudioTheme.text : StudioTheme.success)
-                .lineLimit(1)
-                .truncationMode(.tail)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            // row), above the value/controls. Suppressed in the Song matrix,
+            // which has its own track-header row.
+            if showsTrackName {
+                Text(track.name)
+                    .studioText(.labelBold)
+                    .foregroundStyle(track.groupID == nil ? StudioTheme.text : StudioTheme.success)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
 
             PhraseCellPreview(
                 layer: layer,
