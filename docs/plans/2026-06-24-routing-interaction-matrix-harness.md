@@ -24,8 +24,17 @@ these far better than a human clicking.
 - **Detect crashes:** check the app pid after each op; a death = crash. Diff
   `~/Library/Logs/DiagnosticReports/SequencerAI*` for the new report and capture
   the faulting frame.
-- **Fixture:** `docs/fixtures/audio-rich-routing.seqai` (AU mono + slicer + drum
-  group + sends + bus), launched with `SEQUENCER_AI_MATERIALIZE_FIXTURE_SAMPLES=1`.
+- **Fixture (automation = sample-only, NO third-party AU):** hosting a
+  third-party AU (e.g. Analog Lab) triggers macOS's "run with lower
+  permissions?" **modal** (a sandbox/Hardened-Runtime gate, like mic TCC). A
+  headless/wired launch cannot dismiss it, so the app blocks and produces no
+  audio (`masterPeak=-inf`) — this is the likely cause of the observed wired
+  silence. The automation harness must therefore use a **sample-only fixture**
+  (`.sample` drum hits + slicer; no `.auInstrument`) so it sounds deterministically
+  with no prompt. Add an `AudioRichFixture` variant (or a flag) that swaps the
+  AU mono track for a `.sample` melodic track. Launch with
+  `SEQUENCER_AI_MATERIALIZE_FIXTURE_SAMPLES=1`. Keep the AU-bearing fixture only
+  for the MANUAL interactive pass (where "Allow" can be clicked).
 
 ## Operation matrix (what to combinatorially exercise)
 

@@ -196,6 +196,12 @@ update the compact summary through the loop.
   `SEQUENCER_AI_ALLOW_VISUAL_AUTOMATION=1` is explicitly set for an interactive,
   pre-authorized session. If the gate is closed, record
   `capture-permission-or-focus` / `evidence-insufficient` instead of retrying.
+- Audio test source by permission tier: **unattended/headless audio runs use
+  sample sources only** (`Destination.sample`/`.slicer` — deterministic, no
+  prompt). **AU instruments/effects and audio-input tests only when a human is
+  present** to grant the macOS "lower permissions?" / mic-TCC modal — a headless
+  launch can't dismiss it and blocks (no audio, `masterPeak=-inf`). Note:
+  `.internalSampler(.drumKitDefault)` is NOT an implemented sound source.
 - Keep the README/project spirit in view, but do not make every actor reread the
   whole repo.
 - Human attention is precious. Ask only when the product owner has a genuinely
