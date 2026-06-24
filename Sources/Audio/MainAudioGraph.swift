@@ -636,12 +636,11 @@ final class MainAudioGraph {
             // LIFO: publishes under graphLock after any topology rebuild —
             // an engine stop/rebuild/start can renegotiate node formats.
             defer { self.publishAudioInputCaptureFormatsOnMain() }
-            let wasRunning = self.engine.isRunning
-            self.removeMasterMeterTapIfNeeded()
-            if wasRunning {
-                self.engine.stop()
-            }
-
+            // R2 (fixed-superset): rebuild mixer-bus topology on the LIVE engine
+            // — no stop/start. Each bus's inputMixer (track destination) is
+            // stable across insert changes; only the insert chain + terminal
+            // wiring rebuilds. The master meter tap on finalOutputMixer is
+            // unaffected and is not bounced.
             let nextIDs = Set(buses.map(\.id))
             let removedIDs = self.mixerBusHosts.keys.filter { !nextIDs.contains($0) }
             for busID in removedIDs {
@@ -674,13 +673,7 @@ final class MainAudioGraph {
                 self.reconnectTrackOutputOnMain(routing)
             }
 
-            self.engine.prepare()
             self.installMasterMeterTapIfNeeded()
-
-            if wasRunning {
-                try? self.engine.start()
-                self.isStarted = self.engine.isRunning
-            }
         }
     }
 
@@ -740,12 +733,13 @@ final class MainAudioGraph {
             }
 
             self.sendBusTopologyInstallCountForTesting += 1
-            let wasRunning = self.engine.isRunning
-            self.removeMasterMeterTapIfNeeded()
-            if wasRunning {
-                self.engine.stop()
-            }
-
+            // R2 (fixed-superset): rebuild send-bus insert chains on the LIVE
+            // engine — no stop/start. A send bus's inputMixer (the node tracks
+            // route to) is stable across insert changes, so only the chain
+            // behind it rebuilds; the master meter tap on finalOutputMixer is
+            // unaffected and is not bounced. Tracks are re-resolved so R0's
+            // persistent fanout is (re)established when a send destination
+            // first appears.
             for (host, state) in installs {
                 host.install(sendBus: state, in: self)
             }
@@ -754,13 +748,7 @@ final class MainAudioGraph {
                 self.reconnectTrackOutputOnMain(routing)
             }
 
-            self.engine.prepare()
             self.installMasterMeterTapIfNeeded()
-
-            if wasRunning {
-                try? self.engine.start()
-                self.isStarted = self.engine.isRunning
-            }
         }
     }
 
