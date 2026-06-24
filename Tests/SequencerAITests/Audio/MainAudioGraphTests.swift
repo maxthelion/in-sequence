@@ -101,11 +101,14 @@ final class MainAudioGraphTests: XCTestCase {
         let sendB = try XCTUnwrap(graph.sendBusReadoutForTesting(busID: .sendB))
         let sourceOutputs = graph.engine.outputConnectionPoints(for: source, outputBus: 0)
 
+        // R0 (fixed-superset): the dry signal routes THROUGH the fanout, so the
+        // source drives only the fanout (one output), and the fanout fans out to
+        // the dry destination + both send gains.
         XCTAssertTrue(readout.dryDestination === graph.preMasterMixer)
-        XCTAssertEqual(sourceOutputs.count, 2)
-        XCTAssertTrue(sourceOutputs.contains { $0.node === graph.preMasterMixer })
+        XCTAssertEqual(sourceOutputs.count, 1)
         XCTAssertTrue(sourceOutputs.contains { $0.node === readout.sendFanoutNode })
-        XCTAssertEqual(readout.sendFanoutDestinations.count, 2)
+        XCTAssertEqual(readout.sendFanoutDestinations.count, 3)
+        XCTAssertTrue(readout.sendFanoutDestinations.contains { $0 === graph.preMasterMixer })
         XCTAssertTrue(readout.sendFanoutDestinations.contains { $0 === readout.sendAGainNode })
         XCTAssertTrue(readout.sendFanoutDestinations.contains { $0 === readout.sendBGainNode })
         XCTAssertTrue(readout.sendADestination === sendA.inputMixer)
@@ -236,30 +239,33 @@ final class MainAudioGraphTests: XCTestCase {
         graph.connectTrackOutput(source, to: nil, sends: .zero)
         let reconnectsAfterSetup = graph.reconnectTrackOutputCountForTesting
 
-        // Fader/pan drags repeatedly push unchanged zero sends — these must
-        // not rewire the running graph (mixer-latency cause 2).
-        graph.setTrackSendLevels(source, sendA: 0, sendB: 0)
+        // R0 (fixed-superset): send nodes are persistent once the buses exist,
+        // so NO send-level change after setup ever rewires the graph. Zero
+        // drags, crossing 0 -> active, active moves, and returning to zero are
+        // all pure outputVolume writes — the reconnect count never moves.
         graph.setTrackSendLevels(source, sendA: 0, sendB: 0)
         graph.setTrackSendLevels(source, sendA: 0, sendB: 0)
         XCTAssertEqual(graph.reconnectTrackOutputCountForTesting, reconnectsAfterSetup)
 
-        // Crossing 0 -> active is a real topology change: reconnect once.
+        // Crossing 0 -> active: parameter-only (nodes already exist).
         graph.setTrackSendLevels(source, sendA: 0.4, sendB: 0)
-        XCTAssertEqual(graph.reconnectTrackOutputCountForTesting, reconnectsAfterSetup + 1)
+        XCTAssertEqual(graph.reconnectTrackOutputCountForTesting, reconnectsAfterSetup)
 
         // Active-value moves stay parameter-only.
         graph.setTrackSendLevels(source, sendA: 0.5, sendB: 0)
         graph.setTrackSendLevels(source, sendA: 0.6, sendB: 0.1)
-        XCTAssertEqual(graph.reconnectTrackOutputCountForTesting, reconnectsAfterSetup + 1)
+        XCTAssertEqual(graph.reconnectTrackOutputCountForTesting, reconnectsAfterSetup)
         let readout = try XCTUnwrap(graph.trackSendReadoutForTesting(source))
         XCTAssertEqual(readout.sendAGain, 0.6, accuracy: 0.0001)
         XCTAssertEqual(readout.sendBGain, 0.1, accuracy: 0.0001)
 
-        // Returning to zero tears the send nodes down: one reconnect.
+        // Returning to zero does NOT tear nodes down: still no reconnect, and
+        // the gains simply ramp to 0.
         graph.setTrackSendLevels(source, sendA: 0, sendB: 0)
-        XCTAssertEqual(graph.reconnectTrackOutputCountForTesting, reconnectsAfterSetup + 2)
-        graph.setTrackSendLevels(source, sendA: 0, sendB: 0)
-        XCTAssertEqual(graph.reconnectTrackOutputCountForTesting, reconnectsAfterSetup + 2)
+        XCTAssertEqual(graph.reconnectTrackOutputCountForTesting, reconnectsAfterSetup)
+        let zeroedReadout = try XCTUnwrap(graph.trackSendReadoutForTesting(source))
+        XCTAssertEqual(zeroedReadout.sendAGain, 0, accuracy: 0.0001)
+        XCTAssertEqual(zeroedReadout.sendBGain, 0, accuracy: 0.0001)
     }
 
     @MainActor

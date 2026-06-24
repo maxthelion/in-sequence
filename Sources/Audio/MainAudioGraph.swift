@@ -961,21 +961,18 @@ final class MainAudioGraph {
             routing.sendLevels = sendLevels
             self.trackOutputRoutings[key] = routing
 
-            let hasSendNodes = self.trackSendNodes[key] != nil
-            let hasActiveSends = sendLevels.clampedSendA > 0 || sendLevels.clampedSendB > 0
-            // Reconnect ONLY on an actual topology change (send nodes need
-            // creating or tearing down). The previous unconditional
-            // reconnect for every zero-send track turned each fader/pan
-            // drag tick into a live engine disconnect/reconnect per track —
-            // mixer-latency cause 2.
-            guard hasSendNodes == hasActiveSends else {
+            // R0 (fixed-superset): send nodes are persistent. When they exist
+            // (the send buses are installed), any level change — including
+            // crossing zero in either direction — is a pure outputVolume write
+            // with no live disconnect/reconnect; they are torn down only when
+            // the track is removed. If they do not exist yet (send buses not
+            // installed), establish the geometry once.
+            guard let nodes = self.trackSendNodes[key] else {
                 self.reconnectTrackOutputOnMain(routing)
                 return
             }
-
-            guard hasSendNodes else { return }
-            self.trackSendNodes[key]?.sendA.outputVolume = sendLevels.clampedSendA
-            self.trackSendNodes[key]?.sendB.outputVolume = sendLevels.clampedSendB
+            nodes.sendA.outputVolume = sendLevels.clampedSendA
+            nodes.sendB.outputVolume = sendLevels.clampedSendB
         }
     }
 
@@ -1640,22 +1637,17 @@ final class MainAudioGraph {
         }
 
         var destinations = [connectionPoint(for: dryDestination)]
-        let hasActiveSends = routing.sendLevels.clampedSendA > 0 || routing.sendLevels.clampedSendB > 0
-        if !hasActiveSends {
-            let key = ObjectIdentifier(source)
-            if let nodes = trackSendNodes.removeValue(forKey: key) {
-                engine.disconnectNodeOutput(nodes.fanout)
-                engine.disconnectNodeInput(nodes.fanout)
-                engine.disconnectNodeOutput(nodes.sendA)
-                engine.disconnectNodeInput(nodes.sendA)
-                engine.disconnectNodeOutput(nodes.sendB)
-                engine.disconnectNodeInput(nodes.sendB)
-                engine.detach(nodes.fanout)
-                engine.detach(nodes.sendA)
-                engine.detach(nodes.sendB)
-            }
-            trackSendDestinationsForTesting.removeValue(forKey: key)
-        } else if sendBusHosts[.sendA]?.destinationNode() != nil,
+        // R0 (fixed-superset): when the send buses exist, every track keeps
+        // persistent fanout/sendA/sendB nodes for its whole life and always
+        // routes its dry signal THROUGH the fanout — geometry independent of
+        // engine.isRunning. "No send" is gain 0, never a node teardown, so a
+        // send fader crossing zero is a pure outputVolume change (see
+        // setTrackSendLevels) with no live disconnect/reconnect. Routing dry on
+        // the fanout means a later bus change only rewires that one leg — the
+        // property the engine.isRunning gate (commit 72aaf0b2) used to provide
+        // for the running case, now universal. Nodes are torn down only on
+        // track removal (removeTrackSendNodes).
+        if sendBusHosts[.sendA]?.destinationNode() != nil,
            sendBusHosts[.sendB]?.destinationNode() != nil
         {
             let nodes = sendNodes(for: source, levels: routing.sendLevels)
@@ -1665,18 +1657,15 @@ final class MainAudioGraph {
             engine.disconnectNodeInput(nodes.sendA)
             engine.disconnectNodeOutput(nodes.sendB)
             engine.disconnectNodeInput(nodes.sendB)
-            let routesDryThroughFanout = engine.isRunning
-            var fanoutDestinations = routesDryThroughFanout
-                ? [connectionPoint(for: dryDestination)]
-                : []
-            fanoutDestinations.append(contentsOf: [
+            let fanoutDestinations = [
+                connectionPoint(for: dryDestination),
                 connectionPoint(for: nodes.sendA),
                 connectionPoint(for: nodes.sendB),
-            ])
+            ]
             engine.connect(nodes.fanout, to: fanoutDestinations, fromBus: 0, format: nil)
 
             var sendDestinations = TrackSendDestinations(
-                fanout: routesDryThroughFanout ? [dryDestination, nodes.sendA, nodes.sendB] : [nodes.sendA, nodes.sendB],
+                fanout: [dryDestination, nodes.sendA, nodes.sendB],
                 sendA: nil,
                 sendB: nil
             )
@@ -1701,11 +1690,24 @@ final class MainAudioGraph {
                 sendDestinations.sendB = sendBDestination
             }
             trackSendDestinationsForTesting[ObjectIdentifier(source)] = sendDestinations
-            if routesDryThroughFanout {
-                destinations = [connectionPoint(for: nodes.fanout)]
-            } else {
-                destinations.append(connectionPoint(for: nodes.fanout))
+            destinations = [connectionPoint(for: nodes.fanout)]
+        } else {
+            // Send buses not installed yet: route dry only and tear down any
+            // stale send nodes. installSendBuses re-reconnects every track once
+            // the buses exist, which establishes the persistent geometry above.
+            let key = ObjectIdentifier(source)
+            if let nodes = trackSendNodes.removeValue(forKey: key) {
+                engine.disconnectNodeOutput(nodes.fanout)
+                engine.disconnectNodeInput(nodes.fanout)
+                engine.disconnectNodeOutput(nodes.sendA)
+                engine.disconnectNodeInput(nodes.sendA)
+                engine.disconnectNodeOutput(nodes.sendB)
+                engine.disconnectNodeInput(nodes.sendB)
+                engine.detach(nodes.fanout)
+                engine.detach(nodes.sendA)
+                engine.detach(nodes.sendB)
             }
+            trackSendDestinationsForTesting.removeValue(forKey: key)
         }
 
         if let destination = destinations.first, destinations.count == 1, let node = destination.node {
