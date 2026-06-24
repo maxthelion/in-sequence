@@ -31,6 +31,10 @@ This list grows as more phases land. Check each with audio running.
     everything else keeps playing; no crash/hang.
 - Add and remove a whole mixer bus while playing → tracks routed to it fall back
   to master cleanly; no crash.
+- While audio plays, **add/remove/reorder a track's FX inserts** (a melodic
+  track AND a drum part) — commit e5daf845.
+  - PASS: no global silence gap; the track's signal may briefly blip as its
+    chain re-splices; everything else keeps playing; no crash/hang.
 
 ## How to run
 1. `git switch audio-routing-cleanup`, build + run the app (real output device).
