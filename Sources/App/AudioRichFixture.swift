@@ -2,19 +2,29 @@ import AVFoundation
 import Foundation
 
 /// Deterministic, programmatic fixture builder that constructs a `Project`
-/// exercising every sound-producing destination kind plus the send/mixer-bus
+/// exercising every *sounding* destination kind plus the send/mixer-bus
 /// routing topology, for a real-audio test pass.
 ///
 /// Sound sources used (no AIR Music Technology AUs — expired licenses):
 ///   * Mono melodic track → Arturia Analog Lab V (AU instrument, aumu/Alav/Artu)
 ///   * Slice track        → generated sine-burst WAV (no external-file dependency)
-///   * Drum kit group     → Apple internal sampler (`.drumKitDefault`) per part
+///   * Drum kit group     → per-part generated one-shot WAVs played by the
+///                          built-in `SamplePlaybackEngine` via `.sample(...)`.
+///
+/// Why `.sample` for the drums (not `.internalSampler(.drumKitDefault)`): the
+/// internal-sampler destination is NOT implemented as a sound source. In
+/// `EngineController` and every dispatch switch it falls into
+/// `case .internalSampler, ...: break`, so a drum kit on the internal sampler
+/// is silent. Only `.auInstrument`/`.midi` (AudioInstrumentHost) and
+/// `.sample`/`.slicer` (SamplePlaybackEngine) actually render audio. Routing
+/// the drum parts through `.sample` puts them on the working render path.
 ///
 /// The builder is pure/deterministic: it uses fixed UUIDs everywhere so the
-/// resulting document round-trips byte-for-byte. The only side effect is
-/// `materializeSlicerSample(...)`, which writes the generated WAV into the
-/// AudioSampleLibrary tree so the slicer can resolve it at runtime; it is NOT
-/// called by `makeProject()`.
+/// resulting document round-trips. The only side effect is
+/// `materializeAllSamples(...)`, which writes every generated WAV (the four
+/// drum hits + the slicer loop) into the AudioSampleLibrary tree so the
+/// sample/slicer destinations resolve at runtime; it is NOT called by
+/// `makeProject()`.
 enum AudioRichFixture {
     // MARK: - Fixed identifiers (deterministic round-trip)
 
@@ -44,6 +54,69 @@ enum AudioRichFixture {
     static let slicerSampleRate: Double = 44_100
     static let slicerLengthFrames: Int64 = 88_200 // ~2.0s @ 44.1kHz
 
+    /// A synthesized drum one-shot: which part it is, the relative library path
+    /// the WAV is written to, and how long it runs. Each lives under the part's
+    /// own category dir (e.g. `kick/`, `snare/`, `hatClosed/`, `clap/`) so the
+    /// library scan files them as drum voices.
+    struct DrumHit {
+        let tag: String
+        let trackName: String
+        let category: AudioSampleCategory
+        let relativePath: String
+        let lengthFrames: Int64
+
+        var sampleID: UUID {
+            AudioSampleLibrary.stableID(forRelativePath: relativePath)
+        }
+
+        func makeSample() -> AudioSample {
+            AudioSample(
+                id: sampleID,
+                name: trackName,
+                fileRef: .appSupportLibrary(relativePath: relativePath),
+                category: category,
+                lengthSeconds: Double(lengthFrames) / AudioRichFixture.drumSampleRate,
+                lengthFrames: lengthFrames,
+                sampleRate: AudioRichFixture.drumSampleRate
+            )
+        }
+    }
+
+    static let drumSampleRate: Double = 44_100
+
+    /// The four drum parts, each backed by a distinct synthesized one-shot.
+    /// Lengths are all <= ~0.4s @ 44.1kHz, mono.
+    static let drumHits: [DrumHit] = [
+        DrumHit(
+            tag: "kick",
+            trackName: "Kick",
+            category: .kick,
+            relativePath: "kick/audio-rich-kick.wav",
+            lengthFrames: 13_230 // ~0.30s
+        ),
+        DrumHit(
+            tag: "snare",
+            trackName: "Snare",
+            category: .snare,
+            relativePath: "snare/audio-rich-snare.wav",
+            lengthFrames: 8_820 // ~0.20s
+        ),
+        DrumHit(
+            tag: "hat-closed",
+            trackName: "Hat",
+            category: .hatClosed,
+            relativePath: "hatClosed/audio-rich-hat.wav",
+            lengthFrames: 3_528 // ~0.08s
+        ),
+        DrumHit(
+            tag: "clap",
+            trackName: "Clap",
+            category: .clap,
+            relativePath: "clap/audio-rich-clap.wav",
+            lengthFrames: 7_056 // ~0.16s
+        ),
+    ]
+
     private static func id(_ suffix: String) -> UUID {
         // Last UUID group is 12 hex chars; `suffix` supplies the final 4.
         UUID(uuidString: "0000A0D1-0000-4000-8000-00000000\(suffix)")!
@@ -55,8 +128,8 @@ enum AudioRichFixture {
     /// helpers so the result is internally valid and normalized.
     static func makeProject() -> Project {
         // An empty library so `addDrumGroup` falls back to the Apple internal
-        // sampler for every part (no third-party AU, deterministic regardless
-        // of what's installed on the machine).
+        // sampler for every part; we then re-point each part at a generated
+        // `.sample(...)` below so the kit is actually audible.
         let emptyLibrary = AudioSampleLibrary(libraryRoot: URL(fileURLWithPath: "/nonexistent-audio-rich-fixture"))
 
         var project = Project.empty
@@ -109,17 +182,18 @@ enum AudioRichFixture {
             addedAt: Date(timeIntervalSince1970: 0)
         )
 
-        // 3. Drum kit group → Apple internal sampler per part (empty library
-        //    forces the `.internalSampler(.drumKitDefault, ...)` fallback).
+        // 3. Drum kit group → each part on a generated `.sample(...)` one-shot
+        //    (the working render path; the internal sampler is silent).
         let drumPlan = DrumGroupPlan(
             name: "Audio Rich Kit",
             color: "#8AA",
-            members: [
-                DrumGroupPlan.Member(tag: "kick", trackName: "Kick", routesToShared: false),
-                DrumGroupPlan.Member(tag: "snare", trackName: "Snare", routesToShared: false),
-                DrumGroupPlan.Member(tag: "hat-closed", trackName: "Hat", routesToShared: false),
-                DrumGroupPlan.Member(tag: "clap", trackName: "Clap", routesToShared: false),
-            ],
+            members: drumHits.map { hit in
+                DrumGroupPlan.Member(
+                    tag: hit.tag,
+                    trackName: hit.trackName,
+                    routesToShared: false
+                )
+            },
             templateID: nil,
             sharedDestination: nil,
             // Keep parts on master so we don't auto-mint a per-kit bus; we add
@@ -127,8 +201,29 @@ enum AudioRichFixture {
             busRouting: .master
         )
         project.addDrumGroup(plan: drumPlan, library: emptyLibrary)
+
+        // Re-point each member at its generated sample (in plan/member order) so
+        // the kit renders. addDrumGroup appends one member track per plan member
+        // in order, so the last group's memberIDs line up with `drumHits`.
+        let drumGroup = project.trackGroups.last
+        let memberIDs = drumGroup?.memberIDs ?? []
+        for (offset, memberID) in memberIDs.enumerated() where offset < drumHits.count {
+            let hit = drumHits[offset]
+            let drumSample = hit.makeSample()
+            if let index = project.tracks.firstIndex(where: { $0.id == memberID }) {
+                project.tracks[index].destination = .sample(
+                    sampleID: hit.sampleID,
+                    settings: .default
+                )
+            }
+            project.addToAssetPool(
+                kind: .sample,
+                assetID: drumSample.id,
+                addedAt: Date(timeIntervalSince1970: 0)
+            )
+        }
         // Arm a basic four-on-the-floor on the kick so the kit makes sound.
-        if let kickID = project.trackGroups.last?.memberIDs.first,
+        if let kickID = memberIDs.first,
            let index = project.tracks.firstIndex(where: { $0.id == kickID }) {
             project.tracks[index].stepPattern = Self.everyNthStep(every: 4)
         }
@@ -137,7 +232,7 @@ enum AudioRichFixture {
         //    a. One explicit mixer bus.
         let busID = project.addMixerBus(name: "FX Bus", color: "#3A7")
         //    b. Route the drum kick to the mixer bus so the bus path is live.
-        if let kickID = project.trackGroups.last?.memberIDs.first {
+        if let kickID = memberIDs.first {
             project.setTrackOutputBus(trackID: kickID, busID: busID)
         }
         //    c. Send A and Send B each get one native filter insert.
@@ -152,7 +247,7 @@ enum AudioRichFixture {
     // MARK: - Slicer sample (generated, not file-dependent for build)
 
     /// The `AudioSample` metadata describing the generated slicer WAV. The
-    /// `fileRef` points at the AudioSampleLibrary tree; `materializeSlicerSample`
+    /// `fileRef` points at the AudioSampleLibrary tree; `materializeAllSamples`
     /// writes the actual bytes there for the real-audio pass.
     static func makeSlicerSample() -> AudioSample {
         AudioSample(
@@ -166,17 +261,142 @@ enum AudioRichFixture {
         )
     }
 
-    /// Synthesizes a ~2s mono sine-burst loop (8 descending-pitch bursts) and
-    /// writes it as a WAV into the AudioSampleLibrary tree so the slicer can
-    /// resolve `slicerSampleRelativePath` at runtime. Returns the written URL.
+    // MARK: - Materialization (real-audio pass only; not called by makeProject)
+
+    /// Writes ALL generated WAVs — the four drum one-shots and the slicer loop —
+    /// into the AudioSampleLibrary tree so every `.sample(...)` / `.slicer(...)`
+    /// destination in `makeProject()` resolves at runtime.
     ///
     /// Call this from the real-audio harness before loading the document;
     /// `makeProject()` does not invoke it (keeps the builder pure).
+    static func materializeAllSamples(
+        libraryRoot: URL = AudioSampleLibrary.shared.libraryRoot
+    ) throws {
+        try materializeSlicerSample(libraryRoot: libraryRoot)
+        for hit in drumHits {
+            try materializeDrumHit(hit, libraryRoot: libraryRoot)
+        }
+    }
+
+    /// Synthesizes a ~2s mono sine-burst loop (8 descending-pitch bursts) and
+    /// writes it as a WAV into the AudioSampleLibrary tree so the slicer can
+    /// resolve `slicerSampleRelativePath` at runtime. Returns the written URL.
     @discardableResult
     static func materializeSlicerSample(
         libraryRoot: URL = AudioSampleLibrary.shared.libraryRoot
     ) throws -> URL {
-        let url = libraryRoot.appendingPathComponent(slicerSampleRelativePath)
+        try writeMonoWAV(
+            relativePath: slicerSampleRelativePath,
+            libraryRoot: libraryRoot,
+            sampleRate: slicerSampleRate,
+            frameCount: Int(slicerLengthFrames)
+        ) { frame, _ in
+            let burstFrames = Int(slicerLengthFrames) / 8
+            let baseFreqs: [Double] = [440, 392, 349.23, 329.63, 293.66, 261.63, 246.94, 220]
+            let burst = min(frame / max(burstFrames, 1), baseFreqs.count - 1)
+            let freq = baseFreqs[burst]
+            let localFrame = frame - burst * burstFrames
+            // Short exponential decay envelope per burst so slices are distinct.
+            let env = exp(-Double(localFrame) / (Double(burstFrames) * 0.35))
+            let theta = 2.0 * Double.pi * freq * Double(frame) / slicerSampleRate
+            return Float(sin(theta) * env * 0.7)
+        }
+    }
+
+    /// Synthesizes the one-shot WAV for a drum part and writes it into the
+    /// AudioSampleLibrary tree. Returns the written URL.
+    @discardableResult
+    static func materializeDrumHit(
+        _ hit: DrumHit,
+        libraryRoot: URL = AudioSampleLibrary.shared.libraryRoot
+    ) throws -> URL {
+        let frames = Int(hit.lengthFrames)
+        let sr = drumSampleRate
+        return try writeMonoWAV(
+            relativePath: hit.relativePath,
+            libraryRoot: libraryRoot,
+            sampleRate: sr,
+            frameCount: frames
+        ) { frame, rng in
+            drumSampleValue(tag: hit.tag, frame: frame, frameCount: frames, sampleRate: sr, rng: &rng)
+        }
+    }
+
+    /// Returns the float sample value at `frame` for the given drum tag.
+    ///
+    /// Synthesis recipes (all short, mono, 44.1k):
+    ///   * kick  — low sine (~110→45 Hz) with a fast pitch drop + exp decay,
+    ///             plus a brief click transient.
+    ///   * snare — white-noise burst + a 180 Hz body tone, exp decay.
+    ///   * hat   — high-passed (differentiated) white noise, very fast decay.
+    ///   * clap  — three short noise bursts in quick succession (the classic
+    ///             clap "flam"), each exp-decayed.
+    private static func drumSampleValue(
+        tag: String,
+        frame: Int,
+        frameCount: Int,
+        sampleRate sr: Double,
+        rng: inout DeterministicRNG
+    ) -> Float {
+        let t = Double(frame) / sr
+        switch tag {
+        case "kick":
+            // Pitch sweeps from ~110 Hz down to ~45 Hz over the first ~40ms.
+            let f0 = 110.0, f1 = 45.0
+            let sweep = exp(-t / 0.03)
+            let freq = f1 + (f0 - f1) * sweep
+            let phase = 2.0 * Double.pi * freq * t
+            let env = exp(-t / 0.10)
+            let click = frame < Int(0.002 * sr) ? (rng.nextUnit() * 0.4) : 0
+            return Float((sin(phase) * env + click) * 0.9)
+
+        case "snare":
+            let noise = rng.nextUnit()
+            let tone = sin(2.0 * Double.pi * 180.0 * t)
+            let env = exp(-t / 0.06)
+            return Float((noise * 0.7 + tone * 0.3) * env * 0.8)
+
+        case "hat-closed", "hat":
+            // Crude high-pass: first difference of white noise emphasises highs.
+            let prev = rng.lastUnit
+            let noise = rng.nextUnit()
+            let hp = noise - prev
+            let env = exp(-t / 0.02)
+            return Float(hp * env * 0.6)
+
+        case "clap":
+            // Three noise bursts at 0ms, ~10ms, ~20ms, each fast-decayed.
+            let burstStarts = [0.0, 0.010, 0.020]
+            var value = 0.0
+            for start in burstStarts where t >= start {
+                let local = t - start
+                let env = exp(-local / 0.012)
+                value += rng.nextUnit() * env
+            }
+            // Short decaying tail after the bursts.
+            let tail = exp(-t / 0.05)
+            return Float((value * 0.5) * tail * 0.9)
+
+        default:
+            return 0
+        }
+    }
+
+    // MARK: - WAV writer
+
+    /// Generates a mono float32 WAV at `relativePath` under `libraryRoot`,
+    /// sourcing each frame from `sampleAt(frameIndex, &rng)`. The RNG is
+    /// deterministically seeded from the relative path so repeated runs produce
+    /// byte-identical noise.
+    @discardableResult
+    private static func writeMonoWAV(
+        relativePath: String,
+        libraryRoot: URL,
+        sampleRate: Double,
+        frameCount: Int,
+        sampleAt: (_ frame: Int, _ rng: inout DeterministicRNG) -> Float
+    ) throws -> URL {
+        let url = libraryRoot.appendingPathComponent(relativePath)
         try FileManager.default.createDirectory(
             at: url.deletingLastPathComponent(),
             withIntermediateDirectories: true
@@ -184,32 +404,24 @@ enum AudioRichFixture {
 
         guard let format = AVAudioFormat(
             commonFormat: .pcmFormatFloat32,
-            sampleRate: slicerSampleRate,
+            sampleRate: sampleRate,
             channels: 1,
             interleaved: false
         ) else {
             throw NSError(domain: "AudioRichFixture", code: 1)
         }
 
-        let frameCount = AVAudioFrameCount(slicerLengthFrames)
-        guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frameCount) else {
+        guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(frameCount)) else {
             throw NSError(domain: "AudioRichFixture", code: 2)
         }
-        buffer.frameLength = frameCount
+        buffer.frameLength = AVAudioFrameCount(frameCount)
         guard let channel = buffer.floatChannelData?[0] else {
             throw NSError(domain: "AudioRichFixture", code: 3)
         }
 
-        let burstFrames = Int(slicerLengthFrames) / 8
-        let baseFreqs: [Double] = [440, 392, 349.23, 329.63, 293.66, 261.63, 246.94, 220]
-        for frame in 0..<Int(slicerLengthFrames) {
-            let burst = min(frame / max(burstFrames, 1), baseFreqs.count - 1)
-            let freq = baseFreqs[burst]
-            let localFrame = frame - burst * burstFrames
-            // Short exponential decay envelope per burst so slices are distinct.
-            let env = exp(-Double(localFrame) / (Double(burstFrames) * 0.35))
-            let theta = 2.0 * Double.pi * freq * Double(frame) / slicerSampleRate
-            channel[frame] = Float(sin(theta) * env * 0.7)
+        var rng = DeterministicRNG(seed: relativePath)
+        for frame in 0..<frameCount {
+            channel[frame] = sampleAt(frame, &rng)
         }
 
         let outFile = try AVAudioFile(
@@ -236,6 +448,37 @@ enum AudioRichFixture {
 
     private static func everyNthStep(every n: Int, count: Int = 16) -> [Bool] {
         (0..<count).map { $0 % n == 0 }
+    }
+}
+
+/// Small deterministic LCG producing reproducible white noise in [-1, 1].
+/// Seeded from a string so each generated WAV is byte-identical across runs.
+struct DeterministicRNG {
+    private var state: UInt64
+    private(set) var lastUnit: Double = 0
+
+    init(seed: String) {
+        // FNV-1a 64-bit hash of the seed string for a stable starting state.
+        var hash: UInt64 = 0xcbf2_9ce4_8422_2325
+        for byte in seed.utf8 {
+            hash ^= UInt64(byte)
+            hash = hash &* 0x0000_0100_0000_01B3
+        }
+        state = hash == 0 ? 0x9E37_79B9_7F4A_7C15 : hash
+    }
+
+    /// Returns a deterministic pseudo-random value in [-1, 1].
+    mutating func nextUnit() -> Double {
+        // SplitMix64 step.
+        state = state &+ 0x9E37_79B9_7F4A_7C15
+        var z = state
+        z = (z ^ (z >> 30)) &* 0xBF58_476D_1CE4_E5B9
+        z = (z ^ (z >> 27)) &* 0x94D0_49BB_1331_11EB
+        z = z ^ (z >> 31)
+        let unit = Double(z >> 11) / Double(1 << 53) // [0, 1)
+        let signed = unit * 2.0 - 1.0
+        lastUnit = signed
+        return signed
     }
 }
 

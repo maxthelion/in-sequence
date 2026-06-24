@@ -66,19 +66,35 @@ final class AudioRichFixtureTests: XCTestCase {
             "generated sample should be pooled"
         )
 
-        // -- Drum group with parts on the Apple internal sampler.
+        // -- Drum group with each part on a generated `.sample(...)` one-shot
+        //    (the working render path — the internal sampler is silent).
         let drumGroup = try XCTUnwrap(
             decoded.trackGroups.first { $0.name == "Audio Rich Kit" },
             "expected the drum group"
         )
         XCTAssertGreaterThanOrEqual(drumGroup.memberIDs.count, 4)
+        let expectedDrumSampleIDs = Set(AudioRichFixture.drumHits.map(\.sampleID))
+        var observedDrumSampleIDs = Set<UUID>()
         for memberID in drumGroup.memberIDs {
             let part = try XCTUnwrap(decoded.tracks.first { $0.id == memberID })
-            guard case let .internalSampler(bankID, _) = part.destination else {
-                return XCTFail("drum part \(part.name) is not on the internal sampler")
+            guard case let .sample(sampleID, _) = part.destination else {
+                return XCTFail("drum part \(part.name) is not on a `.sample` destination")
             }
-            XCTAssertEqual(bankID, .drumKitDefault)
+            if case .internalSampler = part.destination {
+                XCTFail("drum part \(part.name) must not use the silent internal sampler")
+            }
+            observedDrumSampleIDs.insert(sampleID)
+            // Each drum sample must be pooled like the app does.
+            XCTAssertTrue(
+                decoded.isInAssetPool(kind: .sample, assetID: sampleID),
+                "drum sample \(sampleID) should be pooled"
+            )
         }
+        XCTAssertEqual(
+            observedDrumSampleIDs,
+            expectedDrumSampleIDs,
+            "drum parts should be wired to the four generated drum samples"
+        )
 
         // -- Send buses each have one insert.
         XCTAssertEqual(decoded.sendBus(id: .sendA).inserts.count, 1)

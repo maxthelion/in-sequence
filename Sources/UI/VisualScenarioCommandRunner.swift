@@ -734,6 +734,7 @@ enum VisualScenarioCommandRunner {
         clearClipActionable=\(meterState.isClearClipActionable)
         leftPeakDBFS=\(meterState.leftPeakDBFS)
         rightPeakDBFS=\(meterState.rightPeakDBFS)
+        masterPeak=\(max(meterState.leftPeakDBFS, meterState.rightPeakDBFS))
         audioInputArmState=\(selectedAudioInputRuntime.map(audioInputArmStateLabel) ?? "none")
         audioInputRouteState=\(selectedAudioInputRuntime.map(audioInputRouteStateLabel) ?? "none")
         audioInputMonitorMode=\(selectedAudioInputRuntime.map(audioInputMonitorModeLabel) ?? "none")
