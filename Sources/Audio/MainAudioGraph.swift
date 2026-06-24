@@ -879,23 +879,18 @@ final class MainAudioGraph {
         }
 
         self.trackInsertChainTopologyInstallCountForTesting += 1
-        let wasRunning = self.engine.isRunning
-        self.removeMasterMeterTapIfNeeded()
-        if wasRunning {
-            self.engine.stop()
-        }
-
+        // R2 (fixed-superset): rebuild the track insert chain on the LIVE
+        // engine — no stop/start. reconnectTrackOutputOnMain re-splices
+        // source -> chain -> fanout afterwards; the master meter tap on
+        // finalOutputMixer is unaffected and is not bounced. Removes the global
+        // silence gap when a track's FX inserts change during play (drum parts
+        // are tracks, so this covers per-part FX too).
         host.rebuild(inserts: inserts, in: self)
         if let routing = self.trackOutputRoutings[ObjectIdentifier(source)] {
             self.reconnectTrackOutputOnMain(routing)
         }
 
-        self.engine.prepare()
         self.installMasterMeterTapIfNeeded()
-        if wasRunning {
-            try? self.engine.start()
-            self.isStarted = self.engine.isRunning
-        }
     }
 
     @MainActor
