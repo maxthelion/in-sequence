@@ -793,22 +793,17 @@ final class MainAudioGraph {
             self.lockGraphLock()
             defer { self.unlockGraphLock() }
             guard source.engine === self.engine else { return }
-            let wasRunning = self.engine.isRunning
-            self.removeMasterMeterTapIfNeeded()
-            if wasRunning {
-                self.engine.stop()
-            }
 
+            // R1 (fixed-superset): rewire the track's output on the LIVE engine
+            // — no stop/start. With R0's persistent fanout the change only
+            // re-points the fanout's destinations; the master meter tap lives on
+            // finalOutputMixer and is unaffected, so it is not bounced.
+            // AVAudioEngine supports attach/connect/disconnect while running.
+            // (Ramp-to-silence on a reassignment of a *sounding* track is the
+            // follow-up in docs/plans/2026-06-24-fixed-superset-routing.md.)
             let routing = TrackOutputRouting(source: source, busID: busID, sendLevels: sendLevels)
             self.trackOutputRoutings[ObjectIdentifier(source)] = routing
             self.reconnectTrackOutputOnMain(routing)
-            self.engine.prepare()
-            self.installMasterMeterTapIfNeeded()
-
-            if wasRunning {
-                try? self.engine.start()
-                self.isStarted = self.engine.isRunning
-            }
         }
     }
 
