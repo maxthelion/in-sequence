@@ -37,15 +37,22 @@ performOnMain {            // on the main thread this runs INLINE (no async hop)
 }
 ```
 
-When `TrackInsertChainHost.startLoadingAUEffect`'s completion is invoked
-**synchronously** (e.g. the AU is cached / loads inline) while the graph lock is
-already held by the in-flight insert apply, `performOnMain` runs inline and
-`lockGraphLock()` re-enters → the (correctly-working) deadlock guard traps.
+**CORRECTION (initial diagnosis was wrong):** the track-insert AU-load
+completion ALREADY async-hops — `TrackInsertChainHost.startLoadingAUEffect`
+wraps `requestRebuild(self.trackID)` in `DispatchQueue.main.async`
+(TrackInsertChainHost.swift:249), with a comment naming this exact send-bus
+"+Add FX" self-deadlock class. The crash stack confirms the re-entry runs on a
+normal `_dispatch_main_queue_drain` (a fresh runloop turn), not inline.
 
-The sibling **send-bus** post-load re-entry avoids this by **always hopping
-`DispatchQueue.main.async`** before touching the graph (see MixerBusHost AU-load
-completion). The **track-insert** re-entry (`rebuildTrackInsertChainAfterLoad`)
-does NOT async-hop — that's the bug.
+So the real puzzle: **even on a fresh main-queue turn, `graphLock` is still held
+by the main thread** when `rebuildTrackInsertChainAfterLoad` re-acquires it.
+That implies either (a) a leaked/unbalanced `lockGraphLock`/`unlockGraphLock`
+on the main thread from an earlier op (stale guard state), or (b) a main-thread
+lock holder that spins the runloop / `DispatchQueue.main.sync`s while holding the
+lock, so the async block runs nested inside the lock. Pinning which requires
+**reproducing with an AU effect** — which needs the macOS lower-permissions
+modal granted, i.e. a human present (see AGENTS.md audio test tiers). Not
+headlessly reproducible.
 
 ## Is it the routing-cleanup work?
 
@@ -56,12 +63,16 @@ R2 changed the sibling `applyTrackInsertsOnMain` (removed engine stop/start) but
 did not alter the AU load or the locking. **Verify by reproducing on `main`** (add
 an AU effect to a track) — if it also crashes there, it's pre-existing.
 
-## Fix direction
+## Fix direction (needs AU repro = human present)
 
-Make `rebuildTrackInsertChainAfterLoad` **async-hop** before acquiring the lock
-(mirror the send-bus path): `DispatchQueue.main.async { performOnMain { lock… } }`
-or guarantee `startLoadingAUEffect`'s completion is always delivered async. Then
-the post-load re-entry never runs inside the lock-held synchronous completion.
+The async hop is already there, so the fix is NOT that. Investigate the held
+lock: instrument `lockGraphLock`/`unlockGraphLock` to log owner + depth, repro
+the add-AU-FX crash (human grants the AU permission modal), and find who holds
+`graphLock` across the dispatched re-entry — then either balance the leaked
+lock or make the guard/the re-entry tolerate it. Defer until an interactive
+(permission-granting) session; the sample-only stress harness cannot exercise
+AU-effect inserts. Native (non-AU) inserts do NOT take this path and can be
+stress-tested headlessly.
 
 ## Acceptance
 
