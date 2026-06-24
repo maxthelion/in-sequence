@@ -93,6 +93,27 @@ writes matching status keys such as `phraseMatrixRenderedVisible`,
 `phrasePerformLayerMode`, `phrasePerformLayerSelectorVisible`, and
 `trackPerformCaptureVisible`.
 
+## Driving The Running App (command channel)
+
+You can **drive AND read a running SequencerAI instance** over a watched command
+file + status file (`VisualScenarioCommandRunner`) — switch workspace, add
+tracks, set sends/scenes, control transport (`transport=play|stop`), and read
+rendered state back from `<command-file>.status`. No UDP/socket needed; this is
+the established pattern (the capture harness is built on it).
+
+- Enable via env `SEQUENCER_AI_VISUAL_COMMAND_FILE=<path>` (or the
+  `VisualScenarioCommandFile` default). Read at startup, so attaching to a
+  running instance needs a **relaunch**.
+- The command file + any fixture must live in a **sandbox-readable** dir, e.g.
+  `~/Library/Containers/ai.sequencer.SequencerAI/Data/tmp/sequencer-ai-visual-commands/`
+  — a repo path fails with `Operation not permitted`.
+- Write atomically (`.tmp` then `mv`); poll the `.status` file to confirm a
+  command landed.
+- NOT gated by `SEQUENCER_AI_ALLOW_VISUAL_AUTOMATION` (that gate only guards the
+  Peekaboo screenshot script).
+
+Full reference + vocabulary: [`wiki/pages/app-command-channel.md`](wiki/pages/app-command-channel.md).
+
 ## Runtime Diagnostics
 
 For engine/runtime debugging, use the in-app activity log — not `print`, `NSLog`,
