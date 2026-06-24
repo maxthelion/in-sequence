@@ -127,6 +127,38 @@ A new script `scripts/visual-scenarios/r2-sync.sh` owns steps 2–3. Keep it
    which is better than today's branch-slug dirs; record branch as metadata
    only.
 
+## Decisions (revisited 2026-06-24)
+
+Open questions resolved with recommendations:
+
+1. **Hash function → md5.** This is dedupe/content-addressing, not security or
+   integrity proof; md5 gives shorter keys and collision risk is negligible for
+   screenshot blobs. (Only go sha256 if the blobs must double as tamper proofs —
+   not needed.)
+2. **Tooling → `aws s3` CLI against R2's S3-compatible endpoint.** Least new
+   surface, no extra dependency (rclone) and no SDK glue. `aws s3api head-object`
+   for the existence check, `aws s3 cp` for the put. Credentials via env, never
+   committed.
+3. **Manifest → committed in-repo (and mirrored to R2).** It's kilobytes; commit
+   it so history/diffing works from a clean checkout with no R2 creds. BUT only
+   on **blessed/explicit capture runs**, never on every bug-loop iteration, to
+   avoid manifest-diff noise.
+4. **Retention/GC → never delete by default; add `r2-gc.sh` later.** Storage is
+   cheap; keep all blobs. A later GC keeps only hashes referenced by the last N
+   manifests if it ever matters.
+5. **Branch namespacing → drop it for the store.** Blobs are content-addressed
+   (branch-agnostic); manifests are keyed by **commit SHA** with branch as
+   metadata only — strictly better than today's branch-slug dirs. Local
+   working-tree captures stay branch-namespaced (that's disposable scratch).
+
+**Implement r2-sync.sh / r2-fetch.sh now? → NO, defer.** The design is sound and
+unchanged, but it is **gated on infrastructure Max must provision**: an actual R2
+bucket + access keys, and a decision to adopt the workflow. It is also not
+urgent — the local branch-namespaced captures work fine and this session's focus
+is the audio engine. When Max wants it: provision the bucket + creds, then build
+`r2-sync.sh` (hash → head-check → put → write manifest) and `r2-fetch.sh`
+(manifest → resolve hash → pull to cache), ~1–1.5 days, non-blocking.
+
 ## Rough effort
 
 - `r2-sync.sh` (hash, HEAD-check, PUT, write manifest): ~half a day.
