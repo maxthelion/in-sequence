@@ -54,6 +54,20 @@ enum AudioRichFixture {
     static let slicerSampleRate: Double = 44_100
     static let slicerLengthFrames: Int64 = 88_200 // ~2.0s @ 44.1kHz
 
+    /// Library-relative path for the generated melodic-lead tone sample used by
+    /// the SAMPLE-ONLY fixture variant (replaces the Analog Lab AU track). Lives
+    /// under `breaks/` so it resolves to a non-drum category.
+    static let melodicSampleRelativePath = "breaks/audio-rich-fixture-lead.wav"
+
+    /// Stable UUIDv5 ID the AudioSampleLibrary scan will mint for the generated
+    /// melodic-lead file.
+    static var melodicSampleID: UUID {
+        AudioSampleLibrary.stableID(forRelativePath: melodicSampleRelativePath)
+    }
+
+    static let melodicSampleRate: Double = 44_100
+    static let melodicLengthFrames: Int64 = 22_050 // ~0.5s @ 44.1kHz
+
     /// A synthesized drum one-shot: which part it is, the relative library path
     /// the WAV is written to, and how long it runs. Each lives under the part's
     /// own category dir (e.g. `kick/`, `snare/`, `hatClosed/`, `clap/`) so the
@@ -244,6 +258,122 @@ enum AudioRichFixture {
         return project
     }
 
+    /// SAMPLE-ONLY variant of `makeProject()` for UNATTENDED automation: identical
+    /// drum group (.sample hits) + slice track, but the Analog Lab AU mono track is
+    /// REPLACED with a `.monoMelodic` track on a generated `.sample(...)` tone. There
+    /// is NO `.auInstrument` destination anywhere, so a headless/wired launch sounds
+    /// deterministically without ever triggering the macOS AU permission modal.
+    ///
+    /// Pure/deterministic (fixed UUIDs). Call `materializeAllSamples(...)` (or launch
+    /// with `SEQUENCER_AI_MATERIALIZE_FIXTURE_SAMPLES=1`) so the `.sample`/`.slicer`
+    /// destinations resolve at runtime.
+    static func makeSampleOnlyProject() -> Project {
+        let emptyLibrary = AudioSampleLibrary(libraryRoot: URL(fileURLWithPath: "/nonexistent-audio-rich-fixture"))
+
+        var project = Project.empty
+
+        // 1. Mono melodic track driven by a generated `.sample(...)` tone
+        //    (NO AU instrument — the working render path, prompt-free).
+        project.appendTrack(trackType: .monoMelodic)
+        let monoTrackID = project.selectedTrackID
+        let leadSample = makeMelodicSample()
+        if let index = project.tracks.firstIndex(where: { $0.id == monoTrackID }) {
+            project.tracks[index].name = "Sample Lead"
+            project.tracks[index].destination = .sample(
+                sampleID: melodicSampleID,
+                settings: .default
+            )
+            // Drive the send path: route this track's audio to Send A.
+            project.tracks[index].mix.sendA = 0.6
+            // Give it a simple ascending arpeggio so it makes sound.
+            project.tracks[index].pitches = [60, 63, 67, 70]
+            project.tracks[index].stepPattern = Self.everyNthStep(every: 4)
+        }
+        project.addToAssetPool(
+            kind: .sample,
+            assetID: leadSample.id,
+            addedAt: Date(timeIntervalSince1970: 0)
+        )
+
+        // 2. Slice track from a generated sample (identical to makeProject()).
+        let sample = makeSlicerSample()
+        let sliceTrackID = project.appendSliceTrack(sample: sample)
+        if let sliceSetID = project.sliceSetID(forTrack: sliceTrackID) {
+            project.updateSliceSet(id: sliceSetID) { set in
+                let frames = Self.slicerLengthFrames
+                let count: Int64 = 8
+                var markers = [set.markers.first].compactMap { $0 } // whole-sample
+                for i in 0..<count {
+                    let start = frames * i / count
+                    let end = frames * (i + 1) / count
+                    markers.append(SliceMarker(startFrame: start, endFrame: end))
+                }
+                set.markers = markers
+                set.mode = .grid
+                set.normalize(sampleLengthFrames: frames)
+            }
+        }
+        if let index = project.tracks.firstIndex(where: { $0.id == sliceTrackID }) {
+            project.tracks[index].stepPattern = Self.everyNthStep(every: 2)
+            project.tracks[index].mix.sendB = 0.5
+        }
+        project.addToAssetPool(
+            kind: .sample,
+            assetID: sample.id,
+            addedAt: Date(timeIntervalSince1970: 0)
+        )
+
+        // 3. Drum kit group → each part on a generated `.sample(...)` one-shot.
+        let drumPlan = DrumGroupPlan(
+            name: "Audio Rich Kit",
+            color: "#8AA",
+            members: drumHits.map { hit in
+                DrumGroupPlan.Member(
+                    tag: hit.tag,
+                    trackName: hit.trackName,
+                    routesToShared: false
+                )
+            },
+            templateID: nil,
+            sharedDestination: nil,
+            busRouting: .master
+        )
+        project.addDrumGroup(plan: drumPlan, library: emptyLibrary)
+
+        let drumGroup = project.trackGroups.last
+        let memberIDs = drumGroup?.memberIDs ?? []
+        for (offset, memberID) in memberIDs.enumerated() where offset < drumHits.count {
+            let hit = drumHits[offset]
+            let drumSample = hit.makeSample()
+            if let index = project.tracks.firstIndex(where: { $0.id == memberID }) {
+                project.tracks[index].destination = .sample(
+                    sampleID: hit.sampleID,
+                    settings: .default
+                )
+            }
+            project.addToAssetPool(
+                kind: .sample,
+                assetID: drumSample.id,
+                addedAt: Date(timeIntervalSince1970: 0)
+            )
+        }
+        if let kickID = memberIDs.first,
+           let index = project.tracks.firstIndex(where: { $0.id == kickID }) {
+            project.tracks[index].stepPattern = Self.everyNthStep(every: 4)
+        }
+
+        // 4. Routing (identical to makeProject()).
+        let busID = project.addMixerBus(name: "FX Bus", color: "#3A7")
+        if let kickID = memberIDs.first {
+            project.setTrackOutputBus(trackID: kickID, busID: busID)
+        }
+        project.setSendBusInserts([Self.fixedFilterInsert(idSuffix: "0A01")], id: .sendA)
+        project.setSendBusInserts([Self.fixedFilterInsert(idSuffix: "0B01")], id: .sendB)
+
+        project.selectedTrackID = monoTrackID
+        return project
+    }
+
     // MARK: - Slicer sample (generated, not file-dependent for build)
 
     /// The `AudioSample` metadata describing the generated slicer WAV. The
@@ -261,6 +391,20 @@ enum AudioRichFixture {
         )
     }
 
+    /// The `AudioSample` metadata describing the generated melodic-lead WAV used
+    /// by the SAMPLE-ONLY fixture variant. `materializeAllSamples` writes the bytes.
+    static func makeMelodicSample() -> AudioSample {
+        AudioSample(
+            id: melodicSampleID,
+            name: "Audio Rich Fixture Lead",
+            fileRef: .appSupportLibrary(relativePath: melodicSampleRelativePath),
+            category: AudioSampleCategory(rawValue: "breaks") ?? .breaks,
+            lengthSeconds: Double(melodicLengthFrames) / melodicSampleRate,
+            lengthFrames: melodicLengthFrames,
+            sampleRate: melodicSampleRate
+        )
+    }
+
     // MARK: - Materialization (real-audio pass only; not called by makeProject)
 
     /// Writes ALL generated WAVs — the four drum one-shots and the slicer loop —
@@ -273,8 +417,35 @@ enum AudioRichFixture {
         libraryRoot: URL = AudioSampleLibrary.shared.libraryRoot
     ) throws {
         try materializeSlicerSample(libraryRoot: libraryRoot)
+        try materializeMelodicSample(libraryRoot: libraryRoot)
         for hit in drumHits {
             try materializeDrumHit(hit, libraryRoot: libraryRoot)
+        }
+    }
+
+    /// Synthesizes a ~0.5s mono sustained-tone WAV (a few harmonics, gentle
+    /// decay) and writes it into the AudioSampleLibrary tree so the SAMPLE-ONLY
+    /// fixture's melodic lead resolves at runtime. Returns the written URL.
+    @discardableResult
+    static func materializeMelodicSample(
+        libraryRoot: URL = AudioSampleLibrary.shared.libraryRoot
+    ) throws -> URL {
+        try writeMonoWAV(
+            relativePath: melodicSampleRelativePath,
+            libraryRoot: libraryRoot,
+            sampleRate: melodicSampleRate,
+            frameCount: Int(melodicLengthFrames)
+        ) { frame, _ in
+            let t = Double(frame) / melodicSampleRate
+            // Root ~261.63 Hz (C4) with octave + fifth harmonics for a richer tone.
+            let f0 = 261.63
+            let fundamental = sin(2.0 * Double.pi * f0 * t)
+            let octave = 0.4 * sin(2.0 * Double.pi * f0 * 2.0 * t)
+            let fifth = 0.25 * sin(2.0 * Double.pi * f0 * 1.5 * t)
+            // Short attack, long decay over the half-second.
+            let attack = min(1.0, t / 0.005)
+            let decay = exp(-t / 0.35)
+            return Float((fundamental + octave + fifth) * attack * decay * 0.5)
         }
     }
 

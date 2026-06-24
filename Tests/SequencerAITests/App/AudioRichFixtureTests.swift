@@ -138,19 +138,115 @@ final class AudioRichFixtureTests: XCTestCase {
         }
     }
 
+    /// SAMPLE-ONLY variant: round-trips and writes the unattended-automation
+    /// fixture, asserting it carries NO `.auInstrument` destination anywhere (so
+    /// a headless/wired launch never triggers the macOS AU permission modal).
+    func test_sampleOnly_fixture_round_trips_has_no_au_and_writes_artifact() throws {
+        let project = AudioRichFixture.makeSampleOnlyProject()
+
+        let data = try encodeAsDocument(project)
+        let decoded = try JSONDecoder().decode(Project.self, from: data)
+        XCTAssertEqual(decoded, project, "round-trip must preserve the project")
+
+        // -- The headline invariant: NOT A SINGLE .auInstrument destination.
+        for track in decoded.tracks {
+            if case .auInstrument = track.destination {
+                XCTFail("sample-only fixture must not contain any .auInstrument destination (track \(track.name))")
+            }
+        }
+
+        // -- Mono melodic lead is now on a generated `.sample(...)`, driving Send A.
+        let leadTrack = try XCTUnwrap(
+            decoded.tracks.first { $0.name == "Sample Lead" },
+            "expected a sample-backed lead track"
+        )
+        XCTAssertEqual(leadTrack.trackType, .monoMelodic)
+        guard case let .sample(sampleID, _) = leadTrack.destination else {
+            return XCTFail("lead track should be on a .sample destination")
+        }
+        XCTAssertEqual(sampleID, AudioRichFixture.melodicSampleID)
+        XCTAssertGreaterThan(leadTrack.mix.sendA, 0, "lead track should drive Send A")
+        XCTAssertTrue(
+            decoded.isInAssetPool(kind: .sample, assetID: AudioRichFixture.melodicSampleID),
+            "generated lead sample should be pooled"
+        )
+
+        // -- Slice track with a populated slice set (unchanged from makeProject()).
+        let sliceTrack = try XCTUnwrap(
+            decoded.tracks.first { $0.trackType == .slice },
+            "expected a slice track"
+        )
+        guard case let .slicer(sliceSetID, _) = sliceTrack.destination else {
+            return XCTFail("slice track lost its slicer destination")
+        }
+        let sliceSet = try XCTUnwrap(decoded.sliceSet(id: sliceSetID))
+        XCTAssertGreaterThan(sliceSet.userSliceCount, 0)
+
+        // -- Drum group with each part on a generated `.sample(...)` one-shot.
+        let drumGroup = try XCTUnwrap(
+            decoded.trackGroups.first { $0.name == "Audio Rich Kit" }
+        )
+        XCTAssertGreaterThanOrEqual(drumGroup.memberIDs.count, 4)
+        for memberID in drumGroup.memberIDs {
+            let part = try XCTUnwrap(decoded.tracks.first { $0.id == memberID })
+            guard case .sample = part.destination else {
+                return XCTFail("drum part \(part.name) is not on a `.sample` destination")
+            }
+        }
+
+        // -- Send buses + mixer bus routing (unchanged).
+        XCTAssertEqual(decoded.sendBus(id: .sendA).inserts.count, 1)
+        XCTAssertEqual(decoded.sendBus(id: .sendB).inserts.count, 1)
+        if case .nativeFilter = decoded.sendBus(id: .sendA).inserts.first?.kind {} else {
+            XCTFail("Send A insert should be a native filter")
+        }
+        let fxBus = try XCTUnwrap(decoded.buses.first { $0.name == "FX Bus" })
+        XCTAssertFalse(decoded.trackIDsRouted(to: fxBus.id).isEmpty)
+
+        // -- Write the artifact (temp first for sandbox, then attempt repo).
+        let tempURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("audio-rich-routing-sampleonly.seqai")
+        try data.write(to: tempURL)
+        let reloaded = try JSONDecoder().decode(Project.self, from: Data(contentsOf: tempURL))
+        XCTAssertEqual(reloaded, decoded)
+        print("[AudioRichFixtureTests] wrote \(data.count) bytes to TEMP \(tempURL.path)")
+
+        let fixtureURL = Self.sampleOnlyFixtureURL()
+        do {
+            try FileManager.default.createDirectory(
+                at: fixtureURL.deletingLastPathComponent(),
+                withIntermediateDirectories: true
+            )
+            try data.write(to: fixtureURL)
+            print("[AudioRichFixtureTests] wrote \(data.count) bytes to REPO \(fixtureURL.path)")
+        } catch {
+            print("[AudioRichFixtureTests] repo write skipped (sandbox): \(error.localizedDescription)")
+        }
+    }
+
     /// Resolves `docs/fixtures/audio-rich-routing.seqai` relative to the repo
     /// root by walking up from this source file.
     private static func fixtureURL() -> URL {
+        repoRoot()
+            .appendingPathComponent("docs")
+            .appendingPathComponent("fixtures")
+            .appendingPathComponent("audio-rich-routing.seqai")
+    }
+
+    private static func sampleOnlyFixtureURL() -> URL {
+        repoRoot()
+            .appendingPathComponent("docs")
+            .appendingPathComponent("fixtures")
+            .appendingPathComponent("audio-rich-routing-sampleonly.seqai")
+    }
+
+    private static func repoRoot() -> URL {
         let thisFile = URL(fileURLWithPath: #filePath)
         // .../in-sequence/Tests/SequencerAITests/App/AudioRichFixtureTests.swift
-        let repoRoot = thisFile
+        return thisFile
             .deletingLastPathComponent() // App
             .deletingLastPathComponent() // SequencerAITests
             .deletingLastPathComponent() // Tests
             .deletingLastPathComponent() // in-sequence
-        return repoRoot
-            .appendingPathComponent("docs")
-            .appendingPathComponent("fixtures")
-            .appendingPathComponent("audio-rich-routing.seqai")
     }
 }
