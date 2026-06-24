@@ -96,23 +96,92 @@ This keeps playback deterministic and makes boundary cases testable: empty, one 
 
 Avoid introducing feature-specific storage that fights this shape unless the architecture document explains why.
 
-## Realtime And Future Audio Thread Rules
+## Audio Engine Hard Rules (timing, routing, realtime)
 
-The current engine is timer-driven, but future audio-thread work should preserve realtime discipline:
+These are **invariants, not preferences.** Audio timing and realtime failures
+are non-local (the right choice is not visible from inside the function you are
+editing) and intermittent (they surface under load, mid-performance). A change
+can be test-green and lint-clean and still violate these and be wrong.
 
-- no allocation in render-thread code;
-- no locks in render-thread code;
-- UI-to-render communication via command/ring buffers;
-- render-to-UI communication via buffers read from the UI/display side;
-- explicit threading contracts for every runtime object.
+**Process rule:** changing any of these six invariants requires a plan and
+product-owner sign-off — never a per-edit local decision, and never a workaround
+that guards the *symptom* (a deadlock, a glitch) while leaving the violating
+*shape* in place. If you hit a wall that seems to require breaking one, stop and
+escalate; do not band-aid.
 
-These rules are listed in [[code-review-checklist]] and should inform architecture guardrails before implementation begins.
+The target architecture and the migration are in
+[`docs/plans/2026-06-24-sample-accurate-timing.md`](/Users/maxwilliams/dev/in-sequence/docs/plans/2026-06-24-sample-accurate-timing.md)
+(timing/sample) and the fixed-superset routing plan (routing).
 
-Run `scripts/diagnostics/runtime-ownership-lint.sh` when a change touches tick,
-dispatch, sample, slicer, or audio graph code. The lint is deliberately small:
-it catches obvious owner drift such as UI imports in engine files,
-document/session reads from tick files, unannotated file IO in sample/slicer
-trigger paths, and malformed realtime allow comments.
+### 1. One audio-derived master clock
+
+- **DO** derive all musical time from the audio render position (engine
+  `sampleTime`), through one converter object, using the tempo map.
+- **NEVER** use `ProcessInfo.systemUptime`, `Date`, `DispatchTime`, or a
+  `DispatchSourceTimer` deadline as a *sounding-time* source. A wall-clock timer
+  may *pace* a lookahead pump; it must never decide when a note sounds.
+
+### 2. Schedule ahead — never fire "now"
+
+- **DO** stamp every event with a *future* time in the sink's native units
+  (`AVAudioTime`/`sampleTime`, `AUEventSampleTime`, `MIDITimeStamp`) and hand it
+  to the sink ahead of time via the lookahead scheduler (~100–200 ms horizon,
+  ~10–20 ms pump).
+- **NEVER** trigger an event the instant a timer fires. Pump jitter must not move
+  the sounding frame.
+
+### 3. AU notes are sample-stamped, never main-hopped
+
+- **DO** schedule AU instrument notes via `AUAudioUnit.scheduleMIDIEventBlock`
+  with an `AUEventSampleTime` (note-on and note-off both stamped).
+- **NEVER** add a `DispatchQueue.main` hop or a bare `startNote`/`stopNote` on
+  the note/tick path. (The current async-to-main hop in `AudioInstrumentHost` is
+  documented debt being removed — do not copy it.)
+
+### 4. Triggered playback reads resident buffers from RAM, never streams from disk
+
+- **DO** play triggered samples (slices, one-shots, drum hits) from a fully
+  resident `AVAudioPCMBuffer` via `scheduleBuffer`. Warm the buffer before the
+  voice can fire. The PCM cache (`SampleAssetCache`) is the source of truth.
+- **NEVER** reach a `scheduleSegment(file:)` / `AVAudioFile(forReading:)` on a
+  trigger path. File streaming is allowed *only* for large/long audio (e.g.
+  recorded input loops) as an explicitly annotated, bounded exception.
+
+### 5. Routing is gain + bypass on a fixed graph
+
+- **DO** pre-provision the graph (the A/B scene buses, sends, insert slots are
+  always connected). Express routing changes — scene crossfade, send levels,
+  per-track bus selection, mute/fill, insert enable — as **gain ramps**
+  (equal-power for crossfades) and **`bypass` toggles**. Structural add/remove
+  (e.g. a drum part) uses a **pre-attached node pool**, ramped to silence before
+  any disconnect.
+- **NEVER** `engine.stop()`/`start()` to change topology during playback, and
+  **NEVER** `disconnect`/`detach` a node that is currently producing audio
+  (ramp it to silence first, cut on silence).
+
+### 6. The render thread is sacred
+
+- no allocation, no locks, no file I/O, no ARC churn on render-thread code;
+- UI→render communication via lock-free command/ring buffers; render→UI via
+  buffers read from the display side;
+- capture is RT-safe: sink tap → lock-free ring → dedicated disk-writer thread,
+  never a disk write on the render thread;
+- explicit threading contract for every runtime object.
+
+### How these are enforced
+
+| Layer | Mechanism |
+|---|---|
+| Deterministic | `scripts/diagnostics/realtime-path-lint.sh` (banned APIs on the realtime path; extended to cover wall-clock musical timing, note-path main hops, and `scheduleSegment(file:)`/`AVAudioFile` on trigger paths) |
+| Deterministic | `scripts/diagnostics/runtime-ownership-lint.sh` (owner drift: UI imports in engine files, document/session reads from tick files, unannotated file IO, malformed `realtime-allow` comments) |
+| Behavioural | **Offline frame-accuracy test** — render in `enableManualRenderingMode(.offline)` and assert events land within **0 frames** of target, including a zero-flam (AU note vs slice on the same step) assertion and stability across tempo change |
+| Semantic | **Adherence observers** (`audio-clock-conformity`, `au-note-path-conformity`, `sample-memory-conformity`, `graph-mutation-conformity`) — read the diff/codebase and judge intent against rules 1–5; emit file:line evidence for the loop to act on. See [[observer-sweep]] |
+
+Run the two lints whenever a change touches tick, dispatch, sample, slicer, or
+audio graph code; the offline test gates every timing change; the observers run
+on audio-touching diffs and on a periodic sweep. These rules are also in
+[[code-review-checklist]] and must inform any audio architecture pass before
+implementation begins.
 
 ## Small Boundaries Over Broad Rewrites
 

@@ -93,6 +93,56 @@ writes matching status keys such as `phraseMatrixRenderedVisible`,
 `phrasePerformLayerMode`, `phrasePerformLayerSelectorVisible`, and
 `trackPerformCaptureVisible`.
 
+## Runtime Diagnostics
+
+For engine/runtime debugging, use the in-app activity log — not `print`, `NSLog`,
+or `/tmp` files. `DevActivity` (`Sources/App/DevActivity.swift`) writes
+debug-build breadcrumbs to macOS unified logging under subsystem
+`ai.sequencer.SequencerAI.activity` (categories: `engine`, `clock`,
+`audio-graph`, `harness`, `session`, `library`). It survives hangs and crashes,
+so a post-mortem path can be reconstructed. Read it back with:
+
+```sh
+log show --last 10m --style compact \
+  --predicate 'subsystem == "ai.sequencer.SequencerAI.activity"'
+```
+
+or live with `log stream` and the same predicate. Add new diagnostics through
+`DevActivity.trace(...)` (keep it sparse — no unconditional tick-path logs), and
+prefer the opt-in `sample-trigger` category for per-step playback probes.
+
+**Full reference: [`wiki/pages/runtime-observability.md`](wiki/pages/runtime-observability.md)** —
+read it before adding runtime logging or chasing an engine/playback bug.
+
+## Audio Engine Hard Rules
+
+Audio timing/routing/realtime have **invariants**, not preferences. They are
+non-local and their failures are intermittent, so a change can pass tests + lints
+and still be wrong. Do not band-aid a symptom (deadlock, glitch) while leaving a
+violating shape in place; changing an invariant needs a plan + product-owner
+sign-off. The six rules (full text + enforcement in
+[`wiki/pages/architecture-guardrails.md`](wiki/pages/architecture-guardrails.md)
+→ *Audio Engine Hard Rules*):
+
+1. **One audio-derived master clock** — musical time comes from the engine
+   render `sampleTime`, never `systemUptime`/`Date`/`DispatchTime`/timer deadline.
+2. **Schedule ahead, never fire "now"** — stamp events with a future
+   `sampleTime`/`AUEventSampleTime`/`MIDITimeStamp` via the lookahead scheduler.
+3. **AU notes are sample-stamped** via `scheduleMIDIEventBlock` — never a
+   `DispatchQueue.main` hop or bare `startNote`/`stopNote` on the note path.
+4. **Triggered playback reads resident `AVAudioPCMBuffer`s** (`scheduleBuffer`) —
+   never `scheduleSegment(file:)`/`AVAudioFile(forReading:)` on a trigger path
+   (file streaming only for large loops, annotated).
+5. **Routing is gain + bypass on a fixed graph** — never `engine.stop()/start()`
+   for topology during playback; never `disconnect` a sounding node (ramp to
+   silence first). Structural add/remove uses a pre-attached node pool.
+6. **The render thread is sacred** — no alloc/locks/file-IO/ARC churn; control↔
+   audio via lock-free buffers; capture is sink→ring→writer-thread.
+
+Enforced by `realtime-path-lint.sh`, `runtime-ownership-lint.sh`, an offline
+frame-accuracy test (assert 0-frame error), and the audio adherence observers.
+Migration plan: [`docs/plans/2026-06-24-sample-accurate-timing.md`](docs/plans/2026-06-24-sample-accurate-timing.md).
+
 ## How To Orient
 
 Run:
