@@ -36,6 +36,25 @@ SEQUENCER_AI_NEW_DOCUMENT_FIXTURE=docs/fixtures/audio-rich-routing.seqai \
 
 or open the `.seqai` from the app.
 
+## audio-rich-routing-sampleonly.seqai
+
+Same as above but with **no third-party AU** — the Analog Lab mono track is
+replaced by a `.monoMelodic` track on a generated `.sample` tone. Built by
+`AudioRichFixture.makeSampleOnlyProject()`.
+
+**Use this for unattended / headless testing** (the interaction-matrix harness).
+Hosting a third-party AU pops the macOS "run with lower permissions?" modal,
+which a headless launch can't dismiss → the app blocks with no audio. The
+sample-only fixture sounds deterministically with no prompt. See AGENTS.md
+"Audio test source by permission tier". Reserve the AU-bearing
+`audio-rich-routing.seqai` for the manual interactive pass.
+
+> Headless metering caveat: setting `SEQUENCER_AI_VISUAL_COMMAND_FILE` forces
+> the engine into offline manual-rendering mode (to avoid the HAL/mic-TCC
+> prompt), where nothing pulls audio unless an offline render pump runs — so the
+> `masterPeak` status reads `-inf` on a wired launch until that pump exists
+> (in progress). Real audio is audible only on a non-wired launch.
+
 ### Slicer sound — materialization note
 The slice track references a WAV at `breaks/audio-rich-fixture-loop.wav` in the
 AudioSampleLibrary tree; `makeProject()` does NOT write it (keeps the builder
