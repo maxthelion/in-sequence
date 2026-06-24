@@ -36,6 +36,23 @@ This list grows as more phases land. Check each with audio running.
   - PASS: no global silence gap; the track's signal may briefly blip as its
     chain re-splices; everything else keeps playing; no crash/hang.
 
+## Pass results so far (2026-06-24, partial)
+
+- **R0/R1/R2 routing — provisionally OK:** with an Arturia Analog Lab preset
+  loaded, the lead sounded and routed through the sends — i.e. the dry path
+  through the fanout reaches master (R0 not broken). Not yet exhaustively
+  exercised (see the interaction-matrix harness plan).
+- **CRASH — add an AU FX insert to a track.** Graph-lock re-entrancy in
+  `rebuildTrackInsertChainAfterLoad` (the AU-load completion re-enters the lock
+  inline; the send-bus path async-hops, the track path doesn't). Filed:
+  `docs/bugs/20260624-170000-add-track-fx-graphlock-reentry-crash`. Likely
+  PRE-EXISTING (that path was not modified by R0–R2) — **verify on `main`**.
+- **No sound from the sample-drum fixture build (`masterPeak=-inf` while
+  playing).** Under investigation — likely the meter publisher not updating
+  headlessly OR transport-via-command not triggering steps, vs a real silence
+  regression. Tracked as step 0 of the interaction-matrix harness plan
+  (`docs/plans/2026-06-24-routing-interaction-matrix-harness.md`).
+
 ## How to run
 1. `git switch audio-routing-cleanup`, build + run the app (real output device).
 2. Load a project with ≥2 tracks, at least one send with an insert, at least one
