@@ -1,0 +1,7382 @@
+{
+  "assetPool" : [
+    {
+      "addedAt" : -978307200,
+      "assetID" : "2B174442-31CA-5A36-ADA0-E4F70E2A9CAA",
+      "kind" : "sample"
+    }
+  ],
+  "buses" : [
+    {
+      "color" : "#3A7",
+      "id" : "8DEEE9CA-EA0C-4F4A-9084-2A31631B311A",
+      "inserts" : [
+
+      ],
+      "mix" : {
+        "isMuted" : false,
+        "isSoloed" : false,
+        "level" : 1,
+        "pan" : 0
+      },
+      "name" : "FX Bus"
+    }
+  ],
+  "clipPool" : [
+    {
+      "content" : {
+        "noteGrid" : {
+          "lengthSteps" : 16,
+          "steps" : [
+            {
+              "main" : {
+                "chance" : 1,
+                "notes" : [
+                  {
+                    "lengthSteps" : 4,
+                    "pitch" : 60,
+                    "velocity" : 100
+                  }
+                ]
+              }
+            },
+            {
+
+            },
+            {
+              "main" : {
+                "chance" : 1,
+                "notes" : [
+                  {
+                    "lengthSteps" : 4,
+                    "pitch" : 64,
+                    "velocity" : 100
+                  }
+                ]
+              }
+            },
+            {
+
+            },
+            {
+              "main" : {
+                "chance" : 1,
+                "notes" : [
+                  {
+                    "lengthSteps" : 4,
+                    "pitch" : 60,
+                    "velocity" : 100
+                  }
+                ]
+              }
+            },
+            {
+
+            },
+            {
+
+            },
+            {
+              "main" : {
+                "chance" : 1,
+                "notes" : [
+                  {
+                    "lengthSteps" : 4,
+                    "pitch" : 67,
+                    "velocity" : 100
+                  }
+                ]
+              }
+            },
+            {
+              "main" : {
+                "chance" : 1,
+                "notes" : [
+                  {
+                    "lengthSteps" : 4,
+                    "pitch" : 60,
+                    "velocity" : 100
+                  }
+                ]
+              }
+            },
+            {
+
+            },
+            {
+              "main" : {
+                "chance" : 1,
+                "notes" : [
+                  {
+                    "lengthSteps" : 4,
+                    "pitch" : 64,
+                    "velocity" : 100
+                  }
+                ]
+              }
+            },
+            {
+
+            },
+            {
+              "main" : {
+                "chance" : 1,
+                "notes" : [
+                  {
+                    "lengthSteps" : 4,
+                    "pitch" : 60,
+                    "velocity" : 100
+                  }
+                ]
+              }
+            },
+            {
+
+            },
+            {
+
+            },
+            {
+              "main" : {
+                "chance" : 1,
+                "notes" : [
+                  {
+                    "lengthSteps" : 4,
+                    "pitch" : 67,
+                    "velocity" : 100
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "id" : "6D098E7A-C9CF-40ED-AFA7-D45E2D4EBCCA",
+      "macroLanes" : [
+
+      ],
+      "name" : "Main Track clip",
+      "trackType" : "monoMelodic"
+    },
+    {
+      "content" : {
+        "noteGrid" : {
+          "lengthSteps" : 16,
+          "steps" : [
+            {
+              "main" : {
+                "chance" : 1,
+                "notes" : [
+                  {
+                    "lengthSteps" : 4,
+                    "pitch" : 60,
+                    "velocity" : 100
+                  }
+                ]
+              }
+            },
+            {
+
+            },
+            {
+              "main" : {
+                "chance" : 1,
+                "notes" : [
+                  {
+                    "lengthSteps" : 4,
+                    "pitch" : 64,
+                    "velocity" : 100
+                  }
+                ]
+              }
+            },
+            {
+
+            },
+            {
+              "main" : {
+                "chance" : 1,
+                "notes" : [
+                  {
+                    "lengthSteps" : 4,
+                    "pitch" : 60,
+                    "velocity" : 100
+                  }
+                ]
+              }
+            },
+            {
+
+            },
+            {
+
+            },
+            {
+              "main" : {
+                "chance" : 1,
+                "notes" : [
+                  {
+                    "lengthSteps" : 4,
+                    "pitch" : 67,
+                    "velocity" : 100
+                  }
+                ]
+              }
+            },
+            {
+              "main" : {
+                "chance" : 1,
+                "notes" : [
+                  {
+                    "lengthSteps" : 4,
+                    "pitch" : 60,
+                    "velocity" : 100
+                  }
+                ]
+              }
+            },
+            {
+
+            },
+            {
+              "main" : {
+                "chance" : 1,
+                "notes" : [
+                  {
+                    "lengthSteps" : 4,
+                    "pitch" : 64,
+                    "velocity" : 100
+                  }
+                ]
+              }
+            },
+            {
+
+            },
+            {
+              "main" : {
+                "chance" : 1,
+                "notes" : [
+                  {
+                    "lengthSteps" : 4,
+                    "pitch" : 60,
+                    "velocity" : 100
+                  }
+                ]
+              }
+            },
+            {
+
+            },
+            {
+
+            },
+            {
+              "main" : {
+                "chance" : 1,
+                "notes" : [
+                  {
+                    "lengthSteps" : 4,
+                    "pitch" : 67,
+                    "velocity" : 100
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "id" : "6B85732D-9077-4F6F-8D1A-F1A5DAF5C9D2",
+      "macroLanes" : [
+
+      ],
+      "name" : "Mono 2 clip",
+      "trackType" : "monoMelodic"
+    },
+    {
+      "content" : {
+        "sliceTriggers" : {
+          "sliceIndexes" : [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "stepModes" : [
+            "single",
+            "single",
+            "single",
+            "single",
+            "single",
+            "single",
+            "single",
+            "single",
+            "single",
+            "single",
+            "single",
+            "single",
+            "single",
+            "single",
+            "single",
+            "single"
+          ],
+          "stepParameters" : [
+            {
+              "attackMs" : 0,
+              "choke" : true,
+              "endTrim" : 0,
+              "filter" : 1,
+              "gain" : 0,
+              "pan" : 0,
+              "pitch" : 0,
+              "releaseMs" : 0,
+              "reverse" : false,
+              "startTrim" : 0
+            },
+            {
+              "attackMs" : 0,
+              "choke" : true,
+              "endTrim" : 0,
+              "filter" : 1,
+              "gain" : 0,
+              "pan" : 0,
+              "pitch" : 0,
+              "releaseMs" : 0,
+              "reverse" : false,
+              "startTrim" : 0
+            },
+            {
+              "attackMs" : 0,
+              "choke" : true,
+              "endTrim" : 0,
+              "filter" : 1,
+              "gain" : 0,
+              "pan" : 0,
+              "pitch" : 0,
+              "releaseMs" : 0,
+              "reverse" : false,
+              "startTrim" : 0
+            },
+            {
+              "attackMs" : 0,
+              "choke" : true,
+              "endTrim" : 0,
+              "filter" : 1,
+              "gain" : 0,
+              "pan" : 0,
+              "pitch" : 0,
+              "releaseMs" : 0,
+              "reverse" : false,
+              "startTrim" : 0
+            },
+            {
+              "attackMs" : 0,
+              "choke" : true,
+              "endTrim" : 0,
+              "filter" : 1,
+              "gain" : 0,
+              "pan" : 0,
+              "pitch" : 0,
+              "releaseMs" : 0,
+              "reverse" : false,
+              "startTrim" : 0
+            },
+            {
+              "attackMs" : 0,
+              "choke" : true,
+              "endTrim" : 0,
+              "filter" : 1,
+              "gain" : 0,
+              "pan" : 0,
+              "pitch" : 0,
+              "releaseMs" : 0,
+              "reverse" : false,
+              "startTrim" : 0
+            },
+            {
+              "attackMs" : 0,
+              "choke" : true,
+              "endTrim" : 0,
+              "filter" : 1,
+              "gain" : 0,
+              "pan" : 0,
+              "pitch" : 0,
+              "releaseMs" : 0,
+              "reverse" : false,
+              "startTrim" : 0
+            },
+            {
+              "attackMs" : 0,
+              "choke" : true,
+              "endTrim" : 0,
+              "filter" : 1,
+              "gain" : 0,
+              "pan" : 0,
+              "pitch" : 0,
+              "releaseMs" : 0,
+              "reverse" : false,
+              "startTrim" : 0
+            },
+            {
+              "attackMs" : 0,
+              "choke" : true,
+              "endTrim" : 0,
+              "filter" : 1,
+              "gain" : 0,
+              "pan" : 0,
+              "pitch" : 0,
+              "releaseMs" : 0,
+              "reverse" : false,
+              "startTrim" : 0
+            },
+            {
+              "attackMs" : 0,
+              "choke" : true,
+              "endTrim" : 0,
+              "filter" : 1,
+              "gain" : 0,
+              "pan" : 0,
+              "pitch" : 0,
+              "releaseMs" : 0,
+              "reverse" : false,
+              "startTrim" : 0
+            },
+            {
+              "attackMs" : 0,
+              "choke" : true,
+              "endTrim" : 0,
+              "filter" : 1,
+              "gain" : 0,
+              "pan" : 0,
+              "pitch" : 0,
+              "releaseMs" : 0,
+              "reverse" : false,
+              "startTrim" : 0
+            },
+            {
+              "attackMs" : 0,
+              "choke" : true,
+              "endTrim" : 0,
+              "filter" : 1,
+              "gain" : 0,
+              "pan" : 0,
+              "pitch" : 0,
+              "releaseMs" : 0,
+              "reverse" : false,
+              "startTrim" : 0
+            },
+            {
+              "attackMs" : 0,
+              "choke" : true,
+              "endTrim" : 0,
+              "filter" : 1,
+              "gain" : 0,
+              "pan" : 0,
+              "pitch" : 0,
+              "releaseMs" : 0,
+              "reverse" : false,
+              "startTrim" : 0
+            },
+            {
+              "attackMs" : 0,
+              "choke" : true,
+              "endTrim" : 0,
+              "filter" : 1,
+              "gain" : 0,
+              "pan" : 0,
+              "pitch" : 0,
+              "releaseMs" : 0,
+              "reverse" : false,
+              "startTrim" : 0
+            },
+            {
+              "attackMs" : 0,
+              "choke" : true,
+              "endTrim" : 0,
+              "filter" : 1,
+              "gain" : 0,
+              "pan" : 0,
+              "pitch" : 0,
+              "releaseMs" : 0,
+              "reverse" : false,
+              "startTrim" : 0
+            },
+            {
+              "attackMs" : 0,
+              "choke" : true,
+              "endTrim" : 0,
+              "filter" : 1,
+              "gain" : 0,
+              "pan" : 0,
+              "pitch" : 0,
+              "releaseMs" : 0,
+              "reverse" : false,
+              "startTrim" : 0
+            }
+          ],
+          "stepPattern" : [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ]
+        }
+      },
+      "id" : "33149082-1E0E-4D22-8805-138E9EA0C3F6",
+      "macroLanes" : [
+
+      ],
+      "name" : "Audio Rich Fixture Loop clip",
+      "trackType" : "slice"
+    },
+    {
+      "content" : {
+        "noteGrid" : {
+          "lengthSteps" : 16,
+          "steps" : [
+            {
+
+            },
+            {
+
+            },
+            {
+
+            },
+            {
+
+            },
+            {
+
+            },
+            {
+
+            },
+            {
+
+            },
+            {
+
+            },
+            {
+
+            },
+            {
+
+            },
+            {
+
+            },
+            {
+
+            },
+            {
+
+            },
+            {
+
+            },
+            {
+
+            },
+            {
+
+            }
+          ]
+        }
+      },
+      "id" : "A491F3A4-DB3D-44D6-A258-F3051B7DAFB4",
+      "macroLanes" : [
+
+      ],
+      "name" : "Kick",
+      "trackType" : "monoMelodic"
+    },
+    {
+      "content" : {
+        "noteGrid" : {
+          "lengthSteps" : 16,
+          "steps" : [
+            {
+
+            },
+            {
+
+            },
+            {
+
+            },
+            {
+
+            },
+            {
+
+            },
+            {
+
+            },
+            {
+
+            },
+            {
+
+            },
+            {
+
+            },
+            {
+
+            },
+            {
+
+            },
+            {
+
+            },
+            {
+
+            },
+            {
+
+            },
+            {
+
+            },
+            {
+
+            }
+          ]
+        }
+      },
+      "id" : "57BBDABB-95B1-43D1-8949-9E2368568E11",
+      "macroLanes" : [
+
+      ],
+      "name" : "Snare",
+      "trackType" : "monoMelodic"
+    },
+    {
+      "content" : {
+        "noteGrid" : {
+          "lengthSteps" : 16,
+          "steps" : [
+            {
+
+            },
+            {
+
+            },
+            {
+
+            },
+            {
+
+            },
+            {
+
+            },
+            {
+
+            },
+            {
+
+            },
+            {
+
+            },
+            {
+
+            },
+            {
+
+            },
+            {
+
+            },
+            {
+
+            },
+            {
+
+            },
+            {
+
+            },
+            {
+
+            },
+            {
+
+            }
+          ]
+        }
+      },
+      "id" : "F7F5C28E-7CFC-473C-8955-4B37EE7DD3D5",
+      "macroLanes" : [
+
+      ],
+      "name" : "Hat",
+      "trackType" : "monoMelodic"
+    },
+    {
+      "content" : {
+        "noteGrid" : {
+          "lengthSteps" : 16,
+          "steps" : [
+            {
+
+            },
+            {
+
+            },
+            {
+
+            },
+            {
+
+            },
+            {
+
+            },
+            {
+
+            },
+            {
+
+            },
+            {
+
+            },
+            {
+
+            },
+            {
+
+            },
+            {
+
+            },
+            {
+
+            },
+            {
+
+            },
+            {
+
+            },
+            {
+
+            },
+            {
+
+            }
+          ]
+        }
+      },
+      "id" : "95E4A28A-AD87-4800-99BD-92466192B2CE",
+      "macroLanes" : [
+
+      ],
+      "name" : "Clap",
+      "trackType" : "monoMelodic"
+    }
+  ],
+  "generatorPool" : [
+    {
+      "id" : "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAA1",
+      "kind" : "monoGenerator",
+      "name" : "Euclidean Mono",
+      "params" : {
+        "mono" : {
+          "pitch" : {
+            "native" : {
+              "_0" : {
+                "algo" : {
+                  "manual" : {
+                    "pickMode" : "random",
+                    "pitches" : [
+                      60,
+                      62,
+                      64,
+                      67
+                    ]
+                  }
+                },
+                "harmonicSidechain" : {
+                  "none" : {
+
+                  }
+                }
+              }
+            }
+          },
+          "shape" : {
+            "accent" : false,
+            "gateLength" : 4,
+            "velocity" : 100
+          },
+          "trigger" : {
+            "native" : {
+              "_0" : {
+                "algo" : {
+                  "euclidean" : {
+                    "offset" : 0,
+                    "pulses" : 4,
+                    "steps" : 16
+                  }
+                },
+                "basePitch" : 60
+              }
+            }
+          }
+        }
+      },
+      "trackType" : "monoMelodic"
+    },
+    {
+      "id" : "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAA2",
+      "kind" : "polyGenerator",
+      "name" : "Euclidean Poly",
+      "params" : {
+        "poly" : {
+          "pitches" : [
+            {
+              "native" : {
+                "_0" : {
+                  "algo" : {
+                    "manual" : {
+                      "pickMode" : "random",
+                      "pitches" : [
+                        60,
+                        64,
+                        67
+                      ]
+                    }
+                  },
+                  "harmonicSidechain" : {
+                    "none" : {
+
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "shape" : {
+            "accent" : false,
+            "gateLength" : 4,
+            "velocity" : 100
+          },
+          "trigger" : {
+            "native" : {
+              "_0" : {
+                "algo" : {
+                  "euclidean" : {
+                    "offset" : 0,
+                    "pulses" : 4,
+                    "steps" : 16
+                  }
+                },
+                "basePitch" : 60
+              }
+            }
+          }
+        }
+      },
+      "trackType" : "polyMelodic"
+    },
+    {
+      "id" : "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAA3",
+      "kind" : "progressionChordGenerator",
+      "name" : "Progression Chords",
+      "params" : {
+        "progressionChords" : {
+          "_0" : {
+            "chords" : [
+              {
+                "accidental" : 0,
+                "inversion" : 0,
+                "length" : {
+                  "untilNext" : {
+
+                  }
+                },
+                "noteCount" : 3,
+                "position" : 0,
+                "quality" : "minor",
+                "voicing" : "close"
+              },
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              {
+                "accidental" : 0,
+                "inversion" : 0,
+                "length" : {
+                  "untilNext" : {
+
+                  }
+                },
+                "noteCount" : 3,
+                "position" : 6,
+                "quality" : "major",
+                "voicing" : "close"
+              },
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              {
+                "accidental" : 0,
+                "inversion" : 0,
+                "length" : {
+                  "untilNext" : {
+
+                  }
+                },
+                "noteCount" : 3,
+                "position" : 5,
+                "quality" : "major",
+                "voicing" : "close"
+              },
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              {
+                "accidental" : 0,
+                "inversion" : 0,
+                "length" : {
+                  "untilNext" : {
+
+                  }
+                },
+                "noteCount" : 3,
+                "position" : 6,
+                "quality" : "major",
+                "voicing" : "close"
+              },
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null
+            ],
+            "lengthSteps" : 64,
+            "mode" : "minor",
+            "rootMIDI" : 60,
+            "velocity" : 100
+          }
+        }
+      },
+      "trackType" : "polyMelodic"
+    },
+    {
+      "id" : "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAA4",
+      "kind" : "sliceGenerator",
+      "name" : "Slice Trigger",
+      "params" : {
+        "slice" : {
+          "sliceIndexes" : [
+
+          ],
+          "trigger" : {
+            "native" : {
+              "_0" : {
+                "algo" : {
+                  "euclidean" : {
+                    "offset" : 0,
+                    "pulses" : 4,
+                    "steps" : 16
+                  }
+                },
+                "basePitch" : 60
+              }
+            }
+          }
+        }
+      },
+      "trackType" : "slice"
+    }
+  ],
+  "layers" : [
+    {
+      "defaults" : [
+        "D7779478-3970-452E-8E8D-DF6B458A0CFE",
+        {
+          "index" : {
+            "_0" : 0
+          }
+        },
+        "54D08877-986C-4B29-B03E-F91A7BEFEDB3",
+        {
+          "index" : {
+            "_0" : 0
+          }
+        },
+        "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9",
+        {
+          "index" : {
+            "_0" : 0
+          }
+        },
+        "11111111-1111-1111-1111-111111111111",
+        {
+          "index" : {
+            "_0" : 0
+          }
+        },
+        "5839C02A-EDFC-4AFC-BF4C-BC3FCD834653",
+        {
+          "index" : {
+            "_0" : 0
+          }
+        },
+        "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE",
+        {
+          "index" : {
+            "_0" : 0
+          }
+        },
+        "82EBF672-EC72-43EB-985E-61518FF2EF14",
+        {
+          "index" : {
+            "_0" : 0
+          }
+        }
+      ],
+      "id" : "pattern",
+      "maxValue" : 15,
+      "minValue" : 0,
+      "name" : "Pattern",
+      "target" : {
+        "patternIndex" : {
+
+        }
+      },
+      "valueType" : "patternIndex"
+    },
+    {
+      "defaults" : [
+        "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE",
+        {
+          "bool" : {
+            "_0" : false
+          }
+        },
+        "82EBF672-EC72-43EB-985E-61518FF2EF14",
+        {
+          "bool" : {
+            "_0" : false
+          }
+        },
+        "54D08877-986C-4B29-B03E-F91A7BEFEDB3",
+        {
+          "bool" : {
+            "_0" : false
+          }
+        },
+        "5839C02A-EDFC-4AFC-BF4C-BC3FCD834653",
+        {
+          "bool" : {
+            "_0" : false
+          }
+        },
+        "D7779478-3970-452E-8E8D-DF6B458A0CFE",
+        {
+          "bool" : {
+            "_0" : false
+          }
+        },
+        "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9",
+        {
+          "bool" : {
+            "_0" : false
+          }
+        },
+        "11111111-1111-1111-1111-111111111111",
+        {
+          "bool" : {
+            "_0" : false
+          }
+        }
+      ],
+      "id" : "mute",
+      "maxValue" : 1,
+      "minValue" : 0,
+      "name" : "Mute",
+      "target" : {
+        "mute" : {
+
+        }
+      },
+      "valueType" : "boolean"
+    },
+    {
+      "defaults" : [
+        "11111111-1111-1111-1111-111111111111",
+        {
+          "scalar" : {
+            "_0" : 101.60000000000001
+          }
+        },
+        "82EBF672-EC72-43EB-985E-61518FF2EF14",
+        {
+          "scalar" : {
+            "_0" : 101.60000000000001
+          }
+        },
+        "D7779478-3970-452E-8E8D-DF6B458A0CFE",
+        {
+          "scalar" : {
+            "_0" : 101.60000000000001
+          }
+        },
+        "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE",
+        {
+          "scalar" : {
+            "_0" : 101.60000000000001
+          }
+        },
+        "54D08877-986C-4B29-B03E-F91A7BEFEDB3",
+        {
+          "scalar" : {
+            "_0" : 101.60000000000001
+          }
+        },
+        "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9",
+        {
+          "scalar" : {
+            "_0" : 101.60000000000001
+          }
+        },
+        "5839C02A-EDFC-4AFC-BF4C-BC3FCD834653",
+        {
+          "scalar" : {
+            "_0" : 101.60000000000001
+          }
+        }
+      ],
+      "id" : "volume",
+      "maxValue" : 127,
+      "minValue" : 0,
+      "name" : "Volume",
+      "target" : {
+        "macroRow" : {
+          "_0" : "volume"
+        }
+      },
+      "valueType" : "scalar"
+    },
+    {
+      "defaults" : [
+        "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "82EBF672-EC72-43EB-985E-61518FF2EF14",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "D7779478-3970-452E-8E8D-DF6B458A0CFE",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "5839C02A-EDFC-4AFC-BF4C-BC3FCD834653",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "54D08877-986C-4B29-B03E-F91A7BEFEDB3",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "11111111-1111-1111-1111-111111111111",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        }
+      ],
+      "id" : "transpose",
+      "maxValue" : 24,
+      "minValue" : -24,
+      "name" : "Transpose",
+      "target" : {
+        "macroRow" : {
+          "_0" : "transpose"
+        }
+      },
+      "valueType" : "scalar"
+    },
+    {
+      "defaults" : [
+        "11111111-1111-1111-1111-111111111111",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "82EBF672-EC72-43EB-985E-61518FF2EF14",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "D7779478-3970-452E-8E8D-DF6B458A0CFE",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "54D08877-986C-4B29-B03E-F91A7BEFEDB3",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "5839C02A-EDFC-4AFC-BF4C-BC3FCD834653",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        }
+      ],
+      "id" : "intensity",
+      "maxValue" : 1,
+      "minValue" : 0,
+      "name" : "Intensity",
+      "target" : {
+        "macroRow" : {
+          "_0" : "intensity"
+        }
+      },
+      "valueType" : "scalar"
+    },
+    {
+      "defaults" : [
+        "11111111-1111-1111-1111-111111111111",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "D7779478-3970-452E-8E8D-DF6B458A0CFE",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "82EBF672-EC72-43EB-985E-61518FF2EF14",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "5839C02A-EDFC-4AFC-BF4C-BC3FCD834653",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "54D08877-986C-4B29-B03E-F91A7BEFEDB3",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        }
+      ],
+      "id" : "density",
+      "maxValue" : 1,
+      "minValue" : 0,
+      "name" : "Density",
+      "target" : {
+        "macroRow" : {
+          "_0" : "density"
+        }
+      },
+      "valueType" : "scalar"
+    },
+    {
+      "defaults" : [
+        "D7779478-3970-452E-8E8D-DF6B458A0CFE",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "82EBF672-EC72-43EB-985E-61518FF2EF14",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "11111111-1111-1111-1111-111111111111",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "5839C02A-EDFC-4AFC-BF4C-BC3FCD834653",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "54D08877-986C-4B29-B03E-F91A7BEFEDB3",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        }
+      ],
+      "id" : "tension",
+      "maxValue" : 1,
+      "minValue" : 0,
+      "name" : "Tension",
+      "target" : {
+        "macroRow" : {
+          "_0" : "tension"
+        }
+      },
+      "valueType" : "scalar"
+    },
+    {
+      "defaults" : [
+        "D7779478-3970-452E-8E8D-DF6B458A0CFE",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "82EBF672-EC72-43EB-985E-61518FF2EF14",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "5839C02A-EDFC-4AFC-BF4C-BC3FCD834653",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "54D08877-986C-4B29-B03E-F91A7BEFEDB3",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "11111111-1111-1111-1111-111111111111",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        }
+      ],
+      "id" : "register",
+      "maxValue" : 1,
+      "minValue" : 0,
+      "name" : "Register",
+      "target" : {
+        "macroRow" : {
+          "_0" : "register"
+        }
+      },
+      "valueType" : "scalar"
+    },
+    {
+      "defaults" : [
+        "54D08877-986C-4B29-B03E-F91A7BEFEDB3",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "11111111-1111-1111-1111-111111111111",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "5839C02A-EDFC-4AFC-BF4C-BC3FCD834653",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "82EBF672-EC72-43EB-985E-61518FF2EF14",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "D7779478-3970-452E-8E8D-DF6B458A0CFE",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        }
+      ],
+      "id" : "variance",
+      "maxValue" : 1,
+      "minValue" : 0,
+      "name" : "Variance",
+      "target" : {
+        "macroRow" : {
+          "_0" : "variance"
+        }
+      },
+      "valueType" : "scalar"
+    },
+    {
+      "defaults" : [
+        "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "11111111-1111-1111-1111-111111111111",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "D7779478-3970-452E-8E8D-DF6B458A0CFE",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "82EBF672-EC72-43EB-985E-61518FF2EF14",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "5839C02A-EDFC-4AFC-BF4C-BC3FCD834653",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "54D08877-986C-4B29-B03E-F91A7BEFEDB3",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        }
+      ],
+      "id" : "fx-send",
+      "maxValue" : 1,
+      "minValue" : 0,
+      "name" : "FX Send",
+      "target" : {
+        "macroRow" : {
+          "_0" : "fx-send"
+        }
+      },
+      "valueType" : "scalar"
+    },
+    {
+      "defaults" : [
+        "54D08877-986C-4B29-B03E-F91A7BEFEDB3",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "11111111-1111-1111-1111-111111111111",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "D7779478-3970-452E-8E8D-DF6B458A0CFE",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "82EBF672-EC72-43EB-985E-61518FF2EF14",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "5839C02A-EDFC-4AFC-BF4C-BC3FCD834653",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        }
+      ],
+      "id" : "brightness",
+      "maxValue" : 1,
+      "minValue" : 0,
+      "name" : "Brightness",
+      "target" : {
+        "macroRow" : {
+          "_0" : "brightness"
+        }
+      },
+      "valueType" : "scalar"
+    },
+    {
+      "defaults" : [
+        "82EBF672-EC72-43EB-985E-61518FF2EF14",
+        {
+          "bool" : {
+            "_0" : false
+          }
+        },
+        "54D08877-986C-4B29-B03E-F91A7BEFEDB3",
+        {
+          "bool" : {
+            "_0" : false
+          }
+        },
+        "5839C02A-EDFC-4AFC-BF4C-BC3FCD834653",
+        {
+          "bool" : {
+            "_0" : false
+          }
+        },
+        "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9",
+        {
+          "bool" : {
+            "_0" : false
+          }
+        },
+        "11111111-1111-1111-1111-111111111111",
+        {
+          "bool" : {
+            "_0" : false
+          }
+        },
+        "D7779478-3970-452E-8E8D-DF6B458A0CFE",
+        {
+          "bool" : {
+            "_0" : false
+          }
+        },
+        "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE",
+        {
+          "bool" : {
+            "_0" : false
+          }
+        }
+      ],
+      "id" : "fill-flag",
+      "maxValue" : 1,
+      "minValue" : 0,
+      "name" : "Fill",
+      "target" : {
+        "macroRow" : {
+          "_0" : "fill-flag"
+        }
+      },
+      "valueType" : "boolean"
+    },
+    {
+      "defaults" : [
+        "82EBF672-EC72-43EB-985E-61518FF2EF14",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "11111111-1111-1111-1111-111111111111",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "D7779478-3970-452E-8E8D-DF6B458A0CFE",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "5839C02A-EDFC-4AFC-BF4C-BC3FCD834653",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "54D08877-986C-4B29-B03E-F91A7BEFEDB3",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        }
+      ],
+      "id" : "swing",
+      "maxValue" : 1,
+      "minValue" : 0,
+      "name" : "Swing",
+      "target" : {
+        "macroRow" : {
+          "_0" : "swing-amount"
+        }
+      },
+      "valueType" : "scalar"
+    },
+    {
+      "defaults" : [
+        "82EBF672-EC72-43EB-985E-61518FF2EF14",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "54D08877-986C-4B29-B03E-F91A7BEFEDB3",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "11111111-1111-1111-1111-111111111111",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "D7779478-3970-452E-8E8D-DF6B458A0CFE",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "5839C02A-EDFC-4AFC-BF4C-BC3FCD834653",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        }
+      ],
+      "id" : "macro-82EBF672-EC72-43EB-985E-61518FF2EF14-B36C0A78-3620-4F30-899A-7F0C1F80DE76",
+      "maxValue" : 1,
+      "minValue" : 0,
+      "name" : "Sample Start",
+      "target" : {
+        "macroParam" : {
+          "bindingID" : "B36C0A78-3620-4F30-899A-7F0C1F80DE76",
+          "trackID" : "82EBF672-EC72-43EB-985E-61518FF2EF14"
+        }
+      },
+      "valueType" : "scalar"
+    },
+    {
+      "defaults" : [
+        "D7779478-3970-452E-8E8D-DF6B458A0CFE",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        },
+        "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        },
+        "11111111-1111-1111-1111-111111111111",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        },
+        "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        },
+        "82EBF672-EC72-43EB-985E-61518FF2EF14",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        },
+        "5839C02A-EDFC-4AFC-BF4C-BC3FCD834653",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        },
+        "54D08877-986C-4B29-B03E-F91A7BEFEDB3",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        }
+      ],
+      "id" : "macro-82EBF672-EC72-43EB-985E-61518FF2EF14-7EBCA743-AF1C-F74A-7067-100C11741668",
+      "maxValue" : 1,
+      "minValue" : 0,
+      "name" : "Sample Length",
+      "target" : {
+        "macroParam" : {
+          "bindingID" : "7EBCA743-AF1C-F74A-7067-100C11741668",
+          "trackID" : "82EBF672-EC72-43EB-985E-61518FF2EF14"
+        }
+      },
+      "valueType" : "scalar"
+    },
+    {
+      "defaults" : [
+        "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        },
+        "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        },
+        "11111111-1111-1111-1111-111111111111",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        },
+        "54D08877-986C-4B29-B03E-F91A7BEFEDB3",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        },
+        "5839C02A-EDFC-4AFC-BF4C-BC3FCD834653",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        },
+        "D7779478-3970-452E-8E8D-DF6B458A0CFE",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        },
+        "82EBF672-EC72-43EB-985E-61518FF2EF14",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        }
+      ],
+      "id" : "macro-82EBF672-EC72-43EB-985E-61518FF2EF14-0B2A1475-78BA-7B72-CE43-4B384327AB49",
+      "maxValue" : 20000,
+      "minValue" : 20,
+      "name" : "Filter Cutoff",
+      "target" : {
+        "macroParam" : {
+          "bindingID" : "0B2A1475-78BA-7B72-CE43-4B384327AB49",
+          "trackID" : "82EBF672-EC72-43EB-985E-61518FF2EF14"
+        }
+      },
+      "valueType" : "scalar"
+    },
+    {
+      "defaults" : [
+        "D7779478-3970-452E-8E8D-DF6B458A0CFE",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "5839C02A-EDFC-4AFC-BF4C-BC3FCD834653",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "54D08877-986C-4B29-B03E-F91A7BEFEDB3",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "82EBF672-EC72-43EB-985E-61518FF2EF14",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "11111111-1111-1111-1111-111111111111",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        }
+      ],
+      "id" : "macro-8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9-6A00D322-8979-E372-501B-474FBE37B58D",
+      "maxValue" : 1,
+      "minValue" : 0,
+      "name" : "Sample Start",
+      "target" : {
+        "macroParam" : {
+          "bindingID" : "6A00D322-8979-E372-501B-474FBE37B58D",
+          "trackID" : "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9"
+        }
+      },
+      "valueType" : "scalar"
+    },
+    {
+      "defaults" : [
+        "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        },
+        "11111111-1111-1111-1111-111111111111",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        },
+        "82EBF672-EC72-43EB-985E-61518FF2EF14",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        },
+        "D7779478-3970-452E-8E8D-DF6B458A0CFE",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        },
+        "54D08877-986C-4B29-B03E-F91A7BEFEDB3",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        },
+        "5839C02A-EDFC-4AFC-BF4C-BC3FCD834653",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        },
+        "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        }
+      ],
+      "id" : "macro-8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9-177372AF-5099-2F48-BF77-7A4F6D08645F",
+      "maxValue" : 1,
+      "minValue" : 0,
+      "name" : "Sample Length",
+      "target" : {
+        "macroParam" : {
+          "bindingID" : "177372AF-5099-2F48-BF77-7A4F6D08645F",
+          "trackID" : "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9"
+        }
+      },
+      "valueType" : "scalar"
+    },
+    {
+      "defaults" : [
+        "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        },
+        "11111111-1111-1111-1111-111111111111",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        },
+        "54D08877-986C-4B29-B03E-F91A7BEFEDB3",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        },
+        "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        },
+        "D7779478-3970-452E-8E8D-DF6B458A0CFE",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        },
+        "5839C02A-EDFC-4AFC-BF4C-BC3FCD834653",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        },
+        "82EBF672-EC72-43EB-985E-61518FF2EF14",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        }
+      ],
+      "id" : "macro-8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9-180768F8-EE49-45AC-0798-EA48C1BE679E",
+      "maxValue" : 20000,
+      "minValue" : 20,
+      "name" : "Filter Cutoff",
+      "target" : {
+        "macroParam" : {
+          "bindingID" : "180768F8-EE49-45AC-0798-EA48C1BE679E",
+          "trackID" : "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9"
+        }
+      },
+      "valueType" : "scalar"
+    },
+    {
+      "defaults" : [
+        "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "11111111-1111-1111-1111-111111111111",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "82EBF672-EC72-43EB-985E-61518FF2EF14",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "54D08877-986C-4B29-B03E-F91A7BEFEDB3",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "5839C02A-EDFC-4AFC-BF4C-BC3FCD834653",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "D7779478-3970-452E-8E8D-DF6B458A0CFE",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        }
+      ],
+      "id" : "macro-A5FE30F0-5A02-4096-839E-5DBE62FFFEDE-A68D3A8A-D5AE-1087-C081-BD2924CBDBF6",
+      "maxValue" : 1,
+      "minValue" : 0,
+      "name" : "Sample Start",
+      "target" : {
+        "macroParam" : {
+          "bindingID" : "A68D3A8A-D5AE-1087-C081-BD2924CBDBF6",
+          "trackID" : "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE"
+        }
+      },
+      "valueType" : "scalar"
+    },
+    {
+      "defaults" : [
+        "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        },
+        "82EBF672-EC72-43EB-985E-61518FF2EF14",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        },
+        "11111111-1111-1111-1111-111111111111",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        },
+        "54D08877-986C-4B29-B03E-F91A7BEFEDB3",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        },
+        "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        },
+        "D7779478-3970-452E-8E8D-DF6B458A0CFE",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        },
+        "5839C02A-EDFC-4AFC-BF4C-BC3FCD834653",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        }
+      ],
+      "id" : "macro-A5FE30F0-5A02-4096-839E-5DBE62FFFEDE-1BBDC3E8-C27A-C31B-A74E-4E2916BF13E8",
+      "maxValue" : 1,
+      "minValue" : 0,
+      "name" : "Sample Length",
+      "target" : {
+        "macroParam" : {
+          "bindingID" : "1BBDC3E8-C27A-C31B-A74E-4E2916BF13E8",
+          "trackID" : "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE"
+        }
+      },
+      "valueType" : "scalar"
+    },
+    {
+      "defaults" : [
+        "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        },
+        "11111111-1111-1111-1111-111111111111",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        },
+        "D7779478-3970-452E-8E8D-DF6B458A0CFE",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        },
+        "5839C02A-EDFC-4AFC-BF4C-BC3FCD834653",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        },
+        "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        },
+        "54D08877-986C-4B29-B03E-F91A7BEFEDB3",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        },
+        "82EBF672-EC72-43EB-985E-61518FF2EF14",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        }
+      ],
+      "id" : "macro-A5FE30F0-5A02-4096-839E-5DBE62FFFEDE-476E4DCF-2377-D891-F04D-FF3AD04B40C9",
+      "maxValue" : 20000,
+      "minValue" : 20,
+      "name" : "Filter Cutoff",
+      "target" : {
+        "macroParam" : {
+          "bindingID" : "476E4DCF-2377-D891-F04D-FF3AD04B40C9",
+          "trackID" : "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE"
+        }
+      },
+      "valueType" : "scalar"
+    },
+    {
+      "defaults" : [
+        "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "82EBF672-EC72-43EB-985E-61518FF2EF14",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "5839C02A-EDFC-4AFC-BF4C-BC3FCD834653",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "54D08877-986C-4B29-B03E-F91A7BEFEDB3",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "D7779478-3970-452E-8E8D-DF6B458A0CFE",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "11111111-1111-1111-1111-111111111111",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        }
+      ],
+      "id" : "macro-54D08877-986C-4B29-B03E-F91A7BEFEDB3-9C8954D0-3742-3178-EBCA-868151079CF4",
+      "maxValue" : 1,
+      "minValue" : 0,
+      "name" : "Sample Start",
+      "target" : {
+        "macroParam" : {
+          "bindingID" : "9C8954D0-3742-3178-EBCA-868151079CF4",
+          "trackID" : "54D08877-986C-4B29-B03E-F91A7BEFEDB3"
+        }
+      },
+      "valueType" : "scalar"
+    },
+    {
+      "defaults" : [
+        "D7779478-3970-452E-8E8D-DF6B458A0CFE",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        },
+        "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        },
+        "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        },
+        "11111111-1111-1111-1111-111111111111",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        },
+        "54D08877-986C-4B29-B03E-F91A7BEFEDB3",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        },
+        "82EBF672-EC72-43EB-985E-61518FF2EF14",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        },
+        "5839C02A-EDFC-4AFC-BF4C-BC3FCD834653",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        }
+      ],
+      "id" : "macro-54D08877-986C-4B29-B03E-F91A7BEFEDB3-BDD1B2CD-9C0E-07D2-C46F-8B81CBC410EE",
+      "maxValue" : 1,
+      "minValue" : 0,
+      "name" : "Sample Length",
+      "target" : {
+        "macroParam" : {
+          "bindingID" : "BDD1B2CD-9C0E-07D2-C46F-8B81CBC410EE",
+          "trackID" : "54D08877-986C-4B29-B03E-F91A7BEFEDB3"
+        }
+      },
+      "valueType" : "scalar"
+    },
+    {
+      "defaults" : [
+        "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        },
+        "82EBF672-EC72-43EB-985E-61518FF2EF14",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        },
+        "D7779478-3970-452E-8E8D-DF6B458A0CFE",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        },
+        "54D08877-986C-4B29-B03E-F91A7BEFEDB3",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        },
+        "11111111-1111-1111-1111-111111111111",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        },
+        "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        },
+        "5839C02A-EDFC-4AFC-BF4C-BC3FCD834653",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        }
+      ],
+      "id" : "macro-54D08877-986C-4B29-B03E-F91A7BEFEDB3-C04B90F4-2965-706A-4C97-2BFCDDB6893B",
+      "maxValue" : 20000,
+      "minValue" : 20,
+      "name" : "Filter Cutoff",
+      "target" : {
+        "macroParam" : {
+          "bindingID" : "C04B90F4-2965-706A-4C97-2BFCDDB6893B",
+          "trackID" : "54D08877-986C-4B29-B03E-F91A7BEFEDB3"
+        }
+      },
+      "valueType" : "scalar"
+    },
+    {
+      "defaults" : [
+        "82EBF672-EC72-43EB-985E-61518FF2EF14",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "54D08877-986C-4B29-B03E-F91A7BEFEDB3",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "5839C02A-EDFC-4AFC-BF4C-BC3FCD834653",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "11111111-1111-1111-1111-111111111111",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "D7779478-3970-452E-8E8D-DF6B458A0CFE",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        }
+      ],
+      "id" : "macro-82EBF672-EC72-43EB-985E-61518FF2EF14-B36C0A78-3620-4F30-899A-7F0C1F80DE76",
+      "maxValue" : 1,
+      "minValue" : 0,
+      "name" : "Sample Start",
+      "target" : {
+        "macroParam" : {
+          "bindingID" : "B36C0A78-3620-4F30-899A-7F0C1F80DE76",
+          "trackID" : "82EBF672-EC72-43EB-985E-61518FF2EF14"
+        }
+      },
+      "valueType" : "scalar"
+    },
+    {
+      "defaults" : [
+        "5839C02A-EDFC-4AFC-BF4C-BC3FCD834653",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        },
+        "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        },
+        "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        },
+        "11111111-1111-1111-1111-111111111111",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        },
+        "D7779478-3970-452E-8E8D-DF6B458A0CFE",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        },
+        "82EBF672-EC72-43EB-985E-61518FF2EF14",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        },
+        "54D08877-986C-4B29-B03E-F91A7BEFEDB3",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        }
+      ],
+      "id" : "macro-82EBF672-EC72-43EB-985E-61518FF2EF14-7EBCA743-AF1C-F74A-7067-100C11741668",
+      "maxValue" : 1,
+      "minValue" : 0,
+      "name" : "Sample Length",
+      "target" : {
+        "macroParam" : {
+          "bindingID" : "7EBCA743-AF1C-F74A-7067-100C11741668",
+          "trackID" : "82EBF672-EC72-43EB-985E-61518FF2EF14"
+        }
+      },
+      "valueType" : "scalar"
+    },
+    {
+      "defaults" : [
+        "11111111-1111-1111-1111-111111111111",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        },
+        "D7779478-3970-452E-8E8D-DF6B458A0CFE",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        },
+        "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        },
+        "5839C02A-EDFC-4AFC-BF4C-BC3FCD834653",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        },
+        "82EBF672-EC72-43EB-985E-61518FF2EF14",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        },
+        "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        },
+        "54D08877-986C-4B29-B03E-F91A7BEFEDB3",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        }
+      ],
+      "id" : "macro-82EBF672-EC72-43EB-985E-61518FF2EF14-0B2A1475-78BA-7B72-CE43-4B384327AB49",
+      "maxValue" : 20000,
+      "minValue" : 20,
+      "name" : "Filter Cutoff",
+      "target" : {
+        "macroParam" : {
+          "bindingID" : "0B2A1475-78BA-7B72-CE43-4B384327AB49",
+          "trackID" : "82EBF672-EC72-43EB-985E-61518FF2EF14"
+        }
+      },
+      "valueType" : "scalar"
+    },
+    {
+      "defaults" : [
+        "54D08877-986C-4B29-B03E-F91A7BEFEDB3",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "11111111-1111-1111-1111-111111111111",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "D7779478-3970-452E-8E8D-DF6B458A0CFE",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "82EBF672-EC72-43EB-985E-61518FF2EF14",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "5839C02A-EDFC-4AFC-BF4C-BC3FCD834653",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        }
+      ],
+      "id" : "macro-8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9-6A00D322-8979-E372-501B-474FBE37B58D",
+      "maxValue" : 1,
+      "minValue" : 0,
+      "name" : "Sample Start",
+      "target" : {
+        "macroParam" : {
+          "bindingID" : "6A00D322-8979-E372-501B-474FBE37B58D",
+          "trackID" : "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9"
+        }
+      },
+      "valueType" : "scalar"
+    },
+    {
+      "defaults" : [
+        "D7779478-3970-452E-8E8D-DF6B458A0CFE",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        },
+        "11111111-1111-1111-1111-111111111111",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        },
+        "5839C02A-EDFC-4AFC-BF4C-BC3FCD834653",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        },
+        "82EBF672-EC72-43EB-985E-61518FF2EF14",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        },
+        "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        },
+        "54D08877-986C-4B29-B03E-F91A7BEFEDB3",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        },
+        "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        }
+      ],
+      "id" : "macro-8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9-177372AF-5099-2F48-BF77-7A4F6D08645F",
+      "maxValue" : 1,
+      "minValue" : 0,
+      "name" : "Sample Length",
+      "target" : {
+        "macroParam" : {
+          "bindingID" : "177372AF-5099-2F48-BF77-7A4F6D08645F",
+          "trackID" : "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9"
+        }
+      },
+      "valueType" : "scalar"
+    },
+    {
+      "defaults" : [
+        "11111111-1111-1111-1111-111111111111",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        },
+        "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        },
+        "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        },
+        "D7779478-3970-452E-8E8D-DF6B458A0CFE",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        },
+        "54D08877-986C-4B29-B03E-F91A7BEFEDB3",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        },
+        "5839C02A-EDFC-4AFC-BF4C-BC3FCD834653",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        },
+        "82EBF672-EC72-43EB-985E-61518FF2EF14",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        }
+      ],
+      "id" : "macro-8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9-180768F8-EE49-45AC-0798-EA48C1BE679E",
+      "maxValue" : 20000,
+      "minValue" : 20,
+      "name" : "Filter Cutoff",
+      "target" : {
+        "macroParam" : {
+          "bindingID" : "180768F8-EE49-45AC-0798-EA48C1BE679E",
+          "trackID" : "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9"
+        }
+      },
+      "valueType" : "scalar"
+    },
+    {
+      "defaults" : [
+        "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "82EBF672-EC72-43EB-985E-61518FF2EF14",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "11111111-1111-1111-1111-111111111111",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "54D08877-986C-4B29-B03E-F91A7BEFEDB3",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "D7779478-3970-452E-8E8D-DF6B458A0CFE",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "5839C02A-EDFC-4AFC-BF4C-BC3FCD834653",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        }
+      ],
+      "id" : "macro-A5FE30F0-5A02-4096-839E-5DBE62FFFEDE-A68D3A8A-D5AE-1087-C081-BD2924CBDBF6",
+      "maxValue" : 1,
+      "minValue" : 0,
+      "name" : "Sample Start",
+      "target" : {
+        "macroParam" : {
+          "bindingID" : "A68D3A8A-D5AE-1087-C081-BD2924CBDBF6",
+          "trackID" : "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE"
+        }
+      },
+      "valueType" : "scalar"
+    },
+    {
+      "defaults" : [
+        "54D08877-986C-4B29-B03E-F91A7BEFEDB3",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        },
+        "82EBF672-EC72-43EB-985E-61518FF2EF14",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        },
+        "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        },
+        "11111111-1111-1111-1111-111111111111",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        },
+        "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        },
+        "5839C02A-EDFC-4AFC-BF4C-BC3FCD834653",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        },
+        "D7779478-3970-452E-8E8D-DF6B458A0CFE",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        }
+      ],
+      "id" : "macro-A5FE30F0-5A02-4096-839E-5DBE62FFFEDE-1BBDC3E8-C27A-C31B-A74E-4E2916BF13E8",
+      "maxValue" : 1,
+      "minValue" : 0,
+      "name" : "Sample Length",
+      "target" : {
+        "macroParam" : {
+          "bindingID" : "1BBDC3E8-C27A-C31B-A74E-4E2916BF13E8",
+          "trackID" : "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE"
+        }
+      },
+      "valueType" : "scalar"
+    },
+    {
+      "defaults" : [
+        "D7779478-3970-452E-8E8D-DF6B458A0CFE",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        },
+        "82EBF672-EC72-43EB-985E-61518FF2EF14",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        },
+        "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        },
+        "54D08877-986C-4B29-B03E-F91A7BEFEDB3",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        },
+        "5839C02A-EDFC-4AFC-BF4C-BC3FCD834653",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        },
+        "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        },
+        "11111111-1111-1111-1111-111111111111",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        }
+      ],
+      "id" : "macro-A5FE30F0-5A02-4096-839E-5DBE62FFFEDE-476E4DCF-2377-D891-F04D-FF3AD04B40C9",
+      "maxValue" : 20000,
+      "minValue" : 20,
+      "name" : "Filter Cutoff",
+      "target" : {
+        "macroParam" : {
+          "bindingID" : "476E4DCF-2377-D891-F04D-FF3AD04B40C9",
+          "trackID" : "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE"
+        }
+      },
+      "valueType" : "scalar"
+    },
+    {
+      "defaults" : [
+        "54D08877-986C-4B29-B03E-F91A7BEFEDB3",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "D7779478-3970-452E-8E8D-DF6B458A0CFE",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "82EBF672-EC72-43EB-985E-61518FF2EF14",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "5839C02A-EDFC-4AFC-BF4C-BC3FCD834653",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "11111111-1111-1111-1111-111111111111",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        }
+      ],
+      "id" : "macro-54D08877-986C-4B29-B03E-F91A7BEFEDB3-9C8954D0-3742-3178-EBCA-868151079CF4",
+      "maxValue" : 1,
+      "minValue" : 0,
+      "name" : "Sample Start",
+      "target" : {
+        "macroParam" : {
+          "bindingID" : "9C8954D0-3742-3178-EBCA-868151079CF4",
+          "trackID" : "54D08877-986C-4B29-B03E-F91A7BEFEDB3"
+        }
+      },
+      "valueType" : "scalar"
+    },
+    {
+      "defaults" : [
+        "82EBF672-EC72-43EB-985E-61518FF2EF14",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        },
+        "54D08877-986C-4B29-B03E-F91A7BEFEDB3",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        },
+        "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        },
+        "D7779478-3970-452E-8E8D-DF6B458A0CFE",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        },
+        "11111111-1111-1111-1111-111111111111",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        },
+        "5839C02A-EDFC-4AFC-BF4C-BC3FCD834653",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        },
+        "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        }
+      ],
+      "id" : "macro-54D08877-986C-4B29-B03E-F91A7BEFEDB3-BDD1B2CD-9C0E-07D2-C46F-8B81CBC410EE",
+      "maxValue" : 1,
+      "minValue" : 0,
+      "name" : "Sample Length",
+      "target" : {
+        "macroParam" : {
+          "bindingID" : "BDD1B2CD-9C0E-07D2-C46F-8B81CBC410EE",
+          "trackID" : "54D08877-986C-4B29-B03E-F91A7BEFEDB3"
+        }
+      },
+      "valueType" : "scalar"
+    },
+    {
+      "defaults" : [
+        "D7779478-3970-452E-8E8D-DF6B458A0CFE",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        },
+        "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        },
+        "11111111-1111-1111-1111-111111111111",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        },
+        "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        },
+        "54D08877-986C-4B29-B03E-F91A7BEFEDB3",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        },
+        "82EBF672-EC72-43EB-985E-61518FF2EF14",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        },
+        "5839C02A-EDFC-4AFC-BF4C-BC3FCD834653",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        }
+      ],
+      "id" : "macro-54D08877-986C-4B29-B03E-F91A7BEFEDB3-C04B90F4-2965-706A-4C97-2BFCDDB6893B",
+      "maxValue" : 20000,
+      "minValue" : 20,
+      "name" : "Filter Cutoff",
+      "target" : {
+        "macroParam" : {
+          "bindingID" : "C04B90F4-2965-706A-4C97-2BFCDDB6893B",
+          "trackID" : "54D08877-986C-4B29-B03E-F91A7BEFEDB3"
+        }
+      },
+      "valueType" : "scalar"
+    }
+  ],
+  "masterBus" : {
+    "abSelection" : {
+      "crossfader" : 0,
+      "sceneAID" : "00000000-0000-0000-0000-000000000001",
+      "sceneBID" : "00000000-0000-0000-0000-000000000002"
+    },
+    "activeSceneID" : "00000000-0000-0000-0000-000000000001",
+    "masterInserts" : [
+
+    ],
+    "masterOutputGain" : 1,
+    "scenes" : [
+      {
+        "id" : "00000000-0000-0000-0000-000000000001",
+        "inserts" : [
+
+        ],
+        "macroBindings" : [
+
+        ],
+        "name" : "1",
+        "outputGain" : 1
+      },
+      {
+        "id" : "00000000-0000-0000-0000-000000000002",
+        "inserts" : [
+
+        ],
+        "macroBindings" : [
+
+        ],
+        "name" : "2",
+        "outputGain" : 1
+      }
+    ]
+  },
+  "patternBanks" : [
+    {
+      "slots" : [
+        {
+          "slotIndex" : 0,
+          "sourceRef" : {
+            "clipID" : "6D098E7A-C9CF-40ED-AFA7-D45E2D4EBCCA",
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 1,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 2,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 3,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 4,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 5,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 6,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 7,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 8,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 9,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 10,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 11,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 12,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 13,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 14,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 15,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        }
+      ],
+      "trackID" : "11111111-1111-1111-1111-111111111111"
+    },
+    {
+      "slots" : [
+        {
+          "slotIndex" : 0,
+          "sourceRef" : {
+            "clipID" : "6B85732D-9077-4F6F-8D1A-F1A5DAF5C9D2",
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 1,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 2,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 3,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 4,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 5,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 6,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 7,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 8,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 9,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 10,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 11,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 12,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 13,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 14,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 15,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        }
+      ],
+      "trackID" : "D7779478-3970-452E-8E8D-DF6B458A0CFE"
+    },
+    {
+      "slots" : [
+        {
+          "slotIndex" : 0,
+          "sourceRef" : {
+            "clipID" : "33149082-1E0E-4D22-8805-138E9EA0C3F6",
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 1,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 2,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 3,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 4,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 5,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 6,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 7,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 8,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 9,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 10,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 11,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 12,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 13,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 14,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 15,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        }
+      ],
+      "trackID" : "5839C02A-EDFC-4AFC-BF4C-BC3FCD834653"
+    },
+    {
+      "slots" : [
+        {
+          "slotIndex" : 0,
+          "sourceRef" : {
+            "clipID" : "A491F3A4-DB3D-44D6-A258-F3051B7DAFB4",
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 1,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 2,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 3,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 4,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 5,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 6,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 7,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 8,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 9,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 10,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 11,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 12,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 13,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 14,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 15,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        }
+      ],
+      "trackID" : "82EBF672-EC72-43EB-985E-61518FF2EF14"
+    },
+    {
+      "slots" : [
+        {
+          "slotIndex" : 0,
+          "sourceRef" : {
+            "clipID" : "57BBDABB-95B1-43D1-8949-9E2368568E11",
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 1,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 2,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 3,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 4,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 5,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 6,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 7,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 8,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 9,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 10,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 11,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 12,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 13,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 14,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 15,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        }
+      ],
+      "trackID" : "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9"
+    },
+    {
+      "slots" : [
+        {
+          "slotIndex" : 0,
+          "sourceRef" : {
+            "clipID" : "F7F5C28E-7CFC-473C-8955-4B37EE7DD3D5",
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 1,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 2,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 3,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 4,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 5,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 6,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 7,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 8,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 9,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 10,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 11,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 12,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 13,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 14,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 15,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        }
+      ],
+      "trackID" : "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE"
+    },
+    {
+      "slots" : [
+        {
+          "slotIndex" : 0,
+          "sourceRef" : {
+            "clipID" : "95E4A28A-AD87-4800-99BD-92466192B2CE",
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 1,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 2,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 3,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 4,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 5,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 6,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 7,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 8,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 9,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 10,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 11,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 12,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 13,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 14,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 15,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        }
+      ],
+      "trackID" : "54D08877-986C-4B29-B03E-F91A7BEFEDB3"
+    }
+  ],
+  "phrases" : [
+    {
+      "cells" : [
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "pattern",
+          "trackID" : "11111111-1111-1111-1111-111111111111"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "pattern",
+          "trackID" : "D7779478-3970-452E-8E8D-DF6B458A0CFE"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "pattern",
+          "trackID" : "5839C02A-EDFC-4AFC-BF4C-BC3FCD834653"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "pattern",
+          "trackID" : "82EBF672-EC72-43EB-985E-61518FF2EF14"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "pattern",
+          "trackID" : "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "pattern",
+          "trackID" : "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "pattern",
+          "trackID" : "54D08877-986C-4B29-B03E-F91A7BEFEDB3"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "mute",
+          "trackID" : "11111111-1111-1111-1111-111111111111"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "mute",
+          "trackID" : "D7779478-3970-452E-8E8D-DF6B458A0CFE"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "mute",
+          "trackID" : "5839C02A-EDFC-4AFC-BF4C-BC3FCD834653"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "mute",
+          "trackID" : "82EBF672-EC72-43EB-985E-61518FF2EF14"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "mute",
+          "trackID" : "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "mute",
+          "trackID" : "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "mute",
+          "trackID" : "54D08877-986C-4B29-B03E-F91A7BEFEDB3"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "volume",
+          "trackID" : "11111111-1111-1111-1111-111111111111"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "volume",
+          "trackID" : "D7779478-3970-452E-8E8D-DF6B458A0CFE"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "volume",
+          "trackID" : "5839C02A-EDFC-4AFC-BF4C-BC3FCD834653"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "volume",
+          "trackID" : "82EBF672-EC72-43EB-985E-61518FF2EF14"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "volume",
+          "trackID" : "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "volume",
+          "trackID" : "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "volume",
+          "trackID" : "54D08877-986C-4B29-B03E-F91A7BEFEDB3"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "transpose",
+          "trackID" : "11111111-1111-1111-1111-111111111111"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "transpose",
+          "trackID" : "D7779478-3970-452E-8E8D-DF6B458A0CFE"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "transpose",
+          "trackID" : "5839C02A-EDFC-4AFC-BF4C-BC3FCD834653"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "transpose",
+          "trackID" : "82EBF672-EC72-43EB-985E-61518FF2EF14"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "transpose",
+          "trackID" : "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "transpose",
+          "trackID" : "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "transpose",
+          "trackID" : "54D08877-986C-4B29-B03E-F91A7BEFEDB3"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "intensity",
+          "trackID" : "11111111-1111-1111-1111-111111111111"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "intensity",
+          "trackID" : "D7779478-3970-452E-8E8D-DF6B458A0CFE"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "intensity",
+          "trackID" : "5839C02A-EDFC-4AFC-BF4C-BC3FCD834653"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "intensity",
+          "trackID" : "82EBF672-EC72-43EB-985E-61518FF2EF14"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "intensity",
+          "trackID" : "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "intensity",
+          "trackID" : "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "intensity",
+          "trackID" : "54D08877-986C-4B29-B03E-F91A7BEFEDB3"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "density",
+          "trackID" : "11111111-1111-1111-1111-111111111111"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "density",
+          "trackID" : "D7779478-3970-452E-8E8D-DF6B458A0CFE"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "density",
+          "trackID" : "5839C02A-EDFC-4AFC-BF4C-BC3FCD834653"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "density",
+          "trackID" : "82EBF672-EC72-43EB-985E-61518FF2EF14"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "density",
+          "trackID" : "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "density",
+          "trackID" : "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "density",
+          "trackID" : "54D08877-986C-4B29-B03E-F91A7BEFEDB3"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "tension",
+          "trackID" : "11111111-1111-1111-1111-111111111111"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "tension",
+          "trackID" : "D7779478-3970-452E-8E8D-DF6B458A0CFE"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "tension",
+          "trackID" : "5839C02A-EDFC-4AFC-BF4C-BC3FCD834653"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "tension",
+          "trackID" : "82EBF672-EC72-43EB-985E-61518FF2EF14"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "tension",
+          "trackID" : "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "tension",
+          "trackID" : "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "tension",
+          "trackID" : "54D08877-986C-4B29-B03E-F91A7BEFEDB3"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "register",
+          "trackID" : "11111111-1111-1111-1111-111111111111"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "register",
+          "trackID" : "D7779478-3970-452E-8E8D-DF6B458A0CFE"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "register",
+          "trackID" : "5839C02A-EDFC-4AFC-BF4C-BC3FCD834653"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "register",
+          "trackID" : "82EBF672-EC72-43EB-985E-61518FF2EF14"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "register",
+          "trackID" : "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "register",
+          "trackID" : "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "register",
+          "trackID" : "54D08877-986C-4B29-B03E-F91A7BEFEDB3"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "variance",
+          "trackID" : "11111111-1111-1111-1111-111111111111"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "variance",
+          "trackID" : "D7779478-3970-452E-8E8D-DF6B458A0CFE"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "variance",
+          "trackID" : "5839C02A-EDFC-4AFC-BF4C-BC3FCD834653"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "variance",
+          "trackID" : "82EBF672-EC72-43EB-985E-61518FF2EF14"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "variance",
+          "trackID" : "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "variance",
+          "trackID" : "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "variance",
+          "trackID" : "54D08877-986C-4B29-B03E-F91A7BEFEDB3"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "fx-send",
+          "trackID" : "11111111-1111-1111-1111-111111111111"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "fx-send",
+          "trackID" : "D7779478-3970-452E-8E8D-DF6B458A0CFE"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "fx-send",
+          "trackID" : "5839C02A-EDFC-4AFC-BF4C-BC3FCD834653"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "fx-send",
+          "trackID" : "82EBF672-EC72-43EB-985E-61518FF2EF14"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "fx-send",
+          "trackID" : "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "fx-send",
+          "trackID" : "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "fx-send",
+          "trackID" : "54D08877-986C-4B29-B03E-F91A7BEFEDB3"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "brightness",
+          "trackID" : "11111111-1111-1111-1111-111111111111"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "brightness",
+          "trackID" : "D7779478-3970-452E-8E8D-DF6B458A0CFE"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "brightness",
+          "trackID" : "5839C02A-EDFC-4AFC-BF4C-BC3FCD834653"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "brightness",
+          "trackID" : "82EBF672-EC72-43EB-985E-61518FF2EF14"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "brightness",
+          "trackID" : "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "brightness",
+          "trackID" : "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "brightness",
+          "trackID" : "54D08877-986C-4B29-B03E-F91A7BEFEDB3"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "fill-flag",
+          "trackID" : "11111111-1111-1111-1111-111111111111"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "fill-flag",
+          "trackID" : "D7779478-3970-452E-8E8D-DF6B458A0CFE"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "fill-flag",
+          "trackID" : "5839C02A-EDFC-4AFC-BF4C-BC3FCD834653"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "fill-flag",
+          "trackID" : "82EBF672-EC72-43EB-985E-61518FF2EF14"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "fill-flag",
+          "trackID" : "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "fill-flag",
+          "trackID" : "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "fill-flag",
+          "trackID" : "54D08877-986C-4B29-B03E-F91A7BEFEDB3"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "swing",
+          "trackID" : "11111111-1111-1111-1111-111111111111"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "swing",
+          "trackID" : "D7779478-3970-452E-8E8D-DF6B458A0CFE"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "swing",
+          "trackID" : "5839C02A-EDFC-4AFC-BF4C-BC3FCD834653"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "swing",
+          "trackID" : "82EBF672-EC72-43EB-985E-61518FF2EF14"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "swing",
+          "trackID" : "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "swing",
+          "trackID" : "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "swing",
+          "trackID" : "54D08877-986C-4B29-B03E-F91A7BEFEDB3"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-82EBF672-EC72-43EB-985E-61518FF2EF14-B36C0A78-3620-4F30-899A-7F0C1F80DE76",
+          "trackID" : "11111111-1111-1111-1111-111111111111"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-82EBF672-EC72-43EB-985E-61518FF2EF14-B36C0A78-3620-4F30-899A-7F0C1F80DE76",
+          "trackID" : "D7779478-3970-452E-8E8D-DF6B458A0CFE"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-82EBF672-EC72-43EB-985E-61518FF2EF14-B36C0A78-3620-4F30-899A-7F0C1F80DE76",
+          "trackID" : "5839C02A-EDFC-4AFC-BF4C-BC3FCD834653"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-82EBF672-EC72-43EB-985E-61518FF2EF14-B36C0A78-3620-4F30-899A-7F0C1F80DE76",
+          "trackID" : "82EBF672-EC72-43EB-985E-61518FF2EF14"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-82EBF672-EC72-43EB-985E-61518FF2EF14-B36C0A78-3620-4F30-899A-7F0C1F80DE76",
+          "trackID" : "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-82EBF672-EC72-43EB-985E-61518FF2EF14-B36C0A78-3620-4F30-899A-7F0C1F80DE76",
+          "trackID" : "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-82EBF672-EC72-43EB-985E-61518FF2EF14-B36C0A78-3620-4F30-899A-7F0C1F80DE76",
+          "trackID" : "54D08877-986C-4B29-B03E-F91A7BEFEDB3"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-82EBF672-EC72-43EB-985E-61518FF2EF14-7EBCA743-AF1C-F74A-7067-100C11741668",
+          "trackID" : "11111111-1111-1111-1111-111111111111"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-82EBF672-EC72-43EB-985E-61518FF2EF14-7EBCA743-AF1C-F74A-7067-100C11741668",
+          "trackID" : "D7779478-3970-452E-8E8D-DF6B458A0CFE"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-82EBF672-EC72-43EB-985E-61518FF2EF14-7EBCA743-AF1C-F74A-7067-100C11741668",
+          "trackID" : "5839C02A-EDFC-4AFC-BF4C-BC3FCD834653"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-82EBF672-EC72-43EB-985E-61518FF2EF14-7EBCA743-AF1C-F74A-7067-100C11741668",
+          "trackID" : "82EBF672-EC72-43EB-985E-61518FF2EF14"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-82EBF672-EC72-43EB-985E-61518FF2EF14-7EBCA743-AF1C-F74A-7067-100C11741668",
+          "trackID" : "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-82EBF672-EC72-43EB-985E-61518FF2EF14-7EBCA743-AF1C-F74A-7067-100C11741668",
+          "trackID" : "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-82EBF672-EC72-43EB-985E-61518FF2EF14-7EBCA743-AF1C-F74A-7067-100C11741668",
+          "trackID" : "54D08877-986C-4B29-B03E-F91A7BEFEDB3"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-82EBF672-EC72-43EB-985E-61518FF2EF14-0B2A1475-78BA-7B72-CE43-4B384327AB49",
+          "trackID" : "11111111-1111-1111-1111-111111111111"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-82EBF672-EC72-43EB-985E-61518FF2EF14-0B2A1475-78BA-7B72-CE43-4B384327AB49",
+          "trackID" : "D7779478-3970-452E-8E8D-DF6B458A0CFE"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-82EBF672-EC72-43EB-985E-61518FF2EF14-0B2A1475-78BA-7B72-CE43-4B384327AB49",
+          "trackID" : "5839C02A-EDFC-4AFC-BF4C-BC3FCD834653"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-82EBF672-EC72-43EB-985E-61518FF2EF14-0B2A1475-78BA-7B72-CE43-4B384327AB49",
+          "trackID" : "82EBF672-EC72-43EB-985E-61518FF2EF14"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-82EBF672-EC72-43EB-985E-61518FF2EF14-0B2A1475-78BA-7B72-CE43-4B384327AB49",
+          "trackID" : "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-82EBF672-EC72-43EB-985E-61518FF2EF14-0B2A1475-78BA-7B72-CE43-4B384327AB49",
+          "trackID" : "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-82EBF672-EC72-43EB-985E-61518FF2EF14-0B2A1475-78BA-7B72-CE43-4B384327AB49",
+          "trackID" : "54D08877-986C-4B29-B03E-F91A7BEFEDB3"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9-6A00D322-8979-E372-501B-474FBE37B58D",
+          "trackID" : "11111111-1111-1111-1111-111111111111"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9-6A00D322-8979-E372-501B-474FBE37B58D",
+          "trackID" : "D7779478-3970-452E-8E8D-DF6B458A0CFE"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9-6A00D322-8979-E372-501B-474FBE37B58D",
+          "trackID" : "5839C02A-EDFC-4AFC-BF4C-BC3FCD834653"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9-6A00D322-8979-E372-501B-474FBE37B58D",
+          "trackID" : "82EBF672-EC72-43EB-985E-61518FF2EF14"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9-6A00D322-8979-E372-501B-474FBE37B58D",
+          "trackID" : "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9-6A00D322-8979-E372-501B-474FBE37B58D",
+          "trackID" : "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9-6A00D322-8979-E372-501B-474FBE37B58D",
+          "trackID" : "54D08877-986C-4B29-B03E-F91A7BEFEDB3"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9-177372AF-5099-2F48-BF77-7A4F6D08645F",
+          "trackID" : "11111111-1111-1111-1111-111111111111"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9-177372AF-5099-2F48-BF77-7A4F6D08645F",
+          "trackID" : "D7779478-3970-452E-8E8D-DF6B458A0CFE"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9-177372AF-5099-2F48-BF77-7A4F6D08645F",
+          "trackID" : "5839C02A-EDFC-4AFC-BF4C-BC3FCD834653"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9-177372AF-5099-2F48-BF77-7A4F6D08645F",
+          "trackID" : "82EBF672-EC72-43EB-985E-61518FF2EF14"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9-177372AF-5099-2F48-BF77-7A4F6D08645F",
+          "trackID" : "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9-177372AF-5099-2F48-BF77-7A4F6D08645F",
+          "trackID" : "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9-177372AF-5099-2F48-BF77-7A4F6D08645F",
+          "trackID" : "54D08877-986C-4B29-B03E-F91A7BEFEDB3"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9-180768F8-EE49-45AC-0798-EA48C1BE679E",
+          "trackID" : "11111111-1111-1111-1111-111111111111"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9-180768F8-EE49-45AC-0798-EA48C1BE679E",
+          "trackID" : "D7779478-3970-452E-8E8D-DF6B458A0CFE"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9-180768F8-EE49-45AC-0798-EA48C1BE679E",
+          "trackID" : "5839C02A-EDFC-4AFC-BF4C-BC3FCD834653"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9-180768F8-EE49-45AC-0798-EA48C1BE679E",
+          "trackID" : "82EBF672-EC72-43EB-985E-61518FF2EF14"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9-180768F8-EE49-45AC-0798-EA48C1BE679E",
+          "trackID" : "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9-180768F8-EE49-45AC-0798-EA48C1BE679E",
+          "trackID" : "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9-180768F8-EE49-45AC-0798-EA48C1BE679E",
+          "trackID" : "54D08877-986C-4B29-B03E-F91A7BEFEDB3"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-A5FE30F0-5A02-4096-839E-5DBE62FFFEDE-A68D3A8A-D5AE-1087-C081-BD2924CBDBF6",
+          "trackID" : "11111111-1111-1111-1111-111111111111"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-A5FE30F0-5A02-4096-839E-5DBE62FFFEDE-A68D3A8A-D5AE-1087-C081-BD2924CBDBF6",
+          "trackID" : "D7779478-3970-452E-8E8D-DF6B458A0CFE"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-A5FE30F0-5A02-4096-839E-5DBE62FFFEDE-A68D3A8A-D5AE-1087-C081-BD2924CBDBF6",
+          "trackID" : "5839C02A-EDFC-4AFC-BF4C-BC3FCD834653"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-A5FE30F0-5A02-4096-839E-5DBE62FFFEDE-A68D3A8A-D5AE-1087-C081-BD2924CBDBF6",
+          "trackID" : "82EBF672-EC72-43EB-985E-61518FF2EF14"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-A5FE30F0-5A02-4096-839E-5DBE62FFFEDE-A68D3A8A-D5AE-1087-C081-BD2924CBDBF6",
+          "trackID" : "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-A5FE30F0-5A02-4096-839E-5DBE62FFFEDE-A68D3A8A-D5AE-1087-C081-BD2924CBDBF6",
+          "trackID" : "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-A5FE30F0-5A02-4096-839E-5DBE62FFFEDE-A68D3A8A-D5AE-1087-C081-BD2924CBDBF6",
+          "trackID" : "54D08877-986C-4B29-B03E-F91A7BEFEDB3"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-A5FE30F0-5A02-4096-839E-5DBE62FFFEDE-1BBDC3E8-C27A-C31B-A74E-4E2916BF13E8",
+          "trackID" : "11111111-1111-1111-1111-111111111111"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-A5FE30F0-5A02-4096-839E-5DBE62FFFEDE-1BBDC3E8-C27A-C31B-A74E-4E2916BF13E8",
+          "trackID" : "D7779478-3970-452E-8E8D-DF6B458A0CFE"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-A5FE30F0-5A02-4096-839E-5DBE62FFFEDE-1BBDC3E8-C27A-C31B-A74E-4E2916BF13E8",
+          "trackID" : "5839C02A-EDFC-4AFC-BF4C-BC3FCD834653"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-A5FE30F0-5A02-4096-839E-5DBE62FFFEDE-1BBDC3E8-C27A-C31B-A74E-4E2916BF13E8",
+          "trackID" : "82EBF672-EC72-43EB-985E-61518FF2EF14"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-A5FE30F0-5A02-4096-839E-5DBE62FFFEDE-1BBDC3E8-C27A-C31B-A74E-4E2916BF13E8",
+          "trackID" : "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-A5FE30F0-5A02-4096-839E-5DBE62FFFEDE-1BBDC3E8-C27A-C31B-A74E-4E2916BF13E8",
+          "trackID" : "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-A5FE30F0-5A02-4096-839E-5DBE62FFFEDE-1BBDC3E8-C27A-C31B-A74E-4E2916BF13E8",
+          "trackID" : "54D08877-986C-4B29-B03E-F91A7BEFEDB3"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-A5FE30F0-5A02-4096-839E-5DBE62FFFEDE-476E4DCF-2377-D891-F04D-FF3AD04B40C9",
+          "trackID" : "11111111-1111-1111-1111-111111111111"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-A5FE30F0-5A02-4096-839E-5DBE62FFFEDE-476E4DCF-2377-D891-F04D-FF3AD04B40C9",
+          "trackID" : "D7779478-3970-452E-8E8D-DF6B458A0CFE"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-A5FE30F0-5A02-4096-839E-5DBE62FFFEDE-476E4DCF-2377-D891-F04D-FF3AD04B40C9",
+          "trackID" : "5839C02A-EDFC-4AFC-BF4C-BC3FCD834653"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-A5FE30F0-5A02-4096-839E-5DBE62FFFEDE-476E4DCF-2377-D891-F04D-FF3AD04B40C9",
+          "trackID" : "82EBF672-EC72-43EB-985E-61518FF2EF14"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-A5FE30F0-5A02-4096-839E-5DBE62FFFEDE-476E4DCF-2377-D891-F04D-FF3AD04B40C9",
+          "trackID" : "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-A5FE30F0-5A02-4096-839E-5DBE62FFFEDE-476E4DCF-2377-D891-F04D-FF3AD04B40C9",
+          "trackID" : "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-A5FE30F0-5A02-4096-839E-5DBE62FFFEDE-476E4DCF-2377-D891-F04D-FF3AD04B40C9",
+          "trackID" : "54D08877-986C-4B29-B03E-F91A7BEFEDB3"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-54D08877-986C-4B29-B03E-F91A7BEFEDB3-9C8954D0-3742-3178-EBCA-868151079CF4",
+          "trackID" : "11111111-1111-1111-1111-111111111111"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-54D08877-986C-4B29-B03E-F91A7BEFEDB3-9C8954D0-3742-3178-EBCA-868151079CF4",
+          "trackID" : "D7779478-3970-452E-8E8D-DF6B458A0CFE"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-54D08877-986C-4B29-B03E-F91A7BEFEDB3-9C8954D0-3742-3178-EBCA-868151079CF4",
+          "trackID" : "5839C02A-EDFC-4AFC-BF4C-BC3FCD834653"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-54D08877-986C-4B29-B03E-F91A7BEFEDB3-9C8954D0-3742-3178-EBCA-868151079CF4",
+          "trackID" : "82EBF672-EC72-43EB-985E-61518FF2EF14"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-54D08877-986C-4B29-B03E-F91A7BEFEDB3-9C8954D0-3742-3178-EBCA-868151079CF4",
+          "trackID" : "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-54D08877-986C-4B29-B03E-F91A7BEFEDB3-9C8954D0-3742-3178-EBCA-868151079CF4",
+          "trackID" : "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-54D08877-986C-4B29-B03E-F91A7BEFEDB3-9C8954D0-3742-3178-EBCA-868151079CF4",
+          "trackID" : "54D08877-986C-4B29-B03E-F91A7BEFEDB3"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-54D08877-986C-4B29-B03E-F91A7BEFEDB3-BDD1B2CD-9C0E-07D2-C46F-8B81CBC410EE",
+          "trackID" : "11111111-1111-1111-1111-111111111111"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-54D08877-986C-4B29-B03E-F91A7BEFEDB3-BDD1B2CD-9C0E-07D2-C46F-8B81CBC410EE",
+          "trackID" : "D7779478-3970-452E-8E8D-DF6B458A0CFE"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-54D08877-986C-4B29-B03E-F91A7BEFEDB3-BDD1B2CD-9C0E-07D2-C46F-8B81CBC410EE",
+          "trackID" : "5839C02A-EDFC-4AFC-BF4C-BC3FCD834653"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-54D08877-986C-4B29-B03E-F91A7BEFEDB3-BDD1B2CD-9C0E-07D2-C46F-8B81CBC410EE",
+          "trackID" : "82EBF672-EC72-43EB-985E-61518FF2EF14"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-54D08877-986C-4B29-B03E-F91A7BEFEDB3-BDD1B2CD-9C0E-07D2-C46F-8B81CBC410EE",
+          "trackID" : "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-54D08877-986C-4B29-B03E-F91A7BEFEDB3-BDD1B2CD-9C0E-07D2-C46F-8B81CBC410EE",
+          "trackID" : "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-54D08877-986C-4B29-B03E-F91A7BEFEDB3-BDD1B2CD-9C0E-07D2-C46F-8B81CBC410EE",
+          "trackID" : "54D08877-986C-4B29-B03E-F91A7BEFEDB3"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-54D08877-986C-4B29-B03E-F91A7BEFEDB3-C04B90F4-2965-706A-4C97-2BFCDDB6893B",
+          "trackID" : "11111111-1111-1111-1111-111111111111"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-54D08877-986C-4B29-B03E-F91A7BEFEDB3-C04B90F4-2965-706A-4C97-2BFCDDB6893B",
+          "trackID" : "D7779478-3970-452E-8E8D-DF6B458A0CFE"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-54D08877-986C-4B29-B03E-F91A7BEFEDB3-C04B90F4-2965-706A-4C97-2BFCDDB6893B",
+          "trackID" : "5839C02A-EDFC-4AFC-BF4C-BC3FCD834653"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-54D08877-986C-4B29-B03E-F91A7BEFEDB3-C04B90F4-2965-706A-4C97-2BFCDDB6893B",
+          "trackID" : "82EBF672-EC72-43EB-985E-61518FF2EF14"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-54D08877-986C-4B29-B03E-F91A7BEFEDB3-C04B90F4-2965-706A-4C97-2BFCDDB6893B",
+          "trackID" : "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-54D08877-986C-4B29-B03E-F91A7BEFEDB3-C04B90F4-2965-706A-4C97-2BFCDDB6893B",
+          "trackID" : "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-54D08877-986C-4B29-B03E-F91A7BEFEDB3-C04B90F4-2965-706A-4C97-2BFCDDB6893B",
+          "trackID" : "54D08877-986C-4B29-B03E-F91A7BEFEDB3"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-82EBF672-EC72-43EB-985E-61518FF2EF14-B36C0A78-3620-4F30-899A-7F0C1F80DE76",
+          "trackID" : "11111111-1111-1111-1111-111111111111"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-82EBF672-EC72-43EB-985E-61518FF2EF14-B36C0A78-3620-4F30-899A-7F0C1F80DE76",
+          "trackID" : "D7779478-3970-452E-8E8D-DF6B458A0CFE"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-82EBF672-EC72-43EB-985E-61518FF2EF14-B36C0A78-3620-4F30-899A-7F0C1F80DE76",
+          "trackID" : "5839C02A-EDFC-4AFC-BF4C-BC3FCD834653"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-82EBF672-EC72-43EB-985E-61518FF2EF14-B36C0A78-3620-4F30-899A-7F0C1F80DE76",
+          "trackID" : "82EBF672-EC72-43EB-985E-61518FF2EF14"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-82EBF672-EC72-43EB-985E-61518FF2EF14-B36C0A78-3620-4F30-899A-7F0C1F80DE76",
+          "trackID" : "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-82EBF672-EC72-43EB-985E-61518FF2EF14-B36C0A78-3620-4F30-899A-7F0C1F80DE76",
+          "trackID" : "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-82EBF672-EC72-43EB-985E-61518FF2EF14-B36C0A78-3620-4F30-899A-7F0C1F80DE76",
+          "trackID" : "54D08877-986C-4B29-B03E-F91A7BEFEDB3"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-82EBF672-EC72-43EB-985E-61518FF2EF14-7EBCA743-AF1C-F74A-7067-100C11741668",
+          "trackID" : "11111111-1111-1111-1111-111111111111"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-82EBF672-EC72-43EB-985E-61518FF2EF14-7EBCA743-AF1C-F74A-7067-100C11741668",
+          "trackID" : "D7779478-3970-452E-8E8D-DF6B458A0CFE"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-82EBF672-EC72-43EB-985E-61518FF2EF14-7EBCA743-AF1C-F74A-7067-100C11741668",
+          "trackID" : "5839C02A-EDFC-4AFC-BF4C-BC3FCD834653"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-82EBF672-EC72-43EB-985E-61518FF2EF14-7EBCA743-AF1C-F74A-7067-100C11741668",
+          "trackID" : "82EBF672-EC72-43EB-985E-61518FF2EF14"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-82EBF672-EC72-43EB-985E-61518FF2EF14-7EBCA743-AF1C-F74A-7067-100C11741668",
+          "trackID" : "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-82EBF672-EC72-43EB-985E-61518FF2EF14-7EBCA743-AF1C-F74A-7067-100C11741668",
+          "trackID" : "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-82EBF672-EC72-43EB-985E-61518FF2EF14-7EBCA743-AF1C-F74A-7067-100C11741668",
+          "trackID" : "54D08877-986C-4B29-B03E-F91A7BEFEDB3"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-82EBF672-EC72-43EB-985E-61518FF2EF14-0B2A1475-78BA-7B72-CE43-4B384327AB49",
+          "trackID" : "11111111-1111-1111-1111-111111111111"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-82EBF672-EC72-43EB-985E-61518FF2EF14-0B2A1475-78BA-7B72-CE43-4B384327AB49",
+          "trackID" : "D7779478-3970-452E-8E8D-DF6B458A0CFE"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-82EBF672-EC72-43EB-985E-61518FF2EF14-0B2A1475-78BA-7B72-CE43-4B384327AB49",
+          "trackID" : "5839C02A-EDFC-4AFC-BF4C-BC3FCD834653"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-82EBF672-EC72-43EB-985E-61518FF2EF14-0B2A1475-78BA-7B72-CE43-4B384327AB49",
+          "trackID" : "82EBF672-EC72-43EB-985E-61518FF2EF14"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-82EBF672-EC72-43EB-985E-61518FF2EF14-0B2A1475-78BA-7B72-CE43-4B384327AB49",
+          "trackID" : "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-82EBF672-EC72-43EB-985E-61518FF2EF14-0B2A1475-78BA-7B72-CE43-4B384327AB49",
+          "trackID" : "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-82EBF672-EC72-43EB-985E-61518FF2EF14-0B2A1475-78BA-7B72-CE43-4B384327AB49",
+          "trackID" : "54D08877-986C-4B29-B03E-F91A7BEFEDB3"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9-6A00D322-8979-E372-501B-474FBE37B58D",
+          "trackID" : "11111111-1111-1111-1111-111111111111"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9-6A00D322-8979-E372-501B-474FBE37B58D",
+          "trackID" : "D7779478-3970-452E-8E8D-DF6B458A0CFE"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9-6A00D322-8979-E372-501B-474FBE37B58D",
+          "trackID" : "5839C02A-EDFC-4AFC-BF4C-BC3FCD834653"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9-6A00D322-8979-E372-501B-474FBE37B58D",
+          "trackID" : "82EBF672-EC72-43EB-985E-61518FF2EF14"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9-6A00D322-8979-E372-501B-474FBE37B58D",
+          "trackID" : "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9-6A00D322-8979-E372-501B-474FBE37B58D",
+          "trackID" : "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9-6A00D322-8979-E372-501B-474FBE37B58D",
+          "trackID" : "54D08877-986C-4B29-B03E-F91A7BEFEDB3"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9-177372AF-5099-2F48-BF77-7A4F6D08645F",
+          "trackID" : "11111111-1111-1111-1111-111111111111"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9-177372AF-5099-2F48-BF77-7A4F6D08645F",
+          "trackID" : "D7779478-3970-452E-8E8D-DF6B458A0CFE"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9-177372AF-5099-2F48-BF77-7A4F6D08645F",
+          "trackID" : "5839C02A-EDFC-4AFC-BF4C-BC3FCD834653"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9-177372AF-5099-2F48-BF77-7A4F6D08645F",
+          "trackID" : "82EBF672-EC72-43EB-985E-61518FF2EF14"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9-177372AF-5099-2F48-BF77-7A4F6D08645F",
+          "trackID" : "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9-177372AF-5099-2F48-BF77-7A4F6D08645F",
+          "trackID" : "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9-177372AF-5099-2F48-BF77-7A4F6D08645F",
+          "trackID" : "54D08877-986C-4B29-B03E-F91A7BEFEDB3"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9-180768F8-EE49-45AC-0798-EA48C1BE679E",
+          "trackID" : "11111111-1111-1111-1111-111111111111"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9-180768F8-EE49-45AC-0798-EA48C1BE679E",
+          "trackID" : "D7779478-3970-452E-8E8D-DF6B458A0CFE"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9-180768F8-EE49-45AC-0798-EA48C1BE679E",
+          "trackID" : "5839C02A-EDFC-4AFC-BF4C-BC3FCD834653"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9-180768F8-EE49-45AC-0798-EA48C1BE679E",
+          "trackID" : "82EBF672-EC72-43EB-985E-61518FF2EF14"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9-180768F8-EE49-45AC-0798-EA48C1BE679E",
+          "trackID" : "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9-180768F8-EE49-45AC-0798-EA48C1BE679E",
+          "trackID" : "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9-180768F8-EE49-45AC-0798-EA48C1BE679E",
+          "trackID" : "54D08877-986C-4B29-B03E-F91A7BEFEDB3"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-A5FE30F0-5A02-4096-839E-5DBE62FFFEDE-A68D3A8A-D5AE-1087-C081-BD2924CBDBF6",
+          "trackID" : "11111111-1111-1111-1111-111111111111"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-A5FE30F0-5A02-4096-839E-5DBE62FFFEDE-A68D3A8A-D5AE-1087-C081-BD2924CBDBF6",
+          "trackID" : "D7779478-3970-452E-8E8D-DF6B458A0CFE"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-A5FE30F0-5A02-4096-839E-5DBE62FFFEDE-A68D3A8A-D5AE-1087-C081-BD2924CBDBF6",
+          "trackID" : "5839C02A-EDFC-4AFC-BF4C-BC3FCD834653"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-A5FE30F0-5A02-4096-839E-5DBE62FFFEDE-A68D3A8A-D5AE-1087-C081-BD2924CBDBF6",
+          "trackID" : "82EBF672-EC72-43EB-985E-61518FF2EF14"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-A5FE30F0-5A02-4096-839E-5DBE62FFFEDE-A68D3A8A-D5AE-1087-C081-BD2924CBDBF6",
+          "trackID" : "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-A5FE30F0-5A02-4096-839E-5DBE62FFFEDE-A68D3A8A-D5AE-1087-C081-BD2924CBDBF6",
+          "trackID" : "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-A5FE30F0-5A02-4096-839E-5DBE62FFFEDE-A68D3A8A-D5AE-1087-C081-BD2924CBDBF6",
+          "trackID" : "54D08877-986C-4B29-B03E-F91A7BEFEDB3"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-A5FE30F0-5A02-4096-839E-5DBE62FFFEDE-1BBDC3E8-C27A-C31B-A74E-4E2916BF13E8",
+          "trackID" : "11111111-1111-1111-1111-111111111111"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-A5FE30F0-5A02-4096-839E-5DBE62FFFEDE-1BBDC3E8-C27A-C31B-A74E-4E2916BF13E8",
+          "trackID" : "D7779478-3970-452E-8E8D-DF6B458A0CFE"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-A5FE30F0-5A02-4096-839E-5DBE62FFFEDE-1BBDC3E8-C27A-C31B-A74E-4E2916BF13E8",
+          "trackID" : "5839C02A-EDFC-4AFC-BF4C-BC3FCD834653"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-A5FE30F0-5A02-4096-839E-5DBE62FFFEDE-1BBDC3E8-C27A-C31B-A74E-4E2916BF13E8",
+          "trackID" : "82EBF672-EC72-43EB-985E-61518FF2EF14"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-A5FE30F0-5A02-4096-839E-5DBE62FFFEDE-1BBDC3E8-C27A-C31B-A74E-4E2916BF13E8",
+          "trackID" : "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-A5FE30F0-5A02-4096-839E-5DBE62FFFEDE-1BBDC3E8-C27A-C31B-A74E-4E2916BF13E8",
+          "trackID" : "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-A5FE30F0-5A02-4096-839E-5DBE62FFFEDE-1BBDC3E8-C27A-C31B-A74E-4E2916BF13E8",
+          "trackID" : "54D08877-986C-4B29-B03E-F91A7BEFEDB3"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-A5FE30F0-5A02-4096-839E-5DBE62FFFEDE-476E4DCF-2377-D891-F04D-FF3AD04B40C9",
+          "trackID" : "11111111-1111-1111-1111-111111111111"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-A5FE30F0-5A02-4096-839E-5DBE62FFFEDE-476E4DCF-2377-D891-F04D-FF3AD04B40C9",
+          "trackID" : "D7779478-3970-452E-8E8D-DF6B458A0CFE"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-A5FE30F0-5A02-4096-839E-5DBE62FFFEDE-476E4DCF-2377-D891-F04D-FF3AD04B40C9",
+          "trackID" : "5839C02A-EDFC-4AFC-BF4C-BC3FCD834653"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-A5FE30F0-5A02-4096-839E-5DBE62FFFEDE-476E4DCF-2377-D891-F04D-FF3AD04B40C9",
+          "trackID" : "82EBF672-EC72-43EB-985E-61518FF2EF14"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-A5FE30F0-5A02-4096-839E-5DBE62FFFEDE-476E4DCF-2377-D891-F04D-FF3AD04B40C9",
+          "trackID" : "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-A5FE30F0-5A02-4096-839E-5DBE62FFFEDE-476E4DCF-2377-D891-F04D-FF3AD04B40C9",
+          "trackID" : "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-A5FE30F0-5A02-4096-839E-5DBE62FFFEDE-476E4DCF-2377-D891-F04D-FF3AD04B40C9",
+          "trackID" : "54D08877-986C-4B29-B03E-F91A7BEFEDB3"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-54D08877-986C-4B29-B03E-F91A7BEFEDB3-9C8954D0-3742-3178-EBCA-868151079CF4",
+          "trackID" : "11111111-1111-1111-1111-111111111111"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-54D08877-986C-4B29-B03E-F91A7BEFEDB3-9C8954D0-3742-3178-EBCA-868151079CF4",
+          "trackID" : "D7779478-3970-452E-8E8D-DF6B458A0CFE"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-54D08877-986C-4B29-B03E-F91A7BEFEDB3-9C8954D0-3742-3178-EBCA-868151079CF4",
+          "trackID" : "5839C02A-EDFC-4AFC-BF4C-BC3FCD834653"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-54D08877-986C-4B29-B03E-F91A7BEFEDB3-9C8954D0-3742-3178-EBCA-868151079CF4",
+          "trackID" : "82EBF672-EC72-43EB-985E-61518FF2EF14"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-54D08877-986C-4B29-B03E-F91A7BEFEDB3-9C8954D0-3742-3178-EBCA-868151079CF4",
+          "trackID" : "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-54D08877-986C-4B29-B03E-F91A7BEFEDB3-9C8954D0-3742-3178-EBCA-868151079CF4",
+          "trackID" : "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-54D08877-986C-4B29-B03E-F91A7BEFEDB3-9C8954D0-3742-3178-EBCA-868151079CF4",
+          "trackID" : "54D08877-986C-4B29-B03E-F91A7BEFEDB3"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-54D08877-986C-4B29-B03E-F91A7BEFEDB3-BDD1B2CD-9C0E-07D2-C46F-8B81CBC410EE",
+          "trackID" : "11111111-1111-1111-1111-111111111111"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-54D08877-986C-4B29-B03E-F91A7BEFEDB3-BDD1B2CD-9C0E-07D2-C46F-8B81CBC410EE",
+          "trackID" : "D7779478-3970-452E-8E8D-DF6B458A0CFE"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-54D08877-986C-4B29-B03E-F91A7BEFEDB3-BDD1B2CD-9C0E-07D2-C46F-8B81CBC410EE",
+          "trackID" : "5839C02A-EDFC-4AFC-BF4C-BC3FCD834653"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-54D08877-986C-4B29-B03E-F91A7BEFEDB3-BDD1B2CD-9C0E-07D2-C46F-8B81CBC410EE",
+          "trackID" : "82EBF672-EC72-43EB-985E-61518FF2EF14"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-54D08877-986C-4B29-B03E-F91A7BEFEDB3-BDD1B2CD-9C0E-07D2-C46F-8B81CBC410EE",
+          "trackID" : "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-54D08877-986C-4B29-B03E-F91A7BEFEDB3-BDD1B2CD-9C0E-07D2-C46F-8B81CBC410EE",
+          "trackID" : "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-54D08877-986C-4B29-B03E-F91A7BEFEDB3-BDD1B2CD-9C0E-07D2-C46F-8B81CBC410EE",
+          "trackID" : "54D08877-986C-4B29-B03E-F91A7BEFEDB3"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-54D08877-986C-4B29-B03E-F91A7BEFEDB3-C04B90F4-2965-706A-4C97-2BFCDDB6893B",
+          "trackID" : "11111111-1111-1111-1111-111111111111"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-54D08877-986C-4B29-B03E-F91A7BEFEDB3-C04B90F4-2965-706A-4C97-2BFCDDB6893B",
+          "trackID" : "D7779478-3970-452E-8E8D-DF6B458A0CFE"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-54D08877-986C-4B29-B03E-F91A7BEFEDB3-C04B90F4-2965-706A-4C97-2BFCDDB6893B",
+          "trackID" : "5839C02A-EDFC-4AFC-BF4C-BC3FCD834653"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-54D08877-986C-4B29-B03E-F91A7BEFEDB3-C04B90F4-2965-706A-4C97-2BFCDDB6893B",
+          "trackID" : "82EBF672-EC72-43EB-985E-61518FF2EF14"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-54D08877-986C-4B29-B03E-F91A7BEFEDB3-C04B90F4-2965-706A-4C97-2BFCDDB6893B",
+          "trackID" : "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-54D08877-986C-4B29-B03E-F91A7BEFEDB3-C04B90F4-2965-706A-4C97-2BFCDDB6893B",
+          "trackID" : "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-54D08877-986C-4B29-B03E-F91A7BEFEDB3-C04B90F4-2965-706A-4C97-2BFCDDB6893B",
+          "trackID" : "54D08877-986C-4B29-B03E-F91A7BEFEDB3"
+        }
+      ],
+      "id" : "22222222-2222-2222-2222-222222222222",
+      "lengthBars" : 8,
+      "loopEnabled" : false,
+      "name" : "Phrase A",
+      "repeatCount" : 1,
+      "stepsPerBar" : 16
+    }
+  ],
+  "routes" : [
+
+  ],
+  "selectedPhraseID" : "22222222-2222-2222-2222-222222222222",
+  "selectedTrackID" : "D7779478-3970-452E-8E8D-DF6B458A0CFE",
+  "sendBusA" : {
+    "id" : "send-a",
+    "inserts" : [
+      {
+        "id" : "0000A0D1-0000-4000-8000-000000000A01",
+        "isEnabled" : true,
+        "kind" : {
+          "nativeFilter" : {
+            "_0" : {
+              "cutoffHz" : 8000,
+              "mode" : "lowPass",
+              "resonance" : 0.3
+            }
+          }
+        },
+        "name" : "Filter",
+        "wetDry" : 1
+      }
+    ],
+    "name" : "Send A"
+  },
+  "sendBusB" : {
+    "id" : "send-b",
+    "inserts" : [
+      {
+        "id" : "0000A0D1-0000-4000-8000-000000000B01",
+        "isEnabled" : true,
+        "kind" : {
+          "nativeFilter" : {
+            "_0" : {
+              "cutoffHz" : 8000,
+              "mode" : "lowPass",
+              "resonance" : 0.3
+            }
+          }
+        },
+        "name" : "Filter",
+        "wetDry" : 1
+      }
+    ],
+    "name" : "Send B"
+  },
+  "sliceSetPool" : [
+    {
+      "id" : "ED5EC0F0-AC9D-4F0D-91A9-5BE90D9B54A0",
+      "markers" : [
+        {
+          "endFrame" : 88200,
+          "gain" : 0,
+          "id" : "6490C163-6F9F-4208-8685-1F69ED657A16",
+          "microTimingSteps" : 0,
+          "reverse" : false,
+          "startFrame" : 0,
+          "tag" : ""
+        },
+        {
+          "endFrame" : 11025,
+          "gain" : 0,
+          "id" : "7CB0F31B-47A8-41B1-B321-F95583336D53",
+          "microTimingSteps" : 0,
+          "reverse" : false,
+          "startFrame" : 0,
+          "tag" : ""
+        },
+        {
+          "endFrame" : 22050,
+          "gain" : 0,
+          "id" : "8204C760-1B38-4A98-8500-DC81F5B13BFC",
+          "microTimingSteps" : 0,
+          "reverse" : false,
+          "startFrame" : 11025,
+          "tag" : ""
+        },
+        {
+          "endFrame" : 33075,
+          "gain" : 0,
+          "id" : "64BCAAFD-CF3F-4290-A1FB-020E833D51A8",
+          "microTimingSteps" : 0,
+          "reverse" : false,
+          "startFrame" : 22050,
+          "tag" : ""
+        },
+        {
+          "endFrame" : 44100,
+          "gain" : 0,
+          "id" : "1AA3DB93-5144-4252-8EEC-F7A43533BA30",
+          "microTimingSteps" : 0,
+          "reverse" : false,
+          "startFrame" : 33075,
+          "tag" : ""
+        },
+        {
+          "endFrame" : 55125,
+          "gain" : 0,
+          "id" : "44EA4B02-CC22-4412-AE18-8BC96786A0DE",
+          "microTimingSteps" : 0,
+          "reverse" : false,
+          "startFrame" : 44100,
+          "tag" : ""
+        },
+        {
+          "endFrame" : 66150,
+          "gain" : 0,
+          "id" : "C79CF734-1E83-4296-A4A9-E1DC4E7105F8",
+          "microTimingSteps" : 0,
+          "reverse" : false,
+          "startFrame" : 55125,
+          "tag" : ""
+        },
+        {
+          "endFrame" : 77175,
+          "gain" : 0,
+          "id" : "5BD2FC1D-37F9-410E-8BB1-E512B763EB50",
+          "microTimingSteps" : 0,
+          "reverse" : false,
+          "startFrame" : 66150,
+          "tag" : ""
+        },
+        {
+          "endFrame" : 88200,
+          "gain" : 0,
+          "id" : "B62455EB-F3A9-4D8F-846B-156BAA6F2A0C",
+          "microTimingSteps" : 0,
+          "reverse" : false,
+          "startFrame" : 77175,
+          "tag" : ""
+        }
+      ],
+      "mode" : "grid",
+      "sampleID" : "2B174442-31CA-5A36-ADA0-E4F70E2A9CAA"
+    }
+  ],
+  "stepOrderMaps" : [
+
+  ],
+  "trackGroups" : [
+    {
+      "channelMapping" : [
+
+      ],
+      "color" : "#8AA",
+      "id" : "E4A61FD7-892E-4B0F-B223-9F9F6E1749CE",
+      "isPatternLinked" : true,
+      "memberIDs" : [
+        "82EBF672-EC72-43EB-985E-61518FF2EF14",
+        "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9",
+        "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE",
+        "54D08877-986C-4B29-B03E-F91A7BEFEDB3"
+      ],
+      "mute" : false,
+      "name" : "Audio Rich Kit",
+      "noteMapping" : [
+
+      ],
+      "solo" : false,
+      "triggerMappingMode" : "perNote"
+    }
+  ],
+  "tracks" : [
+    {
+      "destination" : {
+        "none" : {
+
+        }
+      },
+      "filter" : {
+        "cutoffHz" : 20000,
+        "drive" : 0,
+        "poles" : 2,
+        "resonance" : 0,
+        "type" : "lowpass"
+      },
+      "fxInserts" : [
+
+      ],
+      "gateLength" : 4,
+      "id" : "11111111-1111-1111-1111-111111111111",
+      "macros" : [
+
+      ],
+      "mix" : {
+        "isMuted" : false,
+        "isSoloed" : false,
+        "level" : 0.8,
+        "pan" : 0,
+        "sendA" : 0,
+        "sendB" : 0
+      },
+      "name" : "Main Track",
+      "noteRepeatInterval" : "1\/16",
+      "pitches" : [
+        60,
+        64,
+        67,
+        72
+      ],
+      "stepAccents" : [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "stepPattern" : [
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "trackType" : "monoMelodic",
+      "velocity" : 100
+    },
+    {
+      "destination" : {
+        "auInstrument" : {
+          "componentID" : {
+            "manufacturer" : "Artu",
+            "subtype" : "Alav",
+            "type" : "aumu",
+            "version" : 0
+          }
+        }
+      },
+      "filter" : {
+        "cutoffHz" : 20000,
+        "drive" : 0,
+        "poles" : 2,
+        "resonance" : 0,
+        "type" : "lowpass"
+      },
+      "fxInserts" : [
+
+      ],
+      "gateLength" : 4,
+      "id" : "D7779478-3970-452E-8E8D-DF6B458A0CFE",
+      "macros" : [
+
+      ],
+      "mix" : {
+        "isMuted" : false,
+        "isSoloed" : false,
+        "level" : 0.8,
+        "pan" : 0,
+        "sendA" : 0.6,
+        "sendB" : 0
+      },
+      "name" : "Analog Lab Lead",
+      "noteRepeatInterval" : "1\/16",
+      "pitches" : [
+        60,
+        63,
+        67,
+        70
+      ],
+      "stepAccents" : [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "stepPattern" : [
+        true,
+        false,
+        false,
+        false,
+        true,
+        false,
+        false,
+        false,
+        true,
+        false,
+        false,
+        false,
+        true,
+        false,
+        false,
+        false
+      ],
+      "trackType" : "monoMelodic",
+      "velocity" : 100
+    },
+    {
+      "destination" : {
+        "slicer" : {
+          "settings" : {
+            "gain" : 0,
+            "transpose" : 0,
+            "voiceMode" : "mono"
+          },
+          "sliceSetID" : "ED5EC0F0-AC9D-4F0D-91A9-5BE90D9B54A0"
+        }
+      },
+      "filter" : {
+        "cutoffHz" : 20000,
+        "drive" : 0,
+        "poles" : 2,
+        "resonance" : 0,
+        "type" : "lowpass"
+      },
+      "fxInserts" : [
+
+      ],
+      "gateLength" : 4,
+      "id" : "5839C02A-EDFC-4AFC-BF4C-BC3FCD834653",
+      "macros" : [
+
+      ],
+      "mix" : {
+        "isMuted" : false,
+        "isSoloed" : false,
+        "level" : 0.8,
+        "pan" : 0,
+        "sendA" : 0,
+        "sendB" : 0.5
+      },
+      "name" : "Audio Rich Fixture Loop",
+      "noteRepeatInterval" : "1\/16",
+      "pitches" : [
+        60
+      ],
+      "stepAccents" : [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "stepPattern" : [
+        true,
+        false,
+        true,
+        false,
+        true,
+        false,
+        true,
+        false,
+        true,
+        false,
+        true,
+        false,
+        true,
+        false,
+        true,
+        false
+      ],
+      "trackType" : "slice",
+      "velocity" : 100
+    },
+    {
+      "destination" : {
+        "internalSampler" : {
+          "bankID" : "drumKitDefault",
+          "preset" : "Audio Rich Kit"
+        }
+      },
+      "filter" : {
+        "cutoffHz" : 20000,
+        "drive" : 0,
+        "poles" : 2,
+        "resonance" : 0,
+        "type" : "lowpass"
+      },
+      "fxInserts" : [
+
+      ],
+      "gateLength" : 4,
+      "groupID" : "E4A61FD7-892E-4B0F-B223-9F9F6E1749CE",
+      "id" : "82EBF672-EC72-43EB-985E-61518FF2EF14",
+      "macros" : [
+        {
+          "descriptor" : {
+            "defaultValue" : 0,
+            "displayName" : "Sample Start",
+            "id" : "B36C0A78-3620-4F30-899A-7F0C1F80DE76",
+            "maxValue" : 1,
+            "minValue" : 0,
+            "source" : {
+              "builtin" : {
+                "_0" : "sampleStart"
+              }
+            },
+            "valueType" : "scalar"
+          },
+          "slotIndex" : 0
+        },
+        {
+          "descriptor" : {
+            "defaultValue" : 1,
+            "displayName" : "Sample Length",
+            "id" : "7EBCA743-AF1C-F74A-7067-100C11741668",
+            "maxValue" : 1,
+            "minValue" : 0,
+            "source" : {
+              "builtin" : {
+                "_0" : "sampleLength"
+              }
+            },
+            "valueType" : "scalar"
+          },
+          "slotIndex" : 1
+        },
+        {
+          "descriptor" : {
+            "defaultValue" : 20000,
+            "displayName" : "Filter Cutoff",
+            "id" : "0B2A1475-78BA-7B72-CE43-4B384327AB49",
+            "maxValue" : 20000,
+            "minValue" : 20,
+            "source" : {
+              "builtin" : {
+                "_0" : "samplerFilterCutoff"
+              }
+            },
+            "valueType" : "scalar"
+          },
+          "slotIndex" : 2
+        }
+      ],
+      "mix" : {
+        "isMuted" : false,
+        "isSoloed" : false,
+        "level" : 0.8,
+        "pan" : 0,
+        "sendA" : 0,
+        "sendB" : 0
+      },
+      "name" : "Kick",
+      "noteRepeatInterval" : "1\/16",
+      "outputBusID" : "8DEEE9CA-EA0C-4F4A-9084-2A31631B311A",
+      "pitches" : [
+        36
+      ],
+      "stepAccents" : [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "stepPattern" : [
+        true,
+        false,
+        false,
+        false,
+        true,
+        false,
+        false,
+        false,
+        true,
+        false,
+        false,
+        false,
+        true,
+        false,
+        false,
+        false
+      ],
+      "trackType" : "monoMelodic",
+      "velocity" : 100,
+      "voiceTag" : "kick"
+    },
+    {
+      "destination" : {
+        "internalSampler" : {
+          "bankID" : "drumKitDefault",
+          "preset" : "Audio Rich Kit"
+        }
+      },
+      "filter" : {
+        "cutoffHz" : 20000,
+        "drive" : 0,
+        "poles" : 2,
+        "resonance" : 0,
+        "type" : "lowpass"
+      },
+      "fxInserts" : [
+
+      ],
+      "gateLength" : 4,
+      "groupID" : "E4A61FD7-892E-4B0F-B223-9F9F6E1749CE",
+      "id" : "8E41BCB0-BC55-4DB5-8AB2-32B7A9D593F9",
+      "macros" : [
+        {
+          "descriptor" : {
+            "defaultValue" : 0,
+            "displayName" : "Sample Start",
+            "id" : "6A00D322-8979-E372-501B-474FBE37B58D",
+            "maxValue" : 1,
+            "minValue" : 0,
+            "source" : {
+              "builtin" : {
+                "_0" : "sampleStart"
+              }
+            },
+            "valueType" : "scalar"
+          },
+          "slotIndex" : 0
+        },
+        {
+          "descriptor" : {
+            "defaultValue" : 1,
+            "displayName" : "Sample Length",
+            "id" : "177372AF-5099-2F48-BF77-7A4F6D08645F",
+            "maxValue" : 1,
+            "minValue" : 0,
+            "source" : {
+              "builtin" : {
+                "_0" : "sampleLength"
+              }
+            },
+            "valueType" : "scalar"
+          },
+          "slotIndex" : 1
+        },
+        {
+          "descriptor" : {
+            "defaultValue" : 20000,
+            "displayName" : "Filter Cutoff",
+            "id" : "180768F8-EE49-45AC-0798-EA48C1BE679E",
+            "maxValue" : 20000,
+            "minValue" : 20,
+            "source" : {
+              "builtin" : {
+                "_0" : "samplerFilterCutoff"
+              }
+            },
+            "valueType" : "scalar"
+          },
+          "slotIndex" : 2
+        }
+      ],
+      "mix" : {
+        "isMuted" : false,
+        "isSoloed" : false,
+        "level" : 0.8,
+        "pan" : 0,
+        "sendA" : 0,
+        "sendB" : 0
+      },
+      "name" : "Snare",
+      "noteRepeatInterval" : "1\/16",
+      "pitches" : [
+        36
+      ],
+      "stepAccents" : [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "stepPattern" : [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "trackType" : "monoMelodic",
+      "velocity" : 100,
+      "voiceTag" : "snare"
+    },
+    {
+      "destination" : {
+        "internalSampler" : {
+          "bankID" : "drumKitDefault",
+          "preset" : "Audio Rich Kit"
+        }
+      },
+      "filter" : {
+        "cutoffHz" : 20000,
+        "drive" : 0,
+        "poles" : 2,
+        "resonance" : 0,
+        "type" : "lowpass"
+      },
+      "fxInserts" : [
+
+      ],
+      "gateLength" : 4,
+      "groupID" : "E4A61FD7-892E-4B0F-B223-9F9F6E1749CE",
+      "id" : "A5FE30F0-5A02-4096-839E-5DBE62FFFEDE",
+      "macros" : [
+        {
+          "descriptor" : {
+            "defaultValue" : 0,
+            "displayName" : "Sample Start",
+            "id" : "A68D3A8A-D5AE-1087-C081-BD2924CBDBF6",
+            "maxValue" : 1,
+            "minValue" : 0,
+            "source" : {
+              "builtin" : {
+                "_0" : "sampleStart"
+              }
+            },
+            "valueType" : "scalar"
+          },
+          "slotIndex" : 0
+        },
+        {
+          "descriptor" : {
+            "defaultValue" : 1,
+            "displayName" : "Sample Length",
+            "id" : "1BBDC3E8-C27A-C31B-A74E-4E2916BF13E8",
+            "maxValue" : 1,
+            "minValue" : 0,
+            "source" : {
+              "builtin" : {
+                "_0" : "sampleLength"
+              }
+            },
+            "valueType" : "scalar"
+          },
+          "slotIndex" : 1
+        },
+        {
+          "descriptor" : {
+            "defaultValue" : 20000,
+            "displayName" : "Filter Cutoff",
+            "id" : "476E4DCF-2377-D891-F04D-FF3AD04B40C9",
+            "maxValue" : 20000,
+            "minValue" : 20,
+            "source" : {
+              "builtin" : {
+                "_0" : "samplerFilterCutoff"
+              }
+            },
+            "valueType" : "scalar"
+          },
+          "slotIndex" : 2
+        }
+      ],
+      "mix" : {
+        "isMuted" : false,
+        "isSoloed" : false,
+        "level" : 0.8,
+        "pan" : 0,
+        "sendA" : 0,
+        "sendB" : 0
+      },
+      "name" : "Hat",
+      "noteRepeatInterval" : "1\/16",
+      "pitches" : [
+        36
+      ],
+      "stepAccents" : [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "stepPattern" : [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "trackType" : "monoMelodic",
+      "velocity" : 100,
+      "voiceTag" : "hat-closed"
+    },
+    {
+      "destination" : {
+        "internalSampler" : {
+          "bankID" : "drumKitDefault",
+          "preset" : "Audio Rich Kit"
+        }
+      },
+      "filter" : {
+        "cutoffHz" : 20000,
+        "drive" : 0,
+        "poles" : 2,
+        "resonance" : 0,
+        "type" : "lowpass"
+      },
+      "fxInserts" : [
+
+      ],
+      "gateLength" : 4,
+      "groupID" : "E4A61FD7-892E-4B0F-B223-9F9F6E1749CE",
+      "id" : "54D08877-986C-4B29-B03E-F91A7BEFEDB3",
+      "macros" : [
+        {
+          "descriptor" : {
+            "defaultValue" : 0,
+            "displayName" : "Sample Start",
+            "id" : "9C8954D0-3742-3178-EBCA-868151079CF4",
+            "maxValue" : 1,
+            "minValue" : 0,
+            "source" : {
+              "builtin" : {
+                "_0" : "sampleStart"
+              }
+            },
+            "valueType" : "scalar"
+          },
+          "slotIndex" : 0
+        },
+        {
+          "descriptor" : {
+            "defaultValue" : 1,
+            "displayName" : "Sample Length",
+            "id" : "BDD1B2CD-9C0E-07D2-C46F-8B81CBC410EE",
+            "maxValue" : 1,
+            "minValue" : 0,
+            "source" : {
+              "builtin" : {
+                "_0" : "sampleLength"
+              }
+            },
+            "valueType" : "scalar"
+          },
+          "slotIndex" : 1
+        },
+        {
+          "descriptor" : {
+            "defaultValue" : 20000,
+            "displayName" : "Filter Cutoff",
+            "id" : "C04B90F4-2965-706A-4C97-2BFCDDB6893B",
+            "maxValue" : 20000,
+            "minValue" : 20,
+            "source" : {
+              "builtin" : {
+                "_0" : "samplerFilterCutoff"
+              }
+            },
+            "valueType" : "scalar"
+          },
+          "slotIndex" : 2
+        }
+      ],
+      "mix" : {
+        "isMuted" : false,
+        "isSoloed" : false,
+        "level" : 0.8,
+        "pan" : 0,
+        "sendA" : 0,
+        "sendB" : 0
+      },
+      "name" : "Clap",
+      "noteRepeatInterval" : "1\/16",
+      "pitches" : [
+        36
+      ],
+      "stepAccents" : [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "stepPattern" : [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "trackType" : "monoMelodic",
+      "velocity" : 100,
+      "voiceTag" : "clap"
+    }
+  ],
+  "version" : 1
+}
