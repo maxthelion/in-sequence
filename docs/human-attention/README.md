@@ -18,6 +18,7 @@ When you clear an item, delete its file (or move it to a dated `done/` note).
 | [verify-observer-sweep-audio-input](verify-observer-sweep-audio-input.md) | verify | GUI: gates merging `observer-sweep-remediation` |
 | [routing-source-mixer-split](routing-source-mixer-split.md) | decide+verify | rebase decision + TCC-gated capture gate |
 | [stale-worktree-branch-cleanup](stale-worktree-branch-cleanup.md) | decide | ~30 worktrees / branches to triage |
+| [verify-audio-routing-cleanup-branch](verify-audio-routing-cleanup-branch.md) | verify | real-audio pass on the routing rework (R0–R… ) before it merges to main |
 
 ## Context
 
