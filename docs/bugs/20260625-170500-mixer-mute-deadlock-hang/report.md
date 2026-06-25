@@ -43,3 +43,14 @@ this one because it's a cross-lock deadlock, not graphLock re-entry.
 
 Mute/unmute any mixer track during playback with no hang; tick path keeps
 running.
+
+## Root cause (adversarial review 2026-06-25)
+Regression-by-exposure. The lifecycleLock coupling is pre-existing, but our
+branch removed the `engine.stop()` that ran before the reconnect — so the
+control path now holds `lifecycleLock` across a LIVE `engine.connect/disconnect`
+(which synchronizes with the HAL/render thread, unbounded), starving the tick
+thread that takes `lifecycleLock` every `prepareTick`. Blocked tick:
+SamplePlaybackEngine `setVoiceParam`→withLock (:1828); holder:
+setTrackMix/setTrackSends lifecycleLock.withLock across audioGraph mutation,
+run inline on main. Root fix in task #47 (don't hold lifecycleLock across engine
+mutation). Not the offline pump (revert didn't fix this one).
