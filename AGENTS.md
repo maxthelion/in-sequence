@@ -112,7 +112,15 @@ the established pattern (the capture harness is built on it).
 - NOT gated by `SEQUENCER_AI_ALLOW_VISUAL_AUTOMATION` (that gate only guards the
   Peekaboo screenshot script).
 
-Full reference + vocabulary: [`wiki/pages/app-command-channel.md`](wiki/pages/app-command-channel.md).
+For **audio graph-edit safety**, drive `scripts/visual-scenarios/routing-stress.sh`
+(headless real-HAL via `SEQUENCER_AI_HEADLESS_REAL_HAL=1`): it walks mute / add-fx
+/ route / sends / scenes with a hang/crash/silence/click watchdog and is how the
+routing deadlock/cycle/silence/click bugs were found and gated. A green run is
+necessary-not-sufficient (output-only, native-FX, serial ops) — pair with a human
+real-audio pass for AU/input/concurrent cases.
+
+Full reference + vocabulary + the rig's honest limits:
+[`wiki/pages/app-command-channel.md`](wiki/pages/app-command-channel.md).
 
 ## Runtime Diagnostics
 

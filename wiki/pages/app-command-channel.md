@@ -86,6 +86,12 @@ The authoritative list is the `command["..."]` keys in
   `phraseWorkspaceTab=`, `phrasePerformLayer(Selector|Variant)=`,
   `phraseGlobalApply*`, `phraseCapture=`, `phraseSceneSelect=`.
 - **Mixer / misc:** `masterGain=`, `windowFrame=`, `quantise=`.
+- **Graph-edit (routing self-test):** `trackMute=<idx>:<on|off>`,
+  `busMute=<idx>:<on|off>`, `trackAddInsert=<idx>:<native-filter|native-bitcrusher>`,
+  `trackRemoveInsert=<idx>:<insertIdx>`, `masterAddInsert=<native-...>`,
+  `routeTrackToBus=<idx>:<busIdx|master>`, `trackSend=<idx>:A=<0..1>,B=<0..1>`,
+  `removeTrack=<idx>`. (native FX only — no AU; AU effects need an interactive
+  permission-granting session.)
 
 Note: many `*Fixture*` commands BUILD state (e.g. `phraseMatrixTrackCount`
 forces `workspace=phrase` via `applyPhraseMatrixFixture`), so combining them with
@@ -95,17 +101,43 @@ a different `workspace=` can fight — read the apply function before composing.
 
 After applying, the app writes `<command-file>.status` with `key=value` lines
 (see `writeStatus(...)`), including `transport=play|stop`, the resolved
-workspace/scenes mode, and `*RenderedVisible` flags for surfaces. Poll it (the
-harness's `wait_for_status key value timeout` pattern) to confirm a command took
-effect before acting further.
+workspace/scenes mode, `*RenderedVisible` flags, and **audio metrics**:
+`masterPeak` (dBFS, summed master — ears-free "is signal reaching master") and
+`masterMaxSampleDelta` (a normalized discontinuity / click proxy). Poll it with
+the `wait_for_status key value timeout` pattern.
 
-Today the status file does **not** include a master audio level. Adding a
-`masterPeak=` field to `writeStatus` (small change) would allow **ears-free
-verification that signal is reaching master** — useful for routing/audio passes
-and complementary to the offline-amplitude test
-([[architecture-guardrails]] → Audio Engine Hard Rules / the offline frame test).
+CAVEAT (2026-06-25 gate review): `masterPeak` is the SUMMED master, so it cannot
+see a single track going silent, and the click proxy's SNR is limited by noisy
+sources. Treat them as coarse signals — for routing self-tests use the
+`routing-stress` rig below (per-track checks + op post-conditions).
 
-## Limits
+## Headless real-HAL self-test: the routing-stress rig
+
+`scripts/visual-scenarios/routing-stress.sh` drives the graph-edit commands
+above over the command channel against a **real HAL engine, headless**, and
+auto-detects failures — the tool that found and gated the audio-graph deadlock /
+cycle / silence / click bugs. Use it before claiming any graph-edit change is
+safe.
+
+- **Real-HAL headless:** set `SEQUENCER_AI_HEADLESS_REAL_HAL=1` to skip the
+  command-channel's default offline-render force, so the engine runs on the real
+  device (sample-only fixtures → no mic prompt). This is required to reproduce
+  HAL-running bugs (live `engine.connect` reconfig deadlocks) that offline mode
+  hides.
+- **Fixture:** `docs/fixtures/audio-rich-routing-sampleonly.seqai` (sample/native
+  only) + `SEQUENCER_AI_MATERIALIZE_FIXTURE_SAMPLES=1`.
+- **Watchdog:** after each command it checks pid-alive + status freshness; on a
+  stall it `sample`s the process and logs the blocked stacks (HANG), captures
+  `.ips` faulting frames (CRASH), and reads the audio metrics (SILENCE / CLICK).
+  Per-op report under `.meta/routing-stress/`.
+
+**Honest limits of the gate** (2026-06-25 review — know these before trusting a
+green run): it covers the **output-only, native-FX path, one serial op at a
+time** on a single fixture. It does NOT cover AU instruments/effects, audio
+input, concurrent/rapid edits, scene crossfades, or sub-watchdog hangs; the
+summed-`masterPeak` silence check and the click proxy are coarse (per-track
+checks + op post-conditions are being added). A green rig run is necessary, not
+sufficient — pair it with a human real-audio pass for the excluded classes.
 
 - The vocabulary is fixed code; adding a new command key or status field means
   editing `VisualScenarioCommandRunner.swift` and rebuilding.
