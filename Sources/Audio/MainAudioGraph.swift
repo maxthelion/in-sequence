@@ -493,6 +493,7 @@ final class MainAudioGraph {
             let wasRunning = self.engine.isRunning
             self.removeMasterMeterTapIfNeeded()
             if wasRunning {
+                // routing-lint-allow: setAudioInputRouting full-rebuild fallback (HAL renegotiation)
                 self.engine.stop()
             }
 
@@ -516,6 +517,7 @@ final class MainAudioGraph {
             let wantsLiveAudio = !Self.simulateAudioInputConnectionForTesting
                 && requests.contains { $0.source != .silent }
             if wasRunning || wantsLiveAudio {
+                // routing-lint-allow: setAudioInputRouting full-rebuild fallback (HAL renegotiation)
                 try? self.engine.start()
                 self.isStarted = self.engine.isRunning
             }
@@ -1002,6 +1004,7 @@ final class MainAudioGraph {
             guard !self.isStarted || !self.engine.isRunning else { return }
             self.installMasterMeterTapIfNeeded()
             self.channelMeterBank.startPublishing()
+            // routing-lint-allow: transport start() (engine lifecycle, not a routing edit)
             try self.engine.start()
             self.isStarted = true
         }
@@ -1012,6 +1015,7 @@ final class MainAudioGraph {
             self.removeMasterMeterTapIfNeeded()
             self.channelMeterBank.stopPublishing()
             guard self.isStarted || self.engine.isRunning else { return }
+            // routing-lint-allow: transport stop() (engine lifecycle, not a routing edit)
             self.engine.stop()
             self.isStarted = false
         }
@@ -1030,6 +1034,7 @@ final class MainAudioGraph {
 
             self.removeMasterMeterTapIfNeeded()
             if self.engine.isRunning {
+                // routing-lint-allow: applyAudioDeviceUIDs device-change recovery (HAL renegotiation)
                 self.engine.stop()
             }
 
@@ -1080,6 +1085,7 @@ final class MainAudioGraph {
             let wasRunning = self.engine.isRunning
             self.removeMasterMeterTapIfNeeded()
             if wasRunning {
+                // routing-lint-allow: installMasterChains one-time master-chain topology setup
                 self.engine.stop()
             }
 
@@ -1180,6 +1186,7 @@ final class MainAudioGraph {
             self.installMasterMeterTapIfNeeded()
 
             if wasRunning {
+                // routing-lint-allow: installMasterChains one-time master-chain topology setup
                 try? self.engine.start()
                 self.isStarted = self.engine.isRunning
             }
@@ -1571,6 +1578,7 @@ final class MainAudioGraph {
         // the apply and rollback paths land here).
         defer { publishAudioInputCaptureFormatsOnMain() }
         if self.engine.isRunning {
+            // routing-lint-allow: recoverAudioGraphAfterDeviceApply device-change recovery (HAL renegotiation)
             self.engine.stop()
         }
         self.engine.reset()
@@ -1578,6 +1586,7 @@ final class MainAudioGraph {
         self.installMasterMeterTapIfNeeded()
         if wasRunning {
             self.channelMeterBank.startPublishing()
+            // routing-lint-allow: recoverAudioGraphAfterDeviceApply device-change recovery (HAL renegotiation)
             try self.engine.start()
         }
         self.isStarted = wasRunning ? self.engine.isRunning : self.isStarted
