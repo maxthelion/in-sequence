@@ -353,6 +353,7 @@ final class MainAudioGraph {
     }
 
     func attach(_ node: AVAudioNode) {
+        TickPathMainSyncGuard.assertNotHoldingLifecycleLockForGraphMutation("MainAudioGraph.attach")
         performOnMain {
             guard node.engine == nil else { return }
             self.engine.attach(node)
@@ -360,6 +361,7 @@ final class MainAudioGraph {
     }
 
     func detach(_ node: AVAudioNode) {
+        TickPathMainSyncGuard.assertNotHoldingLifecycleLockForGraphMutation("MainAudioGraph.detach")
         performOnMain {
             guard node.engine === self.engine else { return }
             // A node leaving the graph takes its meter registration with it.
@@ -372,6 +374,7 @@ final class MainAudioGraph {
     }
 
     func connect(_ source: AVAudioNode, to destination: AVAudioNode, format: AVAudioFormat? = nil) {
+        TickPathMainSyncGuard.assertNotHoldingLifecycleLockForGraphMutation("MainAudioGraph.connect")
         performOnMain {
             self.engine.connect(
                 source,
@@ -384,6 +387,7 @@ final class MainAudioGraph {
     }
 
     func disconnectOutput(_ node: AVAudioNode) {
+        TickPathMainSyncGuard.assertNotHoldingLifecycleLockForGraphMutation("MainAudioGraph.disconnectOutput")
         performOnMain {
             self.removeTrackSendNodes(for: node)
             self.engine.disconnectNodeOutput(node)
@@ -394,6 +398,7 @@ final class MainAudioGraph {
     /// side effect of `disconnectOutput`. Used by `TrackInsertChainHost` to
     /// detach an insert from its upstream neighbour during a chain rebuild.
     func disconnectInput(_ node: AVAudioNode) {
+        TickPathMainSyncGuard.assertNotHoldingLifecycleLockForGraphMutation("MainAudioGraph.disconnectInput")
         performOnMain {
             self.engine.disconnectNodeInput(node)
         }
@@ -789,6 +794,7 @@ final class MainAudioGraph {
         to busID: UUID?,
         sends sendLevels: TrackSendLevels = .zero
     ) {
+        TickPathMainSyncGuard.assertNotHoldingLifecycleLockForGraphMutation("MainAudioGraph.connectTrackOutput")
         performOnMain {
             // Acquired inside the main-thread closure: holding
             // graphLock across DispatchQueue.main.sync is a
@@ -815,6 +821,7 @@ final class MainAudioGraph {
         toMixerBus busID: UUID,
         inputBus: AVAudioNodeBus
     ) {
+        TickPathMainSyncGuard.assertNotHoldingLifecycleLockForGraphMutation("MainAudioGraph.connectPreparedSampleVoiceOutput")
         performOnMain {
             self.lockGraphLock()
             defer { self.unlockGraphLock() }
@@ -941,6 +948,7 @@ final class MainAudioGraph {
     }
 
     func setTrackSendLevels(_ source: AVAudioNode, sendA: Double, sendB: Double) {
+        TickPathMainSyncGuard.assertNotHoldingLifecycleLockForGraphMutation("MainAudioGraph.setTrackSendLevels")
         performOnMain {
             // Acquired inside the main-thread closure: holding
             // graphLock across DispatchQueue.main.sync is a

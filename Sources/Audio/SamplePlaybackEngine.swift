@@ -208,14 +208,14 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
     #endif
 
     var preparedTrackIDs: Set<UUID> {
-        lifecycleLock.withLock {
+        withLifecycleLock {
             Set(trackVoicePools.keys).union(busVoicePools.keys)
         }
     }
 
     #if DEBUG
     var deferredPreparedTrackRepairIDsForTesting: Set<UUID> {
-        lifecycleLock.withLock { deferredPreparedTrackRepairIDs }
+        withLifecycleLock { deferredPreparedTrackRepairIDs }
     }
     #endif
 
@@ -230,16 +230,16 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
     }
 
     func start() throws {
-        guard lifecycleLock.withLock({ !isStarted }) else { return }
+        guard withLifecycleLock({ !isStarted }) else { return }
         validatePreparedTrackGraphs()
         try audioGraph.start()
-        lifecycleLock.withLock {
+        withLifecycleLock {
             isStarted = true
         }
     }
 
     func stop() {
-        let (shouldStop, pools, busPools) = lifecycleLock.withLock { () -> (Bool, [TrackVoicePool], [BusVoicePool]) in
+        let (shouldStop, pools, busPools) = withLifecycleLock { () -> (Bool, [TrackVoicePool], [BusVoicePool]) in
             guard isStarted else { return (false, [], []) }
             isStarted = false
             return (true, Array(trackVoicePools.values), Array(busVoicePools.values))
@@ -261,47 +261,63 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
 
     func prepareTrack(trackID: UUID) {
         performOnMain { [self] in
-            lifecycleLock.withLock {
-                if let busID = trackOutputBusIDs[trackID],
-                   audioGraph.mixerBusReadoutForTesting(busID: busID) != nil {
-                    prepareBusVoicePool(trackID: trackID, busID: busID)
+            // Snapshot the routing decision + existing pool under the lock;
+            // the heavy graph construction below runs WITHOUT the lock (the
+            // setup/repair helpers take it internally for their dictionary
+            // touches). This is the deadlock-class fix: the tick path, which
+            // takes lifecycleLock every tick, never contends with a live
+            // engine reconfiguration.
+            let (busID, existingPool): (UUID?, TrackVoicePool?) = withLifecycleLock {
+                (trackOutputBusIDs[trackID], trackVoicePools[trackID])
+            }
+
+            if let busID, audioGraph.mixerBusReadoutForTesting(busID: busID) != nil {
+                prepareBusVoicePool(trackID: trackID, busID: busID)
+                withLifecycleLock {
                     _ = fastPathReadyTrackIDs.insert(trackID)
                     _ = deferredPreparedTrackRepairIDs.remove(trackID)
-                    return
                 }
-                if let pool = trackVoicePools[trackID] {
-                    if !isPreparedTrackPoolReadyForPlayback(trackID: trackID, pool: pool) {
-                        repairPreparedTrackGraph(trackID: trackID, pool: pool)
-                    }
+                return
+            }
+            if let existingPool {
+                if !isPreparedTrackPoolReadyForPlayback(trackID: trackID, pool: existingPool) {
+                    repairPreparedTrackGraph(trackID: trackID, pool: existingPool)
+                }
+                withLifecycleLock {
                     _ = fastPathReadyTrackIDs.insert(trackID)
                     _ = deferredPreparedTrackRepairIDs.remove(trackID)
-                    return
                 }
-                _ = trackMixer(for: trackID)
-                var voices: [AVAudioPlayerNode] = []
-                var voiceFilters: [SamplerFilterNode] = []
-                var handles: [UUID] = []
+                return
+            }
 
-                for _ in 0..<Self.voicesPerTrack {
-                    let voice = AVAudioPlayerNode()
-                    let voiceFilter = SamplerFilterNode()
-                    // realtime-allow-graph-mutation: prepared track setup occurs during document apply/setup, not tick dispatch. Test: RealtimePathLintTests.
-                    audioGraph.attach(voice)
-                    // realtime-allow-graph-mutation: prepared track setup occurs during document apply/setup, not tick dispatch. Test: RealtimePathLintTests.
-                    audioGraph.attach(voiceFilter.avNode)
-                    voices.append(voice)
-                    voiceFilters.append(voiceFilter)
-                    handles.append(UUID())
-                }
+            _ = trackMixer(for: trackID)
+            var voices: [AVAudioPlayerNode] = []
+            var voiceFilters: [SamplerFilterNode] = []
+            var handles: [UUID] = []
 
-                let pool = TrackVoicePool(
-                    voices: voices,
-                    voiceFilters: voiceFilters,
-                    handles: handles,
-                    cursor: 0
-                )
+            for _ in 0..<Self.voicesPerTrack {
+                let voice = AVAudioPlayerNode()
+                let voiceFilter = SamplerFilterNode()
+                // realtime-allow-graph-mutation: prepared track setup occurs during document apply/setup, not tick dispatch. Test: RealtimePathLintTests.
+                audioGraph.attach(voice)
+                // realtime-allow-graph-mutation: prepared track setup occurs during document apply/setup, not tick dispatch. Test: RealtimePathLintTests.
+                audioGraph.attach(voiceFilter.avNode)
+                voices.append(voice)
+                voiceFilters.append(voiceFilter)
+                handles.append(UUID())
+            }
+
+            let pool = TrackVoicePool(
+                voices: voices,
+                voiceFilters: voiceFilters,
+                handles: handles,
+                cursor: 0
+            )
+            withLifecycleLock {
                 trackVoicePools[trackID] = pool
-                repairPreparedTrackGraph(trackID: trackID, pool: pool)
+            }
+            repairPreparedTrackGraph(trackID: trackID, pool: pool)
+            withLifecycleLock {
                 _ = fastPathReadyTrackIDs.insert(trackID)
                 _ = deferredPreparedTrackRepairIDs.remove(trackID)
             }
@@ -310,14 +326,14 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
 
     @discardableResult
     func play(sampleURL: URL, settings: SamplerSettings, trackID: UUID, at when: AVAudioTime? = nil) -> VoiceHandle? {
-        guard lifecycleLock.withLock({ isStarted }) else { return nil }
+        guard withLifecycleLock({ isStarted }) else { return nil }
         guard let file = cachedFile(url: sampleURL) else { return nil }
         return playPreparedSample(file: file, sampleURL: sampleURL, settings: settings, trackID: trackID, at: when)
     }
 
     @discardableResult
     func play(sampleAsset: PreparedSampleAsset, settings: SamplerSettings, trackID: UUID, at when: AVAudioTime? = nil) -> VoiceHandle? {
-        guard lifecycleLock.withLock({ isStarted }) else { return nil }
+        guard withLifecycleLock({ isStarted }) else { return nil }
         return playPreparedSample(
             file: sampleAsset.file,
             sampleURL: sampleAsset.url,
@@ -334,7 +350,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         trackID: UUID,
         at when: AVAudioTime?
     ) -> VoiceHandle? {
-        if lifecycleLock.withLock({ busVoicePools[trackID] != nil }) {
+        if withLifecycleLock({ busVoicePools[trackID] != nil }) {
             return playPreparedBusSample(
                 file: file,
                 sampleURL: sampleURL,
@@ -409,7 +425,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
 
         var selectedVoice: AVAudioPlayerNode?
         var handleID: UUID?
-        lifecycleLock.withLock {
+        withLifecycleLock {
             guard var pool = busVoicePools[trackID],
                   !pool.voices.isEmpty
             else {
@@ -489,7 +505,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         reverse: Bool = false,
         stepParameters: SliceTriggerStepParameters? = nil
     ) -> VoiceHandle? {
-        guard lifecycleLock.withLock({ isStarted }) else { return nil }
+        guard withLifecycleLock({ isStarted }) else { return nil }
         guard let file = cachedFile(url: sampleURL) else { return nil }
         return playPreparedSlice(
             file: file,
@@ -516,7 +532,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         reverse: Bool = false,
         stepParameters: SliceTriggerStepParameters? = nil
     ) -> VoiceHandle? {
-        guard lifecycleLock.withLock({ isStarted }) else { return nil }
+        guard withLifecycleLock({ isStarted }) else { return nil }
         return playPreparedSlice(
             file: sampleAsset.file,
             pcmBuffer: sampleAsset.pcmBuffer,
@@ -695,26 +711,26 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
     }
 
     func stopVoice(_ handle: VoiceHandle) {
-        lifecycleLock.lock()
-        defer { lifecycleLock.unlock() }
-        for pool in trackVoicePools.values {
-            guard let index = pool.handles.firstIndex(of: handle.id) else {
-                continue
+        withLifecycleLock {
+            for pool in trackVoicePools.values {
+                guard let index = pool.handles.firstIndex(of: handle.id) else {
+                    continue
+                }
+                pool.voices[index].stop()
+                return
             }
-            pool.voices[index].stop()
-            return
-        }
-        for pool in busVoicePools.values {
-            guard let index = pool.handles.firstIndex(of: handle.id) else {
-                continue
+            for pool in busVoicePools.values {
+                guard let index = pool.handles.firstIndex(of: handle.id) else {
+                    continue
+                }
+                pool.voices[index].stop()
+                return
             }
-            pool.voices[index].stop()
-            return
         }
     }
 
     func stopAllMainVoices() {
-        let (pools, busPools) = lifecycleLock.withLock { (Array(trackVoicePools.values), Array(busVoicePools.values)) }
+        let (pools, busPools) = withLifecycleLock { (Array(trackVoicePools.values), Array(busVoicePools.values)) }
         for pool in pools {
             for voice in pool.voices {
                 voice.stop()
@@ -730,39 +746,71 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
     func setTrackMix(trackID: UUID, level: Double, pan: Double) {
         prepareTrack(trackID: trackID)
         performOnMain { [self] in
-            lifecycleLock.withLock {
-                let clampedLevel = Float(min(max(level, 0), 1))
-                let clampedPan = Float(min(max(pan, -1), 1))
+            let clampedLevel = Float(min(max(level, 0), 1))
+            let clampedPan = Float(min(max(pan, -1), 1))
+            // Publish the new mix value and read the target node under the
+            // lock; the mixer parameter writes below are node-parameter
+            // updates (not graph mutations) and run without the lock.
+            let (busPool, mixer): (BusVoicePool?, AVAudioMixerNode?) = withLifecycleLock {
                 trackMixValues[trackID] = (level: clampedLevel, pan: clampedPan)
                 if let pool = busVoicePools[trackID] {
-                    applyBusVoiceMix(trackID: trackID, pool: pool)
-                    return
+                    return (pool, nil)
                 }
-                let mixer = trackMixer(for: trackID)
-                mixer.outputVolume = clampedLevel
-                mixer.pan = clampedPan
+                return (nil, trackMixers[trackID])
             }
+            if let busPool {
+                applyBusVoiceMix(trackID: trackID, pool: busPool)
+                return
+            }
+            // prepareTrack(trackID:) above guarantees the mixer exists.
+            let resolvedMixer = mixer ?? trackMixer(for: trackID)
+            resolvedMixer.outputVolume = clampedLevel
+            resolvedMixer.pan = clampedPan
         }
     }
 
     func setTrackOutputBus(trackID: UUID, busID: UUID?) {
         performOnMain { [self] in
-            lifecycleLock.withLock {
+            // Decide the branch and capture references under the lock; the
+            // chosen graph mutation runs WITHOUT the lock so it can't stall
+            // the tick path (which takes lifecycleLock each tick).
+            enum Branch {
+                case prepareBus(UUID)
+                case teardownBus(BusVoicePool)
+                case repairTrack(TrackVoicePool)
+                case wireFilterOutput(SamplerFilterNode, UUID?, MainAudioGraph.TrackSendLevels)
+                case none
+            }
+            let useBus = busID != nil && audioGraph.mixerBusReadoutForTesting(busID: busID!) != nil
+            let branch: Branch = withLifecycleLock {
                 trackOutputBusIDs[trackID] = busID
-                if let busID,
-                   audioGraph.mixerBusReadoutForTesting(busID: busID) != nil {
-                    prepareBusVoicePool(trackID: trackID, busID: busID)
+                if useBus, let busID {
+                    return .prepareBus(busID)
                 } else if let pool = busVoicePools.removeValue(forKey: trackID) {
-                    teardownBusVoicePool(pool)
+                    _ = fastPathReadyTrackIDs.remove(trackID)
+                    return .teardownBus(pool)
                 } else if let pool = trackVoicePools[trackID] {
-                    repairPreparedTrackGraph(trackID: trackID, pool: pool)
+                    return .repairTrack(pool)
                 } else if let filter = trackFilters[trackID] {
-                    audioGraph.connectTrackOutput(
-                        filter.avNode,
-                        to: busID,
-                        sends: trackSendLevels[trackID] ?? .zero
-                    )
+                    return .wireFilterOutput(filter, busID, trackSendLevels[trackID] ?? .zero)
                 }
+                return .none
+            }
+
+            switch branch {
+            case let .prepareBus(busID):
+                prepareBusVoicePool(trackID: trackID, busID: busID)
+            case let .teardownBus(pool):
+                teardownBusVoicePool(pool)
+            case let .repairTrack(pool):
+                repairPreparedTrackGraph(trackID: trackID, pool: pool)
+            case let .wireFilterOutput(filter, busID, sends):
+                audioGraph.connectTrackOutput(filter.avNode, to: busID, sends: sends)
+            case .none:
+                break
+            }
+
+            withLifecycleLock {
                 _ = fastPathReadyTrackIDs.insert(trackID)
                 _ = deferredPreparedTrackRepairIDs.remove(trackID)
             }
@@ -772,50 +820,72 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
     func setTrackSends(trackID: UUID, sendA: Double, sendB: Double) {
         prepareTrack(trackID: trackID)
         performOnMain { [self] in
-            lifecycleLock.withLock {
-                let levels = MainAudioGraph.TrackSendLevels(sendA: sendA, sendB: sendB)
+            let levels = MainAudioGraph.TrackSendLevels(sendA: sendA, sendB: sendB)
+            // Publish the levels + read the terminal node under the lock; the
+            // send-level apply (which may rewire send geometry the first time)
+            // runs without the lock.
+            let filter: SamplerFilterNode? = withLifecycleLock {
                 trackSendLevels[trackID] = levels
-                guard let filter = trackFilters[trackID] else { return }
-                audioGraph.setTrackSendLevels(filter.avNode, sendA: levels.sendA, sendB: levels.sendB)
+                return trackFilters[trackID]
             }
+            guard let filter else { return }
+            audioGraph.setTrackSendLevels(filter.avNode, sendA: levels.sendA, sendB: levels.sendB)
         }
     }
 
     func removeTrack(trackID: UUID) {
         performOnMain { [self] in
-            lifecycleLock.lock()
-            defer { lifecycleLock.unlock() }
+            // Under-lock section: publish the removal (drop the track from
+            // every dictionary the tick path reads) and CAPTURE the node
+            // references to tear down. Once `trackVoicePools`/`busVoicePools`/
+            // `fastPathReadyTrackIDs` no longer name this track, the tick path
+            // can never select its voices again, so the captured nodes are
+            // safe to detach after the lock is released. The engine mutations
+            // (disconnect/detach) run OUTSIDE the lock so a live HAL reconfig
+            // can't stall the tick thread that takes lifecycleLock each tick.
+            let removedTrackPool: TrackVoicePool?
+            let removedBusPool: BusVoicePool?
+            let removedMixer: AVAudioMixerNode?
+            let removedFilter: SamplerFilterNode?
+            (removedTrackPool, removedBusPool, removedMixer, removedFilter) = withLifecycleLock {
+                let trackPool = trackVoicePools.removeValue(forKey: trackID)
+                let busPool = busVoicePools.removeValue(forKey: trackID)
+                voiceParams.removeValue(forKey: trackID)
+                trackOutputBusIDs.removeValue(forKey: trackID)
+                trackSendLevels.removeValue(forKey: trackID)
+                trackMixValues.removeValue(forKey: trackID)
+                trackFilterFanouts.removeValue(forKey: trackID)
+                _ = fastPathReadyTrackIDs.remove(trackID)
+                _ = deferredPreparedTrackRepairIDs.remove(trackID)
+                let mixer = trackMixers.removeValue(forKey: trackID)
+                let filter = trackFilters.removeValue(forKey: trackID)
+                return (trackPool, busPool, mixer, filter)
+            }
 
-            if let pool = trackVoicePools.removeValue(forKey: trackID) {
-                teardownTrackVoicePool(pool)
+            // Post-lock section: tear down the captured graph nodes.
+            if let removedTrackPool {
+                teardownTrackVoicePool(removedTrackPool)
             }
-            if let pool = busVoicePools.removeValue(forKey: trackID) {
-                teardownBusVoicePool(pool)
+            if let removedBusPool {
+                teardownBusVoicePool(removedBusPool)
             }
-            voiceParams.removeValue(forKey: trackID)
-            trackOutputBusIDs.removeValue(forKey: trackID)
-            trackSendLevels.removeValue(forKey: trackID)
-            trackMixValues.removeValue(forKey: trackID)
-            trackFilterFanouts.removeValue(forKey: trackID)
-            _ = fastPathReadyTrackIDs.remove(trackID)
-            _ = deferredPreparedTrackRepairIDs.remove(trackID)
-            guard let mixer = trackMixers.removeValue(forKey: trackID) else { return }
+            guard let removedMixer else { return }
             // realtime-allow-graph-mutation: track teardown is document/routing cleanup, not tick dispatch. Test: RealtimePathLintTests.
-            audioGraph.disconnectOutput(mixer)
+            audioGraph.disconnectOutput(removedMixer)
             // realtime-allow-graph-mutation: track teardown is document/routing cleanup, not tick dispatch. Test: RealtimePathLintTests.
-            audioGraph.detach(mixer)
+            audioGraph.detach(removedMixer)
             // Also tear down the filter inserted after this mixer.
-            if let filter = trackFilters.removeValue(forKey: trackID) {
+            if let removedFilter {
                 // realtime-allow-graph-mutation: track teardown is document/routing cleanup, not tick dispatch. Test: RealtimePathLintTests.
-                audioGraph.disconnectOutput(filter.avNode)
+                audioGraph.disconnectOutput(removedFilter.avNode)
                 // realtime-allow-graph-mutation: track teardown is document/routing cleanup, not tick dispatch. Test: RealtimePathLintTests.
-                audioGraph.detach(filter.avNode)
+                audioGraph.detach(removedFilter.avNode)
             }
         }
     }
 
     func audition(sampleURL: URL) {
-        guard lifecycleLock.withLock({ isStarted }) else { return }
+        guard withLifecycleLock({ isStarted }) else { return }
         guard let file = cachedFile(url: sampleURL) else { return }
         previewNode.stop()
         previewNode.volume = 1.0
@@ -828,13 +898,21 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
     }
 
     func setVoiceParam(trackID: UUID, kind: BuiltinMacroKind, value: Double) {
-        lifecycleLock.withLock {
+        withLifecycleLock {
             voiceParams[trackID, default: [:]][kind] = value
         }
     }
 
+    /// Lock contract: callers MUST NOT hold `lifecycleLock`. This method runs
+    /// on `@MainActor` (writers are main-serialized) and takes the lock
+    /// internally only for the brief dictionary read/publish points — never
+    /// across the `audioGraph` graph mutation below.
+    @MainActor
     private func trackMixer(for trackID: UUID) -> AVAudioMixerNode {
-        if let mixer = trackMixers[trackID] { return mixer }
+        let (existingMixer, busID, sends) = withLifecycleLock {
+            (trackMixers[trackID], trackOutputBusIDs[trackID], trackSendLevels[trackID] ?? .zero)
+        }
+        if let existingMixer { return existingMixer }
         let mixer = AVAudioMixerNode()
         // realtime-allow-graph-mutation: prepared track output setup occurs during setup/repair, not tick dispatch. Test: RealtimePathLintTests.
         audioGraph.attach(mixer)
@@ -848,42 +926,67 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         audioGraph.connect(mixer, to: filter.avNode)
         audioGraph.connectTrackOutput(
             filter.avNode,
-            to: trackOutputBusIDs[trackID],
-            sends: trackSendLevels[trackID] ?? .zero
+            to: busID,
+            sends: sends
         )
         // The filter node is the track's terminal point (post level/pan,
         // post filter) — register it as the strip's meter source.
         audioGraph.setTrackMeterSources(trackIDs: [trackID], node: filter.avNode)
-        trackFilters[trackID] = filter
-        filterFanout(for: trackID).setTargets([filter])
-
-        trackMixers[trackID] = mixer
+        let fanout = withLifecycleLock { () -> SamplerFilterFanout in
+            trackFilters[trackID] = filter
+            trackMixers[trackID] = mixer
+            return filterFanoutLocked(for: trackID)
+        }
+        fanout.setTargets([filter])
         return mixer
     }
 
+    /// Lock contract: callers MUST NOT hold `lifecycleLock`. Runs on
+    /// `@MainActor`; takes the lock internally only for the dictionary
+    /// snapshot/publish points, never across the graph mutation.
     @MainActor
     private func prepareBusVoicePool(trackID: UUID, busID: UUID) {
-        if let pool = busVoicePools[trackID],
-           isBusVoicePoolReadyForPlayback(pool: pool, busID: busID)
-        {
-            applyBusVoiceMix(trackID: trackID, pool: pool)
-            return
+        // Snapshot existing state and tear down any stale track-route nodes
+        // under the lock; drop the track from the fast-path so the tick path
+        // can't touch the pool while we rebuild it.
+        let (existingBusPool, staleTrackPool, staleMixer, staleFilter) = withLifecycleLock {
+            () -> (BusVoicePool?, TrackVoicePool?, AVAudioMixerNode?, SamplerFilterNode?) in
+            let busPool = busVoicePools[trackID]
+            if busPool != nil { return (busPool, nil, nil, nil) }
+            _ = fastPathReadyTrackIDs.remove(trackID)
+            let trackPool = trackVoicePools.removeValue(forKey: trackID)
+            let mixer = trackMixers.removeValue(forKey: trackID)
+            let filter = trackFilters.removeValue(forKey: trackID)
+            return (nil, trackPool, mixer, filter)
         }
 
-        if let pool = trackVoicePools.removeValue(forKey: trackID) {
-            teardownTrackVoicePool(pool)
+        if let existingBusPool {
+            if isBusVoicePoolReadyForPlayback(pool: existingBusPool, busID: busID) {
+                applyBusVoiceMix(trackID: trackID, pool: existingBusPool)
+                return
+            }
+            // Stale bus pool: drop it (under lock) and rebuild below.
+            withLifecycleLock {
+                _ = fastPathReadyTrackIDs.remove(trackID)
+                _ = busVoicePools.removeValue(forKey: trackID)
+            }
+            teardownBusVoicePool(existingBusPool)
         }
-        if let mixer = trackMixers.removeValue(forKey: trackID) {
-            // realtime-allow-graph-mutation: prepared route switch setup only, not tick dispatch. Test: RealtimePathLintTests.
-            audioGraph.disconnectOutput(mixer)
-            // realtime-allow-graph-mutation: prepared route switch setup only, not tick dispatch. Test: RealtimePathLintTests.
-            audioGraph.detach(mixer)
+
+        if let staleTrackPool {
+            teardownTrackVoicePool(staleTrackPool)
         }
-        if let filter = trackFilters.removeValue(forKey: trackID) {
+        if let staleMixer {
             // realtime-allow-graph-mutation: prepared route switch setup only, not tick dispatch. Test: RealtimePathLintTests.
-            audioGraph.disconnectOutput(filter.avNode)
+            audioGraph.disconnectOutput(staleMixer)
             // realtime-allow-graph-mutation: prepared route switch setup only, not tick dispatch. Test: RealtimePathLintTests.
-            audioGraph.detach(filter.avNode)
+            audioGraph.detach(staleMixer)
+        }
+        if let staleFilter {
+            // realtime-allow-graph-mutation: prepared route switch setup only, not tick dispatch. Test: RealtimePathLintTests.
+            audioGraph.disconnectOutput(staleFilter.avNode)
+            // realtime-allow-graph-mutation: prepared route switch setup only, not tick dispatch. Test: RealtimePathLintTests.
+            audioGraph.detach(staleFilter.avNode)
         }
 
         var voices: [AVAudioPlayerNode] = []
@@ -910,9 +1013,12 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         }
 
         let pool = BusVoicePool(voices: voices, voiceMixers: mixers, handles: handles, cursor: 0)
-        busVoicePools[trackID] = pool
-        _ = deferredPreparedTrackRepairIDs.remove(trackID)
-        filterFanout(for: trackID).setTargets([])
+        let fanout = withLifecycleLock { () -> SamplerFilterFanout in
+            busVoicePools[trackID] = pool
+            _ = deferredPreparedTrackRepairIDs.remove(trackID)
+            return filterFanoutLocked(for: trackID)
+        }
+        fanout.setTargets([])
         applyBusVoiceMix(trackID: trackID, pool: pool)
         // realtime-allow-graph-mutation: prepared bus voice setup occurs during document apply/setup, not tick dispatch. Test: RealtimePathLintTests.
         audioGraph.engine.prepare()
@@ -940,8 +1046,11 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         return true
     }
 
+    /// Lock contract: callers MUST NOT hold `lifecycleLock`. Reads
+    /// `trackMixValues` under the lock, then applies the mixer params (a
+    /// node-parameter write, not a graph mutation) without it.
     private func applyBusVoiceMix(trackID: UUID, pool: BusVoicePool) {
-        let mix = trackMixValues[trackID] ?? (level: 1, pan: 0)
+        let mix = withLifecycleLock { trackMixValues[trackID] ?? (level: 1, pan: 0) }
         for mixer in pool.voiceMixers {
             mixer.outputVolume = mix.level
             mixer.pan = mix.pan
@@ -984,26 +1093,36 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
 
     private func validatePreparedTrackGraphs() {
         performOnMain { [self] in
-            lifecycleLock.withLock {
-                for (trackID, pool) in trackVoicePools {
-                    guard !isPreparedTrackPoolReadyForPlayback(trackID: trackID, pool: pool) else {
-                        _ = deferredPreparedTrackRepairIDs.remove(trackID)
-                        continue
-                    }
-                    repairPreparedTrackGraph(trackID: trackID, pool: pool)
+            // Snapshot the pools + bus routing under the lock, then validate /
+            // repair WITHOUT holding it (the repair helpers take the lock
+            // internally for their dictionary touches). Writers are
+            // main-serialized, so the snapshot can't be invalidated mid-pass.
+            let (trackPools, busPools, busRouting): (
+                [UUID: TrackVoicePool],
+                [UUID: BusVoicePool],
+                [UUID: UUID]
+            ) = withLifecycleLock {
+                (trackVoicePools, busVoicePools, trackOutputBusIDs)
+            }
+
+            for (trackID, pool) in trackPools {
+                guard !isPreparedTrackPoolReadyForPlayback(trackID: trackID, pool: pool) else {
+                    withLifecycleLock { _ = deferredPreparedTrackRepairIDs.remove(trackID) }
+                    continue
                 }
-                for (trackID, pool) in busVoicePools {
-                    guard let busID = trackOutputBusIDs[trackID],
-                          isBusVoicePoolReadyForPlayback(pool: pool, busID: busID)
-                    else {
-                        if let busID = trackOutputBusIDs[trackID] {
-                            prepareBusVoicePool(trackID: trackID, busID: busID)
-                        }
-                        continue
+                repairPreparedTrackGraph(trackID: trackID, pool: pool)
+            }
+            for (trackID, pool) in busPools {
+                guard let busID = busRouting[trackID],
+                      isBusVoicePoolReadyForPlayback(pool: pool, busID: busID)
+                else {
+                    if let busID = busRouting[trackID] {
+                        prepareBusVoicePool(trackID: trackID, busID: busID)
                     }
-                    _ = deferredPreparedTrackRepairIDs.remove(trackID)
-                    applyBusVoiceMix(trackID: trackID, pool: pool)
+                    continue
                 }
+                withLifecycleLock { _ = deferredPreparedTrackRepairIDs.remove(trackID) }
+                applyBusVoiceMix(trackID: trackID, pool: pool)
             }
         }
     }
@@ -1014,7 +1133,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
     /// (e.g. via `SamplerDestinationWidget`). Per-step macro dispatch uses
     /// `filterNode(for:)` and the fine-grained setters instead.
     func applyFilter(_ settings: SamplerFilterSettings, trackID: UUID) {
-        let filter: (any SamplerFilterControlling)? = lifecycleLock.withLock {
+        let filter: (any SamplerFilterControlling)? = withLifecycleLock {
             if let fanout = trackFilterFanouts[trackID] {
                 return fanout
             }
@@ -1027,7 +1146,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
     ///
     /// Used by `TrackMacroApplier` to dispatch per-step filter macro values.
     func filterNode(for trackID: UUID) -> (any SamplerFilterControlling)? {
-        lifecycleLock.withLock {
+        withLifecycleLock {
             if let fanout = trackFilterFanouts[trackID] {
                 return fanout
             }
@@ -1036,7 +1155,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
     }
 
     private func cachedFile(url: URL) -> AVAudioFile? {
-        lifecycleLock.withLock {
+        withLifecycleLock {
             if let f = fileCache[url] { return f }
             // realtime-allow-file-open: legacy audition/URL fallback; tick dispatch must use PreparedSampleAsset. Test: RealtimePathLintTests.
             guard let f = try? AVAudioFile(forReading: url) else { return nil }
@@ -1252,7 +1371,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         var selectedFilter: SamplerFilterNode?
         var selectedParams: [BuiltinMacroKind: Double]?
 
-        lifecycleLock.withLock {
+        withLifecycleLock {
             guard fastPathReadyTrackIDs.contains(trackID),
                   var pool = trackVoicePools[trackID],
                   !pool.voices.isEmpty
@@ -1341,13 +1460,17 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
             var didRepair = false
 
             while true {
+                // Select the voice + advance the cursor under the lock (pure
+                // in-memory). The route-readiness check and any repair run
+                // OUTSIDE the lock so a live engine reconfiguration never
+                // stalls the tick thread that takes lifecycleLock each tick.
                 var selectedVoice: AVAudioPlayerNode?
                 var selectedFilter: SamplerFilterNode?
                 var selectedParams: [BuiltinMacroKind: Double]?
                 var selectedHandleID: UUID?
                 var needsRepair = false
 
-                lifecycleLock.withLock {
+                withLifecycleLock {
                     guard var pool = trackVoicePools[trackID],
                           !pool.voices.isEmpty
                     else {
@@ -1371,15 +1494,6 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
 
                     let voice = pool.voices[voiceIndex]
                     let voiceFilter = pool.voiceFilters[voiceIndex]
-                    guard isPreparedTrackRouteReadyForPlayback(
-                        trackID: trackID,
-                        voice: voice,
-                        voiceFilter: voiceFilter
-                    ) else {
-                        needsRepair = true
-                        return
-                    }
-
                     let handleID = UUID()
                     pool.handles[voiceIndex] = handleID
                     if voiceMode == .polyphonic {
@@ -1406,13 +1520,23 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
                     selectedHandleID = handleID
                 }
 
+                // Route-readiness check OUTSIDE the lock (it reads the engine
+                // graph and queries dictionaries under its own short lock).
+                if !needsRepair,
+                   let voice = selectedVoice,
+                   let voiceFilter = selectedFilter,
+                   !isPreparedTrackRouteReadyForPlayback(
+                       trackID: trackID,
+                       voice: voice,
+                       voiceFilter: voiceFilter
+                   ) {
+                    needsRepair = true
+                }
+
                 if needsRepair {
                     guard !didRepair else { return nil }
                     didRepair = true
-                    lifecycleLock.withLock {
-                        guard let pool = trackVoicePools[trackID] else { return }
-                        repairPreparedTrackGraph(trackID: trackID, pool: pool)
-                    }
+                    repairSelectedTrackIfPresent(trackID: trackID)
                     continue
                 }
 
@@ -1424,24 +1548,30 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
                 }
 
                 if schedule(voice, voiceFilter, selectedParams) {
-                    lifecycleLock.withLock {
+                    withLifecycleLock {
                         _ = fastPathReadyTrackIDs.insert(trackID)
                         _ = deferredPreparedTrackRepairIDs.remove(trackID)
                     }
                     return VoiceHandle(id: handleID)
                 }
 
-                lifecycleLock.withLock {
+                withLifecycleLock {
                     markPreparedTrackRepairDeferredLocked(trackID: trackID)
                 }
                 guard !didRepair else { return nil }
                 didRepair = true
-                lifecycleLock.withLock {
-                    guard let pool = trackVoicePools[trackID] else { return }
-                    repairPreparedTrackGraph(trackID: trackID, pool: pool)
-                }
+                repairSelectedTrackIfPresent(trackID: trackID)
             }
         }
+    }
+
+    /// Repair the prepared track graph for `trackID` if a pool exists. Reads
+    /// the pool under the lock, then runs the repair WITHOUT the lock (the
+    /// repair helper takes the lock internally for its dictionary touches).
+    @MainActor
+    private func repairSelectedTrackIfPresent(trackID: UUID) {
+        guard let pool = withLifecycleLock({ trackVoicePools[trackID] }) else { return }
+        repairPreparedTrackGraph(trackID: trackID, pool: pool)
     }
 
     @MainActor
@@ -1450,11 +1580,12 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         voice: AVAudioPlayerNode,
         voiceFilter: SamplerFilterNode
     ) -> Bool {
+        let (mixer, trackFilter) = withLifecycleLock { (trackMixers[trackID], trackFilters[trackID]) }
         guard voice.engine === audioGraph.engine,
               voiceFilter.avNode.engine === audioGraph.engine,
-              let mixer = trackMixers[trackID],
+              let mixer,
               mixer.engine === audioGraph.engine,
-              let trackFilter = trackFilters[trackID],
+              let trackFilter,
               trackFilter.avNode.engine === audioGraph.engine
         else {
             return false
@@ -1485,6 +1616,11 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         return true
     }
 
+    /// Lock contract: callers MUST NOT hold `lifecycleLock`. Runs on
+    /// `@MainActor`; drops the track from the fast-path (under the lock) before
+    /// the rewire so the tick path can't select a half-rebuilt pool, performs
+    /// the graph mutation WITHOUT the lock, then republishes the pool + ready
+    /// flag under the lock.
     @MainActor
     private func repairPreparedTrackGraph(trackID: UUID, pool: TrackVoicePool) {
         let started = ProcessInfo.processInfo.systemUptime
@@ -1499,6 +1635,9 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
             )
         }
         let pool = pool
+        withLifecycleLock {
+            _ = fastPathReadyTrackIDs.remove(trackID)
+        }
         let mixer = trackMixer(for: trackID)
         repairTrackMixerOutput(trackID: trackID, mixer: mixer)
 
@@ -1564,13 +1703,15 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
             mutationCount += 1
             mixerInputBus += 1
         }
-        trackVoicePools[trackID] = pool
-        _ = fastPathReadyTrackIDs.insert(trackID)
-        _ = deferredPreparedTrackRepairIDs.remove(trackID)
+        withLifecycleLock {
+            trackVoicePools[trackID] = pool
+            _ = fastPathReadyTrackIDs.insert(trackID)
+            _ = deferredPreparedTrackRepairIDs.remove(trackID)
+        }
     }
 
     private func deferPreparedTrackRepair(trackID: UUID, scheduled: TimeInterval?) {
-        let didInsert = lifecycleLock.withLock {
+        let didInsert = withLifecycleLock {
             markPreparedTrackRepairDeferredLocked(trackID: trackID)
         }
         if didInsert {
@@ -1594,22 +1735,29 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
     }
 
     private func isPreparedTrackRepairDeferred(trackID: UUID) -> Bool {
-        lifecycleLock.withLock {
+        withLifecycleLock {
             deferredPreparedTrackRepairIDs.contains(trackID)
         }
     }
 
+    /// Lock contract: callers MUST NOT hold `lifecycleLock`. Reads/publishes
+    /// `trackFilters` / route levels under the lock; graph mutation runs
+    /// without it.
     @MainActor
     private func repairTrackMixerOutput(trackID: UUID, mixer: AVAudioMixerNode) {
         // realtime-allow-graph-mutation: prepared track output setup/repair only, not event scheduling. Test: RealtimePathLintTests.
         audioGraph.attach(mixer)
-        let filter: SamplerFilterNode
-        if let existing = trackFilters[trackID] {
-            filter = existing
-        } else {
-            let next = SamplerFilterNode()
-            trackFilters[trackID] = next
-            filter = next
+        let (filter, busID, sends) = withLifecycleLock {
+            () -> (SamplerFilterNode, UUID?, MainAudioGraph.TrackSendLevels) in
+            let filter: SamplerFilterNode
+            if let existing = trackFilters[trackID] {
+                filter = existing
+            } else {
+                let next = SamplerFilterNode()
+                trackFilters[trackID] = next
+                filter = next
+            }
+            return (filter, trackOutputBusIDs[trackID], trackSendLevels[trackID] ?? .zero)
         }
 
         // realtime-allow-graph-mutation: prepared track output setup/repair only, not event scheduling. Test: RealtimePathLintTests.
@@ -1620,8 +1768,8 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         {
             audioGraph.connectTrackOutput(
                 filter.avNode,
-                to: trackOutputBusIDs[trackID],
-                sends: trackSendLevels[trackID] ?? .zero
+                to: busID,
+                sends: sends
             )
         }
         audioGraph.setTrackMeterSources(trackIDs: [trackID], node: filter.avNode)
@@ -1637,7 +1785,8 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         !audioGraph.engine.outputConnectionPoints(for: source, outputBus: 0).isEmpty
     }
 
-    private func filterFanout(for trackID: UUID) -> SamplerFilterFanout {
+    /// Caller must hold `lifecycleLock` (mutates `trackFilterFanouts`).
+    private func filterFanoutLocked(for trackID: UUID) -> SamplerFilterFanout {
         if let fanout = trackFilterFanouts[trackID] {
             return fanout
         }
@@ -1659,6 +1808,30 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         audioGraph.disconnectOutput(source)
         // realtime-allow-graph-mutation: prepared graph setup/repair connection only, not tick dispatch. Test: RealtimePathLintTests.
         audioGraph.connect(source, to: destination)
+    }
+
+    /// Acquire `lifecycleLock` for the small in-memory critical section only.
+    ///
+    /// In DEBUG this maintains `TickPathMainSyncGuard.lifecycleLockDepthForCurrentThread`,
+    /// so the `MainAudioGraph` graph-mutation entry points can trap if a live
+    /// `AVAudioEngine.connect/disconnect` is attempted while this lock is held.
+    /// That coupling is the mixer-mute / add-FX deadlock class: an unbounded
+    /// HAL reconfig under `lifecycleLock` starves the tick path, which takes
+    /// `lifecycleLock` every `prepareTick`. Control paths therefore read/swap
+    /// the dictionaries here, RELEASE, then mutate the engine.
+    @discardableResult
+    private func withLifecycleLock<T>(_ work: () -> T) -> T {
+        lifecycleLock.lock()
+        #if DEBUG
+        TickPathMainSyncGuard.lifecycleLockDepthForCurrentThread += 1
+        #endif
+        defer {
+            #if DEBUG
+            TickPathMainSyncGuard.lifecycleLockDepthForCurrentThread -= 1
+            #endif
+            lifecycleLock.unlock()
+        }
+        return work()
     }
 
     private func performOnMain<T>(_ work: @escaping @MainActor () -> T) -> T {
@@ -1683,29 +1856,33 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
 extension SamplePlaybackEngine {
     func disconnectFirstPreparedVoiceForTesting(trackID: UUID) {
         performOnMain { [self] in
-            lifecycleLock.withLock {
-                guard let voice = trackVoicePools[trackID]?.voices.first else { return }
+            let voice: AVAudioPlayerNode? = withLifecycleLock {
+                guard let voice = trackVoicePools[trackID]?.voices.first else { return nil }
                 _ = fastPathReadyTrackIDs.remove(trackID)
-                // realtime-allow-graph-mutation: test hook deliberately breaks prepared graph. Test: RealtimePathLintTests.
-                audioGraph.disconnectOutput(voice)
+                return voice
             }
+            guard let voice else { return }
+            // realtime-allow-graph-mutation: test hook deliberately breaks prepared graph. Test: RealtimePathLintTests.
+            audioGraph.disconnectOutput(voice)
         }
     }
 
     func disconnectFirstPreparedVoiceForFastPathFailureForTesting(trackID: UUID) {
         performOnMain { [self] in
-            lifecycleLock.withLock {
-                guard let voice = trackVoicePools[trackID]?.voices.first else { return }
+            let voice: AVAudioPlayerNode? = withLifecycleLock {
+                guard let voice = trackVoicePools[trackID]?.voices.first else { return nil }
                 _ = fastPathReadyTrackIDs.insert(trackID)
-                // realtime-allow-graph-mutation: test hook deliberately breaks prepared fast path. Test: RealtimePathLintTests.
-                audioGraph.disconnectOutput(voice)
+                return voice
             }
+            guard let voice else { return }
+            // realtime-allow-graph-mutation: test hook deliberately breaks prepared fast path. Test: RealtimePathLintTests.
+            audioGraph.disconnectOutput(voice)
         }
     }
 
     func isFirstPreparedVoiceConnectedForTesting(trackID: UUID) -> Bool {
         performOnMain { [self] in
-            lifecycleLock.withLock {
+            withLifecycleLock {
                 guard let pool = trackVoicePools[trackID],
                       let voice = pool.voices.first,
                       let filter = pool.voiceFilters.first
@@ -1719,18 +1896,20 @@ extension SamplePlaybackEngine {
 
     func disconnectPreparedTrackMixerOutputForTesting(trackID: UUID) {
         performOnMain { [self] in
-            lifecycleLock.withLock {
-                guard let mixer = trackMixers[trackID] else { return }
+            let mixer: AVAudioMixerNode? = withLifecycleLock {
+                guard let mixer = trackMixers[trackID] else { return nil }
                 _ = fastPathReadyTrackIDs.remove(trackID)
-                // realtime-allow-graph-mutation: test hook deliberately breaks prepared graph. Test: RealtimePathLintTests.
-                audioGraph.disconnectOutput(mixer)
+                return mixer
             }
+            guard let mixer else { return }
+            // realtime-allow-graph-mutation: test hook deliberately breaks prepared graph. Test: RealtimePathLintTests.
+            audioGraph.disconnectOutput(mixer)
         }
     }
 
     func isPreparedTrackMixerOutputConnectedForTesting(trackID: UUID) -> Bool {
         performOnMain { [self] in
-            lifecycleLock.withLock {
+            withLifecycleLock {
                 guard let mixer = trackMixers[trackID],
                       let filter = trackFilters[trackID]
                 else {
@@ -1743,18 +1922,20 @@ extension SamplePlaybackEngine {
 
     func disconnectPreparedTrackTerminalOutputForTesting(trackID: UUID) {
         performOnMain { [self] in
-            lifecycleLock.withLock {
-                guard let filter = trackFilters[trackID] else { return }
+            let filter: SamplerFilterNode? = withLifecycleLock {
+                guard let filter = trackFilters[trackID] else { return nil }
                 _ = fastPathReadyTrackIDs.remove(trackID)
-                // realtime-allow-graph-mutation: test hook deliberately breaks prepared graph. Test: RealtimePathLintTests.
-                audioGraph.disconnectOutput(filter.avNode)
+                return filter
             }
+            guard let filter else { return }
+            // realtime-allow-graph-mutation: test hook deliberately breaks prepared graph. Test: RealtimePathLintTests.
+            audioGraph.disconnectOutput(filter.avNode)
         }
     }
 
     func isPreparedTrackTerminalOutputConnectedForTesting(trackID: UUID) -> Bool {
         performOnMain { [self] in
-            lifecycleLock.withLock {
+            withLifecycleLock {
                 guard let filter = trackFilters[trackID] else {
                     return false
                 }
@@ -1765,7 +1946,7 @@ extension SamplePlaybackEngine {
 
     func preparedTrackRouteReadoutForTesting(trackID: UUID) -> [String: Bool] {
         performOnMain { [self] in
-            lifecycleLock.withLock {
+            withLifecycleLock {
                 if let pool = busVoicePools[trackID],
                    let voice = pool.voices.first,
                    let mixer = pool.voiceMixers.first

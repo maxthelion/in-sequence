@@ -47,6 +47,41 @@ enum TickPathMainSyncGuard {
         set { Thread.current.threadDictionary[stateLockDepthKey] = newValue }
     }
 
+    private static let lifecycleLockDepthKey = "ai.sequencer.SequencerAI.TickPathMainSyncGuard.lifecycleLockDepth"
+
+    /// Per-thread `SamplePlaybackEngine.lifecycleLock` hold depth. Maintained
+    /// by `SamplePlaybackEngine.withLifecycleLock` (NSLock has no owner
+    /// readout). Shared here — not private to SamplePlaybackEngine — so the
+    /// graph-mutation entry points in `MainAudioGraph` can assert that no
+    /// `AVAudioEngine` topology mutation runs while `lifecycleLock` is held.
+    /// A live `engine.connect/disconnect` blocks for the HAL reconfig
+    /// duration; if `lifecycleLock` is held across it, the tick path (which
+    /// takes `lifecycleLock` every `prepareTick`) starves → hang (the
+    /// mixer-mute / add-FX deadlock class, 2026-06-25).
+    static var lifecycleLockDepthForCurrentThread: Int {
+        get { (Thread.current.threadDictionary[lifecycleLockDepthKey] as? Int) ?? 0 }
+        set { Thread.current.threadDictionary[lifecycleLockDepthKey] = newValue }
+    }
+
+    /// Asserts (DEBUG) that the calling thread does not hold
+    /// `SamplePlaybackEngine.lifecycleLock` before performing an
+    /// `AVAudioEngine` graph mutation. Mirror of
+    /// `MainAudioGraph.debugAssertNotHoldingGraphLockForMainHop`: a graph
+    /// mutation while `lifecycleLock` is held can wedge the tick path.
+    static func assertNotHoldingLifecycleLockForGraphMutation(_ context: @autoclosure () -> String) {
+        guard lifecycleLockDepthForCurrentThread > 0 else { return }
+        reportImminentDeadlock(
+            "\(context()): AVAudioEngine graph mutation while SamplePlaybackEngine.lifecycleLock " +
+            "is held (tick-path starvation / deadlock class)"
+        )
+    }
+    #endif
+
+    #if !DEBUG
+    static func assertNotHoldingLifecycleLockForGraphMutation(_ context: @autoclosure () -> String) {}
+    #endif
+
+    #if DEBUG
     /// Test hook: receives every violation context instead of the log, so
     /// tests can pin the "no tick-path main-sync" contract (and positively
     /// prove the detector fires).
