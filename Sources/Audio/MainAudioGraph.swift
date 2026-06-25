@@ -154,17 +154,6 @@ final class MainAudioGraph {
 
     /// All graphLock acquisitions go through here (DEBUG re-entry assertion
     /// + hold-depth tracking; plain `lock()` in release).
-    ///
-    /// Every graphLock-protected section is a potential graph mutation
-    /// (attach/connect/disconnect/engine.stop/start), and AVAudioEngine is NOT
-    /// safe to mutate concurrently with the offline-render pump's
-    /// `engine.renderOffline(...)`. So each critical section pauses the pump
-    /// and barrier-drains any in-flight render before proceeding, resuming on
-    /// unlock. Inert (no barrier) when the pump never started — i.e. all
-    /// normal HAL playback and every non-automation run pay nothing. The
-    /// barrier is sub-millisecond (one render chunk) and the pump idles ~23ms
-    /// between chunks, so hot status-getter sections don't starve it.
-    /// The pump itself never calls this, so there is no lock-order inversion.
     private func lockGraphLock() {
         debugAssertGraphLockNotHeldByCurrentThread("MainAudioGraph.lockGraphLock")
         graphLock.lock()
@@ -230,47 +219,6 @@ final class MainAudioGraph {
     private let masterRenderLock = NSLock()
     private var masterRenderFile: AVAudioFile?
     private var masterRenderURL: URL?
-
-    // MARK: - Offline-render pump (wired automation only)
-    //
-    // When the engine runs in `.offline` manual-rendering mode (the headless
-    // visual-automation path that suppresses the HAL IO unit / mic TCC
-    // prompt), nothing pulls audio unless someone calls
-    // `engine.renderOffline(...)`. In normal HAL playback the device pulls the
-    // graph itself, so this pump is STRICTLY inert outside offline mode. The
-    // pump repeatedly pulls ~1024-frame chunks at roughly real-time cadence so
-    // the master meter tap fires and `masterPeak` fills — without ever
-    // touching the HAL.
-    //
-    // The render runs on a DEDICATED BACKGROUND queue (NOT main): flooding the
-    // main dispatch queue with the periodic render hop starves the MainActor
-    // visual-command/status loop. AVAudioEngine is not safe to mutate
-    // concurrently with `renderOffline`, so a live topology rebuild raises
-    // `offlineRenderPumpRebuildDepth` and BARRIER-drains the pump queue
-    // (`pauseOfflineRenderPumpForRebuild`) so no render is in flight while it
-    // rewires, then re-prepares and resumes. Gated strictly to
-    // offline-automation mode; normal HAL playback and the tick path never run
-    // it. The pump takes NO graphLock (that would invert against the engine's
-    // internal render lock during stop/start).
-    private let offlineRenderPumpQueue = DispatchQueue(
-        label: "ai.sequencer.SequencerAI.MainAudioGraph.offlineRenderPump",
-        qos: .userInitiated
-    )
-    private let offlineRenderPumpLock = NSLock()
-    private var isOfflineRenderPumpRunning = false
-    /// >0 across a live topology rebuild; the pump skips rendering so it never
-    /// pulls a half-rewired graph. Guarded by `offlineRenderPumpLock`.
-    private var offlineRenderPumpRebuildDepth = 0
-    /// True while the pump is inside `renderOffline`. A rebuild raises the
-    /// depth then spin-waits on this flag to clear — WITHOUT dispatching onto
-    /// the pump queue, so a rebuild reached via tick-thread→main hop can never
-    /// deadlock against the pump queue. Guarded by `offlineRenderPumpLock`.
-    private var isOfflineRenderInFlight = false
-    private var offlineRenderPumpScratch: AVAudioPCMBuffer?
-    /// ~1024/44100 ≈ 23ms — roughly one audio buffer per tick, real-time cadence.
-    private let offlineRenderPumpChunkFrames: AVAudioFrameCount = 1024
-    private let offlineRenderPumpInterval: TimeInterval = 1024.0 / 44_100.0
-    private(set) var offlineRenderPumpCycleCountForTesting = 0
 
     private struct TrackOutputRouting {
         let source: AVAudioNode
@@ -373,7 +321,6 @@ final class MainAudioGraph {
     }
 
     deinit {
-        stopOfflineRenderPump()
         channelMeterBank.stopPublishing()
         performOnMain {
             self.removeMasterMeterTapIfNeeded()
@@ -489,17 +436,6 @@ final class MainAudioGraph {
         engine.isRunning
             && node.engine === engine
             && !engine.outputConnectionPoints(for: node, outputBus: 0).isEmpty
-    }
-
-    /// True when the engine runs in offline manual-rendering mode (headless
-    /// visual automation). In this mode the render timeline advances only via
-    /// `engine.renderOffline(...)` (the pump), so player-node buffers must be
-    /// scheduled with `at: nil` (immediate on the render clock) — a
-    /// host-time-based `AVAudioTime` has no valid basis here and trips
-    /// AVAudioPlayerNode's `playerTime.sampleTimeValid` assertion when the
-    /// pump processes the buffer command.
-    var isOfflineManualRendering: Bool {
-        engine.manualRenderingMode == .offline
     }
 
     var availableInputChannelCount: Int {
@@ -765,14 +701,6 @@ final class MainAudioGraph {
 
     func installSendBuses(_ sendBuses: [SendBusState]) {
         performOnMain {
-            self.withOfflineRenderPumpRebuildPause {
-                self.installSendBusesLocked(sendBuses)
-            }
-        }
-    }
-
-    @MainActor
-    private func installSendBusesLocked(_ sendBuses: [SendBusState]) {
             // Acquired inside the main-thread closure: holding
             // graphLock across DispatchQueue.main.sync is a
             // lock-order deadlock waiting to happen.
@@ -812,23 +740,6 @@ final class MainAudioGraph {
             // unaffected and is not bounced. Tracks are re-resolved so R0's
             // persistent fanout is (re)established when a send destination
             // first appears.
-            //
-            // EXCEPT in offline manual rendering (headless automation): the
-            // only thing pulling the graph is the offline-render pump, and
-            // attaching/connecting nodes on a *running* offline engine leaves
-            // its render state such that the next `renderOffline` deadlocks
-            // (observed: pump thread wedges inside AVFAudio, then the next
-            // rebuild's barrier wedges main). There is no audible-dropout
-            // concern offline, so bounce the engine around the rewire — stop,
-            // rebuild, prepare, start. The pump is already paused+drained by
-            // `withOfflineRenderPumpRebuildPause` around this call.
-            let offlineBounce = self.engine.manualRenderingMode == .offline
-            let wasRunning = self.engine.isRunning
-            if offlineBounce, wasRunning {
-                self.removeMasterMeterTapIfNeeded()
-                self.engine.stop()
-            }
-
             for (host, state) in installs {
                 host.install(sendBus: state, in: self)
             }
@@ -838,13 +749,7 @@ final class MainAudioGraph {
             }
 
             self.installMasterMeterTapIfNeeded()
-
-            if offlineBounce {
-                self.engine.prepare()
-                if wasRunning {
-                    try? self.engine.start()
-                }
-            }
+        }
     }
 
     func installSendBus(_ sendBus: SendBusState) {
@@ -1056,17 +961,10 @@ final class MainAudioGraph {
             self.channelMeterBank.startPublishing()
             try self.engine.start()
             self.isStarted = true
-            // Wired automation: nothing pulls the offline graph, so drive it
-            // ourselves. Strictly inert in normal HAL playback (guarded by
-            // manualRenderingMode == .offline inside).
-            self.startOfflineRenderPumpIfNeeded()
         }
     }
 
     func stop() {
-        // Tear the pump down first so no further chunks are pulled once the
-        // engine stops. Safe outside the main hop — uses its own lock/queue.
-        stopOfflineRenderPump()
         performOnMain {
             self.removeMasterMeterTapIfNeeded()
             self.channelMeterBank.stopPublishing()
@@ -1130,25 +1028,6 @@ final class MainAudioGraph {
         masterOutputGain: Double = 1
     ) {
         performOnMain {
-            // This bounces the engine (stop/rewire/start); pause+drain the
-            // offline-render pump so no `renderOffline` overlaps the bounce
-            // (would deadlock against the engine's render lock offline).
-            self.withOfflineRenderPumpRebuildPause {
-                self.installMasterChainsLocked(
-                    chains,
-                    postBlendMasterNodes: postBlendMasterNodes,
-                    masterOutputGain: masterOutputGain
-                )
-            }
-        }
-    }
-
-    @MainActor
-    private func installMasterChainsLocked(
-        _ chains: [MasterChain],
-        postBlendMasterNodes: [AVAudioNode],
-        masterOutputGain: Double
-    ) {
             // Acquired inside the main-thread closure: holding
             // graphLock across DispatchQueue.main.sync is a
             // lock-order deadlock waiting to happen.
@@ -1261,6 +1140,7 @@ final class MainAudioGraph {
                 try? self.engine.start()
                 self.isStarted = self.engine.isRunning
             }
+        }
     }
 
     var isMasterMeterTapInstalledForTesting: Bool {
@@ -1470,25 +1350,6 @@ final class MainAudioGraph {
         writeMasterRenderBufferIfActive(buffer)
     }
 
-    /// Pulls the whole graph in offline manual-rendering mode by repeatedly
-    /// calling `engine.renderOffline(...)` into `buffer`, advancing
-    /// `frameCount` frames total in chunks no larger than the buffer capacity.
-    /// This is the shared offline-render primitive used by both the
-    /// production wired-automation pump and the DEBUG test hook. It never
-    /// touches the HAL, so the no-prompt guarantee is preserved. No-op when
-    /// the engine is not in offline manual-rendering mode.
-    func renderOfflineChunk(frameCount: AVAudioFrameCount, into buffer: AVAudioPCMBuffer) throws {
-        guard engine.manualRenderingMode == .offline else { return }
-        let capacity = buffer.frameCapacity
-        guard capacity > 0 else { return }
-        var remaining = frameCount
-        while remaining > 0 {
-            let chunk = min(remaining, capacity)
-            _ = try engine.renderOffline(chunk, to: buffer)
-            remaining -= chunk
-        }
-    }
-
     #if DEBUG
     /// Test hook: advances AVAudioEngine offline manual rendering so taps and
     /// scheduled player nodes produce deterministic buffers without the HAL.
@@ -1498,142 +1359,14 @@ final class MainAudioGraph {
         guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: capacity) else {
             return
         }
-        try renderOfflineChunk(frameCount: frameCount, into: buffer)
+        var remaining = frameCount
+        while remaining > 0 {
+            let chunk = min(remaining, capacity)
+            _ = try engine.renderOffline(chunk, to: buffer)
+            remaining -= chunk
+        }
     }
     #endif
-
-    // MARK: - Offline-render pump control
-
-    /// Starts the continuous offline-render pump IF the engine is in offline
-    /// manual-rendering mode (wired automation). Strictly inert in normal HAL
-    /// playback and when not in offline mode. Idempotent. Called from
-    /// `start()` (transport play / engine start). Renders on a dedicated
-    /// background queue.
-    private func startOfflineRenderPumpIfNeeded() {
-        guard engine.manualRenderingMode == .offline else { return }
-        offlineRenderPumpLock.lock()
-        if isOfflineRenderPumpRunning {
-            offlineRenderPumpLock.unlock()
-            return
-        }
-        isOfflineRenderPumpRunning = true
-        if offlineRenderPumpScratch == nil {
-            let format = engine.manualRenderingFormat
-            let capacity = min(
-                max(1, offlineRenderPumpChunkFrames),
-                engine.manualRenderingMaximumFrameCount
-            )
-            offlineRenderPumpScratch = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: capacity)
-        }
-        offlineRenderPumpLock.unlock()
-        DevActivity.trace(DevActivity.harness, "MainAudioGraph offline-render pump START")
-        offlineRenderPumpQueue.async { [weak self] in
-            self?.offlineRenderPumpTick()
-        }
-    }
-
-    /// Public barrier used by callers that tear down player nodes (e.g.
-    /// `SamplePlaybackEngine.stop()` stops voices) BEFORE `stop()` runs:
-    /// stops the pump and drains any in-flight render so no `renderOffline`
-    /// overlaps the player-node teardown. Idempotent; inert when the pump
-    /// never ran.
-    func quiesceOfflineRenderPump() {
-        stopOfflineRenderPump()
-    }
-
-    /// Brackets a LIVE graph topology rebuild (called on main). Raises the
-    /// rebuild depth and BARRIER-drains the background pump queue so no
-    /// `renderOffline` is in flight while nodes are rewired / the engine is
-    /// stopped+started, then re-prepares the engine and lowers the depth. The
-    /// pump takes no graphLock, so the barrier here cannot invert against it.
-    /// Inert when the pump never ran (non-automation / non-offline). MUST run
-    /// on main and MUST NOT be called from the pump queue.
-    private func withOfflineRenderPumpRebuildPause<T>(_ body: () throws -> T) rethrows -> T {
-        offlineRenderPumpLock.lock()
-        offlineRenderPumpRebuildDepth += 1
-        let running = isOfflineRenderPumpRunning
-        offlineRenderPumpLock.unlock()
-        // Drain any in-flight render by spin-waiting on the in-flight flag.
-        // The raised depth makes the current render the last one before the
-        // rebuild and blocks the next. Spin-waiting (rather than a queue
-        // barrier) means a rebuild reached via a tick-thread→main hop never
-        // blocks on the pump queue, so it cannot deadlock. Bounded so a stuck
-        // render can't hang the caller forever.
-        if running {
-            let deadline = Date().addingTimeInterval(1.0)
-            while Date() < deadline {
-                offlineRenderPumpLock.lock()
-                let inFlight = isOfflineRenderInFlight
-                offlineRenderPumpLock.unlock()
-                if !inFlight { break }
-                Thread.sleep(forTimeInterval: 0.001)
-            }
-        }
-        defer {
-            offlineRenderPumpLock.lock()
-            if offlineRenderPumpRebuildDepth > 0 { offlineRenderPumpRebuildDepth -= 1 }
-            offlineRenderPumpLock.unlock()
-        }
-        return try body()
-    }
-
-    /// Stops the pump and drains any in-flight render. Idempotent. The cleared
-    /// run flag prevents reschedule; the barrier guarantees no `renderOffline`
-    /// is running once this returns. Safe on the transport/engine control path
-    /// (holds no graphLock; the pump holds no graphLock either).
-    private func stopOfflineRenderPump() {
-        offlineRenderPumpLock.lock()
-        let wasRunning = isOfflineRenderPumpRunning
-        isOfflineRenderPumpRunning = false
-        offlineRenderPumpLock.unlock()
-        guard wasRunning else { return }
-        offlineRenderPumpQueue.sync {}
-        DevActivity.trace(DevActivity.harness, "MainAudioGraph offline-render pump STOP")
-    }
-
-    /// One pump cycle on the background queue: pull a chunk through the graph
-    /// (unless a rebuild is in progress), then reschedule at real-time cadence
-    /// until stopped. Holds no graphLock — serialization against topology
-    /// rebuilds is via the rebuild-depth pause + queue barrier.
-    private func offlineRenderPumpTick() {
-        // Claim the render slot atomically with the rebuild check: if a
-        // rebuild is in progress (or starts), skip. Setting isOfflineRenderInFlight
-        // under the lock guarantees a rebuild's spin-wait sees an accurate
-        // picture — it either observes our flag (and waits) or sees the raised
-        // depth was set before we claimed (and we skip).
-        offlineRenderPumpLock.lock()
-        let running = isOfflineRenderPumpRunning
-        let scratch = offlineRenderPumpScratch
-        let shouldRender = running
-            && scratch != nil
-            && offlineRenderPumpRebuildDepth == 0
-            && engine.isRunning
-            && engine.manualRenderingMode == .offline
-        if shouldRender { isOfflineRenderInFlight = true }
-        offlineRenderPumpLock.unlock()
-
-        if shouldRender, let scratch {
-            do {
-                try renderOfflineChunk(frameCount: offlineRenderPumpChunkFrames, into: scratch)
-                offlineRenderPumpLock.lock()
-                offlineRenderPumpCycleCountForTesting += 1
-                offlineRenderPumpLock.unlock()
-            } catch {
-                DevActivity.trace(DevActivity.harness, "offline-render pump renderOffline failed: \(error)")
-            }
-            offlineRenderPumpLock.lock()
-            isOfflineRenderInFlight = false
-            offlineRenderPumpLock.unlock()
-        }
-
-        offlineRenderPumpLock.lock()
-        let stillRunning = isOfflineRenderPumpRunning
-        offlineRenderPumpLock.unlock()
-        guard stillRunning else { return }
-        offlineRenderPumpQueue.asyncAfter(deadline: .now() + offlineRenderPumpInterval) { [weak self] in
-            self?.offlineRenderPumpTick()
-        }
-    }
 
     @MainActor
     private func installMasterMeterTapIfNeeded() {

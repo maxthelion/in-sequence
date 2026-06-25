@@ -245,12 +245,6 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
             return (true, Array(trackVoicePools.values), Array(busVoicePools.values))
         }
         guard shouldStop else { return }
-        // Drain the offline-render pump BEFORE stopping any player node:
-        // `engine.renderOffline(...)` must not run concurrently with
-        // `voice.stop()`, or AVAudioPlayerNode trips its
-        // `playerTime.sampleTimeValid` assertion and aborts. Inert outside
-        // offline automation (pump never started).
-        audioGraph.quiesceOfflineRenderPump()
         for pool in pools {
             for voice in pool.voices {
                 voice.stop()
@@ -351,7 +345,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         }
         let scheduled = when.map { AVAudioTime.seconds(forHostTime: $0.hostTime) }
         return playWithPreparedVoice(trackID: trackID, voiceMode: .polyphonic, scheduled: scheduled) { [self] voice, voiceFilter, params in
-            let effectiveWhen = scheduledPlaybackTime(for: when)
+            let effectiveWhen = Self.effectivePlaybackTime(for: when)
             let actual = ProcessInfo.processInfo.systemUptime
             let frameRange = Self.sampleFrameRange(file: file, settings: settings, params: params)
             SequencerTimingProbe.sampleSchedule(
@@ -391,7 +385,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         at when: AVAudioTime?
     ) -> VoiceHandle? {
         let scheduled = when.map { AVAudioTime.seconds(forHostTime: $0.hostTime) }
-        let effectiveWhen = scheduledPlaybackTime(for: when)
+        let effectiveWhen = Self.effectivePlaybackTime(for: when)
         let actual = ProcessInfo.processInfo.systemUptime
         let frameRange = Self.sampleFrameRange(file: file, settings: settings, params: nil)
         SequencerTimingProbe.sampleSchedule(
@@ -557,7 +551,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
 
         let scheduled = when.map { AVAudioTime.seconds(forHostTime: $0.hostTime) }
         return playWithPreparedVoice(trackID: trackID, voiceMode: clampedSettings.voiceMode, scheduled: scheduled) { [self] voice, voiceFilter, params in
-            let effectiveWhen = scheduledPlaybackTime(for: when)
+            let effectiveWhen = Self.effectivePlaybackTime(for: when)
             let actual = ProcessInfo.processInfo.systemUptime
             SequencerTimingProbe.sliceSchedule(
                 trackID: trackID,
@@ -1164,18 +1158,6 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         guard when.isHostTimeValid else { return when }
         let scheduled = AVAudioTime.seconds(forHostTime: when.hostTime)
         return scheduled > now ? when : nil
-    }
-
-    /// Like `effectivePlaybackTime`, but returns `nil` (immediate, on the
-    /// render clock) whenever the engine is in offline manual-rendering mode.
-    /// A host-time `AVAudioTime` has no valid timeline basis in offline
-    /// rendering, so scheduling a player buffer `at:` one trips
-    /// AVAudioPlayerNode's `playerTime.sampleTimeValid` assertion when the
-    /// offline-render pump processes the buffer command. Outside offline mode
-    /// this is identical to `effectivePlaybackTime`.
-    private func scheduledPlaybackTime(for when: AVAudioTime?) -> AVAudioTime? {
-        if audioGraph.isOfflineManualRendering { return nil }
-        return Self.effectivePlaybackTime(for: when)
     }
 
     private static func sampleFrameRange(
