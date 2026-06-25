@@ -1566,6 +1566,49 @@ final class EngineController: RouterDispatcher {
         }
     }
 
+    // MARK: - Engine-truth routing readouts (routing-stress gate honesty)
+    //
+    // The routing-stress gate previously re-derived post-conditions from the
+    // document (`session.store`) — the same object the command just mutated — so
+    // they passed whenever the command merely parsed. These readouts re-source
+    // each fact from the LIVE engine/graph instead, so the gate fails if an op
+    // parses but does not land in the graph.
+
+    /// The live applied output gain for a track (the value mute ramps), read
+    /// from the graph node — sample/slicer via the sample engine's mixer,
+    /// AU via the shared instrument host's output mixer. Returns nil when the
+    /// track has no prepared/loaded gain stage. NOTE: for `.inheritGroup` AU
+    /// members this is the SHARED host gain (one value for the whole group).
+    func trackAppliedOutputGainForTesting(trackID: UUID) -> Float? {
+        if let gain = (sampleEngine as? SamplePlaybackEngine)?.trackOutputGainForTesting(trackID: trackID) {
+            return gain
+        }
+        return audioInstrumentHost(for: trackID)?.currentOutputGainForTesting()
+    }
+
+    /// The bus the engine has ACTUALLY routed a track's output to (nil = master),
+    /// read from the engine's applied routing record (not the document). Outer
+    /// nil = no engine record (track has no prepared output / unknown). Sample
+    /// engine first, then the AU host.
+    func trackAppliedOutputBusIDForTesting(trackID: UUID) -> UUID?? {
+        if let busID = (sampleEngine as? SamplePlaybackEngine)?.trackOutputBusIDForTesting(trackID: trackID) {
+            return busID
+        }
+        return audioInstrumentHost(for: trackID)?.currentOutputBusIDForTesting()
+    }
+
+    /// Count of FX insert nodes installed in the LIVE graph for a track
+    /// (engine-truth), as distinct from the authored document fx-inserts array.
+    func trackInstalledInsertNodeCountForTesting(trackID: UUID) -> Int {
+        mainAudioGraph.trackInstalledInsertNodeCountForTesting(trackID: trackID)
+    }
+
+    /// The live applied bus output gain (the value bus-mute ramps), read from
+    /// the bus mixer node. nil when the bus has no host. 0 ⇒ effectively muted.
+    func busAppliedOutputGainForTesting(busID: UUID) -> Float? {
+        mainAudioGraph.mixerBusReadoutForTesting(busID: busID)?.outputVolume
+    }
+
     func prepareAudioUnit(for trackID: UUID) {
         log("prepareAudioUnit trackID=\(trackID)")
         if let host = withStateLock({ trackRuntime.audioOutputsByTrackID[trackID] }) {

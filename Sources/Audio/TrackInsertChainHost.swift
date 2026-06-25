@@ -66,6 +66,12 @@ final class TrackInsertChainHost {
     /// Nil when the chain is empty.
     var terminalNode: AVAudioNode? { insertNodes.last }
 
+    /// Count of insert nodes actually INSTALLED in the live graph (not the
+    /// authored document array). Engine-truth for the routing-stress gate: a
+    /// command that merely parsed but failed to install would leave this at the
+    /// old value. AU-backed inserts only appear here once instantiated.
+    var installedInsertNodeCountForTesting: Int { insertNodes.count }
+
     /// True when applying `inserts` would change the node topology (insert
     /// added/removed/reordered or an AU still loading) as opposed to a
     /// value/parameter-only update on the already-installed chain. The graph

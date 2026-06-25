@@ -643,6 +643,43 @@ final class AudioInstrumentHost: TrackPlaybackSink {
         }
     }
 
+    /// The live shared output mixer's current `outputVolume` — the gain that
+    /// mute (mixer OR layer) ramps. Engine-truth readout for the routing-stress
+    /// gate, which previously could only read sample-track gain (AU tracks read
+    /// `n/a`). Returns nil when the host has no output mixer yet (not loaded).
+    /// NOTE: for `.inheritGroup` shared hosts this is ONE value for the whole
+    /// group — there is no per-member gain stage (see the F1.1/F2.1 finding).
+    func currentOutputGainForTesting() -> Float? {
+        performOnMainReturningOptional { [weak self] in
+            self?.outputMixer?.outputVolume
+        }
+    }
+
+    /// The bus the host has ACTUALLY routed its shared output to (nil = master).
+    /// Engine-truth for the gate: set inside `setOutputBusID`, which is the call
+    /// that drives the live `connectTrackOutput`. Outer nil = host not loaded.
+    func currentOutputBusIDForTesting() -> UUID?? {
+        // currentOutputBusID is mutated on the host queue; read it there to
+        // avoid a torn read against an in-flight setOutputBusID.
+        var result: UUID?? = .none
+        queue.sync {
+            result = self.outputMixer == nil ? UUID??.none : .some(self.currentOutputBusID)
+        }
+        return result
+    }
+
+    private func performOnMainReturningOptional<T>(_ work: @escaping @MainActor () -> T?) -> T? {
+        if Thread.isMainThread {
+            return MainActor.assumeIsolated { work() }
+        }
+        var output: T?
+        // realtime-allow-main-sync: test-only readout, not tick dispatch. Test: RealtimePathLintTests.
+        DispatchQueue.main.sync {
+            output = MainActor.assumeIsolated { work() }
+        }
+        return output
+    }
+
     /// Perform-layer mute as a ramped gain change (unified with mixer mute).
     func setMuteGain(_ muted: Bool) {
         queue.async { [weak self] in

@@ -969,6 +969,18 @@ final class MainAudioGraph {
         }
     }
 
+    /// Count of FX insert NODES actually installed in the live graph for a track
+    /// (engine-truth), as distinct from the authored `track.fxInserts.count`.
+    /// 0 when the track has no chain host. The routing-stress gate asserts this
+    /// against the requested op so a parse-only command (no real install) fails.
+    func trackInstalledInsertNodeCountForTesting(trackID: UUID) -> Int {
+        performOnMainReturning {
+            self.lockGraphLock()
+            defer { self.unlockGraphLock() }
+            return self.trackInsertChainHosts[trackID]?.installedInsertNodeCountForTesting ?? 0
+        }
+    }
+
     func setTrackSendLevels(_ source: AVAudioNode, sendA: Double, sendB: Double) {
         TickPathMainSyncGuard.assertNotHoldingLifecycleLockForGraphMutation("MainAudioGraph.setTrackSendLevels")
         performOnMain {

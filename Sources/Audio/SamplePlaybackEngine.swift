@@ -2057,6 +2057,23 @@ extension SamplePlaybackEngine {
         }
     }
 
+    /// The bus ID the engine has ACTUALLY routed this sample track's output to
+    /// (nil = master). Engine-truth: set inside `setTrackOutputBus` when the
+    /// graph reconnects, not read from the document. The routing-stress gate
+    /// asserts this against the requested destination so a parse-only no-op is
+    /// caught. Returns ("n/a", nil) marker via Optional<Optional> collapse:
+    /// outer nil = no engine record for this track (not a sample track).
+    func trackOutputBusIDForTesting(trackID: UUID) -> UUID?? {
+        performOnMain { [self] in
+            withLifecycleLock {
+                guard trackMixers[trackID] != nil || trackVoicePools[trackID] != nil || busVoicePools[trackID] != nil else {
+                    return UUID??.none
+                }
+                return .some(trackOutputBusIDs[trackID])
+            }
+        }
+    }
+
     func preparedTrackRouteReadoutForTesting(trackID: UUID) -> [String: Bool] {
         performOnMain { [self] in
             withLifecycleLock {

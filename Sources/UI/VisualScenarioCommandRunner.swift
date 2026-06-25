@@ -476,6 +476,27 @@ enum VisualScenarioCommandRunner {
             session.setTrackMix(trackID: session.store.tracks[index].id, mix: mix)
         }
 
+        // trackLayerMute=<idx>:<on|off> — PERFORM-LAYER mute (distinct from the
+        // mixer mute above). Stages a mute cell on the live phrase-perform
+        // overlay so the engine applies it via setMuteGain (the layer-mute path
+        // that the F1 OR-combine fix protects). The gate drives this to verify
+        // the OR-combine acoustically: a mixer-muted track must STAY silent when
+        // a layer-mute is toggled on then off on top of it.
+        if let raw = command["trackLayerMute"],
+           let (index, value) = parseIndexedToggle(raw),
+           session.store.tracks.indices.contains(index),
+           let muteLayer = session.store.layers.first(where: { $0.target == .mute }),
+           let basisPhrase = session.store.phrases.first(where: { $0.id == session.store.selectedPhraseID })
+            ?? session.store.phrases.first {
+            let trackID = session.store.tracks[index].id
+            _ = session.stagePhrasePerformCell(
+                .single(.bool(value)),
+                layerID: muteLayer.id,
+                trackIDs: [trackID],
+                basisPhraseID: basisPhrase.id
+            )
+        }
+
         // busMute=<idx>:<on|off> — mixer bus mute via setMixerBusMuted.
         if let raw = command["busMute"],
            let (index, value) = parseIndexedToggle(raw),
@@ -525,6 +546,27 @@ enum VisualScenarioCommandRunner {
                       session.store.buses.indices.contains(busIdx) {
                 session.setTrackOutputBus(trackID: trackID, busID: session.store.buses[busIdx].id)
             }
+        }
+
+        // routeNoteToTrack=<srcIdx>:<dstIdx> — upsert a Route sending the
+        // source track's generated notes into the destination track's input.
+        // Used by the gate to verify the F2 routed-audio consistency fix
+        // acoustically: with the destination track MUTED, the routed note must
+        // still trigger the destination's sampler (mute is a gain, not a
+        // trigger-gate) yet the destination must read SILENT (its gain is 0).
+        if let raw = command["routeNoteToTrack"],
+           let (srcIndex, dstRaw) = parseIndexedValue(raw),
+           let dstIndex = Int(dstRaw),
+           session.store.tracks.indices.contains(srcIndex),
+           session.store.tracks.indices.contains(dstIndex) {
+            let srcID = session.store.tracks[srcIndex].id
+            let dstID = session.store.tracks[dstIndex].id
+            session.upsertRoute(
+                Route(
+                    source: .track(srcID),
+                    destination: .trackInput(dstID, tag: nil)
+                )
+            )
         }
 
         // trackSend=<idx>:A=<0..1>,B=<0..1> — per-track sends. Either field may
@@ -701,6 +743,10 @@ enum VisualScenarioCommandRunner {
         masterMaxSampleDeltaHold = max(masterMaxSampleDeltaHold, value)
     }
 
+    /// A track/bus gain at or below this counts as "effectively muted" by the
+    /// ENGINE (mute ramps the gain to 0; a tiny epsilon absorbs ramp residue).
+    private static let appliedMuteGainEpsilon: Float = 0.001
+
     static func routingStressStatusLines(
         session: SequencerDocumentSession,
         engineController: EngineController
@@ -711,31 +757,64 @@ enum VisualScenarioCommandRunner {
             masterMaxSampleDeltaHold,
             engineController.masterMeterPublisher.displayState.maxSampleDelta
         )
-        let muteState = EngineController.effectiveMixerMuteState(
+        // Document-derived mute (the OLD self-fulfilling source) is still
+        // emitted as `track<N>DocMuted` for diagnostics, but the gate's
+        // post-condition (`track<N>EffectiveMuted`) is now ENGINE-derived from
+        // the applied output gain — so it cannot pass on a parse-only no-op.
+        let docMuteState = EngineController.effectiveMixerMuteState(
             tracks: tracks,
             buses: buses
         )
-        let sampleEngine = engineController.sampleEngine as? SamplePlaybackEngine
         var lines: [String] = []
         for (index, track) in tracks.enumerated() {
             let meter = engineController
                 .channelMeterPublisher(for: .track(track.id))
                 .displayState
             let peak = max(meter.leftPeakDBFS, meter.rightPeakDBFS)
-            let effectiveMuted = muteState.mutedTrackIDs.contains(track.id)
             let destination = session.store.resolvedDestination(for: track.id)
-            let busName = track.outputBusID
-                .flatMap { id in buses.first { $0.id == id }?.name } ?? "master"
-            let gain = sampleEngine?.trackOutputGainForTesting(trackID: track.id)
+
+            // ENGINE-TRUTH: applied output gain (works for sample AND AU now).
+            let appliedGain = engineController.trackAppliedOutputGainForTesting(trackID: track.id)
+            // ENGINE-TRUTH: which bus the graph actually routed this track to.
+            let appliedBus = engineController.trackAppliedOutputBusIDForTesting(trackID: track.id)
+            // ENGINE-TRUTH: installed insert NODE count in the live graph.
+            let installedInserts = engineController.trackInstalledInsertNodeCountForTesting(trackID: track.id)
+
+            // EffectiveMuted from the engine: gain reads ~0. When no gain stage
+            // is exposed yet (host not loaded), fall back to the doc value so a
+            // not-yet-prepared track does not read a spurious "audible".
+            let engineMuted: Bool
+            if let appliedGain {
+                engineMuted = appliedGain <= appliedMuteGainEpsilon
+            } else {
+                engineMuted = docMuteState.mutedTrackIDs.contains(track.id)
+            }
+
+            // OutputBus name from the ENGINE record. Outer-nil (no engine
+            // record) falls back to the document so a not-yet-prepared track is
+            // not flagged; inner-nil = master.
+            let busName: String
+            switch appliedBus {
+            case let .some(busIDOrNil):
+                busName = busIDOrNil
+                    .flatMap { id in buses.first { $0.id == id }?.name } ?? "master"
+            case .none:
+                busName = track.outputBusID
+                    .flatMap { id in buses.first { $0.id == id }?.name } ?? "master"
+            }
+
             lines.append("track\(index)Name=\(track.name)")
             lines.append("track\(index)Peak=\(peak)")
             lines.append("track\(index)MaxSampleDelta=\(meter.maxSampleDelta)")
-            lines.append("track\(index)EffectiveMuted=\(effectiveMuted)")
+            lines.append("track\(index)EffectiveMuted=\(engineMuted)")
+            lines.append("track\(index)DocMuted=\(docMuteState.mutedTrackIDs.contains(track.id))")
             lines.append("track\(index)RawMuted=\(track.mix.isMuted)")
+            lines.append("track\(index)AppliedGain=\(appliedGain.map { String($0) } ?? "n/a")")
             lines.append("track\(index)DestinationKind=\(destination.kindLabel)")
             lines.append("track\(index)OutputBus=\(busName)")
-            lines.append("track\(index)Gain=\(gain.map { String($0) } ?? "n/a")")
-            lines.append("track\(index)FXInsertCount=\(track.fxInserts.count)")
+            lines.append("track\(index)Gain=\(appliedGain.map { String($0) } ?? "n/a")")
+            lines.append("track\(index)FXInsertCount=\(installedInserts)")
+            lines.append("track\(index)DocFXInsertCount=\(track.fxInserts.count)")
         }
         lines.append("masterMaxSampleDeltaHold=\(masterMaxSampleDeltaHold)")
         for (index, bus) in buses.enumerated() {
@@ -743,11 +822,20 @@ enum VisualScenarioCommandRunner {
                 .channelMeterPublisher(for: .bus(bus.id))
                 .displayState
             let peak = max(meter.leftPeakDBFS, meter.rightPeakDBFS)
-            let effectiveMuted = muteState.mutedBusIDs.contains(bus.id)
+            // ENGINE-TRUTH bus mute: the bus mixer node's applied output gain.
+            let appliedBusGain = engineController.busAppliedOutputGainForTesting(busID: bus.id)
+            let engineBusMuted: Bool
+            if let appliedBusGain {
+                engineBusMuted = appliedBusGain <= appliedMuteGainEpsilon
+            } else {
+                engineBusMuted = docMuteState.mutedBusIDs.contains(bus.id)
+            }
             lines.append("bus\(index)Name=\(bus.name)")
             lines.append("bus\(index)Peak=\(peak)")
-            lines.append("bus\(index)EffectiveMuted=\(effectiveMuted)")
+            lines.append("bus\(index)EffectiveMuted=\(engineBusMuted)")
+            lines.append("bus\(index)DocMuted=\(docMuteState.mutedBusIDs.contains(bus.id))")
             lines.append("bus\(index)RawMuted=\(bus.mix.isMuted)")
+            lines.append("bus\(index)AppliedGain=\(appliedBusGain.map { String($0) } ?? "n/a")")
         }
         return lines.joined(separator: "\n")
     }

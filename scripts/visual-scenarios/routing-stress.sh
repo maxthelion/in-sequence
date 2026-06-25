@@ -259,6 +259,44 @@ assert_track_audible() {
   return 1
 }
 
+# ENGINE-TRUTH bus mute assertions. The per-bus channel METER tap reads -inf
+# even for a bus genuinely carrying a routed sample track's signal (a separate,
+# pre-existing bus-meter-tap gap: the bus voice pool connects below the tap
+# point). So the rig does NOT gate on the bus acoustic peak — gating on a -inf
+# meter would be exactly the kind of self-fulfilling green this pass removes.
+# Instead we assert the bus's APPLIED OUTPUT GAIN on the live bus mixer node
+# (engine-truth: 0 ⇒ muted, >0 ⇒ open), emitted as `bus<idx>AppliedGain`. The
+# acoustic peak is still logged as a non-fatal diagnostic.
+BUS_GAIN_MUTE_EPSILON=0.001
+assert_bus_gain_open() {
+  local op="$1" idx="$2"
+  local gain; gain="$(status_value "bus${idx}AppliedGain" 2>/dev/null || echo n/a)"
+  local peak; peak="$(settled_bus_peak "$idx")"
+  if is_number "$gain" && awk -v g="$gain" -v e="$BUS_GAIN_MUTE_EPSILON" 'BEGIN { exit (g > e) ? 0 : 1 }'; then
+    log "    gain-ok  $op: bus$idx open (appliedGain=$gain, meterPeak=$peak[diag])"
+    report "    - gain-ok: bus$idx open (appliedGain=$gain, meterPeak=$peak [diag-only])"
+    return 0
+  fi
+  POSTFAIL=$((POSTFAIL+1))
+  log "    POST-FAIL $op: bus$idx expected OPEN but appliedGain=$gain"
+  report "    - **POST-FAIL**: bus$idx expected open, appliedGain=$gain"
+  return 1
+}
+assert_bus_gain_muted() {
+  local op="$1" idx="$2"
+  local gain; gain="$(status_value "bus${idx}AppliedGain" 2>/dev/null || echo n/a)"
+  local peak; peak="$(settled_bus_peak "$idx")"
+  if is_number "$gain" && awk -v g="$gain" -v e="$BUS_GAIN_MUTE_EPSILON" 'BEGIN { exit (g <= e) ? 0 : 1 }'; then
+    log "    gain-ok  $op: bus$idx gain-muted (appliedGain=$gain, meterPeak=$peak[diag])"
+    report "    - gain-ok: bus$idx gain-muted (appliedGain=$gain, meterPeak=$peak [diag-only])"
+    return 0
+  fi
+  POSTFAIL=$((POSTFAIL+1))
+  log "    POST-FAIL $op: bus$idx expected GAIN-MUTED but appliedGain=$gain"
+  report "    - **POST-FAIL**: bus$idx expected gain-muted, appliedGain=$gain"
+  return 1
+}
+
 # --- the watchdog -----------------------------------------------------------
 # Args: op-label, command-payload, [extra env to wrap the command write].
 # After PASS, also evaluates the per-op CLICK metric. Returns 0 PASS,1 HANG,2 CRASH.
@@ -445,6 +483,61 @@ if drive "trackMute-0-off" "trackMute=0:off"; then
   assert_track_audible "trackMute-0-off" 0
 fi
 
+# 1b) LAYER mute (perform-layer, distinct from the mixer mute above). Drives the
+#     setMuteGain path. track1 must go silent acoustically and the engine-truth
+#     EffectiveMuted (now derived from the APPLIED OUTPUT GAIN, not the doc) must
+#     read true. Then layer-unmute restores audibility.
+if drive "trackLayerMute-1-on" "trackLayerMute=1:on"; then
+  assert_status       "trackLayerMute-1-on" "track1EffectiveMuted" "true"
+  assert_track_silent "trackLayerMute-1-on" 1
+fi
+if drive "trackLayerMute-1-off" "trackLayerMute=1:off"; then
+  assert_status        "trackLayerMute-1-off" "track1EffectiveMuted" "false"
+  assert_track_audible "trackLayerMute-1-off" 1
+fi
+
+# 1c) OR-COMBINE (the F1 fix). Mixer-mute track1, then toggle a LAYER mute on and
+#     back off ON TOP of the mixer mute. The OR-combine means track1 must STAY
+#     silent across the whole sequence — if layer-unmute clears the mixer-mute
+#     (the F1 regression) the track would wrongly become audible. We assert
+#     silence after EACH step, then clear the mixer mute and confirm it restores.
+if drive "orcombine-mixerMute-1-on" "trackMute=1:on"; then
+  assert_status       "orcombine-mixerMute-1-on" "track1EffectiveMuted" "true"
+  assert_track_silent "orcombine-mixerMute-1-on" 1
+fi
+if drive "orcombine-layerMute-1-on" "trackLayerMute=1:on"; then
+  assert_track_silent "orcombine-layerMute-1-on" 1
+fi
+# The critical assertion: layer-unmute must NOT resurrect a still-mixer-muted track.
+if drive "orcombine-layerMute-1-off" "trackLayerMute=1:off"; then
+  assert_status       "orcombine-layerMute-1-off" "track1EffectiveMuted" "true"
+  assert_track_silent "orcombine-layerMute-1-off" 1
+fi
+# Now clear the mixer mute (no layer mute remains) — track1 returns.
+if drive "orcombine-mixerMute-1-off" "trackMute=1:off"; then
+  assert_status        "orcombine-mixerMute-1-off" "track1EffectiveMuted" "false"
+  assert_track_audible "orcombine-mixerMute-1-off" 1
+fi
+
+# 1d) ROUTED-INTO-MUTED (the F2 fix). Route track1's notes into track0's input,
+#     then MUTE track0. F2 made routed audio behave like own-pattern audio: the
+#     routed note must keep TRIGGERING track0's sampler (mute is a gain, not a
+#     trigger-gate) yet track0 must read SILENT (its applied gain is 0). The gate
+#     can only observe the silence side acoustically (the trigger side is pinned
+#     by EngineControllerRoutedMuteTests). The point here is the inverse: a
+#     muted, routed-into track must NOT leak level.
+if drive "routeNote-1-into-0" "routeNoteToTrack=1:0"; then
+  : # route installed; level checked under mute next
+fi
+if drive "routedMuted-trackMute-0-on" "trackMute=0:on"; then
+  assert_status       "routedMuted-trackMute-0-on" "track0EffectiveMuted" "true"
+  assert_track_silent "routedMuted-trackMute-0-on" 0
+fi
+if drive "routedMuted-trackMute-0-off" "trackMute=0:off"; then
+  assert_status        "routedMuted-trackMute-0-off" "track0EffectiveMuted" "false"
+  assert_track_audible "routedMuted-trackMute-0-off" 0
+fi
+
 # 2) Add a native insert to track 0 — must not click (ramped reconnect) and the
 #    fx insert count must read back as 1.
 if drive "trackAddInsert-0-filter" "trackAddInsert=0:native-filter"; then
@@ -459,22 +552,31 @@ if drive "trackRemoveInsert-0" "trackRemoveInsert=0:0"; then
   assert_status "trackRemoveInsert-0" "track0FXInsertCount" "0"
 fi
 
-# 4) Route track 1 to bus 0 → destination bus reads back; bus carries level.
+# 4) Route track 1 to bus 0 → destination bus reads back (ENGINE-truth: the bus
+#    the graph actually connected track1 to), and the bus must carry track1's
+#    level acoustically.
 if drive "routeTrack-1-to-bus0" "routeTrackToBus=1:0"; then
-  assert_status "routeTrack-1-to-bus0" "track1OutputBus" "FX Bus"
+  assert_status      "routeTrack-1-to-bus0" "track1OutputBus" "FX Bus"
+  assert_bus_gain_open "routeTrack-1-to-bus0" 0
 fi
-# 5) Route it back to master → reads back master; track stays audible.
+
+# 4b) BUS MUTE (the bus-mute-as-gain path), with track1 feeding bus0. Engine-
+#     truth: muting bus0 drives the bus mixer's applied output gain to 0 and
+#     `bus0EffectiveMuted` (derived from that gain) reads true; unmuting reopens
+#     it. (The bus acoustic peak is meter-unreliable here and is diag-only.)
+if drive "busMute-0-on" "busMute=0:on"; then
+  assert_status       "busMute-0-on" "bus0EffectiveMuted" "true"
+  assert_bus_gain_muted "busMute-0-on" 0
+fi
+if drive "busMute-0-off" "busMute=0:off"; then
+  assert_status      "busMute-0-off" "bus0EffectiveMuted" "false"
+  assert_bus_gain_open "busMute-0-off" 0
+fi
+
+# 5) Route track1 back to master → engine reads master; track stays audible.
 if drive "routeTrack-1-to-master" "routeTrackToBus=1:master"; then
   assert_status        "routeTrack-1-to-master" "track1OutputBus" "master"
   assert_track_audible "routeTrack-1-to-master" 1
-fi
-
-# 6) Bus mute / unmute post-conditions.
-if drive "busMute-0-on" "busMute=0:on"; then
-  assert_status "busMute-0-on" "bus0EffectiveMuted" "true"
-fi
-if drive "busMute-0-off" "busMute=0:off"; then
-  assert_status "busMute-0-off" "bus0EffectiveMuted" "false"
 fi
 
 # 7) Remove the last track (the drone) — the op the noisy fixture once "spiked"
@@ -500,9 +602,11 @@ fi
 #    value does NOT surface over the floor, the metric pipeline is dead and the
 #    gate would be meaningless → FAIL.
 report ""
-report "### Positive control — metric plumbing + floor reachability (injectClickHold)"
+report "### Metric-pipeline liveness control (injectClickHold) — NOT a click proof"
+report "_This is a pipeline-liveness check (metric→status→gate path live + floor"
+report "reachable), not a proof that a real graph op produces or avoids a click._"
 log ""
-log "---- positive control: inject a known discontinuity, assert the gate sees it ----"
+log "---- metric-pipeline liveness control: inject a known value, assert the gate sees it ----"
 CONTROL_EXPECTED_CLICK=1
 write_command "resetClickHold=1"
 sleep 0.4
@@ -585,7 +689,38 @@ report "- SILENCE: $SILENCE"
 report "- CLICK (total, incl. control): $CLICK"
 report "- CLICK (real, control excluded): $CLICK_REAL"
 report "- POST-FAIL (post-conditions not verified): $POSTFAIL"
-report "- positive control fired: $CONTROL_OK"
+report "- metric-pipeline liveness control fired: $CONTROL_OK"
+report ""
+report "### What this gate PROVES vs what it does NOT"
+report ""
+report "PROVES (engine-truth, fails on a planted regression):"
+report "- track/bus mute landed in the GRAPH — \`track<N>EffectiveMuted\` /"
+report "  \`bus<N>EffectiveMuted\` are now derived from the APPLIED OUTPUT GAIN"
+report "  read off the live mixer node, not from the document the command mutated."
+report "- mixer-mute, LAYER-mute, and the OR-combine of both are silent acoustically"
+report "  (per-track channel-meter peak), and layer-unmute does NOT resurrect a"
+report "  still-mixer-muted track (the F1 regression)."
+report "- a routed-into-MUTED track stays silent (F2 consistency, silence side)."
+report "- bus mute drives the live bus mixer's APPLIED OUTPUT GAIN to 0 and reopens"
+report "  it on unmute (engine-truth; the bus acoustic meter is unreliable and is"
+report "  diag-only — a separate pre-existing bus-meter-tap gap)."
+report "- FX insert count is the INSTALLED NODE count in the graph, and the track→bus"
+report "  reassignment is the bus the graph actually connected (both engine-truth)."
+report ""
+report "Does NOT prove (honest limits — see report + task #40):"
+report "- click-FREENESS. The acoustic master discontinuity metric is normalized and"
+report "  fires on every note onset, so it cannot separate an op-click from the bed's"
+report "  retrigger onset. Click-freeness rests on the RampBeforeDisconnect unit tests"
+report "  (ramp invoked + level restored) + the human ear, NOT on this rig. The"
+report "  positive control below is a metric-PIPELINE liveness check (injectClickHold"
+report "  proves the metric→status→gate path is live + the floor is reachable); it is"
+report "  NOT a proof that a real op clicks. An offline-render sample-to-sample"
+report "  amplitude-continuity assertion across a reconnect is the proper proof and"
+report "  is left as a follow-up (task #40)."
+report "- AU-destination mute ACOUSTICALLY. The unattended rig is native-only (an AU"
+report "  needs a human for the TCC prompt), so the AU shared-host gain mute is"
+report "  covered by EngineControllerRoutedMuteTests + the new engine-truth AU gain"
+report "  readout (trackAppliedOutputGainForTesting now works for AU), not by this rig."
 
 log ""
 log "==== routing-stress summary ===="
@@ -593,8 +728,10 @@ log "PASS=$PASS HANG=$HANG CRASH=$CRASH SILENCE=$SILENCE CLICK=$CLICK_REAL(real)
 log "report: $REPORT"
 
 # --- gate verdict -----------------------------------------------------------
-# Watertight bar: no hang, no crash, no per-track silence, no REAL click, every
-# post-condition verified, AND the positive control fired (metric is live).
+# Verified bar: no hang, no crash, no engine-truth silence regression, no REAL
+# click, every ENGINE-derived post-condition verified, AND the metric pipeline
+# is live. "PASS" means the engine-truth assertions held (see the PROVES/does-
+# NOT-prove section above for the honest scope).
 GATE_RC=0
 [ "$HANG"      -ne 0 ] && GATE_RC=1
 [ "$CRASH"     -ne 0 ] && GATE_RC=1
@@ -604,9 +741,9 @@ GATE_RC=0
 [ "$CONTROL_OK" != "yes" ] && GATE_RC=1
 
 if [ "$GATE_RC" -eq 0 ]; then
-  log "GATE: PASS (watertight)"
+  log "GATE: PASS (engine-truth assertions held; see report for proven scope)"
   report ""
-  report "**GATE: PASS (watertight)**"
+  report "**GATE: PASS (engine-truth assertions held — see proven/unproven scope above)**"
 else
   log "GATE: FAIL"
   report ""
