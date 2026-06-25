@@ -592,4 +592,121 @@ final class MasterMeterPublisherTests: XCTestCase {
         graph.syncAudioInputRoutings([])
         XCTAssertNil(graph.audioInputCaptureFormat(trackID: trackID))
     }
+
+    // MARK: - Track insert chain splice (no render cycle)
+
+    /// Walk the engine graph UPSTREAM from `start` (via per-input-bus
+    /// connection points, which never trip AVAudioEngine's output-splitter
+    /// precondition) and assert no node is reachable from itself. A feedback
+    /// cycle in either direction is the unbounded render recursion this bug
+    /// produces.
+    @MainActor
+    private func assertNoCycle(
+        from start: AVAudioNode,
+        in graph: MainAudioGraph,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        var onPath: Set<ObjectIdentifier> = []
+        var fullyExplored: Set<ObjectIdentifier> = []
+        func visit(_ node: AVAudioNode) -> [AVAudioNode]? {
+            let id = ObjectIdentifier(node)
+            if onPath.contains(id) { return [node] }
+            if fullyExplored.contains(id) { return nil }
+            onPath.insert(id)
+            for bus in 0..<node.numberOfInputs {
+                guard let point = graph.engine.inputConnectionPoint(for: node, inputBus: bus),
+                      let upstream = point.node else { continue }
+                if var trail = visit(upstream) {
+                    trail.append(node)
+                    return trail
+                }
+            }
+            onPath.remove(id)
+            fullyExplored.insert(id)
+            return nil
+        }
+        if let trail = visit(start) {
+            XCTFail(
+                "render graph cycle detected: \(trail.reversed().map { String(describing: type(of: $0)) }.joined(separator: " -> "))",
+                file: file,
+                line: line
+            )
+        }
+    }
+
+    @MainActor
+    func test_addingSecondTrackInsertWithActiveSendDoesNotCreateRenderCycle() throws {
+        let graph = MainAudioGraph()
+        let source = AVAudioPlayerNode()
+        graph.attach(source)
+        graph.installSendBuses([.sendA, .sendB])
+
+        let trackID = UUID()
+        graph.setTrackMeterSources(trackIDs: [trackID], node: source)
+        // Mirrors the "Sample Lead" fixture: routed to master with an active
+        // send. The active send keeps the persistent fanout wired (R0), which
+        // is exactly the path that regressed.
+        graph.connectTrackOutput(
+            source,
+            to: nil,
+            sends: MainAudioGraph.TrackSendLevels(sendA: 0.6, sendB: 0)
+        )
+        assertNoCycle(from: graph.sendReturnDestinationForTesting, in: graph)
+
+        // Capture the established send-bus legs. The fix's core invariant is
+        // that these LIVE legs are never re-added on a later insert/value
+        // reconnect — re-adding a live send leg into a running send-bus mixer is
+        // what wedged the CoreAudio render reconfigure into the unbounded
+        // AllocateInputBlock recursion.
+        let baseline = try XCTUnwrap(graph.trackSendReadoutForTesting(source))
+        let sendA = try XCTUnwrap(baseline.sendAGainNode)
+        let sendB = try XCTUnwrap(baseline.sendBGainNode)
+        let sendADestBefore = try XCTUnwrap(baseline.sendADestination)
+        let sendBDestBefore = try XCTUnwrap(baseline.sendBDestination)
+
+        // First insert: source -> insert0 -> fanout -> [dry, sendA, sendB].
+        let insert0 = TrackFXInsert.filter()
+        graph.setTrackInserts(trackID: trackID, inserts: [insert0])
+        assertNoCycle(from: graph.sendReturnDestinationForTesting, in: graph)
+
+        // Second insert: source -> insert0 -> insert1 -> fanout -> ...
+        let insert1 = TrackFXInsert.bitcrusher()
+        graph.setTrackInserts(trackID: trackID, inserts: [insert0, insert1])
+        assertNoCycle(from: graph.sendReturnDestinationForTesting, in: graph)
+
+        // The chain terminal must feed the fanout, and the raw source must NOT
+        // feed the fanout directly once a chain exists (the regressed leg).
+        let readout = try XCTUnwrap(graph.trackSendReadoutForTesting(source))
+        let fanoutNode = try XCTUnwrap(readout.sendFanoutNode)
+        let fanoutInputs = (0..<fanoutNode.numberOfInputs).compactMap {
+            graph.engine.inputConnectionPoint(for: fanoutNode, inputBus: $0)?.node
+        }
+        XCTAssertTrue(fanoutInputs.allSatisfy { $0 !== source },
+                      "fanout must be fed by the insert chain terminal, not the raw source")
+        XCTAssertEqual(fanoutInputs.count, 1, "fanout has exactly one upstream feed (the chain terminal)")
+
+        // Invariant: the send gain nodes and their send-bus destinations are
+        // the SAME objects after the insert edits — the legs were left in
+        // place, not re-added (which is what avoided the render recursion).
+        XCTAssertTrue(readout.sendAGainNode === sendA, "sendA gain node must be the same persistent node")
+        XCTAssertTrue(readout.sendBGainNode === sendB, "sendB gain node must be the same persistent node")
+        XCTAssertTrue(readout.sendADestination === sendADestBefore,
+                      "sendA -> send-bus destination must be preserved across insert edits")
+        XCTAssertTrue(readout.sendBDestination === sendBDestBefore,
+                      "sendB -> send-bus destination must be preserved across insert edits")
+
+        // Idempotent removal back to a single insert, then to none.
+        graph.setTrackInserts(trackID: trackID, inserts: [insert0])
+        assertNoCycle(from: graph.sendReturnDestinationForTesting, in: graph)
+        graph.setTrackInserts(trackID: trackID, inserts: [])
+        assertNoCycle(from: graph.sendReturnDestinationForTesting, in: graph)
+
+        // Send legs still preserved after the full add/remove cycle.
+        let final = try XCTUnwrap(graph.trackSendReadoutForTesting(source))
+        XCTAssertTrue(final.sendAGainNode === sendA, "sendA node preserved through add/remove cycle")
+        XCTAssertTrue(final.sendBGainNode === sendB, "sendB node preserved through add/remove cycle")
+        XCTAssertTrue(final.sendADestination === sendADestBefore, "sendA dest preserved through add/remove cycle")
+        XCTAssertTrue(final.sendBDestination === sendBDestBefore, "sendB dest preserved through add/remove cycle")
+    }
 }

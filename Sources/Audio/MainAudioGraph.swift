@@ -1616,24 +1616,31 @@ final class MainAudioGraph {
         reconnectTrackOutputCountForTesting += 1
         let source = routing.source
         let dryDestination = routing.busID.flatMap { mixerBusHosts[$0]?.destinationNode() } ?? preMasterMixer
-        engine.disconnectNodeOutput(source)
 
-        // Splice the per-track FX insert chain (if any) directly after the
-        // track's output source: source -> [insert chain] -> chainOutput. Every
-        // downstream wire (dry destination + send fanout) then feeds from
-        // `chainOutput`, so sends are post-insert (mirroring a DAW channel
-        // strip). The chain host owns the internal series wiring; here we only
-        // wire the two boundaries. When the chain is empty, `chainOutput`
-        // collapses back to `source` and the geometry is unchanged.
+        // Resolve the per-track FX insert chain boundary. The track's output is
+        // `source -> [insert chain] -> chainOutput`; every downstream wire (dry
+        // destination + send fanout) then feeds from `chainOutput`, so sends are
+        // post-insert (mirroring a DAW channel strip). When the chain is empty,
+        // `chainOutput` collapses back to `source`. We do NOT disconnect `source`
+        // wholesale up front: when the persistent send geometry below is already
+        // established and unchanged, the only edge that moves is the fanout's
+        // INPUT leg (chainOutput -> fanout). Tearing down and re-adding the
+        // live send-bus legs (sendA/sendB -> send buses) on every reconnect is
+        // what wedged the CoreAudio render reconfigure into an unbounded
+        // AllocateInputBlock recursion when a track FX insert was added to a
+        // send-active track (docs/bugs/20260625-add-second-insert-render-recursion-cycle).
         let chainOutput: AVAudioNode
         if let host = trackInsertChainHosts[trackID(for: source)],
            let chainInput = host.inputNode,
            let chainTerminal = host.terminalNode
         {
+            engine.disconnectNodeOutput(source)
+            engine.disconnectNodeInput(chainInput)
             engine.disconnectNodeOutput(chainTerminal)
             engine.connect(source, to: chainInput, format: nil)
             chainOutput = chainTerminal
         } else {
+            engine.disconnectNodeOutput(source)
             chainOutput = source
         }
 
@@ -1648,29 +1655,30 @@ final class MainAudioGraph {
         // property the engine.isRunning gate (commit 72aaf0b2) used to provide
         // for the running case, now universal. Nodes are torn down only on
         // track removal (removeTrackSendNodes).
-        if sendBusHosts[.sendA]?.destinationNode() != nil,
-           sendBusHosts[.sendB]?.destinationNode() != nil
+        if let sendADestination = sendBusHosts[.sendA]?.destinationNode(),
+           let sendBDestination = sendBusHosts[.sendB]?.destinationNode()
         {
+            let key = ObjectIdentifier(source)
             let nodes = sendNodes(for: source, levels: routing.sendLevels)
-            engine.disconnectNodeOutput(nodes.fanout)
-            engine.disconnectNodeInput(nodes.fanout)
-            engine.disconnectNodeOutput(nodes.sendA)
-            engine.disconnectNodeInput(nodes.sendA)
-            engine.disconnectNodeOutput(nodes.sendB)
-            engine.disconnectNodeInput(nodes.sendB)
-            let fanoutDestinations = [
-                connectionPoint(for: dryDestination),
-                connectionPoint(for: nodes.sendA),
-                connectionPoint(for: nodes.sendB),
-            ]
-            engine.connect(nodes.fanout, to: fanoutDestinations, fromBus: 0, format: nil)
+            let stored = trackSendDestinationsForTesting[key]
 
-            var sendDestinations = TrackSendDestinations(
-                fanout: [dryDestination, nodes.sendA, nodes.sendB],
-                sendA: nil,
-                sendB: nil
-            )
-            if let sendADestination = sendBusHosts[.sendA]?.destinationNode() {
+            // The send-bus legs (sendA -> send-bus A, sendB -> send-bus B) are
+            // wired ONCE and then left permanently in place. Re-adding an
+            // already-live send leg into a running send-bus inputMixer — which
+            // forces CoreAudio to re-allocate that mixer's input blocks while
+            // audio is flowing — wedged the render reconfigure into an unbounded
+            // AllocateInputBlock recursion (the symptom in
+            // docs/bugs/20260625-add-second-insert-render-recursion-cycle).
+            // So we touch them only when they are not yet established (or the
+            // send-bus destination node itself changed, which only happens when
+            // the send buses are reinstalled).
+            let sendLegsNeedWiring = stored?.sendA !== sendADestination
+                || stored?.sendB !== sendBDestination
+            if sendLegsNeedWiring {
+                engine.disconnectNodeOutput(nodes.sendA)
+                engine.disconnectNodeInput(nodes.sendA)
+                engine.disconnectNodeOutput(nodes.sendB)
+                engine.disconnectNodeInput(nodes.sendB)
                 engine.connect(
                     nodes.sendA,
                     to: sendADestination,
@@ -1678,9 +1686,6 @@ final class MainAudioGraph {
                     toBus: inputBus(for: sendADestination),
                     format: nil
                 )
-                sendDestinations.sendA = sendADestination
-            }
-            if let sendBDestination = sendBusHosts[.sendB]?.destinationNode() {
                 engine.connect(
                     nodes.sendB,
                     to: sendBDestination,
@@ -1688,9 +1693,34 @@ final class MainAudioGraph {
                     toBus: inputBus(for: sendBDestination),
                     format: nil
                 )
-                sendDestinations.sendB = sendBDestination
             }
-            trackSendDestinationsForTesting[ObjectIdentifier(source)] = sendDestinations
+
+            // Always rebuild the fanout's OUTPUT splitter (dry + sendA + sendB):
+            // the dry destination can change (bus reroute) and an upstream
+            // rebuild (master/bus chain reinstall) can reset the destination
+            // mixer's inputs, so this leg must be re-established every time to
+            // keep audio flowing. This re-points only the fanout's own outputs
+            // and never re-touches the live send-bus input legs above, so the
+            // recursive reconfigure stays avoided. The fanout's INPUT
+            // (chainOutput -> fanout) is re-pointed below because the chain
+            // output can change on every insert edit.
+            engine.disconnectNodeOutput(nodes.fanout)
+            let fanoutDestinations = [
+                connectionPoint(for: dryDestination),
+                connectionPoint(for: nodes.sendA),
+                connectionPoint(for: nodes.sendB),
+            ]
+            engine.connect(nodes.fanout, to: fanoutDestinations, fromBus: 0, format: nil)
+
+            trackSendDestinationsForTesting[key] = TrackSendDestinations(
+                fanout: [dryDestination, nodes.sendA, nodes.sendB],
+                sendA: sendADestination,
+                sendB: sendBDestination
+            )
+
+            // Re-point ONLY the fanout's input leg to the (possibly new) chain
+            // output — the single edge that moves on an insert/value reconnect.
+            engine.disconnectNodeInput(nodes.fanout)
             destinations = [connectionPoint(for: nodes.fanout)]
         } else {
             // Send buses not installed yet: route dry only and tear down any
