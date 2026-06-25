@@ -372,6 +372,12 @@ final class EngineController: RouterDispatcher {
     var phraseNavigationState = PhraseNavigationState()
     @ObservationIgnored
     var activeNoteRepeatsByTrackID: [UUID: ActiveNoteRepeatRuntime] = [:]
+    /// Last perform-layer mute state applied as gain per track, so the tick
+    /// path only kicks a ramp on a transition (not every tick). Tick-queue
+    /// only. Unifies layer mute with mixer mute on the gain path: layer-mute
+    /// changes drive the SAME ramped gain as mixer mute for audio tracks.
+    @ObservationIgnored
+    private var lastAppliedLayerMuteByTrackID: [UUID: Bool] = [:]
     @ObservationIgnored
     var preparedNoteRepeatCapturesByStepIndex: [UInt64: [UUID: NoteRepeatCapturedStep]] = [:]
     @ObservationIgnored
@@ -1852,6 +1858,17 @@ final class EngineController: RouterDispatcher {
             currentLayerSnapshot = currentLayerSnapshot.applyingMuteOverrides(quantisedMuteOverrides)
         }
 
+        // Unify perform-layer mute with mixer mute on the GAIN path: when a
+        // track's layer-mute changes, ramp its internal gain (audio tracks)
+        // exactly like mixer mute. MIDI/external tracks keep the trigger-gate
+        // below (no gain stage). Only acts on transitions so the tick stays
+        // cheap.
+        applyLayerMuteGainTransitions(
+            layerSnapshot: currentLayerSnapshot,
+            snapshot: playbackSnapshot,
+            audioOutputs: audioOutputs
+        )
+
         // Dispatch resolved macro values to their destinations (AU params / sampler).
         // Phase 1b: reads snapshot-carried tracks, not currentDocumentModel.tracks.
         macroApplier.apply(currentLayerSnapshot.macroValues, tracks: playbackSnapshot.tracks)
@@ -1941,10 +1958,13 @@ final class EngineController: RouterDispatcher {
         }
         publishNoteActivity(uptime: now, count: triggeredNoteCount)
 
+        // AU is an audio destination: mute is a ramped GAIN (applied via the
+        // mixer-mute path + applyLayerMuteGainTransitions above), NOT a
+        // trigger-gate. So we keep triggering the voices and let the gain cut
+        // them — a ringing note is silenced instantly and unmute returns
+        // without waiting for the next trigger.
         for runtime in audioRuntimes.values
-            where !runtime.mix.isMuted
-                && !currentLayerSnapshot.isMuted(runtime.trackID)
-                && !activeNoteRepeatTrackIDs.contains(runtime.trackID)
+            where !activeNoteRepeatTrackIDs.contains(runtime.trackID)
         {
             guard case let .notes(events)? = outputs[runtime.generatorBlockID]?["notes"],
                   audioOutputs[runtime.trackID] != nil
@@ -1968,10 +1988,12 @@ final class EngineController: RouterDispatcher {
 
         // Sample/slicer dispatch → queue (drum tracks and any other track with sample-like destinations).
         // Phase 1b: iterate snapshot-carried tracks, not currentDocumentModel.tracks.
+        // Sample/slicer are audio destinations: mute is a ramped GAIN (mixer
+        // mute via syncSampleMixers, layer mute via
+        // applyLayerMuteGainTransitions), NOT a trigger-gate. Keep triggering;
+        // the per-track mixer gain cuts/restores instantly.
         for track in playbackSnapshot.tracks {
-            guard !effectiveMutedTrackIDs.contains(track.id),
-                  !currentLayerSnapshot.isMuted(track.id),
-                  !activeNoteRepeatTrackIDs.contains(track.id),
+            guard !activeNoteRepeatTrackIDs.contains(track.id),
                   let generatorID = generatorIDs[track.id],
                   case let .notes(events)? = outputs[generatorID]?["notes"],
                   !events.isEmpty
@@ -2030,6 +2052,38 @@ final class EngineController: RouterDispatcher {
             layerSnapshot: currentLayerSnapshot,
             effectiveMutedTrackIDs: effectiveMutedTrackIDs
         )
+    }
+
+    /// Reconcile perform-layer mute into the shared gain path. For audio
+    /// tracks (sample/slicer/AU) a layer-mute change ramps the same per-track
+    /// gain that mixer mute uses, so the two mutes behave identically and
+    /// instantly. MIDI/external tracks have no gain stage and stay gated at
+    /// trigger time. Tick-queue only; acts on transitions.
+    private func applyLayerMuteGainTransitions(
+        layerSnapshot: LayerSnapshot,
+        snapshot: PlaybackSnapshot,
+        audioOutputs: [UUID: TrackPlaybackSink]
+    ) {
+        for track in snapshot.tracks {
+            let destination = snapshot.resolvedDestination(for: track.id).destination
+            guard Self.destinationUsesGainMute(destination) else {
+                lastAppliedLayerMuteByTrackID[track.id] = nil
+                continue
+            }
+            let layerMuted = layerSnapshot.isMuted(track.id)
+            guard lastAppliedLayerMuteByTrackID[track.id] != layerMuted else {
+                continue
+            }
+            lastAppliedLayerMuteByTrackID[track.id] = layerMuted
+            switch destination {
+            case .sample, .slicer:
+                sampleEngine.setTrackMuteGain(trackID: track.id, muted: layerMuted)
+            case .auInstrument:
+                audioOutputs[track.id]?.setMuteGain(layerMuted)
+            default:
+                break
+            }
+        }
     }
 
     private func dispatchTick() -> Int {

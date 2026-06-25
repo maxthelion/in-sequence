@@ -14,6 +14,9 @@ protocol TrackPlaybackSink: AnyObject {
     func stop()
     func shutdown()
     func setMix(_ mix: TrackMixSettings)
+    /// Apply perform-layer mute as a ramped gain change (unified with the mixer
+    /// mute carried in `setMix`). Default no-op for sinks without a gain stage.
+    func setMuteGain(_ muted: Bool)
     func setOutputBusID(_ busID: UUID?)
     func setMeterTrackIDs(_ trackIDs: Set<UUID>)
     func setDestination(_ destination: Destination)
@@ -28,6 +31,8 @@ extension TrackPlaybackSink {
     }
 
     func setOutputBusID(_ busID: UUID?) {}
+
+    func setMuteGain(_ muted: Bool) {}
 
     /// Sinks that own a graph node may register it as the meter source for
     /// the tracks they play (roadmap 29). Default: no metering.
@@ -46,6 +51,10 @@ final class AudioInstrumentHost: TrackPlaybackSink {
     private var outputMixer: AVAudioMixerNode?
     private var shouldBeRunning = false
     private var currentMix = TrackMixSettings.default
+    /// Perform-layer mute, applied as ramped gain alongside the mixer mute that
+    /// rides in `currentMix.isMuted`. Effective mute = either is true; both
+    /// resolve to the same ramped `outputMixer.outputVolume`.
+    private var layerMuteGain = false
     private var currentOutputBusID: UUID?
     private var currentMeterTrackIDs: Set<UUID> = []
     private var currentChoice: AudioInstrumentChoice
@@ -618,14 +627,30 @@ final class AudioInstrumentHost: TrackPlaybackSink {
             return
         }
 
+        let effectivelyMuted = currentMix.isMuted || layerMuteGain
+        let targetVolume: Float = effectivelyMuted ? 0 : Float(currentMix.clampedLevel)
         performOnMain { [currentMix] in
             outputMixer.pan = Float(currentMix.clampedPan)
-            outputMixer.outputVolume = currentMix.isMuted ? 0 : Float(currentMix.clampedLevel)
+            // Mute applies as a short ramped gain (mirrors bus-mute shape) so a
+            // ringing AU voice is cut/restored without a click and without
+            // waiting for the next trigger.
+            MixerGainRamp.shared.ramp(outputMixer, to: targetVolume)
             self.audioGraph.setTrackSendLevels(
                 outputMixer,
                 sendA: currentMix.sendA,
                 sendB: currentMix.sendB
             )
+        }
+    }
+
+    /// Perform-layer mute as a ramped gain change (unified with mixer mute).
+    func setMuteGain(_ muted: Bool) {
+        queue.async { [weak self] in
+            guard let self else { return }
+            guard !self.isShutdown else { return }
+            guard self.layerMuteGain != muted else { return }
+            self.layerMuteGain = muted
+            self.applyCurrentMix()
         }
     }
 

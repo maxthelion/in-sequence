@@ -94,6 +94,68 @@ final class SamplePlaybackEngineTests: XCTestCase {
         XCTAssertNotNil(handle)
     }
 
+    // MARK: - Mute as ramped gain
+
+    /// Poll the per-track output gain until it settles near `expected` (the
+    /// ramp runs asynchronously on a background queue, ~12 ms).
+    private func waitForTrackGain(
+        _ engine: SamplePlaybackEngine,
+        trackID: UUID,
+        expected: Float,
+        tolerance: Float = 0.001,
+        timeout: TimeInterval = 1.0
+    ) -> Float? {
+        let deadline = Date().addingTimeInterval(timeout)
+        var last = engine.trackOutputGainForTesting(trackID: trackID)
+        while Date() < deadline {
+            last = engine.trackOutputGainForTesting(trackID: trackID)
+            if let last, abs(last - expected) <= tolerance {
+                return last
+            }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.005))
+        }
+        return last
+    }
+
+    func test_setTrackMuteGain_ramps_outputVolumeToZero_andRestoresOnUnmute() throws {
+        guard let engine = makeEngine() else { return }
+        defer { engine.stop() }
+        let trackID = UUID()
+        engine.prepareTrack(trackID: trackID)
+        engine.setTrackMix(trackID: trackID, level: 0.8, pan: 0)
+
+        XCTAssertEqual(try XCTUnwrap(engine.trackOutputGainForTesting(trackID: trackID)), 0.8, accuracy: 0.001)
+
+        // Mute → gain ramps to 0 (voices keep playing; this is gain, not gate).
+        engine.setTrackMuteGain(trackID: trackID, muted: true)
+        let muted = waitForTrackGain(engine, trackID: trackID, expected: 0)
+        XCTAssertEqual(try XCTUnwrap(muted), 0, accuracy: 0.001)
+
+        // Unmute → gain ramps back to the stored fader level (not lost).
+        engine.setTrackMuteGain(trackID: trackID, muted: false)
+        let unmuted = waitForTrackGain(engine, trackID: trackID, expected: 0.8)
+        XCTAssertEqual(try XCTUnwrap(unmuted), 0.8, accuracy: 0.001)
+    }
+
+    func test_setTrackMix_whileMuted_keepsGainAtZero_butRestoresNewLevelOnUnmute() throws {
+        guard let engine = makeEngine() else { return }
+        defer { engine.stop() }
+        let trackID = UUID()
+        engine.prepareTrack(trackID: trackID)
+        engine.setTrackMix(trackID: trackID, level: 0.5, pan: 0)
+        engine.setTrackMuteGain(trackID: trackID, muted: true)
+        _ = waitForTrackGain(engine, trackID: trackID, expected: 0)
+
+        // Moving the fader while muted must NOT un-silence the track.
+        engine.setTrackMix(trackID: trackID, level: 0.9, pan: 0)
+        XCTAssertEqual(try XCTUnwrap(engine.trackOutputGainForTesting(trackID: trackID)), 0, accuracy: 0.001)
+
+        // Unmute restores the new fader level.
+        engine.setTrackMuteGain(trackID: trackID, muted: false)
+        let unmuted = waitForTrackGain(engine, trackID: trackID, expected: 0.9)
+        XCTAssertEqual(try XCTUnwrap(unmuted), 0.9, accuracy: 0.001)
+    }
+
     func test_playSliceMonoReusesAndStopsSingleVoice() throws {
         guard let engine = makeEngine() else { return }
         defer { engine.stop() }

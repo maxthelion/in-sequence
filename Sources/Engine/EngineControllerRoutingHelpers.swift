@@ -145,6 +145,19 @@ extension EngineController {
         )
     }
 
+    /// Whether a track's DIRECT output goes through an internal mixer gain
+    /// stage that mute can ramp (sample/slicer/AU). For these, mute is a GAIN
+    /// change and triggering is NOT gated. MIDI/voicing/external destinations
+    /// have no internal gain stage, so mute stays a trigger-gate there.
+    static func destinationUsesGainMute(_ destination: Destination) -> Bool {
+        switch destination {
+        case .sample, .slicer, .auInstrument:
+            return true
+        case .midi, .internalSampler, .inheritGroup, .none:
+            return false
+        }
+    }
+
     static func effectiveMix(for mix: TrackMixSettings, isMuted: Bool) -> TrackMixSettings {
         TrackMixSettings(
             level: mix.level,

@@ -178,14 +178,18 @@ extension EngineController {
                 for: track.mix,
                 isMuted: effectiveMuteState.mutedTrackIDs.contains(track.id)
             )
+            let mixerMuted = effectiveMuteState.mutedTrackIDs.contains(track.id)
             audioOutputs[track.id]?.setMix(effectiveMix)
             switch Self.effectiveDestination(for: track.id, in: documentModel).destination {
             case .sample, .slicer:
+                // Fader level is the raw user value; mute is applied as a
+                // ramped gain via setTrackMuteGain so unmute restores it.
                 sampleEngine.setTrackMix(
                     trackID: track.id,
-                    level: effectiveMix.isMuted ? 0 : effectiveMix.clampedLevel,
+                    level: track.mix.clampedLevel,
                     pan: effectiveMix.clampedPan
                 )
+                sampleEngine.setTrackMuteGain(trackID: track.id, muted: mixerMuted)
                 sampleEngine.setTrackSends(trackID: track.id, sendA: effectiveMix.sendA, sendB: effectiveMix.sendB)
             default:
                 continue
@@ -326,13 +330,15 @@ extension EngineController {
             sampleTrackIDs.insert(track.id)
             sampleEngine.setTrackOutputBus(trackID: track.id, busID: track.outputBusID)
             sampleEngine.prepareTrack(trackID: track.id)
-            let mix = Self.effectiveMix(for: track.mix, isMuted: effectiveMuteState.mutedTrackIDs.contains(track.id))
+            let mixerMuted = effectiveMuteState.mutedTrackIDs.contains(track.id)
+            // Fader level stays raw; mute is a ramped gain via setTrackMuteGain.
             sampleEngine.setTrackMix(
                 trackID: track.id,
-                level: mix.isMuted ? 0 : mix.clampedLevel,
-                pan: mix.clampedPan
+                level: track.mix.clampedLevel,
+                pan: track.mix.clampedPan
             )
-            sampleEngine.setTrackSends(trackID: track.id, sendA: mix.sendA, sendB: mix.sendB)
+            sampleEngine.setTrackMuteGain(trackID: track.id, muted: mixerMuted)
+            sampleEngine.setTrackSends(trackID: track.id, sendA: track.mix.sendA, sendB: track.mix.sendB)
         }
 
         warmSampleAssets(sampleIDs: sampleIDsToWarm)

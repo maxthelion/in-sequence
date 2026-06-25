@@ -1767,10 +1767,11 @@ final class EngineControllerTests: XCTestCase {
         XCTAssertEqual(audioSink.stopCallCount, 1)
     }
 
-    func test_muted_track_suppresses_audio_playback_and_updates_status() {
+    func test_mutedAudioTrack_appliesMuteGain_keepsTriggering_andUpdatesStatus() {
         let audioSink = CapturingAudioSink()
         let controller = EngineController(client: nil, endpoint: nil, audioOutput: audioSink)
         let mutedTrack = StepSequenceTrack(
+            id: UUID(uuidString: "61616161-6161-6161-6161-616161616161")!,
             name: "Muted",
             pitches: [67],
             stepPattern: [true],
@@ -1780,11 +1781,44 @@ final class EngineControllerTests: XCTestCase {
             velocity: 100,
             gateLength: 2
         )
+        let generator = GeneratorPoolEntry(
+            id: UUID(uuidString: "62626262-6262-6262-6262-626262626262")!,
+            name: "Always On",
+            trackType: .monoMelodic,
+            kind: .monoGenerator,
+            params: .mono(
+                trigger: .native(.euclidean(pulses: 1, steps: 1, offset: 0)),
+                pitch: .native(.manual(pitches: [67], pickMode: .sequential)),
+                shape: NoteShape(velocity: 100, gateLength: 2, accent: false)
+            )
+        )
+        let layers = PhraseLayerDefinition.defaultSet(for: [mutedTrack])
+        let phrase = PhraseModel.default(tracks: [mutedTrack], layers: layers, generatorPool: [generator], clipPool: [])
+        let patternBank = TrackPatternBank(
+            trackID: mutedTrack.id,
+            slots: [TrackPatternSlot(slotIndex: 0, sourceRef: .generator(generator.id))]
+        )
+        let document = Project(
+            version: 1,
+            tracks: [mutedTrack],
+            generatorPool: [generator],
+            clipPool: [],
+            layers: layers,
+            patternBanks: [patternBank],
+            selectedTrackID: mutedTrack.id,
+            phrases: [phrase],
+            selectedPhraseID: phrase.id
+        )
 
-        controller.apply(track: mutedTrack)
+        controller.apply(documentModel: document)
         controller.processTick(tickIndex: 0, now: 0)
 
-        XCTAssertTrue(audioSink.receivedEvents.isEmpty)
+        // Mute is now a GAIN change (not a trigger-gate): the AU voice keeps
+        // firing and the mute rides in the delivered mix (isMuted == true), so
+        // the host zeroes its output gain. A ringing note is cut instantly and
+        // unmute returns without waiting for the next trigger.
+        XCTAssertEqual(audioSink.receivedEvents.flatMap { $0 }.map(\.pitch), [67])
+        XCTAssertEqual(audioSink.receivedMixes.last?.isMuted, true)
         XCTAssertEqual(controller.statusSummary, "Audio: Mock AU Instrument via Main Mixer (Muted)")
     }
 
@@ -3383,6 +3417,7 @@ private final class CapturingAudioSink: TrackPlaybackSink {
     private(set) var prepareCallCount = 0
     private(set) var receivedEvents: [[NoteEvent]] = []
     private(set) var receivedMixes: [TrackMixSettings] = []
+    private(set) var receivedMuteGains: [Bool] = []
     private(set) var receivedDestinations: [Destination] = []
 
     func prepareIfNeeded() {
@@ -3403,6 +3438,10 @@ private final class CapturingAudioSink: TrackPlaybackSink {
 
     func setMix(_ mix: TrackMixSettings) {
         receivedMixes.append(mix)
+    }
+
+    func setMuteGain(_ muted: Bool) {
+        receivedMuteGains.append(muted)
     }
 
     func setDestination(_ destination: Destination) {

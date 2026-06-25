@@ -8,6 +8,7 @@ final class EngineControllerSampleTriggerTests: XCTestCase {
         var playSliceCalls: [(URL, AVAudioFramePosition, AVAudioFramePosition, SlicerSettings, UUID, AVAudioTime?, Bool, SliceTriggerStepParameters?)] = []
         var prepareTrackCalls: [UUID] = []
         var setTrackMixCalls: [(UUID, Double, Double)] = []
+        var setTrackMuteGainCalls: [(UUID, Bool)] = []
         var removeTrackCalls: [UUID] = []
         func start() throws {}
         func stop() {}
@@ -33,6 +34,9 @@ final class EngineControllerSampleTriggerTests: XCTestCase {
         }
         func setTrackMix(trackID: UUID, level: Double, pan: Double) {
             setTrackMixCalls.append((trackID, level, pan))
+        }
+        func setTrackMuteGain(trackID: UUID, muted: Bool) {
+            setTrackMuteGainCalls.append((trackID, muted))
         }
         func removeTrack(trackID: UUID) {
             removeTrackCalls.append(trackID)
@@ -700,7 +704,10 @@ final class EngineControllerSampleTriggerTests: XCTestCase {
         XCTAssertTrue(spy.removeTrackCalls.contains(track.id), "track leaving .sample should trigger removeTrack on sample engine")
     }
 
-    func test_muteCell_suppressesSampleDispatch() {
+    // Layer (perform-cell) mute on a sample track is now a GAIN change, not a
+    // trigger-gate (task #49): the track keeps triggering and the mute is
+    // applied as ramped per-track gain. (Was: asserted zero dispatch.)
+    func test_layerMute_appliesGain_doesNotSuppressSampleDispatch() {
         let library = AudioSampleLibrary(libraryRoot: libraryRoot)
         guard let kick = library.firstSample(in: .kick) else { XCTFail(); return }
         let spy = SpySamplePlaybackSink()
@@ -732,10 +739,15 @@ final class EngineControllerSampleTriggerTests: XCTestCase {
         }
         controller.stop()
 
-        XCTAssertEqual(spy.playCalls.count, 0, "muted track should not dispatch sample triggers")
+        XCTAssertGreaterThan(spy.playCalls.count, 0, "layer mute is a gain, not a gate — triggering continues")
+        XCTAssertTrue(
+            spy.setTrackMuteGainCalls.contains(where: { $0.0 == track.id && $0.1 }),
+            "layer mute must drive the per-track mute-gain path"
+        )
     }
 
-    func test_mixMute_suppressesSampleDispatch() {
+    // Mixer mute on a sample track is now a GAIN change, not a trigger-gate.
+    func test_mixMute_appliesGain_doesNotSuppressSampleDispatch() {
         let library = AudioSampleLibrary(libraryRoot: libraryRoot)
         guard let kick = library.firstSample(in: .kick) else { XCTFail(); return }
         let spy = SpySamplePlaybackSink()
@@ -767,7 +779,11 @@ final class EngineControllerSampleTriggerTests: XCTestCase {
         }
         controller.stop()
 
-        XCTAssertEqual(spy.playCalls.count, 0, "mix-muted track should not dispatch sample triggers")
+        XCTAssertGreaterThan(spy.playCalls.count, 0, "mix mute is a gain, not a gate — triggering continues")
+        XCTAssertTrue(
+            spy.setTrackMuteGainCalls.contains(where: { $0.0 == track.id && $0.1 }),
+            "mixer mute must drive the per-track mute-gain path"
+        )
     }
 
     func test_orphanSampleID_noCrash() {
@@ -1136,4 +1152,5 @@ final class EngineControllerSampleTriggerTests: XCTestCase {
         XCTAssertEqual(spy.playSliceCalls.first?.1, 100)
         XCTAssertEqual(spy.playSliceCalls.first?.2, 44_100)
     }
+
 }

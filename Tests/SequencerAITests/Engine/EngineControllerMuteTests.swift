@@ -276,8 +276,16 @@ final class EngineControllerMuteTests: XCTestCase {
 
         XCTAssertEqual(createdSinks.count, 2)
         XCTAssertEqual(createdSinks[0].receivedEvents.flatMap { $0 }.map(\.pitch), [60])
-        XCTAssertTrue(createdSinks[1].receivedEvents.isEmpty)
+        // Mute is now a GAIN change, not a trigger-gate: the layer-muted AU
+        // track KEEPS triggering its voices (so a ringing note can be cut and
+        // unmute returns instantly), and the perform-layer mute is applied as
+        // ramped gain via setMuteGain(true).
+        XCTAssertEqual(createdSinks[1].receivedEvents.flatMap { $0 }.map(\.pitch), [67])
+        XCTAssertEqual(createdSinks[1].muteGainHistory.last, true)
+        XCTAssertFalse(createdSinks[0].muteGainHistory.contains(true))
 
+        // The ROUTED MIDI copy of the muted source stays gated (routing is the
+        // external/MIDI direction — no internal gain stage to ramp).
         waitForNoteOnCount(routedPackets, expected: 0, timeout: 0.1)
         XCTAssertTrue(routedPackets.noteOnPackets.isEmpty)
     }
@@ -335,12 +343,14 @@ private final class CapturingAudioSink: TrackPlaybackSink {
     var selectedInstrument: AudioInstrumentChoice = .builtInSynth
     var currentAudioUnit: AVAudioUnit? = nil
     private(set) var receivedEvents: [[NoteEvent]] = []
+    private(set) var muteGainHistory: [Bool] = []
 
     func prepareIfNeeded() {}
     func startIfNeeded() {}
     func stop() {}
     func shutdown() {}
     func setMix(_ mix: TrackMixSettings) {}
+    func setMuteGain(_ muted: Bool) { muteGainHistory.append(muted) }
     func setDestination(_ destination: Destination) {
         if case let .auInstrument(componentID, _) = destination {
             selectedInstrument = availableInstruments.first(where: { $0.audioComponentID == componentID }) ?? .builtInSynth
