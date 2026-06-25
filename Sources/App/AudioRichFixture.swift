@@ -85,6 +85,21 @@ enum AudioRichFixture {
     static let droneSampleRate: Double = 44_100
     static let droneLengthFrames: Int64 = 176_400 // ~4.0s @ 44.1kHz (bridges steps)
 
+    /// Library-relative path for the SMOOTH drone used by the DRUM-FREE
+    /// routing-stress click fixture. Unlike the every-step drone above (whose
+    /// per-step retrigger onsets spike the discontinuity metric to ~0.5 and make
+    /// a clean baseline impossible), this is a LONG (30s) sample with a slow
+    /// 50ms attack/release that is triggered ONCE — a single continuous voice,
+    /// no retrigger transients — so the master maxSampleDelta stays near zero and
+    /// the absolute CLICK floor genuinely bites.
+    static let smoothDroneSampleRelativePath = "breaks/audio-rich-fixture-smooth-drone.wav"
+
+    static var smoothDroneSampleID: UUID {
+        AudioSampleLibrary.stableID(forRelativePath: smoothDroneSampleRelativePath)
+    }
+
+    static let smoothDroneLengthFrames: Int64 = 1_323_000 // 30s @ 44.1kHz (spans a whole run)
+
     /// A synthesized drum one-shot: which part it is, the relative library path
     /// the WAV is written to, and how long it runs. Each lives under the part's
     /// own category dir (e.g. `kick/`, `snare/`, `hatClosed/`, `clap/`) so the
@@ -477,8 +492,50 @@ enum AudioRichFixture {
         try materializeSlicerSample(libraryRoot: libraryRoot)
         try materializeMelodicSample(libraryRoot: libraryRoot)
         try materializeDroneSample(libraryRoot: libraryRoot)
+        try materializeSmoothDroneSample(libraryRoot: libraryRoot)
         for hit in drumHits {
             try materializeDrumHit(hit, libraryRoot: libraryRoot)
+        }
+    }
+
+    /// The `AudioSample` metadata for the smooth drum-free-fixture drone.
+    static func makeSmoothDroneSample() -> AudioSample {
+        AudioSample(
+            id: smoothDroneSampleID,
+            name: "Audio Rich Fixture Smooth Drone",
+            fileRef: .appSupportLibrary(relativePath: smoothDroneSampleRelativePath),
+            category: AudioSampleCategory(rawValue: "breaks") ?? .breaks,
+            lengthSeconds: Double(smoothDroneLengthFrames) / droneSampleRate,
+            lengthFrames: smoothDroneLengthFrames,
+            sampleRate: droneSampleRate
+        )
+    }
+
+    /// Synthesizes a long (30s) CONSTANT-amplitude drone with a slow 50ms
+    /// attack and 50ms release, triggered ONCE by the drum-free click fixture.
+    /// A single continuous voice (no per-step retrigger) keeps the master
+    /// maxSampleDelta near zero, so the routing-stress CLICK floor actually bites.
+    @discardableResult
+    static func materializeSmoothDroneSample(
+        libraryRoot: URL = AudioSampleLibrary.shared.libraryRoot
+    ) throws -> URL {
+        let total = Double(smoothDroneLengthFrames)
+        return try writeMonoWAV(
+            relativePath: smoothDroneSampleRelativePath,
+            libraryRoot: libraryRoot,
+            sampleRate: droneSampleRate,
+            frameCount: Int(smoothDroneLengthFrames)
+        ) { frame, _ in
+            let t = Double(frame) / droneSampleRate
+            let f0 = 130.81 // C3
+            let fundamental = sin(2.0 * Double.pi * f0 * t)
+            let fifth = 0.4 * sin(2.0 * Double.pi * f0 * 1.5 * t)
+            let octave = 0.3 * sin(2.0 * Double.pi * f0 * 2.0 * t)
+            let secondsRemaining = (total - Double(frame)) / droneSampleRate
+            // Slow 50ms attack + 50ms release; flat in between (no retrigger).
+            let attack = min(1.0, t / 0.05)
+            let release = min(1.0, max(0.0, secondsRemaining / 0.05))
+            return Float((fundamental + fifth + octave) * attack * release * 0.3)
         }
     }
 

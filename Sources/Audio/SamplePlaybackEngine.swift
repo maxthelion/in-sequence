@@ -5,6 +5,15 @@ struct VoiceHandle: Equatable, Hashable {
     fileprivate let id: UUID
 }
 
+/// The two independent mute sources that can gain-mute a track. They are
+/// tracked separately and OR-combined so neither clobbers the other.
+enum TrackMuteSource: Equatable {
+    /// Mixer / channel-strip mute (rides in the document mix state).
+    case mixer
+    /// Perform-layer mute (toggled by the performance layer overlay).
+    case layer
+}
+
 protocol SamplePlaybackSink: AnyObject {
     func start() throws
     func stop()
@@ -42,8 +51,9 @@ protocol SamplePlaybackSink: AnyObject {
     func setTrackMix(trackID: UUID, level: Double, pan: Double)
     /// Apply track mute as a ramped GAIN change (voices keep playing). Mixer
     /// mute and perform-layer mute both route here so they share one gain
-    /// mechanism. Safe off-main (only writes `outputVolume`).
-    func setTrackMuteGain(trackID: UUID, muted: Bool)
+    /// mechanism, but they are tracked as SEPARATE sources and OR-combined so
+    /// one cannot clobber the other. Safe off-main (only writes `outputVolume`).
+    func setTrackMuteGain(trackID: UUID, muted: Bool, source: TrackMuteSource)
     /// Apply the track's post-fader send tap gains. This is a parameter update,
     /// not a topology rebuild.
     func setTrackSends(trackID: UUID, sendA: Double, sendB: Double)
@@ -77,7 +87,12 @@ extension SamplePlaybackSink {
 
     func setTrackSends(trackID: UUID, sendA: Double, sendB: Double) {}
 
-    func setTrackMuteGain(trackID: UUID, muted: Bool) {}
+    func setTrackMuteGain(trackID: UUID, muted: Bool, source: TrackMuteSource) {}
+
+    /// Convenience for callers (e.g. tests) that exercise a single mute source.
+    func setTrackMuteGain(trackID: UUID, muted: Bool) {
+        setTrackMuteGain(trackID: trackID, muted: muted, source: .mixer)
+    }
 
     func play(sampleAsset: PreparedSampleAsset, settings: SamplerSettings, trackID: UUID, at when: AVAudioTime?) -> VoiceHandle? {
         play(sampleURL: sampleAsset.url, settings: settings, trackID: trackID, at: when)
@@ -205,9 +220,14 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
     private var trackMixValues: [UUID: (level: Float, pan: Float)] = [:]
     /// Per-track mute applied as GAIN (ramped), separate from the fader level so
     /// unmute restores the user's level. `effectiveLevel` = muted ? 0 : level.
-    /// Mixer-mute and perform-layer mute both drive this flag (unified gain
-    /// mechanism); they resolve to the same ramped `outputVolume`.
-    private var trackMuteGain: [UUID: Bool] = [:]
+    ///
+    /// Mixer-mute and perform-layer mute are INDEPENDENT sources tracked
+    /// SEPARATELY (`mixerMutedTrackIDs` + `layerMutedTrackIDs`) and OR-combined:
+    /// a track is gain-muted while EITHER source mutes it. A single shared flag
+    /// would let one source clobber the other (last-writer-wins), so e.g.
+    /// mixer-mute then layer-mute+unmute would un-silence a mixer-muted track.
+    private var mixerMutedTrackIDs: Set<UUID> = []
+    private var layerMutedTrackIDs: Set<UUID> = []
     private var trackOutputBusIDs: [UUID: UUID] = [:]
     private var trackSendLevels: [UUID: MainAudioGraph.TrackSendLevels] = [:]
     private var fastPathReadyTrackIDs: Set<UUID> = []
@@ -754,6 +774,13 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         }
     }
 
+    /// Effective gain-mute for a track: muted while EITHER the mixer source or
+    /// the perform-layer source mutes it. Caller MUST hold `lifecycleLock`
+    /// (reads the two mute-source sets).
+    private func effectiveMuteLocked(_ trackID: UUID) -> Bool {
+        mixerMutedTrackIDs.contains(trackID) || layerMutedTrackIDs.contains(trackID)
+    }
+
     /// Set the per-track fader level/pan. `level` is the user's fader value
     /// (NOT pre-zeroed for mute) — mute is applied separately as a ramped gain
     /// via `setTrackMuteGain`, so unmute restores this level. The effective
@@ -768,7 +795,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
             // updates (not graph mutations) and run without the lock.
             let (busPool, mixer, muted): (BusVoicePool?, AVAudioMixerNode?, Bool) = withLifecycleLock {
                 trackMixValues[trackID] = (level: clampedLevel, pan: clampedPan)
-                let muted = trackMuteGain[trackID] ?? false
+                let muted = effectiveMuteLocked(trackID)
                 if let pool = busVoicePools[trackID] {
                     return (pool, nil, muted)
                 }
@@ -797,16 +824,24 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
     /// Safe to call from any thread (including the tick path): it only kicks a
     /// ramp that writes `outputVolume` (a node-parameter write, not a graph
     /// mutation) and never holds `lifecycleLock` across engine work.
-    func setTrackMuteGain(trackID: UUID, muted: Bool) {
-        let (busPool, mixer, level): (BusVoicePool?, AVAudioMixerNode?, Float) = withLifecycleLock {
-            trackMuteGain[trackID] = muted
+    func setTrackMuteGain(trackID: UUID, muted: Bool, source: TrackMuteSource) {
+        let (busPool, mixer, level, effectiveMuted): (BusVoicePool?, AVAudioMixerNode?, Float, Bool) = withLifecycleLock {
+            // Record THIS source independently; effective mute is mixer || layer
+            // so neither source clobbers the other (last-writer-wins bug).
+            switch source {
+            case .mixer:
+                if muted { mixerMutedTrackIDs.insert(trackID) } else { mixerMutedTrackIDs.remove(trackID) }
+            case .layer:
+                if muted { layerMutedTrackIDs.insert(trackID) } else { layerMutedTrackIDs.remove(trackID) }
+            }
+            let effective = effectiveMuteLocked(trackID)
             let level = trackMixValues[trackID]?.level ?? 1
             if let pool = busVoicePools[trackID] {
-                return (pool, nil, level)
+                return (pool, nil, level, effective)
             }
-            return (nil, trackMixers[trackID], level)
+            return (nil, trackMixers[trackID], level, effective)
         }
-        let target: Float = muted ? 0 : level
+        let target: Float = effectiveMuted ? 0 : level
         if let busPool {
             for voiceMixer in busPool.voiceMixers {
                 MixerGainRamp.shared.ramp(voiceMixer, to: target)
@@ -912,6 +947,8 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
                 trackOutputBusIDs.removeValue(forKey: trackID)
                 trackSendLevels.removeValue(forKey: trackID)
                 trackMixValues.removeValue(forKey: trackID)
+                mixerMutedTrackIDs.remove(trackID)
+                layerMutedTrackIDs.remove(trackID)
                 trackFilterFanouts.removeValue(forKey: trackID)
                 _ = fastPathReadyTrackIDs.remove(trackID)
                 _ = deferredPreparedTrackRepairIDs.remove(trackID)
@@ -1109,7 +1146,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
     /// node-parameter write, not a graph mutation) without it.
     private func applyBusVoiceMix(trackID: UUID, pool: BusVoicePool) {
         let (mix, muted) = withLifecycleLock {
-            (trackMixValues[trackID] ?? (level: 1, pan: 0), trackMuteGain[trackID] ?? false)
+            (trackMixValues[trackID] ?? (level: 1, pan: 0), effectiveMuteLocked(trackID))
         }
         let effectiveLevel = muted ? 0 : mix.level
         for mixer in pool.voiceMixers {

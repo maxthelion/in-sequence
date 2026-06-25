@@ -8,7 +8,7 @@ final class EngineControllerSampleTriggerTests: XCTestCase {
         var playSliceCalls: [(URL, AVAudioFramePosition, AVAudioFramePosition, SlicerSettings, UUID, AVAudioTime?, Bool, SliceTriggerStepParameters?)] = []
         var prepareTrackCalls: [UUID] = []
         var setTrackMixCalls: [(UUID, Double, Double)] = []
-        var setTrackMuteGainCalls: [(UUID, Bool)] = []
+        var setTrackMuteGainCalls: [(UUID, Bool, TrackMuteSource)] = []
         var removeTrackCalls: [UUID] = []
         func start() throws {}
         func stop() {}
@@ -35,8 +35,8 @@ final class EngineControllerSampleTriggerTests: XCTestCase {
         func setTrackMix(trackID: UUID, level: Double, pan: Double) {
             setTrackMixCalls.append((trackID, level, pan))
         }
-        func setTrackMuteGain(trackID: UUID, muted: Bool) {
-            setTrackMuteGainCalls.append((trackID, muted))
+        func setTrackMuteGain(trackID: UUID, muted: Bool, source: TrackMuteSource) {
+            setTrackMuteGainCalls.append((trackID, muted, source))
         }
         func removeTrack(trackID: UUID) {
             removeTrackCalls.append(trackID)

@@ -1,0 +1,6421 @@
+{
+ "assetPool": [
+  {
+   "addedAt": -978307200,
+   "assetID": "D125FEC4-FF68-5B93-8B1E-7984C963390E",
+   "kind": "sample"
+  },
+  {
+   "addedAt": -978307200,
+   "assetID": "2B174442-31CA-5A36-ADA0-E4F70E2A9CAA",
+   "kind": "sample"
+  },
+  {
+   "assetID": "76EC2432-A4D8-5355-9A9B-CDE05795D1AC",
+   "kind": "sample",
+   "addedAt": -978307200
+  }
+ ],
+ "buses": [
+  {
+   "color": "#3A7",
+   "id": "3802FEA1-85AC-4B28-A42E-F4D146EF82C3",
+   "inserts": [],
+   "mix": {
+    "isMuted": false,
+    "isSoloed": false,
+    "level": 1,
+    "pan": 0
+   },
+   "name": "FX Bus"
+  }
+ ],
+ "clipPool": [
+  {
+   "content": {
+    "noteGrid": {
+     "lengthSteps": 16,
+     "steps": [
+      {
+       "main": {
+        "chance": 1,
+        "notes": [
+         {
+          "lengthSteps": 4,
+          "pitch": 60,
+          "velocity": 100
+         }
+        ]
+       }
+      },
+      {},
+      {
+       "main": {
+        "chance": 1,
+        "notes": [
+         {
+          "lengthSteps": 4,
+          "pitch": 64,
+          "velocity": 100
+         }
+        ]
+       }
+      },
+      {},
+      {
+       "main": {
+        "chance": 1,
+        "notes": [
+         {
+          "lengthSteps": 4,
+          "pitch": 60,
+          "velocity": 100
+         }
+        ]
+       }
+      },
+      {},
+      {},
+      {
+       "main": {
+        "chance": 1,
+        "notes": [
+         {
+          "lengthSteps": 4,
+          "pitch": 67,
+          "velocity": 100
+         }
+        ]
+       }
+      },
+      {
+       "main": {
+        "chance": 1,
+        "notes": [
+         {
+          "lengthSteps": 4,
+          "pitch": 60,
+          "velocity": 100
+         }
+        ]
+       }
+      },
+      {},
+      {
+       "main": {
+        "chance": 1,
+        "notes": [
+         {
+          "lengthSteps": 4,
+          "pitch": 64,
+          "velocity": 100
+         }
+        ]
+       }
+      },
+      {},
+      {
+       "main": {
+        "chance": 1,
+        "notes": [
+         {
+          "lengthSteps": 4,
+          "pitch": 60,
+          "velocity": 100
+         }
+        ]
+       }
+      },
+      {},
+      {},
+      {
+       "main": {
+        "chance": 1,
+        "notes": [
+         {
+          "lengthSteps": 4,
+          "pitch": 67,
+          "velocity": 100
+         }
+        ]
+       }
+      }
+     ]
+    }
+   },
+   "id": "D956A2B3-4E44-4DB3-982E-EB3FB5891609",
+   "macroLanes": [],
+   "name": "Main Track clip",
+   "trackType": "monoMelodic"
+  },
+  {
+   "content": {
+    "noteGrid": {
+     "lengthSteps": 16,
+     "steps": [
+      {
+       "main": {
+        "chance": 1,
+        "notes": [
+         {
+          "lengthSteps": 4,
+          "pitch": 60,
+          "velocity": 100
+         }
+        ]
+       }
+      },
+      {},
+      {
+       "main": {
+        "chance": 1,
+        "notes": [
+         {
+          "lengthSteps": 4,
+          "pitch": 64,
+          "velocity": 100
+         }
+        ]
+       }
+      },
+      {},
+      {
+       "main": {
+        "chance": 1,
+        "notes": [
+         {
+          "lengthSteps": 4,
+          "pitch": 60,
+          "velocity": 100
+         }
+        ]
+       }
+      },
+      {},
+      {},
+      {
+       "main": {
+        "chance": 1,
+        "notes": [
+         {
+          "lengthSteps": 4,
+          "pitch": 67,
+          "velocity": 100
+         }
+        ]
+       }
+      },
+      {
+       "main": {
+        "chance": 1,
+        "notes": [
+         {
+          "lengthSteps": 4,
+          "pitch": 60,
+          "velocity": 100
+         }
+        ]
+       }
+      },
+      {},
+      {
+       "main": {
+        "chance": 1,
+        "notes": [
+         {
+          "lengthSteps": 4,
+          "pitch": 64,
+          "velocity": 100
+         }
+        ]
+       }
+      },
+      {},
+      {
+       "main": {
+        "chance": 1,
+        "notes": [
+         {
+          "lengthSteps": 4,
+          "pitch": 60,
+          "velocity": 100
+         }
+        ]
+       }
+      },
+      {},
+      {},
+      {
+       "main": {
+        "chance": 1,
+        "notes": [
+         {
+          "lengthSteps": 4,
+          "pitch": 67,
+          "velocity": 100
+         }
+        ]
+       }
+      }
+     ]
+    }
+   },
+   "id": "100D37DA-BB56-4E4B-B3F4-784C43A75629",
+   "macroLanes": [],
+   "name": "Mono 2 clip",
+   "trackType": "monoMelodic"
+  },
+  {
+   "content": {
+    "sliceTriggers": {
+     "sliceIndexes": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "stepModes": [
+      "single",
+      "single",
+      "single",
+      "single",
+      "single",
+      "single",
+      "single",
+      "single",
+      "single",
+      "single",
+      "single",
+      "single",
+      "single",
+      "single",
+      "single",
+      "single"
+     ],
+     "stepParameters": [
+      {
+       "attackMs": 0,
+       "choke": true,
+       "endTrim": 0,
+       "filter": 1,
+       "gain": 0,
+       "pan": 0,
+       "pitch": 0,
+       "releaseMs": 0,
+       "reverse": false,
+       "startTrim": 0
+      },
+      {
+       "attackMs": 0,
+       "choke": true,
+       "endTrim": 0,
+       "filter": 1,
+       "gain": 0,
+       "pan": 0,
+       "pitch": 0,
+       "releaseMs": 0,
+       "reverse": false,
+       "startTrim": 0
+      },
+      {
+       "attackMs": 0,
+       "choke": true,
+       "endTrim": 0,
+       "filter": 1,
+       "gain": 0,
+       "pan": 0,
+       "pitch": 0,
+       "releaseMs": 0,
+       "reverse": false,
+       "startTrim": 0
+      },
+      {
+       "attackMs": 0,
+       "choke": true,
+       "endTrim": 0,
+       "filter": 1,
+       "gain": 0,
+       "pan": 0,
+       "pitch": 0,
+       "releaseMs": 0,
+       "reverse": false,
+       "startTrim": 0
+      },
+      {
+       "attackMs": 0,
+       "choke": true,
+       "endTrim": 0,
+       "filter": 1,
+       "gain": 0,
+       "pan": 0,
+       "pitch": 0,
+       "releaseMs": 0,
+       "reverse": false,
+       "startTrim": 0
+      },
+      {
+       "attackMs": 0,
+       "choke": true,
+       "endTrim": 0,
+       "filter": 1,
+       "gain": 0,
+       "pan": 0,
+       "pitch": 0,
+       "releaseMs": 0,
+       "reverse": false,
+       "startTrim": 0
+      },
+      {
+       "attackMs": 0,
+       "choke": true,
+       "endTrim": 0,
+       "filter": 1,
+       "gain": 0,
+       "pan": 0,
+       "pitch": 0,
+       "releaseMs": 0,
+       "reverse": false,
+       "startTrim": 0
+      },
+      {
+       "attackMs": 0,
+       "choke": true,
+       "endTrim": 0,
+       "filter": 1,
+       "gain": 0,
+       "pan": 0,
+       "pitch": 0,
+       "releaseMs": 0,
+       "reverse": false,
+       "startTrim": 0
+      },
+      {
+       "attackMs": 0,
+       "choke": true,
+       "endTrim": 0,
+       "filter": 1,
+       "gain": 0,
+       "pan": 0,
+       "pitch": 0,
+       "releaseMs": 0,
+       "reverse": false,
+       "startTrim": 0
+      },
+      {
+       "attackMs": 0,
+       "choke": true,
+       "endTrim": 0,
+       "filter": 1,
+       "gain": 0,
+       "pan": 0,
+       "pitch": 0,
+       "releaseMs": 0,
+       "reverse": false,
+       "startTrim": 0
+      },
+      {
+       "attackMs": 0,
+       "choke": true,
+       "endTrim": 0,
+       "filter": 1,
+       "gain": 0,
+       "pan": 0,
+       "pitch": 0,
+       "releaseMs": 0,
+       "reverse": false,
+       "startTrim": 0
+      },
+      {
+       "attackMs": 0,
+       "choke": true,
+       "endTrim": 0,
+       "filter": 1,
+       "gain": 0,
+       "pan": 0,
+       "pitch": 0,
+       "releaseMs": 0,
+       "reverse": false,
+       "startTrim": 0
+      },
+      {
+       "attackMs": 0,
+       "choke": true,
+       "endTrim": 0,
+       "filter": 1,
+       "gain": 0,
+       "pan": 0,
+       "pitch": 0,
+       "releaseMs": 0,
+       "reverse": false,
+       "startTrim": 0
+      },
+      {
+       "attackMs": 0,
+       "choke": true,
+       "endTrim": 0,
+       "filter": 1,
+       "gain": 0,
+       "pan": 0,
+       "pitch": 0,
+       "releaseMs": 0,
+       "reverse": false,
+       "startTrim": 0
+      },
+      {
+       "attackMs": 0,
+       "choke": true,
+       "endTrim": 0,
+       "filter": 1,
+       "gain": 0,
+       "pan": 0,
+       "pitch": 0,
+       "releaseMs": 0,
+       "reverse": false,
+       "startTrim": 0
+      },
+      {
+       "attackMs": 0,
+       "choke": true,
+       "endTrim": 0,
+       "filter": 1,
+       "gain": 0,
+       "pan": 0,
+       "pitch": 0,
+       "releaseMs": 0,
+       "reverse": false,
+       "startTrim": 0
+      }
+     ],
+     "stepPattern": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+     ]
+    }
+   },
+   "id": "57A979D1-2BD2-4DB5-9422-FA82D221F091",
+   "macroLanes": [],
+   "name": "Audio Rich Fixture Loop clip",
+   "trackType": "slice"
+  },
+  {
+   "content": {
+    "noteGrid": {
+     "lengthSteps": 16,
+     "steps": [
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {}
+     ]
+    }
+   },
+   "id": "3AFEAD61-2E7F-4335-99A7-0A07346E1F6E",
+   "macroLanes": [],
+   "name": "Kick",
+   "trackType": "monoMelodic"
+  },
+  {
+   "content": {
+    "noteGrid": {
+     "lengthSteps": 16,
+     "steps": [
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {}
+     ]
+    }
+   },
+   "id": "93B8AB19-921D-42AF-9E92-5EC4A4B2A756",
+   "macroLanes": [],
+   "name": "Snare",
+   "trackType": "monoMelodic"
+  },
+  {
+   "content": {
+    "noteGrid": {
+     "lengthSteps": 16,
+     "steps": [
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {}
+     ]
+    }
+   },
+   "id": "5D474102-74B5-4501-9647-523B8852ACC4",
+   "macroLanes": [],
+   "name": "Hat",
+   "trackType": "monoMelodic"
+  },
+  {
+   "content": {
+    "noteGrid": {
+     "lengthSteps": 16,
+     "steps": [
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {}
+     ]
+    }
+   },
+   "id": "BDBC8ED4-442B-48B2-8FC5-DA5033FDD05D",
+   "macroLanes": [],
+   "name": "Clap",
+   "trackType": "monoMelodic"
+  },
+  {
+   "content": {
+    "noteGrid": {
+     "lengthSteps": 16,
+     "steps": [
+      {
+       "main": {
+        "chance": 1,
+        "notes": [
+         {
+          "lengthSteps": 4,
+          "pitch": 60,
+          "velocity": 100
+         }
+        ]
+       }
+      },
+      {},
+      {
+       "main": {
+        "chance": 1,
+        "notes": [
+         {
+          "lengthSteps": 4,
+          "pitch": 64,
+          "velocity": 100
+         }
+        ]
+       }
+      },
+      {},
+      {
+       "main": {
+        "chance": 1,
+        "notes": [
+         {
+          "lengthSteps": 4,
+          "pitch": 60,
+          "velocity": 100
+         }
+        ]
+       }
+      },
+      {},
+      {},
+      {
+       "main": {
+        "chance": 1,
+        "notes": [
+         {
+          "lengthSteps": 4,
+          "pitch": 67,
+          "velocity": 100
+         }
+        ]
+       }
+      },
+      {
+       "main": {
+        "chance": 1,
+        "notes": [
+         {
+          "lengthSteps": 4,
+          "pitch": 60,
+          "velocity": 100
+         }
+        ]
+       }
+      },
+      {},
+      {
+       "main": {
+        "chance": 1,
+        "notes": [
+         {
+          "lengthSteps": 4,
+          "pitch": 64,
+          "velocity": 100
+         }
+        ]
+       }
+      },
+      {},
+      {
+       "main": {
+        "chance": 1,
+        "notes": [
+         {
+          "lengthSteps": 4,
+          "pitch": 60,
+          "velocity": 100
+         }
+        ]
+       }
+      },
+      {},
+      {},
+      {
+       "main": {
+        "chance": 1,
+        "notes": [
+         {
+          "lengthSteps": 4,
+          "pitch": 67,
+          "velocity": 100
+         }
+        ]
+       }
+      }
+     ]
+    }
+   },
+   "id": "B72EC61B-6101-4CBC-9860-F1FC878EB971",
+   "macroLanes": [],
+   "name": "Mono 8 clip",
+   "trackType": "monoMelodic"
+  }
+ ],
+ "generatorPool": [
+  {
+   "id": "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAA1",
+   "kind": "monoGenerator",
+   "name": "Euclidean Mono",
+   "params": {
+    "mono": {
+     "pitch": {
+      "native": {
+       "_0": {
+        "algo": {
+         "manual": {
+          "pickMode": "random",
+          "pitches": [
+           60,
+           62,
+           64,
+           67
+          ]
+         }
+        },
+        "harmonicSidechain": {
+         "none": {}
+        }
+       }
+      }
+     },
+     "shape": {
+      "accent": false,
+      "gateLength": 4,
+      "velocity": 100
+     },
+     "trigger": {
+      "native": {
+       "_0": {
+        "algo": {
+         "euclidean": {
+          "offset": 0,
+          "pulses": 4,
+          "steps": 16
+         }
+        },
+        "basePitch": 60
+       }
+      }
+     }
+    }
+   },
+   "trackType": "monoMelodic"
+  },
+  {
+   "id": "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAA2",
+   "kind": "polyGenerator",
+   "name": "Euclidean Poly",
+   "params": {
+    "poly": {
+     "pitches": [
+      {
+       "native": {
+        "_0": {
+         "algo": {
+          "manual": {
+           "pickMode": "random",
+           "pitches": [
+            60,
+            64,
+            67
+           ]
+          }
+         },
+         "harmonicSidechain": {
+          "none": {}
+         }
+        }
+       }
+      }
+     ],
+     "shape": {
+      "accent": false,
+      "gateLength": 4,
+      "velocity": 100
+     },
+     "trigger": {
+      "native": {
+       "_0": {
+        "algo": {
+         "euclidean": {
+          "offset": 0,
+          "pulses": 4,
+          "steps": 16
+         }
+        },
+        "basePitch": 60
+       }
+      }
+     }
+    }
+   },
+   "trackType": "polyMelodic"
+  },
+  {
+   "id": "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAA3",
+   "kind": "progressionChordGenerator",
+   "name": "Progression Chords",
+   "params": {
+    "progressionChords": {
+     "_0": {
+      "chords": [
+       {
+        "accidental": 0,
+        "inversion": 0,
+        "length": {
+         "untilNext": {}
+        },
+        "noteCount": 3,
+        "position": 0,
+        "quality": "minor",
+        "voicing": "close"
+       },
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       {
+        "accidental": 0,
+        "inversion": 0,
+        "length": {
+         "untilNext": {}
+        },
+        "noteCount": 3,
+        "position": 6,
+        "quality": "major",
+        "voicing": "close"
+       },
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       {
+        "accidental": 0,
+        "inversion": 0,
+        "length": {
+         "untilNext": {}
+        },
+        "noteCount": 3,
+        "position": 5,
+        "quality": "major",
+        "voicing": "close"
+       },
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       {
+        "accidental": 0,
+        "inversion": 0,
+        "length": {
+         "untilNext": {}
+        },
+        "noteCount": 3,
+        "position": 6,
+        "quality": "major",
+        "voicing": "close"
+       },
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ],
+      "lengthSteps": 64,
+      "mode": "minor",
+      "rootMIDI": 60,
+      "velocity": 100
+     }
+    }
+   },
+   "trackType": "polyMelodic"
+  },
+  {
+   "id": "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAA4",
+   "kind": "sliceGenerator",
+   "name": "Slice Trigger",
+   "params": {
+    "slice": {
+     "sliceIndexes": [],
+     "trigger": {
+      "native": {
+       "_0": {
+        "algo": {
+         "euclidean": {
+          "offset": 0,
+          "pulses": 4,
+          "steps": 16
+         }
+        },
+        "basePitch": 60
+       }
+      }
+     }
+    }
+   },
+   "trackType": "slice"
+  }
+ ],
+ "layers": [
+  {
+   "defaults": [
+    "8E5B89B6-57E7-46BB-84DC-9FB75D468409",
+    {
+     "index": {
+      "_0": 0
+     }
+    },
+    "3F8ECDAD-6A32-4046-8568-29248C5BC54E",
+    {
+     "index": {
+      "_0": 0
+     }
+    },
+    "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF",
+    {
+     "index": {
+      "_0": 0
+     }
+    },
+    "11111111-1111-1111-1111-111111111111",
+    {
+     "index": {
+      "_0": 0
+     }
+    },
+    "915EA852-237E-46CC-951A-89111BE56C7A",
+    {
+     "index": {
+      "_0": 0
+     }
+    },
+    "8D64B506-C2C1-42FD-84BD-07A25C8A37B4",
+    {
+     "index": {
+      "_0": 0
+     }
+    },
+    "3E278E83-D398-46F3-8F33-4E8C66214D9A",
+    {
+     "index": {
+      "_0": 0
+     }
+    },
+    "B0540F4B-CE03-4DC4-80C8-E867182F7621",
+    {
+     "index": {
+      "_0": 0
+     }
+    }
+   ],
+   "id": "pattern",
+   "maxValue": 15,
+   "minValue": 0,
+   "name": "Pattern",
+   "target": {
+    "patternIndex": {}
+   },
+   "valueType": "patternIndex"
+  },
+  {
+   "defaults": [
+    "915EA852-237E-46CC-951A-89111BE56C7A",
+    {
+     "bool": {
+      "_0": false
+     }
+    },
+    "3F8ECDAD-6A32-4046-8568-29248C5BC54E",
+    {
+     "bool": {
+      "_0": false
+     }
+    },
+    "B0540F4B-CE03-4DC4-80C8-E867182F7621",
+    {
+     "bool": {
+      "_0": false
+     }
+    },
+    "8E5B89B6-57E7-46BB-84DC-9FB75D468409",
+    {
+     "bool": {
+      "_0": false
+     }
+    },
+    "8D64B506-C2C1-42FD-84BD-07A25C8A37B4",
+    {
+     "bool": {
+      "_0": false
+     }
+    },
+    "3E278E83-D398-46F3-8F33-4E8C66214D9A",
+    {
+     "bool": {
+      "_0": false
+     }
+    },
+    "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF",
+    {
+     "bool": {
+      "_0": false
+     }
+    },
+    "11111111-1111-1111-1111-111111111111",
+    {
+     "bool": {
+      "_0": false
+     }
+    }
+   ],
+   "id": "mute",
+   "maxValue": 1,
+   "minValue": 0,
+   "name": "Mute",
+   "target": {
+    "mute": {}
+   },
+   "valueType": "boolean"
+  },
+  {
+   "defaults": [
+    "8E5B89B6-57E7-46BB-84DC-9FB75D468409",
+    {
+     "scalar": {
+      "_0": 101.60000000000001
+     }
+    },
+    "915EA852-237E-46CC-951A-89111BE56C7A",
+    {
+     "scalar": {
+      "_0": 101.60000000000001
+     }
+    },
+    "3E278E83-D398-46F3-8F33-4E8C66214D9A",
+    {
+     "scalar": {
+      "_0": 101.60000000000001
+     }
+    },
+    "3F8ECDAD-6A32-4046-8568-29248C5BC54E",
+    {
+     "scalar": {
+      "_0": 101.60000000000001
+     }
+    },
+    "8D64B506-C2C1-42FD-84BD-07A25C8A37B4",
+    {
+     "scalar": {
+      "_0": 101.60000000000001
+     }
+    },
+    "B0540F4B-CE03-4DC4-80C8-E867182F7621",
+    {
+     "scalar": {
+      "_0": 101.60000000000001
+     }
+    },
+    "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF",
+    {
+     "scalar": {
+      "_0": 101.60000000000001
+     }
+    },
+    "11111111-1111-1111-1111-111111111111",
+    {
+     "scalar": {
+      "_0": 101.60000000000001
+     }
+    }
+   ],
+   "id": "volume",
+   "maxValue": 127,
+   "minValue": 0,
+   "name": "Volume",
+   "target": {
+    "macroRow": {
+     "_0": "volume"
+    }
+   },
+   "valueType": "scalar"
+  },
+  {
+   "defaults": [
+    "8D64B506-C2C1-42FD-84BD-07A25C8A37B4",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "11111111-1111-1111-1111-111111111111",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "3F8ECDAD-6A32-4046-8568-29248C5BC54E",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "915EA852-237E-46CC-951A-89111BE56C7A",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "B0540F4B-CE03-4DC4-80C8-E867182F7621",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "3E278E83-D398-46F3-8F33-4E8C66214D9A",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "8E5B89B6-57E7-46BB-84DC-9FB75D468409",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    }
+   ],
+   "id": "transpose",
+   "maxValue": 24,
+   "minValue": -24,
+   "name": "Transpose",
+   "target": {
+    "macroRow": {
+     "_0": "transpose"
+    }
+   },
+   "valueType": "scalar"
+  },
+  {
+   "defaults": [
+    "8D64B506-C2C1-42FD-84BD-07A25C8A37B4",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "915EA852-237E-46CC-951A-89111BE56C7A",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "8E5B89B6-57E7-46BB-84DC-9FB75D468409",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "B0540F4B-CE03-4DC4-80C8-E867182F7621",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "3E278E83-D398-46F3-8F33-4E8C66214D9A",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "11111111-1111-1111-1111-111111111111",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "3F8ECDAD-6A32-4046-8568-29248C5BC54E",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    }
+   ],
+   "id": "intensity",
+   "maxValue": 1,
+   "minValue": 0,
+   "name": "Intensity",
+   "target": {
+    "macroRow": {
+     "_0": "intensity"
+    }
+   },
+   "valueType": "scalar"
+  },
+  {
+   "defaults": [
+    "3E278E83-D398-46F3-8F33-4E8C66214D9A",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "11111111-1111-1111-1111-111111111111",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "915EA852-237E-46CC-951A-89111BE56C7A",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "3F8ECDAD-6A32-4046-8568-29248C5BC54E",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "8D64B506-C2C1-42FD-84BD-07A25C8A37B4",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "B0540F4B-CE03-4DC4-80C8-E867182F7621",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "8E5B89B6-57E7-46BB-84DC-9FB75D468409",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    }
+   ],
+   "id": "density",
+   "maxValue": 1,
+   "minValue": 0,
+   "name": "Density",
+   "target": {
+    "macroRow": {
+     "_0": "density"
+    }
+   },
+   "valueType": "scalar"
+  },
+  {
+   "defaults": [
+    "11111111-1111-1111-1111-111111111111",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "8E5B89B6-57E7-46BB-84DC-9FB75D468409",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "8D64B506-C2C1-42FD-84BD-07A25C8A37B4",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "3F8ECDAD-6A32-4046-8568-29248C5BC54E",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "B0540F4B-CE03-4DC4-80C8-E867182F7621",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "3E278E83-D398-46F3-8F33-4E8C66214D9A",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "915EA852-237E-46CC-951A-89111BE56C7A",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    }
+   ],
+   "id": "tension",
+   "maxValue": 1,
+   "minValue": 0,
+   "name": "Tension",
+   "target": {
+    "macroRow": {
+     "_0": "tension"
+    }
+   },
+   "valueType": "scalar"
+  },
+  {
+   "defaults": [
+    "915EA852-237E-46CC-951A-89111BE56C7A",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "8E5B89B6-57E7-46BB-84DC-9FB75D468409",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "3F8ECDAD-6A32-4046-8568-29248C5BC54E",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "8D64B506-C2C1-42FD-84BD-07A25C8A37B4",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "11111111-1111-1111-1111-111111111111",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "B0540F4B-CE03-4DC4-80C8-E867182F7621",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "3E278E83-D398-46F3-8F33-4E8C66214D9A",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    }
+   ],
+   "id": "register",
+   "maxValue": 1,
+   "minValue": 0,
+   "name": "Register",
+   "target": {
+    "macroRow": {
+     "_0": "register"
+    }
+   },
+   "valueType": "scalar"
+  },
+  {
+   "defaults": [
+    "915EA852-237E-46CC-951A-89111BE56C7A",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "8E5B89B6-57E7-46BB-84DC-9FB75D468409",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "B0540F4B-CE03-4DC4-80C8-E867182F7621",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "11111111-1111-1111-1111-111111111111",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "3E278E83-D398-46F3-8F33-4E8C66214D9A",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "3F8ECDAD-6A32-4046-8568-29248C5BC54E",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "8D64B506-C2C1-42FD-84BD-07A25C8A37B4",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    }
+   ],
+   "id": "variance",
+   "maxValue": 1,
+   "minValue": 0,
+   "name": "Variance",
+   "target": {
+    "macroRow": {
+     "_0": "variance"
+    }
+   },
+   "valueType": "scalar"
+  },
+  {
+   "defaults": [
+    "B0540F4B-CE03-4DC4-80C8-E867182F7621",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "915EA852-237E-46CC-951A-89111BE56C7A",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "3E278E83-D398-46F3-8F33-4E8C66214D9A",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "8D64B506-C2C1-42FD-84BD-07A25C8A37B4",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "3F8ECDAD-6A32-4046-8568-29248C5BC54E",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "8E5B89B6-57E7-46BB-84DC-9FB75D468409",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "11111111-1111-1111-1111-111111111111",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    }
+   ],
+   "id": "fx-send",
+   "maxValue": 1,
+   "minValue": 0,
+   "name": "FX Send",
+   "target": {
+    "macroRow": {
+     "_0": "fx-send"
+    }
+   },
+   "valueType": "scalar"
+  },
+  {
+   "defaults": [
+    "8E5B89B6-57E7-46BB-84DC-9FB75D468409",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "8D64B506-C2C1-42FD-84BD-07A25C8A37B4",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "3E278E83-D398-46F3-8F33-4E8C66214D9A",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "915EA852-237E-46CC-951A-89111BE56C7A",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "B0540F4B-CE03-4DC4-80C8-E867182F7621",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "11111111-1111-1111-1111-111111111111",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "3F8ECDAD-6A32-4046-8568-29248C5BC54E",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    }
+   ],
+   "id": "brightness",
+   "maxValue": 1,
+   "minValue": 0,
+   "name": "Brightness",
+   "target": {
+    "macroRow": {
+     "_0": "brightness"
+    }
+   },
+   "valueType": "scalar"
+  },
+  {
+   "defaults": [
+    "B0540F4B-CE03-4DC4-80C8-E867182F7621",
+    {
+     "bool": {
+      "_0": false
+     }
+    },
+    "11111111-1111-1111-1111-111111111111",
+    {
+     "bool": {
+      "_0": false
+     }
+    },
+    "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF",
+    {
+     "bool": {
+      "_0": false
+     }
+    },
+    "8E5B89B6-57E7-46BB-84DC-9FB75D468409",
+    {
+     "bool": {
+      "_0": false
+     }
+    },
+    "8D64B506-C2C1-42FD-84BD-07A25C8A37B4",
+    {
+     "bool": {
+      "_0": false
+     }
+    },
+    "915EA852-237E-46CC-951A-89111BE56C7A",
+    {
+     "bool": {
+      "_0": false
+     }
+    },
+    "3E278E83-D398-46F3-8F33-4E8C66214D9A",
+    {
+     "bool": {
+      "_0": false
+     }
+    },
+    "3F8ECDAD-6A32-4046-8568-29248C5BC54E",
+    {
+     "bool": {
+      "_0": false
+     }
+    }
+   ],
+   "id": "fill-flag",
+   "maxValue": 1,
+   "minValue": 0,
+   "name": "Fill",
+   "target": {
+    "macroRow": {
+     "_0": "fill-flag"
+    }
+   },
+   "valueType": "boolean"
+  },
+  {
+   "defaults": [
+    "B0540F4B-CE03-4DC4-80C8-E867182F7621",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "11111111-1111-1111-1111-111111111111",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "8D64B506-C2C1-42FD-84BD-07A25C8A37B4",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "3E278E83-D398-46F3-8F33-4E8C66214D9A",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "8E5B89B6-57E7-46BB-84DC-9FB75D468409",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "3F8ECDAD-6A32-4046-8568-29248C5BC54E",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "915EA852-237E-46CC-951A-89111BE56C7A",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    }
+   ],
+   "id": "swing",
+   "maxValue": 1,
+   "minValue": 0,
+   "name": "Swing",
+   "target": {
+    "macroRow": {
+     "_0": "swing-amount"
+    }
+   },
+   "valueType": "scalar"
+  },
+  {
+   "defaults": [
+    "B0540F4B-CE03-4DC4-80C8-E867182F7621",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "3E278E83-D398-46F3-8F33-4E8C66214D9A",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "11111111-1111-1111-1111-111111111111",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "3F8ECDAD-6A32-4046-8568-29248C5BC54E",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "915EA852-237E-46CC-951A-89111BE56C7A",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "8D64B506-C2C1-42FD-84BD-07A25C8A37B4",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "8E5B89B6-57E7-46BB-84DC-9FB75D468409",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    }
+   ],
+   "id": "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-A388CCC7-06F6-C47A-8661-51FB9A97B424",
+   "maxValue": 1,
+   "minValue": 0,
+   "name": "Sample Start",
+   "target": {
+    "macroParam": {
+     "bindingID": "A388CCC7-06F6-C47A-8661-51FB9A97B424",
+     "trackID": "3E278E83-D398-46F3-8F33-4E8C66214D9A"
+    }
+   },
+   "valueType": "scalar"
+  },
+  {
+   "defaults": [
+    "8D64B506-C2C1-42FD-84BD-07A25C8A37B4",
+    {
+     "scalar": {
+      "_0": 1
+     }
+    },
+    "11111111-1111-1111-1111-111111111111",
+    {
+     "scalar": {
+      "_0": 1
+     }
+    },
+    "3E278E83-D398-46F3-8F33-4E8C66214D9A",
+    {
+     "scalar": {
+      "_0": 1
+     }
+    },
+    "B0540F4B-CE03-4DC4-80C8-E867182F7621",
+    {
+     "scalar": {
+      "_0": 1
+     }
+    },
+    "8E5B89B6-57E7-46BB-84DC-9FB75D468409",
+    {
+     "scalar": {
+      "_0": 1
+     }
+    },
+    "915EA852-237E-46CC-951A-89111BE56C7A",
+    {
+     "scalar": {
+      "_0": 1
+     }
+    },
+    "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF",
+    {
+     "scalar": {
+      "_0": 1
+     }
+    },
+    "3F8ECDAD-6A32-4046-8568-29248C5BC54E",
+    {
+     "scalar": {
+      "_0": 1
+     }
+    }
+   ],
+   "id": "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-6BFDBD31-2927-AF30-48FD-36FB779B1BBE",
+   "maxValue": 1,
+   "minValue": 0,
+   "name": "Sample Length",
+   "target": {
+    "macroParam": {
+     "bindingID": "6BFDBD31-2927-AF30-48FD-36FB779B1BBE",
+     "trackID": "3E278E83-D398-46F3-8F33-4E8C66214D9A"
+    }
+   },
+   "valueType": "scalar"
+  },
+  {
+   "defaults": [
+    "3F8ECDAD-6A32-4046-8568-29248C5BC54E",
+    {
+     "scalar": {
+      "_0": 20000
+     }
+    },
+    "11111111-1111-1111-1111-111111111111",
+    {
+     "scalar": {
+      "_0": 20000
+     }
+    },
+    "8E5B89B6-57E7-46BB-84DC-9FB75D468409",
+    {
+     "scalar": {
+      "_0": 20000
+     }
+    },
+    "B0540F4B-CE03-4DC4-80C8-E867182F7621",
+    {
+     "scalar": {
+      "_0": 20000
+     }
+    },
+    "915EA852-237E-46CC-951A-89111BE56C7A",
+    {
+     "scalar": {
+      "_0": 20000
+     }
+    },
+    "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF",
+    {
+     "scalar": {
+      "_0": 20000
+     }
+    },
+    "3E278E83-D398-46F3-8F33-4E8C66214D9A",
+    {
+     "scalar": {
+      "_0": 20000
+     }
+    },
+    "8D64B506-C2C1-42FD-84BD-07A25C8A37B4",
+    {
+     "scalar": {
+      "_0": 20000
+     }
+    }
+   ],
+   "id": "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-4D96D481-CA46-3184-A4C6-491E86EED56B",
+   "maxValue": 20000,
+   "minValue": 20,
+   "name": "Filter Cutoff",
+   "target": {
+    "macroParam": {
+     "bindingID": "4D96D481-CA46-3184-A4C6-491E86EED56B",
+     "trackID": "3E278E83-D398-46F3-8F33-4E8C66214D9A"
+    }
+   },
+   "valueType": "scalar"
+  },
+  {
+   "defaults": [
+    "915EA852-237E-46CC-951A-89111BE56C7A",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "8E5B89B6-57E7-46BB-84DC-9FB75D468409",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "11111111-1111-1111-1111-111111111111",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "3F8ECDAD-6A32-4046-8568-29248C5BC54E",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "8D64B506-C2C1-42FD-84BD-07A25C8A37B4",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "B0540F4B-CE03-4DC4-80C8-E867182F7621",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "3E278E83-D398-46F3-8F33-4E8C66214D9A",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    }
+   ],
+   "id": "macro-915EA852-237E-46CC-951A-89111BE56C7A-E0A0F5F1-B82F-28B7-B8A6-47FADCD02704",
+   "maxValue": 1,
+   "minValue": 0,
+   "name": "Sample Start",
+   "target": {
+    "macroParam": {
+     "bindingID": "E0A0F5F1-B82F-28B7-B8A6-47FADCD02704",
+     "trackID": "915EA852-237E-46CC-951A-89111BE56C7A"
+    }
+   },
+   "valueType": "scalar"
+  },
+  {
+   "defaults": [
+    "B0540F4B-CE03-4DC4-80C8-E867182F7621",
+    {
+     "scalar": {
+      "_0": 1
+     }
+    },
+    "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF",
+    {
+     "scalar": {
+      "_0": 1
+     }
+    },
+    "8D64B506-C2C1-42FD-84BD-07A25C8A37B4",
+    {
+     "scalar": {
+      "_0": 1
+     }
+    },
+    "915EA852-237E-46CC-951A-89111BE56C7A",
+    {
+     "scalar": {
+      "_0": 1
+     }
+    },
+    "8E5B89B6-57E7-46BB-84DC-9FB75D468409",
+    {
+     "scalar": {
+      "_0": 1
+     }
+    },
+    "3E278E83-D398-46F3-8F33-4E8C66214D9A",
+    {
+     "scalar": {
+      "_0": 1
+     }
+    },
+    "11111111-1111-1111-1111-111111111111",
+    {
+     "scalar": {
+      "_0": 1
+     }
+    },
+    "3F8ECDAD-6A32-4046-8568-29248C5BC54E",
+    {
+     "scalar": {
+      "_0": 1
+     }
+    }
+   ],
+   "id": "macro-915EA852-237E-46CC-951A-89111BE56C7A-62D303BC-41EB-E16B-7EA8-2CFABCB6B79E",
+   "maxValue": 1,
+   "minValue": 0,
+   "name": "Sample Length",
+   "target": {
+    "macroParam": {
+     "bindingID": "62D303BC-41EB-E16B-7EA8-2CFABCB6B79E",
+     "trackID": "915EA852-237E-46CC-951A-89111BE56C7A"
+    }
+   },
+   "valueType": "scalar"
+  },
+  {
+   "defaults": [
+    "3E278E83-D398-46F3-8F33-4E8C66214D9A",
+    {
+     "scalar": {
+      "_0": 20000
+     }
+    },
+    "8D64B506-C2C1-42FD-84BD-07A25C8A37B4",
+    {
+     "scalar": {
+      "_0": 20000
+     }
+    },
+    "11111111-1111-1111-1111-111111111111",
+    {
+     "scalar": {
+      "_0": 20000
+     }
+    },
+    "3F8ECDAD-6A32-4046-8568-29248C5BC54E",
+    {
+     "scalar": {
+      "_0": 20000
+     }
+    },
+    "8E5B89B6-57E7-46BB-84DC-9FB75D468409",
+    {
+     "scalar": {
+      "_0": 20000
+     }
+    },
+    "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF",
+    {
+     "scalar": {
+      "_0": 20000
+     }
+    },
+    "B0540F4B-CE03-4DC4-80C8-E867182F7621",
+    {
+     "scalar": {
+      "_0": 20000
+     }
+    },
+    "915EA852-237E-46CC-951A-89111BE56C7A",
+    {
+     "scalar": {
+      "_0": 20000
+     }
+    }
+   ],
+   "id": "macro-915EA852-237E-46CC-951A-89111BE56C7A-C6BD5800-F22E-0DE1-DD14-28FC1EDC888B",
+   "maxValue": 20000,
+   "minValue": 20,
+   "name": "Filter Cutoff",
+   "target": {
+    "macroParam": {
+     "bindingID": "C6BD5800-F22E-0DE1-DD14-28FC1EDC888B",
+     "trackID": "915EA852-237E-46CC-951A-89111BE56C7A"
+    }
+   },
+   "valueType": "scalar"
+  },
+  {
+   "defaults": [
+    "8D64B506-C2C1-42FD-84BD-07A25C8A37B4",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "11111111-1111-1111-1111-111111111111",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "3E278E83-D398-46F3-8F33-4E8C66214D9A",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "8E5B89B6-57E7-46BB-84DC-9FB75D468409",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "3F8ECDAD-6A32-4046-8568-29248C5BC54E",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "B0540F4B-CE03-4DC4-80C8-E867182F7621",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "915EA852-237E-46CC-951A-89111BE56C7A",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    }
+   ],
+   "id": "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-9E847A44-B7F9-912E-A156-D80668F04347",
+   "maxValue": 1,
+   "minValue": 0,
+   "name": "Sample Start",
+   "target": {
+    "macroParam": {
+     "bindingID": "9E847A44-B7F9-912E-A156-D80668F04347",
+     "trackID": "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
+    }
+   },
+   "valueType": "scalar"
+  },
+  {
+   "defaults": [
+    "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF",
+    {
+     "scalar": {
+      "_0": 1
+     }
+    },
+    "3E278E83-D398-46F3-8F33-4E8C66214D9A",
+    {
+     "scalar": {
+      "_0": 1
+     }
+    },
+    "B0540F4B-CE03-4DC4-80C8-E867182F7621",
+    {
+     "scalar": {
+      "_0": 1
+     }
+    },
+    "8D64B506-C2C1-42FD-84BD-07A25C8A37B4",
+    {
+     "scalar": {
+      "_0": 1
+     }
+    },
+    "11111111-1111-1111-1111-111111111111",
+    {
+     "scalar": {
+      "_0": 1
+     }
+    },
+    "915EA852-237E-46CC-951A-89111BE56C7A",
+    {
+     "scalar": {
+      "_0": 1
+     }
+    },
+    "8E5B89B6-57E7-46BB-84DC-9FB75D468409",
+    {
+     "scalar": {
+      "_0": 1
+     }
+    },
+    "3F8ECDAD-6A32-4046-8568-29248C5BC54E",
+    {
+     "scalar": {
+      "_0": 1
+     }
+    }
+   ],
+   "id": "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-D2849DC4-5348-19E4-4420-E706C4A39801",
+   "maxValue": 1,
+   "minValue": 0,
+   "name": "Sample Length",
+   "target": {
+    "macroParam": {
+     "bindingID": "D2849DC4-5348-19E4-4420-E706C4A39801",
+     "trackID": "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
+    }
+   },
+   "valueType": "scalar"
+  },
+  {
+   "defaults": [
+    "915EA852-237E-46CC-951A-89111BE56C7A",
+    {
+     "scalar": {
+      "_0": 20000
+     }
+    },
+    "11111111-1111-1111-1111-111111111111",
+    {
+     "scalar": {
+      "_0": 20000
+     }
+    },
+    "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF",
+    {
+     "scalar": {
+      "_0": 20000
+     }
+    },
+    "8E5B89B6-57E7-46BB-84DC-9FB75D468409",
+    {
+     "scalar": {
+      "_0": 20000
+     }
+    },
+    "3E278E83-D398-46F3-8F33-4E8C66214D9A",
+    {
+     "scalar": {
+      "_0": 20000
+     }
+    },
+    "B0540F4B-CE03-4DC4-80C8-E867182F7621",
+    {
+     "scalar": {
+      "_0": 20000
+     }
+    },
+    "3F8ECDAD-6A32-4046-8568-29248C5BC54E",
+    {
+     "scalar": {
+      "_0": 20000
+     }
+    },
+    "8D64B506-C2C1-42FD-84BD-07A25C8A37B4",
+    {
+     "scalar": {
+      "_0": 20000
+     }
+    }
+   ],
+   "id": "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-CBD163E2-AADF-0968-C163-1AC3E200B75C",
+   "maxValue": 20000,
+   "minValue": 20,
+   "name": "Filter Cutoff",
+   "target": {
+    "macroParam": {
+     "bindingID": "CBD163E2-AADF-0968-C163-1AC3E200B75C",
+     "trackID": "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
+    }
+   },
+   "valueType": "scalar"
+  },
+  {
+   "defaults": [
+    "915EA852-237E-46CC-951A-89111BE56C7A",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "8E5B89B6-57E7-46BB-84DC-9FB75D468409",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "3F8ECDAD-6A32-4046-8568-29248C5BC54E",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "3E278E83-D398-46F3-8F33-4E8C66214D9A",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "B0540F4B-CE03-4DC4-80C8-E867182F7621",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "11111111-1111-1111-1111-111111111111",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "8D64B506-C2C1-42FD-84BD-07A25C8A37B4",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    }
+   ],
+   "id": "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-18A100DE-40B7-8B4B-031C-70C51FEAF9C7",
+   "maxValue": 1,
+   "minValue": 0,
+   "name": "Sample Start",
+   "target": {
+    "macroParam": {
+     "bindingID": "18A100DE-40B7-8B4B-031C-70C51FEAF9C7",
+     "trackID": "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
+    }
+   },
+   "valueType": "scalar"
+  },
+  {
+   "defaults": [
+    "8E5B89B6-57E7-46BB-84DC-9FB75D468409",
+    {
+     "scalar": {
+      "_0": 1
+     }
+    },
+    "3F8ECDAD-6A32-4046-8568-29248C5BC54E",
+    {
+     "scalar": {
+      "_0": 1
+     }
+    },
+    "B0540F4B-CE03-4DC4-80C8-E867182F7621",
+    {
+     "scalar": {
+      "_0": 1
+     }
+    },
+    "3E278E83-D398-46F3-8F33-4E8C66214D9A",
+    {
+     "scalar": {
+      "_0": 1
+     }
+    },
+    "915EA852-237E-46CC-951A-89111BE56C7A",
+    {
+     "scalar": {
+      "_0": 1
+     }
+    },
+    "8D64B506-C2C1-42FD-84BD-07A25C8A37B4",
+    {
+     "scalar": {
+      "_0": 1
+     }
+    },
+    "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF",
+    {
+     "scalar": {
+      "_0": 1
+     }
+    },
+    "11111111-1111-1111-1111-111111111111",
+    {
+     "scalar": {
+      "_0": 1
+     }
+    }
+   ],
+   "id": "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-00BFE7A7-A6EC-10DF-A5E6-7FC57B9E4E81",
+   "maxValue": 1,
+   "minValue": 0,
+   "name": "Sample Length",
+   "target": {
+    "macroParam": {
+     "bindingID": "00BFE7A7-A6EC-10DF-A5E6-7FC57B9E4E81",
+     "trackID": "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
+    }
+   },
+   "valueType": "scalar"
+  },
+  {
+   "defaults": [
+    "915EA852-237E-46CC-951A-89111BE56C7A",
+    {
+     "scalar": {
+      "_0": 20000
+     }
+    },
+    "8D64B506-C2C1-42FD-84BD-07A25C8A37B4",
+    {
+     "scalar": {
+      "_0": 20000
+     }
+    },
+    "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF",
+    {
+     "scalar": {
+      "_0": 20000
+     }
+    },
+    "3F8ECDAD-6A32-4046-8568-29248C5BC54E",
+    {
+     "scalar": {
+      "_0": 20000
+     }
+    },
+    "11111111-1111-1111-1111-111111111111",
+    {
+     "scalar": {
+      "_0": 20000
+     }
+    },
+    "B0540F4B-CE03-4DC4-80C8-E867182F7621",
+    {
+     "scalar": {
+      "_0": 20000
+     }
+    },
+    "3E278E83-D398-46F3-8F33-4E8C66214D9A",
+    {
+     "scalar": {
+      "_0": 20000
+     }
+    },
+    "8E5B89B6-57E7-46BB-84DC-9FB75D468409",
+    {
+     "scalar": {
+      "_0": 20000
+     }
+    }
+   ],
+   "id": "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-2BC420AE-9DF5-A5B5-D2E2-7C606C8815DC",
+   "maxValue": 20000,
+   "minValue": 20,
+   "name": "Filter Cutoff",
+   "target": {
+    "macroParam": {
+     "bindingID": "2BC420AE-9DF5-A5B5-D2E2-7C606C8815DC",
+     "trackID": "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
+    }
+   },
+   "valueType": "scalar"
+  },
+  {
+   "defaults": [
+    "8E5B89B6-57E7-46BB-84DC-9FB75D468409",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "3F8ECDAD-6A32-4046-8568-29248C5BC54E",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "8D64B506-C2C1-42FD-84BD-07A25C8A37B4",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "3E278E83-D398-46F3-8F33-4E8C66214D9A",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "B0540F4B-CE03-4DC4-80C8-E867182F7621",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "11111111-1111-1111-1111-111111111111",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "915EA852-237E-46CC-951A-89111BE56C7A",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    }
+   ],
+   "id": "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-A388CCC7-06F6-C47A-8661-51FB9A97B424",
+   "maxValue": 1,
+   "minValue": 0,
+   "name": "Sample Start",
+   "target": {
+    "macroParam": {
+     "bindingID": "A388CCC7-06F6-C47A-8661-51FB9A97B424",
+     "trackID": "3E278E83-D398-46F3-8F33-4E8C66214D9A"
+    }
+   },
+   "valueType": "scalar"
+  },
+  {
+   "defaults": [
+    "8E5B89B6-57E7-46BB-84DC-9FB75D468409",
+    {
+     "scalar": {
+      "_0": 1
+     }
+    },
+    "915EA852-237E-46CC-951A-89111BE56C7A",
+    {
+     "scalar": {
+      "_0": 1
+     }
+    },
+    "8D64B506-C2C1-42FD-84BD-07A25C8A37B4",
+    {
+     "scalar": {
+      "_0": 1
+     }
+    },
+    "3F8ECDAD-6A32-4046-8568-29248C5BC54E",
+    {
+     "scalar": {
+      "_0": 1
+     }
+    },
+    "B0540F4B-CE03-4DC4-80C8-E867182F7621",
+    {
+     "scalar": {
+      "_0": 1
+     }
+    },
+    "11111111-1111-1111-1111-111111111111",
+    {
+     "scalar": {
+      "_0": 1
+     }
+    },
+    "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF",
+    {
+     "scalar": {
+      "_0": 1
+     }
+    },
+    "3E278E83-D398-46F3-8F33-4E8C66214D9A",
+    {
+     "scalar": {
+      "_0": 1
+     }
+    }
+   ],
+   "id": "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-6BFDBD31-2927-AF30-48FD-36FB779B1BBE",
+   "maxValue": 1,
+   "minValue": 0,
+   "name": "Sample Length",
+   "target": {
+    "macroParam": {
+     "bindingID": "6BFDBD31-2927-AF30-48FD-36FB779B1BBE",
+     "trackID": "3E278E83-D398-46F3-8F33-4E8C66214D9A"
+    }
+   },
+   "valueType": "scalar"
+  },
+  {
+   "defaults": [
+    "11111111-1111-1111-1111-111111111111",
+    {
+     "scalar": {
+      "_0": 20000
+     }
+    },
+    "B0540F4B-CE03-4DC4-80C8-E867182F7621",
+    {
+     "scalar": {
+      "_0": 20000
+     }
+    },
+    "915EA852-237E-46CC-951A-89111BE56C7A",
+    {
+     "scalar": {
+      "_0": 20000
+     }
+    },
+    "8E5B89B6-57E7-46BB-84DC-9FB75D468409",
+    {
+     "scalar": {
+      "_0": 20000
+     }
+    },
+    "3F8ECDAD-6A32-4046-8568-29248C5BC54E",
+    {
+     "scalar": {
+      "_0": 20000
+     }
+    },
+    "8D64B506-C2C1-42FD-84BD-07A25C8A37B4",
+    {
+     "scalar": {
+      "_0": 20000
+     }
+    },
+    "3E278E83-D398-46F3-8F33-4E8C66214D9A",
+    {
+     "scalar": {
+      "_0": 20000
+     }
+    },
+    "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF",
+    {
+     "scalar": {
+      "_0": 20000
+     }
+    }
+   ],
+   "id": "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-4D96D481-CA46-3184-A4C6-491E86EED56B",
+   "maxValue": 20000,
+   "minValue": 20,
+   "name": "Filter Cutoff",
+   "target": {
+    "macroParam": {
+     "bindingID": "4D96D481-CA46-3184-A4C6-491E86EED56B",
+     "trackID": "3E278E83-D398-46F3-8F33-4E8C66214D9A"
+    }
+   },
+   "valueType": "scalar"
+  },
+  {
+   "defaults": [
+    "3E278E83-D398-46F3-8F33-4E8C66214D9A",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "8E5B89B6-57E7-46BB-84DC-9FB75D468409",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "3F8ECDAD-6A32-4046-8568-29248C5BC54E",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "11111111-1111-1111-1111-111111111111",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "8D64B506-C2C1-42FD-84BD-07A25C8A37B4",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "915EA852-237E-46CC-951A-89111BE56C7A",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "B0540F4B-CE03-4DC4-80C8-E867182F7621",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    }
+   ],
+   "id": "macro-915EA852-237E-46CC-951A-89111BE56C7A-E0A0F5F1-B82F-28B7-B8A6-47FADCD02704",
+   "maxValue": 1,
+   "minValue": 0,
+   "name": "Sample Start",
+   "target": {
+    "macroParam": {
+     "bindingID": "E0A0F5F1-B82F-28B7-B8A6-47FADCD02704",
+     "trackID": "915EA852-237E-46CC-951A-89111BE56C7A"
+    }
+   },
+   "valueType": "scalar"
+  },
+  {
+   "defaults": [
+    "8D64B506-C2C1-42FD-84BD-07A25C8A37B4",
+    {
+     "scalar": {
+      "_0": 1
+     }
+    },
+    "11111111-1111-1111-1111-111111111111",
+    {
+     "scalar": {
+      "_0": 1
+     }
+    },
+    "B0540F4B-CE03-4DC4-80C8-E867182F7621",
+    {
+     "scalar": {
+      "_0": 1
+     }
+    },
+    "3E278E83-D398-46F3-8F33-4E8C66214D9A",
+    {
+     "scalar": {
+      "_0": 1
+     }
+    },
+    "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF",
+    {
+     "scalar": {
+      "_0": 1
+     }
+    },
+    "8E5B89B6-57E7-46BB-84DC-9FB75D468409",
+    {
+     "scalar": {
+      "_0": 1
+     }
+    },
+    "915EA852-237E-46CC-951A-89111BE56C7A",
+    {
+     "scalar": {
+      "_0": 1
+     }
+    },
+    "3F8ECDAD-6A32-4046-8568-29248C5BC54E",
+    {
+     "scalar": {
+      "_0": 1
+     }
+    }
+   ],
+   "id": "macro-915EA852-237E-46CC-951A-89111BE56C7A-62D303BC-41EB-E16B-7EA8-2CFABCB6B79E",
+   "maxValue": 1,
+   "minValue": 0,
+   "name": "Sample Length",
+   "target": {
+    "macroParam": {
+     "bindingID": "62D303BC-41EB-E16B-7EA8-2CFABCB6B79E",
+     "trackID": "915EA852-237E-46CC-951A-89111BE56C7A"
+    }
+   },
+   "valueType": "scalar"
+  },
+  {
+   "defaults": [
+    "3F8ECDAD-6A32-4046-8568-29248C5BC54E",
+    {
+     "scalar": {
+      "_0": 20000
+     }
+    },
+    "3E278E83-D398-46F3-8F33-4E8C66214D9A",
+    {
+     "scalar": {
+      "_0": 20000
+     }
+    },
+    "8E5B89B6-57E7-46BB-84DC-9FB75D468409",
+    {
+     "scalar": {
+      "_0": 20000
+     }
+    },
+    "11111111-1111-1111-1111-111111111111",
+    {
+     "scalar": {
+      "_0": 20000
+     }
+    },
+    "8D64B506-C2C1-42FD-84BD-07A25C8A37B4",
+    {
+     "scalar": {
+      "_0": 20000
+     }
+    },
+    "915EA852-237E-46CC-951A-89111BE56C7A",
+    {
+     "scalar": {
+      "_0": 20000
+     }
+    },
+    "B0540F4B-CE03-4DC4-80C8-E867182F7621",
+    {
+     "scalar": {
+      "_0": 20000
+     }
+    },
+    "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF",
+    {
+     "scalar": {
+      "_0": 20000
+     }
+    }
+   ],
+   "id": "macro-915EA852-237E-46CC-951A-89111BE56C7A-C6BD5800-F22E-0DE1-DD14-28FC1EDC888B",
+   "maxValue": 20000,
+   "minValue": 20,
+   "name": "Filter Cutoff",
+   "target": {
+    "macroParam": {
+     "bindingID": "C6BD5800-F22E-0DE1-DD14-28FC1EDC888B",
+     "trackID": "915EA852-237E-46CC-951A-89111BE56C7A"
+    }
+   },
+   "valueType": "scalar"
+  },
+  {
+   "defaults": [
+    "8D64B506-C2C1-42FD-84BD-07A25C8A37B4",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "915EA852-237E-46CC-951A-89111BE56C7A",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "8E5B89B6-57E7-46BB-84DC-9FB75D468409",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "11111111-1111-1111-1111-111111111111",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "3E278E83-D398-46F3-8F33-4E8C66214D9A",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "B0540F4B-CE03-4DC4-80C8-E867182F7621",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "3F8ECDAD-6A32-4046-8568-29248C5BC54E",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    }
+   ],
+   "id": "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-9E847A44-B7F9-912E-A156-D80668F04347",
+   "maxValue": 1,
+   "minValue": 0,
+   "name": "Sample Start",
+   "target": {
+    "macroParam": {
+     "bindingID": "9E847A44-B7F9-912E-A156-D80668F04347",
+     "trackID": "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
+    }
+   },
+   "valueType": "scalar"
+  },
+  {
+   "defaults": [
+    "8D64B506-C2C1-42FD-84BD-07A25C8A37B4",
+    {
+     "scalar": {
+      "_0": 1
+     }
+    },
+    "3E278E83-D398-46F3-8F33-4E8C66214D9A",
+    {
+     "scalar": {
+      "_0": 1
+     }
+    },
+    "8E5B89B6-57E7-46BB-84DC-9FB75D468409",
+    {
+     "scalar": {
+      "_0": 1
+     }
+    },
+    "3F8ECDAD-6A32-4046-8568-29248C5BC54E",
+    {
+     "scalar": {
+      "_0": 1
+     }
+    },
+    "B0540F4B-CE03-4DC4-80C8-E867182F7621",
+    {
+     "scalar": {
+      "_0": 1
+     }
+    },
+    "915EA852-237E-46CC-951A-89111BE56C7A",
+    {
+     "scalar": {
+      "_0": 1
+     }
+    },
+    "11111111-1111-1111-1111-111111111111",
+    {
+     "scalar": {
+      "_0": 1
+     }
+    },
+    "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF",
+    {
+     "scalar": {
+      "_0": 1
+     }
+    }
+   ],
+   "id": "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-D2849DC4-5348-19E4-4420-E706C4A39801",
+   "maxValue": 1,
+   "minValue": 0,
+   "name": "Sample Length",
+   "target": {
+    "macroParam": {
+     "bindingID": "D2849DC4-5348-19E4-4420-E706C4A39801",
+     "trackID": "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
+    }
+   },
+   "valueType": "scalar"
+  },
+  {
+   "defaults": [
+    "11111111-1111-1111-1111-111111111111",
+    {
+     "scalar": {
+      "_0": 20000
+     }
+    },
+    "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF",
+    {
+     "scalar": {
+      "_0": 20000
+     }
+    },
+    "915EA852-237E-46CC-951A-89111BE56C7A",
+    {
+     "scalar": {
+      "_0": 20000
+     }
+    },
+    "3F8ECDAD-6A32-4046-8568-29248C5BC54E",
+    {
+     "scalar": {
+      "_0": 20000
+     }
+    },
+    "3E278E83-D398-46F3-8F33-4E8C66214D9A",
+    {
+     "scalar": {
+      "_0": 20000
+     }
+    },
+    "B0540F4B-CE03-4DC4-80C8-E867182F7621",
+    {
+     "scalar": {
+      "_0": 20000
+     }
+    },
+    "8D64B506-C2C1-42FD-84BD-07A25C8A37B4",
+    {
+     "scalar": {
+      "_0": 20000
+     }
+    },
+    "8E5B89B6-57E7-46BB-84DC-9FB75D468409",
+    {
+     "scalar": {
+      "_0": 20000
+     }
+    }
+   ],
+   "id": "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-CBD163E2-AADF-0968-C163-1AC3E200B75C",
+   "maxValue": 20000,
+   "minValue": 20,
+   "name": "Filter Cutoff",
+   "target": {
+    "macroParam": {
+     "bindingID": "CBD163E2-AADF-0968-C163-1AC3E200B75C",
+     "trackID": "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
+    }
+   },
+   "valueType": "scalar"
+  },
+  {
+   "defaults": [
+    "11111111-1111-1111-1111-111111111111",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "3E278E83-D398-46F3-8F33-4E8C66214D9A",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "8D64B506-C2C1-42FD-84BD-07A25C8A37B4",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "8E5B89B6-57E7-46BB-84DC-9FB75D468409",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "915EA852-237E-46CC-951A-89111BE56C7A",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "3F8ECDAD-6A32-4046-8568-29248C5BC54E",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "B0540F4B-CE03-4DC4-80C8-E867182F7621",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    },
+    "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF",
+    {
+     "scalar": {
+      "_0": 0
+     }
+    }
+   ],
+   "id": "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-18A100DE-40B7-8B4B-031C-70C51FEAF9C7",
+   "maxValue": 1,
+   "minValue": 0,
+   "name": "Sample Start",
+   "target": {
+    "macroParam": {
+     "bindingID": "18A100DE-40B7-8B4B-031C-70C51FEAF9C7",
+     "trackID": "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
+    }
+   },
+   "valueType": "scalar"
+  },
+  {
+   "defaults": [
+    "11111111-1111-1111-1111-111111111111",
+    {
+     "scalar": {
+      "_0": 1
+     }
+    },
+    "8D64B506-C2C1-42FD-84BD-07A25C8A37B4",
+    {
+     "scalar": {
+      "_0": 1
+     }
+    },
+    "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF",
+    {
+     "scalar": {
+      "_0": 1
+     }
+    },
+    "3E278E83-D398-46F3-8F33-4E8C66214D9A",
+    {
+     "scalar": {
+      "_0": 1
+     }
+    },
+    "8E5B89B6-57E7-46BB-84DC-9FB75D468409",
+    {
+     "scalar": {
+      "_0": 1
+     }
+    },
+    "B0540F4B-CE03-4DC4-80C8-E867182F7621",
+    {
+     "scalar": {
+      "_0": 1
+     }
+    },
+    "915EA852-237E-46CC-951A-89111BE56C7A",
+    {
+     "scalar": {
+      "_0": 1
+     }
+    },
+    "3F8ECDAD-6A32-4046-8568-29248C5BC54E",
+    {
+     "scalar": {
+      "_0": 1
+     }
+    }
+   ],
+   "id": "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-00BFE7A7-A6EC-10DF-A5E6-7FC57B9E4E81",
+   "maxValue": 1,
+   "minValue": 0,
+   "name": "Sample Length",
+   "target": {
+    "macroParam": {
+     "bindingID": "00BFE7A7-A6EC-10DF-A5E6-7FC57B9E4E81",
+     "trackID": "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
+    }
+   },
+   "valueType": "scalar"
+  },
+  {
+   "defaults": [
+    "11111111-1111-1111-1111-111111111111",
+    {
+     "scalar": {
+      "_0": 20000
+     }
+    },
+    "3F8ECDAD-6A32-4046-8568-29248C5BC54E",
+    {
+     "scalar": {
+      "_0": 20000
+     }
+    },
+    "8D64B506-C2C1-42FD-84BD-07A25C8A37B4",
+    {
+     "scalar": {
+      "_0": 20000
+     }
+    },
+    "3E278E83-D398-46F3-8F33-4E8C66214D9A",
+    {
+     "scalar": {
+      "_0": 20000
+     }
+    },
+    "915EA852-237E-46CC-951A-89111BE56C7A",
+    {
+     "scalar": {
+      "_0": 20000
+     }
+    },
+    "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF",
+    {
+     "scalar": {
+      "_0": 20000
+     }
+    },
+    "B0540F4B-CE03-4DC4-80C8-E867182F7621",
+    {
+     "scalar": {
+      "_0": 20000
+     }
+    },
+    "8E5B89B6-57E7-46BB-84DC-9FB75D468409",
+    {
+     "scalar": {
+      "_0": 20000
+     }
+    }
+   ],
+   "id": "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-2BC420AE-9DF5-A5B5-D2E2-7C606C8815DC",
+   "maxValue": 20000,
+   "minValue": 20,
+   "name": "Filter Cutoff",
+   "target": {
+    "macroParam": {
+     "bindingID": "2BC420AE-9DF5-A5B5-D2E2-7C606C8815DC",
+     "trackID": "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
+    }
+   },
+   "valueType": "scalar"
+  }
+ ],
+ "masterBus": {
+  "abSelection": {
+   "crossfader": 0,
+   "sceneAID": "00000000-0000-0000-0000-000000000001",
+   "sceneBID": "00000000-0000-0000-0000-000000000002"
+  },
+  "activeSceneID": "00000000-0000-0000-0000-000000000001",
+  "masterInserts": [],
+  "masterOutputGain": 1,
+  "scenes": [
+   {
+    "id": "00000000-0000-0000-0000-000000000001",
+    "inserts": [],
+    "macroBindings": [],
+    "name": "1",
+    "outputGain": 1
+   },
+   {
+    "id": "00000000-0000-0000-0000-000000000002",
+    "inserts": [],
+    "macroBindings": [],
+    "name": "2",
+    "outputGain": 1
+   }
+  ]
+ },
+ "patternBanks": [
+  {
+   "slots": [
+    {
+     "slotIndex": 0,
+     "sourceRef": {
+      "clipID": "D956A2B3-4E44-4DB3-982E-EB3FB5891609",
+      "mode": "clip",
+      "modifierBypassed": false,
+      "modifierGeneratorID": null
+     }
+    },
+    {
+     "slotIndex": 1,
+     "sourceRef": {
+      "mode": "clip",
+      "modifierBypassed": false,
+      "modifierGeneratorID": null
+     }
+    },
+    {
+     "slotIndex": 2,
+     "sourceRef": {
+      "mode": "clip",
+      "modifierBypassed": false,
+      "modifierGeneratorID": null
+     }
+    },
+    {
+     "slotIndex": 3,
+     "sourceRef": {
+      "mode": "clip",
+      "modifierBypassed": false,
+      "modifierGeneratorID": null
+     }
+    },
+    {
+     "slotIndex": 4,
+     "sourceRef": {
+      "mode": "clip",
+      "modifierBypassed": false,
+      "modifierGeneratorID": null
+     }
+    },
+    {
+     "slotIndex": 5,
+     "sourceRef": {
+      "mode": "clip",
+      "modifierBypassed": false,
+      "modifierGeneratorID": null
+     }
+    },
+    {
+     "slotIndex": 6,
+     "sourceRef": {
+      "mode": "clip",
+      "modifierBypassed": false,
+      "modifierGeneratorID": null
+     }
+    },
+    {
+     "slotIndex": 7,
+     "sourceRef": {
+      "mode": "clip",
+      "modifierBypassed": false,
+      "modifierGeneratorID": null
+     }
+    },
+    {
+     "slotIndex": 8,
+     "sourceRef": {
+      "mode": "clip",
+      "modifierBypassed": false,
+      "modifierGeneratorID": null
+     }
+    },
+    {
+     "slotIndex": 9,
+     "sourceRef": {
+      "mode": "clip",
+      "modifierBypassed": false,
+      "modifierGeneratorID": null
+     }
+    },
+    {
+     "slotIndex": 10,
+     "sourceRef": {
+      "mode": "clip",
+      "modifierBypassed": false,
+      "modifierGeneratorID": null
+     }
+    },
+    {
+     "slotIndex": 11,
+     "sourceRef": {
+      "mode": "clip",
+      "modifierBypassed": false,
+      "modifierGeneratorID": null
+     }
+    },
+    {
+     "slotIndex": 12,
+     "sourceRef": {
+      "mode": "clip",
+      "modifierBypassed": false,
+      "modifierGeneratorID": null
+     }
+    },
+    {
+     "slotIndex": 13,
+     "sourceRef": {
+      "mode": "clip",
+      "modifierBypassed": false,
+      "modifierGeneratorID": null
+     }
+    },
+    {
+     "slotIndex": 14,
+     "sourceRef": {
+      "mode": "clip",
+      "modifierBypassed": false,
+      "modifierGeneratorID": null
+     }
+    },
+    {
+     "slotIndex": 15,
+     "sourceRef": {
+      "mode": "clip",
+      "modifierBypassed": false,
+      "modifierGeneratorID": null
+     }
+    }
+   ],
+   "trackID": "11111111-1111-1111-1111-111111111111"
+  },
+  {
+   "slots": [
+    {
+     "slotIndex": 0,
+     "sourceRef": {
+      "clipID": "100D37DA-BB56-4E4B-B3F4-784C43A75629",
+      "mode": "clip",
+      "modifierBypassed": false,
+      "modifierGeneratorID": null
+     }
+    },
+    {
+     "slotIndex": 1,
+     "sourceRef": {
+      "mode": "clip",
+      "modifierBypassed": false,
+      "modifierGeneratorID": null
+     }
+    },
+    {
+     "slotIndex": 2,
+     "sourceRef": {
+      "mode": "clip",
+      "modifierBypassed": false,
+      "modifierGeneratorID": null
+     }
+    },
+    {
+     "slotIndex": 3,
+     "sourceRef": {
+      "mode": "clip",
+      "modifierBypassed": false,
+      "modifierGeneratorID": null
+     }
+    },
+    {
+     "slotIndex": 4,
+     "sourceRef": {
+      "mode": "clip",
+      "modifierBypassed": false,
+      "modifierGeneratorID": null
+     }
+    },
+    {
+     "slotIndex": 5,
+     "sourceRef": {
+      "mode": "clip",
+      "modifierBypassed": false,
+      "modifierGeneratorID": null
+     }
+    },
+    {
+     "slotIndex": 6,
+     "sourceRef": {
+      "mode": "clip",
+      "modifierBypassed": false,
+      "modifierGeneratorID": null
+     }
+    },
+    {
+     "slotIndex": 7,
+     "sourceRef": {
+      "mode": "clip",
+      "modifierBypassed": false,
+      "modifierGeneratorID": null
+     }
+    },
+    {
+     "slotIndex": 8,
+     "sourceRef": {
+      "mode": "clip",
+      "modifierBypassed": false,
+      "modifierGeneratorID": null
+     }
+    },
+    {
+     "slotIndex": 9,
+     "sourceRef": {
+      "mode": "clip",
+      "modifierBypassed": false,
+      "modifierGeneratorID": null
+     }
+    },
+    {
+     "slotIndex": 10,
+     "sourceRef": {
+      "mode": "clip",
+      "modifierBypassed": false,
+      "modifierGeneratorID": null
+     }
+    },
+    {
+     "slotIndex": 11,
+     "sourceRef": {
+      "mode": "clip",
+      "modifierBypassed": false,
+      "modifierGeneratorID": null
+     }
+    },
+    {
+     "slotIndex": 12,
+     "sourceRef": {
+      "mode": "clip",
+      "modifierBypassed": false,
+      "modifierGeneratorID": null
+     }
+    },
+    {
+     "slotIndex": 13,
+     "sourceRef": {
+      "mode": "clip",
+      "modifierBypassed": false,
+      "modifierGeneratorID": null
+     }
+    },
+    {
+     "slotIndex": 14,
+     "sourceRef": {
+      "mode": "clip",
+      "modifierBypassed": false,
+      "modifierGeneratorID": null
+     }
+    },
+    {
+     "slotIndex": 15,
+     "sourceRef": {
+      "mode": "clip",
+      "modifierBypassed": false,
+      "modifierGeneratorID": null
+     }
+    }
+   ],
+   "trackID": "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF"
+  },
+  {
+   "slots": [
+    {
+     "slotIndex": 0,
+     "sourceRef": {
+      "clipID": "57A979D1-2BD2-4DB5-9422-FA82D221F091",
+      "mode": "clip",
+      "modifierBypassed": false,
+      "modifierGeneratorID": null
+     }
+    },
+    {
+     "slotIndex": 1,
+     "sourceRef": {
+      "mode": "clip",
+      "modifierBypassed": false,
+      "modifierGeneratorID": null
+     }
+    },
+    {
+     "slotIndex": 2,
+     "sourceRef": {
+      "mode": "clip",
+      "modifierBypassed": false,
+      "modifierGeneratorID": null
+     }
+    },
+    {
+     "slotIndex": 3,
+     "sourceRef": {
+      "mode": "clip",
+      "modifierBypassed": false,
+      "modifierGeneratorID": null
+     }
+    },
+    {
+     "slotIndex": 4,
+     "sourceRef": {
+      "mode": "clip",
+      "modifierBypassed": false,
+      "modifierGeneratorID": null
+     }
+    },
+    {
+     "slotIndex": 5,
+     "sourceRef": {
+      "mode": "clip",
+      "modifierBypassed": false,
+      "modifierGeneratorID": null
+     }
+    },
+    {
+     "slotIndex": 6,
+     "sourceRef": {
+      "mode": "clip",
+      "modifierBypassed": false,
+      "modifierGeneratorID": null
+     }
+    },
+    {
+     "slotIndex": 7,
+     "sourceRef": {
+      "mode": "clip",
+      "modifierBypassed": false,
+      "modifierGeneratorID": null
+     }
+    },
+    {
+     "slotIndex": 8,
+     "sourceRef": {
+      "mode": "clip",
+      "modifierBypassed": false,
+      "modifierGeneratorID": null
+     }
+    },
+    {
+     "slotIndex": 9,
+     "sourceRef": {
+      "mode": "clip",
+      "modifierBypassed": false,
+      "modifierGeneratorID": null
+     }
+    },
+    {
+     "slotIndex": 10,
+     "sourceRef": {
+      "mode": "clip",
+      "modifierBypassed": false,
+      "modifierGeneratorID": null
+     }
+    },
+    {
+     "slotIndex": 11,
+     "sourceRef": {
+      "mode": "clip",
+      "modifierBypassed": false,
+      "modifierGeneratorID": null
+     }
+    },
+    {
+     "slotIndex": 12,
+     "sourceRef": {
+      "mode": "clip",
+      "modifierBypassed": false,
+      "modifierGeneratorID": null
+     }
+    },
+    {
+     "slotIndex": 13,
+     "sourceRef": {
+      "mode": "clip",
+      "modifierBypassed": false,
+      "modifierGeneratorID": null
+     }
+    },
+    {
+     "slotIndex": 14,
+     "sourceRef": {
+      "mode": "clip",
+      "modifierBypassed": false,
+      "modifierGeneratorID": null
+     }
+    },
+    {
+     "slotIndex": 15,
+     "sourceRef": {
+      "mode": "clip",
+      "modifierBypassed": false,
+      "modifierGeneratorID": null
+     }
+    }
+   ],
+   "trackID": "B0540F4B-CE03-4DC4-80C8-E867182F7621"
+  },
+  {
+   "slots": [
+    {
+     "slotIndex": 0,
+     "sourceRef": {
+      "clipID": "B72EC61B-6101-4CBC-9860-F1FC878EB971",
+      "mode": "clip",
+      "modifierBypassed": false,
+      "modifierGeneratorID": null
+     }
+    },
+    {
+     "slotIndex": 1,
+     "sourceRef": {
+      "mode": "clip",
+      "modifierBypassed": false,
+      "modifierGeneratorID": null
+     }
+    },
+    {
+     "slotIndex": 2,
+     "sourceRef": {
+      "mode": "clip",
+      "modifierBypassed": false,
+      "modifierGeneratorID": null
+     }
+    },
+    {
+     "slotIndex": 3,
+     "sourceRef": {
+      "mode": "clip",
+      "modifierBypassed": false,
+      "modifierGeneratorID": null
+     }
+    },
+    {
+     "slotIndex": 4,
+     "sourceRef": {
+      "mode": "clip",
+      "modifierBypassed": false,
+      "modifierGeneratorID": null
+     }
+    },
+    {
+     "slotIndex": 5,
+     "sourceRef": {
+      "mode": "clip",
+      "modifierBypassed": false,
+      "modifierGeneratorID": null
+     }
+    },
+    {
+     "slotIndex": 6,
+     "sourceRef": {
+      "mode": "clip",
+      "modifierBypassed": false,
+      "modifierGeneratorID": null
+     }
+    },
+    {
+     "slotIndex": 7,
+     "sourceRef": {
+      "mode": "clip",
+      "modifierBypassed": false,
+      "modifierGeneratorID": null
+     }
+    },
+    {
+     "slotIndex": 8,
+     "sourceRef": {
+      "mode": "clip",
+      "modifierBypassed": false,
+      "modifierGeneratorID": null
+     }
+    },
+    {
+     "slotIndex": 9,
+     "sourceRef": {
+      "mode": "clip",
+      "modifierBypassed": false,
+      "modifierGeneratorID": null
+     }
+    },
+    {
+     "slotIndex": 10,
+     "sourceRef": {
+      "mode": "clip",
+      "modifierBypassed": false,
+      "modifierGeneratorID": null
+     }
+    },
+    {
+     "slotIndex": 11,
+     "sourceRef": {
+      "mode": "clip",
+      "modifierBypassed": false,
+      "modifierGeneratorID": null
+     }
+    },
+    {
+     "slotIndex": 12,
+     "sourceRef": {
+      "mode": "clip",
+      "modifierBypassed": false,
+      "modifierGeneratorID": null
+     }
+    },
+    {
+     "slotIndex": 13,
+     "sourceRef": {
+      "mode": "clip",
+      "modifierBypassed": false,
+      "modifierGeneratorID": null
+     }
+    },
+    {
+     "slotIndex": 14,
+     "sourceRef": {
+      "mode": "clip",
+      "modifierBypassed": false,
+      "modifierGeneratorID": null
+     }
+    },
+    {
+     "slotIndex": 15,
+     "sourceRef": {
+      "mode": "clip",
+      "modifierBypassed": false,
+      "modifierGeneratorID": null
+     }
+    }
+   ],
+   "trackID": "8D64B506-C2C1-42FD-84BD-07A25C8A37B4"
+  }
+ ],
+ "phrases": [
+  {
+   "cells": [
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "pattern",
+     "trackID": "11111111-1111-1111-1111-111111111111"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "pattern",
+     "trackID": "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "pattern",
+     "trackID": "B0540F4B-CE03-4DC4-80C8-E867182F7621"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "pattern",
+     "trackID": "3E278E83-D398-46F3-8F33-4E8C66214D9A"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "pattern",
+     "trackID": "915EA852-237E-46CC-951A-89111BE56C7A"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "pattern",
+     "trackID": "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "pattern",
+     "trackID": "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "pattern",
+     "trackID": "8D64B506-C2C1-42FD-84BD-07A25C8A37B4"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "mute",
+     "trackID": "11111111-1111-1111-1111-111111111111"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "mute",
+     "trackID": "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "mute",
+     "trackID": "B0540F4B-CE03-4DC4-80C8-E867182F7621"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "mute",
+     "trackID": "3E278E83-D398-46F3-8F33-4E8C66214D9A"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "mute",
+     "trackID": "915EA852-237E-46CC-951A-89111BE56C7A"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "mute",
+     "trackID": "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "mute",
+     "trackID": "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "mute",
+     "trackID": "8D64B506-C2C1-42FD-84BD-07A25C8A37B4"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "volume",
+     "trackID": "11111111-1111-1111-1111-111111111111"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "volume",
+     "trackID": "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "volume",
+     "trackID": "B0540F4B-CE03-4DC4-80C8-E867182F7621"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "volume",
+     "trackID": "3E278E83-D398-46F3-8F33-4E8C66214D9A"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "volume",
+     "trackID": "915EA852-237E-46CC-951A-89111BE56C7A"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "volume",
+     "trackID": "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "volume",
+     "trackID": "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "volume",
+     "trackID": "8D64B506-C2C1-42FD-84BD-07A25C8A37B4"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "transpose",
+     "trackID": "11111111-1111-1111-1111-111111111111"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "transpose",
+     "trackID": "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "transpose",
+     "trackID": "B0540F4B-CE03-4DC4-80C8-E867182F7621"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "transpose",
+     "trackID": "3E278E83-D398-46F3-8F33-4E8C66214D9A"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "transpose",
+     "trackID": "915EA852-237E-46CC-951A-89111BE56C7A"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "transpose",
+     "trackID": "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "transpose",
+     "trackID": "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "transpose",
+     "trackID": "8D64B506-C2C1-42FD-84BD-07A25C8A37B4"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "intensity",
+     "trackID": "11111111-1111-1111-1111-111111111111"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "intensity",
+     "trackID": "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "intensity",
+     "trackID": "B0540F4B-CE03-4DC4-80C8-E867182F7621"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "intensity",
+     "trackID": "3E278E83-D398-46F3-8F33-4E8C66214D9A"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "intensity",
+     "trackID": "915EA852-237E-46CC-951A-89111BE56C7A"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "intensity",
+     "trackID": "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "intensity",
+     "trackID": "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "intensity",
+     "trackID": "8D64B506-C2C1-42FD-84BD-07A25C8A37B4"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "density",
+     "trackID": "11111111-1111-1111-1111-111111111111"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "density",
+     "trackID": "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "density",
+     "trackID": "B0540F4B-CE03-4DC4-80C8-E867182F7621"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "density",
+     "trackID": "3E278E83-D398-46F3-8F33-4E8C66214D9A"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "density",
+     "trackID": "915EA852-237E-46CC-951A-89111BE56C7A"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "density",
+     "trackID": "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "density",
+     "trackID": "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "density",
+     "trackID": "8D64B506-C2C1-42FD-84BD-07A25C8A37B4"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "tension",
+     "trackID": "11111111-1111-1111-1111-111111111111"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "tension",
+     "trackID": "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "tension",
+     "trackID": "B0540F4B-CE03-4DC4-80C8-E867182F7621"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "tension",
+     "trackID": "3E278E83-D398-46F3-8F33-4E8C66214D9A"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "tension",
+     "trackID": "915EA852-237E-46CC-951A-89111BE56C7A"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "tension",
+     "trackID": "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "tension",
+     "trackID": "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "tension",
+     "trackID": "8D64B506-C2C1-42FD-84BD-07A25C8A37B4"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "register",
+     "trackID": "11111111-1111-1111-1111-111111111111"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "register",
+     "trackID": "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "register",
+     "trackID": "B0540F4B-CE03-4DC4-80C8-E867182F7621"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "register",
+     "trackID": "3E278E83-D398-46F3-8F33-4E8C66214D9A"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "register",
+     "trackID": "915EA852-237E-46CC-951A-89111BE56C7A"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "register",
+     "trackID": "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "register",
+     "trackID": "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "register",
+     "trackID": "8D64B506-C2C1-42FD-84BD-07A25C8A37B4"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "variance",
+     "trackID": "11111111-1111-1111-1111-111111111111"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "variance",
+     "trackID": "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "variance",
+     "trackID": "B0540F4B-CE03-4DC4-80C8-E867182F7621"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "variance",
+     "trackID": "3E278E83-D398-46F3-8F33-4E8C66214D9A"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "variance",
+     "trackID": "915EA852-237E-46CC-951A-89111BE56C7A"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "variance",
+     "trackID": "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "variance",
+     "trackID": "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "variance",
+     "trackID": "8D64B506-C2C1-42FD-84BD-07A25C8A37B4"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "fx-send",
+     "trackID": "11111111-1111-1111-1111-111111111111"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "fx-send",
+     "trackID": "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "fx-send",
+     "trackID": "B0540F4B-CE03-4DC4-80C8-E867182F7621"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "fx-send",
+     "trackID": "3E278E83-D398-46F3-8F33-4E8C66214D9A"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "fx-send",
+     "trackID": "915EA852-237E-46CC-951A-89111BE56C7A"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "fx-send",
+     "trackID": "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "fx-send",
+     "trackID": "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "fx-send",
+     "trackID": "8D64B506-C2C1-42FD-84BD-07A25C8A37B4"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "brightness",
+     "trackID": "11111111-1111-1111-1111-111111111111"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "brightness",
+     "trackID": "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "brightness",
+     "trackID": "B0540F4B-CE03-4DC4-80C8-E867182F7621"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "brightness",
+     "trackID": "3E278E83-D398-46F3-8F33-4E8C66214D9A"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "brightness",
+     "trackID": "915EA852-237E-46CC-951A-89111BE56C7A"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "brightness",
+     "trackID": "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "brightness",
+     "trackID": "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "brightness",
+     "trackID": "8D64B506-C2C1-42FD-84BD-07A25C8A37B4"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "fill-flag",
+     "trackID": "11111111-1111-1111-1111-111111111111"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "fill-flag",
+     "trackID": "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "fill-flag",
+     "trackID": "B0540F4B-CE03-4DC4-80C8-E867182F7621"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "fill-flag",
+     "trackID": "3E278E83-D398-46F3-8F33-4E8C66214D9A"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "fill-flag",
+     "trackID": "915EA852-237E-46CC-951A-89111BE56C7A"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "fill-flag",
+     "trackID": "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "fill-flag",
+     "trackID": "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "fill-flag",
+     "trackID": "8D64B506-C2C1-42FD-84BD-07A25C8A37B4"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "swing",
+     "trackID": "11111111-1111-1111-1111-111111111111"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "swing",
+     "trackID": "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "swing",
+     "trackID": "B0540F4B-CE03-4DC4-80C8-E867182F7621"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "swing",
+     "trackID": "3E278E83-D398-46F3-8F33-4E8C66214D9A"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "swing",
+     "trackID": "915EA852-237E-46CC-951A-89111BE56C7A"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "swing",
+     "trackID": "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "swing",
+     "trackID": "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "swing",
+     "trackID": "8D64B506-C2C1-42FD-84BD-07A25C8A37B4"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-A388CCC7-06F6-C47A-8661-51FB9A97B424",
+     "trackID": "11111111-1111-1111-1111-111111111111"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-A388CCC7-06F6-C47A-8661-51FB9A97B424",
+     "trackID": "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-A388CCC7-06F6-C47A-8661-51FB9A97B424",
+     "trackID": "B0540F4B-CE03-4DC4-80C8-E867182F7621"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-A388CCC7-06F6-C47A-8661-51FB9A97B424",
+     "trackID": "3E278E83-D398-46F3-8F33-4E8C66214D9A"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-A388CCC7-06F6-C47A-8661-51FB9A97B424",
+     "trackID": "915EA852-237E-46CC-951A-89111BE56C7A"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-A388CCC7-06F6-C47A-8661-51FB9A97B424",
+     "trackID": "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-A388CCC7-06F6-C47A-8661-51FB9A97B424",
+     "trackID": "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-A388CCC7-06F6-C47A-8661-51FB9A97B424",
+     "trackID": "8D64B506-C2C1-42FD-84BD-07A25C8A37B4"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-6BFDBD31-2927-AF30-48FD-36FB779B1BBE",
+     "trackID": "11111111-1111-1111-1111-111111111111"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-6BFDBD31-2927-AF30-48FD-36FB779B1BBE",
+     "trackID": "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-6BFDBD31-2927-AF30-48FD-36FB779B1BBE",
+     "trackID": "B0540F4B-CE03-4DC4-80C8-E867182F7621"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-6BFDBD31-2927-AF30-48FD-36FB779B1BBE",
+     "trackID": "3E278E83-D398-46F3-8F33-4E8C66214D9A"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-6BFDBD31-2927-AF30-48FD-36FB779B1BBE",
+     "trackID": "915EA852-237E-46CC-951A-89111BE56C7A"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-6BFDBD31-2927-AF30-48FD-36FB779B1BBE",
+     "trackID": "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-6BFDBD31-2927-AF30-48FD-36FB779B1BBE",
+     "trackID": "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-6BFDBD31-2927-AF30-48FD-36FB779B1BBE",
+     "trackID": "8D64B506-C2C1-42FD-84BD-07A25C8A37B4"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-4D96D481-CA46-3184-A4C6-491E86EED56B",
+     "trackID": "11111111-1111-1111-1111-111111111111"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-4D96D481-CA46-3184-A4C6-491E86EED56B",
+     "trackID": "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-4D96D481-CA46-3184-A4C6-491E86EED56B",
+     "trackID": "B0540F4B-CE03-4DC4-80C8-E867182F7621"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-4D96D481-CA46-3184-A4C6-491E86EED56B",
+     "trackID": "3E278E83-D398-46F3-8F33-4E8C66214D9A"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-4D96D481-CA46-3184-A4C6-491E86EED56B",
+     "trackID": "915EA852-237E-46CC-951A-89111BE56C7A"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-4D96D481-CA46-3184-A4C6-491E86EED56B",
+     "trackID": "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-4D96D481-CA46-3184-A4C6-491E86EED56B",
+     "trackID": "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-4D96D481-CA46-3184-A4C6-491E86EED56B",
+     "trackID": "8D64B506-C2C1-42FD-84BD-07A25C8A37B4"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-915EA852-237E-46CC-951A-89111BE56C7A-E0A0F5F1-B82F-28B7-B8A6-47FADCD02704",
+     "trackID": "11111111-1111-1111-1111-111111111111"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-915EA852-237E-46CC-951A-89111BE56C7A-E0A0F5F1-B82F-28B7-B8A6-47FADCD02704",
+     "trackID": "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-915EA852-237E-46CC-951A-89111BE56C7A-E0A0F5F1-B82F-28B7-B8A6-47FADCD02704",
+     "trackID": "B0540F4B-CE03-4DC4-80C8-E867182F7621"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-915EA852-237E-46CC-951A-89111BE56C7A-E0A0F5F1-B82F-28B7-B8A6-47FADCD02704",
+     "trackID": "3E278E83-D398-46F3-8F33-4E8C66214D9A"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-915EA852-237E-46CC-951A-89111BE56C7A-E0A0F5F1-B82F-28B7-B8A6-47FADCD02704",
+     "trackID": "915EA852-237E-46CC-951A-89111BE56C7A"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-915EA852-237E-46CC-951A-89111BE56C7A-E0A0F5F1-B82F-28B7-B8A6-47FADCD02704",
+     "trackID": "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-915EA852-237E-46CC-951A-89111BE56C7A-E0A0F5F1-B82F-28B7-B8A6-47FADCD02704",
+     "trackID": "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-915EA852-237E-46CC-951A-89111BE56C7A-E0A0F5F1-B82F-28B7-B8A6-47FADCD02704",
+     "trackID": "8D64B506-C2C1-42FD-84BD-07A25C8A37B4"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-915EA852-237E-46CC-951A-89111BE56C7A-62D303BC-41EB-E16B-7EA8-2CFABCB6B79E",
+     "trackID": "11111111-1111-1111-1111-111111111111"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-915EA852-237E-46CC-951A-89111BE56C7A-62D303BC-41EB-E16B-7EA8-2CFABCB6B79E",
+     "trackID": "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-915EA852-237E-46CC-951A-89111BE56C7A-62D303BC-41EB-E16B-7EA8-2CFABCB6B79E",
+     "trackID": "B0540F4B-CE03-4DC4-80C8-E867182F7621"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-915EA852-237E-46CC-951A-89111BE56C7A-62D303BC-41EB-E16B-7EA8-2CFABCB6B79E",
+     "trackID": "3E278E83-D398-46F3-8F33-4E8C66214D9A"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-915EA852-237E-46CC-951A-89111BE56C7A-62D303BC-41EB-E16B-7EA8-2CFABCB6B79E",
+     "trackID": "915EA852-237E-46CC-951A-89111BE56C7A"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-915EA852-237E-46CC-951A-89111BE56C7A-62D303BC-41EB-E16B-7EA8-2CFABCB6B79E",
+     "trackID": "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-915EA852-237E-46CC-951A-89111BE56C7A-62D303BC-41EB-E16B-7EA8-2CFABCB6B79E",
+     "trackID": "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-915EA852-237E-46CC-951A-89111BE56C7A-62D303BC-41EB-E16B-7EA8-2CFABCB6B79E",
+     "trackID": "8D64B506-C2C1-42FD-84BD-07A25C8A37B4"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-915EA852-237E-46CC-951A-89111BE56C7A-C6BD5800-F22E-0DE1-DD14-28FC1EDC888B",
+     "trackID": "11111111-1111-1111-1111-111111111111"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-915EA852-237E-46CC-951A-89111BE56C7A-C6BD5800-F22E-0DE1-DD14-28FC1EDC888B",
+     "trackID": "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-915EA852-237E-46CC-951A-89111BE56C7A-C6BD5800-F22E-0DE1-DD14-28FC1EDC888B",
+     "trackID": "B0540F4B-CE03-4DC4-80C8-E867182F7621"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-915EA852-237E-46CC-951A-89111BE56C7A-C6BD5800-F22E-0DE1-DD14-28FC1EDC888B",
+     "trackID": "3E278E83-D398-46F3-8F33-4E8C66214D9A"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-915EA852-237E-46CC-951A-89111BE56C7A-C6BD5800-F22E-0DE1-DD14-28FC1EDC888B",
+     "trackID": "915EA852-237E-46CC-951A-89111BE56C7A"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-915EA852-237E-46CC-951A-89111BE56C7A-C6BD5800-F22E-0DE1-DD14-28FC1EDC888B",
+     "trackID": "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-915EA852-237E-46CC-951A-89111BE56C7A-C6BD5800-F22E-0DE1-DD14-28FC1EDC888B",
+     "trackID": "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-915EA852-237E-46CC-951A-89111BE56C7A-C6BD5800-F22E-0DE1-DD14-28FC1EDC888B",
+     "trackID": "8D64B506-C2C1-42FD-84BD-07A25C8A37B4"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-9E847A44-B7F9-912E-A156-D80668F04347",
+     "trackID": "11111111-1111-1111-1111-111111111111"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-9E847A44-B7F9-912E-A156-D80668F04347",
+     "trackID": "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-9E847A44-B7F9-912E-A156-D80668F04347",
+     "trackID": "B0540F4B-CE03-4DC4-80C8-E867182F7621"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-9E847A44-B7F9-912E-A156-D80668F04347",
+     "trackID": "3E278E83-D398-46F3-8F33-4E8C66214D9A"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-9E847A44-B7F9-912E-A156-D80668F04347",
+     "trackID": "915EA852-237E-46CC-951A-89111BE56C7A"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-9E847A44-B7F9-912E-A156-D80668F04347",
+     "trackID": "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-9E847A44-B7F9-912E-A156-D80668F04347",
+     "trackID": "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-9E847A44-B7F9-912E-A156-D80668F04347",
+     "trackID": "8D64B506-C2C1-42FD-84BD-07A25C8A37B4"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-D2849DC4-5348-19E4-4420-E706C4A39801",
+     "trackID": "11111111-1111-1111-1111-111111111111"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-D2849DC4-5348-19E4-4420-E706C4A39801",
+     "trackID": "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-D2849DC4-5348-19E4-4420-E706C4A39801",
+     "trackID": "B0540F4B-CE03-4DC4-80C8-E867182F7621"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-D2849DC4-5348-19E4-4420-E706C4A39801",
+     "trackID": "3E278E83-D398-46F3-8F33-4E8C66214D9A"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-D2849DC4-5348-19E4-4420-E706C4A39801",
+     "trackID": "915EA852-237E-46CC-951A-89111BE56C7A"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-D2849DC4-5348-19E4-4420-E706C4A39801",
+     "trackID": "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-D2849DC4-5348-19E4-4420-E706C4A39801",
+     "trackID": "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-D2849DC4-5348-19E4-4420-E706C4A39801",
+     "trackID": "8D64B506-C2C1-42FD-84BD-07A25C8A37B4"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-CBD163E2-AADF-0968-C163-1AC3E200B75C",
+     "trackID": "11111111-1111-1111-1111-111111111111"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-CBD163E2-AADF-0968-C163-1AC3E200B75C",
+     "trackID": "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-CBD163E2-AADF-0968-C163-1AC3E200B75C",
+     "trackID": "B0540F4B-CE03-4DC4-80C8-E867182F7621"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-CBD163E2-AADF-0968-C163-1AC3E200B75C",
+     "trackID": "3E278E83-D398-46F3-8F33-4E8C66214D9A"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-CBD163E2-AADF-0968-C163-1AC3E200B75C",
+     "trackID": "915EA852-237E-46CC-951A-89111BE56C7A"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-CBD163E2-AADF-0968-C163-1AC3E200B75C",
+     "trackID": "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-CBD163E2-AADF-0968-C163-1AC3E200B75C",
+     "trackID": "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-CBD163E2-AADF-0968-C163-1AC3E200B75C",
+     "trackID": "8D64B506-C2C1-42FD-84BD-07A25C8A37B4"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-18A100DE-40B7-8B4B-031C-70C51FEAF9C7",
+     "trackID": "11111111-1111-1111-1111-111111111111"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-18A100DE-40B7-8B4B-031C-70C51FEAF9C7",
+     "trackID": "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-18A100DE-40B7-8B4B-031C-70C51FEAF9C7",
+     "trackID": "B0540F4B-CE03-4DC4-80C8-E867182F7621"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-18A100DE-40B7-8B4B-031C-70C51FEAF9C7",
+     "trackID": "3E278E83-D398-46F3-8F33-4E8C66214D9A"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-18A100DE-40B7-8B4B-031C-70C51FEAF9C7",
+     "trackID": "915EA852-237E-46CC-951A-89111BE56C7A"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-18A100DE-40B7-8B4B-031C-70C51FEAF9C7",
+     "trackID": "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-18A100DE-40B7-8B4B-031C-70C51FEAF9C7",
+     "trackID": "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-18A100DE-40B7-8B4B-031C-70C51FEAF9C7",
+     "trackID": "8D64B506-C2C1-42FD-84BD-07A25C8A37B4"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-00BFE7A7-A6EC-10DF-A5E6-7FC57B9E4E81",
+     "trackID": "11111111-1111-1111-1111-111111111111"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-00BFE7A7-A6EC-10DF-A5E6-7FC57B9E4E81",
+     "trackID": "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-00BFE7A7-A6EC-10DF-A5E6-7FC57B9E4E81",
+     "trackID": "B0540F4B-CE03-4DC4-80C8-E867182F7621"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-00BFE7A7-A6EC-10DF-A5E6-7FC57B9E4E81",
+     "trackID": "3E278E83-D398-46F3-8F33-4E8C66214D9A"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-00BFE7A7-A6EC-10DF-A5E6-7FC57B9E4E81",
+     "trackID": "915EA852-237E-46CC-951A-89111BE56C7A"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-00BFE7A7-A6EC-10DF-A5E6-7FC57B9E4E81",
+     "trackID": "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-00BFE7A7-A6EC-10DF-A5E6-7FC57B9E4E81",
+     "trackID": "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-00BFE7A7-A6EC-10DF-A5E6-7FC57B9E4E81",
+     "trackID": "8D64B506-C2C1-42FD-84BD-07A25C8A37B4"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-2BC420AE-9DF5-A5B5-D2E2-7C606C8815DC",
+     "trackID": "11111111-1111-1111-1111-111111111111"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-2BC420AE-9DF5-A5B5-D2E2-7C606C8815DC",
+     "trackID": "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-2BC420AE-9DF5-A5B5-D2E2-7C606C8815DC",
+     "trackID": "B0540F4B-CE03-4DC4-80C8-E867182F7621"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-2BC420AE-9DF5-A5B5-D2E2-7C606C8815DC",
+     "trackID": "3E278E83-D398-46F3-8F33-4E8C66214D9A"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-2BC420AE-9DF5-A5B5-D2E2-7C606C8815DC",
+     "trackID": "915EA852-237E-46CC-951A-89111BE56C7A"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-2BC420AE-9DF5-A5B5-D2E2-7C606C8815DC",
+     "trackID": "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-2BC420AE-9DF5-A5B5-D2E2-7C606C8815DC",
+     "trackID": "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-2BC420AE-9DF5-A5B5-D2E2-7C606C8815DC",
+     "trackID": "8D64B506-C2C1-42FD-84BD-07A25C8A37B4"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-A388CCC7-06F6-C47A-8661-51FB9A97B424",
+     "trackID": "11111111-1111-1111-1111-111111111111"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-A388CCC7-06F6-C47A-8661-51FB9A97B424",
+     "trackID": "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-A388CCC7-06F6-C47A-8661-51FB9A97B424",
+     "trackID": "B0540F4B-CE03-4DC4-80C8-E867182F7621"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-A388CCC7-06F6-C47A-8661-51FB9A97B424",
+     "trackID": "3E278E83-D398-46F3-8F33-4E8C66214D9A"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-A388CCC7-06F6-C47A-8661-51FB9A97B424",
+     "trackID": "915EA852-237E-46CC-951A-89111BE56C7A"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-A388CCC7-06F6-C47A-8661-51FB9A97B424",
+     "trackID": "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-A388CCC7-06F6-C47A-8661-51FB9A97B424",
+     "trackID": "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-A388CCC7-06F6-C47A-8661-51FB9A97B424",
+     "trackID": "8D64B506-C2C1-42FD-84BD-07A25C8A37B4"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-6BFDBD31-2927-AF30-48FD-36FB779B1BBE",
+     "trackID": "11111111-1111-1111-1111-111111111111"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-6BFDBD31-2927-AF30-48FD-36FB779B1BBE",
+     "trackID": "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-6BFDBD31-2927-AF30-48FD-36FB779B1BBE",
+     "trackID": "B0540F4B-CE03-4DC4-80C8-E867182F7621"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-6BFDBD31-2927-AF30-48FD-36FB779B1BBE",
+     "trackID": "3E278E83-D398-46F3-8F33-4E8C66214D9A"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-6BFDBD31-2927-AF30-48FD-36FB779B1BBE",
+     "trackID": "915EA852-237E-46CC-951A-89111BE56C7A"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-6BFDBD31-2927-AF30-48FD-36FB779B1BBE",
+     "trackID": "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-6BFDBD31-2927-AF30-48FD-36FB779B1BBE",
+     "trackID": "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-6BFDBD31-2927-AF30-48FD-36FB779B1BBE",
+     "trackID": "8D64B506-C2C1-42FD-84BD-07A25C8A37B4"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-4D96D481-CA46-3184-A4C6-491E86EED56B",
+     "trackID": "11111111-1111-1111-1111-111111111111"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-4D96D481-CA46-3184-A4C6-491E86EED56B",
+     "trackID": "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-4D96D481-CA46-3184-A4C6-491E86EED56B",
+     "trackID": "B0540F4B-CE03-4DC4-80C8-E867182F7621"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-4D96D481-CA46-3184-A4C6-491E86EED56B",
+     "trackID": "3E278E83-D398-46F3-8F33-4E8C66214D9A"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-4D96D481-CA46-3184-A4C6-491E86EED56B",
+     "trackID": "915EA852-237E-46CC-951A-89111BE56C7A"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-4D96D481-CA46-3184-A4C6-491E86EED56B",
+     "trackID": "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-4D96D481-CA46-3184-A4C6-491E86EED56B",
+     "trackID": "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-4D96D481-CA46-3184-A4C6-491E86EED56B",
+     "trackID": "8D64B506-C2C1-42FD-84BD-07A25C8A37B4"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-915EA852-237E-46CC-951A-89111BE56C7A-E0A0F5F1-B82F-28B7-B8A6-47FADCD02704",
+     "trackID": "11111111-1111-1111-1111-111111111111"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-915EA852-237E-46CC-951A-89111BE56C7A-E0A0F5F1-B82F-28B7-B8A6-47FADCD02704",
+     "trackID": "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-915EA852-237E-46CC-951A-89111BE56C7A-E0A0F5F1-B82F-28B7-B8A6-47FADCD02704",
+     "trackID": "B0540F4B-CE03-4DC4-80C8-E867182F7621"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-915EA852-237E-46CC-951A-89111BE56C7A-E0A0F5F1-B82F-28B7-B8A6-47FADCD02704",
+     "trackID": "3E278E83-D398-46F3-8F33-4E8C66214D9A"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-915EA852-237E-46CC-951A-89111BE56C7A-E0A0F5F1-B82F-28B7-B8A6-47FADCD02704",
+     "trackID": "915EA852-237E-46CC-951A-89111BE56C7A"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-915EA852-237E-46CC-951A-89111BE56C7A-E0A0F5F1-B82F-28B7-B8A6-47FADCD02704",
+     "trackID": "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-915EA852-237E-46CC-951A-89111BE56C7A-E0A0F5F1-B82F-28B7-B8A6-47FADCD02704",
+     "trackID": "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-915EA852-237E-46CC-951A-89111BE56C7A-E0A0F5F1-B82F-28B7-B8A6-47FADCD02704",
+     "trackID": "8D64B506-C2C1-42FD-84BD-07A25C8A37B4"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-915EA852-237E-46CC-951A-89111BE56C7A-62D303BC-41EB-E16B-7EA8-2CFABCB6B79E",
+     "trackID": "11111111-1111-1111-1111-111111111111"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-915EA852-237E-46CC-951A-89111BE56C7A-62D303BC-41EB-E16B-7EA8-2CFABCB6B79E",
+     "trackID": "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-915EA852-237E-46CC-951A-89111BE56C7A-62D303BC-41EB-E16B-7EA8-2CFABCB6B79E",
+     "trackID": "B0540F4B-CE03-4DC4-80C8-E867182F7621"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-915EA852-237E-46CC-951A-89111BE56C7A-62D303BC-41EB-E16B-7EA8-2CFABCB6B79E",
+     "trackID": "3E278E83-D398-46F3-8F33-4E8C66214D9A"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-915EA852-237E-46CC-951A-89111BE56C7A-62D303BC-41EB-E16B-7EA8-2CFABCB6B79E",
+     "trackID": "915EA852-237E-46CC-951A-89111BE56C7A"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-915EA852-237E-46CC-951A-89111BE56C7A-62D303BC-41EB-E16B-7EA8-2CFABCB6B79E",
+     "trackID": "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-915EA852-237E-46CC-951A-89111BE56C7A-62D303BC-41EB-E16B-7EA8-2CFABCB6B79E",
+     "trackID": "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-915EA852-237E-46CC-951A-89111BE56C7A-62D303BC-41EB-E16B-7EA8-2CFABCB6B79E",
+     "trackID": "8D64B506-C2C1-42FD-84BD-07A25C8A37B4"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-915EA852-237E-46CC-951A-89111BE56C7A-C6BD5800-F22E-0DE1-DD14-28FC1EDC888B",
+     "trackID": "11111111-1111-1111-1111-111111111111"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-915EA852-237E-46CC-951A-89111BE56C7A-C6BD5800-F22E-0DE1-DD14-28FC1EDC888B",
+     "trackID": "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-915EA852-237E-46CC-951A-89111BE56C7A-C6BD5800-F22E-0DE1-DD14-28FC1EDC888B",
+     "trackID": "B0540F4B-CE03-4DC4-80C8-E867182F7621"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-915EA852-237E-46CC-951A-89111BE56C7A-C6BD5800-F22E-0DE1-DD14-28FC1EDC888B",
+     "trackID": "3E278E83-D398-46F3-8F33-4E8C66214D9A"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-915EA852-237E-46CC-951A-89111BE56C7A-C6BD5800-F22E-0DE1-DD14-28FC1EDC888B",
+     "trackID": "915EA852-237E-46CC-951A-89111BE56C7A"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-915EA852-237E-46CC-951A-89111BE56C7A-C6BD5800-F22E-0DE1-DD14-28FC1EDC888B",
+     "trackID": "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-915EA852-237E-46CC-951A-89111BE56C7A-C6BD5800-F22E-0DE1-DD14-28FC1EDC888B",
+     "trackID": "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-915EA852-237E-46CC-951A-89111BE56C7A-C6BD5800-F22E-0DE1-DD14-28FC1EDC888B",
+     "trackID": "8D64B506-C2C1-42FD-84BD-07A25C8A37B4"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-9E847A44-B7F9-912E-A156-D80668F04347",
+     "trackID": "11111111-1111-1111-1111-111111111111"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-9E847A44-B7F9-912E-A156-D80668F04347",
+     "trackID": "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-9E847A44-B7F9-912E-A156-D80668F04347",
+     "trackID": "B0540F4B-CE03-4DC4-80C8-E867182F7621"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-9E847A44-B7F9-912E-A156-D80668F04347",
+     "trackID": "3E278E83-D398-46F3-8F33-4E8C66214D9A"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-9E847A44-B7F9-912E-A156-D80668F04347",
+     "trackID": "915EA852-237E-46CC-951A-89111BE56C7A"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-9E847A44-B7F9-912E-A156-D80668F04347",
+     "trackID": "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-9E847A44-B7F9-912E-A156-D80668F04347",
+     "trackID": "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-9E847A44-B7F9-912E-A156-D80668F04347",
+     "trackID": "8D64B506-C2C1-42FD-84BD-07A25C8A37B4"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-D2849DC4-5348-19E4-4420-E706C4A39801",
+     "trackID": "11111111-1111-1111-1111-111111111111"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-D2849DC4-5348-19E4-4420-E706C4A39801",
+     "trackID": "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-D2849DC4-5348-19E4-4420-E706C4A39801",
+     "trackID": "B0540F4B-CE03-4DC4-80C8-E867182F7621"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-D2849DC4-5348-19E4-4420-E706C4A39801",
+     "trackID": "3E278E83-D398-46F3-8F33-4E8C66214D9A"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-D2849DC4-5348-19E4-4420-E706C4A39801",
+     "trackID": "915EA852-237E-46CC-951A-89111BE56C7A"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-D2849DC4-5348-19E4-4420-E706C4A39801",
+     "trackID": "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-D2849DC4-5348-19E4-4420-E706C4A39801",
+     "trackID": "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-D2849DC4-5348-19E4-4420-E706C4A39801",
+     "trackID": "8D64B506-C2C1-42FD-84BD-07A25C8A37B4"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-CBD163E2-AADF-0968-C163-1AC3E200B75C",
+     "trackID": "11111111-1111-1111-1111-111111111111"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-CBD163E2-AADF-0968-C163-1AC3E200B75C",
+     "trackID": "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-CBD163E2-AADF-0968-C163-1AC3E200B75C",
+     "trackID": "B0540F4B-CE03-4DC4-80C8-E867182F7621"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-CBD163E2-AADF-0968-C163-1AC3E200B75C",
+     "trackID": "3E278E83-D398-46F3-8F33-4E8C66214D9A"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-CBD163E2-AADF-0968-C163-1AC3E200B75C",
+     "trackID": "915EA852-237E-46CC-951A-89111BE56C7A"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-CBD163E2-AADF-0968-C163-1AC3E200B75C",
+     "trackID": "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-CBD163E2-AADF-0968-C163-1AC3E200B75C",
+     "trackID": "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-CBD163E2-AADF-0968-C163-1AC3E200B75C",
+     "trackID": "8D64B506-C2C1-42FD-84BD-07A25C8A37B4"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-18A100DE-40B7-8B4B-031C-70C51FEAF9C7",
+     "trackID": "11111111-1111-1111-1111-111111111111"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-18A100DE-40B7-8B4B-031C-70C51FEAF9C7",
+     "trackID": "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-18A100DE-40B7-8B4B-031C-70C51FEAF9C7",
+     "trackID": "B0540F4B-CE03-4DC4-80C8-E867182F7621"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-18A100DE-40B7-8B4B-031C-70C51FEAF9C7",
+     "trackID": "3E278E83-D398-46F3-8F33-4E8C66214D9A"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-18A100DE-40B7-8B4B-031C-70C51FEAF9C7",
+     "trackID": "915EA852-237E-46CC-951A-89111BE56C7A"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-18A100DE-40B7-8B4B-031C-70C51FEAF9C7",
+     "trackID": "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-18A100DE-40B7-8B4B-031C-70C51FEAF9C7",
+     "trackID": "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-18A100DE-40B7-8B4B-031C-70C51FEAF9C7",
+     "trackID": "8D64B506-C2C1-42FD-84BD-07A25C8A37B4"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-00BFE7A7-A6EC-10DF-A5E6-7FC57B9E4E81",
+     "trackID": "11111111-1111-1111-1111-111111111111"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-00BFE7A7-A6EC-10DF-A5E6-7FC57B9E4E81",
+     "trackID": "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-00BFE7A7-A6EC-10DF-A5E6-7FC57B9E4E81",
+     "trackID": "B0540F4B-CE03-4DC4-80C8-E867182F7621"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-00BFE7A7-A6EC-10DF-A5E6-7FC57B9E4E81",
+     "trackID": "3E278E83-D398-46F3-8F33-4E8C66214D9A"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-00BFE7A7-A6EC-10DF-A5E6-7FC57B9E4E81",
+     "trackID": "915EA852-237E-46CC-951A-89111BE56C7A"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-00BFE7A7-A6EC-10DF-A5E6-7FC57B9E4E81",
+     "trackID": "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-00BFE7A7-A6EC-10DF-A5E6-7FC57B9E4E81",
+     "trackID": "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-00BFE7A7-A6EC-10DF-A5E6-7FC57B9E4E81",
+     "trackID": "8D64B506-C2C1-42FD-84BD-07A25C8A37B4"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-2BC420AE-9DF5-A5B5-D2E2-7C606C8815DC",
+     "trackID": "11111111-1111-1111-1111-111111111111"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-2BC420AE-9DF5-A5B5-D2E2-7C606C8815DC",
+     "trackID": "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-2BC420AE-9DF5-A5B5-D2E2-7C606C8815DC",
+     "trackID": "B0540F4B-CE03-4DC4-80C8-E867182F7621"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-2BC420AE-9DF5-A5B5-D2E2-7C606C8815DC",
+     "trackID": "3E278E83-D398-46F3-8F33-4E8C66214D9A"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-2BC420AE-9DF5-A5B5-D2E2-7C606C8815DC",
+     "trackID": "915EA852-237E-46CC-951A-89111BE56C7A"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-2BC420AE-9DF5-A5B5-D2E2-7C606C8815DC",
+     "trackID": "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-2BC420AE-9DF5-A5B5-D2E2-7C606C8815DC",
+     "trackID": "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
+    },
+    {
+     "cell": {
+      "inheritDefault": {}
+     },
+     "layerID": "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-2BC420AE-9DF5-A5B5-D2E2-7C606C8815DC",
+     "trackID": "8D64B506-C2C1-42FD-84BD-07A25C8A37B4"
+    }
+   ],
+   "id": "22222222-2222-2222-2222-222222222222",
+   "lengthBars": 8,
+   "loopEnabled": false,
+   "name": "Phrase A",
+   "repeatCount": 1,
+   "stepsPerBar": 16
+  }
+ ],
+ "routes": [],
+ "selectedPhraseID": "22222222-2222-2222-2222-222222222222",
+ "selectedTrackID": "11111111-1111-1111-1111-111111111111",
+ "sendBusA": {
+  "id": "send-a",
+  "inserts": [
+   {
+    "id": "0000A0D1-0000-4000-8000-000000000A01",
+    "isEnabled": true,
+    "kind": {
+     "nativeFilter": {
+      "_0": {
+       "cutoffHz": 8000,
+       "mode": "lowPass",
+       "resonance": 0.3
+      }
+     }
+    },
+    "name": "Filter",
+    "wetDry": 1
+   }
+  ],
+  "name": "Send A"
+ },
+ "sendBusB": {
+  "id": "send-b",
+  "inserts": [
+   {
+    "id": "0000A0D1-0000-4000-8000-000000000B01",
+    "isEnabled": true,
+    "kind": {
+     "nativeFilter": {
+      "_0": {
+       "cutoffHz": 8000,
+       "mode": "lowPass",
+       "resonance": 0.3
+      }
+     }
+    },
+    "name": "Filter",
+    "wetDry": 1
+   }
+  ],
+  "name": "Send B"
+ },
+ "sliceSetPool": [
+  {
+   "id": "B24E6060-D308-4383-93FF-C2AAF54193E9",
+   "markers": [
+    {
+     "endFrame": 88200,
+     "gain": 0,
+     "id": "ECCA1A29-B253-457E-A1A5-CFCE56DE0E47",
+     "microTimingSteps": 0,
+     "reverse": false,
+     "startFrame": 0,
+     "tag": ""
+    },
+    {
+     "endFrame": 11025,
+     "gain": 0,
+     "id": "843AE8D2-AB26-4C44-A3F5-1685F284D601",
+     "microTimingSteps": 0,
+     "reverse": false,
+     "startFrame": 0,
+     "tag": ""
+    },
+    {
+     "endFrame": 22050,
+     "gain": 0,
+     "id": "F2C4318C-A7F3-4805-994F-A4AB45E5D24B",
+     "microTimingSteps": 0,
+     "reverse": false,
+     "startFrame": 11025,
+     "tag": ""
+    },
+    {
+     "endFrame": 33075,
+     "gain": 0,
+     "id": "05B60D44-ABDD-46D1-AB14-16F3AE1FE5AA",
+     "microTimingSteps": 0,
+     "reverse": false,
+     "startFrame": 22050,
+     "tag": ""
+    },
+    {
+     "endFrame": 44100,
+     "gain": 0,
+     "id": "60869B41-BC42-4F06-BA51-579FCA0239CD",
+     "microTimingSteps": 0,
+     "reverse": false,
+     "startFrame": 33075,
+     "tag": ""
+    },
+    {
+     "endFrame": 55125,
+     "gain": 0,
+     "id": "C44AB0DB-71E2-45C8-894C-2A2BC65150C1",
+     "microTimingSteps": 0,
+     "reverse": false,
+     "startFrame": 44100,
+     "tag": ""
+    },
+    {
+     "endFrame": 66150,
+     "gain": 0,
+     "id": "D283CF1B-8974-4A76-A5AC-AF2897E85E1E",
+     "microTimingSteps": 0,
+     "reverse": false,
+     "startFrame": 55125,
+     "tag": ""
+    },
+    {
+     "endFrame": 77175,
+     "gain": 0,
+     "id": "8C7C316E-3DBF-4FE7-B662-864C6D0A6E25",
+     "microTimingSteps": 0,
+     "reverse": false,
+     "startFrame": 66150,
+     "tag": ""
+    },
+    {
+     "endFrame": 88200,
+     "gain": 0,
+     "id": "A3382A65-6449-494A-8EBF-EF886853A3BB",
+     "microTimingSteps": 0,
+     "reverse": false,
+     "startFrame": 77175,
+     "tag": ""
+    }
+   ],
+   "mode": "grid",
+   "sampleID": "2B174442-31CA-5A36-ADA0-E4F70E2A9CAA"
+  }
+ ],
+ "stepOrderMaps": [],
+ "trackGroups": [],
+ "tracks": [
+  {
+   "destination": {
+    "sample": {
+     "sampleID": "76EC2432-A4D8-5355-9A9B-CDE05795D1AC",
+     "settings": {
+      "attackMs": 0,
+      "gain": 0,
+      "length": 1,
+      "releaseMs": 0,
+      "start": 0,
+      "transpose": 0
+     }
+    }
+   },
+   "filter": {
+    "cutoffHz": 20000,
+    "drive": 0,
+    "poles": 2,
+    "resonance": 0,
+    "type": "lowpass"
+   },
+   "fxInserts": [],
+   "gateLength": 4,
+   "id": "11111111-1111-1111-1111-111111111111",
+   "macros": [],
+   "mix": {
+    "isMuted": false,
+    "isSoloed": false,
+    "level": 0.6,
+    "pan": 0,
+    "sendA": 0,
+    "sendB": 0
+   },
+   "name": "Main Track",
+   "noteRepeatInterval": "1/16",
+   "pitches": [
+    55
+   ],
+   "stepAccents": [
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false
+   ],
+   "stepPattern": [
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true
+   ],
+   "trackType": "monoMelodic",
+   "velocity": 100,
+   "outputBusID": null
+  },
+  {
+   "destination": {
+    "sample": {
+     "sampleID": "76EC2432-A4D8-5355-9A9B-CDE05795D1AC",
+     "settings": {
+      "attackMs": 0,
+      "gain": 0,
+      "length": 1,
+      "releaseMs": 0,
+      "start": 0,
+      "transpose": 0
+     }
+    }
+   },
+   "filter": {
+    "cutoffHz": 20000,
+    "drive": 0,
+    "poles": 2,
+    "resonance": 0,
+    "type": "lowpass"
+   },
+   "fxInserts": [],
+   "gateLength": 4,
+   "id": "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF",
+   "macros": [],
+   "mix": {
+    "isMuted": false,
+    "isSoloed": false,
+    "level": 0.6,
+    "pan": 0,
+    "sendA": 0,
+    "sendB": 0
+   },
+   "name": "Sample Lead",
+   "noteRepeatInterval": "1/16",
+   "pitches": [
+    50
+   ],
+   "stepAccents": [
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false
+   ],
+   "stepPattern": [
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true
+   ],
+   "trackType": "monoMelodic",
+   "velocity": 100,
+   "outputBusID": null
+  },
+  {
+   "destination": {
+    "slicer": {
+     "settings": {
+      "gain": 0,
+      "transpose": 0,
+      "voiceMode": "mono"
+     },
+     "sliceSetID": "B24E6060-D308-4383-93FF-C2AAF54193E9"
+    }
+   },
+   "filter": {
+    "cutoffHz": 20000,
+    "drive": 0,
+    "poles": 2,
+    "resonance": 0,
+    "type": "lowpass"
+   },
+   "fxInserts": [],
+   "gateLength": 4,
+   "id": "B0540F4B-CE03-4DC4-80C8-E867182F7621",
+   "macros": [],
+   "mix": {
+    "isMuted": false,
+    "isSoloed": false,
+    "level": 0.8,
+    "pan": 0,
+    "sendA": 0,
+    "sendB": 0.5
+   },
+   "name": "Audio Rich Fixture Loop",
+   "noteRepeatInterval": "1/16",
+   "pitches": [
+    60
+   ],
+   "stepAccents": [
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false
+   ],
+   "stepPattern": [
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false
+   ],
+   "trackType": "slice",
+   "velocity": 100,
+   "outputBusID": null
+  },
+  {
+   "destination": {
+    "sample": {
+     "sampleID": "76EC2432-A4D8-5355-9A9B-CDE05795D1AC",
+     "settings": {
+      "attackMs": 0,
+      "gain": 0,
+      "length": 1,
+      "releaseMs": 0,
+      "start": 0,
+      "transpose": 0
+     }
+    }
+   },
+   "filter": {
+    "cutoffHz": 20000,
+    "drive": 0,
+    "poles": 2,
+    "resonance": 0,
+    "type": "lowpass"
+   },
+   "fxInserts": [],
+   "gateLength": 4,
+   "id": "8D64B506-C2C1-42FD-84BD-07A25C8A37B4",
+   "macros": [],
+   "mix": {
+    "isMuted": false,
+    "isSoloed": false,
+    "level": 0.8,
+    "pan": 0,
+    "sendA": 0,
+    "sendB": 0
+   },
+   "name": "Sustain Drone",
+   "noteRepeatInterval": "1/16",
+   "pitches": [
+    48
+   ],
+   "stepAccents": [
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false
+   ],
+   "stepPattern": [
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true
+   ],
+   "trackType": "monoMelodic",
+   "velocity": 100,
+   "outputBusID": null
+  }
+ ],
+ "version": 1
+}

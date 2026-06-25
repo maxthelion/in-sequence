@@ -2077,7 +2077,7 @@ final class EngineController: RouterDispatcher {
             lastAppliedLayerMuteByTrackID[track.id] = layerMuted
             switch destination {
             case .sample, .slicer:
-                sampleEngine.setTrackMuteGain(trackID: track.id, muted: layerMuted)
+                sampleEngine.setTrackMuteGain(trackID: track.id, muted: layerMuted, source: .layer)
             case .auInstrument:
                 audioOutputs[track.id]?.setMuteGain(layerMuted)
             default:
@@ -2446,9 +2446,14 @@ final class EngineController: RouterDispatcher {
             )
 
         case .auInstrument:
+            // Routed AU is an AUDIO destination: mute is a ramped GAIN on the
+            // destination's mixer (mixer-mute via syncAUTracks, layer-mute via
+            // applyLayerMuteGainTransitions), NOT a trigger-gate — exactly like
+            // own-pattern AU above. Gating here too would make routed audio
+            // behave differently (e.g. a ringing voice would not be cut, and a
+            // queued event could land just before/after a mute and diverge from
+            // the gain path). Keep triggering and let the gain cut it.
             guard let track,
-                  !effectiveMutedTrackIDs.contains(track.id),
-                  !layerSnapshot.isMuted(track.id),
                   trackRuntime.audioOutputsByTrackID[track.id] != nil
             else {
                 return
@@ -2468,10 +2473,12 @@ final class EngineController: RouterDispatcher {
             )
 
         case let .slicer(sliceSetID, settings):
-            guard let track,
-                  !effectiveMutedTrackIDs.contains(track.id),
-                  !layerSnapshot.isMuted(track.id)
-            else {
+            // Routed slicer is an AUDIO destination: mute is a ramped GAIN on
+            // the per-track sample mixer (mixer-mute via syncSampleMixers,
+            // layer-mute via applyLayerMuteGainTransitions), NOT a trigger-gate,
+            // matching own-pattern slicer above. Keep triggering; the gain cuts
+            // it. Gating here would diverge from the own-pattern gain behaviour.
+            guard let track else {
                 return
             }
             EngineSlicerDispatcher.enqueueSliceTriggers(

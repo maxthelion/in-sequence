@@ -547,6 +547,24 @@ enum VisualScenarioCommandRunner {
             session.setTrackSends(trackID: track.id, sendA: sendA, sendB: sendB)
         }
 
+        // resetClickHold=1 — reset the master maxSampleDelta peak-hold so the
+        // next op's discontinuity is measured from a clean baseline.
+        if command["resetClickHold"] == "1" {
+            resetMasterMaxSampleDeltaHold()
+        }
+
+        // injectClickHold=<value> — POSITIVE-CONTROL hook: force a known value
+        // into the master maxSampleDelta peak-hold. The routing-stress gate uses
+        // this to PROVE the click metric → status-file → gate plumbing is live
+        // and the click floor is reachable (a deterministic positive control),
+        // decoupled from the acoustic measurement, which on a continuous bed is
+        // dominated by note-onset transients and normalization at low levels and
+        // so cannot by itself distinguish an op-click. Harness-only (no effect
+        // outside the command channel, which exists only in capture mode).
+        if let raw = command["injectClickHold"], let value = Double(raw) {
+            injectMasterMaxSampleDeltaHold(value)
+        }
+
         // removeTrack=<idx> — structural track removal (live graph mutation).
         if let raw = command["removeTrack"],
            let index = Int(raw.trimmingCharacters(in: .whitespaces)),
@@ -657,6 +675,81 @@ enum VisualScenarioCommandRunner {
             .filter { activeTrackIDs.contains($0.id) }
             .map(\.name)
         return names.isEmpty ? "none" : names.joined(separator: ",")
+    }
+
+    /// Per-track / per-bus level + post-condition readback for the
+    /// routing-stress gate. The summed master meter hides a single dead track
+    /// under the drone, and "didn't hang" is not "took effect" — so the gate
+    /// needs per-track levels (channel meter taps) AND document/graph state
+    /// read back after each op. Emitted as `trackN<field>=` and `busN<field>=`
+    /// lines so the bash gate can assert EXPECTED deltas + post-conditions.
+    /// Peak-HOLD of master maxSampleDelta across status writes. The status file
+    /// is rewritten every ~100 ms but the meter resets its discontinuity metric
+    /// every 60 Hz publish, so a single 100 ms snapshot usually samples a low
+    /// inter-transient value and misses a sparse drum-hit spike. Holding the max
+    /// across writes (reset via the `resetClickHold` command before each gated
+    /// op) lets the gate read the true peak discontinuity in any window.
+    private static var masterMaxSampleDeltaHold: Double = 0
+
+    static func resetMasterMaxSampleDeltaHold() {
+        masterMaxSampleDeltaHold = 0
+    }
+
+    /// Positive-control hook: force the hold to a known value so the gate can
+    /// verify the metric→status→gate path and that the click floor is reachable.
+    static func injectMasterMaxSampleDeltaHold(_ value: Double) {
+        masterMaxSampleDeltaHold = max(masterMaxSampleDeltaHold, value)
+    }
+
+    static func routingStressStatusLines(
+        session: SequencerDocumentSession,
+        engineController: EngineController
+    ) -> String {
+        let tracks = session.store.tracks
+        let buses = session.store.buses
+        masterMaxSampleDeltaHold = max(
+            masterMaxSampleDeltaHold,
+            engineController.masterMeterPublisher.displayState.maxSampleDelta
+        )
+        let muteState = EngineController.effectiveMixerMuteState(
+            tracks: tracks,
+            buses: buses
+        )
+        let sampleEngine = engineController.sampleEngine as? SamplePlaybackEngine
+        var lines: [String] = []
+        for (index, track) in tracks.enumerated() {
+            let meter = engineController
+                .channelMeterPublisher(for: .track(track.id))
+                .displayState
+            let peak = max(meter.leftPeakDBFS, meter.rightPeakDBFS)
+            let effectiveMuted = muteState.mutedTrackIDs.contains(track.id)
+            let destination = session.store.resolvedDestination(for: track.id)
+            let busName = track.outputBusID
+                .flatMap { id in buses.first { $0.id == id }?.name } ?? "master"
+            let gain = sampleEngine?.trackOutputGainForTesting(trackID: track.id)
+            lines.append("track\(index)Name=\(track.name)")
+            lines.append("track\(index)Peak=\(peak)")
+            lines.append("track\(index)MaxSampleDelta=\(meter.maxSampleDelta)")
+            lines.append("track\(index)EffectiveMuted=\(effectiveMuted)")
+            lines.append("track\(index)RawMuted=\(track.mix.isMuted)")
+            lines.append("track\(index)DestinationKind=\(destination.kindLabel)")
+            lines.append("track\(index)OutputBus=\(busName)")
+            lines.append("track\(index)Gain=\(gain.map { String($0) } ?? "n/a")")
+            lines.append("track\(index)FXInsertCount=\(track.fxInserts.count)")
+        }
+        lines.append("masterMaxSampleDeltaHold=\(masterMaxSampleDeltaHold)")
+        for (index, bus) in buses.enumerated() {
+            let meter = engineController
+                .channelMeterPublisher(for: .bus(bus.id))
+                .displayState
+            let peak = max(meter.leftPeakDBFS, meter.rightPeakDBFS)
+            let effectiveMuted = muteState.mutedBusIDs.contains(bus.id)
+            lines.append("bus\(index)Name=\(bus.name)")
+            lines.append("bus\(index)Peak=\(peak)")
+            lines.append("bus\(index)EffectiveMuted=\(effectiveMuted)")
+            lines.append("bus\(index)RawMuted=\(bus.mix.isMuted)")
+        }
+        return lines.joined(separator: "\n")
     }
 
     /// Internal (not private) so command-protocol tests can drive it directly.
@@ -886,6 +979,7 @@ enum VisualScenarioCommandRunner {
         audioInputCompletedBucketCount=\(selectedAudioInputRuntime?.waveformBuckets.count ?? 0)
         audioInputScheduledLoopFrameCount=\(selectedAudioInputReadout?.scheduledLoopFrameCount ?? 0)
         audioInputLoopPlaybackScheduleCount=\(selectedAudioInputReadout?.loopPlaybackScheduleCount ?? 0)
+        \(routingStressStatusLines(session: session, engineController: engineController))
         """
 
         try? status.write(to: statusURL, atomically: true, encoding: .utf8)

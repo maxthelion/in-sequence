@@ -127,6 +127,7 @@
 		3A3A015CEE1FE4CBD087F985 /* DrumGroupPlan.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0C0F5F2F1EE2CEC60B3FE8D /* DrumGroupPlan.swift */; };
 		3BB491B86164F6FC8822E9F8 /* ProjectDefaultDestinationForVoiceTagTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44061EB708044A5E5850E385 /* ProjectDefaultDestinationForVoiceTagTests.swift */; };
 		3C1DB65D7E389B98E1AEA6AC /* SamplerFilterSettingsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69807CDF39FA8147DC9A9461 /* SamplerFilterSettingsTests.swift */; };
+		3DFC1D56B28B057B5FC85369 /* EngineControllerRoutedMuteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1AE9BE9B0F9D1EC231B125C /* EngineControllerRoutedMuteTests.swift */; };
 		3F058E820DE95FC4B6ADE145 /* tsan-suppressions.txt in Resources */ = {isa = PBXBuildFile; fileRef = 1469B8712C03997820975252 /* tsan-suppressions.txt */; };
 		3FB37B09D4FD44A5B8C0C571 /* SessionSnapshotPublisher.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9F5315493DF8287EC5F7B71 /* SessionSnapshotPublisher.swift */; };
 		3FC4273583B46817785B1439 /* ScenesWorkspaceView+AUEffects.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB7647B37DBB4E09B7C638B5 /* ScenesWorkspaceView+AUEffects.swift */; };
@@ -1321,6 +1322,7 @@
 		75B004AA84F6C95E90DF6E2C /* mixer-main-out-live-meter.seqai */ = {isa = PBXFileReference; path = "mixer-main-out-live-meter.seqai"; sourceTree = "<group>"; };
 		75C2DB0E870CF97627E6F4F5 /* PseudoClipStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PseudoClipStateTests.swift; sourceTree = "<group>"; };
 		75DAD048D87C91A31B16CB56 /* ChordContextSink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChordContextSink.swift; sourceTree = "<group>"; };
+		75E73A64836ECA5FB09A6E36 /* READY-audio-graph-watertight.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "READY-audio-graph-watertight.md"; sourceTree = "<group>"; };
 		7611F537342C487C4F7DCE6E /* testing.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = testing.md; sourceTree = "<group>"; };
 		76433D2C6DC54CAED27B9AD0 /* GeneratorParams.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneratorParams.swift; sourceTree = "<group>"; };
 		764F3FE4A253C7E25877A970 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
@@ -1909,6 +1911,7 @@
 		D14D36481855CDB4DD04A150 /* TickClock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TickClock.swift; sourceTree = "<group>"; };
 		D17C07946622F60265565D33 /* note.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = note.md; sourceTree = "<group>"; };
 		D189BD19C6EBC5D43F66FBCC /* RecordingLibraryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingLibraryTests.swift; sourceTree = "<group>"; };
+		D1AE9BE9B0F9D1EC231B125C /* EngineControllerRoutedMuteTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EngineControllerRoutedMuteTests.swift; sourceTree = "<group>"; };
 		D1BE28ABFBD630BEBF8ADA0C /* StepSequenceTrackAudioInputCodableTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StepSequenceTrackAudioInputCodableTests.swift; sourceTree = "<group>"; };
 		D1F4323A1D94E3A350484F79 /* 02-kit-matrix.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = "02-kit-matrix.html"; sourceTree = "<group>"; };
 		D2593721CAE1647783F6DB45 /* 2026-06-02-inline-history-tab-feedback.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2026-06-02-inline-history-tab-feedback.md"; sourceTree = "<group>"; };
@@ -2034,6 +2037,7 @@
 		E56DAE1CE9EC9E9D5AFB010D /* ux-feedback-pass-2026-05-06-summary.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "ux-feedback-pass-2026-05-06-summary.md"; sourceTree = "<group>"; };
 		E5916D1CE948BB8651FEFAE8 /* 29e-drum-kit-capture.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "29e-drum-kit-capture.png"; sourceTree = "<group>"; };
 		E5CDB43EF6509A471C33A5FB /* testing.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = testing.md; sourceTree = "<group>"; };
+		E5E195FB788767667B06A631 /* audio-rich-routing-droneonly.seqai */ = {isa = PBXFileReference; path = "audio-rich-routing-droneonly.seqai"; sourceTree = "<group>"; };
 		E6208920C9517BBD6A73827A /* near-clip.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "near-clip.png"; sourceTree = "<group>"; };
 		E626D2C5EB00E33E2204A16D /* architecture.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = architecture.md; sourceTree = "<group>"; };
 		E682FFD32432C3B7DFAD5D45 /* AudioSampleCategory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioSampleCategory.swift; sourceTree = "<group>"; };
@@ -4564,6 +4568,7 @@
 		8A495B3CDF2DE28716512A5A /* fixtures */ = {
 			isa = PBXGroup;
 			children = (
+				E5E195FB788767667B06A631 /* audio-rich-routing-droneonly.seqai */,
 				4639DA9E0543CCDA87C586E5 /* audio-rich-routing-sampleonly.seqai */,
 				2448A27D3201DFB3A2D18A8D /* audio-rich-routing.seqai */,
 				732A2E90229A9B3F578627F5 /* README.md */,
@@ -5304,6 +5309,7 @@
 				7C40BE0C13C3E095E52361F8 /* EngineControllerPhraseNavigationTests.swift */,
 				53238CFCCC7FD9206042941A /* EngineControllerQuantisedToggleTests.swift */,
 				151A8902F1B6A423793632A1 /* EngineControllerRecordingPersistenceTests.swift */,
+				D1AE9BE9B0F9D1EC231B125C /* EngineControllerRoutedMuteTests.swift */,
 				B7EC2D68AEFBA1314B892FDA /* EngineControllerSampleTriggerTests.swift */,
 				B2EC583A167B3A4C113EE37D /* EngineControllerScenePerformTests.swift */,
 				5599EA26D4D5AF9F73DD4CFF /* EngineControllerSetMixScopedTests.swift */,
@@ -6186,6 +6192,7 @@
 			isa = PBXGroup;
 			children = (
 				E1D1B1FF8E5F48C8EB3B89BB /* README.md */,
+				75E73A64836ECA5FB09A6E36 /* READY-audio-graph-watertight.md */,
 				9EB85116D5427007B623F2EE /* routing-source-mixer-split.md */,
 				0090AA233C484836881E5A33 /* stale-worktree-branch-cleanup.md */,
 				71018A88E711A11BBFCCC983 /* verify-audio-routing-cleanup-branch.md */,
@@ -6641,6 +6648,7 @@
 				504A397B73871D8F60E3F837 /* EngineControllerPhraseNavigationTests.swift in Sources */,
 				18A88BC10538322BA95D7A07 /* EngineControllerQuantisedToggleTests.swift in Sources */,
 				462525718F3BE9F394BEF10C /* EngineControllerRecordingPersistenceTests.swift in Sources */,
+				3DFC1D56B28B057B5FC85369 /* EngineControllerRoutedMuteTests.swift in Sources */,
 				C366A700FB6D64A51568D985 /* EngineControllerSampleTriggerTests.swift in Sources */,
 				635CC50858E82085D00ED265 /* EngineControllerScenePerformTests.swift in Sources */,
 				2020E33A42B785F60C8351DE /* EngineControllerSetMixScopedTests.swift in Sources */,

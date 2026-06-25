@@ -156,6 +156,54 @@ final class SamplePlaybackEngineTests: XCTestCase {
         XCTAssertEqual(try XCTUnwrap(unmuted), 0.9, accuracy: 0.001)
     }
 
+    // F1 (OR-combine): mixer-mute and layer-mute are INDEPENDENT sources. A
+    // layer-mute toggle must NOT clobber a standing mixer-mute (the old
+    // last-writer-wins bug un-silenced a mixer-muted track when the layer-mute
+    // path wrote `false`). Effective gain = mixerMuted || layerMuted.
+    func test_setTrackMuteGain_orCombinesMixerAndLayerSources() throws {
+        guard let engine = makeEngine() else { return }
+        defer { engine.stop() }
+        let trackID = UUID()
+        engine.prepareTrack(trackID: trackID)
+        engine.setTrackMix(trackID: trackID, level: 0.8, pan: 0)
+        XCTAssertEqual(try XCTUnwrap(engine.trackOutputGainForTesting(trackID: trackID)), 0.8, accuracy: 0.001)
+
+        // Mixer-mute the track.
+        engine.setTrackMuteGain(trackID: trackID, muted: true, source: .mixer)
+        XCTAssertEqual(try XCTUnwrap(waitForTrackGain(engine, trackID: trackID, expected: 0)), 0, accuracy: 0.001)
+
+        // Layer-mute it too, then layer-UNMUTE it. The mixer-mute still stands,
+        // so the track MUST stay silent (the repro for the OR-not-implemented bug).
+        engine.setTrackMuteGain(trackID: trackID, muted: true, source: .layer)
+        XCTAssertEqual(try XCTUnwrap(waitForTrackGain(engine, trackID: trackID, expected: 0)), 0, accuracy: 0.001)
+        engine.setTrackMuteGain(trackID: trackID, muted: false, source: .layer)
+        // Give the ramp a moment; gain must remain 0 (mixer-mute wins).
+        XCTAssertEqual(try XCTUnwrap(waitForTrackGain(engine, trackID: trackID, expected: 0)), 0, accuracy: 0.001)
+
+        // Only when the MIXER source also clears does the track come back.
+        engine.setTrackMuteGain(trackID: trackID, muted: false, source: .mixer)
+        XCTAssertEqual(try XCTUnwrap(waitForTrackGain(engine, trackID: trackID, expected: 0.8)), 0.8, accuracy: 0.001)
+    }
+
+    // Symmetric case: a standing LAYER-mute must survive a mixer-mute+unmute.
+    func test_setTrackMuteGain_layerMuteSurvivesMixerToggle() throws {
+        guard let engine = makeEngine() else { return }
+        defer { engine.stop() }
+        let trackID = UUID()
+        engine.prepareTrack(trackID: trackID)
+        engine.setTrackMix(trackID: trackID, level: 0.5, pan: 0)
+
+        engine.setTrackMuteGain(trackID: trackID, muted: true, source: .layer)
+        XCTAssertEqual(try XCTUnwrap(waitForTrackGain(engine, trackID: trackID, expected: 0)), 0, accuracy: 0.001)
+        // Mixer-mute then unmute; the layer-mute still stands → stay silent.
+        engine.setTrackMuteGain(trackID: trackID, muted: true, source: .mixer)
+        engine.setTrackMuteGain(trackID: trackID, muted: false, source: .mixer)
+        XCTAssertEqual(try XCTUnwrap(waitForTrackGain(engine, trackID: trackID, expected: 0)), 0, accuracy: 0.001)
+        // Clearing the layer source restores the level.
+        engine.setTrackMuteGain(trackID: trackID, muted: false, source: .layer)
+        XCTAssertEqual(try XCTUnwrap(waitForTrackGain(engine, trackID: trackID, expected: 0.5)), 0.5, accuracy: 0.001)
+    }
+
     func test_playSliceMonoReusesAndStopsSingleVoice() throws {
         guard let engine = makeEngine() else { return }
         defer { engine.stop() }

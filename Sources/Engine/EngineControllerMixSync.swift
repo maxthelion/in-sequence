@@ -189,7 +189,7 @@ extension EngineController {
                     level: track.mix.clampedLevel,
                     pan: effectiveMix.clampedPan
                 )
-                sampleEngine.setTrackMuteGain(trackID: track.id, muted: mixerMuted)
+                sampleEngine.setTrackMuteGain(trackID: track.id, muted: mixerMuted, source: .mixer)
                 sampleEngine.setTrackSends(trackID: track.id, sendA: effectiveMix.sendA, sendB: effectiveMix.sendB)
             default:
                 continue
@@ -337,7 +337,7 @@ extension EngineController {
                 level: track.mix.clampedLevel,
                 pan: track.mix.clampedPan
             )
-            sampleEngine.setTrackMuteGain(trackID: track.id, muted: mixerMuted)
+            sampleEngine.setTrackMuteGain(trackID: track.id, muted: mixerMuted, source: .mixer)
             sampleEngine.setTrackSends(trackID: track.id, sendA: track.mix.sendA, sendB: track.mix.sendB)
         }
 
