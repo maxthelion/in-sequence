@@ -85,6 +85,15 @@ final class MainAudioGraph {
     /// Counts live track-output rewires. Zero-send mix value changes must
     /// not bump this (mixer-latency cause 2).
     private(set) var reconnectTrackOutputCountForTesting = 0
+    /// Counts live single-track output edits that took the ramp-to-silence
+    /// path (engine running + sounding mixer-node gain stage). Lets the
+    /// ramp-before-disconnect tests assert the click-safe path was exercised.
+    private(set) var rampedReconnectCountForTesting = 0
+    /// Calibration-only: when true the ramp-before-disconnect guard is bypassed
+    /// (old hard-disconnect path) so the click metric can be measured against a
+    /// known-clicking control. Driven by SEQUENCER_AI_DISABLE_ROUTING_RAMP=1.
+    static let disableRoutingRampForCalibration =
+        ProcessInfo.processInfo.environment["SEQUENCER_AI_DISABLE_ROUTING_RAMP"] == "1"
     var audioInputCaptureHandlerInstalledForTesting: Bool {
         lockGraphLock()
         defer { unlockGraphLock() }
@@ -808,11 +817,13 @@ final class MainAudioGraph {
             // re-points the fanout's destinations; the master meter tap lives on
             // finalOutputMixer and is unaffected, so it is not bounced.
             // AVAudioEngine supports attach/connect/disconnect while running.
-            // (Ramp-to-silence on a reassignment of a *sounding* track is the
-            // follow-up in docs/plans/2026-06-24-fixed-superset-routing.md.)
+            // Ramp-to-silence before the disconnect (R1 click fix): if the
+            // track is sounding and the engine is live, the gain stage is
+            // ramped to 0, the splice happens on silence, then it ramps back —
+            // so a live bus reassign no longer hard-cuts a playing node.
             let routing = TrackOutputRouting(source: source, busID: busID, sendLevels: sendLevels)
             self.trackOutputRoutings[ObjectIdentifier(source)] = routing
-            self.reconnectTrackOutputOnMain(routing)
+            self.reconnectTrackOutputRampedOnMain(routing)
         }
     }
 
@@ -907,12 +918,21 @@ final class MainAudioGraph {
         // finalOutputMixer is unaffected and is not bounced. Removes the global
         // silence gap when a track's FX inserts change during play (drum parts
         // are tracks, so this covers per-part FX too).
-        host.rebuild(inserts: inserts, in: self)
-        if let routing = self.trackOutputRoutings[ObjectIdentifier(source)] {
-            self.reconnectTrackOutputOnMain(routing)
+        //
+        // Ramp-to-silence (R2 click fix): host.rebuild disconnects the live
+        // chain nodes, which on a sounding track would hard-cut the signal mid
+        // sample. So the rebuild AND the reconnect both run inside the gain-stage
+        // ramp-to-silence guard — the whole edit lands on silence, then the gain
+        // ramps back. When the engine is stopped / track is silent this is the
+        // plain synchronous path (no behaviour change for setup/tests).
+        let routing = self.trackOutputRoutings[ObjectIdentifier(source)]
+        self.withTrackGainRampedToSilence(source: source) {
+            host.rebuild(inserts: inserts, in: self)
+            if let routing {
+                self.reconnectTrackOutputOnMain(routing)
+            }
+            self.installMasterMeterTapIfNeeded()
         }
-
-        self.installMasterMeterTapIfNeeded()
     }
 
     @MainActor
@@ -1611,6 +1631,148 @@ final class MainAudioGraph {
         }
     }
 
+    /// Live single-track output reconnect (R1 bus reassign, R2 insert
+    /// add/remove, audio-input route change) with a ramp-to-silence guard so a
+    /// SOUNDING track is never hard-disconnected mid-signal (the click bug,
+    /// docs/bugs/20260625-routing-hard-disconnect-clicks).
+    ///
+    /// Shape: ramp the track's OWN per-track gain stage (`source`, an
+    /// `AVAudioMixerNode` — the same node mute ramps) down to 0 over ~12 ms,
+    /// perform the disconnect+reconnect on (near-)silence, then ramp back to the
+    /// stored level. Because the whole track briefly dips to silence the
+    /// disconnect lands on no signal → no click. This avoids per-leg ramp
+    /// choreography: one gain stage, one down-ramp, one up-ramp.
+    ///
+    /// Sequencing (no thread blocked, no lock held across the wait):
+    ///  - The down-ramp runs on MixerGainRamp's queue. Its completion schedules
+    ///    the reconnect on MAIN (re-acquiring graphLock there), then kicks the
+    ///    up-ramp. graphLock / lifecycleLock are NOT held across the ~12 ms.
+    ///  - Overlapping reconnects coalesce safely: MixerGainRamp's per-node
+    ///    generation token means a newer ramp supersedes an older one; a
+    ///    superseded down-ramp's completion reports `reachedTarget == false`,
+    ///    so the stale reconnect/up-ramp is dropped — the newer request owns it.
+    ///
+    /// Skips the ramp (does the plain synchronous reconnect) when the engine is
+    /// not running, the source is not a mixer node, or it is already silent
+    /// (muted / level 0) — a muted track is already at 0 so disconnecting it is
+    /// click-free, and double-ramping a muted node would itself click on the
+    /// up-ramp.
+    @MainActor
+    private func reconnectTrackOutputRampedOnMain(_ routing: TrackOutputRouting) {
+        let source = routing.source
+        withTrackGainRampedToSilence(source: source) { [weak self] in
+            self?.reconnectTrackOutputOnMain(routing)
+        }
+    }
+
+    /// Run a graph-mutating `work` closure on (near-)silence so a SOUNDING
+    /// track is never hard-disconnected mid-signal (the click bug,
+    /// docs/bugs/20260625-routing-hard-disconnect-clicks).
+    ///
+    /// Shape: ramp the track's OWN per-track gain stage down to 0 over ~12 ms,
+    /// run the disconnect/rebuild/reconnect `work` on silence, then ramp back to
+    /// the stored level. Because the whole track briefly dips to silence the
+    /// edits land on no signal → no click. One gain stage, one down-ramp, one
+    /// up-ramp — no per-leg ramp choreography.
+    ///
+    /// The gain stage is resolved as: the `source` itself when it is an
+    /// `AVAudioMixerNode` (audio-input tracks — same node mute ramps), else the
+    /// track's persistent send FANOUT mixer (sample / native tracks, whose
+    /// output node is an EQ/filter, not a mixer). The fanout's `outputVolume`
+    /// gates the track's whole dry+send contribution, so ramping it to 0
+    /// silences everything downstream of the chain rebuild — exactly what makes
+    /// `host.rebuild`'s chain disconnect land on silence.
+    ///
+    /// Sequencing (no thread blocked, no lock held across the wait):
+    ///  - The down-ramp runs on MixerGainRamp's queue. Its completion schedules
+    ///    `work` on MAIN (acquiring graphLock there), then kicks the up-ramp.
+    ///    graphLock / lifecycleLock are NOT held across the ~12 ms.
+    ///  - Overlapping edits coalesce safely: MixerGainRamp's per-node generation
+    ///    token means a newer ramp supersedes an older one; a superseded
+    ///    down-ramp's completion reports `reachedTarget == false`, so the stale
+    ///    `work` + up-ramp is dropped — the newer request owns the node.
+    ///
+    /// Skips the ramp (runs `work` synchronously under the CALLER's graphLock)
+    /// when the engine is not running, no mixer gain stage can be resolved, or
+    /// the gain stage is already silent (muted / level 0): a muted track is
+    /// already at 0 so the edit is click-free, and double-ramping a silent node
+    /// would itself click.
+    /// IMPORTANT: callers must NOT hold graphLock when taking the ramped path —
+    /// they already release it before returning (the closure re-acquires it on
+    /// its own main hop), and the synchronous path here assumes the caller's
+    /// lock is held. In practice the live single-track edit sites call this
+    /// while holding graphLock, which is correct for the synchronous fallthrough
+    /// and harmless for the ramped path (the lock is released when their
+    /// `performOnMain` closure returns, before the deferred work runs).
+    @MainActor
+    private func withTrackGainRampedToSilence(
+        source: AVAudioNode,
+        work: @escaping @MainActor () -> Void
+    ) {
+        // A/B calibration hook: set SEQUENCER_AI_DISABLE_ROUTING_RAMP=1 to take
+        // the OLD hard-disconnect path so the click metric can be calibrated
+        // against a known-clicking control. Never set in production.
+        if Self.disableRoutingRampForCalibration {
+            work()
+            return
+        }
+
+        guard engine.isRunning,
+              let gainStage = trackGainStage(for: source)
+        else {
+            work()
+            return
+        }
+
+        let storedLevel = gainStage.outputVolume
+        // Already silent (muted / level 0): a hard disconnect on silence does
+        // not click, and ramping a silent node back up would itself click.
+        guard storedLevel > 0.0005 else {
+            work()
+            return
+        }
+
+        rampedReconnectCountForTesting += 1
+
+        // Ramp the track's gain stage to silence, then — once silence is
+        // actually reached — run the graph edit and ramp back. The completion
+        // fires on MixerGainRamp's background queue, so hop to main and acquire
+        // graphLock there (never held across the ramp wait).
+        MixerGainRamp.shared.ramp(gainStage, to: 0) { [weak self] reachedTarget in
+            guard let self else { return }
+            // Superseded by a newer ramp for this node → that newer request now
+            // owns the gain stage and its edit. Drop this stale one.
+            guard reachedTarget else { return }
+            // realtime-allow-main-async: ramp-completion graph-edit hop off the ramp queue (not tick/event scheduling), graphLock acquired here. Test: RampBeforeDisconnectTests.
+            DispatchQueue.main.async {
+                MainActor.assumeIsolated {
+                    guard source.engine === self.engine else { return }
+                    self.lockGraphLock()
+                    work()
+                    self.unlockGraphLock()
+                    // Ramp the gain stage back to its pre-edit level on silence.
+                    MixerGainRamp.shared.ramp(gainStage, to: storedLevel)
+                }
+            }
+        }
+    }
+
+    /// Resolve the per-track gain stage (an `AVAudioMixerNode` whose
+    /// `outputVolume` gates the track's whole contribution) used to ramp the
+    /// track to silence before a live graph edit. Returns the `source` itself
+    /// when it is a mixer (audio-input tracks), else the track's persistent send
+    /// FANOUT mixer (sample / native tracks route their dry + sends through the
+    /// fanout, so silencing it silences the entire track downstream of the
+    /// chain). Returns nil when neither exists (e.g. send buses not yet
+    /// installed and a non-mixer source) → caller takes the synchronous path.
+    @MainActor
+    private func trackGainStage(for source: AVAudioNode) -> AVAudioMixerNode? {
+        if let mixer = source as? AVAudioMixerNode {
+            return mixer
+        }
+        return trackSendNodes[ObjectIdentifier(source)]?.fanout
+    }
+
     @MainActor
     private func reconnectTrackOutputOnMain(_ routing: TrackOutputRouting) {
         reconnectTrackOutputCountForTesting += 1
@@ -1845,9 +2007,15 @@ final class MainAudioGraph {
         trackOutputRoutings[key] = routing
 
         if currentRouting?.busID != request.outputBusID || currentRouting?.sendLevels != sendLevels {
-            removeAudioInputCaptureTapOnMain(host: host)
-            reconnectTrackOutputOnMain(routing)
-            installAudioInputCaptureTapIfNeededOnMain(host: host)
+            // Ramp-to-silence before the live reconnect (click fix): the capture
+            // tap teardown + output reconnect run inside the gain-stage ramp so
+            // an audio-input track reroute does not hard-cut a sounding monitor.
+            withTrackGainRampedToSilence(source: host.outputMixer) { [weak self] in
+                guard let self else { return }
+                self.removeAudioInputCaptureTapOnMain(host: host)
+                self.reconnectTrackOutputOnMain(routing)
+                self.installAudioInputCaptureTapIfNeededOnMain(host: host)
+            }
         } else {
             trackSendNodes[key]?.sendA.outputVolume = sendLevels.clampedSendA
             trackSendNodes[key]?.sendB.outputVolume = sendLevels.clampedSendB
@@ -2185,6 +2353,13 @@ struct MasterMeterDisplayState: Equatable {
     var leftPeakHoldDBFS: Double
     var rightPeakHoldDBFS: Double
     var isClipLatched: Bool
+    /// Largest absolute sample-to-sample jump seen on the master output since
+    /// the last publish (a discontinuity / CLICK metric). A smooth sustained
+    /// drone produces a small per-sample delta; a hard disconnect of a sounding
+    /// node injects an abrupt step → a spike here. Headless rigs read this to
+    /// flag CLICK per graph-edit op (routing-stress.sh). Default 0 keeps the
+    /// `.silent`/cleared constructors and all existing call sites unchanged.
+    var maxSampleDelta: Double = 0
     var isClearClipActionable: Bool { isClipLatched }
 }
 
@@ -2233,6 +2408,23 @@ final class MasterMeterPublisher {
             ? Self.peakAmplitude(channel: channels[1], frameCount: frameCount)
             : left
         recordPeakAmplitudes(left: left, right: right)
+
+        // Discontinuity / CLICK metric: the largest absolute SECOND difference
+        // in this buffer, NORMALIZED by the buffer peak. Normalizing is what
+        // makes it honest against an always-on drone whose level rises through
+        // a test run: a continuous waveform's curvature scales WITH its
+        // amplitude, so the normalized value stays a small, level-independent
+        // constant; a true sample-level discontinuity (a hard disconnect of a
+        // sounding node) is large RELATIVE to the signal → the normalized value
+        // spikes. Folded into the transport's running max, drained on the next
+        // publish so a rig can read it per op.
+        var maxDelta = Self.maxSampleDelta(channel: channels[0], frameCount: frameCount)
+        if channelCount > 1 {
+            maxDelta = max(maxDelta, Self.maxSampleDelta(channel: channels[1], frameCount: frameCount))
+        }
+        let peak = max(left, right)
+        let normalized = peak > 0.0001 ? maxDelta / peak : 0
+        transport.storeMaxSampleDelta(normalized)
     }
 
     func recordPeakAmplitudes(left: Double, right: Double) {
@@ -2284,7 +2476,13 @@ final class MasterMeterPublisher {
             rightPeakDBFS: rightPeak,
             leftPeakHoldDBFS: leftHold,
             rightPeakHoldDBFS: rightHold,
-            isClipLatched: displayState.isClipLatched || snapshot.isClipped
+            isClipLatched: displayState.isClipLatched || snapshot.isClipped,
+            // Surface the per-publish discontinuity reading directly (no
+            // envelope): a CLICK is a transient the rig samples right after an
+            // op. Carry the previous value forward when this publish saw no
+            // buffer (snapshot delta 0 from an empty drain) so a fresh spike is
+            // not masked, but a sustained 0 naturally settles back to 0.
+            maxSampleDelta: max(snapshot.maxSampleDelta, displayState.maxSampleDelta * 0.5)
         )
         // Skip the no-op assignment: with one publisher per mixer strip, an
         // unconditional 60Hz write would re-render every visible strip even
@@ -2347,6 +2545,32 @@ final class MasterMeterPublisher {
         return Double(peak)
     }
 
+    /// Largest absolute SECOND difference (|Δ[n] − Δ[n−1]|) between consecutive
+    /// samples in the buffer — the discontinuity metric used to flag a CLICK.
+    ///
+    /// Why the second difference and not the raw first difference: a loud,
+    /// continuous waveform (the always-on drone) has a large but SMOOTHLY
+    /// varying first difference (its slope), so a raw max-|Δ| can't tell a loud
+    /// high-frequency signal apart from a real step — pure gain changes (which
+    /// cannot click) showed false spikes. A continuous signal has a bounded,
+    /// smoothly varying slope, so its second difference stays small; a true
+    /// sample-level discontinuity (a hard disconnect of a sounding node) injects
+    /// an abrupt slope change → an isolated spike in the second difference.
+    /// This suppresses the loud-drone slope and isolates genuine edges.
+    /// (Intra-buffer only; a disconnect click produces a step well inside the
+    /// affected buffer.)
+    private static func maxSampleDelta(channel: UnsafePointer<Float>, frameCount: Int) -> Double {
+        guard frameCount > 2 else { return 0 }
+        var maxSecondDelta: Float = 0
+        var previousDelta = channel[1] - channel[0]
+        for frame in 2..<frameCount {
+            let delta = channel[frame] - channel[frame - 1]
+            maxSecondDelta = max(maxSecondDelta, abs(delta - previousDelta))
+            previousDelta = delta
+        }
+        return Double(maxSecondDelta)
+    }
+
     private func nextPeakHold(
         currentHold: Double,
         holdTime: inout TimeInterval,
@@ -2387,6 +2611,7 @@ private final class MasterMeterTransport {
 
     private let leftBits = AtomicInt64(Int64(bitPattern: 0.0.bitPattern))
     private let rightBits = AtomicInt64(Int64(bitPattern: 0.0.bitPattern))
+    private let maxDeltaBits = AtomicInt64(Int64(bitPattern: 0.0.bitPattern))
     private let clipped = AtomicInt32(0)
 
     func store(left: Double, right: Double) {
@@ -2399,11 +2624,19 @@ private final class MasterMeterTransport {
         }
     }
 
-    func snapshot() -> (left: Double, right: Double, isClipped: Bool) {
+    /// Fold a buffer's largest sample-to-sample jump into the running max (the
+    /// discontinuity / CLICK metric). Drained on snapshot.
+    func storeMaxSampleDelta(_ delta: Double) {
+        let safe = Self.safeAmplitude(delta)
+        maxDeltaBits.storeMaximum(Self.amplitudeBits(safe), shouldReplace: Self.shouldReplaceAmplitude)
+    }
+
+    func snapshot() -> (left: Double, right: Double, isClipped: Bool, maxSampleDelta: Double) {
         (
             left: Self.amplitude(fromBits: leftBits.exchange(Self.zeroAmplitudeBits)),
             right: Self.amplitude(fromBits: rightBits.exchange(Self.zeroAmplitudeBits)),
-            isClipped: clipped.load() != 0
+            isClipped: clipped.load() != 0,
+            maxSampleDelta: Self.amplitude(fromBits: maxDeltaBits.exchange(Self.zeroAmplitudeBits))
         )
     }
 

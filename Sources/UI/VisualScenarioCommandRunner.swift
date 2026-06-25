@@ -872,6 +872,7 @@ enum VisualScenarioCommandRunner {
         leftPeakDBFS=\(meterState.leftPeakDBFS)
         rightPeakDBFS=\(meterState.rightPeakDBFS)
         masterPeak=\(max(meterState.leftPeakDBFS, meterState.rightPeakDBFS))
+        masterMaxSampleDelta=\(meterState.maxSampleDelta)
         audioInputArmState=\(selectedAudioInputRuntime.map(audioInputArmStateLabel) ?? "none")
         audioInputRouteState=\(selectedAudioInputRuntime.map(audioInputRouteStateLabel) ?? "none")
         audioInputMonitorMode=\(selectedAudioInputRuntime.map(audioInputMonitorModeLabel) ?? "none")

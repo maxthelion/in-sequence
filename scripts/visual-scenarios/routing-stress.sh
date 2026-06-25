@@ -51,8 +51,26 @@ REPORT="$REPORT_DIR/run-$RUN_STAMP.md"
 APP_LOG="$CONTAINER_TMP/app.stderr.log"
 
 # --- counters ---------------------------------------------------------------
-PASS=0; HANG=0; CRASH=0; SILENCE=0
+PASS=0; HANG=0; CRASH=0; SILENCE=0; CLICK=0
 APP_PID=""
+
+# Baseline (sustained drone) master discontinuity, captured once the engine is
+# playing and BEFORE any graph-edit op. A clean ramp keeps each op's max
+# sample-to-sample delta at/under the drone baseline; a hard disconnect of a
+# sounding node injects an abrupt step → a delta spike well above it. We flag
+# CLICK when an op's settled max delta exceeds baseline * CLICK_RATIO (and an
+# absolute floor, so a near-silent baseline can't make any wobble look like a
+# click).
+CLICK_BASELINE_DELTA=""
+# The metric is the master's max NORMALIZED second-difference over a settle
+# window. The fixture's white-noise drum tracks (hats/snare/clap) have a large
+# normalized second-difference by design, so the absolute floor sits above that
+# drum-noise ceiling (measured ~0.4-0.5) to keep them from manufacturing false
+# clicks; a genuine full-scale disconnect step pushes the normalized ratio far
+# higher. CLICK requires BOTH a large jump over the local pre-op window AND
+# clearing this floor.
+CLICK_RATIO="${ROUTING_STRESS_CLICK_RATIO:-3.0}"
+CLICK_ABS_FLOOR="${ROUTING_STRESS_CLICK_FLOOR:-0.55}"
 
 log() { printf '%s\n' "$*"; }
 report() { printf '%s\n' "$*" >> "$REPORT"; }
@@ -129,6 +147,25 @@ settled_master_peak() {
   printf '%s' "$best"
 }
 
+# Loudest masterMaxSampleDelta (the discontinuity / CLICK metric) over a settle
+# window after an op. masterMaxSampleDelta is the largest sample-to-sample jump
+# the master meter tap saw since the last publish; a clean ramp keeps it near
+# the drone baseline, a hard disconnect spikes it. We take the MAX across the
+# window so a single transient buffer is caught.
+settled_master_delta() {
+  local best="0" v
+  local i=0
+  while [ "$i" -lt "$PEAK_WINDOW_SAMPLES" ]; do
+    v="$(status_value masterMaxSampleDelta 2>/dev/null || echo 0)"
+    if printf '%s' "$v" | grep -qE '^-?[0-9]'; then
+      best="$(awk -v a="$best" -v b="$v" 'BEGIN { print (b > a) ? b : a }')"
+    fi
+    i=$((i+1))
+    sleep "$PEAK_WINDOW_INTERVAL"
+  done
+  printf '%s' "$best"
+}
+
 # --- diagnostics ------------------------------------------------------------
 newest_crash_frame() {
   local crash
@@ -167,6 +204,17 @@ drive() {
   local op="$1" payload="$2"
   local before after deadline now peak verdict="" silent=""
 
+  # Per-op ADAPTIVE click baseline: the fixture's drum tracks are white-noise
+  # based (hats/snare/clap), whose intended sound has a large discontinuity
+  # metric of its own, and they fire on the sequencer grid. So a once-captured
+  # global baseline is useless — instead sample the master discontinuity in a
+  # short window IMMEDIATELY BEFORE the op (the local drone+drums shape), then
+  # compare the post-op window against THIS local baseline. A clean ramp keeps
+  # the post-op window in line with the pre-op window; a hard disconnect spikes
+  # it well above the local shape.
+  local preDelta
+  preDelta="$(settled_master_delta 2>/dev/null || echo 0)"
+
   before="$(status_mtime)"
   write_command "$payload"
 
@@ -197,9 +245,30 @@ drive() {
         silent=" SILENCE(peak=$peak)"
         SILENCE=$((SILENCE+1))
       fi
+      # Discontinuity / CLICK check (adaptive): the op's post-op settled max
+      # normalized second-difference vs the LOCAL pre-op baseline. A clean
+      # ramp-to-silence keeps the post-op window in line with the pre-op shape;
+      # a hard disconnect of a sounding node spikes it. The threshold is
+      # max(preDelta * CLICK_RATIO, globalBaseline * CLICK_RATIO, CLICK_ABS_FLOOR)
+      # so neither a momentarily-quiet pre-window nor sub-floor drum noise can
+      # manufacture a false click.
+      local delta clicked="" threshold
+      delta="$(settled_master_delta 2>/dev/null || echo 0)"
+      threshold="$(awk -v pre="$preDelta" -v base="${CLICK_BASELINE_DELTA:-0}" -v r="$CLICK_RATIO" -v floor="$CLICK_ABS_FLOOR" \
+        'BEGIN {
+           t = pre * r;
+           bt = base * r;
+           if (bt > t) t = bt;
+           if (t < floor) t = floor;
+           print t
+         }')"
+      if awk -v d="$delta" -v t="$threshold" 'BEGIN { exit (d > t) ? 0 : 1 }'; then
+        clicked=" CLICK(delta=$delta > thr=$threshold; pre=$preDelta)"
+        CLICK=$((CLICK+1))
+      fi
       PASS=$((PASS+1))
-      log "PASS  $op  (peak=$peak)$silent"
-      report "- **PASS** \`$op\` — masterPeak=$peak$silent"
+      log "PASS  $op  (peak=$peak delta=$delta pre=$preDelta)$silent$clicked"
+      report "- **PASS** \`$op\` — masterPeak=$peak maxSampleDelta=$delta (pre=$preDelta)$silent$clicked"
       return 0
       ;;
     HANG)
@@ -285,6 +354,13 @@ sleep 1.0
 log "initial masterPeak=$(status_value masterPeak 2>/dev/null || echo n/a)"
 report ""
 report "initial masterPeak (playing): $(status_value masterPeak 2>/dev/null || echo n/a)"
+
+# Capture the sustained-drone discontinuity baseline BEFORE any graph edit, so
+# the per-op CLICK check has something to compare against.
+CLICK_BASELINE_DELTA="$(settled_master_delta 2>/dev/null || echo 0)"
+log "drone baseline maxSampleDelta=$CLICK_BASELINE_DELTA (click threshold = max(baseline*$CLICK_RATIO, $CLICK_ABS_FLOOR))"
+report "drone baseline maxSampleDelta (no edits): $CLICK_BASELINE_DELTA"
+report "click threshold: max(baseline*$CLICK_RATIO, $CLICK_ABS_FLOOR)"
 report ""
 
 # Combinatorial sequence. Each entry: label|payload. Ordered so the suspected
@@ -337,10 +413,11 @@ report "- PASS: $PASS"
 report "- HANG: $HANG"
 report "- CRASH: $CRASH"
 report "- SILENCE (PASS but masterPeak ~= -inf while playing): $SILENCE"
+report "- CLICK (PASS but maxSampleDelta spiked above drone baseline): $CLICK"
 
 log ""
 log "==== routing-stress summary ===="
-log "PASS=$PASS HANG=$HANG CRASH=$CRASH SILENCE=$SILENCE"
+log "PASS=$PASS HANG=$HANG CRASH=$CRASH SILENCE=$SILENCE CLICK=$CLICK"
 log "report: $REPORT"
 
 # stop transport / quiesce if still alive (best-effort; ignore races with a

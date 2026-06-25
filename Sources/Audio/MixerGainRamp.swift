@@ -46,7 +46,15 @@ final class MixerGainRamp: @unchecked Sendable {
     /// Ramp `node.outputVolume` from its current value to `target` over the
     /// configured duration. Coalesces with any in-flight ramp for the same
     /// node. If the change is negligible the target is applied immediately.
-    func ramp(_ node: AVAudioMixerNode, to target: Float) {
+    ///
+    /// `completion` (if supplied) is invoked on the ramp queue once the ramp
+    /// finishes (target reached) OR once it is superseded by a newer ramp for
+    /// the same node. Callers MUST tolerate being called from the ramp's
+    /// background queue and MUST treat a superseded completion as "do not
+    /// proceed" (a newer request now owns the node). This lets the routing
+    /// ramp-before-disconnect work schedule the disconnect only after the
+    /// down-ramp has actually reached silence — without blocking a thread.
+    func ramp(_ node: AVAudioMixerNode, to target: Float, completion: ((_ reachedTarget: Bool) -> Void)? = nil) {
         let nodeID = ObjectIdentifier(node)
         let generation: UInt64 = lock.withLock {
             let next = (generationByNode[nodeID] ?? 0) &+ 1
@@ -56,8 +64,12 @@ final class MixerGainRamp: @unchecked Sendable {
 
         let clampedTarget = min(max(target, 0), 1)
         queue.async { [weak self, weak node] in
-            guard let self, let node else { return }
-            self.run(node: node, nodeID: nodeID, target: clampedTarget, generation: generation)
+            guard let self, let node else {
+                completion?(false)
+                return
+            }
+            let reached = self.run(node: node, nodeID: nodeID, target: clampedTarget, generation: generation)
+            completion?(reached)
         }
     }
 
@@ -71,7 +83,10 @@ final class MixerGainRamp: @unchecked Sendable {
         node.outputVolume = min(max(target, 0), 1)
     }
 
-    private func run(node: AVAudioMixerNode, nodeID: ObjectIdentifier, target: Float, generation: UInt64) {
+    /// Returns `true` if the ramp ran to completion and this generation is
+    /// still current (target reached); `false` if it was superseded.
+    @discardableResult
+    private func run(node: AVAudioMixerNode, nodeID: ObjectIdentifier, target: Float, generation: UInt64) -> Bool {
         func isCurrent() -> Bool {
             lock.withLock { generationByNode[nodeID] == generation }
         }
@@ -79,19 +94,26 @@ final class MixerGainRamp: @unchecked Sendable {
         let start = node.outputVolume
         let delta = target - start
         if abs(delta) < 0.0005 || rampDuration <= 0 {
-            if isCurrent() { node.outputVolume = target }
-            return
+            if isCurrent() {
+                node.outputVolume = target
+                return true
+            }
+            return false
         }
 
         let stepInterval = rampDuration / TimeInterval(stepCount)
         for step in 1...stepCount {
-            guard isCurrent() else { return }
+            guard isCurrent() else { return false }
             let fraction = Float(step) / Float(stepCount)
             node.outputVolume = start + delta * fraction
             if step < stepCount {
                 Thread.sleep(forTimeInterval: stepInterval)
             }
         }
-        if isCurrent() { node.outputVolume = target }
+        if isCurrent() {
+            node.outputVolume = target
+            return true
+        }
+        return false
     }
 }
