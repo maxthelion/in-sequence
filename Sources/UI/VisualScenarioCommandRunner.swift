@@ -375,6 +375,7 @@ enum VisualScenarioCommandRunner {
         }
 
         applySendEffects(command: command, session: session)
+        applyRoutingStressCommands(command: command, session: session)
         applyTrackFillPreviewFixture(command: command, section: section, session: session)
         applyAudioInputFixture(
             command: command,
@@ -451,6 +452,142 @@ enum VisualScenarioCommandRunner {
                     return nil
                 }
             }
+    }
+
+    // MARK: - Routing-stress drive (graph-edit self-test rig)
+
+    /// Drives the live graph-edit operations the routing-stress harness needs
+    /// to reproduce/observe the mute and add-insert hangs unattended. All keys
+    /// are addressed by TRACK INDEX (`<idx>`) or BUS INDEX into the document's
+    /// ordered collections, resolved at apply time. Native inserts only — no AU
+    /// (AU needs a human for the TCC prompt). Additive; mirrors the existing
+    /// command-apply patterns (resolve → mutate session on the main actor).
+    private static func applyRoutingStressCommands(
+        command: [String: String],
+        session: SequencerDocumentSession
+    ) {
+        // trackMute=<idx>:<on|off> — mixer track mute via setTrackMix (the
+        // setMix / effectiveMixerMuteState path that deadlocks).
+        if let raw = command["trackMute"],
+           let (index, value) = parseIndexedToggle(raw),
+           session.store.tracks.indices.contains(index) {
+            var mix = session.store.tracks[index].mix
+            mix.isMuted = value
+            session.setTrackMix(trackID: session.store.tracks[index].id, mix: mix)
+        }
+
+        // busMute=<idx>:<on|off> — mixer bus mute via setMixerBusMuted.
+        if let raw = command["busMute"],
+           let (index, value) = parseIndexedToggle(raw),
+           session.store.buses.indices.contains(index) {
+            session.setMixerBusMuted(value, busID: session.store.buses[index].id)
+        }
+
+        // trackAddInsert=<idx>:<native-filter|native-bitcrusher> — append a
+        // native insert to a track's FX chain (live graph mutation). NO AU.
+        if let raw = command["trackAddInsert"],
+           let (index, kind) = parseIndexedValue(raw),
+           session.store.tracks.indices.contains(index),
+           let insert = nativeTrackInsert(kind) {
+            session.mutateTrackFXInserts(trackID: session.store.tracks[index].id) { inserts in
+                inserts.append(insert)
+            }
+        }
+
+        // trackRemoveInsert=<idx>:<insertIdx> — remove an insert by position.
+        if let raw = command["trackRemoveInsert"],
+           let (index, insertIdxRaw) = parseIndexedValue(raw),
+           let insertIdx = Int(insertIdxRaw),
+           session.store.tracks.indices.contains(index) {
+            session.mutateTrackFXInserts(trackID: session.store.tracks[index].id) { inserts in
+                if inserts.indices.contains(insertIdx) {
+                    inserts.remove(at: insertIdx)
+                }
+            }
+        }
+
+        // masterAddInsert=<native-filter|native-bitcrusher> — append a native
+        // insert to the master bus (active scene). NO AU.
+        if let raw = command["masterAddInsert"],
+           let insert = nativeMasterInsert(raw) {
+            session.addMasterBusInsert(insert)
+        }
+
+        // routeTrackToBus=<idx>:<busIdx|master> — reassign a track's output bus
+        // (live disconnect/reconnect). `master` clears the bus (= master out).
+        if let raw = command["routeTrackToBus"],
+           let (index, dest) = parseIndexedValue(raw),
+           session.store.tracks.indices.contains(index) {
+            let trackID = session.store.tracks[index].id
+            if dest == "master" {
+                session.setTrackOutputBus(trackID: trackID, busID: nil)
+            } else if let busIdx = Int(dest),
+                      session.store.buses.indices.contains(busIdx) {
+                session.setTrackOutputBus(trackID: trackID, busID: session.store.buses[busIdx].id)
+            }
+        }
+
+        // trackSend=<idx>:A=<0..1>,B=<0..1> — per-track sends. Either field may
+        // be omitted; missing fields keep the current value.
+        if let raw = command["trackSend"],
+           let (index, fields) = parseIndexedValue(raw),
+           session.store.tracks.indices.contains(index) {
+            let track = session.store.tracks[index]
+            var sendA = track.mix.sendA
+            var sendB = track.mix.sendB
+            for field in fields.split(separator: ",") {
+                let pair = field.split(separator: "=", maxSplits: 1)
+                guard pair.count == 2, let value = Double(pair[1]) else { continue }
+                switch pair[0].uppercased() {
+                case "A": sendA = value
+                case "B": sendB = value
+                default: break
+                }
+            }
+            session.setTrackSends(trackID: track.id, sendA: sendA, sendB: sendB)
+        }
+
+        // removeTrack=<idx> — structural track removal (live graph mutation).
+        if let raw = command["removeTrack"],
+           let index = Int(raw.trimmingCharacters(in: .whitespaces)),
+           session.store.tracks.indices.contains(index) {
+            session.removeTrack(id: session.store.tracks[index].id)
+        }
+    }
+
+    /// Parse `<idx>:<on|off>` (also accepts true/false/1/0).
+    private static func parseIndexedToggle(_ raw: String) -> (index: Int, value: Bool)? {
+        guard let (index, value) = parseIndexedValue(raw) else { return nil }
+        switch value.lowercased() {
+        case "on", "true", "1", "yes": return (index, true)
+        case "off", "false", "0", "no": return (index, false)
+        default: return nil
+        }
+    }
+
+    /// Parse `<idx>:<rest>` where `rest` may itself contain `:`/`,`.
+    private static func parseIndexedValue(_ raw: String) -> (index: Int, value: String)? {
+        let parts = raw.split(separator: ":", maxSplits: 1)
+        guard parts.count == 2,
+              let index = Int(parts[0].trimmingCharacters(in: .whitespaces))
+        else { return nil }
+        return (index, parts[1].trimmingCharacters(in: .whitespaces))
+    }
+
+    private static func nativeTrackInsert(_ kind: String) -> TrackFXInsert? {
+        switch kind {
+        case "native-filter", "filter": return .filter()
+        case "native-bitcrusher", "bitcrusher": return .bitcrusher()
+        default: return nil
+        }
+    }
+
+    private static func nativeMasterInsert(_ kind: String) -> MasterBusInsert? {
+        switch kind {
+        case "native-filter", "filter": return .filter()
+        case "native-bitcrusher", "bitcrusher": return .bitcrusher()
+        default: return nil
+        }
     }
 
     private static func selectedSlicerStatus(

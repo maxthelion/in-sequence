@@ -291,7 +291,22 @@ final class MainAudioGraph {
             // tests / explicit opt-in.
             let inVisualAutomation = Self.useManualRenderingForAutomation
                 || ProcessInfo.processInfo.environment["SEQUENCER_AI_VISUAL_COMMAND_FILE"] != nil
-            if inVisualAutomation {
+            // Headless real-HAL gate (automation-only): the offline-render force
+            // above exists solely to avoid the mic-TCC prompt that the HAL IO
+            // unit raises. For SAMPLE-ONLY / output-only fixtures there is no
+            // audio INPUT, so the mic prompt never applies and the real HAL can
+            // run headless. The deadlock class we hunt only manifests on the
+            // live HAL (engine.connect synchronizes with the render thread), so
+            // the self-test rig sets SEQUENCER_AI_HEADLESS_REAL_HAL=1 to SKIP
+            // the offline force and drive the command channel on the real
+            // device. Absent the flag, behaviour is unchanged (offline forced).
+            let headlessRealHAL = ProcessInfo.processInfo
+                .environment["SEQUENCER_AI_HEADLESS_REAL_HAL"] == "1"
+            if inVisualAutomation, headlessRealHAL {
+                NSLog("[MainAudioGraph] SEQUENCER_AI_HEADLESS_REAL_HAL=1 — offline-render force SKIPPED; running on real HAL device")
+                DevActivity.trace(DevActivity.harness, "MainAudioGraph headless real-HAL: offline force skipped")
+            }
+            if inVisualAutomation, !headlessRealHAL {
                 guard let manualFormat = AVAudioFormat(standardFormatWithSampleRate: 44_100, channels: 2) else {
                     NSLog("[MainAudioGraph] manual-rendering enable SKIPPED: could not build 44.1k/2ch format")
                     return
