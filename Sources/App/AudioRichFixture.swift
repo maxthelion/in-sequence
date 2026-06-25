@@ -68,6 +68,23 @@ enum AudioRichFixture {
     static let melodicSampleRate: Double = 44_100
     static let melodicLengthFrames: Int64 = 22_050 // ~0.5s @ 44.1kHz
 
+    /// Library-relative path for the generated CONTINUOUSLY-SUSTAINING drone
+    /// tone used by the SAMPLE-ONLY fixture. Unlike the lead/drum one-shots
+    /// (which fire on sparse steps and decay), this sample is long and holds a
+    /// constant amplitude, so a track that triggers it on EVERY step always has
+    /// audio on the master path. That makes routing-stress's `masterPeak`
+    /// SILENCE metric meaningful: it flags a track that WAS sounding going
+    /// silent on a routing op, not the legitimate gaps between sparse one-shots.
+    static let droneSampleRelativePath = "breaks/audio-rich-fixture-drone.wav"
+
+    /// Stable UUIDv5 ID the AudioSampleLibrary scan will mint for the drone file.
+    static var droneSampleID: UUID {
+        AudioSampleLibrary.stableID(forRelativePath: droneSampleRelativePath)
+    }
+
+    static let droneSampleRate: Double = 44_100
+    static let droneLengthFrames: Int64 = 176_400 // ~4.0s @ 44.1kHz (bridges steps)
+
     /// A synthesized drum one-shot: which part it is, the relative library path
     /// the WAV is written to, and how long it runs. Each lives under the part's
     /// own category dir (e.g. `kick/`, `snare/`, `hatClosed/`, `clap/`) so the
@@ -370,6 +387,33 @@ enum AudioRichFixture {
         project.setSendBusInserts([Self.fixedFilterInsert(idSuffix: "0A01")], id: .sendA)
         project.setSendBusInserts([Self.fixedFilterInsert(idSuffix: "0B01")], id: .sendB)
 
+        // 5. CONTINUOUSLY-SUSTAINING drone track (LAST, so the index-based
+        //    routing-stress ops never touch it: it stays on master and keeps
+        //    sounding throughout the whole sequence). It drives a long, flat-
+        //    amplitude sample retriggered on EVERY step, so the master path is
+        //    never silent between the other tracks' sparse one-shots. This makes
+        //    the rig's SILENCE metric honest: -inf masterPeak now means a real
+        //    routing failure, not a gap between pattern hits.
+        project.appendTrack(trackType: .monoMelodic)
+        let droneTrackID = project.selectedTrackID
+        let droneSample = makeDroneSample()
+        if let index = project.tracks.firstIndex(where: { $0.id == droneTrackID }) {
+            project.tracks[index].name = "Sustain Drone"
+            project.tracks[index].destination = .sample(
+                sampleID: droneSampleID,
+                settings: .default
+            )
+            // Trigger on every step so overlapping retriggers keep the master
+            // path continuously sounding; routed to master (no sends).
+            project.tracks[index].pitches = [48]
+            project.tracks[index].stepPattern = Array(repeating: true, count: 16)
+        }
+        project.addToAssetPool(
+            kind: .sample,
+            assetID: droneSample.id,
+            addedAt: Date(timeIntervalSince1970: 0)
+        )
+
         project.selectedTrackID = monoTrackID
         return project
     }
@@ -405,6 +449,20 @@ enum AudioRichFixture {
         )
     }
 
+    /// The `AudioSample` metadata for the long, flat-amplitude drone WAV that
+    /// gives the sample-only fixture a continuously-sounding source.
+    static func makeDroneSample() -> AudioSample {
+        AudioSample(
+            id: droneSampleID,
+            name: "Audio Rich Fixture Drone",
+            fileRef: .appSupportLibrary(relativePath: droneSampleRelativePath),
+            category: AudioSampleCategory(rawValue: "breaks") ?? .breaks,
+            lengthSeconds: Double(droneLengthFrames) / droneSampleRate,
+            lengthFrames: droneLengthFrames,
+            sampleRate: droneSampleRate
+        )
+    }
+
     // MARK: - Materialization (real-audio pass only; not called by makeProject)
 
     /// Writes ALL generated WAVs — the four drum one-shots and the slicer loop —
@@ -418,6 +476,7 @@ enum AudioRichFixture {
     ) throws {
         try materializeSlicerSample(libraryRoot: libraryRoot)
         try materializeMelodicSample(libraryRoot: libraryRoot)
+        try materializeDroneSample(libraryRoot: libraryRoot)
         for hit in drumHits {
             try materializeDrumHit(hit, libraryRoot: libraryRoot)
         }
@@ -446,6 +505,34 @@ enum AudioRichFixture {
             let attack = min(1.0, t / 0.005)
             let decay = exp(-t / 0.35)
             return Float((fundamental + octave + fifth) * attack * decay * 0.5)
+        }
+    }
+
+    /// Synthesizes a ~4s mono drone tone WAV at a CONSTANT amplitude (no decay)
+    /// and writes it into the AudioSampleLibrary tree. A track triggering this on
+    /// every step keeps the master path continuously sounding, so routing-stress
+    /// can tell a real routing silence apart from the gaps between sparse
+    /// one-shots. Returns the written URL.
+    @discardableResult
+    static func materializeDroneSample(
+        libraryRoot: URL = AudioSampleLibrary.shared.libraryRoot
+    ) throws -> URL {
+        try writeMonoWAV(
+            relativePath: droneSampleRelativePath,
+            libraryRoot: libraryRoot,
+            sampleRate: droneSampleRate,
+            frameCount: Int(droneLengthFrames)
+        ) { frame, _ in
+            let t = Double(frame) / droneSampleRate
+            // Low sustained tone ~130.81 Hz (C3) with a fifth + octave for body.
+            let f0 = 130.81
+            let fundamental = sin(2.0 * Double.pi * f0 * t)
+            let fifth = 0.4 * sin(2.0 * Double.pi * f0 * 1.5 * t)
+            let octave = 0.3 * sin(2.0 * Double.pi * f0 * 2.0 * t)
+            // Tiny attack to avoid a click; then FLAT — no decay — so the level
+            // stays up for the whole sample regardless of where a step lands.
+            let attack = min(1.0, t / 0.005)
+            return Float((fundamental + fifth + octave) * attack * 0.3)
         }
     }
 

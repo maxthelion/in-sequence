@@ -801,7 +801,17 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
             case let .prepareBus(busID):
                 prepareBusVoicePool(trackID: trackID, busID: busID)
             case let .teardownBus(pool):
+                // Routing a bus-routed track back to master: tear down the bus
+                // voice pool, then re-establish the track's MASTER voice pool so
+                // it keeps sounding on the new destination. Without this rebuild
+                // the track is left with no playable voices on either path and
+                // goes permanently silent. `prepareTrack` runs the heavy graph
+                // construction without holding `lifecycleLock` (it captures refs
+                // under the lock, mutates after — same leaf-lock invariant), and
+                // because `trackOutputBusIDs[trackID]` was just set to nil above,
+                // it rebuilds the prepared master pool rather than a bus pool.
                 teardownBusVoicePool(pool)
+                prepareTrack(trackID: trackID)
             case let .repairTrack(pool):
                 repairPreparedTrackGraph(trackID: trackID, pool: pool)
             case let .wireFilterOutput(filter, busID, sends):

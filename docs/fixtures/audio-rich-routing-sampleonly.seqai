@@ -29,12 +29,17 @@
       "addedAt" : -978307200,
       "assetID" : "A4CDF020-99DB-5AFD-A7E7-A3C321D01439",
       "kind" : "sample"
+    },
+    {
+      "addedAt" : -978307200,
+      "assetID" : "79F25661-15E0-59E7-9949-AF16638B293D",
+      "kind" : "sample"
     }
   ],
   "buses" : [
     {
       "color" : "#3A7",
-      "id" : "299C8D77-ECDC-4173-BC37-6A9881D0BECE",
+      "id" : "3802FEA1-85AC-4B28-A42E-F4D146EF82C3",
       "inserts" : [
 
       ],
@@ -176,7 +181,7 @@
           ]
         }
       },
-      "id" : "F2F468C8-42DA-4DCF-83F4-4399A47307D5",
+      "id" : "D956A2B3-4E44-4DB3-982E-EB3FB5891609",
       "macroLanes" : [
 
       ],
@@ -311,7 +316,7 @@
           ]
         }
       },
-      "id" : "242671FB-23CC-4B6B-BA58-71CF85DACA73",
+      "id" : "100D37DA-BB56-4E4B-B3F4-784C43A75629",
       "macroLanes" : [
 
       ],
@@ -571,7 +576,7 @@
           ]
         }
       },
-      "id" : "D656A0DE-58F2-4093-B710-031F26575C98",
+      "id" : "57A979D1-2BD2-4DB5-9422-FA82D221F091",
       "macroLanes" : [
 
       ],
@@ -634,7 +639,7 @@
           ]
         }
       },
-      "id" : "C0890DE5-C19A-4B8F-A369-7F074B861285",
+      "id" : "3AFEAD61-2E7F-4335-99A7-0A07346E1F6E",
       "macroLanes" : [
 
       ],
@@ -697,7 +702,7 @@
           ]
         }
       },
-      "id" : "AB45FBD1-F659-48DB-B0C4-DC6FE2BF504A",
+      "id" : "93B8AB19-921D-42AF-9E92-5EC4A4B2A756",
       "macroLanes" : [
 
       ],
@@ -760,7 +765,7 @@
           ]
         }
       },
-      "id" : "E2893027-6F3F-4D43-8FBC-49629EB87506",
+      "id" : "5D474102-74B5-4501-9647-523B8852ACC4",
       "macroLanes" : [
 
       ],
@@ -823,11 +828,146 @@
           ]
         }
       },
-      "id" : "6C150B52-D3BE-4BD2-8F36-42D24DA36790",
+      "id" : "BDBC8ED4-442B-48B2-8FC5-DA5033FDD05D",
       "macroLanes" : [
 
       ],
       "name" : "Clap",
+      "trackType" : "monoMelodic"
+    },
+    {
+      "content" : {
+        "noteGrid" : {
+          "lengthSteps" : 16,
+          "steps" : [
+            {
+              "main" : {
+                "chance" : 1,
+                "notes" : [
+                  {
+                    "lengthSteps" : 4,
+                    "pitch" : 60,
+                    "velocity" : 100
+                  }
+                ]
+              }
+            },
+            {
+
+            },
+            {
+              "main" : {
+                "chance" : 1,
+                "notes" : [
+                  {
+                    "lengthSteps" : 4,
+                    "pitch" : 64,
+                    "velocity" : 100
+                  }
+                ]
+              }
+            },
+            {
+
+            },
+            {
+              "main" : {
+                "chance" : 1,
+                "notes" : [
+                  {
+                    "lengthSteps" : 4,
+                    "pitch" : 60,
+                    "velocity" : 100
+                  }
+                ]
+              }
+            },
+            {
+
+            },
+            {
+
+            },
+            {
+              "main" : {
+                "chance" : 1,
+                "notes" : [
+                  {
+                    "lengthSteps" : 4,
+                    "pitch" : 67,
+                    "velocity" : 100
+                  }
+                ]
+              }
+            },
+            {
+              "main" : {
+                "chance" : 1,
+                "notes" : [
+                  {
+                    "lengthSteps" : 4,
+                    "pitch" : 60,
+                    "velocity" : 100
+                  }
+                ]
+              }
+            },
+            {
+
+            },
+            {
+              "main" : {
+                "chance" : 1,
+                "notes" : [
+                  {
+                    "lengthSteps" : 4,
+                    "pitch" : 64,
+                    "velocity" : 100
+                  }
+                ]
+              }
+            },
+            {
+
+            },
+            {
+              "main" : {
+                "chance" : 1,
+                "notes" : [
+                  {
+                    "lengthSteps" : 4,
+                    "pitch" : 60,
+                    "velocity" : 100
+                  }
+                ]
+              }
+            },
+            {
+
+            },
+            {
+
+            },
+            {
+              "main" : {
+                "chance" : 1,
+                "notes" : [
+                  {
+                    "lengthSteps" : 4,
+                    "pitch" : 67,
+                    "velocity" : 100
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "id" : "B72EC61B-6101-4CBC-9860-F1FC878EB971",
+      "macroLanes" : [
+
+      ],
+      "name" : "Mono 8 clip",
       "trackType" : "monoMelodic"
     }
   ],
@@ -1096,31 +1236,19 @@
   "layers" : [
     {
       "defaults" : [
-        "94A74063-98B8-4E8C-B03F-FA423D1EB80C",
+        "8E5B89B6-57E7-46BB-84DC-9FB75D468409",
         {
           "index" : {
             "_0" : 0
           }
         },
-        "5AF03A28-29B3-4065-80AA-910D96516953",
+        "3F8ECDAD-6A32-4046-8568-29248C5BC54E",
         {
           "index" : {
             "_0" : 0
           }
         },
-        "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0",
-        {
-          "index" : {
-            "_0" : 0
-          }
-        },
-        "EAFA6CC2-B430-43E0-BED9-BD6D6202437E",
-        {
-          "index" : {
-            "_0" : 0
-          }
-        },
-        "6A64DA66-89FC-47DC-95C4-097F0FD17983",
+        "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF",
         {
           "index" : {
             "_0" : 0
@@ -1132,7 +1260,25 @@
             "_0" : 0
           }
         },
-        "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931",
+        "915EA852-237E-46CC-951A-89111BE56C7A",
+        {
+          "index" : {
+            "_0" : 0
+          }
+        },
+        "8D64B506-C2C1-42FD-84BD-07A25C8A37B4",
+        {
+          "index" : {
+            "_0" : 0
+          }
+        },
+        "3E278E83-D398-46F3-8F33-4E8C66214D9A",
+        {
+          "index" : {
+            "_0" : 0
+          }
+        },
+        "B0540F4B-CE03-4DC4-80C8-E867182F7621",
         {
           "index" : {
             "_0" : 0
@@ -1152,43 +1298,49 @@
     },
     {
       "defaults" : [
-        "5AF03A28-29B3-4065-80AA-910D96516953",
+        "915EA852-237E-46CC-951A-89111BE56C7A",
         {
           "bool" : {
             "_0" : false
           }
         },
-        "94A74063-98B8-4E8C-B03F-FA423D1EB80C",
+        "3F8ECDAD-6A32-4046-8568-29248C5BC54E",
         {
           "bool" : {
             "_0" : false
           }
         },
-        "EAFA6CC2-B430-43E0-BED9-BD6D6202437E",
+        "B0540F4B-CE03-4DC4-80C8-E867182F7621",
         {
           "bool" : {
             "_0" : false
           }
         },
-        "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931",
+        "8E5B89B6-57E7-46BB-84DC-9FB75D468409",
+        {
+          "bool" : {
+            "_0" : false
+          }
+        },
+        "8D64B506-C2C1-42FD-84BD-07A25C8A37B4",
+        {
+          "bool" : {
+            "_0" : false
+          }
+        },
+        "3E278E83-D398-46F3-8F33-4E8C66214D9A",
+        {
+          "bool" : {
+            "_0" : false
+          }
+        },
+        "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF",
         {
           "bool" : {
             "_0" : false
           }
         },
         "11111111-1111-1111-1111-111111111111",
-        {
-          "bool" : {
-            "_0" : false
-          }
-        },
-        "6A64DA66-89FC-47DC-95C4-097F0FD17983",
-        {
-          "bool" : {
-            "_0" : false
-          }
-        },
-        "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0",
         {
           "bool" : {
             "_0" : false
@@ -1208,43 +1360,49 @@
     },
     {
       "defaults" : [
-        "EAFA6CC2-B430-43E0-BED9-BD6D6202437E",
+        "8E5B89B6-57E7-46BB-84DC-9FB75D468409",
         {
           "scalar" : {
             "_0" : 101.60000000000001
           }
         },
-        "94A74063-98B8-4E8C-B03F-FA423D1EB80C",
+        "915EA852-237E-46CC-951A-89111BE56C7A",
         {
           "scalar" : {
             "_0" : 101.60000000000001
           }
         },
-        "5AF03A28-29B3-4065-80AA-910D96516953",
+        "3E278E83-D398-46F3-8F33-4E8C66214D9A",
         {
           "scalar" : {
             "_0" : 101.60000000000001
           }
         },
-        "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0",
+        "3F8ECDAD-6A32-4046-8568-29248C5BC54E",
+        {
+          "scalar" : {
+            "_0" : 101.60000000000001
+          }
+        },
+        "8D64B506-C2C1-42FD-84BD-07A25C8A37B4",
+        {
+          "scalar" : {
+            "_0" : 101.60000000000001
+          }
+        },
+        "B0540F4B-CE03-4DC4-80C8-E867182F7621",
+        {
+          "scalar" : {
+            "_0" : 101.60000000000001
+          }
+        },
+        "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF",
         {
           "scalar" : {
             "_0" : 101.60000000000001
           }
         },
         "11111111-1111-1111-1111-111111111111",
-        {
-          "scalar" : {
-            "_0" : 101.60000000000001
-          }
-        },
-        "6A64DA66-89FC-47DC-95C4-097F0FD17983",
-        {
-          "scalar" : {
-            "_0" : 101.60000000000001
-          }
-        },
-        "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931",
         {
           "scalar" : {
             "_0" : 101.60000000000001
@@ -1264,25 +1422,7 @@
     },
     {
       "defaults" : [
-        "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931",
-        {
-          "scalar" : {
-            "_0" : 0
-          }
-        },
-        "94A74063-98B8-4E8C-B03F-FA423D1EB80C",
-        {
-          "scalar" : {
-            "_0" : 0
-          }
-        },
-        "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0",
-        {
-          "scalar" : {
-            "_0" : 0
-          }
-        },
-        "5AF03A28-29B3-4065-80AA-910D96516953",
+        "8D64B506-C2C1-42FD-84BD-07A25C8A37B4",
         {
           "scalar" : {
             "_0" : 0
@@ -1294,13 +1434,37 @@
             "_0" : 0
           }
         },
-        "6A64DA66-89FC-47DC-95C4-097F0FD17983",
+        "3F8ECDAD-6A32-4046-8568-29248C5BC54E",
         {
           "scalar" : {
             "_0" : 0
           }
         },
-        "EAFA6CC2-B430-43E0-BED9-BD6D6202437E",
+        "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "915EA852-237E-46CC-951A-89111BE56C7A",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "B0540F4B-CE03-4DC4-80C8-E867182F7621",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "3E278E83-D398-46F3-8F33-4E8C66214D9A",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "8E5B89B6-57E7-46BB-84DC-9FB75D468409",
         {
           "scalar" : {
             "_0" : 0
@@ -1320,13 +1484,37 @@
     },
     {
       "defaults" : [
-        "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931",
+        "8D64B506-C2C1-42FD-84BD-07A25C8A37B4",
         {
           "scalar" : {
             "_0" : 0
           }
         },
-        "94A74063-98B8-4E8C-B03F-FA423D1EB80C",
+        "915EA852-237E-46CC-951A-89111BE56C7A",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "8E5B89B6-57E7-46BB-84DC-9FB75D468409",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "B0540F4B-CE03-4DC4-80C8-E867182F7621",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "3E278E83-D398-46F3-8F33-4E8C66214D9A",
         {
           "scalar" : {
             "_0" : 0
@@ -1338,25 +1526,7 @@
             "_0" : 0
           }
         },
-        "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0",
-        {
-          "scalar" : {
-            "_0" : 0
-          }
-        },
-        "6A64DA66-89FC-47DC-95C4-097F0FD17983",
-        {
-          "scalar" : {
-            "_0" : 0
-          }
-        },
-        "5AF03A28-29B3-4065-80AA-910D96516953",
-        {
-          "scalar" : {
-            "_0" : 0
-          }
-        },
-        "EAFA6CC2-B430-43E0-BED9-BD6D6202437E",
+        "3F8ECDAD-6A32-4046-8568-29248C5BC54E",
         {
           "scalar" : {
             "_0" : 0
@@ -1376,25 +1546,7 @@
     },
     {
       "defaults" : [
-        "6A64DA66-89FC-47DC-95C4-097F0FD17983",
-        {
-          "scalar" : {
-            "_0" : 0
-          }
-        },
-        "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931",
-        {
-          "scalar" : {
-            "_0" : 0
-          }
-        },
-        "94A74063-98B8-4E8C-B03F-FA423D1EB80C",
-        {
-          "scalar" : {
-            "_0" : 0
-          }
-        },
-        "EAFA6CC2-B430-43E0-BED9-BD6D6202437E",
+        "3E278E83-D398-46F3-8F33-4E8C66214D9A",
         {
           "scalar" : {
             "_0" : 0
@@ -1406,13 +1558,37 @@
             "_0" : 0
           }
         },
-        "5AF03A28-29B3-4065-80AA-910D96516953",
+        "915EA852-237E-46CC-951A-89111BE56C7A",
         {
           "scalar" : {
             "_0" : 0
           }
         },
-        "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0",
+        "3F8ECDAD-6A32-4046-8568-29248C5BC54E",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "8D64B506-C2C1-42FD-84BD-07A25C8A37B4",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "B0540F4B-CE03-4DC4-80C8-E867182F7621",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "8E5B89B6-57E7-46BB-84DC-9FB75D468409",
         {
           "scalar" : {
             "_0" : 0
@@ -1432,43 +1608,49 @@
     },
     {
       "defaults" : [
-        "6A64DA66-89FC-47DC-95C4-097F0FD17983",
-        {
-          "scalar" : {
-            "_0" : 0
-          }
-        },
-        "EAFA6CC2-B430-43E0-BED9-BD6D6202437E",
-        {
-          "scalar" : {
-            "_0" : 0
-          }
-        },
         "11111111-1111-1111-1111-111111111111",
         {
           "scalar" : {
             "_0" : 0
           }
         },
-        "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931",
+        "8E5B89B6-57E7-46BB-84DC-9FB75D468409",
         {
           "scalar" : {
             "_0" : 0
           }
         },
-        "94A74063-98B8-4E8C-B03F-FA423D1EB80C",
+        "8D64B506-C2C1-42FD-84BD-07A25C8A37B4",
         {
           "scalar" : {
             "_0" : 0
           }
         },
-        "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0",
+        "3F8ECDAD-6A32-4046-8568-29248C5BC54E",
         {
           "scalar" : {
             "_0" : 0
           }
         },
-        "5AF03A28-29B3-4065-80AA-910D96516953",
+        "B0540F4B-CE03-4DC4-80C8-E867182F7621",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "3E278E83-D398-46F3-8F33-4E8C66214D9A",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "915EA852-237E-46CC-951A-89111BE56C7A",
         {
           "scalar" : {
             "_0" : 0
@@ -1488,43 +1670,49 @@
     },
     {
       "defaults" : [
+        "915EA852-237E-46CC-951A-89111BE56C7A",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "8E5B89B6-57E7-46BB-84DC-9FB75D468409",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "3F8ECDAD-6A32-4046-8568-29248C5BC54E",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "8D64B506-C2C1-42FD-84BD-07A25C8A37B4",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
         "11111111-1111-1111-1111-111111111111",
         {
           "scalar" : {
             "_0" : 0
           }
         },
-        "6A64DA66-89FC-47DC-95C4-097F0FD17983",
+        "B0540F4B-CE03-4DC4-80C8-E867182F7621",
         {
           "scalar" : {
             "_0" : 0
           }
         },
-        "EAFA6CC2-B430-43E0-BED9-BD6D6202437E",
+        "3E278E83-D398-46F3-8F33-4E8C66214D9A",
         {
           "scalar" : {
             "_0" : 0
           }
         },
-        "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931",
-        {
-          "scalar" : {
-            "_0" : 0
-          }
-        },
-        "5AF03A28-29B3-4065-80AA-910D96516953",
-        {
-          "scalar" : {
-            "_0" : 0
-          }
-        },
-        "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0",
-        {
-          "scalar" : {
-            "_0" : 0
-          }
-        },
-        "94A74063-98B8-4E8C-B03F-FA423D1EB80C",
+        "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF",
         {
           "scalar" : {
             "_0" : 0
@@ -1544,43 +1732,49 @@
     },
     {
       "defaults" : [
-        "94A74063-98B8-4E8C-B03F-FA423D1EB80C",
+        "915EA852-237E-46CC-951A-89111BE56C7A",
         {
           "scalar" : {
             "_0" : 0
           }
         },
-        "5AF03A28-29B3-4065-80AA-910D96516953",
+        "8E5B89B6-57E7-46BB-84DC-9FB75D468409",
         {
           "scalar" : {
             "_0" : 0
           }
         },
-        "EAFA6CC2-B430-43E0-BED9-BD6D6202437E",
+        "B0540F4B-CE03-4DC4-80C8-E867182F7621",
         {
           "scalar" : {
             "_0" : 0
           }
         },
-        "6A64DA66-89FC-47DC-95C4-097F0FD17983",
-        {
-          "scalar" : {
-            "_0" : 0
-          }
-        },
-        "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0",
-        {
-          "scalar" : {
-            "_0" : 0
-          }
-        },
-        "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931",
+        "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF",
         {
           "scalar" : {
             "_0" : 0
           }
         },
         "11111111-1111-1111-1111-111111111111",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "3E278E83-D398-46F3-8F33-4E8C66214D9A",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "3F8ECDAD-6A32-4046-8568-29248C5BC54E",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "8D64B506-C2C1-42FD-84BD-07A25C8A37B4",
         {
           "scalar" : {
             "_0" : 0
@@ -1600,43 +1794,49 @@
     },
     {
       "defaults" : [
+        "B0540F4B-CE03-4DC4-80C8-E867182F7621",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "915EA852-237E-46CC-951A-89111BE56C7A",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "3E278E83-D398-46F3-8F33-4E8C66214D9A",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "8D64B506-C2C1-42FD-84BD-07A25C8A37B4",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "3F8ECDAD-6A32-4046-8568-29248C5BC54E",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "8E5B89B6-57E7-46BB-84DC-9FB75D468409",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
         "11111111-1111-1111-1111-111111111111",
-        {
-          "scalar" : {
-            "_0" : 0
-          }
-        },
-        "94A74063-98B8-4E8C-B03F-FA423D1EB80C",
-        {
-          "scalar" : {
-            "_0" : 0
-          }
-        },
-        "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931",
-        {
-          "scalar" : {
-            "_0" : 0
-          }
-        },
-        "6A64DA66-89FC-47DC-95C4-097F0FD17983",
-        {
-          "scalar" : {
-            "_0" : 0
-          }
-        },
-        "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0",
-        {
-          "scalar" : {
-            "_0" : 0
-          }
-        },
-        "EAFA6CC2-B430-43E0-BED9-BD6D6202437E",
-        {
-          "scalar" : {
-            "_0" : 0
-          }
-        },
-        "5AF03A28-29B3-4065-80AA-910D96516953",
         {
           "scalar" : {
             "_0" : 0
@@ -1656,43 +1856,49 @@
     },
     {
       "defaults" : [
-        "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0",
+        "8E5B89B6-57E7-46BB-84DC-9FB75D468409",
         {
           "scalar" : {
             "_0" : 0
           }
         },
-        "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931",
+        "8D64B506-C2C1-42FD-84BD-07A25C8A37B4",
         {
           "scalar" : {
             "_0" : 0
           }
         },
-        "6A64DA66-89FC-47DC-95C4-097F0FD17983",
+        "3E278E83-D398-46F3-8F33-4E8C66214D9A",
         {
           "scalar" : {
             "_0" : 0
           }
         },
-        "EAFA6CC2-B430-43E0-BED9-BD6D6202437E",
+        "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF",
         {
           "scalar" : {
             "_0" : 0
           }
         },
-        "5AF03A28-29B3-4065-80AA-910D96516953",
+        "915EA852-237E-46CC-951A-89111BE56C7A",
         {
           "scalar" : {
             "_0" : 0
           }
         },
-        "94A74063-98B8-4E8C-B03F-FA423D1EB80C",
+        "B0540F4B-CE03-4DC4-80C8-E867182F7621",
         {
           "scalar" : {
             "_0" : 0
           }
         },
         "11111111-1111-1111-1111-111111111111",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "3F8ECDAD-6A32-4046-8568-29248C5BC54E",
         {
           "scalar" : {
             "_0" : 0
@@ -1712,25 +1918,7 @@
     },
     {
       "defaults" : [
-        "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931",
-        {
-          "bool" : {
-            "_0" : false
-          }
-        },
-        "6A64DA66-89FC-47DC-95C4-097F0FD17983",
-        {
-          "bool" : {
-            "_0" : false
-          }
-        },
-        "94A74063-98B8-4E8C-B03F-FA423D1EB80C",
-        {
-          "bool" : {
-            "_0" : false
-          }
-        },
-        "5AF03A28-29B3-4065-80AA-910D96516953",
+        "B0540F4B-CE03-4DC4-80C8-E867182F7621",
         {
           "bool" : {
             "_0" : false
@@ -1742,13 +1930,37 @@
             "_0" : false
           }
         },
-        "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0",
+        "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF",
         {
           "bool" : {
             "_0" : false
           }
         },
-        "EAFA6CC2-B430-43E0-BED9-BD6D6202437E",
+        "8E5B89B6-57E7-46BB-84DC-9FB75D468409",
+        {
+          "bool" : {
+            "_0" : false
+          }
+        },
+        "8D64B506-C2C1-42FD-84BD-07A25C8A37B4",
+        {
+          "bool" : {
+            "_0" : false
+          }
+        },
+        "915EA852-237E-46CC-951A-89111BE56C7A",
+        {
+          "bool" : {
+            "_0" : false
+          }
+        },
+        "3E278E83-D398-46F3-8F33-4E8C66214D9A",
+        {
+          "bool" : {
+            "_0" : false
+          }
+        },
+        "3F8ECDAD-6A32-4046-8568-29248C5BC54E",
         {
           "bool" : {
             "_0" : false
@@ -1768,43 +1980,49 @@
     },
     {
       "defaults" : [
-        "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0",
-        {
-          "scalar" : {
-            "_0" : 0
-          }
-        },
-        "6A64DA66-89FC-47DC-95C4-097F0FD17983",
-        {
-          "scalar" : {
-            "_0" : 0
-          }
-        },
-        "EAFA6CC2-B430-43E0-BED9-BD6D6202437E",
-        {
-          "scalar" : {
-            "_0" : 0
-          }
-        },
-        "5AF03A28-29B3-4065-80AA-910D96516953",
-        {
-          "scalar" : {
-            "_0" : 0
-          }
-        },
-        "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931",
-        {
-          "scalar" : {
-            "_0" : 0
-          }
-        },
-        "94A74063-98B8-4E8C-B03F-FA423D1EB80C",
+        "B0540F4B-CE03-4DC4-80C8-E867182F7621",
         {
           "scalar" : {
             "_0" : 0
           }
         },
         "11111111-1111-1111-1111-111111111111",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "8D64B506-C2C1-42FD-84BD-07A25C8A37B4",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "3E278E83-D398-46F3-8F33-4E8C66214D9A",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "8E5B89B6-57E7-46BB-84DC-9FB75D468409",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "3F8ECDAD-6A32-4046-8568-29248C5BC54E",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "915EA852-237E-46CC-951A-89111BE56C7A",
         {
           "scalar" : {
             "_0" : 0
@@ -1824,31 +2042,13 @@
     },
     {
       "defaults" : [
-        "EAFA6CC2-B430-43E0-BED9-BD6D6202437E",
+        "B0540F4B-CE03-4DC4-80C8-E867182F7621",
         {
           "scalar" : {
             "_0" : 0
           }
         },
-        "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0",
-        {
-          "scalar" : {
-            "_0" : 0
-          }
-        },
-        "6A64DA66-89FC-47DC-95C4-097F0FD17983",
-        {
-          "scalar" : {
-            "_0" : 0
-          }
-        },
-        "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931",
-        {
-          "scalar" : {
-            "_0" : 0
-          }
-        },
-        "5AF03A28-29B3-4065-80AA-910D96516953",
+        "3E278E83-D398-46F3-8F33-4E8C66214D9A",
         {
           "scalar" : {
             "_0" : 0
@@ -1860,40 +2060,52 @@
             "_0" : 0
           }
         },
-        "94A74063-98B8-4E8C-B03F-FA423D1EB80C",
+        "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "3F8ECDAD-6A32-4046-8568-29248C5BC54E",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "915EA852-237E-46CC-951A-89111BE56C7A",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "8D64B506-C2C1-42FD-84BD-07A25C8A37B4",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "8E5B89B6-57E7-46BB-84DC-9FB75D468409",
         {
           "scalar" : {
             "_0" : 0
           }
         }
       ],
-      "id" : "macro-5B325040-ADF7-4AD5-BA97-DA1FCD9C8931-B0DAAA1F-7053-05A8-9318-4E68C8261739",
+      "id" : "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-A388CCC7-06F6-C47A-8661-51FB9A97B424",
       "maxValue" : 1,
       "minValue" : 0,
       "name" : "Sample Start",
       "target" : {
         "macroParam" : {
-          "bindingID" : "B0DAAA1F-7053-05A8-9318-4E68C8261739",
-          "trackID" : "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931"
+          "bindingID" : "A388CCC7-06F6-C47A-8661-51FB9A97B424",
+          "trackID" : "3E278E83-D398-46F3-8F33-4E8C66214D9A"
         }
       },
       "valueType" : "scalar"
     },
     {
       "defaults" : [
-        "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931",
-        {
-          "scalar" : {
-            "_0" : 1
-          }
-        },
-        "EAFA6CC2-B430-43E0-BED9-BD6D6202437E",
-        {
-          "scalar" : {
-            "_0" : 1
-          }
-        },
-        "6A64DA66-89FC-47DC-95C4-097F0FD17983",
+        "8D64B506-C2C1-42FD-84BD-07A25C8A37B4",
         {
           "scalar" : {
             "_0" : 1
@@ -1905,52 +2117,58 @@
             "_0" : 1
           }
         },
-        "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0",
+        "3E278E83-D398-46F3-8F33-4E8C66214D9A",
         {
           "scalar" : {
             "_0" : 1
           }
         },
-        "5AF03A28-29B3-4065-80AA-910D96516953",
+        "B0540F4B-CE03-4DC4-80C8-E867182F7621",
         {
           "scalar" : {
             "_0" : 1
           }
         },
-        "94A74063-98B8-4E8C-B03F-FA423D1EB80C",
+        "8E5B89B6-57E7-46BB-84DC-9FB75D468409",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        },
+        "915EA852-237E-46CC-951A-89111BE56C7A",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        },
+        "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        },
+        "3F8ECDAD-6A32-4046-8568-29248C5BC54E",
         {
           "scalar" : {
             "_0" : 1
           }
         }
       ],
-      "id" : "macro-5B325040-ADF7-4AD5-BA97-DA1FCD9C8931-6A75B86C-3102-6322-5D0B-09693B4DE06B",
+      "id" : "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-6BFDBD31-2927-AF30-48FD-36FB779B1BBE",
       "maxValue" : 1,
       "minValue" : 0,
       "name" : "Sample Length",
       "target" : {
         "macroParam" : {
-          "bindingID" : "6A75B86C-3102-6322-5D0B-09693B4DE06B",
-          "trackID" : "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931"
+          "bindingID" : "6BFDBD31-2927-AF30-48FD-36FB779B1BBE",
+          "trackID" : "3E278E83-D398-46F3-8F33-4E8C66214D9A"
         }
       },
       "valueType" : "scalar"
     },
     {
       "defaults" : [
-        "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931",
-        {
-          "scalar" : {
-            "_0" : 20000
-          }
-        },
-        "EAFA6CC2-B430-43E0-BED9-BD6D6202437E",
-        {
-          "scalar" : {
-            "_0" : 20000
-          }
-        },
-        "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0",
+        "3F8ECDAD-6A32-4046-8568-29248C5BC54E",
         {
           "scalar" : {
             "_0" : 20000
@@ -1962,70 +2180,64 @@
             "_0" : 20000
           }
         },
-        "5AF03A28-29B3-4065-80AA-910D96516953",
+        "8E5B89B6-57E7-46BB-84DC-9FB75D468409",
         {
           "scalar" : {
             "_0" : 20000
           }
         },
-        "6A64DA66-89FC-47DC-95C4-097F0FD17983",
+        "B0540F4B-CE03-4DC4-80C8-E867182F7621",
         {
           "scalar" : {
             "_0" : 20000
           }
         },
-        "94A74063-98B8-4E8C-B03F-FA423D1EB80C",
+        "915EA852-237E-46CC-951A-89111BE56C7A",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        },
+        "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        },
+        "3E278E83-D398-46F3-8F33-4E8C66214D9A",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        },
+        "8D64B506-C2C1-42FD-84BD-07A25C8A37B4",
         {
           "scalar" : {
             "_0" : 20000
           }
         }
       ],
-      "id" : "macro-5B325040-ADF7-4AD5-BA97-DA1FCD9C8931-8578939E-5A79-2A7A-3D67-F808C0371222",
+      "id" : "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-4D96D481-CA46-3184-A4C6-491E86EED56B",
       "maxValue" : 20000,
       "minValue" : 20,
       "name" : "Filter Cutoff",
       "target" : {
         "macroParam" : {
-          "bindingID" : "8578939E-5A79-2A7A-3D67-F808C0371222",
-          "trackID" : "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931"
+          "bindingID" : "4D96D481-CA46-3184-A4C6-491E86EED56B",
+          "trackID" : "3E278E83-D398-46F3-8F33-4E8C66214D9A"
         }
       },
       "valueType" : "scalar"
     },
     {
       "defaults" : [
-        "EAFA6CC2-B430-43E0-BED9-BD6D6202437E",
+        "915EA852-237E-46CC-951A-89111BE56C7A",
         {
           "scalar" : {
             "_0" : 0
           }
         },
-        "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0",
-        {
-          "scalar" : {
-            "_0" : 0
-          }
-        },
-        "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931",
-        {
-          "scalar" : {
-            "_0" : 0
-          }
-        },
-        "5AF03A28-29B3-4065-80AA-910D96516953",
-        {
-          "scalar" : {
-            "_0" : 0
-          }
-        },
-        "94A74063-98B8-4E8C-B03F-FA423D1EB80C",
-        {
-          "scalar" : {
-            "_0" : 0
-          }
-        },
-        "6A64DA66-89FC-47DC-95C4-097F0FD17983",
+        "8E5B89B6-57E7-46BB-84DC-9FB75D468409",
         {
           "scalar" : {
             "_0" : 0
@@ -2036,53 +2248,83 @@
           "scalar" : {
             "_0" : 0
           }
+        },
+        "3F8ECDAD-6A32-4046-8568-29248C5BC54E",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "8D64B506-C2C1-42FD-84BD-07A25C8A37B4",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "B0540F4B-CE03-4DC4-80C8-E867182F7621",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "3E278E83-D398-46F3-8F33-4E8C66214D9A",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
         }
       ],
-      "id" : "macro-0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0-3F3D97A6-9672-625E-903F-BCAF19AE7A97",
+      "id" : "macro-915EA852-237E-46CC-951A-89111BE56C7A-E0A0F5F1-B82F-28B7-B8A6-47FADCD02704",
       "maxValue" : 1,
       "minValue" : 0,
       "name" : "Sample Start",
       "target" : {
         "macroParam" : {
-          "bindingID" : "3F3D97A6-9672-625E-903F-BCAF19AE7A97",
-          "trackID" : "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0"
+          "bindingID" : "E0A0F5F1-B82F-28B7-B8A6-47FADCD02704",
+          "trackID" : "915EA852-237E-46CC-951A-89111BE56C7A"
         }
       },
       "valueType" : "scalar"
     },
     {
       "defaults" : [
-        "5AF03A28-29B3-4065-80AA-910D96516953",
+        "B0540F4B-CE03-4DC4-80C8-E867182F7621",
         {
           "scalar" : {
             "_0" : 1
           }
         },
-        "EAFA6CC2-B430-43E0-BED9-BD6D6202437E",
+        "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF",
         {
           "scalar" : {
             "_0" : 1
           }
         },
-        "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931",
+        "8D64B506-C2C1-42FD-84BD-07A25C8A37B4",
         {
           "scalar" : {
             "_0" : 1
           }
         },
-        "94A74063-98B8-4E8C-B03F-FA423D1EB80C",
+        "915EA852-237E-46CC-951A-89111BE56C7A",
         {
           "scalar" : {
             "_0" : 1
           }
         },
-        "6A64DA66-89FC-47DC-95C4-097F0FD17983",
+        "8E5B89B6-57E7-46BB-84DC-9FB75D468409",
         {
           "scalar" : {
             "_0" : 1
           }
         },
-        "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0",
+        "3E278E83-D398-46F3-8F33-4E8C66214D9A",
         {
           "scalar" : {
             "_0" : 1
@@ -2093,29 +2335,35 @@
           "scalar" : {
             "_0" : 1
           }
+        },
+        "3F8ECDAD-6A32-4046-8568-29248C5BC54E",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
         }
       ],
-      "id" : "macro-0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0-7C589B11-F8A8-FFF4-2066-ABAEDA8BEBF1",
+      "id" : "macro-915EA852-237E-46CC-951A-89111BE56C7A-62D303BC-41EB-E16B-7EA8-2CFABCB6B79E",
       "maxValue" : 1,
       "minValue" : 0,
       "name" : "Sample Length",
       "target" : {
         "macroParam" : {
-          "bindingID" : "7C589B11-F8A8-FFF4-2066-ABAEDA8BEBF1",
-          "trackID" : "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0"
+          "bindingID" : "62D303BC-41EB-E16B-7EA8-2CFABCB6B79E",
+          "trackID" : "915EA852-237E-46CC-951A-89111BE56C7A"
         }
       },
       "valueType" : "scalar"
     },
     {
       "defaults" : [
-        "6A64DA66-89FC-47DC-95C4-097F0FD17983",
+        "3E278E83-D398-46F3-8F33-4E8C66214D9A",
         {
           "scalar" : {
             "_0" : 20000
           }
         },
-        "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0",
+        "8D64B506-C2C1-42FD-84BD-07A25C8A37B4",
         {
           "scalar" : {
             "_0" : 20000
@@ -2127,64 +2375,52 @@
             "_0" : 20000
           }
         },
-        "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931",
+        "3F8ECDAD-6A32-4046-8568-29248C5BC54E",
         {
           "scalar" : {
             "_0" : 20000
           }
         },
-        "94A74063-98B8-4E8C-B03F-FA423D1EB80C",
+        "8E5B89B6-57E7-46BB-84DC-9FB75D468409",
         {
           "scalar" : {
             "_0" : 20000
           }
         },
-        "EAFA6CC2-B430-43E0-BED9-BD6D6202437E",
+        "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF",
         {
           "scalar" : {
             "_0" : 20000
           }
         },
-        "5AF03A28-29B3-4065-80AA-910D96516953",
+        "B0540F4B-CE03-4DC4-80C8-E867182F7621",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        },
+        "915EA852-237E-46CC-951A-89111BE56C7A",
         {
           "scalar" : {
             "_0" : 20000
           }
         }
       ],
-      "id" : "macro-0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0-97F079A3-9F1B-6BF8-CEED-6C6C4023E0EC",
+      "id" : "macro-915EA852-237E-46CC-951A-89111BE56C7A-C6BD5800-F22E-0DE1-DD14-28FC1EDC888B",
       "maxValue" : 20000,
       "minValue" : 20,
       "name" : "Filter Cutoff",
       "target" : {
         "macroParam" : {
-          "bindingID" : "97F079A3-9F1B-6BF8-CEED-6C6C4023E0EC",
-          "trackID" : "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0"
+          "bindingID" : "C6BD5800-F22E-0DE1-DD14-28FC1EDC888B",
+          "trackID" : "915EA852-237E-46CC-951A-89111BE56C7A"
         }
       },
       "valueType" : "scalar"
     },
     {
       "defaults" : [
-        "6A64DA66-89FC-47DC-95C4-097F0FD17983",
-        {
-          "scalar" : {
-            "_0" : 0
-          }
-        },
-        "5AF03A28-29B3-4065-80AA-910D96516953",
-        {
-          "scalar" : {
-            "_0" : 0
-          }
-        },
-        "EAFA6CC2-B430-43E0-BED9-BD6D6202437E",
-        {
-          "scalar" : {
-            "_0" : 0
-          }
-        },
-        "94A74063-98B8-4E8C-B03F-FA423D1EB80C",
+        "8D64B506-C2C1-42FD-84BD-07A25C8A37B4",
         {
           "scalar" : {
             "_0" : 0
@@ -2196,103 +2432,121 @@
             "_0" : 0
           }
         },
-        "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931",
+        "3E278E83-D398-46F3-8F33-4E8C66214D9A",
         {
           "scalar" : {
             "_0" : 0
           }
         },
-        "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0",
+        "8E5B89B6-57E7-46BB-84DC-9FB75D468409",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "3F8ECDAD-6A32-4046-8568-29248C5BC54E",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "B0540F4B-CE03-4DC4-80C8-E867182F7621",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "915EA852-237E-46CC-951A-89111BE56C7A",
         {
           "scalar" : {
             "_0" : 0
           }
         }
       ],
-      "id" : "macro-5AF03A28-29B3-4065-80AA-910D96516953-22E92158-92FD-0101-8983-8584F10C8EE7",
+      "id" : "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-9E847A44-B7F9-912E-A156-D80668F04347",
       "maxValue" : 1,
       "minValue" : 0,
       "name" : "Sample Start",
       "target" : {
         "macroParam" : {
-          "bindingID" : "22E92158-92FD-0101-8983-8584F10C8EE7",
-          "trackID" : "5AF03A28-29B3-4065-80AA-910D96516953"
+          "bindingID" : "9E847A44-B7F9-912E-A156-D80668F04347",
+          "trackID" : "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
         }
       },
       "valueType" : "scalar"
     },
     {
       "defaults" : [
+        "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        },
+        "3E278E83-D398-46F3-8F33-4E8C66214D9A",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        },
+        "B0540F4B-CE03-4DC4-80C8-E867182F7621",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        },
+        "8D64B506-C2C1-42FD-84BD-07A25C8A37B4",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        },
         "11111111-1111-1111-1111-111111111111",
         {
           "scalar" : {
             "_0" : 1
           }
         },
-        "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931",
+        "915EA852-237E-46CC-951A-89111BE56C7A",
         {
           "scalar" : {
             "_0" : 1
           }
         },
-        "94A74063-98B8-4E8C-B03F-FA423D1EB80C",
+        "8E5B89B6-57E7-46BB-84DC-9FB75D468409",
         {
           "scalar" : {
             "_0" : 1
           }
         },
-        "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0",
-        {
-          "scalar" : {
-            "_0" : 1
-          }
-        },
-        "6A64DA66-89FC-47DC-95C4-097F0FD17983",
-        {
-          "scalar" : {
-            "_0" : 1
-          }
-        },
-        "EAFA6CC2-B430-43E0-BED9-BD6D6202437E",
-        {
-          "scalar" : {
-            "_0" : 1
-          }
-        },
-        "5AF03A28-29B3-4065-80AA-910D96516953",
+        "3F8ECDAD-6A32-4046-8568-29248C5BC54E",
         {
           "scalar" : {
             "_0" : 1
           }
         }
       ],
-      "id" : "macro-5AF03A28-29B3-4065-80AA-910D96516953-BABB7D81-6F85-02E1-2C4C-94854CBE30A1",
+      "id" : "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-D2849DC4-5348-19E4-4420-E706C4A39801",
       "maxValue" : 1,
       "minValue" : 0,
       "name" : "Sample Length",
       "target" : {
         "macroParam" : {
-          "bindingID" : "BABB7D81-6F85-02E1-2C4C-94854CBE30A1",
-          "trackID" : "5AF03A28-29B3-4065-80AA-910D96516953"
+          "bindingID" : "D2849DC4-5348-19E4-4420-E706C4A39801",
+          "trackID" : "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
         }
       },
       "valueType" : "scalar"
     },
     {
       "defaults" : [
-        "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0",
-        {
-          "scalar" : {
-            "_0" : 20000
-          }
-        },
-        "94A74063-98B8-4E8C-B03F-FA423D1EB80C",
-        {
-          "scalar" : {
-            "_0" : 20000
-          }
-        },
-        "6A64DA66-89FC-47DC-95C4-097F0FD17983",
+        "915EA852-237E-46CC-951A-89111BE56C7A",
         {
           "scalar" : {
             "_0" : 20000
@@ -2304,121 +2558,157 @@
             "_0" : 20000
           }
         },
-        "5AF03A28-29B3-4065-80AA-910D96516953",
+        "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF",
         {
           "scalar" : {
             "_0" : 20000
           }
         },
-        "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931",
+        "8E5B89B6-57E7-46BB-84DC-9FB75D468409",
         {
           "scalar" : {
             "_0" : 20000
           }
         },
-        "EAFA6CC2-B430-43E0-BED9-BD6D6202437E",
+        "3E278E83-D398-46F3-8F33-4E8C66214D9A",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        },
+        "B0540F4B-CE03-4DC4-80C8-E867182F7621",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        },
+        "3F8ECDAD-6A32-4046-8568-29248C5BC54E",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        },
+        "8D64B506-C2C1-42FD-84BD-07A25C8A37B4",
         {
           "scalar" : {
             "_0" : 20000
           }
         }
       ],
-      "id" : "macro-5AF03A28-29B3-4065-80AA-910D96516953-627E0C5F-F406-D12B-6BD4-C08AB5188BBC",
+      "id" : "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-CBD163E2-AADF-0968-C163-1AC3E200B75C",
       "maxValue" : 20000,
       "minValue" : 20,
       "name" : "Filter Cutoff",
       "target" : {
         "macroParam" : {
-          "bindingID" : "627E0C5F-F406-D12B-6BD4-C08AB5188BBC",
-          "trackID" : "5AF03A28-29B3-4065-80AA-910D96516953"
+          "bindingID" : "CBD163E2-AADF-0968-C163-1AC3E200B75C",
+          "trackID" : "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
         }
       },
       "valueType" : "scalar"
     },
     {
       "defaults" : [
+        "915EA852-237E-46CC-951A-89111BE56C7A",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "8E5B89B6-57E7-46BB-84DC-9FB75D468409",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "3F8ECDAD-6A32-4046-8568-29248C5BC54E",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "3E278E83-D398-46F3-8F33-4E8C66214D9A",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "B0540F4B-CE03-4DC4-80C8-E867182F7621",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
         "11111111-1111-1111-1111-111111111111",
         {
           "scalar" : {
             "_0" : 0
           }
         },
-        "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0",
+        "8D64B506-C2C1-42FD-84BD-07A25C8A37B4",
         {
           "scalar" : {
             "_0" : 0
           }
         },
-        "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931",
-        {
-          "scalar" : {
-            "_0" : 0
-          }
-        },
-        "94A74063-98B8-4E8C-B03F-FA423D1EB80C",
-        {
-          "scalar" : {
-            "_0" : 0
-          }
-        },
-        "6A64DA66-89FC-47DC-95C4-097F0FD17983",
-        {
-          "scalar" : {
-            "_0" : 0
-          }
-        },
-        "EAFA6CC2-B430-43E0-BED9-BD6D6202437E",
-        {
-          "scalar" : {
-            "_0" : 0
-          }
-        },
-        "5AF03A28-29B3-4065-80AA-910D96516953",
+        "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF",
         {
           "scalar" : {
             "_0" : 0
           }
         }
       ],
-      "id" : "macro-94A74063-98B8-4E8C-B03F-FA423D1EB80C-EFDF6B78-640C-F236-5DEA-9F942D848B1C",
+      "id" : "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-18A100DE-40B7-8B4B-031C-70C51FEAF9C7",
       "maxValue" : 1,
       "minValue" : 0,
       "name" : "Sample Start",
       "target" : {
         "macroParam" : {
-          "bindingID" : "EFDF6B78-640C-F236-5DEA-9F942D848B1C",
-          "trackID" : "94A74063-98B8-4E8C-B03F-FA423D1EB80C"
+          "bindingID" : "18A100DE-40B7-8B4B-031C-70C51FEAF9C7",
+          "trackID" : "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
         }
       },
       "valueType" : "scalar"
     },
     {
       "defaults" : [
-        "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0",
+        "8E5B89B6-57E7-46BB-84DC-9FB75D468409",
         {
           "scalar" : {
             "_0" : 1
           }
         },
-        "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931",
+        "3F8ECDAD-6A32-4046-8568-29248C5BC54E",
         {
           "scalar" : {
             "_0" : 1
           }
         },
-        "94A74063-98B8-4E8C-B03F-FA423D1EB80C",
+        "B0540F4B-CE03-4DC4-80C8-E867182F7621",
         {
           "scalar" : {
             "_0" : 1
           }
         },
-        "EAFA6CC2-B430-43E0-BED9-BD6D6202437E",
+        "3E278E83-D398-46F3-8F33-4E8C66214D9A",
         {
           "scalar" : {
             "_0" : 1
           }
         },
-        "5AF03A28-29B3-4065-80AA-910D96516953",
+        "915EA852-237E-46CC-951A-89111BE56C7A",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        },
+        "8D64B506-C2C1-42FD-84BD-07A25C8A37B4",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        },
+        "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF",
         {
           "scalar" : {
             "_0" : 1
@@ -2429,86 +2719,110 @@
           "scalar" : {
             "_0" : 1
           }
-        },
-        "6A64DA66-89FC-47DC-95C4-097F0FD17983",
-        {
-          "scalar" : {
-            "_0" : 1
-          }
         }
       ],
-      "id" : "macro-94A74063-98B8-4E8C-B03F-FA423D1EB80C-36109092-530B-C2AC-976A-F493BD4A9076",
+      "id" : "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-00BFE7A7-A6EC-10DF-A5E6-7FC57B9E4E81",
       "maxValue" : 1,
       "minValue" : 0,
       "name" : "Sample Length",
       "target" : {
         "macroParam" : {
-          "bindingID" : "36109092-530B-C2AC-976A-F493BD4A9076",
-          "trackID" : "94A74063-98B8-4E8C-B03F-FA423D1EB80C"
+          "bindingID" : "00BFE7A7-A6EC-10DF-A5E6-7FC57B9E4E81",
+          "trackID" : "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
         }
       },
       "valueType" : "scalar"
     },
     {
       "defaults" : [
+        "915EA852-237E-46CC-951A-89111BE56C7A",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        },
+        "8D64B506-C2C1-42FD-84BD-07A25C8A37B4",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        },
+        "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        },
+        "3F8ECDAD-6A32-4046-8568-29248C5BC54E",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        },
         "11111111-1111-1111-1111-111111111111",
         {
           "scalar" : {
             "_0" : 20000
           }
         },
-        "5AF03A28-29B3-4065-80AA-910D96516953",
+        "B0540F4B-CE03-4DC4-80C8-E867182F7621",
         {
           "scalar" : {
             "_0" : 20000
           }
         },
-        "EAFA6CC2-B430-43E0-BED9-BD6D6202437E",
+        "3E278E83-D398-46F3-8F33-4E8C66214D9A",
         {
           "scalar" : {
             "_0" : 20000
           }
         },
-        "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0",
-        {
-          "scalar" : {
-            "_0" : 20000
-          }
-        },
-        "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931",
-        {
-          "scalar" : {
-            "_0" : 20000
-          }
-        },
-        "94A74063-98B8-4E8C-B03F-FA423D1EB80C",
-        {
-          "scalar" : {
-            "_0" : 20000
-          }
-        },
-        "6A64DA66-89FC-47DC-95C4-097F0FD17983",
+        "8E5B89B6-57E7-46BB-84DC-9FB75D468409",
         {
           "scalar" : {
             "_0" : 20000
           }
         }
       ],
-      "id" : "macro-94A74063-98B8-4E8C-B03F-FA423D1EB80C-64AB9218-A763-0880-6F0E-E26B73602123",
+      "id" : "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-2BC420AE-9DF5-A5B5-D2E2-7C606C8815DC",
       "maxValue" : 20000,
       "minValue" : 20,
       "name" : "Filter Cutoff",
       "target" : {
         "macroParam" : {
-          "bindingID" : "64AB9218-A763-0880-6F0E-E26B73602123",
-          "trackID" : "94A74063-98B8-4E8C-B03F-FA423D1EB80C"
+          "bindingID" : "2BC420AE-9DF5-A5B5-D2E2-7C606C8815DC",
+          "trackID" : "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
         }
       },
       "valueType" : "scalar"
     },
     {
       "defaults" : [
-        "EAFA6CC2-B430-43E0-BED9-BD6D6202437E",
+        "8E5B89B6-57E7-46BB-84DC-9FB75D468409",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "3F8ECDAD-6A32-4046-8568-29248C5BC54E",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "8D64B506-C2C1-42FD-84BD-07A25C8A37B4",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "3E278E83-D398-46F3-8F33-4E8C66214D9A",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "B0540F4B-CE03-4DC4-80C8-E867182F7621",
         {
           "scalar" : {
             "_0" : 0
@@ -2520,76 +2834,58 @@
             "_0" : 0
           }
         },
-        "5AF03A28-29B3-4065-80AA-910D96516953",
+        "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF",
         {
           "scalar" : {
             "_0" : 0
           }
         },
-        "6A64DA66-89FC-47DC-95C4-097F0FD17983",
-        {
-          "scalar" : {
-            "_0" : 0
-          }
-        },
-        "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931",
-        {
-          "scalar" : {
-            "_0" : 0
-          }
-        },
-        "94A74063-98B8-4E8C-B03F-FA423D1EB80C",
-        {
-          "scalar" : {
-            "_0" : 0
-          }
-        },
-        "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0",
+        "915EA852-237E-46CC-951A-89111BE56C7A",
         {
           "scalar" : {
             "_0" : 0
           }
         }
       ],
-      "id" : "macro-5B325040-ADF7-4AD5-BA97-DA1FCD9C8931-B0DAAA1F-7053-05A8-9318-4E68C8261739",
+      "id" : "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-A388CCC7-06F6-C47A-8661-51FB9A97B424",
       "maxValue" : 1,
       "minValue" : 0,
       "name" : "Sample Start",
       "target" : {
         "macroParam" : {
-          "bindingID" : "B0DAAA1F-7053-05A8-9318-4E68C8261739",
-          "trackID" : "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931"
+          "bindingID" : "A388CCC7-06F6-C47A-8661-51FB9A97B424",
+          "trackID" : "3E278E83-D398-46F3-8F33-4E8C66214D9A"
         }
       },
       "valueType" : "scalar"
     },
     {
       "defaults" : [
-        "5AF03A28-29B3-4065-80AA-910D96516953",
+        "8E5B89B6-57E7-46BB-84DC-9FB75D468409",
         {
           "scalar" : {
             "_0" : 1
           }
         },
-        "EAFA6CC2-B430-43E0-BED9-BD6D6202437E",
+        "915EA852-237E-46CC-951A-89111BE56C7A",
         {
           "scalar" : {
             "_0" : 1
           }
         },
-        "6A64DA66-89FC-47DC-95C4-097F0FD17983",
+        "8D64B506-C2C1-42FD-84BD-07A25C8A37B4",
         {
           "scalar" : {
             "_0" : 1
           }
         },
-        "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931",
+        "3F8ECDAD-6A32-4046-8568-29248C5BC54E",
         {
           "scalar" : {
             "_0" : 1
           }
         },
-        "94A74063-98B8-4E8C-B03F-FA423D1EB80C",
+        "B0540F4B-CE03-4DC4-80C8-E867182F7621",
         {
           "scalar" : {
             "_0" : 1
@@ -2601,91 +2897,109 @@
             "_0" : 1
           }
         },
-        "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0",
+        "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        },
+        "3E278E83-D398-46F3-8F33-4E8C66214D9A",
         {
           "scalar" : {
             "_0" : 1
           }
         }
       ],
-      "id" : "macro-5B325040-ADF7-4AD5-BA97-DA1FCD9C8931-6A75B86C-3102-6322-5D0B-09693B4DE06B",
+      "id" : "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-6BFDBD31-2927-AF30-48FD-36FB779B1BBE",
       "maxValue" : 1,
       "minValue" : 0,
       "name" : "Sample Length",
       "target" : {
         "macroParam" : {
-          "bindingID" : "6A75B86C-3102-6322-5D0B-09693B4DE06B",
-          "trackID" : "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931"
+          "bindingID" : "6BFDBD31-2927-AF30-48FD-36FB779B1BBE",
+          "trackID" : "3E278E83-D398-46F3-8F33-4E8C66214D9A"
         }
       },
       "valueType" : "scalar"
     },
     {
       "defaults" : [
-        "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931",
-        {
-          "scalar" : {
-            "_0" : 20000
-          }
-        },
-        "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0",
-        {
-          "scalar" : {
-            "_0" : 20000
-          }
-        },
-        "94A74063-98B8-4E8C-B03F-FA423D1EB80C",
-        {
-          "scalar" : {
-            "_0" : 20000
-          }
-        },
-        "EAFA6CC2-B430-43E0-BED9-BD6D6202437E",
-        {
-          "scalar" : {
-            "_0" : 20000
-          }
-        },
-        "6A64DA66-89FC-47DC-95C4-097F0FD17983",
-        {
-          "scalar" : {
-            "_0" : 20000
-          }
-        },
         "11111111-1111-1111-1111-111111111111",
         {
           "scalar" : {
             "_0" : 20000
           }
         },
-        "5AF03A28-29B3-4065-80AA-910D96516953",
+        "B0540F4B-CE03-4DC4-80C8-E867182F7621",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        },
+        "915EA852-237E-46CC-951A-89111BE56C7A",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        },
+        "8E5B89B6-57E7-46BB-84DC-9FB75D468409",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        },
+        "3F8ECDAD-6A32-4046-8568-29248C5BC54E",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        },
+        "8D64B506-C2C1-42FD-84BD-07A25C8A37B4",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        },
+        "3E278E83-D398-46F3-8F33-4E8C66214D9A",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        },
+        "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF",
         {
           "scalar" : {
             "_0" : 20000
           }
         }
       ],
-      "id" : "macro-5B325040-ADF7-4AD5-BA97-DA1FCD9C8931-8578939E-5A79-2A7A-3D67-F808C0371222",
+      "id" : "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-4D96D481-CA46-3184-A4C6-491E86EED56B",
       "maxValue" : 20000,
       "minValue" : 20,
       "name" : "Filter Cutoff",
       "target" : {
         "macroParam" : {
-          "bindingID" : "8578939E-5A79-2A7A-3D67-F808C0371222",
-          "trackID" : "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931"
+          "bindingID" : "4D96D481-CA46-3184-A4C6-491E86EED56B",
+          "trackID" : "3E278E83-D398-46F3-8F33-4E8C66214D9A"
         }
       },
       "valueType" : "scalar"
     },
     {
       "defaults" : [
-        "EAFA6CC2-B430-43E0-BED9-BD6D6202437E",
+        "3E278E83-D398-46F3-8F33-4E8C66214D9A",
         {
           "scalar" : {
             "_0" : 0
           }
         },
-        "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0",
+        "8E5B89B6-57E7-46BB-84DC-9FB75D468409",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "3F8ECDAD-6A32-4046-8568-29248C5BC54E",
         {
           "scalar" : {
             "_0" : 0
@@ -2697,76 +3011,46 @@
             "_0" : 0
           }
         },
-        "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931",
+        "8D64B506-C2C1-42FD-84BD-07A25C8A37B4",
         {
           "scalar" : {
             "_0" : 0
           }
         },
-        "6A64DA66-89FC-47DC-95C4-097F0FD17983",
+        "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF",
         {
           "scalar" : {
             "_0" : 0
           }
         },
-        "94A74063-98B8-4E8C-B03F-FA423D1EB80C",
+        "915EA852-237E-46CC-951A-89111BE56C7A",
         {
           "scalar" : {
             "_0" : 0
           }
         },
-        "5AF03A28-29B3-4065-80AA-910D96516953",
+        "B0540F4B-CE03-4DC4-80C8-E867182F7621",
         {
           "scalar" : {
             "_0" : 0
           }
         }
       ],
-      "id" : "macro-0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0-3F3D97A6-9672-625E-903F-BCAF19AE7A97",
+      "id" : "macro-915EA852-237E-46CC-951A-89111BE56C7A-E0A0F5F1-B82F-28B7-B8A6-47FADCD02704",
       "maxValue" : 1,
       "minValue" : 0,
       "name" : "Sample Start",
       "target" : {
         "macroParam" : {
-          "bindingID" : "3F3D97A6-9672-625E-903F-BCAF19AE7A97",
-          "trackID" : "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0"
+          "bindingID" : "E0A0F5F1-B82F-28B7-B8A6-47FADCD02704",
+          "trackID" : "915EA852-237E-46CC-951A-89111BE56C7A"
         }
       },
       "valueType" : "scalar"
     },
     {
       "defaults" : [
-        "EAFA6CC2-B430-43E0-BED9-BD6D6202437E",
-        {
-          "scalar" : {
-            "_0" : 1
-          }
-        },
-        "6A64DA66-89FC-47DC-95C4-097F0FD17983",
-        {
-          "scalar" : {
-            "_0" : 1
-          }
-        },
-        "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0",
-        {
-          "scalar" : {
-            "_0" : 1
-          }
-        },
-        "5AF03A28-29B3-4065-80AA-910D96516953",
-        {
-          "scalar" : {
-            "_0" : 1
-          }
-        },
-        "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931",
-        {
-          "scalar" : {
-            "_0" : 1
-          }
-        },
-        "94A74063-98B8-4E8C-B03F-FA423D1EB80C",
+        "8D64B506-C2C1-42FD-84BD-07A25C8A37B4",
         {
           "scalar" : {
             "_0" : 1
@@ -2777,35 +3061,71 @@
           "scalar" : {
             "_0" : 1
           }
+        },
+        "B0540F4B-CE03-4DC4-80C8-E867182F7621",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        },
+        "3E278E83-D398-46F3-8F33-4E8C66214D9A",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        },
+        "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        },
+        "8E5B89B6-57E7-46BB-84DC-9FB75D468409",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        },
+        "915EA852-237E-46CC-951A-89111BE56C7A",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        },
+        "3F8ECDAD-6A32-4046-8568-29248C5BC54E",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
         }
       ],
-      "id" : "macro-0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0-7C589B11-F8A8-FFF4-2066-ABAEDA8BEBF1",
+      "id" : "macro-915EA852-237E-46CC-951A-89111BE56C7A-62D303BC-41EB-E16B-7EA8-2CFABCB6B79E",
       "maxValue" : 1,
       "minValue" : 0,
       "name" : "Sample Length",
       "target" : {
         "macroParam" : {
-          "bindingID" : "7C589B11-F8A8-FFF4-2066-ABAEDA8BEBF1",
-          "trackID" : "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0"
+          "bindingID" : "62D303BC-41EB-E16B-7EA8-2CFABCB6B79E",
+          "trackID" : "915EA852-237E-46CC-951A-89111BE56C7A"
         }
       },
       "valueType" : "scalar"
     },
     {
       "defaults" : [
-        "94A74063-98B8-4E8C-B03F-FA423D1EB80C",
+        "3F8ECDAD-6A32-4046-8568-29248C5BC54E",
         {
           "scalar" : {
             "_0" : 20000
           }
         },
-        "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931",
+        "3E278E83-D398-46F3-8F33-4E8C66214D9A",
         {
           "scalar" : {
             "_0" : 20000
           }
         },
-        "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0",
+        "8E5B89B6-57E7-46BB-84DC-9FB75D468409",
         {
           "scalar" : {
             "_0" : 20000
@@ -2817,52 +3137,58 @@
             "_0" : 20000
           }
         },
-        "6A64DA66-89FC-47DC-95C4-097F0FD17983",
+        "8D64B506-C2C1-42FD-84BD-07A25C8A37B4",
         {
           "scalar" : {
             "_0" : 20000
           }
         },
-        "EAFA6CC2-B430-43E0-BED9-BD6D6202437E",
+        "915EA852-237E-46CC-951A-89111BE56C7A",
         {
           "scalar" : {
             "_0" : 20000
           }
         },
-        "5AF03A28-29B3-4065-80AA-910D96516953",
+        "B0540F4B-CE03-4DC4-80C8-E867182F7621",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        },
+        "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF",
         {
           "scalar" : {
             "_0" : 20000
           }
         }
       ],
-      "id" : "macro-0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0-97F079A3-9F1B-6BF8-CEED-6C6C4023E0EC",
+      "id" : "macro-915EA852-237E-46CC-951A-89111BE56C7A-C6BD5800-F22E-0DE1-DD14-28FC1EDC888B",
       "maxValue" : 20000,
       "minValue" : 20,
       "name" : "Filter Cutoff",
       "target" : {
         "macroParam" : {
-          "bindingID" : "97F079A3-9F1B-6BF8-CEED-6C6C4023E0EC",
-          "trackID" : "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0"
+          "bindingID" : "C6BD5800-F22E-0DE1-DD14-28FC1EDC888B",
+          "trackID" : "915EA852-237E-46CC-951A-89111BE56C7A"
         }
       },
       "valueType" : "scalar"
     },
     {
       "defaults" : [
-        "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931",
+        "8D64B506-C2C1-42FD-84BD-07A25C8A37B4",
         {
           "scalar" : {
             "_0" : 0
           }
         },
-        "EAFA6CC2-B430-43E0-BED9-BD6D6202437E",
+        "915EA852-237E-46CC-951A-89111BE56C7A",
         {
           "scalar" : {
             "_0" : 0
           }
         },
-        "5AF03A28-29B3-4065-80AA-910D96516953",
+        "8E5B89B6-57E7-46BB-84DC-9FB75D468409",
         {
           "scalar" : {
             "_0" : 0
@@ -2874,58 +3200,76 @@
             "_0" : 0
           }
         },
-        "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0",
+        "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF",
         {
           "scalar" : {
             "_0" : 0
           }
         },
-        "6A64DA66-89FC-47DC-95C4-097F0FD17983",
+        "3E278E83-D398-46F3-8F33-4E8C66214D9A",
         {
           "scalar" : {
             "_0" : 0
           }
         },
-        "94A74063-98B8-4E8C-B03F-FA423D1EB80C",
+        "B0540F4B-CE03-4DC4-80C8-E867182F7621",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "3F8ECDAD-6A32-4046-8568-29248C5BC54E",
         {
           "scalar" : {
             "_0" : 0
           }
         }
       ],
-      "id" : "macro-5AF03A28-29B3-4065-80AA-910D96516953-22E92158-92FD-0101-8983-8584F10C8EE7",
+      "id" : "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-9E847A44-B7F9-912E-A156-D80668F04347",
       "maxValue" : 1,
       "minValue" : 0,
       "name" : "Sample Start",
       "target" : {
         "macroParam" : {
-          "bindingID" : "22E92158-92FD-0101-8983-8584F10C8EE7",
-          "trackID" : "5AF03A28-29B3-4065-80AA-910D96516953"
+          "bindingID" : "9E847A44-B7F9-912E-A156-D80668F04347",
+          "trackID" : "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
         }
       },
       "valueType" : "scalar"
     },
     {
       "defaults" : [
-        "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0",
+        "8D64B506-C2C1-42FD-84BD-07A25C8A37B4",
         {
           "scalar" : {
             "_0" : 1
           }
         },
-        "6A64DA66-89FC-47DC-95C4-097F0FD17983",
+        "3E278E83-D398-46F3-8F33-4E8C66214D9A",
         {
           "scalar" : {
             "_0" : 1
           }
         },
-        "EAFA6CC2-B430-43E0-BED9-BD6D6202437E",
+        "8E5B89B6-57E7-46BB-84DC-9FB75D468409",
         {
           "scalar" : {
             "_0" : 1
           }
         },
-        "94A74063-98B8-4E8C-B03F-FA423D1EB80C",
+        "3F8ECDAD-6A32-4046-8568-29248C5BC54E",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        },
+        "B0540F4B-CE03-4DC4-80C8-E867182F7621",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        },
+        "915EA852-237E-46CC-951A-89111BE56C7A",
         {
           "scalar" : {
             "_0" : 1
@@ -2937,255 +3281,273 @@
             "_0" : 1
           }
         },
-        "5AF03A28-29B3-4065-80AA-910D96516953",
-        {
-          "scalar" : {
-            "_0" : 1
-          }
-        },
-        "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931",
+        "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF",
         {
           "scalar" : {
             "_0" : 1
           }
         }
       ],
-      "id" : "macro-5AF03A28-29B3-4065-80AA-910D96516953-BABB7D81-6F85-02E1-2C4C-94854CBE30A1",
+      "id" : "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-D2849DC4-5348-19E4-4420-E706C4A39801",
       "maxValue" : 1,
       "minValue" : 0,
       "name" : "Sample Length",
       "target" : {
         "macroParam" : {
-          "bindingID" : "BABB7D81-6F85-02E1-2C4C-94854CBE30A1",
-          "trackID" : "5AF03A28-29B3-4065-80AA-910D96516953"
+          "bindingID" : "D2849DC4-5348-19E4-4420-E706C4A39801",
+          "trackID" : "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
         }
       },
       "valueType" : "scalar"
     },
     {
       "defaults" : [
-        "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931",
-        {
-          "scalar" : {
-            "_0" : 20000
-          }
-        },
-        "94A74063-98B8-4E8C-B03F-FA423D1EB80C",
-        {
-          "scalar" : {
-            "_0" : 20000
-          }
-        },
-        "EAFA6CC2-B430-43E0-BED9-BD6D6202437E",
-        {
-          "scalar" : {
-            "_0" : 20000
-          }
-        },
-        "6A64DA66-89FC-47DC-95C4-097F0FD17983",
-        {
-          "scalar" : {
-            "_0" : 20000
-          }
-        },
-        "5AF03A28-29B3-4065-80AA-910D96516953",
-        {
-          "scalar" : {
-            "_0" : 20000
-          }
-        },
-        "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0",
-        {
-          "scalar" : {
-            "_0" : 20000
-          }
-        },
         "11111111-1111-1111-1111-111111111111",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        },
+        "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        },
+        "915EA852-237E-46CC-951A-89111BE56C7A",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        },
+        "3F8ECDAD-6A32-4046-8568-29248C5BC54E",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        },
+        "3E278E83-D398-46F3-8F33-4E8C66214D9A",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        },
+        "B0540F4B-CE03-4DC4-80C8-E867182F7621",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        },
+        "8D64B506-C2C1-42FD-84BD-07A25C8A37B4",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        },
+        "8E5B89B6-57E7-46BB-84DC-9FB75D468409",
         {
           "scalar" : {
             "_0" : 20000
           }
         }
       ],
-      "id" : "macro-5AF03A28-29B3-4065-80AA-910D96516953-627E0C5F-F406-D12B-6BD4-C08AB5188BBC",
+      "id" : "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-CBD163E2-AADF-0968-C163-1AC3E200B75C",
       "maxValue" : 20000,
       "minValue" : 20,
       "name" : "Filter Cutoff",
       "target" : {
         "macroParam" : {
-          "bindingID" : "627E0C5F-F406-D12B-6BD4-C08AB5188BBC",
-          "trackID" : "5AF03A28-29B3-4065-80AA-910D96516953"
+          "bindingID" : "CBD163E2-AADF-0968-C163-1AC3E200B75C",
+          "trackID" : "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
         }
       },
       "valueType" : "scalar"
     },
     {
       "defaults" : [
-        "5AF03A28-29B3-4065-80AA-910D96516953",
-        {
-          "scalar" : {
-            "_0" : 0
-          }
-        },
-        "6A64DA66-89FC-47DC-95C4-097F0FD17983",
-        {
-          "scalar" : {
-            "_0" : 0
-          }
-        },
-        "EAFA6CC2-B430-43E0-BED9-BD6D6202437E",
-        {
-          "scalar" : {
-            "_0" : 0
-          }
-        },
-        "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0",
-        {
-          "scalar" : {
-            "_0" : 0
-          }
-        },
-        "94A74063-98B8-4E8C-B03F-FA423D1EB80C",
-        {
-          "scalar" : {
-            "_0" : 0
-          }
-        },
-        "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931",
-        {
-          "scalar" : {
-            "_0" : 0
-          }
-        },
         "11111111-1111-1111-1111-111111111111",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "3E278E83-D398-46F3-8F33-4E8C66214D9A",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "8D64B506-C2C1-42FD-84BD-07A25C8A37B4",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "8E5B89B6-57E7-46BB-84DC-9FB75D468409",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "915EA852-237E-46CC-951A-89111BE56C7A",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "3F8ECDAD-6A32-4046-8568-29248C5BC54E",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "B0540F4B-CE03-4DC4-80C8-E867182F7621",
+        {
+          "scalar" : {
+            "_0" : 0
+          }
+        },
+        "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF",
         {
           "scalar" : {
             "_0" : 0
           }
         }
       ],
-      "id" : "macro-94A74063-98B8-4E8C-B03F-FA423D1EB80C-EFDF6B78-640C-F236-5DEA-9F942D848B1C",
+      "id" : "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-18A100DE-40B7-8B4B-031C-70C51FEAF9C7",
       "maxValue" : 1,
       "minValue" : 0,
       "name" : "Sample Start",
       "target" : {
         "macroParam" : {
-          "bindingID" : "EFDF6B78-640C-F236-5DEA-9F942D848B1C",
-          "trackID" : "94A74063-98B8-4E8C-B03F-FA423D1EB80C"
+          "bindingID" : "18A100DE-40B7-8B4B-031C-70C51FEAF9C7",
+          "trackID" : "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
         }
       },
       "valueType" : "scalar"
     },
     {
       "defaults" : [
-        "94A74063-98B8-4E8C-B03F-FA423D1EB80C",
-        {
-          "scalar" : {
-            "_0" : 1
-          }
-        },
-        "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931",
-        {
-          "scalar" : {
-            "_0" : 1
-          }
-        },
-        "6A64DA66-89FC-47DC-95C4-097F0FD17983",
-        {
-          "scalar" : {
-            "_0" : 1
-          }
-        },
-        "5AF03A28-29B3-4065-80AA-910D96516953",
-        {
-          "scalar" : {
-            "_0" : 1
-          }
-        },
         "11111111-1111-1111-1111-111111111111",
         {
           "scalar" : {
             "_0" : 1
           }
         },
-        "EAFA6CC2-B430-43E0-BED9-BD6D6202437E",
+        "8D64B506-C2C1-42FD-84BD-07A25C8A37B4",
         {
           "scalar" : {
             "_0" : 1
           }
         },
-        "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0",
+        "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        },
+        "3E278E83-D398-46F3-8F33-4E8C66214D9A",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        },
+        "8E5B89B6-57E7-46BB-84DC-9FB75D468409",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        },
+        "B0540F4B-CE03-4DC4-80C8-E867182F7621",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        },
+        "915EA852-237E-46CC-951A-89111BE56C7A",
+        {
+          "scalar" : {
+            "_0" : 1
+          }
+        },
+        "3F8ECDAD-6A32-4046-8568-29248C5BC54E",
         {
           "scalar" : {
             "_0" : 1
           }
         }
       ],
-      "id" : "macro-94A74063-98B8-4E8C-B03F-FA423D1EB80C-36109092-530B-C2AC-976A-F493BD4A9076",
+      "id" : "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-00BFE7A7-A6EC-10DF-A5E6-7FC57B9E4E81",
       "maxValue" : 1,
       "minValue" : 0,
       "name" : "Sample Length",
       "target" : {
         "macroParam" : {
-          "bindingID" : "36109092-530B-C2AC-976A-F493BD4A9076",
-          "trackID" : "94A74063-98B8-4E8C-B03F-FA423D1EB80C"
+          "bindingID" : "00BFE7A7-A6EC-10DF-A5E6-7FC57B9E4E81",
+          "trackID" : "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
         }
       },
       "valueType" : "scalar"
     },
     {
       "defaults" : [
-        "6A64DA66-89FC-47DC-95C4-097F0FD17983",
-        {
-          "scalar" : {
-            "_0" : 20000
-          }
-        },
         "11111111-1111-1111-1111-111111111111",
         {
           "scalar" : {
             "_0" : 20000
           }
         },
-        "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0",
+        "3F8ECDAD-6A32-4046-8568-29248C5BC54E",
         {
           "scalar" : {
             "_0" : 20000
           }
         },
-        "94A74063-98B8-4E8C-B03F-FA423D1EB80C",
+        "8D64B506-C2C1-42FD-84BD-07A25C8A37B4",
         {
           "scalar" : {
             "_0" : 20000
           }
         },
-        "5AF03A28-29B3-4065-80AA-910D96516953",
+        "3E278E83-D398-46F3-8F33-4E8C66214D9A",
         {
           "scalar" : {
             "_0" : 20000
           }
         },
-        "EAFA6CC2-B430-43E0-BED9-BD6D6202437E",
+        "915EA852-237E-46CC-951A-89111BE56C7A",
         {
           "scalar" : {
             "_0" : 20000
           }
         },
-        "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931",
+        "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        },
+        "B0540F4B-CE03-4DC4-80C8-E867182F7621",
+        {
+          "scalar" : {
+            "_0" : 20000
+          }
+        },
+        "8E5B89B6-57E7-46BB-84DC-9FB75D468409",
         {
           "scalar" : {
             "_0" : 20000
           }
         }
       ],
-      "id" : "macro-94A74063-98B8-4E8C-B03F-FA423D1EB80C-64AB9218-A763-0880-6F0E-E26B73602123",
+      "id" : "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-2BC420AE-9DF5-A5B5-D2E2-7C606C8815DC",
       "maxValue" : 20000,
       "minValue" : 20,
       "name" : "Filter Cutoff",
       "target" : {
         "macroParam" : {
-          "bindingID" : "64AB9218-A763-0880-6F0E-E26B73602123",
-          "trackID" : "94A74063-98B8-4E8C-B03F-FA423D1EB80C"
+          "bindingID" : "2BC420AE-9DF5-A5B5-D2E2-7C606C8815DC",
+          "trackID" : "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
         }
       },
       "valueType" : "scalar"
@@ -3233,7 +3595,7 @@
         {
           "slotIndex" : 0,
           "sourceRef" : {
-            "clipID" : "F2F468C8-42DA-4DCF-83F4-4399A47307D5",
+            "clipID" : "D956A2B3-4E44-4DB3-982E-EB3FB5891609",
             "mode" : "clip",
             "modifierBypassed" : false,
             "modifierGeneratorID" : null
@@ -3367,7 +3729,7 @@
         {
           "slotIndex" : 0,
           "sourceRef" : {
-            "clipID" : "242671FB-23CC-4B6B-BA58-71CF85DACA73",
+            "clipID" : "100D37DA-BB56-4E4B-B3F4-784C43A75629",
             "mode" : "clip",
             "modifierBypassed" : false,
             "modifierGeneratorID" : null
@@ -3494,14 +3856,14 @@
           }
         }
       ],
-      "trackID" : "EAFA6CC2-B430-43E0-BED9-BD6D6202437E"
+      "trackID" : "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF"
     },
     {
       "slots" : [
         {
           "slotIndex" : 0,
           "sourceRef" : {
-            "clipID" : "D656A0DE-58F2-4093-B710-031F26575C98",
+            "clipID" : "57A979D1-2BD2-4DB5-9422-FA82D221F091",
             "mode" : "clip",
             "modifierBypassed" : false,
             "modifierGeneratorID" : null
@@ -3628,14 +3990,14 @@
           }
         }
       ],
-      "trackID" : "6A64DA66-89FC-47DC-95C4-097F0FD17983"
+      "trackID" : "B0540F4B-CE03-4DC4-80C8-E867182F7621"
     },
     {
       "slots" : [
         {
           "slotIndex" : 0,
           "sourceRef" : {
-            "clipID" : "C0890DE5-C19A-4B8F-A369-7F074B861285",
+            "clipID" : "3AFEAD61-2E7F-4335-99A7-0A07346E1F6E",
             "mode" : "clip",
             "modifierBypassed" : false,
             "modifierGeneratorID" : null
@@ -3762,14 +4124,14 @@
           }
         }
       ],
-      "trackID" : "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931"
+      "trackID" : "3E278E83-D398-46F3-8F33-4E8C66214D9A"
     },
     {
       "slots" : [
         {
           "slotIndex" : 0,
           "sourceRef" : {
-            "clipID" : "AB45FBD1-F659-48DB-B0C4-DC6FE2BF504A",
+            "clipID" : "93B8AB19-921D-42AF-9E92-5EC4A4B2A756",
             "mode" : "clip",
             "modifierBypassed" : false,
             "modifierGeneratorID" : null
@@ -3896,14 +4258,14 @@
           }
         }
       ],
-      "trackID" : "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0"
+      "trackID" : "915EA852-237E-46CC-951A-89111BE56C7A"
     },
     {
       "slots" : [
         {
           "slotIndex" : 0,
           "sourceRef" : {
-            "clipID" : "E2893027-6F3F-4D43-8FBC-49629EB87506",
+            "clipID" : "5D474102-74B5-4501-9647-523B8852ACC4",
             "mode" : "clip",
             "modifierBypassed" : false,
             "modifierGeneratorID" : null
@@ -4030,14 +4392,14 @@
           }
         }
       ],
-      "trackID" : "5AF03A28-29B3-4065-80AA-910D96516953"
+      "trackID" : "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
     },
     {
       "slots" : [
         {
           "slotIndex" : 0,
           "sourceRef" : {
-            "clipID" : "6C150B52-D3BE-4BD2-8F36-42D24DA36790",
+            "clipID" : "BDBC8ED4-442B-48B2-8FC5-DA5033FDD05D",
             "mode" : "clip",
             "modifierBypassed" : false,
             "modifierGeneratorID" : null
@@ -4164,7 +4526,141 @@
           }
         }
       ],
-      "trackID" : "94A74063-98B8-4E8C-B03F-FA423D1EB80C"
+      "trackID" : "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
+    },
+    {
+      "slots" : [
+        {
+          "slotIndex" : 0,
+          "sourceRef" : {
+            "clipID" : "B72EC61B-6101-4CBC-9860-F1FC878EB971",
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 1,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 2,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 3,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 4,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 5,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 6,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 7,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 8,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 9,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 10,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 11,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 12,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 13,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 14,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        },
+        {
+          "slotIndex" : 15,
+          "sourceRef" : {
+            "mode" : "clip",
+            "modifierBypassed" : false,
+            "modifierGeneratorID" : null
+          }
+        }
+      ],
+      "trackID" : "8D64B506-C2C1-42FD-84BD-07A25C8A37B4"
     }
   ],
   "phrases" : [
@@ -4186,7 +4682,7 @@
             }
           },
           "layerID" : "pattern",
-          "trackID" : "EAFA6CC2-B430-43E0-BED9-BD6D6202437E"
+          "trackID" : "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF"
         },
         {
           "cell" : {
@@ -4195,7 +4691,7 @@
             }
           },
           "layerID" : "pattern",
-          "trackID" : "6A64DA66-89FC-47DC-95C4-097F0FD17983"
+          "trackID" : "B0540F4B-CE03-4DC4-80C8-E867182F7621"
         },
         {
           "cell" : {
@@ -4204,7 +4700,7 @@
             }
           },
           "layerID" : "pattern",
-          "trackID" : "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931"
+          "trackID" : "3E278E83-D398-46F3-8F33-4E8C66214D9A"
         },
         {
           "cell" : {
@@ -4213,7 +4709,7 @@
             }
           },
           "layerID" : "pattern",
-          "trackID" : "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0"
+          "trackID" : "915EA852-237E-46CC-951A-89111BE56C7A"
         },
         {
           "cell" : {
@@ -4222,7 +4718,7 @@
             }
           },
           "layerID" : "pattern",
-          "trackID" : "5AF03A28-29B3-4065-80AA-910D96516953"
+          "trackID" : "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
         },
         {
           "cell" : {
@@ -4231,7 +4727,16 @@
             }
           },
           "layerID" : "pattern",
-          "trackID" : "94A74063-98B8-4E8C-B03F-FA423D1EB80C"
+          "trackID" : "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "pattern",
+          "trackID" : "8D64B506-C2C1-42FD-84BD-07A25C8A37B4"
         },
         {
           "cell" : {
@@ -4249,7 +4754,7 @@
             }
           },
           "layerID" : "mute",
-          "trackID" : "EAFA6CC2-B430-43E0-BED9-BD6D6202437E"
+          "trackID" : "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF"
         },
         {
           "cell" : {
@@ -4258,7 +4763,7 @@
             }
           },
           "layerID" : "mute",
-          "trackID" : "6A64DA66-89FC-47DC-95C4-097F0FD17983"
+          "trackID" : "B0540F4B-CE03-4DC4-80C8-E867182F7621"
         },
         {
           "cell" : {
@@ -4267,7 +4772,7 @@
             }
           },
           "layerID" : "mute",
-          "trackID" : "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931"
+          "trackID" : "3E278E83-D398-46F3-8F33-4E8C66214D9A"
         },
         {
           "cell" : {
@@ -4276,7 +4781,7 @@
             }
           },
           "layerID" : "mute",
-          "trackID" : "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0"
+          "trackID" : "915EA852-237E-46CC-951A-89111BE56C7A"
         },
         {
           "cell" : {
@@ -4285,7 +4790,7 @@
             }
           },
           "layerID" : "mute",
-          "trackID" : "5AF03A28-29B3-4065-80AA-910D96516953"
+          "trackID" : "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
         },
         {
           "cell" : {
@@ -4294,7 +4799,16 @@
             }
           },
           "layerID" : "mute",
-          "trackID" : "94A74063-98B8-4E8C-B03F-FA423D1EB80C"
+          "trackID" : "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "mute",
+          "trackID" : "8D64B506-C2C1-42FD-84BD-07A25C8A37B4"
         },
         {
           "cell" : {
@@ -4312,7 +4826,7 @@
             }
           },
           "layerID" : "volume",
-          "trackID" : "EAFA6CC2-B430-43E0-BED9-BD6D6202437E"
+          "trackID" : "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF"
         },
         {
           "cell" : {
@@ -4321,7 +4835,7 @@
             }
           },
           "layerID" : "volume",
-          "trackID" : "6A64DA66-89FC-47DC-95C4-097F0FD17983"
+          "trackID" : "B0540F4B-CE03-4DC4-80C8-E867182F7621"
         },
         {
           "cell" : {
@@ -4330,7 +4844,7 @@
             }
           },
           "layerID" : "volume",
-          "trackID" : "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931"
+          "trackID" : "3E278E83-D398-46F3-8F33-4E8C66214D9A"
         },
         {
           "cell" : {
@@ -4339,7 +4853,7 @@
             }
           },
           "layerID" : "volume",
-          "trackID" : "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0"
+          "trackID" : "915EA852-237E-46CC-951A-89111BE56C7A"
         },
         {
           "cell" : {
@@ -4348,7 +4862,7 @@
             }
           },
           "layerID" : "volume",
-          "trackID" : "5AF03A28-29B3-4065-80AA-910D96516953"
+          "trackID" : "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
         },
         {
           "cell" : {
@@ -4357,7 +4871,16 @@
             }
           },
           "layerID" : "volume",
-          "trackID" : "94A74063-98B8-4E8C-B03F-FA423D1EB80C"
+          "trackID" : "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "volume",
+          "trackID" : "8D64B506-C2C1-42FD-84BD-07A25C8A37B4"
         },
         {
           "cell" : {
@@ -4375,7 +4898,7 @@
             }
           },
           "layerID" : "transpose",
-          "trackID" : "EAFA6CC2-B430-43E0-BED9-BD6D6202437E"
+          "trackID" : "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF"
         },
         {
           "cell" : {
@@ -4384,7 +4907,7 @@
             }
           },
           "layerID" : "transpose",
-          "trackID" : "6A64DA66-89FC-47DC-95C4-097F0FD17983"
+          "trackID" : "B0540F4B-CE03-4DC4-80C8-E867182F7621"
         },
         {
           "cell" : {
@@ -4393,7 +4916,7 @@
             }
           },
           "layerID" : "transpose",
-          "trackID" : "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931"
+          "trackID" : "3E278E83-D398-46F3-8F33-4E8C66214D9A"
         },
         {
           "cell" : {
@@ -4402,7 +4925,7 @@
             }
           },
           "layerID" : "transpose",
-          "trackID" : "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0"
+          "trackID" : "915EA852-237E-46CC-951A-89111BE56C7A"
         },
         {
           "cell" : {
@@ -4411,7 +4934,7 @@
             }
           },
           "layerID" : "transpose",
-          "trackID" : "5AF03A28-29B3-4065-80AA-910D96516953"
+          "trackID" : "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
         },
         {
           "cell" : {
@@ -4420,7 +4943,16 @@
             }
           },
           "layerID" : "transpose",
-          "trackID" : "94A74063-98B8-4E8C-B03F-FA423D1EB80C"
+          "trackID" : "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "transpose",
+          "trackID" : "8D64B506-C2C1-42FD-84BD-07A25C8A37B4"
         },
         {
           "cell" : {
@@ -4438,7 +4970,7 @@
             }
           },
           "layerID" : "intensity",
-          "trackID" : "EAFA6CC2-B430-43E0-BED9-BD6D6202437E"
+          "trackID" : "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF"
         },
         {
           "cell" : {
@@ -4447,7 +4979,7 @@
             }
           },
           "layerID" : "intensity",
-          "trackID" : "6A64DA66-89FC-47DC-95C4-097F0FD17983"
+          "trackID" : "B0540F4B-CE03-4DC4-80C8-E867182F7621"
         },
         {
           "cell" : {
@@ -4456,7 +4988,7 @@
             }
           },
           "layerID" : "intensity",
-          "trackID" : "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931"
+          "trackID" : "3E278E83-D398-46F3-8F33-4E8C66214D9A"
         },
         {
           "cell" : {
@@ -4465,7 +4997,7 @@
             }
           },
           "layerID" : "intensity",
-          "trackID" : "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0"
+          "trackID" : "915EA852-237E-46CC-951A-89111BE56C7A"
         },
         {
           "cell" : {
@@ -4474,7 +5006,7 @@
             }
           },
           "layerID" : "intensity",
-          "trackID" : "5AF03A28-29B3-4065-80AA-910D96516953"
+          "trackID" : "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
         },
         {
           "cell" : {
@@ -4483,7 +5015,16 @@
             }
           },
           "layerID" : "intensity",
-          "trackID" : "94A74063-98B8-4E8C-B03F-FA423D1EB80C"
+          "trackID" : "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "intensity",
+          "trackID" : "8D64B506-C2C1-42FD-84BD-07A25C8A37B4"
         },
         {
           "cell" : {
@@ -4501,7 +5042,7 @@
             }
           },
           "layerID" : "density",
-          "trackID" : "EAFA6CC2-B430-43E0-BED9-BD6D6202437E"
+          "trackID" : "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF"
         },
         {
           "cell" : {
@@ -4510,7 +5051,7 @@
             }
           },
           "layerID" : "density",
-          "trackID" : "6A64DA66-89FC-47DC-95C4-097F0FD17983"
+          "trackID" : "B0540F4B-CE03-4DC4-80C8-E867182F7621"
         },
         {
           "cell" : {
@@ -4519,7 +5060,7 @@
             }
           },
           "layerID" : "density",
-          "trackID" : "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931"
+          "trackID" : "3E278E83-D398-46F3-8F33-4E8C66214D9A"
         },
         {
           "cell" : {
@@ -4528,7 +5069,7 @@
             }
           },
           "layerID" : "density",
-          "trackID" : "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0"
+          "trackID" : "915EA852-237E-46CC-951A-89111BE56C7A"
         },
         {
           "cell" : {
@@ -4537,7 +5078,7 @@
             }
           },
           "layerID" : "density",
-          "trackID" : "5AF03A28-29B3-4065-80AA-910D96516953"
+          "trackID" : "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
         },
         {
           "cell" : {
@@ -4546,7 +5087,16 @@
             }
           },
           "layerID" : "density",
-          "trackID" : "94A74063-98B8-4E8C-B03F-FA423D1EB80C"
+          "trackID" : "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "density",
+          "trackID" : "8D64B506-C2C1-42FD-84BD-07A25C8A37B4"
         },
         {
           "cell" : {
@@ -4564,7 +5114,7 @@
             }
           },
           "layerID" : "tension",
-          "trackID" : "EAFA6CC2-B430-43E0-BED9-BD6D6202437E"
+          "trackID" : "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF"
         },
         {
           "cell" : {
@@ -4573,7 +5123,7 @@
             }
           },
           "layerID" : "tension",
-          "trackID" : "6A64DA66-89FC-47DC-95C4-097F0FD17983"
+          "trackID" : "B0540F4B-CE03-4DC4-80C8-E867182F7621"
         },
         {
           "cell" : {
@@ -4582,7 +5132,7 @@
             }
           },
           "layerID" : "tension",
-          "trackID" : "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931"
+          "trackID" : "3E278E83-D398-46F3-8F33-4E8C66214D9A"
         },
         {
           "cell" : {
@@ -4591,7 +5141,7 @@
             }
           },
           "layerID" : "tension",
-          "trackID" : "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0"
+          "trackID" : "915EA852-237E-46CC-951A-89111BE56C7A"
         },
         {
           "cell" : {
@@ -4600,7 +5150,7 @@
             }
           },
           "layerID" : "tension",
-          "trackID" : "5AF03A28-29B3-4065-80AA-910D96516953"
+          "trackID" : "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
         },
         {
           "cell" : {
@@ -4609,7 +5159,16 @@
             }
           },
           "layerID" : "tension",
-          "trackID" : "94A74063-98B8-4E8C-B03F-FA423D1EB80C"
+          "trackID" : "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "tension",
+          "trackID" : "8D64B506-C2C1-42FD-84BD-07A25C8A37B4"
         },
         {
           "cell" : {
@@ -4627,7 +5186,7 @@
             }
           },
           "layerID" : "register",
-          "trackID" : "EAFA6CC2-B430-43E0-BED9-BD6D6202437E"
+          "trackID" : "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF"
         },
         {
           "cell" : {
@@ -4636,7 +5195,7 @@
             }
           },
           "layerID" : "register",
-          "trackID" : "6A64DA66-89FC-47DC-95C4-097F0FD17983"
+          "trackID" : "B0540F4B-CE03-4DC4-80C8-E867182F7621"
         },
         {
           "cell" : {
@@ -4645,7 +5204,7 @@
             }
           },
           "layerID" : "register",
-          "trackID" : "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931"
+          "trackID" : "3E278E83-D398-46F3-8F33-4E8C66214D9A"
         },
         {
           "cell" : {
@@ -4654,7 +5213,7 @@
             }
           },
           "layerID" : "register",
-          "trackID" : "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0"
+          "trackID" : "915EA852-237E-46CC-951A-89111BE56C7A"
         },
         {
           "cell" : {
@@ -4663,7 +5222,7 @@
             }
           },
           "layerID" : "register",
-          "trackID" : "5AF03A28-29B3-4065-80AA-910D96516953"
+          "trackID" : "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
         },
         {
           "cell" : {
@@ -4672,7 +5231,16 @@
             }
           },
           "layerID" : "register",
-          "trackID" : "94A74063-98B8-4E8C-B03F-FA423D1EB80C"
+          "trackID" : "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "register",
+          "trackID" : "8D64B506-C2C1-42FD-84BD-07A25C8A37B4"
         },
         {
           "cell" : {
@@ -4690,7 +5258,7 @@
             }
           },
           "layerID" : "variance",
-          "trackID" : "EAFA6CC2-B430-43E0-BED9-BD6D6202437E"
+          "trackID" : "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF"
         },
         {
           "cell" : {
@@ -4699,7 +5267,7 @@
             }
           },
           "layerID" : "variance",
-          "trackID" : "6A64DA66-89FC-47DC-95C4-097F0FD17983"
+          "trackID" : "B0540F4B-CE03-4DC4-80C8-E867182F7621"
         },
         {
           "cell" : {
@@ -4708,7 +5276,7 @@
             }
           },
           "layerID" : "variance",
-          "trackID" : "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931"
+          "trackID" : "3E278E83-D398-46F3-8F33-4E8C66214D9A"
         },
         {
           "cell" : {
@@ -4717,7 +5285,7 @@
             }
           },
           "layerID" : "variance",
-          "trackID" : "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0"
+          "trackID" : "915EA852-237E-46CC-951A-89111BE56C7A"
         },
         {
           "cell" : {
@@ -4726,7 +5294,7 @@
             }
           },
           "layerID" : "variance",
-          "trackID" : "5AF03A28-29B3-4065-80AA-910D96516953"
+          "trackID" : "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
         },
         {
           "cell" : {
@@ -4735,7 +5303,16 @@
             }
           },
           "layerID" : "variance",
-          "trackID" : "94A74063-98B8-4E8C-B03F-FA423D1EB80C"
+          "trackID" : "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "variance",
+          "trackID" : "8D64B506-C2C1-42FD-84BD-07A25C8A37B4"
         },
         {
           "cell" : {
@@ -4753,7 +5330,7 @@
             }
           },
           "layerID" : "fx-send",
-          "trackID" : "EAFA6CC2-B430-43E0-BED9-BD6D6202437E"
+          "trackID" : "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF"
         },
         {
           "cell" : {
@@ -4762,7 +5339,7 @@
             }
           },
           "layerID" : "fx-send",
-          "trackID" : "6A64DA66-89FC-47DC-95C4-097F0FD17983"
+          "trackID" : "B0540F4B-CE03-4DC4-80C8-E867182F7621"
         },
         {
           "cell" : {
@@ -4771,7 +5348,7 @@
             }
           },
           "layerID" : "fx-send",
-          "trackID" : "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931"
+          "trackID" : "3E278E83-D398-46F3-8F33-4E8C66214D9A"
         },
         {
           "cell" : {
@@ -4780,7 +5357,7 @@
             }
           },
           "layerID" : "fx-send",
-          "trackID" : "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0"
+          "trackID" : "915EA852-237E-46CC-951A-89111BE56C7A"
         },
         {
           "cell" : {
@@ -4789,7 +5366,7 @@
             }
           },
           "layerID" : "fx-send",
-          "trackID" : "5AF03A28-29B3-4065-80AA-910D96516953"
+          "trackID" : "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
         },
         {
           "cell" : {
@@ -4798,7 +5375,16 @@
             }
           },
           "layerID" : "fx-send",
-          "trackID" : "94A74063-98B8-4E8C-B03F-FA423D1EB80C"
+          "trackID" : "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "fx-send",
+          "trackID" : "8D64B506-C2C1-42FD-84BD-07A25C8A37B4"
         },
         {
           "cell" : {
@@ -4816,7 +5402,7 @@
             }
           },
           "layerID" : "brightness",
-          "trackID" : "EAFA6CC2-B430-43E0-BED9-BD6D6202437E"
+          "trackID" : "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF"
         },
         {
           "cell" : {
@@ -4825,7 +5411,7 @@
             }
           },
           "layerID" : "brightness",
-          "trackID" : "6A64DA66-89FC-47DC-95C4-097F0FD17983"
+          "trackID" : "B0540F4B-CE03-4DC4-80C8-E867182F7621"
         },
         {
           "cell" : {
@@ -4834,7 +5420,7 @@
             }
           },
           "layerID" : "brightness",
-          "trackID" : "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931"
+          "trackID" : "3E278E83-D398-46F3-8F33-4E8C66214D9A"
         },
         {
           "cell" : {
@@ -4843,7 +5429,7 @@
             }
           },
           "layerID" : "brightness",
-          "trackID" : "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0"
+          "trackID" : "915EA852-237E-46CC-951A-89111BE56C7A"
         },
         {
           "cell" : {
@@ -4852,7 +5438,7 @@
             }
           },
           "layerID" : "brightness",
-          "trackID" : "5AF03A28-29B3-4065-80AA-910D96516953"
+          "trackID" : "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
         },
         {
           "cell" : {
@@ -4861,7 +5447,16 @@
             }
           },
           "layerID" : "brightness",
-          "trackID" : "94A74063-98B8-4E8C-B03F-FA423D1EB80C"
+          "trackID" : "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "brightness",
+          "trackID" : "8D64B506-C2C1-42FD-84BD-07A25C8A37B4"
         },
         {
           "cell" : {
@@ -4879,7 +5474,7 @@
             }
           },
           "layerID" : "fill-flag",
-          "trackID" : "EAFA6CC2-B430-43E0-BED9-BD6D6202437E"
+          "trackID" : "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF"
         },
         {
           "cell" : {
@@ -4888,7 +5483,7 @@
             }
           },
           "layerID" : "fill-flag",
-          "trackID" : "6A64DA66-89FC-47DC-95C4-097F0FD17983"
+          "trackID" : "B0540F4B-CE03-4DC4-80C8-E867182F7621"
         },
         {
           "cell" : {
@@ -4897,7 +5492,7 @@
             }
           },
           "layerID" : "fill-flag",
-          "trackID" : "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931"
+          "trackID" : "3E278E83-D398-46F3-8F33-4E8C66214D9A"
         },
         {
           "cell" : {
@@ -4906,7 +5501,7 @@
             }
           },
           "layerID" : "fill-flag",
-          "trackID" : "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0"
+          "trackID" : "915EA852-237E-46CC-951A-89111BE56C7A"
         },
         {
           "cell" : {
@@ -4915,7 +5510,7 @@
             }
           },
           "layerID" : "fill-flag",
-          "trackID" : "5AF03A28-29B3-4065-80AA-910D96516953"
+          "trackID" : "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
         },
         {
           "cell" : {
@@ -4924,7 +5519,16 @@
             }
           },
           "layerID" : "fill-flag",
-          "trackID" : "94A74063-98B8-4E8C-B03F-FA423D1EB80C"
+          "trackID" : "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "fill-flag",
+          "trackID" : "8D64B506-C2C1-42FD-84BD-07A25C8A37B4"
         },
         {
           "cell" : {
@@ -4942,7 +5546,7 @@
             }
           },
           "layerID" : "swing",
-          "trackID" : "EAFA6CC2-B430-43E0-BED9-BD6D6202437E"
+          "trackID" : "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF"
         },
         {
           "cell" : {
@@ -4951,7 +5555,7 @@
             }
           },
           "layerID" : "swing",
-          "trackID" : "6A64DA66-89FC-47DC-95C4-097F0FD17983"
+          "trackID" : "B0540F4B-CE03-4DC4-80C8-E867182F7621"
         },
         {
           "cell" : {
@@ -4960,7 +5564,7 @@
             }
           },
           "layerID" : "swing",
-          "trackID" : "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931"
+          "trackID" : "3E278E83-D398-46F3-8F33-4E8C66214D9A"
         },
         {
           "cell" : {
@@ -4969,7 +5573,7 @@
             }
           },
           "layerID" : "swing",
-          "trackID" : "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0"
+          "trackID" : "915EA852-237E-46CC-951A-89111BE56C7A"
         },
         {
           "cell" : {
@@ -4978,7 +5582,7 @@
             }
           },
           "layerID" : "swing",
-          "trackID" : "5AF03A28-29B3-4065-80AA-910D96516953"
+          "trackID" : "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
         },
         {
           "cell" : {
@@ -4987,7 +5591,7 @@
             }
           },
           "layerID" : "swing",
-          "trackID" : "94A74063-98B8-4E8C-B03F-FA423D1EB80C"
+          "trackID" : "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
         },
         {
           "cell" : {
@@ -4995,7 +5599,16 @@
 
             }
           },
-          "layerID" : "macro-5B325040-ADF7-4AD5-BA97-DA1FCD9C8931-B0DAAA1F-7053-05A8-9318-4E68C8261739",
+          "layerID" : "swing",
+          "trackID" : "8D64B506-C2C1-42FD-84BD-07A25C8A37B4"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-A388CCC7-06F6-C47A-8661-51FB9A97B424",
           "trackID" : "11111111-1111-1111-1111-111111111111"
         },
         {
@@ -5004,8 +5617,8 @@
 
             }
           },
-          "layerID" : "macro-5B325040-ADF7-4AD5-BA97-DA1FCD9C8931-B0DAAA1F-7053-05A8-9318-4E68C8261739",
-          "trackID" : "EAFA6CC2-B430-43E0-BED9-BD6D6202437E"
+          "layerID" : "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-A388CCC7-06F6-C47A-8661-51FB9A97B424",
+          "trackID" : "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF"
         },
         {
           "cell" : {
@@ -5013,8 +5626,8 @@
 
             }
           },
-          "layerID" : "macro-5B325040-ADF7-4AD5-BA97-DA1FCD9C8931-B0DAAA1F-7053-05A8-9318-4E68C8261739",
-          "trackID" : "6A64DA66-89FC-47DC-95C4-097F0FD17983"
+          "layerID" : "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-A388CCC7-06F6-C47A-8661-51FB9A97B424",
+          "trackID" : "B0540F4B-CE03-4DC4-80C8-E867182F7621"
         },
         {
           "cell" : {
@@ -5022,8 +5635,8 @@
 
             }
           },
-          "layerID" : "macro-5B325040-ADF7-4AD5-BA97-DA1FCD9C8931-B0DAAA1F-7053-05A8-9318-4E68C8261739",
-          "trackID" : "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931"
+          "layerID" : "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-A388CCC7-06F6-C47A-8661-51FB9A97B424",
+          "trackID" : "3E278E83-D398-46F3-8F33-4E8C66214D9A"
         },
         {
           "cell" : {
@@ -5031,8 +5644,8 @@
 
             }
           },
-          "layerID" : "macro-5B325040-ADF7-4AD5-BA97-DA1FCD9C8931-B0DAAA1F-7053-05A8-9318-4E68C8261739",
-          "trackID" : "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0"
+          "layerID" : "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-A388CCC7-06F6-C47A-8661-51FB9A97B424",
+          "trackID" : "915EA852-237E-46CC-951A-89111BE56C7A"
         },
         {
           "cell" : {
@@ -5040,8 +5653,8 @@
 
             }
           },
-          "layerID" : "macro-5B325040-ADF7-4AD5-BA97-DA1FCD9C8931-B0DAAA1F-7053-05A8-9318-4E68C8261739",
-          "trackID" : "5AF03A28-29B3-4065-80AA-910D96516953"
+          "layerID" : "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-A388CCC7-06F6-C47A-8661-51FB9A97B424",
+          "trackID" : "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
         },
         {
           "cell" : {
@@ -5049,8 +5662,8 @@
 
             }
           },
-          "layerID" : "macro-5B325040-ADF7-4AD5-BA97-DA1FCD9C8931-B0DAAA1F-7053-05A8-9318-4E68C8261739",
-          "trackID" : "94A74063-98B8-4E8C-B03F-FA423D1EB80C"
+          "layerID" : "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-A388CCC7-06F6-C47A-8661-51FB9A97B424",
+          "trackID" : "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
         },
         {
           "cell" : {
@@ -5058,7 +5671,16 @@
 
             }
           },
-          "layerID" : "macro-5B325040-ADF7-4AD5-BA97-DA1FCD9C8931-6A75B86C-3102-6322-5D0B-09693B4DE06B",
+          "layerID" : "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-A388CCC7-06F6-C47A-8661-51FB9A97B424",
+          "trackID" : "8D64B506-C2C1-42FD-84BD-07A25C8A37B4"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-6BFDBD31-2927-AF30-48FD-36FB779B1BBE",
           "trackID" : "11111111-1111-1111-1111-111111111111"
         },
         {
@@ -5067,8 +5689,8 @@
 
             }
           },
-          "layerID" : "macro-5B325040-ADF7-4AD5-BA97-DA1FCD9C8931-6A75B86C-3102-6322-5D0B-09693B4DE06B",
-          "trackID" : "EAFA6CC2-B430-43E0-BED9-BD6D6202437E"
+          "layerID" : "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-6BFDBD31-2927-AF30-48FD-36FB779B1BBE",
+          "trackID" : "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF"
         },
         {
           "cell" : {
@@ -5076,8 +5698,8 @@
 
             }
           },
-          "layerID" : "macro-5B325040-ADF7-4AD5-BA97-DA1FCD9C8931-6A75B86C-3102-6322-5D0B-09693B4DE06B",
-          "trackID" : "6A64DA66-89FC-47DC-95C4-097F0FD17983"
+          "layerID" : "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-6BFDBD31-2927-AF30-48FD-36FB779B1BBE",
+          "trackID" : "B0540F4B-CE03-4DC4-80C8-E867182F7621"
         },
         {
           "cell" : {
@@ -5085,8 +5707,8 @@
 
             }
           },
-          "layerID" : "macro-5B325040-ADF7-4AD5-BA97-DA1FCD9C8931-6A75B86C-3102-6322-5D0B-09693B4DE06B",
-          "trackID" : "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931"
+          "layerID" : "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-6BFDBD31-2927-AF30-48FD-36FB779B1BBE",
+          "trackID" : "3E278E83-D398-46F3-8F33-4E8C66214D9A"
         },
         {
           "cell" : {
@@ -5094,8 +5716,8 @@
 
             }
           },
-          "layerID" : "macro-5B325040-ADF7-4AD5-BA97-DA1FCD9C8931-6A75B86C-3102-6322-5D0B-09693B4DE06B",
-          "trackID" : "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0"
+          "layerID" : "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-6BFDBD31-2927-AF30-48FD-36FB779B1BBE",
+          "trackID" : "915EA852-237E-46CC-951A-89111BE56C7A"
         },
         {
           "cell" : {
@@ -5103,8 +5725,8 @@
 
             }
           },
-          "layerID" : "macro-5B325040-ADF7-4AD5-BA97-DA1FCD9C8931-6A75B86C-3102-6322-5D0B-09693B4DE06B",
-          "trackID" : "5AF03A28-29B3-4065-80AA-910D96516953"
+          "layerID" : "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-6BFDBD31-2927-AF30-48FD-36FB779B1BBE",
+          "trackID" : "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
         },
         {
           "cell" : {
@@ -5112,8 +5734,8 @@
 
             }
           },
-          "layerID" : "macro-5B325040-ADF7-4AD5-BA97-DA1FCD9C8931-6A75B86C-3102-6322-5D0B-09693B4DE06B",
-          "trackID" : "94A74063-98B8-4E8C-B03F-FA423D1EB80C"
+          "layerID" : "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-6BFDBD31-2927-AF30-48FD-36FB779B1BBE",
+          "trackID" : "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
         },
         {
           "cell" : {
@@ -5121,7 +5743,16 @@
 
             }
           },
-          "layerID" : "macro-5B325040-ADF7-4AD5-BA97-DA1FCD9C8931-8578939E-5A79-2A7A-3D67-F808C0371222",
+          "layerID" : "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-6BFDBD31-2927-AF30-48FD-36FB779B1BBE",
+          "trackID" : "8D64B506-C2C1-42FD-84BD-07A25C8A37B4"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-4D96D481-CA46-3184-A4C6-491E86EED56B",
           "trackID" : "11111111-1111-1111-1111-111111111111"
         },
         {
@@ -5130,8 +5761,8 @@
 
             }
           },
-          "layerID" : "macro-5B325040-ADF7-4AD5-BA97-DA1FCD9C8931-8578939E-5A79-2A7A-3D67-F808C0371222",
-          "trackID" : "EAFA6CC2-B430-43E0-BED9-BD6D6202437E"
+          "layerID" : "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-4D96D481-CA46-3184-A4C6-491E86EED56B",
+          "trackID" : "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF"
         },
         {
           "cell" : {
@@ -5139,8 +5770,8 @@
 
             }
           },
-          "layerID" : "macro-5B325040-ADF7-4AD5-BA97-DA1FCD9C8931-8578939E-5A79-2A7A-3D67-F808C0371222",
-          "trackID" : "6A64DA66-89FC-47DC-95C4-097F0FD17983"
+          "layerID" : "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-4D96D481-CA46-3184-A4C6-491E86EED56B",
+          "trackID" : "B0540F4B-CE03-4DC4-80C8-E867182F7621"
         },
         {
           "cell" : {
@@ -5148,8 +5779,8 @@
 
             }
           },
-          "layerID" : "macro-5B325040-ADF7-4AD5-BA97-DA1FCD9C8931-8578939E-5A79-2A7A-3D67-F808C0371222",
-          "trackID" : "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931"
+          "layerID" : "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-4D96D481-CA46-3184-A4C6-491E86EED56B",
+          "trackID" : "3E278E83-D398-46F3-8F33-4E8C66214D9A"
         },
         {
           "cell" : {
@@ -5157,8 +5788,8 @@
 
             }
           },
-          "layerID" : "macro-5B325040-ADF7-4AD5-BA97-DA1FCD9C8931-8578939E-5A79-2A7A-3D67-F808C0371222",
-          "trackID" : "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0"
+          "layerID" : "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-4D96D481-CA46-3184-A4C6-491E86EED56B",
+          "trackID" : "915EA852-237E-46CC-951A-89111BE56C7A"
         },
         {
           "cell" : {
@@ -5166,8 +5797,8 @@
 
             }
           },
-          "layerID" : "macro-5B325040-ADF7-4AD5-BA97-DA1FCD9C8931-8578939E-5A79-2A7A-3D67-F808C0371222",
-          "trackID" : "5AF03A28-29B3-4065-80AA-910D96516953"
+          "layerID" : "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-4D96D481-CA46-3184-A4C6-491E86EED56B",
+          "trackID" : "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
         },
         {
           "cell" : {
@@ -5175,8 +5806,8 @@
 
             }
           },
-          "layerID" : "macro-5B325040-ADF7-4AD5-BA97-DA1FCD9C8931-8578939E-5A79-2A7A-3D67-F808C0371222",
-          "trackID" : "94A74063-98B8-4E8C-B03F-FA423D1EB80C"
+          "layerID" : "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-4D96D481-CA46-3184-A4C6-491E86EED56B",
+          "trackID" : "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
         },
         {
           "cell" : {
@@ -5184,7 +5815,16 @@
 
             }
           },
-          "layerID" : "macro-0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0-3F3D97A6-9672-625E-903F-BCAF19AE7A97",
+          "layerID" : "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-4D96D481-CA46-3184-A4C6-491E86EED56B",
+          "trackID" : "8D64B506-C2C1-42FD-84BD-07A25C8A37B4"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-915EA852-237E-46CC-951A-89111BE56C7A-E0A0F5F1-B82F-28B7-B8A6-47FADCD02704",
           "trackID" : "11111111-1111-1111-1111-111111111111"
         },
         {
@@ -5193,8 +5833,8 @@
 
             }
           },
-          "layerID" : "macro-0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0-3F3D97A6-9672-625E-903F-BCAF19AE7A97",
-          "trackID" : "EAFA6CC2-B430-43E0-BED9-BD6D6202437E"
+          "layerID" : "macro-915EA852-237E-46CC-951A-89111BE56C7A-E0A0F5F1-B82F-28B7-B8A6-47FADCD02704",
+          "trackID" : "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF"
         },
         {
           "cell" : {
@@ -5202,8 +5842,8 @@
 
             }
           },
-          "layerID" : "macro-0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0-3F3D97A6-9672-625E-903F-BCAF19AE7A97",
-          "trackID" : "6A64DA66-89FC-47DC-95C4-097F0FD17983"
+          "layerID" : "macro-915EA852-237E-46CC-951A-89111BE56C7A-E0A0F5F1-B82F-28B7-B8A6-47FADCD02704",
+          "trackID" : "B0540F4B-CE03-4DC4-80C8-E867182F7621"
         },
         {
           "cell" : {
@@ -5211,8 +5851,8 @@
 
             }
           },
-          "layerID" : "macro-0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0-3F3D97A6-9672-625E-903F-BCAF19AE7A97",
-          "trackID" : "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931"
+          "layerID" : "macro-915EA852-237E-46CC-951A-89111BE56C7A-E0A0F5F1-B82F-28B7-B8A6-47FADCD02704",
+          "trackID" : "3E278E83-D398-46F3-8F33-4E8C66214D9A"
         },
         {
           "cell" : {
@@ -5220,8 +5860,8 @@
 
             }
           },
-          "layerID" : "macro-0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0-3F3D97A6-9672-625E-903F-BCAF19AE7A97",
-          "trackID" : "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0"
+          "layerID" : "macro-915EA852-237E-46CC-951A-89111BE56C7A-E0A0F5F1-B82F-28B7-B8A6-47FADCD02704",
+          "trackID" : "915EA852-237E-46CC-951A-89111BE56C7A"
         },
         {
           "cell" : {
@@ -5229,8 +5869,8 @@
 
             }
           },
-          "layerID" : "macro-0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0-3F3D97A6-9672-625E-903F-BCAF19AE7A97",
-          "trackID" : "5AF03A28-29B3-4065-80AA-910D96516953"
+          "layerID" : "macro-915EA852-237E-46CC-951A-89111BE56C7A-E0A0F5F1-B82F-28B7-B8A6-47FADCD02704",
+          "trackID" : "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
         },
         {
           "cell" : {
@@ -5238,8 +5878,8 @@
 
             }
           },
-          "layerID" : "macro-0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0-3F3D97A6-9672-625E-903F-BCAF19AE7A97",
-          "trackID" : "94A74063-98B8-4E8C-B03F-FA423D1EB80C"
+          "layerID" : "macro-915EA852-237E-46CC-951A-89111BE56C7A-E0A0F5F1-B82F-28B7-B8A6-47FADCD02704",
+          "trackID" : "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
         },
         {
           "cell" : {
@@ -5247,7 +5887,16 @@
 
             }
           },
-          "layerID" : "macro-0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0-7C589B11-F8A8-FFF4-2066-ABAEDA8BEBF1",
+          "layerID" : "macro-915EA852-237E-46CC-951A-89111BE56C7A-E0A0F5F1-B82F-28B7-B8A6-47FADCD02704",
+          "trackID" : "8D64B506-C2C1-42FD-84BD-07A25C8A37B4"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-915EA852-237E-46CC-951A-89111BE56C7A-62D303BC-41EB-E16B-7EA8-2CFABCB6B79E",
           "trackID" : "11111111-1111-1111-1111-111111111111"
         },
         {
@@ -5256,8 +5905,8 @@
 
             }
           },
-          "layerID" : "macro-0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0-7C589B11-F8A8-FFF4-2066-ABAEDA8BEBF1",
-          "trackID" : "EAFA6CC2-B430-43E0-BED9-BD6D6202437E"
+          "layerID" : "macro-915EA852-237E-46CC-951A-89111BE56C7A-62D303BC-41EB-E16B-7EA8-2CFABCB6B79E",
+          "trackID" : "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF"
         },
         {
           "cell" : {
@@ -5265,8 +5914,8 @@
 
             }
           },
-          "layerID" : "macro-0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0-7C589B11-F8A8-FFF4-2066-ABAEDA8BEBF1",
-          "trackID" : "6A64DA66-89FC-47DC-95C4-097F0FD17983"
+          "layerID" : "macro-915EA852-237E-46CC-951A-89111BE56C7A-62D303BC-41EB-E16B-7EA8-2CFABCB6B79E",
+          "trackID" : "B0540F4B-CE03-4DC4-80C8-E867182F7621"
         },
         {
           "cell" : {
@@ -5274,8 +5923,8 @@
 
             }
           },
-          "layerID" : "macro-0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0-7C589B11-F8A8-FFF4-2066-ABAEDA8BEBF1",
-          "trackID" : "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931"
+          "layerID" : "macro-915EA852-237E-46CC-951A-89111BE56C7A-62D303BC-41EB-E16B-7EA8-2CFABCB6B79E",
+          "trackID" : "3E278E83-D398-46F3-8F33-4E8C66214D9A"
         },
         {
           "cell" : {
@@ -5283,8 +5932,8 @@
 
             }
           },
-          "layerID" : "macro-0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0-7C589B11-F8A8-FFF4-2066-ABAEDA8BEBF1",
-          "trackID" : "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0"
+          "layerID" : "macro-915EA852-237E-46CC-951A-89111BE56C7A-62D303BC-41EB-E16B-7EA8-2CFABCB6B79E",
+          "trackID" : "915EA852-237E-46CC-951A-89111BE56C7A"
         },
         {
           "cell" : {
@@ -5292,8 +5941,8 @@
 
             }
           },
-          "layerID" : "macro-0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0-7C589B11-F8A8-FFF4-2066-ABAEDA8BEBF1",
-          "trackID" : "5AF03A28-29B3-4065-80AA-910D96516953"
+          "layerID" : "macro-915EA852-237E-46CC-951A-89111BE56C7A-62D303BC-41EB-E16B-7EA8-2CFABCB6B79E",
+          "trackID" : "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
         },
         {
           "cell" : {
@@ -5301,8 +5950,8 @@
 
             }
           },
-          "layerID" : "macro-0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0-7C589B11-F8A8-FFF4-2066-ABAEDA8BEBF1",
-          "trackID" : "94A74063-98B8-4E8C-B03F-FA423D1EB80C"
+          "layerID" : "macro-915EA852-237E-46CC-951A-89111BE56C7A-62D303BC-41EB-E16B-7EA8-2CFABCB6B79E",
+          "trackID" : "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
         },
         {
           "cell" : {
@@ -5310,7 +5959,16 @@
 
             }
           },
-          "layerID" : "macro-0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0-97F079A3-9F1B-6BF8-CEED-6C6C4023E0EC",
+          "layerID" : "macro-915EA852-237E-46CC-951A-89111BE56C7A-62D303BC-41EB-E16B-7EA8-2CFABCB6B79E",
+          "trackID" : "8D64B506-C2C1-42FD-84BD-07A25C8A37B4"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-915EA852-237E-46CC-951A-89111BE56C7A-C6BD5800-F22E-0DE1-DD14-28FC1EDC888B",
           "trackID" : "11111111-1111-1111-1111-111111111111"
         },
         {
@@ -5319,8 +5977,8 @@
 
             }
           },
-          "layerID" : "macro-0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0-97F079A3-9F1B-6BF8-CEED-6C6C4023E0EC",
-          "trackID" : "EAFA6CC2-B430-43E0-BED9-BD6D6202437E"
+          "layerID" : "macro-915EA852-237E-46CC-951A-89111BE56C7A-C6BD5800-F22E-0DE1-DD14-28FC1EDC888B",
+          "trackID" : "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF"
         },
         {
           "cell" : {
@@ -5328,8 +5986,8 @@
 
             }
           },
-          "layerID" : "macro-0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0-97F079A3-9F1B-6BF8-CEED-6C6C4023E0EC",
-          "trackID" : "6A64DA66-89FC-47DC-95C4-097F0FD17983"
+          "layerID" : "macro-915EA852-237E-46CC-951A-89111BE56C7A-C6BD5800-F22E-0DE1-DD14-28FC1EDC888B",
+          "trackID" : "B0540F4B-CE03-4DC4-80C8-E867182F7621"
         },
         {
           "cell" : {
@@ -5337,8 +5995,8 @@
 
             }
           },
-          "layerID" : "macro-0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0-97F079A3-9F1B-6BF8-CEED-6C6C4023E0EC",
-          "trackID" : "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931"
+          "layerID" : "macro-915EA852-237E-46CC-951A-89111BE56C7A-C6BD5800-F22E-0DE1-DD14-28FC1EDC888B",
+          "trackID" : "3E278E83-D398-46F3-8F33-4E8C66214D9A"
         },
         {
           "cell" : {
@@ -5346,8 +6004,8 @@
 
             }
           },
-          "layerID" : "macro-0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0-97F079A3-9F1B-6BF8-CEED-6C6C4023E0EC",
-          "trackID" : "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0"
+          "layerID" : "macro-915EA852-237E-46CC-951A-89111BE56C7A-C6BD5800-F22E-0DE1-DD14-28FC1EDC888B",
+          "trackID" : "915EA852-237E-46CC-951A-89111BE56C7A"
         },
         {
           "cell" : {
@@ -5355,8 +6013,8 @@
 
             }
           },
-          "layerID" : "macro-0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0-97F079A3-9F1B-6BF8-CEED-6C6C4023E0EC",
-          "trackID" : "5AF03A28-29B3-4065-80AA-910D96516953"
+          "layerID" : "macro-915EA852-237E-46CC-951A-89111BE56C7A-C6BD5800-F22E-0DE1-DD14-28FC1EDC888B",
+          "trackID" : "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
         },
         {
           "cell" : {
@@ -5364,8 +6022,8 @@
 
             }
           },
-          "layerID" : "macro-0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0-97F079A3-9F1B-6BF8-CEED-6C6C4023E0EC",
-          "trackID" : "94A74063-98B8-4E8C-B03F-FA423D1EB80C"
+          "layerID" : "macro-915EA852-237E-46CC-951A-89111BE56C7A-C6BD5800-F22E-0DE1-DD14-28FC1EDC888B",
+          "trackID" : "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
         },
         {
           "cell" : {
@@ -5373,7 +6031,16 @@
 
             }
           },
-          "layerID" : "macro-5AF03A28-29B3-4065-80AA-910D96516953-22E92158-92FD-0101-8983-8584F10C8EE7",
+          "layerID" : "macro-915EA852-237E-46CC-951A-89111BE56C7A-C6BD5800-F22E-0DE1-DD14-28FC1EDC888B",
+          "trackID" : "8D64B506-C2C1-42FD-84BD-07A25C8A37B4"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-9E847A44-B7F9-912E-A156-D80668F04347",
           "trackID" : "11111111-1111-1111-1111-111111111111"
         },
         {
@@ -5382,8 +6049,8 @@
 
             }
           },
-          "layerID" : "macro-5AF03A28-29B3-4065-80AA-910D96516953-22E92158-92FD-0101-8983-8584F10C8EE7",
-          "trackID" : "EAFA6CC2-B430-43E0-BED9-BD6D6202437E"
+          "layerID" : "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-9E847A44-B7F9-912E-A156-D80668F04347",
+          "trackID" : "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF"
         },
         {
           "cell" : {
@@ -5391,8 +6058,8 @@
 
             }
           },
-          "layerID" : "macro-5AF03A28-29B3-4065-80AA-910D96516953-22E92158-92FD-0101-8983-8584F10C8EE7",
-          "trackID" : "6A64DA66-89FC-47DC-95C4-097F0FD17983"
+          "layerID" : "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-9E847A44-B7F9-912E-A156-D80668F04347",
+          "trackID" : "B0540F4B-CE03-4DC4-80C8-E867182F7621"
         },
         {
           "cell" : {
@@ -5400,8 +6067,8 @@
 
             }
           },
-          "layerID" : "macro-5AF03A28-29B3-4065-80AA-910D96516953-22E92158-92FD-0101-8983-8584F10C8EE7",
-          "trackID" : "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931"
+          "layerID" : "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-9E847A44-B7F9-912E-A156-D80668F04347",
+          "trackID" : "3E278E83-D398-46F3-8F33-4E8C66214D9A"
         },
         {
           "cell" : {
@@ -5409,8 +6076,8 @@
 
             }
           },
-          "layerID" : "macro-5AF03A28-29B3-4065-80AA-910D96516953-22E92158-92FD-0101-8983-8584F10C8EE7",
-          "trackID" : "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0"
+          "layerID" : "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-9E847A44-B7F9-912E-A156-D80668F04347",
+          "trackID" : "915EA852-237E-46CC-951A-89111BE56C7A"
         },
         {
           "cell" : {
@@ -5418,8 +6085,8 @@
 
             }
           },
-          "layerID" : "macro-5AF03A28-29B3-4065-80AA-910D96516953-22E92158-92FD-0101-8983-8584F10C8EE7",
-          "trackID" : "5AF03A28-29B3-4065-80AA-910D96516953"
+          "layerID" : "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-9E847A44-B7F9-912E-A156-D80668F04347",
+          "trackID" : "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
         },
         {
           "cell" : {
@@ -5427,8 +6094,8 @@
 
             }
           },
-          "layerID" : "macro-5AF03A28-29B3-4065-80AA-910D96516953-22E92158-92FD-0101-8983-8584F10C8EE7",
-          "trackID" : "94A74063-98B8-4E8C-B03F-FA423D1EB80C"
+          "layerID" : "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-9E847A44-B7F9-912E-A156-D80668F04347",
+          "trackID" : "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
         },
         {
           "cell" : {
@@ -5436,7 +6103,16 @@
 
             }
           },
-          "layerID" : "macro-5AF03A28-29B3-4065-80AA-910D96516953-BABB7D81-6F85-02E1-2C4C-94854CBE30A1",
+          "layerID" : "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-9E847A44-B7F9-912E-A156-D80668F04347",
+          "trackID" : "8D64B506-C2C1-42FD-84BD-07A25C8A37B4"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-D2849DC4-5348-19E4-4420-E706C4A39801",
           "trackID" : "11111111-1111-1111-1111-111111111111"
         },
         {
@@ -5445,8 +6121,8 @@
 
             }
           },
-          "layerID" : "macro-5AF03A28-29B3-4065-80AA-910D96516953-BABB7D81-6F85-02E1-2C4C-94854CBE30A1",
-          "trackID" : "EAFA6CC2-B430-43E0-BED9-BD6D6202437E"
+          "layerID" : "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-D2849DC4-5348-19E4-4420-E706C4A39801",
+          "trackID" : "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF"
         },
         {
           "cell" : {
@@ -5454,8 +6130,8 @@
 
             }
           },
-          "layerID" : "macro-5AF03A28-29B3-4065-80AA-910D96516953-BABB7D81-6F85-02E1-2C4C-94854CBE30A1",
-          "trackID" : "6A64DA66-89FC-47DC-95C4-097F0FD17983"
+          "layerID" : "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-D2849DC4-5348-19E4-4420-E706C4A39801",
+          "trackID" : "B0540F4B-CE03-4DC4-80C8-E867182F7621"
         },
         {
           "cell" : {
@@ -5463,8 +6139,8 @@
 
             }
           },
-          "layerID" : "macro-5AF03A28-29B3-4065-80AA-910D96516953-BABB7D81-6F85-02E1-2C4C-94854CBE30A1",
-          "trackID" : "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931"
+          "layerID" : "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-D2849DC4-5348-19E4-4420-E706C4A39801",
+          "trackID" : "3E278E83-D398-46F3-8F33-4E8C66214D9A"
         },
         {
           "cell" : {
@@ -5472,8 +6148,8 @@
 
             }
           },
-          "layerID" : "macro-5AF03A28-29B3-4065-80AA-910D96516953-BABB7D81-6F85-02E1-2C4C-94854CBE30A1",
-          "trackID" : "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0"
+          "layerID" : "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-D2849DC4-5348-19E4-4420-E706C4A39801",
+          "trackID" : "915EA852-237E-46CC-951A-89111BE56C7A"
         },
         {
           "cell" : {
@@ -5481,8 +6157,8 @@
 
             }
           },
-          "layerID" : "macro-5AF03A28-29B3-4065-80AA-910D96516953-BABB7D81-6F85-02E1-2C4C-94854CBE30A1",
-          "trackID" : "5AF03A28-29B3-4065-80AA-910D96516953"
+          "layerID" : "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-D2849DC4-5348-19E4-4420-E706C4A39801",
+          "trackID" : "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
         },
         {
           "cell" : {
@@ -5490,8 +6166,8 @@
 
             }
           },
-          "layerID" : "macro-5AF03A28-29B3-4065-80AA-910D96516953-BABB7D81-6F85-02E1-2C4C-94854CBE30A1",
-          "trackID" : "94A74063-98B8-4E8C-B03F-FA423D1EB80C"
+          "layerID" : "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-D2849DC4-5348-19E4-4420-E706C4A39801",
+          "trackID" : "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
         },
         {
           "cell" : {
@@ -5499,7 +6175,16 @@
 
             }
           },
-          "layerID" : "macro-5AF03A28-29B3-4065-80AA-910D96516953-627E0C5F-F406-D12B-6BD4-C08AB5188BBC",
+          "layerID" : "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-D2849DC4-5348-19E4-4420-E706C4A39801",
+          "trackID" : "8D64B506-C2C1-42FD-84BD-07A25C8A37B4"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-CBD163E2-AADF-0968-C163-1AC3E200B75C",
           "trackID" : "11111111-1111-1111-1111-111111111111"
         },
         {
@@ -5508,8 +6193,8 @@
 
             }
           },
-          "layerID" : "macro-5AF03A28-29B3-4065-80AA-910D96516953-627E0C5F-F406-D12B-6BD4-C08AB5188BBC",
-          "trackID" : "EAFA6CC2-B430-43E0-BED9-BD6D6202437E"
+          "layerID" : "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-CBD163E2-AADF-0968-C163-1AC3E200B75C",
+          "trackID" : "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF"
         },
         {
           "cell" : {
@@ -5517,8 +6202,8 @@
 
             }
           },
-          "layerID" : "macro-5AF03A28-29B3-4065-80AA-910D96516953-627E0C5F-F406-D12B-6BD4-C08AB5188BBC",
-          "trackID" : "6A64DA66-89FC-47DC-95C4-097F0FD17983"
+          "layerID" : "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-CBD163E2-AADF-0968-C163-1AC3E200B75C",
+          "trackID" : "B0540F4B-CE03-4DC4-80C8-E867182F7621"
         },
         {
           "cell" : {
@@ -5526,8 +6211,8 @@
 
             }
           },
-          "layerID" : "macro-5AF03A28-29B3-4065-80AA-910D96516953-627E0C5F-F406-D12B-6BD4-C08AB5188BBC",
-          "trackID" : "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931"
+          "layerID" : "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-CBD163E2-AADF-0968-C163-1AC3E200B75C",
+          "trackID" : "3E278E83-D398-46F3-8F33-4E8C66214D9A"
         },
         {
           "cell" : {
@@ -5535,8 +6220,8 @@
 
             }
           },
-          "layerID" : "macro-5AF03A28-29B3-4065-80AA-910D96516953-627E0C5F-F406-D12B-6BD4-C08AB5188BBC",
-          "trackID" : "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0"
+          "layerID" : "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-CBD163E2-AADF-0968-C163-1AC3E200B75C",
+          "trackID" : "915EA852-237E-46CC-951A-89111BE56C7A"
         },
         {
           "cell" : {
@@ -5544,8 +6229,8 @@
 
             }
           },
-          "layerID" : "macro-5AF03A28-29B3-4065-80AA-910D96516953-627E0C5F-F406-D12B-6BD4-C08AB5188BBC",
-          "trackID" : "5AF03A28-29B3-4065-80AA-910D96516953"
+          "layerID" : "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-CBD163E2-AADF-0968-C163-1AC3E200B75C",
+          "trackID" : "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
         },
         {
           "cell" : {
@@ -5553,8 +6238,8 @@
 
             }
           },
-          "layerID" : "macro-5AF03A28-29B3-4065-80AA-910D96516953-627E0C5F-F406-D12B-6BD4-C08AB5188BBC",
-          "trackID" : "94A74063-98B8-4E8C-B03F-FA423D1EB80C"
+          "layerID" : "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-CBD163E2-AADF-0968-C163-1AC3E200B75C",
+          "trackID" : "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
         },
         {
           "cell" : {
@@ -5562,7 +6247,16 @@
 
             }
           },
-          "layerID" : "macro-94A74063-98B8-4E8C-B03F-FA423D1EB80C-EFDF6B78-640C-F236-5DEA-9F942D848B1C",
+          "layerID" : "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-CBD163E2-AADF-0968-C163-1AC3E200B75C",
+          "trackID" : "8D64B506-C2C1-42FD-84BD-07A25C8A37B4"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-18A100DE-40B7-8B4B-031C-70C51FEAF9C7",
           "trackID" : "11111111-1111-1111-1111-111111111111"
         },
         {
@@ -5571,8 +6265,8 @@
 
             }
           },
-          "layerID" : "macro-94A74063-98B8-4E8C-B03F-FA423D1EB80C-EFDF6B78-640C-F236-5DEA-9F942D848B1C",
-          "trackID" : "EAFA6CC2-B430-43E0-BED9-BD6D6202437E"
+          "layerID" : "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-18A100DE-40B7-8B4B-031C-70C51FEAF9C7",
+          "trackID" : "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF"
         },
         {
           "cell" : {
@@ -5580,8 +6274,8 @@
 
             }
           },
-          "layerID" : "macro-94A74063-98B8-4E8C-B03F-FA423D1EB80C-EFDF6B78-640C-F236-5DEA-9F942D848B1C",
-          "trackID" : "6A64DA66-89FC-47DC-95C4-097F0FD17983"
+          "layerID" : "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-18A100DE-40B7-8B4B-031C-70C51FEAF9C7",
+          "trackID" : "B0540F4B-CE03-4DC4-80C8-E867182F7621"
         },
         {
           "cell" : {
@@ -5589,8 +6283,8 @@
 
             }
           },
-          "layerID" : "macro-94A74063-98B8-4E8C-B03F-FA423D1EB80C-EFDF6B78-640C-F236-5DEA-9F942D848B1C",
-          "trackID" : "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931"
+          "layerID" : "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-18A100DE-40B7-8B4B-031C-70C51FEAF9C7",
+          "trackID" : "3E278E83-D398-46F3-8F33-4E8C66214D9A"
         },
         {
           "cell" : {
@@ -5598,8 +6292,8 @@
 
             }
           },
-          "layerID" : "macro-94A74063-98B8-4E8C-B03F-FA423D1EB80C-EFDF6B78-640C-F236-5DEA-9F942D848B1C",
-          "trackID" : "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0"
+          "layerID" : "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-18A100DE-40B7-8B4B-031C-70C51FEAF9C7",
+          "trackID" : "915EA852-237E-46CC-951A-89111BE56C7A"
         },
         {
           "cell" : {
@@ -5607,8 +6301,8 @@
 
             }
           },
-          "layerID" : "macro-94A74063-98B8-4E8C-B03F-FA423D1EB80C-EFDF6B78-640C-F236-5DEA-9F942D848B1C",
-          "trackID" : "5AF03A28-29B3-4065-80AA-910D96516953"
+          "layerID" : "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-18A100DE-40B7-8B4B-031C-70C51FEAF9C7",
+          "trackID" : "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
         },
         {
           "cell" : {
@@ -5616,8 +6310,8 @@
 
             }
           },
-          "layerID" : "macro-94A74063-98B8-4E8C-B03F-FA423D1EB80C-EFDF6B78-640C-F236-5DEA-9F942D848B1C",
-          "trackID" : "94A74063-98B8-4E8C-B03F-FA423D1EB80C"
+          "layerID" : "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-18A100DE-40B7-8B4B-031C-70C51FEAF9C7",
+          "trackID" : "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
         },
         {
           "cell" : {
@@ -5625,7 +6319,16 @@
 
             }
           },
-          "layerID" : "macro-94A74063-98B8-4E8C-B03F-FA423D1EB80C-36109092-530B-C2AC-976A-F493BD4A9076",
+          "layerID" : "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-18A100DE-40B7-8B4B-031C-70C51FEAF9C7",
+          "trackID" : "8D64B506-C2C1-42FD-84BD-07A25C8A37B4"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-00BFE7A7-A6EC-10DF-A5E6-7FC57B9E4E81",
           "trackID" : "11111111-1111-1111-1111-111111111111"
         },
         {
@@ -5634,8 +6337,8 @@
 
             }
           },
-          "layerID" : "macro-94A74063-98B8-4E8C-B03F-FA423D1EB80C-36109092-530B-C2AC-976A-F493BD4A9076",
-          "trackID" : "EAFA6CC2-B430-43E0-BED9-BD6D6202437E"
+          "layerID" : "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-00BFE7A7-A6EC-10DF-A5E6-7FC57B9E4E81",
+          "trackID" : "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF"
         },
         {
           "cell" : {
@@ -5643,8 +6346,8 @@
 
             }
           },
-          "layerID" : "macro-94A74063-98B8-4E8C-B03F-FA423D1EB80C-36109092-530B-C2AC-976A-F493BD4A9076",
-          "trackID" : "6A64DA66-89FC-47DC-95C4-097F0FD17983"
+          "layerID" : "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-00BFE7A7-A6EC-10DF-A5E6-7FC57B9E4E81",
+          "trackID" : "B0540F4B-CE03-4DC4-80C8-E867182F7621"
         },
         {
           "cell" : {
@@ -5652,8 +6355,8 @@
 
             }
           },
-          "layerID" : "macro-94A74063-98B8-4E8C-B03F-FA423D1EB80C-36109092-530B-C2AC-976A-F493BD4A9076",
-          "trackID" : "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931"
+          "layerID" : "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-00BFE7A7-A6EC-10DF-A5E6-7FC57B9E4E81",
+          "trackID" : "3E278E83-D398-46F3-8F33-4E8C66214D9A"
         },
         {
           "cell" : {
@@ -5661,8 +6364,8 @@
 
             }
           },
-          "layerID" : "macro-94A74063-98B8-4E8C-B03F-FA423D1EB80C-36109092-530B-C2AC-976A-F493BD4A9076",
-          "trackID" : "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0"
+          "layerID" : "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-00BFE7A7-A6EC-10DF-A5E6-7FC57B9E4E81",
+          "trackID" : "915EA852-237E-46CC-951A-89111BE56C7A"
         },
         {
           "cell" : {
@@ -5670,8 +6373,8 @@
 
             }
           },
-          "layerID" : "macro-94A74063-98B8-4E8C-B03F-FA423D1EB80C-36109092-530B-C2AC-976A-F493BD4A9076",
-          "trackID" : "5AF03A28-29B3-4065-80AA-910D96516953"
+          "layerID" : "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-00BFE7A7-A6EC-10DF-A5E6-7FC57B9E4E81",
+          "trackID" : "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
         },
         {
           "cell" : {
@@ -5679,8 +6382,8 @@
 
             }
           },
-          "layerID" : "macro-94A74063-98B8-4E8C-B03F-FA423D1EB80C-36109092-530B-C2AC-976A-F493BD4A9076",
-          "trackID" : "94A74063-98B8-4E8C-B03F-FA423D1EB80C"
+          "layerID" : "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-00BFE7A7-A6EC-10DF-A5E6-7FC57B9E4E81",
+          "trackID" : "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
         },
         {
           "cell" : {
@@ -5688,7 +6391,16 @@
 
             }
           },
-          "layerID" : "macro-94A74063-98B8-4E8C-B03F-FA423D1EB80C-64AB9218-A763-0880-6F0E-E26B73602123",
+          "layerID" : "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-00BFE7A7-A6EC-10DF-A5E6-7FC57B9E4E81",
+          "trackID" : "8D64B506-C2C1-42FD-84BD-07A25C8A37B4"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-2BC420AE-9DF5-A5B5-D2E2-7C606C8815DC",
           "trackID" : "11111111-1111-1111-1111-111111111111"
         },
         {
@@ -5697,8 +6409,8 @@
 
             }
           },
-          "layerID" : "macro-94A74063-98B8-4E8C-B03F-FA423D1EB80C-64AB9218-A763-0880-6F0E-E26B73602123",
-          "trackID" : "EAFA6CC2-B430-43E0-BED9-BD6D6202437E"
+          "layerID" : "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-2BC420AE-9DF5-A5B5-D2E2-7C606C8815DC",
+          "trackID" : "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF"
         },
         {
           "cell" : {
@@ -5706,8 +6418,8 @@
 
             }
           },
-          "layerID" : "macro-94A74063-98B8-4E8C-B03F-FA423D1EB80C-64AB9218-A763-0880-6F0E-E26B73602123",
-          "trackID" : "6A64DA66-89FC-47DC-95C4-097F0FD17983"
+          "layerID" : "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-2BC420AE-9DF5-A5B5-D2E2-7C606C8815DC",
+          "trackID" : "B0540F4B-CE03-4DC4-80C8-E867182F7621"
         },
         {
           "cell" : {
@@ -5715,8 +6427,8 @@
 
             }
           },
-          "layerID" : "macro-94A74063-98B8-4E8C-B03F-FA423D1EB80C-64AB9218-A763-0880-6F0E-E26B73602123",
-          "trackID" : "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931"
+          "layerID" : "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-2BC420AE-9DF5-A5B5-D2E2-7C606C8815DC",
+          "trackID" : "3E278E83-D398-46F3-8F33-4E8C66214D9A"
         },
         {
           "cell" : {
@@ -5724,8 +6436,8 @@
 
             }
           },
-          "layerID" : "macro-94A74063-98B8-4E8C-B03F-FA423D1EB80C-64AB9218-A763-0880-6F0E-E26B73602123",
-          "trackID" : "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0"
+          "layerID" : "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-2BC420AE-9DF5-A5B5-D2E2-7C606C8815DC",
+          "trackID" : "915EA852-237E-46CC-951A-89111BE56C7A"
         },
         {
           "cell" : {
@@ -5733,8 +6445,8 @@
 
             }
           },
-          "layerID" : "macro-94A74063-98B8-4E8C-B03F-FA423D1EB80C-64AB9218-A763-0880-6F0E-E26B73602123",
-          "trackID" : "5AF03A28-29B3-4065-80AA-910D96516953"
+          "layerID" : "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-2BC420AE-9DF5-A5B5-D2E2-7C606C8815DC",
+          "trackID" : "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
         },
         {
           "cell" : {
@@ -5742,8 +6454,8 @@
 
             }
           },
-          "layerID" : "macro-94A74063-98B8-4E8C-B03F-FA423D1EB80C-64AB9218-A763-0880-6F0E-E26B73602123",
-          "trackID" : "94A74063-98B8-4E8C-B03F-FA423D1EB80C"
+          "layerID" : "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-2BC420AE-9DF5-A5B5-D2E2-7C606C8815DC",
+          "trackID" : "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
         },
         {
           "cell" : {
@@ -5751,7 +6463,16 @@
 
             }
           },
-          "layerID" : "macro-5B325040-ADF7-4AD5-BA97-DA1FCD9C8931-B0DAAA1F-7053-05A8-9318-4E68C8261739",
+          "layerID" : "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-2BC420AE-9DF5-A5B5-D2E2-7C606C8815DC",
+          "trackID" : "8D64B506-C2C1-42FD-84BD-07A25C8A37B4"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-A388CCC7-06F6-C47A-8661-51FB9A97B424",
           "trackID" : "11111111-1111-1111-1111-111111111111"
         },
         {
@@ -5760,8 +6481,8 @@
 
             }
           },
-          "layerID" : "macro-5B325040-ADF7-4AD5-BA97-DA1FCD9C8931-B0DAAA1F-7053-05A8-9318-4E68C8261739",
-          "trackID" : "EAFA6CC2-B430-43E0-BED9-BD6D6202437E"
+          "layerID" : "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-A388CCC7-06F6-C47A-8661-51FB9A97B424",
+          "trackID" : "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF"
         },
         {
           "cell" : {
@@ -5769,8 +6490,8 @@
 
             }
           },
-          "layerID" : "macro-5B325040-ADF7-4AD5-BA97-DA1FCD9C8931-B0DAAA1F-7053-05A8-9318-4E68C8261739",
-          "trackID" : "6A64DA66-89FC-47DC-95C4-097F0FD17983"
+          "layerID" : "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-A388CCC7-06F6-C47A-8661-51FB9A97B424",
+          "trackID" : "B0540F4B-CE03-4DC4-80C8-E867182F7621"
         },
         {
           "cell" : {
@@ -5778,8 +6499,8 @@
 
             }
           },
-          "layerID" : "macro-5B325040-ADF7-4AD5-BA97-DA1FCD9C8931-B0DAAA1F-7053-05A8-9318-4E68C8261739",
-          "trackID" : "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931"
+          "layerID" : "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-A388CCC7-06F6-C47A-8661-51FB9A97B424",
+          "trackID" : "3E278E83-D398-46F3-8F33-4E8C66214D9A"
         },
         {
           "cell" : {
@@ -5787,8 +6508,8 @@
 
             }
           },
-          "layerID" : "macro-5B325040-ADF7-4AD5-BA97-DA1FCD9C8931-B0DAAA1F-7053-05A8-9318-4E68C8261739",
-          "trackID" : "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0"
+          "layerID" : "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-A388CCC7-06F6-C47A-8661-51FB9A97B424",
+          "trackID" : "915EA852-237E-46CC-951A-89111BE56C7A"
         },
         {
           "cell" : {
@@ -5796,8 +6517,8 @@
 
             }
           },
-          "layerID" : "macro-5B325040-ADF7-4AD5-BA97-DA1FCD9C8931-B0DAAA1F-7053-05A8-9318-4E68C8261739",
-          "trackID" : "5AF03A28-29B3-4065-80AA-910D96516953"
+          "layerID" : "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-A388CCC7-06F6-C47A-8661-51FB9A97B424",
+          "trackID" : "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
         },
         {
           "cell" : {
@@ -5805,8 +6526,8 @@
 
             }
           },
-          "layerID" : "macro-5B325040-ADF7-4AD5-BA97-DA1FCD9C8931-B0DAAA1F-7053-05A8-9318-4E68C8261739",
-          "trackID" : "94A74063-98B8-4E8C-B03F-FA423D1EB80C"
+          "layerID" : "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-A388CCC7-06F6-C47A-8661-51FB9A97B424",
+          "trackID" : "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
         },
         {
           "cell" : {
@@ -5814,7 +6535,16 @@
 
             }
           },
-          "layerID" : "macro-5B325040-ADF7-4AD5-BA97-DA1FCD9C8931-6A75B86C-3102-6322-5D0B-09693B4DE06B",
+          "layerID" : "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-A388CCC7-06F6-C47A-8661-51FB9A97B424",
+          "trackID" : "8D64B506-C2C1-42FD-84BD-07A25C8A37B4"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-6BFDBD31-2927-AF30-48FD-36FB779B1BBE",
           "trackID" : "11111111-1111-1111-1111-111111111111"
         },
         {
@@ -5823,8 +6553,8 @@
 
             }
           },
-          "layerID" : "macro-5B325040-ADF7-4AD5-BA97-DA1FCD9C8931-6A75B86C-3102-6322-5D0B-09693B4DE06B",
-          "trackID" : "EAFA6CC2-B430-43E0-BED9-BD6D6202437E"
+          "layerID" : "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-6BFDBD31-2927-AF30-48FD-36FB779B1BBE",
+          "trackID" : "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF"
         },
         {
           "cell" : {
@@ -5832,8 +6562,8 @@
 
             }
           },
-          "layerID" : "macro-5B325040-ADF7-4AD5-BA97-DA1FCD9C8931-6A75B86C-3102-6322-5D0B-09693B4DE06B",
-          "trackID" : "6A64DA66-89FC-47DC-95C4-097F0FD17983"
+          "layerID" : "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-6BFDBD31-2927-AF30-48FD-36FB779B1BBE",
+          "trackID" : "B0540F4B-CE03-4DC4-80C8-E867182F7621"
         },
         {
           "cell" : {
@@ -5841,8 +6571,8 @@
 
             }
           },
-          "layerID" : "macro-5B325040-ADF7-4AD5-BA97-DA1FCD9C8931-6A75B86C-3102-6322-5D0B-09693B4DE06B",
-          "trackID" : "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931"
+          "layerID" : "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-6BFDBD31-2927-AF30-48FD-36FB779B1BBE",
+          "trackID" : "3E278E83-D398-46F3-8F33-4E8C66214D9A"
         },
         {
           "cell" : {
@@ -5850,8 +6580,8 @@
 
             }
           },
-          "layerID" : "macro-5B325040-ADF7-4AD5-BA97-DA1FCD9C8931-6A75B86C-3102-6322-5D0B-09693B4DE06B",
-          "trackID" : "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0"
+          "layerID" : "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-6BFDBD31-2927-AF30-48FD-36FB779B1BBE",
+          "trackID" : "915EA852-237E-46CC-951A-89111BE56C7A"
         },
         {
           "cell" : {
@@ -5859,8 +6589,8 @@
 
             }
           },
-          "layerID" : "macro-5B325040-ADF7-4AD5-BA97-DA1FCD9C8931-6A75B86C-3102-6322-5D0B-09693B4DE06B",
-          "trackID" : "5AF03A28-29B3-4065-80AA-910D96516953"
+          "layerID" : "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-6BFDBD31-2927-AF30-48FD-36FB779B1BBE",
+          "trackID" : "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
         },
         {
           "cell" : {
@@ -5868,8 +6598,8 @@
 
             }
           },
-          "layerID" : "macro-5B325040-ADF7-4AD5-BA97-DA1FCD9C8931-6A75B86C-3102-6322-5D0B-09693B4DE06B",
-          "trackID" : "94A74063-98B8-4E8C-B03F-FA423D1EB80C"
+          "layerID" : "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-6BFDBD31-2927-AF30-48FD-36FB779B1BBE",
+          "trackID" : "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
         },
         {
           "cell" : {
@@ -5877,7 +6607,16 @@
 
             }
           },
-          "layerID" : "macro-5B325040-ADF7-4AD5-BA97-DA1FCD9C8931-8578939E-5A79-2A7A-3D67-F808C0371222",
+          "layerID" : "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-6BFDBD31-2927-AF30-48FD-36FB779B1BBE",
+          "trackID" : "8D64B506-C2C1-42FD-84BD-07A25C8A37B4"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-4D96D481-CA46-3184-A4C6-491E86EED56B",
           "trackID" : "11111111-1111-1111-1111-111111111111"
         },
         {
@@ -5886,8 +6625,8 @@
 
             }
           },
-          "layerID" : "macro-5B325040-ADF7-4AD5-BA97-DA1FCD9C8931-8578939E-5A79-2A7A-3D67-F808C0371222",
-          "trackID" : "EAFA6CC2-B430-43E0-BED9-BD6D6202437E"
+          "layerID" : "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-4D96D481-CA46-3184-A4C6-491E86EED56B",
+          "trackID" : "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF"
         },
         {
           "cell" : {
@@ -5895,8 +6634,8 @@
 
             }
           },
-          "layerID" : "macro-5B325040-ADF7-4AD5-BA97-DA1FCD9C8931-8578939E-5A79-2A7A-3D67-F808C0371222",
-          "trackID" : "6A64DA66-89FC-47DC-95C4-097F0FD17983"
+          "layerID" : "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-4D96D481-CA46-3184-A4C6-491E86EED56B",
+          "trackID" : "B0540F4B-CE03-4DC4-80C8-E867182F7621"
         },
         {
           "cell" : {
@@ -5904,8 +6643,8 @@
 
             }
           },
-          "layerID" : "macro-5B325040-ADF7-4AD5-BA97-DA1FCD9C8931-8578939E-5A79-2A7A-3D67-F808C0371222",
-          "trackID" : "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931"
+          "layerID" : "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-4D96D481-CA46-3184-A4C6-491E86EED56B",
+          "trackID" : "3E278E83-D398-46F3-8F33-4E8C66214D9A"
         },
         {
           "cell" : {
@@ -5913,8 +6652,8 @@
 
             }
           },
-          "layerID" : "macro-5B325040-ADF7-4AD5-BA97-DA1FCD9C8931-8578939E-5A79-2A7A-3D67-F808C0371222",
-          "trackID" : "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0"
+          "layerID" : "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-4D96D481-CA46-3184-A4C6-491E86EED56B",
+          "trackID" : "915EA852-237E-46CC-951A-89111BE56C7A"
         },
         {
           "cell" : {
@@ -5922,8 +6661,8 @@
 
             }
           },
-          "layerID" : "macro-5B325040-ADF7-4AD5-BA97-DA1FCD9C8931-8578939E-5A79-2A7A-3D67-F808C0371222",
-          "trackID" : "5AF03A28-29B3-4065-80AA-910D96516953"
+          "layerID" : "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-4D96D481-CA46-3184-A4C6-491E86EED56B",
+          "trackID" : "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
         },
         {
           "cell" : {
@@ -5931,8 +6670,8 @@
 
             }
           },
-          "layerID" : "macro-5B325040-ADF7-4AD5-BA97-DA1FCD9C8931-8578939E-5A79-2A7A-3D67-F808C0371222",
-          "trackID" : "94A74063-98B8-4E8C-B03F-FA423D1EB80C"
+          "layerID" : "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-4D96D481-CA46-3184-A4C6-491E86EED56B",
+          "trackID" : "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
         },
         {
           "cell" : {
@@ -5940,7 +6679,16 @@
 
             }
           },
-          "layerID" : "macro-0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0-3F3D97A6-9672-625E-903F-BCAF19AE7A97",
+          "layerID" : "macro-3E278E83-D398-46F3-8F33-4E8C66214D9A-4D96D481-CA46-3184-A4C6-491E86EED56B",
+          "trackID" : "8D64B506-C2C1-42FD-84BD-07A25C8A37B4"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-915EA852-237E-46CC-951A-89111BE56C7A-E0A0F5F1-B82F-28B7-B8A6-47FADCD02704",
           "trackID" : "11111111-1111-1111-1111-111111111111"
         },
         {
@@ -5949,8 +6697,8 @@
 
             }
           },
-          "layerID" : "macro-0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0-3F3D97A6-9672-625E-903F-BCAF19AE7A97",
-          "trackID" : "EAFA6CC2-B430-43E0-BED9-BD6D6202437E"
+          "layerID" : "macro-915EA852-237E-46CC-951A-89111BE56C7A-E0A0F5F1-B82F-28B7-B8A6-47FADCD02704",
+          "trackID" : "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF"
         },
         {
           "cell" : {
@@ -5958,8 +6706,8 @@
 
             }
           },
-          "layerID" : "macro-0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0-3F3D97A6-9672-625E-903F-BCAF19AE7A97",
-          "trackID" : "6A64DA66-89FC-47DC-95C4-097F0FD17983"
+          "layerID" : "macro-915EA852-237E-46CC-951A-89111BE56C7A-E0A0F5F1-B82F-28B7-B8A6-47FADCD02704",
+          "trackID" : "B0540F4B-CE03-4DC4-80C8-E867182F7621"
         },
         {
           "cell" : {
@@ -5967,8 +6715,8 @@
 
             }
           },
-          "layerID" : "macro-0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0-3F3D97A6-9672-625E-903F-BCAF19AE7A97",
-          "trackID" : "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931"
+          "layerID" : "macro-915EA852-237E-46CC-951A-89111BE56C7A-E0A0F5F1-B82F-28B7-B8A6-47FADCD02704",
+          "trackID" : "3E278E83-D398-46F3-8F33-4E8C66214D9A"
         },
         {
           "cell" : {
@@ -5976,8 +6724,8 @@
 
             }
           },
-          "layerID" : "macro-0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0-3F3D97A6-9672-625E-903F-BCAF19AE7A97",
-          "trackID" : "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0"
+          "layerID" : "macro-915EA852-237E-46CC-951A-89111BE56C7A-E0A0F5F1-B82F-28B7-B8A6-47FADCD02704",
+          "trackID" : "915EA852-237E-46CC-951A-89111BE56C7A"
         },
         {
           "cell" : {
@@ -5985,8 +6733,8 @@
 
             }
           },
-          "layerID" : "macro-0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0-3F3D97A6-9672-625E-903F-BCAF19AE7A97",
-          "trackID" : "5AF03A28-29B3-4065-80AA-910D96516953"
+          "layerID" : "macro-915EA852-237E-46CC-951A-89111BE56C7A-E0A0F5F1-B82F-28B7-B8A6-47FADCD02704",
+          "trackID" : "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
         },
         {
           "cell" : {
@@ -5994,8 +6742,8 @@
 
             }
           },
-          "layerID" : "macro-0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0-3F3D97A6-9672-625E-903F-BCAF19AE7A97",
-          "trackID" : "94A74063-98B8-4E8C-B03F-FA423D1EB80C"
+          "layerID" : "macro-915EA852-237E-46CC-951A-89111BE56C7A-E0A0F5F1-B82F-28B7-B8A6-47FADCD02704",
+          "trackID" : "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
         },
         {
           "cell" : {
@@ -6003,7 +6751,16 @@
 
             }
           },
-          "layerID" : "macro-0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0-7C589B11-F8A8-FFF4-2066-ABAEDA8BEBF1",
+          "layerID" : "macro-915EA852-237E-46CC-951A-89111BE56C7A-E0A0F5F1-B82F-28B7-B8A6-47FADCD02704",
+          "trackID" : "8D64B506-C2C1-42FD-84BD-07A25C8A37B4"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-915EA852-237E-46CC-951A-89111BE56C7A-62D303BC-41EB-E16B-7EA8-2CFABCB6B79E",
           "trackID" : "11111111-1111-1111-1111-111111111111"
         },
         {
@@ -6012,8 +6769,8 @@
 
             }
           },
-          "layerID" : "macro-0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0-7C589B11-F8A8-FFF4-2066-ABAEDA8BEBF1",
-          "trackID" : "EAFA6CC2-B430-43E0-BED9-BD6D6202437E"
+          "layerID" : "macro-915EA852-237E-46CC-951A-89111BE56C7A-62D303BC-41EB-E16B-7EA8-2CFABCB6B79E",
+          "trackID" : "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF"
         },
         {
           "cell" : {
@@ -6021,8 +6778,8 @@
 
             }
           },
-          "layerID" : "macro-0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0-7C589B11-F8A8-FFF4-2066-ABAEDA8BEBF1",
-          "trackID" : "6A64DA66-89FC-47DC-95C4-097F0FD17983"
+          "layerID" : "macro-915EA852-237E-46CC-951A-89111BE56C7A-62D303BC-41EB-E16B-7EA8-2CFABCB6B79E",
+          "trackID" : "B0540F4B-CE03-4DC4-80C8-E867182F7621"
         },
         {
           "cell" : {
@@ -6030,8 +6787,8 @@
 
             }
           },
-          "layerID" : "macro-0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0-7C589B11-F8A8-FFF4-2066-ABAEDA8BEBF1",
-          "trackID" : "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931"
+          "layerID" : "macro-915EA852-237E-46CC-951A-89111BE56C7A-62D303BC-41EB-E16B-7EA8-2CFABCB6B79E",
+          "trackID" : "3E278E83-D398-46F3-8F33-4E8C66214D9A"
         },
         {
           "cell" : {
@@ -6039,8 +6796,8 @@
 
             }
           },
-          "layerID" : "macro-0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0-7C589B11-F8A8-FFF4-2066-ABAEDA8BEBF1",
-          "trackID" : "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0"
+          "layerID" : "macro-915EA852-237E-46CC-951A-89111BE56C7A-62D303BC-41EB-E16B-7EA8-2CFABCB6B79E",
+          "trackID" : "915EA852-237E-46CC-951A-89111BE56C7A"
         },
         {
           "cell" : {
@@ -6048,8 +6805,8 @@
 
             }
           },
-          "layerID" : "macro-0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0-7C589B11-F8A8-FFF4-2066-ABAEDA8BEBF1",
-          "trackID" : "5AF03A28-29B3-4065-80AA-910D96516953"
+          "layerID" : "macro-915EA852-237E-46CC-951A-89111BE56C7A-62D303BC-41EB-E16B-7EA8-2CFABCB6B79E",
+          "trackID" : "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
         },
         {
           "cell" : {
@@ -6057,8 +6814,8 @@
 
             }
           },
-          "layerID" : "macro-0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0-7C589B11-F8A8-FFF4-2066-ABAEDA8BEBF1",
-          "trackID" : "94A74063-98B8-4E8C-B03F-FA423D1EB80C"
+          "layerID" : "macro-915EA852-237E-46CC-951A-89111BE56C7A-62D303BC-41EB-E16B-7EA8-2CFABCB6B79E",
+          "trackID" : "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
         },
         {
           "cell" : {
@@ -6066,7 +6823,16 @@
 
             }
           },
-          "layerID" : "macro-0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0-97F079A3-9F1B-6BF8-CEED-6C6C4023E0EC",
+          "layerID" : "macro-915EA852-237E-46CC-951A-89111BE56C7A-62D303BC-41EB-E16B-7EA8-2CFABCB6B79E",
+          "trackID" : "8D64B506-C2C1-42FD-84BD-07A25C8A37B4"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-915EA852-237E-46CC-951A-89111BE56C7A-C6BD5800-F22E-0DE1-DD14-28FC1EDC888B",
           "trackID" : "11111111-1111-1111-1111-111111111111"
         },
         {
@@ -6075,8 +6841,8 @@
 
             }
           },
-          "layerID" : "macro-0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0-97F079A3-9F1B-6BF8-CEED-6C6C4023E0EC",
-          "trackID" : "EAFA6CC2-B430-43E0-BED9-BD6D6202437E"
+          "layerID" : "macro-915EA852-237E-46CC-951A-89111BE56C7A-C6BD5800-F22E-0DE1-DD14-28FC1EDC888B",
+          "trackID" : "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF"
         },
         {
           "cell" : {
@@ -6084,8 +6850,8 @@
 
             }
           },
-          "layerID" : "macro-0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0-97F079A3-9F1B-6BF8-CEED-6C6C4023E0EC",
-          "trackID" : "6A64DA66-89FC-47DC-95C4-097F0FD17983"
+          "layerID" : "macro-915EA852-237E-46CC-951A-89111BE56C7A-C6BD5800-F22E-0DE1-DD14-28FC1EDC888B",
+          "trackID" : "B0540F4B-CE03-4DC4-80C8-E867182F7621"
         },
         {
           "cell" : {
@@ -6093,8 +6859,8 @@
 
             }
           },
-          "layerID" : "macro-0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0-97F079A3-9F1B-6BF8-CEED-6C6C4023E0EC",
-          "trackID" : "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931"
+          "layerID" : "macro-915EA852-237E-46CC-951A-89111BE56C7A-C6BD5800-F22E-0DE1-DD14-28FC1EDC888B",
+          "trackID" : "3E278E83-D398-46F3-8F33-4E8C66214D9A"
         },
         {
           "cell" : {
@@ -6102,8 +6868,8 @@
 
             }
           },
-          "layerID" : "macro-0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0-97F079A3-9F1B-6BF8-CEED-6C6C4023E0EC",
-          "trackID" : "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0"
+          "layerID" : "macro-915EA852-237E-46CC-951A-89111BE56C7A-C6BD5800-F22E-0DE1-DD14-28FC1EDC888B",
+          "trackID" : "915EA852-237E-46CC-951A-89111BE56C7A"
         },
         {
           "cell" : {
@@ -6111,8 +6877,8 @@
 
             }
           },
-          "layerID" : "macro-0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0-97F079A3-9F1B-6BF8-CEED-6C6C4023E0EC",
-          "trackID" : "5AF03A28-29B3-4065-80AA-910D96516953"
+          "layerID" : "macro-915EA852-237E-46CC-951A-89111BE56C7A-C6BD5800-F22E-0DE1-DD14-28FC1EDC888B",
+          "trackID" : "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
         },
         {
           "cell" : {
@@ -6120,8 +6886,8 @@
 
             }
           },
-          "layerID" : "macro-0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0-97F079A3-9F1B-6BF8-CEED-6C6C4023E0EC",
-          "trackID" : "94A74063-98B8-4E8C-B03F-FA423D1EB80C"
+          "layerID" : "macro-915EA852-237E-46CC-951A-89111BE56C7A-C6BD5800-F22E-0DE1-DD14-28FC1EDC888B",
+          "trackID" : "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
         },
         {
           "cell" : {
@@ -6129,7 +6895,16 @@
 
             }
           },
-          "layerID" : "macro-5AF03A28-29B3-4065-80AA-910D96516953-22E92158-92FD-0101-8983-8584F10C8EE7",
+          "layerID" : "macro-915EA852-237E-46CC-951A-89111BE56C7A-C6BD5800-F22E-0DE1-DD14-28FC1EDC888B",
+          "trackID" : "8D64B506-C2C1-42FD-84BD-07A25C8A37B4"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-9E847A44-B7F9-912E-A156-D80668F04347",
           "trackID" : "11111111-1111-1111-1111-111111111111"
         },
         {
@@ -6138,8 +6913,8 @@
 
             }
           },
-          "layerID" : "macro-5AF03A28-29B3-4065-80AA-910D96516953-22E92158-92FD-0101-8983-8584F10C8EE7",
-          "trackID" : "EAFA6CC2-B430-43E0-BED9-BD6D6202437E"
+          "layerID" : "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-9E847A44-B7F9-912E-A156-D80668F04347",
+          "trackID" : "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF"
         },
         {
           "cell" : {
@@ -6147,8 +6922,8 @@
 
             }
           },
-          "layerID" : "macro-5AF03A28-29B3-4065-80AA-910D96516953-22E92158-92FD-0101-8983-8584F10C8EE7",
-          "trackID" : "6A64DA66-89FC-47DC-95C4-097F0FD17983"
+          "layerID" : "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-9E847A44-B7F9-912E-A156-D80668F04347",
+          "trackID" : "B0540F4B-CE03-4DC4-80C8-E867182F7621"
         },
         {
           "cell" : {
@@ -6156,8 +6931,8 @@
 
             }
           },
-          "layerID" : "macro-5AF03A28-29B3-4065-80AA-910D96516953-22E92158-92FD-0101-8983-8584F10C8EE7",
-          "trackID" : "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931"
+          "layerID" : "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-9E847A44-B7F9-912E-A156-D80668F04347",
+          "trackID" : "3E278E83-D398-46F3-8F33-4E8C66214D9A"
         },
         {
           "cell" : {
@@ -6165,8 +6940,8 @@
 
             }
           },
-          "layerID" : "macro-5AF03A28-29B3-4065-80AA-910D96516953-22E92158-92FD-0101-8983-8584F10C8EE7",
-          "trackID" : "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0"
+          "layerID" : "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-9E847A44-B7F9-912E-A156-D80668F04347",
+          "trackID" : "915EA852-237E-46CC-951A-89111BE56C7A"
         },
         {
           "cell" : {
@@ -6174,8 +6949,8 @@
 
             }
           },
-          "layerID" : "macro-5AF03A28-29B3-4065-80AA-910D96516953-22E92158-92FD-0101-8983-8584F10C8EE7",
-          "trackID" : "5AF03A28-29B3-4065-80AA-910D96516953"
+          "layerID" : "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-9E847A44-B7F9-912E-A156-D80668F04347",
+          "trackID" : "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
         },
         {
           "cell" : {
@@ -6183,8 +6958,8 @@
 
             }
           },
-          "layerID" : "macro-5AF03A28-29B3-4065-80AA-910D96516953-22E92158-92FD-0101-8983-8584F10C8EE7",
-          "trackID" : "94A74063-98B8-4E8C-B03F-FA423D1EB80C"
+          "layerID" : "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-9E847A44-B7F9-912E-A156-D80668F04347",
+          "trackID" : "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
         },
         {
           "cell" : {
@@ -6192,7 +6967,16 @@
 
             }
           },
-          "layerID" : "macro-5AF03A28-29B3-4065-80AA-910D96516953-BABB7D81-6F85-02E1-2C4C-94854CBE30A1",
+          "layerID" : "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-9E847A44-B7F9-912E-A156-D80668F04347",
+          "trackID" : "8D64B506-C2C1-42FD-84BD-07A25C8A37B4"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-D2849DC4-5348-19E4-4420-E706C4A39801",
           "trackID" : "11111111-1111-1111-1111-111111111111"
         },
         {
@@ -6201,8 +6985,8 @@
 
             }
           },
-          "layerID" : "macro-5AF03A28-29B3-4065-80AA-910D96516953-BABB7D81-6F85-02E1-2C4C-94854CBE30A1",
-          "trackID" : "EAFA6CC2-B430-43E0-BED9-BD6D6202437E"
+          "layerID" : "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-D2849DC4-5348-19E4-4420-E706C4A39801",
+          "trackID" : "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF"
         },
         {
           "cell" : {
@@ -6210,8 +6994,8 @@
 
             }
           },
-          "layerID" : "macro-5AF03A28-29B3-4065-80AA-910D96516953-BABB7D81-6F85-02E1-2C4C-94854CBE30A1",
-          "trackID" : "6A64DA66-89FC-47DC-95C4-097F0FD17983"
+          "layerID" : "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-D2849DC4-5348-19E4-4420-E706C4A39801",
+          "trackID" : "B0540F4B-CE03-4DC4-80C8-E867182F7621"
         },
         {
           "cell" : {
@@ -6219,8 +7003,8 @@
 
             }
           },
-          "layerID" : "macro-5AF03A28-29B3-4065-80AA-910D96516953-BABB7D81-6F85-02E1-2C4C-94854CBE30A1",
-          "trackID" : "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931"
+          "layerID" : "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-D2849DC4-5348-19E4-4420-E706C4A39801",
+          "trackID" : "3E278E83-D398-46F3-8F33-4E8C66214D9A"
         },
         {
           "cell" : {
@@ -6228,8 +7012,8 @@
 
             }
           },
-          "layerID" : "macro-5AF03A28-29B3-4065-80AA-910D96516953-BABB7D81-6F85-02E1-2C4C-94854CBE30A1",
-          "trackID" : "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0"
+          "layerID" : "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-D2849DC4-5348-19E4-4420-E706C4A39801",
+          "trackID" : "915EA852-237E-46CC-951A-89111BE56C7A"
         },
         {
           "cell" : {
@@ -6237,8 +7021,8 @@
 
             }
           },
-          "layerID" : "macro-5AF03A28-29B3-4065-80AA-910D96516953-BABB7D81-6F85-02E1-2C4C-94854CBE30A1",
-          "trackID" : "5AF03A28-29B3-4065-80AA-910D96516953"
+          "layerID" : "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-D2849DC4-5348-19E4-4420-E706C4A39801",
+          "trackID" : "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
         },
         {
           "cell" : {
@@ -6246,8 +7030,8 @@
 
             }
           },
-          "layerID" : "macro-5AF03A28-29B3-4065-80AA-910D96516953-BABB7D81-6F85-02E1-2C4C-94854CBE30A1",
-          "trackID" : "94A74063-98B8-4E8C-B03F-FA423D1EB80C"
+          "layerID" : "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-D2849DC4-5348-19E4-4420-E706C4A39801",
+          "trackID" : "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
         },
         {
           "cell" : {
@@ -6255,7 +7039,16 @@
 
             }
           },
-          "layerID" : "macro-5AF03A28-29B3-4065-80AA-910D96516953-627E0C5F-F406-D12B-6BD4-C08AB5188BBC",
+          "layerID" : "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-D2849DC4-5348-19E4-4420-E706C4A39801",
+          "trackID" : "8D64B506-C2C1-42FD-84BD-07A25C8A37B4"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-CBD163E2-AADF-0968-C163-1AC3E200B75C",
           "trackID" : "11111111-1111-1111-1111-111111111111"
         },
         {
@@ -6264,8 +7057,8 @@
 
             }
           },
-          "layerID" : "macro-5AF03A28-29B3-4065-80AA-910D96516953-627E0C5F-F406-D12B-6BD4-C08AB5188BBC",
-          "trackID" : "EAFA6CC2-B430-43E0-BED9-BD6D6202437E"
+          "layerID" : "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-CBD163E2-AADF-0968-C163-1AC3E200B75C",
+          "trackID" : "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF"
         },
         {
           "cell" : {
@@ -6273,8 +7066,8 @@
 
             }
           },
-          "layerID" : "macro-5AF03A28-29B3-4065-80AA-910D96516953-627E0C5F-F406-D12B-6BD4-C08AB5188BBC",
-          "trackID" : "6A64DA66-89FC-47DC-95C4-097F0FD17983"
+          "layerID" : "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-CBD163E2-AADF-0968-C163-1AC3E200B75C",
+          "trackID" : "B0540F4B-CE03-4DC4-80C8-E867182F7621"
         },
         {
           "cell" : {
@@ -6282,8 +7075,8 @@
 
             }
           },
-          "layerID" : "macro-5AF03A28-29B3-4065-80AA-910D96516953-627E0C5F-F406-D12B-6BD4-C08AB5188BBC",
-          "trackID" : "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931"
+          "layerID" : "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-CBD163E2-AADF-0968-C163-1AC3E200B75C",
+          "trackID" : "3E278E83-D398-46F3-8F33-4E8C66214D9A"
         },
         {
           "cell" : {
@@ -6291,8 +7084,8 @@
 
             }
           },
-          "layerID" : "macro-5AF03A28-29B3-4065-80AA-910D96516953-627E0C5F-F406-D12B-6BD4-C08AB5188BBC",
-          "trackID" : "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0"
+          "layerID" : "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-CBD163E2-AADF-0968-C163-1AC3E200B75C",
+          "trackID" : "915EA852-237E-46CC-951A-89111BE56C7A"
         },
         {
           "cell" : {
@@ -6300,8 +7093,8 @@
 
             }
           },
-          "layerID" : "macro-5AF03A28-29B3-4065-80AA-910D96516953-627E0C5F-F406-D12B-6BD4-C08AB5188BBC",
-          "trackID" : "5AF03A28-29B3-4065-80AA-910D96516953"
+          "layerID" : "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-CBD163E2-AADF-0968-C163-1AC3E200B75C",
+          "trackID" : "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
         },
         {
           "cell" : {
@@ -6309,8 +7102,8 @@
 
             }
           },
-          "layerID" : "macro-5AF03A28-29B3-4065-80AA-910D96516953-627E0C5F-F406-D12B-6BD4-C08AB5188BBC",
-          "trackID" : "94A74063-98B8-4E8C-B03F-FA423D1EB80C"
+          "layerID" : "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-CBD163E2-AADF-0968-C163-1AC3E200B75C",
+          "trackID" : "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
         },
         {
           "cell" : {
@@ -6318,7 +7111,16 @@
 
             }
           },
-          "layerID" : "macro-94A74063-98B8-4E8C-B03F-FA423D1EB80C-EFDF6B78-640C-F236-5DEA-9F942D848B1C",
+          "layerID" : "macro-8E5B89B6-57E7-46BB-84DC-9FB75D468409-CBD163E2-AADF-0968-C163-1AC3E200B75C",
+          "trackID" : "8D64B506-C2C1-42FD-84BD-07A25C8A37B4"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-18A100DE-40B7-8B4B-031C-70C51FEAF9C7",
           "trackID" : "11111111-1111-1111-1111-111111111111"
         },
         {
@@ -6327,8 +7129,8 @@
 
             }
           },
-          "layerID" : "macro-94A74063-98B8-4E8C-B03F-FA423D1EB80C-EFDF6B78-640C-F236-5DEA-9F942D848B1C",
-          "trackID" : "EAFA6CC2-B430-43E0-BED9-BD6D6202437E"
+          "layerID" : "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-18A100DE-40B7-8B4B-031C-70C51FEAF9C7",
+          "trackID" : "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF"
         },
         {
           "cell" : {
@@ -6336,8 +7138,8 @@
 
             }
           },
-          "layerID" : "macro-94A74063-98B8-4E8C-B03F-FA423D1EB80C-EFDF6B78-640C-F236-5DEA-9F942D848B1C",
-          "trackID" : "6A64DA66-89FC-47DC-95C4-097F0FD17983"
+          "layerID" : "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-18A100DE-40B7-8B4B-031C-70C51FEAF9C7",
+          "trackID" : "B0540F4B-CE03-4DC4-80C8-E867182F7621"
         },
         {
           "cell" : {
@@ -6345,8 +7147,8 @@
 
             }
           },
-          "layerID" : "macro-94A74063-98B8-4E8C-B03F-FA423D1EB80C-EFDF6B78-640C-F236-5DEA-9F942D848B1C",
-          "trackID" : "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931"
+          "layerID" : "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-18A100DE-40B7-8B4B-031C-70C51FEAF9C7",
+          "trackID" : "3E278E83-D398-46F3-8F33-4E8C66214D9A"
         },
         {
           "cell" : {
@@ -6354,8 +7156,8 @@
 
             }
           },
-          "layerID" : "macro-94A74063-98B8-4E8C-B03F-FA423D1EB80C-EFDF6B78-640C-F236-5DEA-9F942D848B1C",
-          "trackID" : "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0"
+          "layerID" : "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-18A100DE-40B7-8B4B-031C-70C51FEAF9C7",
+          "trackID" : "915EA852-237E-46CC-951A-89111BE56C7A"
         },
         {
           "cell" : {
@@ -6363,8 +7165,8 @@
 
             }
           },
-          "layerID" : "macro-94A74063-98B8-4E8C-B03F-FA423D1EB80C-EFDF6B78-640C-F236-5DEA-9F942D848B1C",
-          "trackID" : "5AF03A28-29B3-4065-80AA-910D96516953"
+          "layerID" : "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-18A100DE-40B7-8B4B-031C-70C51FEAF9C7",
+          "trackID" : "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
         },
         {
           "cell" : {
@@ -6372,8 +7174,8 @@
 
             }
           },
-          "layerID" : "macro-94A74063-98B8-4E8C-B03F-FA423D1EB80C-EFDF6B78-640C-F236-5DEA-9F942D848B1C",
-          "trackID" : "94A74063-98B8-4E8C-B03F-FA423D1EB80C"
+          "layerID" : "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-18A100DE-40B7-8B4B-031C-70C51FEAF9C7",
+          "trackID" : "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
         },
         {
           "cell" : {
@@ -6381,7 +7183,16 @@
 
             }
           },
-          "layerID" : "macro-94A74063-98B8-4E8C-B03F-FA423D1EB80C-36109092-530B-C2AC-976A-F493BD4A9076",
+          "layerID" : "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-18A100DE-40B7-8B4B-031C-70C51FEAF9C7",
+          "trackID" : "8D64B506-C2C1-42FD-84BD-07A25C8A37B4"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-00BFE7A7-A6EC-10DF-A5E6-7FC57B9E4E81",
           "trackID" : "11111111-1111-1111-1111-111111111111"
         },
         {
@@ -6390,8 +7201,8 @@
 
             }
           },
-          "layerID" : "macro-94A74063-98B8-4E8C-B03F-FA423D1EB80C-36109092-530B-C2AC-976A-F493BD4A9076",
-          "trackID" : "EAFA6CC2-B430-43E0-BED9-BD6D6202437E"
+          "layerID" : "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-00BFE7A7-A6EC-10DF-A5E6-7FC57B9E4E81",
+          "trackID" : "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF"
         },
         {
           "cell" : {
@@ -6399,8 +7210,8 @@
 
             }
           },
-          "layerID" : "macro-94A74063-98B8-4E8C-B03F-FA423D1EB80C-36109092-530B-C2AC-976A-F493BD4A9076",
-          "trackID" : "6A64DA66-89FC-47DC-95C4-097F0FD17983"
+          "layerID" : "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-00BFE7A7-A6EC-10DF-A5E6-7FC57B9E4E81",
+          "trackID" : "B0540F4B-CE03-4DC4-80C8-E867182F7621"
         },
         {
           "cell" : {
@@ -6408,8 +7219,8 @@
 
             }
           },
-          "layerID" : "macro-94A74063-98B8-4E8C-B03F-FA423D1EB80C-36109092-530B-C2AC-976A-F493BD4A9076",
-          "trackID" : "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931"
+          "layerID" : "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-00BFE7A7-A6EC-10DF-A5E6-7FC57B9E4E81",
+          "trackID" : "3E278E83-D398-46F3-8F33-4E8C66214D9A"
         },
         {
           "cell" : {
@@ -6417,8 +7228,8 @@
 
             }
           },
-          "layerID" : "macro-94A74063-98B8-4E8C-B03F-FA423D1EB80C-36109092-530B-C2AC-976A-F493BD4A9076",
-          "trackID" : "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0"
+          "layerID" : "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-00BFE7A7-A6EC-10DF-A5E6-7FC57B9E4E81",
+          "trackID" : "915EA852-237E-46CC-951A-89111BE56C7A"
         },
         {
           "cell" : {
@@ -6426,8 +7237,8 @@
 
             }
           },
-          "layerID" : "macro-94A74063-98B8-4E8C-B03F-FA423D1EB80C-36109092-530B-C2AC-976A-F493BD4A9076",
-          "trackID" : "5AF03A28-29B3-4065-80AA-910D96516953"
+          "layerID" : "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-00BFE7A7-A6EC-10DF-A5E6-7FC57B9E4E81",
+          "trackID" : "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
         },
         {
           "cell" : {
@@ -6435,8 +7246,8 @@
 
             }
           },
-          "layerID" : "macro-94A74063-98B8-4E8C-B03F-FA423D1EB80C-36109092-530B-C2AC-976A-F493BD4A9076",
-          "trackID" : "94A74063-98B8-4E8C-B03F-FA423D1EB80C"
+          "layerID" : "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-00BFE7A7-A6EC-10DF-A5E6-7FC57B9E4E81",
+          "trackID" : "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
         },
         {
           "cell" : {
@@ -6444,7 +7255,16 @@
 
             }
           },
-          "layerID" : "macro-94A74063-98B8-4E8C-B03F-FA423D1EB80C-64AB9218-A763-0880-6F0E-E26B73602123",
+          "layerID" : "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-00BFE7A7-A6EC-10DF-A5E6-7FC57B9E4E81",
+          "trackID" : "8D64B506-C2C1-42FD-84BD-07A25C8A37B4"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-2BC420AE-9DF5-A5B5-D2E2-7C606C8815DC",
           "trackID" : "11111111-1111-1111-1111-111111111111"
         },
         {
@@ -6453,8 +7273,8 @@
 
             }
           },
-          "layerID" : "macro-94A74063-98B8-4E8C-B03F-FA423D1EB80C-64AB9218-A763-0880-6F0E-E26B73602123",
-          "trackID" : "EAFA6CC2-B430-43E0-BED9-BD6D6202437E"
+          "layerID" : "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-2BC420AE-9DF5-A5B5-D2E2-7C606C8815DC",
+          "trackID" : "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF"
         },
         {
           "cell" : {
@@ -6462,8 +7282,8 @@
 
             }
           },
-          "layerID" : "macro-94A74063-98B8-4E8C-B03F-FA423D1EB80C-64AB9218-A763-0880-6F0E-E26B73602123",
-          "trackID" : "6A64DA66-89FC-47DC-95C4-097F0FD17983"
+          "layerID" : "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-2BC420AE-9DF5-A5B5-D2E2-7C606C8815DC",
+          "trackID" : "B0540F4B-CE03-4DC4-80C8-E867182F7621"
         },
         {
           "cell" : {
@@ -6471,8 +7291,8 @@
 
             }
           },
-          "layerID" : "macro-94A74063-98B8-4E8C-B03F-FA423D1EB80C-64AB9218-A763-0880-6F0E-E26B73602123",
-          "trackID" : "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931"
+          "layerID" : "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-2BC420AE-9DF5-A5B5-D2E2-7C606C8815DC",
+          "trackID" : "3E278E83-D398-46F3-8F33-4E8C66214D9A"
         },
         {
           "cell" : {
@@ -6480,8 +7300,8 @@
 
             }
           },
-          "layerID" : "macro-94A74063-98B8-4E8C-B03F-FA423D1EB80C-64AB9218-A763-0880-6F0E-E26B73602123",
-          "trackID" : "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0"
+          "layerID" : "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-2BC420AE-9DF5-A5B5-D2E2-7C606C8815DC",
+          "trackID" : "915EA852-237E-46CC-951A-89111BE56C7A"
         },
         {
           "cell" : {
@@ -6489,8 +7309,8 @@
 
             }
           },
-          "layerID" : "macro-94A74063-98B8-4E8C-B03F-FA423D1EB80C-64AB9218-A763-0880-6F0E-E26B73602123",
-          "trackID" : "5AF03A28-29B3-4065-80AA-910D96516953"
+          "layerID" : "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-2BC420AE-9DF5-A5B5-D2E2-7C606C8815DC",
+          "trackID" : "8E5B89B6-57E7-46BB-84DC-9FB75D468409"
         },
         {
           "cell" : {
@@ -6498,8 +7318,17 @@
 
             }
           },
-          "layerID" : "macro-94A74063-98B8-4E8C-B03F-FA423D1EB80C-64AB9218-A763-0880-6F0E-E26B73602123",
-          "trackID" : "94A74063-98B8-4E8C-B03F-FA423D1EB80C"
+          "layerID" : "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-2BC420AE-9DF5-A5B5-D2E2-7C606C8815DC",
+          "trackID" : "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
+        },
+        {
+          "cell" : {
+            "inheritDefault" : {
+
+            }
+          },
+          "layerID" : "macro-3F8ECDAD-6A32-4046-8568-29248C5BC54E-2BC420AE-9DF5-A5B5-D2E2-7C606C8815DC",
+          "trackID" : "8D64B506-C2C1-42FD-84BD-07A25C8A37B4"
         }
       ],
       "id" : "22222222-2222-2222-2222-222222222222",
@@ -6514,7 +7343,7 @@
 
   ],
   "selectedPhraseID" : "22222222-2222-2222-2222-222222222222",
-  "selectedTrackID" : "EAFA6CC2-B430-43E0-BED9-BD6D6202437E",
+  "selectedTrackID" : "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF",
   "sendBusA" : {
     "id" : "send-a",
     "inserts" : [
@@ -6559,12 +7388,12 @@
   },
   "sliceSetPool" : [
     {
-      "id" : "5A3B6746-A047-4A20-84E5-33C52A0C6DB3",
+      "id" : "B24E6060-D308-4383-93FF-C2AAF54193E9",
       "markers" : [
         {
           "endFrame" : 88200,
           "gain" : 0,
-          "id" : "0626CEDE-97EE-4846-BBD3-1DE5CF1E09F2",
+          "id" : "ECCA1A29-B253-457E-A1A5-CFCE56DE0E47",
           "microTimingSteps" : 0,
           "reverse" : false,
           "startFrame" : 0,
@@ -6573,7 +7402,7 @@
         {
           "endFrame" : 11025,
           "gain" : 0,
-          "id" : "57133E21-7BDB-4185-84BD-8BCAF0A9BCB2",
+          "id" : "843AE8D2-AB26-4C44-A3F5-1685F284D601",
           "microTimingSteps" : 0,
           "reverse" : false,
           "startFrame" : 0,
@@ -6582,7 +7411,7 @@
         {
           "endFrame" : 22050,
           "gain" : 0,
-          "id" : "2328ED89-7F35-4603-A6AE-7010B4BCF89F",
+          "id" : "F2C4318C-A7F3-4805-994F-A4AB45E5D24B",
           "microTimingSteps" : 0,
           "reverse" : false,
           "startFrame" : 11025,
@@ -6591,7 +7420,7 @@
         {
           "endFrame" : 33075,
           "gain" : 0,
-          "id" : "C798BDCE-269F-4419-8F27-6313A7CBB9A0",
+          "id" : "05B60D44-ABDD-46D1-AB14-16F3AE1FE5AA",
           "microTimingSteps" : 0,
           "reverse" : false,
           "startFrame" : 22050,
@@ -6600,7 +7429,7 @@
         {
           "endFrame" : 44100,
           "gain" : 0,
-          "id" : "499E8EEA-05A0-4C96-BB94-79318CA4FC05",
+          "id" : "60869B41-BC42-4F06-BA51-579FCA0239CD",
           "microTimingSteps" : 0,
           "reverse" : false,
           "startFrame" : 33075,
@@ -6609,7 +7438,7 @@
         {
           "endFrame" : 55125,
           "gain" : 0,
-          "id" : "269D10D8-AFBE-4281-BD36-C8938BCDEFD8",
+          "id" : "C44AB0DB-71E2-45C8-894C-2A2BC65150C1",
           "microTimingSteps" : 0,
           "reverse" : false,
           "startFrame" : 44100,
@@ -6618,7 +7447,7 @@
         {
           "endFrame" : 66150,
           "gain" : 0,
-          "id" : "5A03CF03-98C9-4DB3-B9F7-C744B99D7C2E",
+          "id" : "D283CF1B-8974-4A76-A5AC-AF2897E85E1E",
           "microTimingSteps" : 0,
           "reverse" : false,
           "startFrame" : 55125,
@@ -6627,7 +7456,7 @@
         {
           "endFrame" : 77175,
           "gain" : 0,
-          "id" : "A48E4242-7355-4D99-8808-46F3E741FCD8",
+          "id" : "8C7C316E-3DBF-4FE7-B662-864C6D0A6E25",
           "microTimingSteps" : 0,
           "reverse" : false,
           "startFrame" : 66150,
@@ -6636,7 +7465,7 @@
         {
           "endFrame" : 88200,
           "gain" : 0,
-          "id" : "794F4F6D-59CC-45D5-8F80-CD120FF7CB69",
+          "id" : "A3382A65-6449-494A-8EBF-EF886853A3BB",
           "microTimingSteps" : 0,
           "reverse" : false,
           "startFrame" : 77175,
@@ -6656,13 +7485,13 @@
 
       ],
       "color" : "#8AA",
-      "id" : "AB058484-46AB-4938-ADD2-66D1B08F9963",
+      "id" : "E97A7EEE-B31B-4EA4-80B2-4699A8437D91",
       "isPatternLinked" : true,
       "memberIDs" : [
-        "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931",
-        "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0",
-        "5AF03A28-29B3-4065-80AA-910D96516953",
-        "94A74063-98B8-4E8C-B03F-FA423D1EB80C"
+        "3E278E83-D398-46F3-8F33-4E8C66214D9A",
+        "915EA852-237E-46CC-951A-89111BE56C7A",
+        "8E5B89B6-57E7-46BB-84DC-9FB75D468409",
+        "3F8ECDAD-6A32-4046-8568-29248C5BC54E"
       ],
       "mute" : false,
       "name" : "Audio Rich Kit",
@@ -6775,7 +7604,7 @@
 
       ],
       "gateLength" : 4,
-      "id" : "EAFA6CC2-B430-43E0-BED9-BD6D6202437E",
+      "id" : "2B37C89E-C8FD-44FC-A2FB-6D6613D2D7BF",
       "macros" : [
 
       ],
@@ -6842,7 +7671,7 @@
             "transpose" : 0,
             "voiceMode" : "mono"
           },
-          "sliceSetID" : "5A3B6746-A047-4A20-84E5-33C52A0C6DB3"
+          "sliceSetID" : "B24E6060-D308-4383-93FF-C2AAF54193E9"
         }
       },
       "filter" : {
@@ -6856,7 +7685,7 @@
 
       ],
       "gateLength" : 4,
-      "id" : "6A64DA66-89FC-47DC-95C4-097F0FD17983",
+      "id" : "B0540F4B-CE03-4DC4-80C8-E867182F7621",
       "macros" : [
 
       ],
@@ -6937,14 +7766,14 @@
 
       ],
       "gateLength" : 4,
-      "groupID" : "AB058484-46AB-4938-ADD2-66D1B08F9963",
-      "id" : "5B325040-ADF7-4AD5-BA97-DA1FCD9C8931",
+      "groupID" : "E97A7EEE-B31B-4EA4-80B2-4699A8437D91",
+      "id" : "3E278E83-D398-46F3-8F33-4E8C66214D9A",
       "macros" : [
         {
           "descriptor" : {
             "defaultValue" : 0,
             "displayName" : "Sample Start",
-            "id" : "B0DAAA1F-7053-05A8-9318-4E68C8261739",
+            "id" : "A388CCC7-06F6-C47A-8661-51FB9A97B424",
             "maxValue" : 1,
             "minValue" : 0,
             "source" : {
@@ -6960,7 +7789,7 @@
           "descriptor" : {
             "defaultValue" : 1,
             "displayName" : "Sample Length",
-            "id" : "6A75B86C-3102-6322-5D0B-09693B4DE06B",
+            "id" : "6BFDBD31-2927-AF30-48FD-36FB779B1BBE",
             "maxValue" : 1,
             "minValue" : 0,
             "source" : {
@@ -6976,7 +7805,7 @@
           "descriptor" : {
             "defaultValue" : 20000,
             "displayName" : "Filter Cutoff",
-            "id" : "8578939E-5A79-2A7A-3D67-F808C0371222",
+            "id" : "4D96D481-CA46-3184-A4C6-491E86EED56B",
             "maxValue" : 20000,
             "minValue" : 20,
             "source" : {
@@ -6999,7 +7828,7 @@
       },
       "name" : "Kick",
       "noteRepeatInterval" : "1\/16",
-      "outputBusID" : "299C8D77-ECDC-4173-BC37-6A9881D0BECE",
+      "outputBusID" : "3802FEA1-85AC-4B28-A42E-F4D146EF82C3",
       "pitches" : [
         36
       ],
@@ -7068,14 +7897,14 @@
 
       ],
       "gateLength" : 4,
-      "groupID" : "AB058484-46AB-4938-ADD2-66D1B08F9963",
-      "id" : "0C6A61B7-5CD6-48A3-B0BF-CA2B6572CBC0",
+      "groupID" : "E97A7EEE-B31B-4EA4-80B2-4699A8437D91",
+      "id" : "915EA852-237E-46CC-951A-89111BE56C7A",
       "macros" : [
         {
           "descriptor" : {
             "defaultValue" : 0,
             "displayName" : "Sample Start",
-            "id" : "3F3D97A6-9672-625E-903F-BCAF19AE7A97",
+            "id" : "E0A0F5F1-B82F-28B7-B8A6-47FADCD02704",
             "maxValue" : 1,
             "minValue" : 0,
             "source" : {
@@ -7091,7 +7920,7 @@
           "descriptor" : {
             "defaultValue" : 1,
             "displayName" : "Sample Length",
-            "id" : "7C589B11-F8A8-FFF4-2066-ABAEDA8BEBF1",
+            "id" : "62D303BC-41EB-E16B-7EA8-2CFABCB6B79E",
             "maxValue" : 1,
             "minValue" : 0,
             "source" : {
@@ -7107,7 +7936,7 @@
           "descriptor" : {
             "defaultValue" : 20000,
             "displayName" : "Filter Cutoff",
-            "id" : "97F079A3-9F1B-6BF8-CEED-6C6C4023E0EC",
+            "id" : "C6BD5800-F22E-0DE1-DD14-28FC1EDC888B",
             "maxValue" : 20000,
             "minValue" : 20,
             "source" : {
@@ -7198,14 +8027,14 @@
 
       ],
       "gateLength" : 4,
-      "groupID" : "AB058484-46AB-4938-ADD2-66D1B08F9963",
-      "id" : "5AF03A28-29B3-4065-80AA-910D96516953",
+      "groupID" : "E97A7EEE-B31B-4EA4-80B2-4699A8437D91",
+      "id" : "8E5B89B6-57E7-46BB-84DC-9FB75D468409",
       "macros" : [
         {
           "descriptor" : {
             "defaultValue" : 0,
             "displayName" : "Sample Start",
-            "id" : "22E92158-92FD-0101-8983-8584F10C8EE7",
+            "id" : "9E847A44-B7F9-912E-A156-D80668F04347",
             "maxValue" : 1,
             "minValue" : 0,
             "source" : {
@@ -7221,7 +8050,7 @@
           "descriptor" : {
             "defaultValue" : 1,
             "displayName" : "Sample Length",
-            "id" : "BABB7D81-6F85-02E1-2C4C-94854CBE30A1",
+            "id" : "D2849DC4-5348-19E4-4420-E706C4A39801",
             "maxValue" : 1,
             "minValue" : 0,
             "source" : {
@@ -7237,7 +8066,7 @@
           "descriptor" : {
             "defaultValue" : 20000,
             "displayName" : "Filter Cutoff",
-            "id" : "627E0C5F-F406-D12B-6BD4-C08AB5188BBC",
+            "id" : "CBD163E2-AADF-0968-C163-1AC3E200B75C",
             "maxValue" : 20000,
             "minValue" : 20,
             "source" : {
@@ -7328,14 +8157,14 @@
 
       ],
       "gateLength" : 4,
-      "groupID" : "AB058484-46AB-4938-ADD2-66D1B08F9963",
-      "id" : "94A74063-98B8-4E8C-B03F-FA423D1EB80C",
+      "groupID" : "E97A7EEE-B31B-4EA4-80B2-4699A8437D91",
+      "id" : "3F8ECDAD-6A32-4046-8568-29248C5BC54E",
       "macros" : [
         {
           "descriptor" : {
             "defaultValue" : 0,
             "displayName" : "Sample Start",
-            "id" : "EFDF6B78-640C-F236-5DEA-9F942D848B1C",
+            "id" : "18A100DE-40B7-8B4B-031C-70C51FEAF9C7",
             "maxValue" : 1,
             "minValue" : 0,
             "source" : {
@@ -7351,7 +8180,7 @@
           "descriptor" : {
             "defaultValue" : 1,
             "displayName" : "Sample Length",
-            "id" : "36109092-530B-C2AC-976A-F493BD4A9076",
+            "id" : "00BFE7A7-A6EC-10DF-A5E6-7FC57B9E4E81",
             "maxValue" : 1,
             "minValue" : 0,
             "source" : {
@@ -7367,7 +8196,7 @@
           "descriptor" : {
             "defaultValue" : 20000,
             "displayName" : "Filter Cutoff",
-            "id" : "64AB9218-A763-0880-6F0E-E26B73602123",
+            "id" : "2BC420AE-9DF5-A5B5-D2E2-7C606C8815DC",
             "maxValue" : 20000,
             "minValue" : 20,
             "source" : {
@@ -7432,6 +8261,87 @@
       "trackType" : "monoMelodic",
       "velocity" : 100,
       "voiceTag" : "clap"
+    },
+    {
+      "destination" : {
+        "sample" : {
+          "sampleID" : "79F25661-15E0-59E7-9949-AF16638B293D",
+          "settings" : {
+            "attackMs" : 0,
+            "gain" : 0,
+            "length" : 1,
+            "releaseMs" : 0,
+            "start" : 0,
+            "transpose" : 0
+          }
+        }
+      },
+      "filter" : {
+        "cutoffHz" : 20000,
+        "drive" : 0,
+        "poles" : 2,
+        "resonance" : 0,
+        "type" : "lowpass"
+      },
+      "fxInserts" : [
+
+      ],
+      "gateLength" : 4,
+      "id" : "8D64B506-C2C1-42FD-84BD-07A25C8A37B4",
+      "macros" : [
+
+      ],
+      "mix" : {
+        "isMuted" : false,
+        "isSoloed" : false,
+        "level" : 0.8,
+        "pan" : 0,
+        "sendA" : 0,
+        "sendB" : 0
+      },
+      "name" : "Sustain Drone",
+      "noteRepeatInterval" : "1\/16",
+      "pitches" : [
+        48
+      ],
+      "stepAccents" : [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "stepPattern" : [
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "trackType" : "monoMelodic",
+      "velocity" : 100
     }
   ],
   "version" : 1

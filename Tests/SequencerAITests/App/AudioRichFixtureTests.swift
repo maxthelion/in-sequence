@@ -194,6 +194,26 @@ final class AudioRichFixtureTests: XCTestCase {
             }
         }
 
+        // -- Continuously-sustaining drone: the LAST track, on a generated
+        //    `.sample(...)`, on master (no sends), triggering on every step so
+        //    the master path always has audio (makes the SILENCE metric honest).
+        let droneTrack = try XCTUnwrap(
+            decoded.tracks.last { $0.name == "Sustain Drone" },
+            "expected a sustained drone track"
+        )
+        XCTAssertEqual(decoded.tracks.last?.id, droneTrack.id, "drone must be the LAST track so routing-stress ops never touch it")
+        guard case let .sample(droneSampleID, _) = droneTrack.destination else {
+            return XCTFail("drone track should be on a .sample destination")
+        }
+        XCTAssertEqual(droneSampleID, AudioRichFixture.droneSampleID)
+        XCTAssertEqual(droneTrack.mix.sendA, 0, "drone must stay on master (no Send A)")
+        XCTAssertEqual(droneTrack.mix.sendB, 0, "drone must stay on master (no Send B)")
+        XCTAssertTrue(droneTrack.stepPattern.allSatisfy { $0 }, "drone must trigger on every step")
+        XCTAssertTrue(
+            decoded.isInAssetPool(kind: .sample, assetID: AudioRichFixture.droneSampleID),
+            "generated drone sample should be pooled"
+        )
+
         // -- Send buses + mixer bus routing (unchanged).
         XCTAssertEqual(decoded.sendBus(id: .sendA).inserts.count, 1)
         XCTAssertEqual(decoded.sendBus(id: .sendB).inserts.count, 1)

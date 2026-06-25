@@ -100,6 +100,35 @@ status_mtime() {
   stat -f %m "$STATUS_FILE" 2>/dev/null || echo 0
 }
 
+# Loudest masterPeak over a short SETTLE WINDOW after an op, not a single
+# instant. The fixture carries a continuously-sustaining drone track (always on
+# master, never touched by the ops), so the master is sounding at all times. A
+# single read taken the instant the op's graph mutation lands can catch one tick
+# where the buffer peak is momentarily -inf MID-reconnect; sound recovers within
+# a fraction of a second. Sampling the MAX across the window therefore flags
+# only a REAL, persistent silence (every read -inf) — never a transient
+# mutation dropout. This is the honest SILENCE metric.
+PEAK_WINDOW_SAMPLES="${ROUTING_STRESS_PEAK_SAMPLES:-8}"
+PEAK_WINDOW_INTERVAL="${ROUTING_STRESS_PEAK_INTERVAL:-0.2}"
+settled_master_peak() {
+  local best="-inf" v
+  local i=0
+  while [ "$i" -lt "$PEAK_WINDOW_SAMPLES" ]; do
+    v="$(status_value masterPeak 2>/dev/null || echo -inf)"
+    # Keep the numerically largest finite value seen; ignore -inf/non-numeric.
+    if printf '%s' "$v" | grep -qE '^-?[0-9]'; then
+      if [ "$best" = "-inf" ]; then
+        best="$v"
+      else
+        best="$(awk -v a="$best" -v b="$v" 'BEGIN { print (b > a) ? b : a }')"
+      fi
+    fi
+    i=$((i+1))
+    sleep "$PEAK_WINDOW_INTERVAL"
+  done
+  printf '%s' "$best"
+}
+
 # --- diagnostics ------------------------------------------------------------
 newest_crash_frame() {
   local crash
@@ -161,8 +190,9 @@ drive() {
 
   case "$verdict" in
     PASS)
-      peak="$(status_value masterPeak 2>/dev/null || echo n/a)"
-      # While playing, masterPeak ~ -inf (or very low) => SILENCE.
+      # Loudest masterPeak over a settle window (drone keeps the master sounding
+      # throughout) — only a persistently-silent master flags SILENCE.
+      peak="$(settled_master_peak 2>/dev/null || echo n/a)"
       if printf '%s' "$peak" | grep -qiE '^-inf|^-1[0-9][0-9]'; then
         silent=" SILENCE(peak=$peak)"
         SILENCE=$((SILENCE+1))

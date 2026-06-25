@@ -518,4 +518,90 @@ final class SamplePlaybackEngineTests: XCTestCase {
         let engine = SamplePlaybackEngine()
         engine.removeTrack(trackID: UUID())
     }
+
+    // MARK: - Route bus -> master keeps playable voices (regression)
+
+    /// Regression for the route-to-master SILENCE bug: a track routed to a mixer
+    /// bus and then back to master previously had its bus voice pool torn down
+    /// WITHOUT its master voice pool being re-established, so it went silent and
+    /// never recovered. The fix rebuilds the master (prepared track) voice pool
+    /// in the teardownBus branch of `setTrackOutputBus`. This asserts that after
+    /// bus -> master the track is on the master route with playable voices and
+    /// `play` succeeds.
+    @MainActor
+    func test_routeBusToMaster_reestablishesPlayableMasterVoices() throws {
+        let graph = MainAudioGraph()
+        let engine = SamplePlaybackEngine(audioGraph: graph)
+        try engine.start()
+        defer { engine.stop() }
+
+        let busID = UUID()
+        graph.installMixerBuses([MixerBus(id: busID, name: "FX Bus")])
+
+        let trackID = UUID()
+        engine.prepareTrack(trackID: trackID)
+
+        // Route to the bus: the track now plays on the bus voice pool.
+        engine.setTrackOutputBus(trackID: trackID, busID: busID)
+        let onBus = engine.preparedTrackRouteReadoutForTesting(trackID: trackID)
+        XCTAssertEqual(onBus["prepared"], true, "track should be prepared on the bus")
+        XCTAssertEqual(onBus["busSafeRoute"], true, "track should be on the bus route")
+
+        // Route back to master: the bus pool is torn down and the master voice
+        // pool MUST be re-established so the track keeps sounding.
+        engine.setTrackOutputBus(trackID: trackID, busID: nil)
+        let onMaster = engine.preparedTrackRouteReadoutForTesting(trackID: trackID)
+        XCTAssertEqual(onMaster["prepared"], true, "track must remain prepared after bus -> master")
+        XCTAssertEqual(onMaster["busSafeRoute"], false, "track must be back on the master route")
+        XCTAssertEqual(
+            onMaster["voiceToVoiceFilter"], true,
+            "master voice -> voice filter must be reconnected"
+        )
+        XCTAssertEqual(
+            onMaster["voiceFilterToMixer"], true,
+            "master voice filter -> track mixer must be reconnected"
+        )
+        XCTAssertEqual(
+            onMaster["trackFilterHasOutput"], true,
+            "master track filter must drive the master output chain"
+        )
+        XCTAssertEqual(
+            onMaster["voicePlayable"], true,
+            "master voices must be playable after the reroute"
+        )
+
+        // The watertight acceptance: the track keeps sounding on master.
+        XCTAssertNotNil(
+            engine.play(sampleURL: fixtureURL, settings: .default, trackID: trackID, at: nil),
+            "play must succeed on the master route after bus -> master (no lost voices)"
+        )
+    }
+
+    /// Master -> bus -> master also keeps the track playable on master.
+    @MainActor
+    func test_routeMasterToBusToMaster_keepsPlayableVoices() throws {
+        let graph = MainAudioGraph()
+        let engine = SamplePlaybackEngine(audioGraph: graph)
+        try engine.start()
+        defer { engine.stop() }
+
+        let busID = UUID()
+        graph.installMixerBuses([MixerBus(id: busID, name: "FX Bus")])
+
+        let trackID = UUID()
+        engine.prepareTrack(trackID: trackID)
+        XCTAssertNotNil(engine.play(sampleURL: fixtureURL, settings: .default, trackID: trackID, at: nil))
+
+        engine.setTrackOutputBus(trackID: trackID, busID: busID)
+        engine.setTrackOutputBus(trackID: trackID, busID: nil)
+
+        let onMaster = engine.preparedTrackRouteReadoutForTesting(trackID: trackID)
+        XCTAssertEqual(onMaster["prepared"], true)
+        XCTAssertEqual(onMaster["busSafeRoute"], false)
+        XCTAssertEqual(onMaster["voicePlayable"], true)
+        XCTAssertNotNil(
+            engine.play(sampleURL: fixtureURL, settings: .default, trackID: trackID, at: nil),
+            "track must keep sounding on master after master -> bus -> master"
+        )
+    }
 }
