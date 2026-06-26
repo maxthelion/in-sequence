@@ -1,6 +1,35 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# realtime-path-lint — deterministic guard for the Audio Engine Hard Rules on
+# the tick / scheduling / sample-trigger code paths. See
+# wiki/pages/architecture-guardrails.md ("Audio Engine Hard Rules") and
+# docs/plans/2026-06-24-sample-accurate-timing.md ("Enforcing mechanisms").
+#
+# Every forbidden API is opt-out via a `realtime-allow-<reason>: <why> . Test:
+# <name>` comment on the offending line or the line above it (same mechanism for
+# every rule below). A bare annotation with no reason / no Test: reference is
+# itself a failure.
+#
+# Rules enforced here:
+#   - file IO / main-sync / @MainActor hop on the realtime path (base_forbidden);
+#   - graph mutation off the MainAudioGraph owner (graph_mutation);
+#   - unannotated DispatchQueue.main.async on the realtime path;
+#   - Rule 5: engine.stop()/start() topology change (MainAudioGraph only);
+#   - Rule 1 (#39): wall-clock musical-timing source on the tick/scheduling path
+#     (ProcessInfo.systemUptime / Date / DispatchTime.now / DispatchSourceTimer);
+#   - Rule 4 (#39): disk on the sample-trigger path (scheduleSegment(file:) /
+#     AVAudioFile(forReading:) in SamplePlaybackEngine).
+#
+# DEFERRED — Rule 3 (AU note path) is NOT enforced yet. The plan's Rule-3 lint
+# would forbid DispatchQueue.main / startNote / stopNote on the AU note path in
+# Sources/Audio/AudioInstrumentHost.swift. Those calls STILL EXIST in current
+# (pre-P1) code — adding the rule now would fail the lint on legitimate code.
+# ADD IN PHASE 1 (#36) once AudioInstrumentHost's startNote main-hop is removed:
+# scope an awk block to AudioInstrumentHost.swift that flags unannotated
+# `DispatchQueue.main`, `startNote(`, `stopNote(` on the note/tick path, mirroring
+# the Rule 1 / Rule 4 blocks below. Do not weaken anything to add it early.
+
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 rg_bin="${RG_BIN:-$(command -v rg || true)}"
 if [[ -z "$rg_bin" ]]; then
@@ -30,6 +59,11 @@ else
     "Sources/Engine/EngineControllerNoteRepeat.swift"
     "Sources/Engine/EngineSlicerDispatcher.swift"
     "Sources/Engine/RouterDispatchState.swift"
+    # Tick / scheduling clock files — scanned so Rule 1 (one audio-derived
+    # master clock) covers the sanctioned host-time site (AudioMasterClock)
+    # and the pump-pacing timer (TickClock).
+    "Sources/Engine/AudioMasterClock.swift"
+    "Sources/Engine/TickClock.swift"
     "Sources/Audio/MainAudioGraph.swift"
     "Sources/Audio/AudioInstrumentHost.swift"
     "Sources/Audio/SamplerFilterNode.swift"
@@ -113,6 +147,77 @@ for file in "${files[@]}"; do
           if ($0 ~ /^[[:space:]]*\/\//) { previous = $0; next }
           if (!has_allow($0) && !has_allow(previous)) {
             printf "%s:%d: routing guardrail (Rule 5) violated: unannotated engine.stop()/start() — only transport start/stop, device recovery, master-chain setup, and audio-input full-rebuild may call these; annotate legitimate sites with `// routing-lint-allow: <reason>`: %s\n", file, NR, $0 > "/dev/stderr"
+            failed = 1
+          }
+        }
+        { previous = $0 }
+        END { exit failed ? 1 : 0 }
+      ' "$path" || failed=1
+      ;;
+  esac
+
+  # Rule 1 (Audio Engine Hard Rule 1): one audio-derived master clock. On the
+  # TICK / SCHEDULING path, never derive a *musical / sounding* time from a wall
+  # clock. Forbid `ProcessInfo.processInfo.systemUptime`, `Date(` / `Date.now`,
+  # `DispatchTime.now`, and `DispatchSourceTimer` (a timer's deadline) UNLESS the
+  # site is annotated `realtime-allow-<reason>: ... Test: <name>` classifying why
+  # it is NOT a musical-timing source. The sanctioned classifications are:
+  #   - sanctioned-clock: AudioMasterClock's render-origin / host-time anchoring
+  #     (THE one site allowed to touch host time for musical timing);
+  #   - pump-pacing: TickClock's DispatchSourceTimer wake — paces *when* we
+  #     commit, never the sounding frame;
+  #   - midi-host: router / MIDI keeps wall-clock host time until Phase 3;
+  #   - diagnostic: SequencerTimingProbe / DevActivity / control-path (stop,
+  #     shutdown, note-off flush) timestamps — not event scheduling.
+  # Any NEW unannotated wall-clock-as-timing on these files fails the lint. The
+  # `_OverrideForTesting`/`effectivePlaybackTime` default-argument seams are part
+  # of the deterministic test harness, not the live musical path; they are
+  # annotated where they appear.
+  case "$file" in
+    */EngineController.swift|Sources/Engine/EngineController.swift \
+    |*/EngineControllerAudioInput.swift|Sources/Engine/EngineControllerAudioInput.swift \
+    |*/EngineControllerNoteRepeat.swift|Sources/Engine/EngineControllerNoteRepeat.swift \
+    |*/EngineSlicerDispatcher.swift|Sources/Engine/EngineSlicerDispatcher.swift \
+    |*/RouterDispatchState.swift|Sources/Engine/RouterDispatchState.swift \
+    |*/AudioMasterClock.swift|Sources/Engine/AudioMasterClock.swift \
+    |*/TickClock.swift|Sources/Engine/TickClock.swift)
+      awk -v file="$file" '
+        function has_allow(line) {
+          return line ~ /realtime-allow-[a-z-]+: .+Test: [A-Za-z0-9_]+/
+        }
+        /ProcessInfo\.processInfo\.systemUptime|Date\(|Date\.now|DispatchTime\.now|DispatchSourceTimer/ {
+          if ($0 ~ /^[[:space:]]*\/\//) { previous = $0; next }
+          if (!has_allow($0) && !has_allow(previous)) {
+            printf "%s:%d: Rule 1 (one audio-derived master clock) violated: unannotated wall-clock musical-timing source on the tick/scheduling path — only AudioMasterClock may anchor host time for musical timing; pump pacing, MIDI host time, and diagnostics must be annotated `// realtime-allow-<reason>: <classification> . Test: <name>`: %s\n", file, NR, $0 > "/dev/stderr"
+            failed = 1
+          }
+        }
+        { previous = $0 }
+        END { exit failed ? 1 : 0 }
+      ' "$path" || failed=1
+      ;;
+  esac
+
+  # Rule 4 (Audio Engine Hard Rule 4): triggered playback reads resident buffers
+  # from RAM, never streams from disk. On the sample/slice TRIGGER path
+  # (SamplePlaybackEngine), forbid `scheduleSegment(` (the file-streaming overload)
+  # and `AVAudioFile(forReading:` UNLESS annotated. P2 left exactly two annotated
+  # sites: the bounded large-loop / no-resident-buffer streaming fallback
+  # (`realtime-allow-file-stream`) and the legacy audition/URL open
+  # (`realtime-allow-file-open`). Any NEW unannotated streaming/open in this file
+  # fails the lint. (`AVAudioFile(forReading:` is also in base_forbidden_regex
+  # above for the whole realtime path; this block additionally pins
+  # `scheduleSegment(`, which base_forbidden does not cover.)
+  case "$file" in
+    */SamplePlaybackEngine.swift|Sources/Audio/SamplePlaybackEngine.swift)
+      awk -v file="$file" '
+        function has_allow(line) {
+          return line ~ /realtime-allow-[a-z-]+: .+Test: [A-Za-z0-9_]+/
+        }
+        /[.[:space:]]scheduleSegment\(/ {
+          if ($0 ~ /^[[:space:]]*\/\//) { previous = $0; next }
+          if (!has_allow($0) && !has_allow(previous)) {
+            printf "%s:%d: Rule 4 (resident buffers, no disk on the trigger path) violated: unannotated scheduleSegment(file:) — triggered playback must scheduleBuffer a resident AVAudioPCMBuffer; file streaming is reserved for bounded large-loop audio and must be annotated `// realtime-allow-file-stream: <reason> . Test: <name>`: %s\n", file, NR, $0 > "/dev/stderr"
             failed = 1
           }
         }

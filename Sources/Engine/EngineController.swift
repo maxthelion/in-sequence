@@ -272,6 +272,7 @@ final class EngineController: RouterDispatcher {
     )
     let audioInputCapturePublicationQueueKey = DispatchSpecificKey<Void>()
     private let publishesAudioInputCapture: Bool
+    // realtime-allow-diagnostic: audio-input capture-publication drain timer; paces UI publication of capture summaries, not musical event scheduling (Rule 1 governs sounding-time sources). Test: RealtimePathLintTests.
     var audioInputCaptureDrainTimer: DispatchSourceTimer?
     // Initialized at end of init() after `self` is fully available.
     private var macroApplier: TrackMacroApplier!
@@ -864,7 +865,9 @@ final class EngineController: RouterDispatcher {
         // position current at transport start (Rule 1). Must precede
         // prepareTick(0) so the first step's stamp resolves against the right
         // origin. systemUptime is the host-time fallback before first render.
+        // realtime-allow-sanctioned-clock: pre-render host-time origin fallback handed to AudioMasterClock — THE one sanctioned site that may anchor host time for musical timing; it is upgraded to the render-derived origin on first render (Rule 1, AudioMasterClock.captureOrigin/refreshOriginIfAvailable). Test: OfflineFrameAccuracyTests.
         audioMasterClock.captureOrigin(fallbackHostSeconds: ProcessInfo.processInfo.systemUptime)
+        // realtime-allow-pump-pacing: `now` is the wake/MIDI wall-clock passed through prepareTick; the AUDIO sounding frame is stamped from the unified clock's tempo map, not from this value (Rule 1). Test: OfflineFrameAccuracyTests.
         prepareTick(upcomingStep: 0, now: ProcessInfo.processInfo.systemUptime)
         promotePreparedNoteRepeatCapture(for: 0)
         tickState.markPreparedTick(0)
@@ -905,6 +908,7 @@ final class EngineController: RouterDispatcher {
 
     func stop() {
         DevActivity.trace(DevActivity.engine, "EngineController.stop (isRunning=\(isRunning))")
+        // realtime-allow-diagnostic: transport-stop control path; `now` stamps note-off flush / note-repeat cleanup (MIDI wall-clock + bookkeeping), never an event's sounding frame (Rule 1). Test: RealtimePathLintTests.
         let now = ProcessInfo.processInfo.systemUptime
         guard isRunning else {
             clearNoteRepeatCaptureCaches()
@@ -987,6 +991,7 @@ final class EngineController: RouterDispatcher {
     func shutdown(completion: @escaping () -> Void) {
         shutdownObserver?()
         log("shutdown start")
+        // realtime-allow-diagnostic: shutdown control path; `now` stamps note-off flush / note-repeat cleanup (MIDI wall-clock + bookkeeping), never an event's sounding frame (Rule 1). Test: RealtimePathLintTests.
         let now = ProcessInfo.processInfo.systemUptime
         let hosts = withStateLock { Self.uniqueHosts(Array(trackRuntime.audioOutputsByTrackID.values)) }
         if isRunning {
@@ -1055,6 +1060,7 @@ final class EngineController: RouterDispatcher {
 
         applyDocumentModelCallCount += 1
         let previousDocumentModel = currentDocumentModel
+        // realtime-allow-midi-host: document-apply path flushes MIDI note-offs for detached destinations; `now` is the MIDI wall-clock host time (not on the unified clock until Phase 3), never an audio sounding frame (Rule 1). Test: RealtimePathLintTests.
         flushDetachedMIDINoteOffs(from: previousDocumentModel, to: documentModel, now: ProcessInfo.processInfo.systemUptime)
         let deltas = documentModel.deltas(from: previousDocumentModel)
         currentDocumentModel = documentModel
@@ -1815,6 +1821,7 @@ final class EngineController: RouterDispatcher {
         // The whole tick scope runs under the DEBUG tick-path marker: any
         // synchronous main hop reached from here trips
         // TickPathMainSyncGuard (architecture verdict §1).
+        // realtime-allow-diagnostic: SequencerTimingProbe processTick-duration measurement (only when the probe is enabled), never a sounding-time source (Rule 1). Test: RealtimePathLintTests.
         let started = SequencerTimingProbe.isEnabled ? ProcessInfo.processInfo.systemUptime : 0
         let eventCount = TickPathMainSyncGuard.withTickPathMarker {
             processTickMarked(tickIndex: tickIndex, now: now)
@@ -1822,6 +1829,7 @@ final class EngineController: RouterDispatcher {
         if SequencerTimingProbe.isEnabled {
             SequencerTimingProbe.processTick(
                 tickIndex: tickIndex,
+                // realtime-allow-diagnostic: SequencerTimingProbe duration readout, not a sounding-time source (Rule 1). Test: RealtimePathLintTests.
                 duration: ProcessInfo.processInfo.systemUptime - started,
                 eventCount: eventCount
             )
@@ -2206,6 +2214,7 @@ final class EngineController: RouterDispatcher {
         let (audioOutputs, outputKeys) = withStateLock { (trackRuntime.audioOutputsByTrackID, trackRuntime.audioOutputKeysByTrackID) }
 
         for event in events {
+            // realtime-allow-diagnostic: SequencerTimingProbe scheduled-vs-actual dispatch latency probe (only when enabled); the actual sounding frame is the `at:` AVAudioTime built by scheduledAudioTime(for:), not this value (Rule 1). Test: RealtimePathLintTests.
             let dispatchNow = SequencerTimingProbe.isEnabled ? ProcessInfo.processInfo.systemUptime : 0
             switch event.payload {
             case let .trackAU(trackID, destination, notes, bpm, stepsPerBar):

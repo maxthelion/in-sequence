@@ -6,6 +6,7 @@ final class TickClock {
     private let stepsPerBar: Int
     private let queue: DispatchQueue
     private let queueKey = DispatchSpecificKey<Void>()
+    // realtime-allow-pump-pacing: TickClock is the lookahead pump's wake timer — it paces *when* the engine prepares/commits the next step, NEVER the frame an event sounds on (that is anchored by AudioMasterClock from the tempo map, Rule 1). Pump jitter does not move the sounding frame. Test: OfflineFrameAccuracyTests.
     private var timer: DispatchSourceTimer?
     private var storedBPM: Double
     private var nextTickIndex: UInt64 = 0
@@ -45,6 +46,7 @@ final class TickClock {
             }
 
             nextTickIndex = 0
+            // realtime-allow-pump-pacing: seeds the pump's wake-jitter probe baseline (next expected wake), not a sounding time. Test: OfflineFrameAccuracyTests.
             nextExpectedUptime = ProcessInfo.processInfo.systemUptime
 
             let timer = DispatchSource.makeTimerSource(queue: queue)
@@ -58,6 +60,7 @@ final class TickClock {
                     return
                 }
 
+                // realtime-allow-pump-pacing: the pump's actual wake time, passed to onTick as `now` for the wake-jitter probe and the MIDI/note-off wall-clock path; the AUDIO sounding frame is derived in AudioMasterClock from the tempo map, not from this value (Rule 1). Test: OfflineFrameAccuracyTests.
                 let actual = ProcessInfo.processInfo.systemUptime
                 let tickIndex = self.nextTickIndex
                 let interval = self.intervalSecondsForCurrentBPM()
@@ -109,6 +112,7 @@ final class TickClock {
             repeating: intervalForCurrentBPM(),
             leeway: .milliseconds(1)
         )
+        // realtime-allow-pump-pacing: recomputes the pump's next expected wake after a BPM change (wake-jitter probe baseline), not a sounding time. Test: OfflineFrameAccuracyTests.
         nextExpectedUptime = ProcessInfo.processInfo.systemUptime + intervalSecondsForCurrentBPM()
     }
 

@@ -140,6 +140,103 @@ final class RealtimePathLintTests: XCTestCase {
         XCTAssertEqual(result.status, 0, result.output)
     }
 
+    // MARK: - Rule 1 (one audio-derived master clock) — #39
+
+    func test_realtimePathLintFailsOnInjectedWallClockTimingOnTickPath() throws {
+        let fixture = try makeFixture("""
+        import Foundation
+        func prepareTick() -> TimeInterval {
+            ProcessInfo.processInfo.systemUptime
+        }
+        """, fileName: "EngineController.swift")
+
+        let result = try runLint(arguments: [fixture.path])
+        XCTAssertNotEqual(result.status, 0)
+        XCTAssertTrue(result.output.contains("Rule 1"), result.output)
+        XCTAssertTrue(result.output.contains("ProcessInfo.processInfo.systemUptime"), result.output)
+    }
+
+    func test_realtimePathLintFailsOnInjectedDispatchSourceTimerOnTickPath() throws {
+        let fixture = try makeFixture("""
+        import Foundation
+        var timer: DispatchSourceTimer?
+        """, fileName: "TickClock.swift")
+
+        let result = try runLint(arguments: [fixture.path])
+        XCTAssertNotEqual(result.status, 0)
+        XCTAssertTrue(result.output.contains("Rule 1"), result.output)
+    }
+
+    func test_realtimePathLintAllowsAnnotatedWallClockTimingOnTickPath() throws {
+        let fixture = try makeFixture("""
+        import Foundation
+        func captureOrigin() -> TimeInterval {
+            // realtime-allow-sanctioned-clock: AudioMasterClock pre-render origin fallback. Test: OfflineFrameAccuracyTests.
+            ProcessInfo.processInfo.systemUptime
+        }
+        """, fileName: "EngineController.swift")
+
+        let result = try runLint(arguments: [fixture.path])
+        XCTAssertEqual(result.status, 0, result.output)
+    }
+
+    func test_realtimePathLintIgnoresWallClockTimingOffTickPath() throws {
+        // Rule 1 is scoped to the tick/scheduling-path files only; a wall-clock
+        // read in some unrelated file must NOT trip it.
+        let fixture = try makeFixture("""
+        import Foundation
+        func somewhereElse() -> TimeInterval {
+            ProcessInfo.processInfo.systemUptime
+        }
+        """, fileName: "SomeUnrelatedFile.swift")
+
+        let result = try runLint(arguments: [fixture.path])
+        XCTAssertEqual(result.status, 0, result.output)
+    }
+
+    // MARK: - Rule 4 (resident buffers, no disk on the trigger path) — #39
+
+    func test_realtimePathLintFailsOnInjectedScheduleSegmentInSamplePlaybackEngine() throws {
+        let fixture = try makeFixture("""
+        import AVFoundation
+        func startSliceVoice(_ voice: AVAudioPlayerNode, file: AVAudioFile) {
+            voice.scheduleSegment(file, startingFrame: 0, frameCount: 1, at: nil, completionHandler: nil)
+        }
+        """, fileName: "SamplePlaybackEngine.swift")
+
+        let result = try runLint(arguments: [fixture.path])
+        XCTAssertNotEqual(result.status, 0)
+        XCTAssertTrue(result.output.contains("Rule 4"), result.output)
+        XCTAssertTrue(result.output.contains("scheduleSegment"), result.output)
+    }
+
+    func test_realtimePathLintAllowsAnnotatedScheduleSegmentInSamplePlaybackEngine() throws {
+        let fixture = try makeFixture("""
+        import AVFoundation
+        func startSliceVoice(_ voice: AVAudioPlayerNode, file: AVAudioFile) {
+            // realtime-allow-file-stream: bounded large-loop fallback only. Test: SamplePlaybackEngineResidentBufferTests.
+            voice.scheduleSegment(file, startingFrame: 0, frameCount: 1, at: nil, completionHandler: nil)
+        }
+        """, fileName: "SamplePlaybackEngine.swift")
+
+        let result = try runLint(arguments: [fixture.path])
+        XCTAssertEqual(result.status, 0, result.output)
+    }
+
+    func test_realtimePathLintIgnoresScheduleSegmentOutsideSamplePlaybackEngine() throws {
+        // Rule 4 is scoped to SamplePlaybackEngine.swift; scheduleSegment elsewhere
+        // is not the sample-trigger path this rule guards.
+        let fixture = try makeFixture("""
+        import AVFoundation
+        func preview(_ voice: AVAudioPlayerNode, file: AVAudioFile) {
+            voice.scheduleSegment(file, startingFrame: 0, frameCount: 1, at: nil, completionHandler: nil)
+        }
+        """, fileName: "SomeUnrelatedFile.swift")
+
+        let result = try runLint(arguments: [fixture.path])
+        XCTAssertEqual(result.status, 0, result.output)
+    }
+
     func test_realtimePathLintRequiresReasonedAllowAnnotation() throws {
         let fixture = try makeFixture("""
         import Foundation

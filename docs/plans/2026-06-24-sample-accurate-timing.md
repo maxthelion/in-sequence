@@ -207,6 +207,15 @@ scope to *plumb*).
      calls on the AU note path in `AudioInstrumentHost.swift` (the existing ones
      get removed in Phase 1; after that, none are allowed without a
      `realtime-allow-…` annotation + test reference).
+   - **Status (#39, 2026-06-26): Rule 1 (wall-clock musical-timing on the
+     tick/scheduling path) and Rule 4 (`scheduleSegment(file:)` /
+     `AVAudioFile(forReading:)` on the sample-trigger path) are NOW ENFORCED.**
+     Every current sanctioned site is annotated (`realtime-allow-…` +
+     `Test:`); a new unannotated occurrence fails the lint
+     (`RealtimePathLintTests` covers both with planted-violation fixtures).
+     Rule 3 (AU note-path main-hop / `startNote`/`stopNote`) is still **DEFERRED
+     to Phase 1 (#36)** — the lint carries a marked `ADD IN PHASE 1` comment
+     because the offending calls still exist in pre-P1 `AudioInstrumentHost`.
 3. **`runtime-ownership-lint.sh`** continues to catch owner drift.
 
 ## Risks / honest caveats

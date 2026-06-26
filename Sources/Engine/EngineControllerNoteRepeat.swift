@@ -14,6 +14,7 @@ extension EngineController {
             return
         }
 
+        // realtime-allow-midi-host: engage gesture; `now` stamps MIDI note-off flush during cleanup (wall-clock host time, not on the unified clock until Phase 3), never an audio sounding frame (Rule 1). Test: RealtimePathLintTests.
         cleanupNoteRepeats(for: [trackID], now: ProcessInfo.processInfo.systemUptime, clearActiveState: true)
         withStateLock {
             activeNoteRepeatsByTrackID[trackID] = ActiveNoteRepeatRuntime(
@@ -28,6 +29,7 @@ extension EngineController {
     }
 
     func releaseNoteRepeat(trackID: UUID) {
+        // realtime-allow-midi-host: release gesture; `now` stamps MIDI note-off flush during cleanup (wall-clock host time, not on the unified clock until Phase 3), never an audio sounding frame (Rule 1). Test: RealtimePathLintTests.
         cleanupNoteRepeats(for: [trackID], now: ProcessInfo.processInfo.systemUptime, clearActiveState: true)
         invalidatePreparedNoteRepeatScheduling()
     }
@@ -52,6 +54,7 @@ extension EngineController {
         withStateLock { Set(activeNoteRepeatsByTrackID.keys) }
     }
 
+    // realtime-allow-midi-host: default `now` for note-off flush during repeat cleanup (wall-clock host time, not on the unified clock until Phase 3); callers on the sounding path pass an explicit time and the audio frame is stamped in AudioMasterClock (Rule 1). Test: RealtimePathLintTests.
     func clearAllNoteRepeats(now: TimeInterval = ProcessInfo.processInfo.systemUptime) {
         let trackIDs = withStateLock { Set(activeNoteRepeatsByTrackID.keys) }
         cleanupNoteRepeats(for: trackIDs, now: now, clearActiveState: true)
@@ -394,6 +397,7 @@ extension EngineController {
         if !unsupportedTrackIDs.isEmpty {
             cleanupNoteRepeats(
                 for: unsupportedTrackIDs,
+                // realtime-allow-midi-host: reconcile drops repeats whose source no longer supports them; `now` stamps MIDI note-off flush during cleanup (wall-clock host time, not on the unified clock until Phase 3), never an audio sounding frame (Rule 1). Test: RealtimePathLintTests.
                 now: ProcessInfo.processInfo.systemUptime,
                 clearActiveState: true
             )
