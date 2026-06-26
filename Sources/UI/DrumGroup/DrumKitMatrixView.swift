@@ -74,6 +74,22 @@ struct ExpandedMacroTarget: Identifiable {
     var id: String { "\(memberID.uuidString)-\(slotIndex)" }
 }
 
+/// Identifiable wrapper driving `.sheet(item:)` for the expanded row's "Load AU…"
+/// instrument chooser (Sound mini-tab). Carries the member whose sound source is
+/// being swapped from the sampler to an AU instrument.
+struct ExpandedSoundAUTarget: Identifiable {
+    let memberID: UUID
+    var id: UUID { memberID }
+}
+
+/// Identifiable wrapper driving `.sheet(item:)` for the expanded row's AU
+/// preset browser (Sound mini-tab). Carries the member whose AU sound source's
+/// presets are being browsed.
+struct ExpandedSoundPresetTarget: Identifiable {
+    let memberID: UUID
+    var id: UUID { memberID }
+}
+
 enum DrumKitMatrixLayer: String, CaseIterable, Identifiable {
     case steps
     case velocity
@@ -232,6 +248,13 @@ struct DrumKitMatrixView: View {
     /// mini-tab. nil when closed. Drives the AU-parameter picker sheet so a
     /// macro slot can be assigned/changed without leaving the kit view.
     @State var expandedMacroTarget: ExpandedMacroTarget?
+    /// "Load AU…" instrument picker target for the expanded part's Sound
+    /// mini-tab (AU sound source). nil when closed. Drives the AU-instrument
+    /// chooser sheet so a part's sampler can be swapped for an AU instrument.
+    @State var expandedSoundAUTarget: ExpandedSoundAUTarget?
+    /// Preset-browser target for the expanded part's AU sound source. nil when
+    /// closed. Drives `PresetBrowserSheet` bound to the member's AU host.
+    @State var expandedSoundPresetTarget: ExpandedSoundPresetTarget?
 
     var model: DrumKitMatrixModel? {
         DrumKitMatrixModel(

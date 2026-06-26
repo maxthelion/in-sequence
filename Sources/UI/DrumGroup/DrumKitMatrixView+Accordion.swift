@@ -1,5 +1,19 @@
 import SwiftUI
 
+/// Pure routing decision for the drum-kit Sound mini-tab: does this member's
+/// OWN destination render the AU instrument panel, or the sampler panel +
+/// "Load AU…" affordance? Only a member's OWN `.auInstrument` shows the AU panel.
+/// Pass the member's OWN (unresolved) destination, NOT the resolved one: an
+/// `.inheritGroup` member of an AU kit RESOLVES to `.auInstrument`, but the
+/// per-member AU panel (preset/remove keyed to the member's own host) must NOT be
+/// shown for an inherited group AU — that member keeps the existing
+/// sampler/placeholder path (shared-kit AU is an open product decision).
+enum DrumKitSoundTabRouting {
+    static func usesAUPanel(forOwnDestination ownDestination: Destination) -> Bool {
+        ownDestination.withoutTransientState.kind == .auInstrument
+    }
+}
+
 // Inline expanded-row accordion for the kit matrix (AC21): the row header,
 // mini-tab bar, and the five mini-tabs (Steps/Clip, Sound, FX, Macros, Mixer)
 // scoped to a member track. Split out of DrumKitMatrixView.swift as an
@@ -34,6 +48,26 @@ extension DrumKitMatrixView {
                 assignMemberMacro(descriptor, memberID: target.memberID, slotIndex: target.slotIndex)
             }
             .presentationBackground(.clear)
+        }
+        .sheet(item: $expandedSoundAUTarget) { target in
+            // Reuse the per-track AU instrument chooser. Selecting an AU swaps
+            // the member's sampler sound for an AU instrument via the SAME
+            // session mutation the per-track editor uses.
+            AddDestinationSheet(
+                trackHasGroup: memberTrack(target.memberID)?.groupID != nil,
+                audioInstrumentChoices: engineController.availableAudioInstruments,
+                sampleLibrary: AudioSampleLibrary.shared
+            ) { destination in
+                applyMemberSoundDestination(destination, memberID: target.memberID)
+            }
+            .presentationBackground(.clear)
+        }
+        .sheet(item: $expandedSoundPresetTarget) { target in
+            // Reuse the per-track preset browser bound to the member's AU host.
+            PresetBrowserSheet(
+                auDisplayName: memberAudioInstrumentChoice(target.memberID).displayName,
+                viewModel: makeMemberPresetBrowserViewModel(memberID: target.memberID)
+            )
         }
     }
 
@@ -306,38 +340,190 @@ extension DrumKitMatrixView {
         postRenderedVisualState(isVisible: true)
     }
 
-    // MARK: Sound mini-tab (mini sampler + in-sampler filter for the member)
+    // MARK: Sound mini-tab (sampler + in-sampler filter OR AU instrument)
 
-    /// Sound mini-tab (AC21). Reuses `SamplerDestinationWidget` bound to THIS
-    /// member's track id, so the mini sampler + in-sampler filter edit the real
-    /// member sound (a drum part's filter stays inside the sampler, not FX).
+    /// Sound mini-tab (AC21). Branches on the member's RESOLVED destination kind:
+    /// a sampler part shows `SamplerDestinationWidget` (mini sampler + in-sampler
+    /// filter) plus a "Load AU…" affordance; an AU part shows the AU panel
+    /// (instrument readout + preset browser + remove), reusing the per-track AU
+    /// flow scoped to THIS member's id. An `.inheritGroup` part keeps its existing
+    /// behaviour (shared-kit AU is an open product decision — not surfaced here).
     @ViewBuilder
     func expandedSoundTab(_ row: DrumKitMatrixModel.Row) -> some View {
         let memberID = row.memberID
-        SamplerDestinationWidget(
-            destination: Binding(
-                get: { memberTrack(memberID)?.destination ?? .none },
-                set: { session.setEditedDestination($0, for: memberID) }
-            ),
-            library: AudioSampleLibrary.shared,
-            sampleEngine: engineController.sampleEngineSink,
-            trackID: memberID,
-            filterSettings: Binding(
-                get: { memberTrack(memberID)?.filter ?? .init() },
-                set: { session.setFilterSettings($0, for: memberID) }
-            ),
-            onManageMacros: {
-                expandedRowTab = .macros
-                postRenderedVisualState(isVisible: true)
+        // Route on the member's OWN destination, not the resolved one: an
+        // `.inheritGroup` member of an AU kit resolves to `.auInstrument`, but its
+        // per-member AU panel must not be shown (its preset/remove are keyed to a
+        // member host it doesn't own). Inherit members keep the sampler/placeholder.
+        let ownDestination = memberTrack(memberID)?.destination ?? .none
+        if DrumKitSoundTabRouting.usesAUPanel(forOwnDestination: ownDestination) {
+            expandedSoundAUPanel(memberID: memberID)
+        } else {
+            expandedSoundSamplerPanel(memberID: memberID)
+        }
+    }
+
+    /// Sampler sound source for the member: today's `SamplerDestinationWidget`
+    /// (mini sampler + the in-sampler filter) PLUS a "Load AU…" affordance that
+    /// swaps the part's sound to an AU instrument. Used for `.sample` and for the
+    /// orphan/placeholder states (`.none`, missing sample, `.inheritGroup`).
+    @ViewBuilder
+    func expandedSoundSamplerPanel(memberID: UUID) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            SamplerDestinationWidget(
+                destination: Binding(
+                    get: { memberTrack(memberID)?.destination ?? .none },
+                    set: { session.setEditedDestination($0, for: memberID) }
+                ),
+                library: AudioSampleLibrary.shared,
+                sampleEngine: engineController.sampleEngineSink,
+                trackID: memberID,
+                filterSettings: Binding(
+                    get: { memberTrack(memberID)?.filter ?? .init() },
+                    set: { session.setFilterSettings($0, for: memberID) }
+                ),
+                onManageMacros: {
+                    expandedRowTab = .macros
+                    postRenderedVisualState(isVisible: true)
+                },
+                // Clear the member part's sound through the normal undoable document
+                // edit path (mirrors TrackDestinationEditor.clearDestination). The
+                // `.none` change ramp-removes the live sample voice via
+                // setEditedDestination → .fullEngineApply → syncSampleMixers; it does
+                // NOT write a transient "empty" capture into the .seqai document.
+                onRemove: {
+                    session.setEditedDestination(.none, for: memberID)
+                    postRenderedVisualState(isVisible: true)
+                }
+            )
+
+            // "Load AU…" reuses the per-track AU instrument chooser sheet; on
+            // selection it calls setEditedDestination(.auInstrument(...)) for the
+            // member (see applyMemberSoundDestination).
+            StudioOptionButton(
+                title: "Load AU…",
+                detail: "Replace the sampler + filter with an AU instrument."
+            ) {
+                expandedSoundAUTarget = ExpandedSoundAUTarget(memberID: memberID)
+            }
+            .accessibilityIdentifier("kit-row-load-au")
+        }
+    }
+
+    /// AU instrument sound source for the member. Reuses the per-track AU flow
+    /// (instrument name readout + a Presets button launching `PresetBrowserSheet`,
+    /// preset load via `engineController.loadPreset(_, for: memberID)`, persistence
+    /// via `session.writeStateBlob(_, target: .track(memberID))`) bound to THIS
+    /// member's id, with an X to remove the AU (`setEditedDestination(.none)`).
+    /// The per-track `filter` is intentionally NOT surfaced here — it stays stored
+    /// on the part so toggling back to the sampler restores it.
+    @ViewBuilder
+    func expandedSoundAUPanel(memberID: UUID) -> some View {
+        let choice = memberAudioInstrumentChoice(memberID)
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .center, spacing: 12) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(choice.displayName)
+                        .studioText(.subtitle)
+                        .foregroundStyle(StudioTheme.text)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+
+                    Text("AU instrument")
+                        .studioText(.label)
+                        .foregroundStyle(StudioTheme.mutedText)
+                }
+
+                Spacer(minLength: 12)
+
+                StudioCircleIconButton(
+                    systemName: "xmark",
+                    size: StudioMetrics.ControlSize.medium,
+                    help: "Remove this AU and return to the sampler"
+                ) {
+                    // Mirrors the Step-1 clear: ramps the AU host to silence via
+                    // setEditedDestination → .fullEngineApply. The part's stored
+                    // sampler filter is untouched and restored on the next sample.
+                    session.setEditedDestination(.none, for: memberID)
+                    postRenderedVisualState(isVisible: true)
+                }
+                .accessibilityIdentifier("kit-row-remove-au")
+            }
+            .padding(StudioMetrics.Spacing.standard)
+
+            Divider()
+                .overlay(StudioTheme.border.opacity(0.7))
+
+            Button {
+                engineController.prepareAudioUnit(for: memberID)
+                expandedSoundPresetTarget = ExpandedSoundPresetTarget(memberID: memberID)
+            } label: {
+                HStack(spacing: 8) {
+                    Text("Presets")
+                        .studioText(.labelBold)
+                        .foregroundStyle(StudioTheme.text)
+                    Spacer(minLength: 0)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(StudioTheme.mutedText)
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 9)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
+                        .stroke(StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
+                )
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("kit-row-au-presets")
+            .padding(StudioMetrics.Spacing.comfortable)
+        }
+        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
+                .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+        )
+    }
+
+    /// The AU instrument choice that names the member's current AU destination,
+    /// mirroring TrackDestinationEditor.currentAudioInstrumentChoice.
+    func memberAudioInstrumentChoice(_ memberID: UUID) -> AudioInstrumentChoice {
+        // The member's OWN destination (the AU panel only shows for an own-AU
+        // member), consistent with the routing decision in expandedSoundTab.
+        if case let .auInstrument(componentID, _) = (memberTrack(memberID)?.destination ?? .none) {
+            return AudioInstrumentChoice.defaultChoices.first(where: { $0.audioComponentID == componentID })
+                ?? AudioInstrumentChoice(audioComponentID: componentID)
+        }
+        return .builtInSynth
+    }
+
+    /// Apply a "Load AU…" sheet selection to the member's own sound. Routes
+    /// through the SAME session mutation the per-track editor uses; for an AU it
+    /// also primes the AU host so the preset browser can read its list.
+    func applyMemberSoundDestination(_ destination: Destination, memberID: UUID) {
+        session.setEditedDestination(destination, for: memberID)
+        if case .auInstrument = destination {
+            engineController.prepareAudioUnit(for: memberID)
+        }
+        postRenderedVisualState(isVisible: true)
+    }
+
+    /// Preset-browser view model bound to the member's AU host. Reads/loads via
+    /// the per-member EngineController APIs and persists the captured state blob
+    /// to the member's own write target (`.track(memberID)`), scoped to the part's
+    /// OWN AU (not an inherited group AU).
+    func makeMemberPresetBrowserViewModel(memberID: UUID) -> PresetBrowserSheetViewModel {
+        PresetBrowserSheetViewModel(
+            read: { [engineController] in
+                engineController.presetReadout(for: memberID)
             },
-            // Clear the member part's sound through the normal undoable document
-            // edit path (mirrors TrackDestinationEditor.clearDestination). The
-            // `.none` change ramp-removes the live sample voice via
-            // setEditedDestination → .fullEngineApply → syncSampleMixers; it does
-            // NOT write a transient "empty" capture into the .seqai document.
-            onRemove: {
-                session.setEditedDestination(.none, for: memberID)
-                postRenderedVisualState(isVisible: true)
+            load: { [engineController] descriptor in
+                try engineController.loadPreset(descriptor, for: memberID)
+            },
+            commit: { [session] stateBlob in
+                session.writeStateBlob(stateBlob, target: .track(memberID))
             }
         )
     }
