@@ -81,12 +81,18 @@ final class MixerBusRoutingReconnectTests: XCTestCase {
         controller.apply(documentModel: doc)
 
         let busReadout = try XCTUnwrap(graph.mixerBusReadoutForTesting(busID: busID))
-        let filter = try XCTUnwrap((sampleEngine.filterNode(for: drum.id) as? SamplerFilterNode)?.avNode)
-        let filterOuts = graph.engine.outputConnectionPoints(for: filter, outputBus: 0).compactMap(\.node)
+        // A bus-routed SAMPLE track sums through its bus voice pool's voice
+        // mixers (no per-track filter node), so verify the voice mixers feed the
+        // bus and the bus reaches master.
+        let voiceMixers = sampleEngine.busVoiceMixersForTesting(trackID: drum.id)
         let busOuts = graph.engine.outputConnectionPoints(for: busReadout.inputMixer, outputBus: 0).compactMap(\.node)
         controller.stop()
 
-        XCTAssertTrue(filterOuts.contains { $0 === busReadout.inputMixer }, "drum track feeds the bus")
+        XCTAssertFalse(voiceMixers.isEmpty, "bus-routed sample track has a bus voice pool")
+        for mixer in voiceMixers {
+            let outs = graph.engine.outputConnectionPoints(for: mixer, outputBus: 0).compactMap(\.node)
+            XCTAssertTrue(outs.contains { $0 === busReadout.inputMixer }, "drum track voice feeds the bus")
+        }
         XCTAssertTrue(busOuts.contains { $0 === graph.preMasterMixer }, "bus reaches master")
     }
 }

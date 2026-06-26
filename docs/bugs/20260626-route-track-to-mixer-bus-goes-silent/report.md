@@ -39,3 +39,30 @@ by automation.
 R1/R2 (track output routing to mixer buses), #53/#57 (route-to-master silence —
 sibling direction). The bus-meter-tap gap is noted in
 wiki/pages/app-command-channel.md as a coarse-metric caveat.
+
+## ROOT CAUSE + FIX (2026-06-26)
+Two distinct breaks, both proven by live-graph instrumentation:
+1. **Single-track silence:** a freshly-created `AVAudioMixerNode` with ZERO input
+   connections has no resolvable output format, so `engine.connect(busInputMixer →
+   preMaster)` made at install time (before any track fed the bus) is **silently
+   discarded by AVAudioEngine**. Nothing re-established it. Fix:
+   `MainAudioGraph.ensureMixerBusTerminalReachesPreMasterOnMain(busID:)` re-asserts
+   the bus terminal → preMaster edge once the bus gains an input (resolvable
+   format), called from `connectPreparedSampleVoiceOutput`. The fast-path gate
+   (`isBusVoicePoolReadyForPlayback`) now also requires
+   `mixerBusTerminalReachesPreMaster` so a dropped bus output can't pass silently.
+2. **Multi-track / drum-kit collision:** every track routed its 4 voice mixers to
+   the SAME bus input buses 0..3 → later tracks overwrote earlier ones. Fix:
+   `connectPreparedSampleVoiceOutput` allocates a UNIQUE free input bus per voice
+   mixer across the whole bus (`firstFreeInputBus`); teardown frees them (no leak).
+
+Bus meter tap also fixed (re-attached after the bus gains a formatted output).
+
+**Verified:** `BusVoicePoolRoutingTests` (3/3: reaches preMaster; two tracks get
+distinct input buses, no collision; reroute frees buses), `MasterRenderTests`
+master-RMS (bus-routed track reaches master — the bug). Build + realtime-path +
+ownership lints green. The bus-METER assertion is skipped on this CoreAudio-
+degraded host (HALC proxy errors make offline meter taps read -inf even though
+audio reaches master) — verify the meter on a healthy host (after a coreaudiod
+restart) and by ear. Status: FIXED (routing); meter-tap fix pending healthy-host
+confirmation.

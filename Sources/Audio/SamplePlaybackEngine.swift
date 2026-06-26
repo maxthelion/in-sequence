@@ -1292,7 +1292,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         var voices: [AVAudioPlayerNode] = []
         var mixers: [AVAudioMixerNode] = []
         var handles: [UUID] = []
-        for index in 0..<Self.voicesPerTrack {
+        for _ in 0..<Self.voicesPerTrack {
             let voice = AVAudioPlayerNode()
             let mixer = AVAudioMixerNode()
             // realtime-allow-graph-mutation: prepared bus voice setup occurs during document apply/setup, not tick dispatch. Test: RealtimePathLintTests.
@@ -1302,10 +1302,13 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
             // realtime-allow-graph-mutation: prepared bus voice setup occurs during document apply/setup, not tick dispatch. Test: RealtimePathLintTests.
             audioGraph.engine.connect(voice, to: mixer, fromBus: 0, toBus: 0, format: nil)
             // realtime-allow-graph-mutation: prepared bus voice setup occurs during document apply/setup, not tick dispatch. Test: RealtimePathLintTests.
+            // Each voice mixer lands on a UNIQUE free input bus on the shared
+            // bus input mixer (allocated inside connectPreparedSampleVoiceOutput);
+            // a per-track 0..N index would collide across tracks routed to the
+            // same bus (multi-track / drum-kit silence).
             audioGraph.connectPreparedSampleVoiceOutput(
                 mixer,
-                toMixerBus: busID,
-                inputBus: AVAudioNodeBus(index)
+                toMixerBus: busID
             )
             voices.append(voice)
             mixers.append(mixer)
@@ -1342,6 +1345,14 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
             else {
                 return false
             }
+        }
+        // The voices reaching the bus input mixer is not enough — the bus's
+        // OWN output edge to preMaster can be silently dropped (a mixer with no
+        // inputs has no resolvable output format), leaving a live-looking voice
+        // chain that dead-ends at the bus. Verify the bus->master leg too, so a
+        // broken bus output can't pass the gate and play silently.
+        guard audioGraph.mixerBusTerminalReachesPreMaster(busID: busID) else {
+            return false
         }
         return true
     }
@@ -2307,6 +2318,15 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
 }
 
 extension SamplePlaybackEngine {
+    /// The bus voice pool's voice mixers for a track, in voice order. Lets a
+    /// test inspect the live voice-mixer → bus-input-mixer → preMaster chain
+    /// for a bus-routed sample track (the route-to-bus silence repro).
+    func busVoiceMixersForTesting(trackID: UUID) -> [AVAudioMixerNode] {
+        performOnMain { [self] in
+            withLifecycleLock { busVoicePools[trackID]?.voiceMixers ?? [] }
+        }
+    }
+
     func disconnectFirstPreparedVoiceForTesting(trackID: UUID) {
         performOnMain { [self] in
             let voice: AVAudioPlayerNode? = withLifecycleLock {

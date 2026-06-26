@@ -926,17 +926,34 @@ final class MainAudioGraph {
         }
     }
 
+    /// Connect a prepared sample voice mixer to a mixer bus's input mixer.
+    ///
+    /// The bus input mixer SUMS every routed track's voices, so each connecting
+    /// voice mixer must land on a UNIQUE free input bus across the WHOLE bus —
+    /// never a per-track 0..N index. A 4-part kit routed to one bus is 4 tracks ×
+    /// 4 voices = 16 connections; if each track reused input buses 0..3 the
+    /// later connections would overwrite the earlier ones and only one part would
+    /// reach the bus (docs/bugs/20260626-route-track-to-mixer-bus-goes-silent,
+    /// multi-track collision). `firstFreeInputBus` scans the live mixer and
+    /// returns the lowest unused input, so re-routes that freed buses (teardown
+    /// disconnects the voice mixers) re-fill the gaps without leaking.
+    ///
+    /// It also (re)asserts the bus terminal -> preMaster edge: AVAudioEngine
+    /// silently drops the output connection of a mixer that has no inputs, so
+    /// the bus-output edge wired at install time (before any track fed the bus)
+    /// never stuck. We re-establish it here, now that the bus has at least one
+    /// input, so the chain voice -> voiceMixer -> busInputMixer -> preMaster is
+    /// actually live (same bug, single-track silence).
     func connectPreparedSampleVoiceOutput(
         _ source: AVAudioNode,
-        toMixerBus busID: UUID,
-        inputBus: AVAudioNodeBus
+        toMixerBus busID: UUID
     ) {
         TickPathMainSyncGuard.assertNotHoldingLifecycleLockForGraphMutation("MainAudioGraph.connectPreparedSampleVoiceOutput")
         performOnMain {
             self.lockGraphLock()
             defer { self.unlockGraphLock() }
             guard source.engine === self.engine,
-                  let destination = self.mixerBusHosts[busID]?.destinationNode()
+                  let destinationMixer = self.mixerBusHosts[busID]?.destinationNode()
             else {
                 return
             }
@@ -945,13 +962,58 @@ final class MainAudioGraph {
             // realtime-allow-graph-mutation: prepared sample bus-safe route setup/repair only, not event scheduling. Test: RealtimePathLintTests.
             self.engine.connect(
                 source,
-                to: destination,
+                to: destinationMixer,
                 fromBus: 0,
-                toBus: inputBus,
+                toBus: self.inputBus(for: destinationMixer),
                 format: nil
             )
-            self.trackOutputDestinationsForTesting[ObjectIdentifier(source)] = destination
+            self.trackOutputDestinationsForTesting[ObjectIdentifier(source)] = destinationMixer
+            // The bus now has at least one input — (re)assert its output edge to
+            // preMaster so the routed signal actually reaches master.
+            let wiredBusOutput = self.ensureMixerBusTerminalReachesPreMasterOnMain(busID: busID)
+            if wiredBusOutput {
+                // The bus input mixer only acquired a resolvable format once it
+                // got an input + output edge. Its per-bus meter tap was installed
+                // at install time on the then-formatless mixer and read silent
+                // (bus<N>Peak = -inf even with signal). Reinstall the channel
+                // meter taps now so the bus tap re-attaches on the live node and
+                // reports real level. Only on the FIRST voice that wires the bus
+                // (wiredBusOutput is false for the siblings), so a route is one
+                // tap refresh, not four.
+                self.removeChannelMeterTapsIfNeeded()
+                self.installChannelMeterTapsIfNeeded()
+            }
         }
+    }
+
+    /// (Re)connect a mixer bus's terminal node to preMaster if that output edge
+    /// is missing. Safe to call repeatedly — it no-ops when the terminal already
+    /// reaches preMaster. Needed because a bus input mixer with zero inputs has
+    /// no resolvable output format, so AVAudioEngine drops the terminal ->
+    /// preMaster connection made at install time; the edge must be (re)made once
+    /// the bus has a producer.
+    /// Returns true when it actually (re)made the terminal -> preMaster edge
+    /// (i.e. the edge was missing), false when it was already live.
+    @MainActor
+    @discardableResult
+    private func ensureMixerBusTerminalReachesPreMasterOnMain(busID: UUID) -> Bool {
+        guard let readout = mixerBusHosts[busID]?.readout() else { return false }
+        let terminal = readout.terminalSourceNode ?? readout.inputMixer
+        guard terminal.engine === engine else { return false }
+        let reachesPreMaster = engine.outputConnectionPoints(for: terminal, outputBus: 0)
+            .contains { $0.node === preMasterMixer }
+        guard !reachesPreMaster else { return false }
+        // realtime-allow-graph-mutation: prepared route setup/repair only, not event scheduling. Test: RealtimePathLintTests.
+        engine.disconnectNodeOutput(terminal)
+        // realtime-allow-graph-mutation: prepared route setup/repair only, not event scheduling. Test: RealtimePathLintTests.
+        engine.connect(
+            terminal,
+            to: preMasterMixer,
+            fromBus: 0,
+            toBus: firstFreeInputBus(for: preMasterMixer),
+            format: nil
+        )
+        return true
     }
 
     /// Install (or update) a track's FX insert chain. The chain is spliced
@@ -1337,6 +1399,24 @@ final class MainAudioGraph {
             self.lockGraphLock()
             defer { self.unlockGraphLock() }
             return self.mixerBusHosts[busID]?.readout()
+        }
+    }
+
+    /// True when the bus's terminal node has a LIVE output edge that reaches
+    /// preMaster (i.e. the bus->master leg is actually wired in the engine, not
+    /// just recorded as intent on the host). The fast-path gate checks this so a
+    /// bus whose output edge was silently dropped (mixer-with-no-inputs, see
+    /// `ensureMixerBusTerminalReachesPreMasterOnMain`) cannot pass the gate and
+    /// play into a dead-end.
+    func mixerBusTerminalReachesPreMaster(busID: UUID) -> Bool {
+        return performOnMainReturning {
+            self.lockGraphLock()
+            defer { self.unlockGraphLock() }
+            guard let readout = self.mixerBusHosts[busID]?.readout() else { return false }
+            let terminal = readout.terminalSourceNode ?? readout.inputMixer
+            guard terminal.engine === self.engine else { return false }
+            return self.engine.outputConnectionPoints(for: terminal, outputBus: 0)
+                .contains { $0.node === self.preMasterMixer }
         }
     }
 
