@@ -330,7 +330,15 @@ extension DrumKitMatrixView {
                 expandedRowTab = .macros
                 postRenderedVisualState(isVisible: true)
             },
-            onRemove: {}
+            // Clear the member part's sound through the normal undoable document
+            // edit path (mirrors TrackDestinationEditor.clearDestination). The
+            // `.none` change ramp-removes the live sample voice via
+            // setEditedDestination → .fullEngineApply → syncSampleMixers; it does
+            // NOT write a transient "empty" capture into the .seqai document.
+            onRemove: {
+                session.setEditedDestination(.none, for: memberID)
+                postRenderedVisualState(isVisible: true)
+            }
         )
     }
 

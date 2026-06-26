@@ -36,6 +36,60 @@ final class SessionDestinationMacroTests: XCTestCase {
         AudioComponentID(type: "aumu", subtype: "test", manufacturer: "test", version: 1)
     }
 
+    /// A temp on-disk sample library so `addDrumGroup(plan:.blankDefault)` seeds
+    /// each member with a real `.sample` destination (mirrors ProjectAddDrumGroupTests).
+    private func makeTempLibrary() throws -> AudioSampleLibrary {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        for name in ["kick", "snare", "hatClosed", "clap"] {
+            let directory = root.appendingPathComponent(name)
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            try Data().write(to: directory.appendingPathComponent("\(name)-default.wav"))
+        }
+        addTeardownBlock { try? FileManager.default.removeItem(at: root) }
+        return AudioSampleLibrary(libraryRoot: root)
+    }
+
+    // MARK: - Step 1 (X-click bug): clearing a kit member's sound
+
+    /// The drum-kit Sound tab's X button must clear the member part's sound by
+    /// calling `session.setEditedDestination(.none, for: memberID)`. This proves
+    /// the clear lands in the live document store (the normal undoable edit path),
+    /// NOT as a transient empty written somewhere else.
+    func test_setEditedDestination_none_clearsKitMemberSound() throws {
+        let library = try makeTempLibrary()
+        var project = Project.empty
+        guard let groupID = project.addDrumGroup(plan: .blankDefault, library: library),
+              let memberID = project.trackGroups.first(where: { $0.id == groupID })?.memberIDs.first
+        else {
+            return XCTFail("expected a populated drum group with at least one member")
+        }
+
+        // Precondition: the member starts with a real (sample) sound, not .none.
+        XCTAssertEqual(
+            project.tracks.first(where: { $0.id == memberID })?.destination.kind, .sample,
+            "Precondition: blankDefault member should start with a sample destination"
+        )
+
+        let (session, _) = makeSession(project: project)
+
+        // The X-click wiring under test.
+        session.setEditedDestination(.none, for: memberID)
+
+        let liveProject = session.store.exportToProject()
+        let member = try XCTUnwrap(liveProject.tracks.first(where: { $0.id == memberID }))
+
+        XCTAssertEqual(member.destination, .none,
+            "Clicking the Sound tab X must clear the member's destination to .none")
+
+        // The cleared member must still be a member of its group (clearing the
+        // sound does not remove the part) — document/runtime stay consistent.
+        let group = try XCTUnwrap(liveProject.trackGroups.first(where: { $0.id == groupID }))
+        XCTAssertTrue(group.memberIDs.contains(memberID),
+            "Clearing the sound must not remove the part from the kit group")
+
+        SequencerDocumentSessionRegistry.unregister(session)
+    }
+
     // MARK: - CR2-1: session.setEditedDestination triggers syncBuiltinMacros
 
     /// Switch a track from AU to sampler via `session.setEditedDestination` and
