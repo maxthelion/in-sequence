@@ -546,9 +546,13 @@ final class SequencerDocumentSessionMasterBusTests: XCTestCase {
 
         XCTAssertEqual(session.store.exportToProjectCallCount, exportCallsBefore)
         XCTAssertEqual(engine.applyDocumentModelCallCount, documentApplyCallsBefore)
+        // #60: mute and solo are mutually exclusive per bus (just-engaged wins),
+        // so soloing AFTER muting clears the mute — the final state is soloed,
+        // NOT both. (This assertion previously expected both, encoding the
+        // pre-#60 behaviour.)
         XCTAssertEqual(
             session.store.buses[0].mix,
-            BusMixSettings(level: 0.45, pan: -0.3, isMuted: true, isSoloed: true)
+            BusMixSettings(level: 0.45, pan: -0.3, isMuted: false, isSoloed: true)
         )
         XCTAssertTrue(documentBox.document.project.buses.isEmpty)
 
