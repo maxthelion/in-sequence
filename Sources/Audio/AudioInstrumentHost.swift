@@ -831,6 +831,12 @@ final class AudioInstrumentHost: TrackPlaybackSink {
 
         let effectivelyMuted = currentMix.isMuted || layerMuteGain
         let targetVolume: Float = effectivelyMuted ? 0 : Float(currentMix.clampedLevel)
+        // #58: effective mute must silence the track's ENTIRE contribution,
+        // including its Send A/B legs (which tap the fanout downstream of this
+        // host's outputMixer but carry their own configured gain). Gate the send
+        // legs to 0 while muted; unmute restores the configured send levels.
+        let effectiveSendA: Double = effectivelyMuted ? 0 : currentMix.sendA
+        let effectiveSendB: Double = effectivelyMuted ? 0 : currentMix.sendB
         performOnMain { [currentMix] in
             outputMixer.pan = Float(currentMix.clampedPan)
             // Mute applies as a short ramped gain (mirrors bus-mute shape) so a
@@ -839,8 +845,8 @@ final class AudioInstrumentHost: TrackPlaybackSink {
             MixerGainRamp.shared.ramp(outputMixer, to: targetVolume)
             self.audioGraph.setTrackSendLevels(
                 outputMixer,
-                sendA: currentMix.sendA,
-                sendB: currentMix.sendB
+                sendA: effectiveSendA,
+                sendB: effectiveSendB
             )
         }
     }

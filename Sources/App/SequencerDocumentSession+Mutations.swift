@@ -1493,6 +1493,10 @@ extension SequencerDocumentSession {
     func toggleTrackMute(trackID: UUID) {
         let changed = store.mutateTrack(id: trackID) { track in
             track.mix.isMuted.toggle()
+            // #60: mute and solo are mutually exclusive per track. The
+            // just-engaged control wins: engaging mute drops the track from
+            // solo so the two indicators never both show active.
+            if track.mix.isMuted { track.mix.isSoloed = false }
         }
         guard changed else { return }
         guard !isInBatch else { return }
@@ -1503,6 +1507,8 @@ extension SequencerDocumentSession {
     func setTrackMuted(_ muted: Bool, trackID: UUID) {
         let changed = store.mutateTrack(id: trackID) { track in
             track.mix.isMuted = muted
+            // #60: engaging mute drops the track from solo (mutually exclusive).
+            if muted { track.mix.isSoloed = false }
         }
         guard changed else { return }
         guard !isInBatch else { return }

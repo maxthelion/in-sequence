@@ -471,9 +471,10 @@ enum VisualScenarioCommandRunner {
         if let raw = command["trackMute"],
            let (index, value) = parseIndexedToggle(raw),
            session.store.tracks.indices.contains(index) {
-            var mix = session.store.tracks[index].mix
-            mix.isMuted = value
-            session.setTrackMix(trackID: session.store.tracks[index].id, mix: mix)
+            // Route through setTrackMuted so the #60 mute/solo mutual-exclusion
+            // invariant holds (engaging mute clears solo) consistently with the
+            // mixer toggle handlers.
+            session.setTrackMuted(value, trackID: session.store.tracks[index].id)
         }
 
         // trackLayerMute=<idx>:<on|off> — PERFORM-LAYER mute (distinct from the

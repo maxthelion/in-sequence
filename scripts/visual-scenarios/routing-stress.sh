@@ -594,6 +594,39 @@ if drive "trackMute-0-off" "trackMute=0:off"; then
   assert_track_audible "trackMute-0-off" 0
 fi
 
+# 1a) MUTE-SILENCES-SENDS (the #58 fix). A muted track must silence its ENTIRE
+#     contribution, including its Send A/B legs (which tap the per-track fanout
+#     and carry their own configured send gain). Set track0's sends > 0, prove
+#     the send legs carry the CONFIGURED gain (engine-truth: the live send-mixer
+#     node outputVolume via track0AppliedSendA/B), then MUTE and assert BOTH send
+#     legs drop to ~0 (the muted track no longer bleeds into Send A/B → FX/aux
+#     bus → master). Unmute MUST restore the configured send levels (not a forced
+#     wrong level). This is the real-HAL authority for #58, mirroring the offline
+#     SamplePlaybackEngineTests.test_setTrackMuteGain_zeroesSendLegs assertion.
+#
+#     WARM-UP (not asserted): the FIRST send-level change establishes the
+#     persistent send NODES, so do it before the measured assertions.
+drive "muteSends-warmup" "trackSend=0:A=0.7,B=0.3" >/dev/null || true
+sleep 0.3
+if drive "muteSends-configured" "trackSend=0:A=0.7,B=0.3"; then
+  # Baseline: the send legs carry the configured gain.
+  assert_track_send_gains "muteSends-configured" 0 0.7 0.3
+fi
+# Mute → BOTH send legs ramp to ~0 (no send bleed from a muted track).
+if drive "muteSends-mute-0-on" "trackMute=0:on"; then
+  assert_status           "muteSends-mute-0-on" "track0EffectiveMuted" "true"
+  assert_track_silent     "muteSends-mute-0-on" 0
+  assert_track_send_gains "muteSends-mute-0-on" 0 0 0
+fi
+# Unmute → send legs restore to the CONFIGURED levels (engine-truth).
+if drive "muteSends-mute-0-off" "trackMute=0:off"; then
+  assert_status           "muteSends-mute-0-off" "track0EffectiveMuted" "false"
+  assert_track_audible    "muteSends-mute-0-off" 0
+  assert_track_send_gains "muteSends-mute-0-off" 0 0.7 0.3
+fi
+# Restore track0 to no sends so later ops start clean.
+drive "muteSends-reset" "trackSend=0:A=0.0,B=0.0" >/dev/null || true
+
 # 1b) LAYER mute (perform-layer, distinct from the mixer mute above). Drives the
 #     setMuteGain path. track1 must go silent acoustically and the engine-truth
 #     EffectiveMuted (now derived from the APPLIED OUTPUT GAIN, not the doc) must
@@ -975,6 +1008,10 @@ report "PROVES (engine-truth, fails on a planted regression):"
 report "- track/bus mute landed in the GRAPH — \`track<N>EffectiveMuted\` /"
 report "  \`bus<N>EffectiveMuted\` are now derived from the APPLIED OUTPUT GAIN"
 report "  read off the live mixer node, not from the document the command mutated."
+report "- a MUTED track silences its SEND legs too (#58): with track0's sends set,"
+report "  muting drives the live send-mixer node gains (track0AppliedSendA/B) to ~0"
+report "  (no Send A/B bleed to the FX/aux bus → master), and unmute restores the"
+report "  CONFIGURED send levels exactly — engine-truth off the live send nodes."
 report "- mixer-mute, LAYER-mute, and the OR-combine of both are silent acoustically"
 report "  (per-track channel-meter peak), and layer-unmute does NOT resurrect a"
 report "  still-mixer-muted track (the F1 regression)."

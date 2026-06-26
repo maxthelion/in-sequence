@@ -737,4 +737,116 @@ final class SamplePlaybackEngineTests: XCTestCase {
             "track must keep sounding on master after master -> bus -> master"
         )
     }
+
+    // MARK: - #58: muting a track must also mute its Send A/B legs
+
+    /// Poll the per-track APPLIED send-leg gains (engine-truth `outputVolume` on
+    /// the live sendA/sendB nodes) until both settle near the expected pair, or
+    /// timeout. The send gain ramps asynchronously (~12 ms), like the mute gain.
+    @MainActor
+    private func waitForSendGains(
+        _ engine: SamplePlaybackEngine,
+        trackID: UUID,
+        expectedA: Float,
+        expectedB: Float,
+        tolerance: Float = 0.001,
+        timeout: TimeInterval = 1.0
+    ) -> (sendA: Float, sendB: Float)? {
+        let deadline = Date().addingTimeInterval(timeout)
+        var last = engine.trackAppliedSendLevelsForTesting(trackID: trackID)
+        while Date() < deadline {
+            last = engine.trackAppliedSendLevelsForTesting(trackID: trackID)
+            if let last,
+               abs(last.sendA - expectedA) <= tolerance,
+               abs(last.sendB - expectedB) <= tolerance
+            {
+                return last
+            }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.005))
+        }
+        return last
+    }
+
+    /// #58: a muted master-routed sample track must drop its Send A/B leg gains
+    /// to 0 (so it stops bleeding to the FX/aux bus → master), and unmute must
+    /// restore the CONFIGURED send levels — not a wrong/forced level.
+    @MainActor
+    func test_setTrackMuteGain_zeroesSendLegs_andRestoresConfiguredOnUnmute() throws {
+        let graph = MainAudioGraph()
+        let engine = SamplePlaybackEngine(audioGraph: graph)
+        try engine.start()
+        defer { engine.stop() }
+
+        // Both send buses must exist for the per-track send fanout geometry.
+        graph.installSendBuses([SendBusState(id: .sendA), SendBusState(id: .sendB)])
+
+        let trackID = UUID()
+        engine.prepareTrack(trackID: trackID)
+        engine.setTrackMix(trackID: trackID, level: 0.8, pan: 0)
+        engine.setTrackSends(trackID: trackID, sendA: 0.7, sendB: 0.3)
+
+        // Baseline: the configured send levels are applied to the send legs.
+        let configured = try XCTUnwrap(
+            waitForSendGains(engine, trackID: trackID, expectedA: 0.7, expectedB: 0.3)
+        )
+        XCTAssertEqual(configured.sendA, 0.7, accuracy: 0.001)
+        XCTAssertEqual(configured.sendB, 0.3, accuracy: 0.001)
+
+        // Mute → BOTH send legs ramp to 0 (no bleed through Send A/B).
+        engine.setTrackMuteGain(trackID: trackID, muted: true)
+        let muted = try XCTUnwrap(
+            waitForSendGains(engine, trackID: trackID, expectedA: 0, expectedB: 0)
+        )
+        XCTAssertEqual(muted.sendA, 0, accuracy: 0.001, "Send A must be silent while muted")
+        XCTAssertEqual(muted.sendB, 0, accuracy: 0.001, "Send B must be silent while muted")
+        // The dry output gain is also zeroed (existing mute behaviour).
+        XCTAssertEqual(
+            try XCTUnwrap(waitForTrackGain(engine, trackID: trackID, expected: 0)),
+            0,
+            accuracy: 0.001
+        )
+
+        // Unmute → send legs restore to the CONFIGURED levels (not lost/forced).
+        engine.setTrackMuteGain(trackID: trackID, muted: false)
+        let restored = try XCTUnwrap(
+            waitForSendGains(engine, trackID: trackID, expectedA: 0.7, expectedB: 0.3)
+        )
+        XCTAssertEqual(restored.sendA, 0.7, accuracy: 0.001, "unmute restores configured Send A")
+        XCTAssertEqual(restored.sendB, 0.3, accuracy: 0.001, "unmute restores configured Send B")
+    }
+
+    /// #58 + #54: the send-leg mute follows the OR-combine. A layer-mute alone
+    /// silences the sends; clearing it while a mixer-mute still stands must keep
+    /// the sends silent (neither source clobbers the other).
+    @MainActor
+    func test_sendLegMute_orCombinesMixerAndLayerSources() throws {
+        let graph = MainAudioGraph()
+        let engine = SamplePlaybackEngine(audioGraph: graph)
+        try engine.start()
+        defer { engine.stop() }
+
+        graph.installSendBuses([SendBusState(id: .sendA), SendBusState(id: .sendB)])
+
+        let trackID = UUID()
+        engine.prepareTrack(trackID: trackID)
+        engine.setTrackMix(trackID: trackID, level: 0.8, pan: 0)
+        engine.setTrackSends(trackID: trackID, sendA: 0.6, sendB: 0.0)
+        _ = waitForSendGains(engine, trackID: trackID, expectedA: 0.6, expectedB: 0)
+
+        // Both sources mute → sends silent.
+        engine.setTrackMuteGain(trackID: trackID, muted: true, source: .mixer)
+        engine.setTrackMuteGain(trackID: trackID, muted: true, source: .layer)
+        let bothMuted = try XCTUnwrap(waitForSendGains(engine, trackID: trackID, expectedA: 0, expectedB: 0))
+        XCTAssertEqual(bothMuted.sendA, 0, accuracy: 0.001)
+
+        // Clear layer-mute while mixer-mute still stands → sends STAY silent.
+        engine.setTrackMuteGain(trackID: trackID, muted: false, source: .layer)
+        let stillMuted = try XCTUnwrap(waitForSendGains(engine, trackID: trackID, expectedA: 0, expectedB: 0))
+        XCTAssertEqual(stillMuted.sendA, 0, accuracy: 0.001, "mixer-mute keeps sends silent after layer-unmute")
+
+        // Clear mixer-mute too → sends restore to configured.
+        engine.setTrackMuteGain(trackID: trackID, muted: false, source: .mixer)
+        let restored = try XCTUnwrap(waitForSendGains(engine, trackID: trackID, expectedA: 0.6, expectedB: 0))
+        XCTAssertEqual(restored.sendA, 0.6, accuracy: 0.001)
+    }
 }

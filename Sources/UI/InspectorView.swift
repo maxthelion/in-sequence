@@ -46,9 +46,11 @@ struct InspectorView: View {
         Binding(
             get: { track.mix.isMuted },
             set: { newValue in
-                // .fullEngineApply preserved: mute requires engine document-model rebuild.
-                let trackID = track.id
-                session.mutateTrack(id: trackID, impact: .fullEngineApply) { $0.mix.isMuted = newValue }
+                // Route through the canonical setter so the #60 mute/solo
+                // mutual-exclusion invariant holds (engaging mute clears solo).
+                // setTrackMuted dispatches .fullEngineApply (mute requires an
+                // engine document-model rebuild).
+                session.setTrackMuted(newValue, trackID: track.id)
             }
         )
     }

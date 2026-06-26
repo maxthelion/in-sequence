@@ -1179,6 +1179,36 @@ final class MainAudioGraph {
         }
     }
 
+    /// TICK-SAFE send-leg gain ramp for the #58 mute path. Unlike
+    /// `setTrackSendLevels` (which does a synchronous main hop to (re)establish
+    /// send geometry the first time), this NEVER hops to main and NEVER mutates
+    /// the graph: it only reads the already-established per-track send nodes
+    /// under `graphLock` (a leaf lock) and kicks a `MixerGainRamp` (which writes
+    /// `outputVolume` on its own background queue). Safe from the tick path —
+    /// the perform-LAYER mute (`setTrackMuteGain(source: .layer)`) calls into
+    /// here. If the send nodes are not established yet (no fanout / send buses
+    /// not installed), this is a no-op: the mixer path applies the gated levels
+    /// through the full `setTrackSendLevels` setup on the next pass.
+    ///
+    /// `sendA`/`sendB` are the levels to ramp the send legs to (already gated by
+    /// effective mute by the caller: 0 while muted, the configured level when
+    /// unmuted). The node's recorded steady-state target is NOT overwritten
+    /// (`markSettled: false`) — a mute is a transient gain dip over the
+    /// configured send level, exactly like the dry mute does not overwrite the
+    /// fader's settled level.
+    func rampExistingTrackSendLegsForMute(_ source: AVAudioNode, sendA: Double, sendB: Double) {
+        let key = ObjectIdentifier(source)
+        let nodes: TrackSendNodes? = {
+            lockGraphLock()
+            defer { unlockGraphLock() }
+            return trackSendNodes[key]
+        }()
+        guard let nodes else { return }
+        let levels = TrackSendLevels(sendA: sendA, sendB: sendB)
+        MixerGainRamp.shared.ramp(nodes.sendA, to: levels.clampedSendA, markSettled: false)
+        MixerGainRamp.shared.ramp(nodes.sendB, to: levels.clampedSendB, markSettled: false)
+    }
+
     func start() throws {
         try performOnMainThrowing {
             guard !self.isStarted || !self.engine.isRunning else { return }

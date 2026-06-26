@@ -501,11 +501,20 @@ final class SequencerDocumentSession {
     }
 
     func setMixerBusMuted(_ muted: Bool, busID: UUID) {
-        updateMixerBusMix(busID: busID) { $0.isMuted = muted }
+        // #60: mute and solo are mutually exclusive per bus — engaging mute
+        // drops the bus from solo (the just-engaged control wins).
+        updateMixerBusMix(busID: busID) {
+            $0.isMuted = muted
+            if muted { $0.isSoloed = false }
+        }
     }
 
     func setMixerBusSoloed(_ soloed: Bool, busID: UUID) {
-        updateMixerBusMix(busID: busID) { $0.isSoloed = soloed }
+        // #60: engaging solo clears mute (mutually exclusive).
+        updateMixerBusMix(busID: busID) {
+            $0.isSoloed = soloed
+            if soloed { $0.isMuted = false }
+        }
     }
 
     func addMixerBusInsert(_ insert: MixerBusInsert, busID: UUID) {
@@ -570,6 +579,10 @@ final class SequencerDocumentSession {
     func setTrackSoloed(_ soloed: Bool, trackID: UUID) {
         let changed = store.mutateTrack(id: trackID) { track in
             track.mix.isSoloed = soloed
+            // #60: mute and solo are mutually exclusive per track. Precedence:
+            // the just-engaged control wins. Engaging solo clears mute so the
+            // two indicators never both show active (model-level invariant).
+            if soloed { track.mix.isMuted = false }
         }
         guard changed else { return }
         applyTrackMixPerformanceMutation(trackID: trackID)

@@ -965,7 +965,9 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
     /// ramp that writes `outputVolume` (a node-parameter write, not a graph
     /// mutation) and never holds `lifecycleLock` across engine work.
     func setTrackMuteGain(trackID: UUID, muted: Bool, source: TrackMuteSource) {
-        let (busPool, mixer, level, effectiveMuted): (BusVoicePool?, AVAudioMixerNode?, Float, Bool) = withLifecycleLock {
+        let (busPool, mixer, filter, sendLevels, level, effectiveMuted): (
+            BusVoicePool?, AVAudioMixerNode?, SamplerFilterNode?, MainAudioGraph.TrackSendLevels, Float, Bool
+        ) = withLifecycleLock {
             // Record THIS source independently; effective mute is mixer || layer
             // so neither source clobbers the other (last-writer-wins bug).
             switch source {
@@ -976,20 +978,38 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
             }
             let effective = effectiveMuteLocked(trackID)
             let level = trackMixValues[trackID]?.level ?? 1
+            let configuredSends = trackSendLevels[trackID] ?? .zero
             if let pool = busVoicePools[trackID] {
-                return (pool, nil, level, effective)
+                return (pool, nil, nil, configuredSends, level, effective)
             }
-            return (nil, trackMixers[trackID], level, effective)
+            return (nil, trackMixers[trackID], trackFilters[trackID], configuredSends, level, effective)
         }
         let target: Float = effectiveMuted ? 0 : level
         if let busPool {
             // The track fader/mute lives on the per-track sum node (the track's
-            // own output); ramp it, not the unity voice mixers.
+            // own output); ramp it, not the unity voice mixers. Bus-routed tracks
+            // have no per-track send fanout (sends come from the bus), so muting
+            // the sum node already silences everything the track feeds the bus.
             MixerGainRamp.shared.ramp(busPool.trackSumMixer, to: target)
             return
         }
         guard let mixer else { return }
         MixerGainRamp.shared.ramp(mixer, to: target)
+        // #58: a master-routed track's Send A/B legs tap the fanout (downstream
+        // of `mixer` but carrying their own configured gain). Re-ramp the
+        // send-leg gains gated by effective mute so a muted track sends 0 to
+        // both send buses; unmute restores the configured send levels. This uses
+        // the TICK-SAFE ramp (no main hop, no graph mutation) — setTrackMuteGain
+        // is called from the tick path by the perform-layer mute, so it must NOT
+        // go through setTrackSendLevels (which synchronously hops to main).
+        if let filter {
+            let effective = effectiveMuted ? MainAudioGraph.TrackSendLevels.zero : sendLevels
+            audioGraph.rampExistingTrackSendLegsForMute(
+                filter.avNode,
+                sendA: effective.sendA,
+                sendB: effective.sendB
+            )
+        }
     }
 
     func setTrackOutputBus(trackID: UUID, busID: UUID?) {
@@ -1069,15 +1089,20 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         prepareTrack(trackID: trackID)
         performOnMain { [self] in
             let levels = MainAudioGraph.TrackSendLevels(sendA: sendA, sendB: sendB)
-            // Publish the levels + read the terminal node under the lock; the
-            // send-level apply (which may rewire send geometry the first time)
-            // runs without the lock.
-            let filter: SamplerFilterNode? = withLifecycleLock {
+            // Publish the CONFIGURED levels + read the terminal node and the
+            // effective mute under the lock; the send-level apply (which may
+            // rewire send geometry the first time) runs without the lock.
+            // #58: the APPLIED send-leg gains are gated by effective mute — a
+            // muted track sends 0 to both send buses (its fanout sends bleed
+            // through to the FX/aux bus → master otherwise). The configured
+            // levels stay in `trackSendLevels` so unmute restores them.
+            let (filter, muted): (SamplerFilterNode?, Bool) = withLifecycleLock {
                 trackSendLevels[trackID] = levels
-                return trackFilters[trackID]
+                return (trackFilters[trackID], effectiveMuteLocked(trackID))
             }
             guard let filter else { return }
-            audioGraph.setTrackSendLevels(filter.avNode, sendA: levels.sendA, sendB: levels.sendB)
+            let effective = muted ? MainAudioGraph.TrackSendLevels.zero : levels
+            audioGraph.setTrackSendLevels(filter.avNode, sendA: effective.sendA, sendB: effective.sendB)
         }
     }
 
