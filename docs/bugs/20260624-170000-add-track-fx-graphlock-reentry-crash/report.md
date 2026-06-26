@@ -122,3 +122,5 @@ stress-tested headlessly.
 
 Add/remove an AU effect insert on a track (cached and uncached AU) during
 playback with no crash; the new AU node wires in and sounds.
+
+Status: RESOLVED — already structurally fixed (graphLock async-hop + #47/R0-R2); regression test added

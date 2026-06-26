@@ -229,6 +229,57 @@ final class ConcurrencyChurnStressTests: XCTestCase {
         )
     }
 
+    // MARK: - Track-insert "+ Add FX" AU re-entry (bug 20260624-170000)
+    //
+    // Regression pin for the filed add-track-FX graphLock re-entry crash. An AU
+    // factory that completes INLINE (synchronously, on main) used to re-enter
+    // the install machinery while `setTrackInserts` still held the non-recursive
+    // graphLock — tripping `debugAssertGraphLockNotHeldByCurrentThread`
+    // (SIGTRAP). Mirrors the send-bus regression
+    // `test_installSendBus_inlineAUInstantiationCompletesWithoutDeadlockAndWiresNode`,
+    // but on the TRACK-insert path (`TrackInsertChainHost`). The fix is the
+    // unconditional `DispatchQueue.main.async` re-entry hop in
+    // `TrackInsertChainHost.startLoadingAUEffect`: the post-load rebuild lands on
+    // a fresh main-queue turn, after the install frame has released graphLock.
+    // The re-entry detector is armed via `setUp` (TickPathMainSyncGuard handler),
+    // so any re-entry shows up as a recorded violation rather than a hang.
+    @MainActor
+    func test_trackInsertChain_inlineAUInstantiation_noGraphLockReentry_andWiresNode() throws {
+        let graph = MainAudioGraph()
+        // Inject an AU factory that completes inline on main — the exact shape
+        // that, before the async re-entry hop, self-deadlocked under graphLock.
+        let effect = AVAudioUnitEQ(numberOfBands: 1)
+        graph.trackInsertAUFactoryForTesting = AUAudioUnitFactory { _, completion in
+            completion(effect, nil)
+        }
+
+        let source = AVAudioPlayerNode()
+        graph.attach(source)
+        graph.installSendBuses([.sendA, .sendB])
+        let trackID = UUID()
+        graph.setTrackMeterSources(trackIDs: [trackID], node: source)
+        graph.connectTrackOutput(source, to: nil, sends: .zero)
+
+        let auInsert = TrackFXInsert.auEffect(.testEffect)
+        // Before the fix this call self-deadlocked / tripped the re-entry trap.
+        graph.setTrackInserts(trackID: trackID, inserts: [auInsert])
+
+        // The deferred re-install lands on a later main-queue turn and must wire
+        // the loaded AU node into the live chain.
+        let deadline = Date().addingTimeInterval(2)
+        while Date() < deadline {
+            if graph.trackInstalledInsertNodeCountForTesting(trackID: trackID) == 1 { break }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.01))
+        }
+        XCTAssertEqual(
+            graph.trackInstalledInsertNodeCountForTesting(trackID: trackID),
+            1,
+            "the inline-instantiated AU effect must wire into the live track insert chain"
+        )
+        // No graphLock re-entry / hop-under-graphLock was taken on the add-FX path.
+        assertNoViolations("track-insert-add-au-fx")
+    }
+
     // MARK: - Loop 1: start/stop/setBPM churn while ticks process (D2 shape)
 
     private func runTransportChurn(
