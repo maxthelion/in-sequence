@@ -454,6 +454,70 @@ final class SequencerDocumentSessionMasterBusTests: XCTestCase {
         SequencerDocumentSessionRegistry.unregister(session)
     }
 
+    /// Regression: send-effect AMOUNT changes (wetDry / cutoff drag) must take
+    /// the scoped engine path and must NOT hold `EngineController.stateLock`
+    /// across the `@Observable` store mutation + the synchronous main hop into
+    /// the audio graph (`installSendBus` → `performOnMain`).
+    ///
+    /// This pins the fix for the 2026-06-23 "send-effect amount change hangs the
+    /// app" hang (docs/bugs/20260623-135100-send-effect-amount-change-hangs-app):
+    /// the wedge was a main-thread layout/graph mutation running while the engine
+    /// `stateLock` was held, starving the tick (blocked on `stateLock` in
+    /// `prepareTick`) and the render thread. The send-FX apply path now never
+    /// takes `stateLock`, so the D1 deadlock class (a main hop under `stateLock`)
+    /// cannot form. The DEBUG guard would fire `stateLockHoldViolationHandler-
+    /// ForTesting` if any apply step reacquired `stateLock` and then synced to
+    /// main; we assert it never trips across a drag's worth of amount changes.
+    func test_sendBusAmountDrag_scopedPath_noStateLockHeldAcrossMainHop() {
+        let documentBox = DocumentBox(document: SeqAIDocument(project: .empty))
+        let engine = EngineController(client: nil, endpoint: nil)
+        let session = SequencerDocumentSession(
+            document: Binding(
+                get: { documentBox.document },
+                set: { documentBox.document = $0 }
+            ),
+            engineController: engine,
+            debounceInterval: .seconds(100)
+        )
+
+        var stateLockViolations: [String] = []
+        engine.stateLockHoldViolationHandlerForTesting = { stateLockViolations.append($0) }
+
+        let insert = SendBusInsert.filter()
+        session.addSendBusInsert(insert, to: .sendA)
+
+        let documentApplyCallsBefore = engine.applyDocumentModelCallCount
+        let snapshotCallsBefore = engine.applyPlaybackSnapshotCallCount
+        let sendBusApplyCallsBefore = engine.sendBusApplyCallCount
+
+        // Simulate a wetDry-amount drag: many intermediate value-only changes,
+        // exactly the `sendInsertBinding(...\.wetDry...)` UI setter path. Each
+        // value differs from the previous one, so every call is a real change.
+        let amounts: [Double] = [0.05, 0.15, 0.25, 0.4, 0.55, 0.7, 0.85, 0.95, 0.3]
+        assertNoExportDuring(session.store) {
+            for amount in amounts {
+                session.updateSendBusInsert(insert.id, in: .sendA) { editing in
+                    editing.wetDry = amount
+                }
+            }
+        }
+
+        // No D1 violation: stateLock was never held across the main hop.
+        XCTAssertEqual(
+            stateLockViolations,
+            [],
+            "send-FX amount change must not hold stateLock across the main-thread graph mutation"
+        )
+        // Scoped path: one engine send-bus apply per change, no full apply/snapshot.
+        XCTAssertEqual(engine.sendBusApplyCallCount, sendBusApplyCallsBefore + amounts.count)
+        XCTAssertEqual(engine.applyDocumentModelCallCount, documentApplyCallsBefore)
+        XCTAssertEqual(engine.applyPlaybackSnapshotCallCount, snapshotCallsBefore)
+        XCTAssertEqual(engine.sendBusStates[.sendA]?.inserts.first?.wetDry, amounts.last)
+
+        engine.stateLockHoldViolationHandlerForTesting = nil
+        SequencerDocumentSessionRegistry.unregister(session)
+    }
+
     func test_mixerBusPerformanceMutations_doNotExportOrApplyDocumentModel() {
         let documentBox = DocumentBox(document: SeqAIDocument(project: .empty))
         let engine = EngineController(client: nil, endpoint: nil)
