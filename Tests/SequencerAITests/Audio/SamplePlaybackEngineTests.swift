@@ -674,16 +674,25 @@ final class SamplePlaybackEngineTests: XCTestCase {
         let trackID = UUID()
         engine.prepareTrack(trackID: trackID)
 
-        // Route to the bus: the track now plays on the bus voice pool.
+        // Route to the bus: the track now plays on the bus voice pool. With the
+        // live engine running, the master→bus switch of a sounding chokepoint is
+        // crossfaded (deferred behind the ramp), so poll for the bus route.
         engine.setTrackOutputBus(trackID: trackID, busID: busID)
-        let onBus = engine.preparedTrackRouteReadoutForTesting(trackID: trackID)
+        let onBus = waitForRouteReadout(engine, trackID: trackID) {
+            $0["prepared"] == true && $0["busSafeRoute"] == true
+        }
         XCTAssertEqual(onBus["prepared"], true, "track should be prepared on the bus")
         XCTAssertEqual(onBus["busSafeRoute"], true, "track should be on the bus route")
 
         // Route back to master: the bus pool is torn down and the master voice
-        // pool MUST be re-established so the track keeps sounding.
+        // pool MUST be re-established so the track keeps sounding. The
+        // teardown→rebuild is now CROSSFADED — deferred behind the outgoing
+        // chokepoint's ~12 ms ramp-to-silence (the route-switch click fix), so
+        // poll for the rebuilt master route rather than reading it synchronously.
         engine.setTrackOutputBus(trackID: trackID, busID: nil)
-        let onMaster = engine.preparedTrackRouteReadoutForTesting(trackID: trackID)
+        let onMaster = waitForRouteReadout(engine, trackID: trackID) {
+            $0["prepared"] == true && $0["busSafeRoute"] == false && $0["voicePlayable"] == true
+        }
         XCTAssertEqual(onMaster["prepared"], true, "track must remain prepared after bus -> master")
         XCTAssertEqual(onMaster["busSafeRoute"], false, "track must be back on the master route")
         XCTAssertEqual(
@@ -725,10 +734,17 @@ final class SamplePlaybackEngineTests: XCTestCase {
         engine.prepareTrack(trackID: trackID)
         XCTAssertNotNil(engine.play(sampleURL: fixtureURL, settings: .default, trackID: trackID, at: nil))
 
+        // master -> bus, then bus -> master. Each route switch crossfades (the
+        // build is deferred behind the outgoing chokepoint's ramp-to-silence), so
+        // poll for the final master route to settle rather than reading it
+        // synchronously immediately after the second switch.
         engine.setTrackOutputBus(trackID: trackID, busID: busID)
+        _ = waitForRouteReadout(engine, trackID: trackID) { $0["busSafeRoute"] == true }
         engine.setTrackOutputBus(trackID: trackID, busID: nil)
 
-        let onMaster = engine.preparedTrackRouteReadoutForTesting(trackID: trackID)
+        let onMaster = waitForRouteReadout(engine, trackID: trackID) {
+            $0["prepared"] == true && $0["busSafeRoute"] == false && $0["voicePlayable"] == true
+        }
         XCTAssertEqual(onMaster["prepared"], true)
         XCTAssertEqual(onMaster["busSafeRoute"], false)
         XCTAssertEqual(onMaster["voicePlayable"], true)
@@ -736,6 +752,27 @@ final class SamplePlaybackEngineTests: XCTestCase {
             engine.play(sampleURL: fixtureURL, settings: .default, trackID: trackID, at: nil),
             "track must keep sounding on master after master -> bus -> master"
         )
+    }
+
+    /// Poll the prepared-track route readout until `predicate` holds (or
+    /// timeout), spinning the runloop so the deferred route-switch build (which
+    /// is crossfaded ~12 ms behind the outgoing chokepoint's ramp-to-silence) can
+    /// complete. Returns the last readout seen.
+    @MainActor
+    private func waitForRouteReadout(
+        _ engine: SamplePlaybackEngine,
+        trackID: UUID,
+        timeout: TimeInterval = 2.0,
+        _ predicate: ([String: Bool]) -> Bool
+    ) -> [String: Bool] {
+        let deadline = Date().addingTimeInterval(timeout)
+        var last = engine.preparedTrackRouteReadoutForTesting(trackID: trackID)
+        while Date() < deadline {
+            last = engine.preparedTrackRouteReadoutForTesting(trackID: trackID)
+            if predicate(last) { return last }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.01))
+        }
+        return last
     }
 
     // MARK: - #58: muting a track must also mute its Send A/B legs

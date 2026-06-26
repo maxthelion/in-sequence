@@ -258,4 +258,157 @@ final class RampBeforeDisconnectTests: XCTestCase {
         wait(for: [faded], timeout: 3.0)
         XCTAssertEqual(chokepoint.outputVolume, 0, accuracy: 0.001)
     }
+
+    /// Route-switch CLICK fix (docs/bugs/20260626-route-switch-teardown-hard-cut
+    /// and docs/bugs/20260626-route-to-bus-click): re-routing a SOUNDING sample
+    /// track between a bus and master must ramp the OUTGOING route's chokepoint
+    /// to silence BEFORE the hard disconnect (Hard Rule 5), not hard-cut it.
+    ///
+    /// This is the deterministic complement to the routing-stress rig's coarse
+    /// CLICK metric (which did not catch this click). It asserts:
+    /// 1. the outgoing chokepoint took the ramp-to-silence (crossfade) path
+    ///    rather than a hard-cut (crossfade count increments + it fades to 0);
+    /// 2. NO REGRESSION TO SILENCE — after the switch settles the track is on
+    ///    its new destination AND its NEW chokepoint is restored to a sounding
+    ///    level (the route-to-master-silence regression the naïve defer caused).
+    @MainActor
+    func test_routeSwitch_busToMaster_soundingTrack_crossfades_notHardCut_andStaysAudible() throws {
+        MainAudioGraph.useManualRenderingForAutomation = true
+        defer { MainAudioGraph.useManualRenderingForAutomation = false }
+
+        let graph = MainAudioGraph()
+        let busID = UUID()
+        graph.installSendBuses([.sendA, .sendB])
+        graph.installMixerBuses([MixerBus(id: busID, name: "FX")])
+        let engine = SamplePlaybackEngine(audioGraph: graph)
+        try engine.start()
+        defer { engine.stop() }
+
+        let trackID = UUID()
+        // Route the track to the bus and set a sounding fader level so the
+        // outgoing (bus) chokepoint is mid-signal when we switch.
+        engine.setTrackOutputBus(trackID: trackID, busID: busID)
+        engine.setTrackMix(trackID: trackID, level: 0.8, pan: 0)
+        let busChokepoint = try XCTUnwrap(engine.busTrackSumMixerForTesting(trackID: trackID))
+        busChokepoint.outputVolume = 0.8 // ensure sounding regardless of ramp timing
+
+        // Switch back to master — the route-switch under test.
+        let crossfadesBefore = engine.sampleRouteCrossfadeCountForTesting
+        engine.setTrackOutputBus(trackID: trackID, busID: nil)
+        XCTAssertEqual(
+            engine.sampleRouteCrossfadeCountForTesting, crossfadesBefore + 1,
+            "a bus→master switch of a sounding track must ramp the outgoing chokepoint to silence, not hard-cut"
+        )
+
+        // The OUTGOING bus chokepoint fades to silence before its deferred teardown.
+        let faded = expectation(description: "outgoing bus chokepoint fades to silence")
+        let fadeDeadline = Date().addingTimeInterval(2.0)
+        func pollFade() {
+            if busChokepoint.outputVolume <= 0.001 {
+                faded.fulfill()
+                return
+            }
+            if Date() > fadeDeadline { return }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.005) { pollFade() }
+        }
+        pollFade()
+        wait(for: [faded], timeout: 3.0)
+
+        // NO REGRESSION: after the deferred teardown→rebuild runs, the track is
+        // MASTER-routed (no bus pool) and its new chokepoint is restored to a
+        // sounding level — not stuck silent (the prior naïve-defer failure).
+        let settled = expectation(description: "track re-routes to master and stays audible")
+        let settleDeadline = Date().addingTimeInterval(3.0)
+        func pollSettled() {
+            if engine.busTrackSumMixerForTesting(trackID: trackID) == nil,
+               let chokepoint = engine.trackOutputChokepointNodeForTesting(trackID: trackID),
+               chokepoint.outputVolume > 0.5 {
+                settled.fulfill()
+                return
+            }
+            if Date() > settleDeadline { return }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.01) { pollSettled() }
+        }
+        pollSettled()
+        wait(for: [settled], timeout: 4.0)
+        XCTAssertNil(
+            engine.busTrackSumMixerForTesting(trackID: trackID),
+            "after bus→master the track must have no bus voice pool"
+        )
+        let masterChokepoint = try XCTUnwrap(engine.trackOutputChokepointNodeForTesting(trackID: trackID))
+        XCTAssertGreaterThan(
+            masterChokepoint.outputVolume, 0.5,
+            "bus→master must NOT regress to silence — the new master chokepoint must be restored to its configured level"
+        )
+    }
+
+    /// Mirror of the above for the master→bus direction (the route-to-bus click,
+    /// docs/bugs/20260626-route-to-bus-click): the outgoing MASTER chokepoint
+    /// (the track mixer) must ramp to silence before its hard disconnect, and the
+    /// track must land on the bus still audible.
+    @MainActor
+    func test_routeSwitch_masterToBus_soundingTrack_crossfades_notHardCut_andStaysAudible() throws {
+        MainAudioGraph.useManualRenderingForAutomation = true
+        defer { MainAudioGraph.useManualRenderingForAutomation = false }
+
+        let graph = MainAudioGraph()
+        let busID = UUID()
+        graph.installSendBuses([.sendA, .sendB])
+        graph.installMixerBuses([MixerBus(id: busID, name: "FX")])
+        let engine = SamplePlaybackEngine(audioGraph: graph)
+        try engine.start()
+        defer { engine.stop() }
+
+        let trackID = UUID()
+        // Master-routed, sounding.
+        engine.prepareTrack(trackID: trackID)
+        engine.setTrackMix(trackID: trackID, level: 0.8, pan: 0)
+        let masterChokepoint = try XCTUnwrap(engine.trackOutputChokepointNodeForTesting(trackID: trackID))
+        masterChokepoint.outputVolume = 0.8
+
+        // Switch to the bus — the route-switch under test (Site 2).
+        let crossfadesBefore = engine.sampleRouteCrossfadeCountForTesting
+        engine.setTrackOutputBus(trackID: trackID, busID: busID)
+        XCTAssertEqual(
+            engine.sampleRouteCrossfadeCountForTesting, crossfadesBefore + 1,
+            "a master→bus switch of a sounding track must ramp the outgoing chokepoint to silence, not hard-cut"
+        )
+
+        // Outgoing MASTER chokepoint fades to silence before its deferred teardown.
+        let faded = expectation(description: "outgoing master chokepoint fades to silence")
+        let fadeDeadline = Date().addingTimeInterval(2.0)
+        func pollFade() {
+            if masterChokepoint.outputVolume <= 0.001 {
+                faded.fulfill()
+                return
+            }
+            if Date() > fadeDeadline { return }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.005) { pollFade() }
+        }
+        pollFade()
+        wait(for: [faded], timeout: 3.0)
+
+        // NO REGRESSION: track lands on the bus with a sounding chokepoint.
+        let settled = expectation(description: "track re-routes to bus and stays audible")
+        let settleDeadline = Date().addingTimeInterval(3.0)
+        func pollSettled() {
+            if let sumMixer = engine.busTrackSumMixerForTesting(trackID: trackID),
+               sumMixer.outputVolume > 0.5 {
+                settled.fulfill()
+                return
+            }
+            if Date() > settleDeadline { return }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.01) { pollSettled() }
+        }
+        pollSettled()
+        wait(for: [settled], timeout: 4.0)
+        let sumMixer = try XCTUnwrap(
+            engine.busTrackSumMixerForTesting(trackID: trackID),
+            "after master→bus the track must have a bus voice pool"
+        )
+        XCTAssertGreaterThan(
+            sumMixer.outputVolume, 0.5,
+            "master→bus must NOT regress to silence — the new bus sum chokepoint must be restored to its configured level"
+        )
+    }
 }

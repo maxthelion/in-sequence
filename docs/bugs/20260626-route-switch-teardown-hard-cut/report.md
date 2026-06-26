@@ -47,3 +47,5 @@ already assert audibility) plus a click check on a quiet single-track fixture.
 Re-route a sounding sample track bus↔master with no click and no silence; rig
 `routeTrack-*` ops stay audible; a quiet-fixture click check shows no
 discontinuity on the switch.
+## RESOLVED (2026-06-26)
+Fixed with a real crossfade (not the previously-reverted defer): rampOutgoingThenSwitch ramps the outgoing chokepoint (bus trackSumMixer / master track mixer) to silence, then runs the ENTIRE teardown->rebuild block as one atomic unit (preserving ordering — avoids the route-to-master silence regression), then ramps the new route up from 0. Only engaged when the chokepoint is genuinely sounding (engine running + live in/out edges); setup/repair/offline splice synchronously. Also resolves #61 (route-to-bus click — same unramped reconnect). Verified: routing-stress GATE PASS x3, route-to-master + route-to-bus audible (no silence); RampBeforeDisconnectTests crossfade tests (ramp-taken + faded-to-silence + no-residual-silence). Final click confirmation is by-ear (Max).

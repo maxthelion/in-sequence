@@ -261,6 +261,11 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
     /// `removeTrack` / route-switch teardown of a sounding track does NOT
     /// hard-cut (Hard Rule 5).
     private(set) var sampleTeardownRampCountForTesting = 0
+    /// Number of times a sample-track ROUTE SWITCH (bus↔master) ramped the
+    /// OUTGOING route's sounding chokepoint to silence before tearing it down and
+    /// building the incoming route. Lets a test assert that a route switch of a
+    /// sounding track crossfades (Hard Rule 5) rather than hard-cutting.
+    private(set) var sampleRouteCrossfadeCountForTesting = 0
     /// Number of triggered voices scheduled via a RESIDENT `AVAudioPCMBuffer`
     /// (`scheduleBuffer`) — the warm-from-RAM path that Hard Rule 4 mandates for
     /// every trigger. A default forward slice / one-shot MUST land here.
@@ -1065,10 +1070,36 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
                 // because `trackOutputBusIDs[trackID]` was just set to nil above,
                 // it rebuilds the prepared master pool rather than a bus pool.
                 // `prepareTrack` republishes fast-path through the gate itself.
+                //
+                // CLICK FIX (Hard Rule 5): the OUTGOING bus route's chokepoint is
+                // `pool.trackSumMixer` — the single node every bus voice sums
+                // through, and it may still be sounding (mid-decay). Ramp IT to
+                // silence FIRST, then run the teardown→rebuild block. The
+                // teardown→rebuild stays SYNCHRONOUS and in the SAME order inside
+                // the closure (teardown then prepareTrack), so the master rebuild
+                // still sees the bus pool already torn down — the naïve
+                // "defer only the teardown, rebuild now" regression
+                // (route-to-master → silence) is avoided.
                 DevActivity.trace(DevActivity.audioGraph, "route-to-master teardownBus start track=\(trackID.uuidString)")
-                teardownBusVoicePool(pool)
-                prepareTrack(trackID: trackID)
-                DevActivity.trace(DevActivity.audioGraph, "route-to-master teardownBus done track=\(trackID.uuidString)")
+                rampOutgoingThenSwitch(outgoing: [pool.trackSumMixer]) { [self] in
+                    teardownBusVoicePool(pool)
+                    prepareTrack(trackID: trackID)
+                    // Bring the new MASTER route's chokepoint (the track mixer) up
+                    // from silence to its configured level — the incoming side of
+                    // the crossfade. `prepareTrack` builds/repairs the master pool
+                    // and (via setTrackMix elsewhere) has the configured level in
+                    // `trackMixValues`; respect effective mute so a muted track
+                    // stays silent.
+                    let (mixer, target): (AVAudioMixerNode?, Float) = withLifecycleLock {
+                        let muted = effectiveMuteLocked(trackID)
+                        let level = trackMixValues[trackID]?.level ?? 1
+                        return (trackMixers[trackID], muted ? 0 : level)
+                    }
+                    if let mixer {
+                        rampIncomingChokepointUp(mixer, to: target)
+                    }
+                    DevActivity.trace(DevActivity.audioGraph, "route-to-master teardownBus done track=\(trackID.uuidString)")
+                }
             case let .repairTrack(pool):
                 // repairPreparedTrackGraph republishes through the gate itself.
                 repairPreparedTrackGraph(trackID: trackID, pool: pool)
@@ -1211,6 +1242,77 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         }
     }
 
+    /// Click-free route switch (bus↔master) for a SOUNDING sample track.
+    ///
+    /// Hard Rule 5 forbids hard-disconnecting a sounding node; a route switch
+    /// tears the OLD route's chokepoint out of the graph and builds a NEW route
+    /// in its place. To avoid the click we ramp the OUTGOING chokepoint(s) to
+    /// silence FIRST, and only once the fade reaches 0 do we run
+    /// `switchAndBringUp` — which performs the teardown→rebuild **synchronously,
+    /// in the original order** and brings the new route's gain up from 0.
+    ///
+    /// CRITICAL ordering invariant (the prior failure this avoids): a naïve
+    /// "defer the teardown, rebuild immediately" regressed route-to-master to
+    /// SILENCE — the rebuild (`prepareTrack` / new bus pool) depends on the old
+    /// pool being torn down *before* it runs, so deferring only the teardown left
+    /// the rebuilt voices not sounding
+    /// (docs/bugs/20260626-route-switch-teardown-hard-cut). Here the ENTIRE
+    /// teardown→rebuild block runs together inside `switchAndBringUp` with its
+    /// internal order unchanged; only the whole block is deferred behind the
+    /// down-ramp. If there is no sounding outgoing chokepoint we run it
+    /// immediately (no ramp needed — nothing is being cut).
+    ///
+    /// `MixerGainRamp.ramp` writes `outputVolume` only (no graph mutation, no
+    /// `lifecycleLock`), so the down-ramp cannot stall the tick path, and the
+    /// switch is deferred ~12 ms rather than blocked on. The down-ramp uses
+    /// `markSettled: false` so it does not overwrite any node's intended rest
+    /// level — the outgoing chokepoint is torn down anyway, and any surviving
+    /// node keeps its true settled target.
+    @MainActor
+    private func rampOutgoingThenSwitch(
+        outgoing chokepoints: [AVAudioMixerNode],
+        switchAndBringUp: @escaping @MainActor () -> Void
+    ) {
+        // Mirror MainAudioGraph.connectTrackOutput's gate: a chokepoint can only
+        // be HARD-CUT-clicking if it is genuinely PASSING audio right now — the
+        // engine is running AND the node has BOTH a live input edge (something
+        // feeds it) and a live output edge (it reaches downstream). A fresh build
+        // / setup / repair (no input or no output edge yet) is silent, so the
+        // switch runs synchronously (no dip, deterministic post-state) — that
+        // keeps pure-setup paths and offline render unchanged.
+        let sounding = chokepoints.filter { node in
+            node.engine === audioGraph.engine
+                && audioGraph.engine.isRunning
+                && audioGraph.engine.inputConnectionPoint(for: node, inputBus: 0) != nil
+                && !audioGraph.engine.outputConnectionPoints(for: node, outputBus: 0).isEmpty
+        }
+        guard !sounding.isEmpty else {
+            // Nothing currently passing audio to fade — run the switch now.
+            switchAndBringUp()
+            return
+        }
+        #if DEBUG
+        sampleRouteCrossfadeCountForTesting += 1
+        #endif
+        let group = DispatchGroup()
+        for mixer in sounding {
+            group.enter()
+            MixerGainRamp.shared.ramp(mixer, to: 0, markSettled: false) { _ in group.leave() }
+        }
+        group.notify(queue: .main) {
+            MainActor.assumeIsolated { switchAndBringUp() }
+        }
+    }
+
+    /// Bring a freshly-built route's chokepoint up from silence to its configured
+    /// level via a short ramp (the INCOMING side of a route crossfade). The new
+    /// voices only sound on their next trigger envelope, so the up-ramp is belt-
+    /// and-suspenders against any residual transient on the fresh gain stage.
+    private func rampIncomingChokepointUp(_ node: AVAudioMixerNode, to level: Float) {
+        node.outputVolume = 0
+        MixerGainRamp.shared.ramp(node, to: level)
+    }
+
     func audition(sampleURL: URL) {
         guard withLifecycleLock({ isStarted }) else { return }
         guard let file = cachedFile(url: sampleURL) else { return }
@@ -1293,87 +1395,121 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
             return (nil, trackPool, mixer, filter)
         }
 
-        if let existingBusPool {
-            if isBusVoicePoolReadyForPlayback(pool: existingBusPool, busID: busID) {
-                applyBusVoiceMix(trackID: trackID, pool: existingBusPool)
-                return
+        if let existingBusPool, isBusVoicePoolReadyForPlayback(pool: existingBusPool, busID: busID) {
+            // Already a healthy bus pool — no route switch, no teardown. Just
+            // re-apply the mix (this path is not a sounding-node disconnect).
+            applyBusVoiceMix(trackID: trackID, pool: existingBusPool)
+            return
+        }
+
+        // OUTGOING route chokepoint(s) that may currently be SOUNDING and are
+        // about to be torn down — ramp these to silence BEFORE the disconnect
+        // (Hard Rule 5). For master→bus the outgoing chokepoint is the track
+        // mixer (`staleMixer`); for a stale bus rebuild it is the old bus pool's
+        // `trackSumMixer`. The teardown of these (and the build of the new bus
+        // route) all run SYNCHRONOUSLY in `buildBusRoute` below, in the original
+        // order, so the new route is fully built before publish — we never
+        // "defer the teardown while rebuilding now" (that regressed the sibling
+        // route-to-master path to silence).
+        var outgoingChokepoints: [AVAudioMixerNode] = []
+        if let staleMixer { outgoingChokepoints.append(staleMixer) }
+        if let existingBusPool { outgoingChokepoints.append(existingBusPool.trackSumMixer) }
+
+        let buildBusRoute: @MainActor () -> Void = { [self] in
+            if let existingBusPool {
+                // Stale bus pool: drop it (under lock) and rebuild below.
+                withLifecycleLock {
+                    _ = fastPathReadyTrackIDs.remove(trackID)
+                    _ = busVoicePools.removeValue(forKey: trackID)
+                }
+                teardownBusVoicePool(existingBusPool)
             }
-            // Stale bus pool: drop it (under lock) and rebuild below.
-            withLifecycleLock {
-                _ = fastPathReadyTrackIDs.remove(trackID)
-                _ = busVoicePools.removeValue(forKey: trackID)
+
+            if let staleTrackPool {
+                teardownTrackVoicePool(staleTrackPool)
             }
-            teardownBusVoicePool(existingBusPool)
-        }
+            if let staleMixer {
+                // realtime-allow-graph-mutation: prepared route switch setup only, not tick dispatch. Test: RealtimePathLintTests.
+                audioGraph.disconnectOutput(staleMixer)
+                // realtime-allow-graph-mutation: prepared route switch setup only, not tick dispatch. Test: RealtimePathLintTests.
+                audioGraph.detach(staleMixer)
+            }
+            if let staleFilter {
+                // realtime-allow-graph-mutation: prepared route switch setup only, not tick dispatch. Test: RealtimePathLintTests.
+                audioGraph.disconnectOutput(staleFilter.avNode)
+                // realtime-allow-graph-mutation: prepared route switch setup only, not tick dispatch. Test: RealtimePathLintTests.
+                audioGraph.detach(staleFilter.avNode)
+            }
 
-        if let staleTrackPool {
-            teardownTrackVoicePool(staleTrackPool)
-        }
-        if let staleMixer {
-            // realtime-allow-graph-mutation: prepared route switch setup only, not tick dispatch. Test: RealtimePathLintTests.
-            audioGraph.disconnectOutput(staleMixer)
-            // realtime-allow-graph-mutation: prepared route switch setup only, not tick dispatch. Test: RealtimePathLintTests.
-            audioGraph.detach(staleMixer)
-        }
-        if let staleFilter {
-            // realtime-allow-graph-mutation: prepared route switch setup only, not tick dispatch. Test: RealtimePathLintTests.
-            audioGraph.disconnectOutput(staleFilter.avNode)
-            // realtime-allow-graph-mutation: prepared route switch setup only, not tick dispatch. Test: RealtimePathLintTests.
-            audioGraph.detach(staleFilter.avNode)
-        }
-
-        // The track's OWN output node when routed to a bus: every voice mixer
-        // sums into this single node, which then feeds the bus. It is the track's
-        // meter source (so the source meters regardless of routing, #62) and the
-        // single per-track input on the bus (so per-track inputs cannot collide).
-        let trackSumMixer = AVAudioMixerNode()
-        // realtime-allow-graph-mutation: prepared bus voice setup occurs during document apply/setup, not tick dispatch. Test: RealtimePathLintTests.
-        audioGraph.attach(trackSumMixer)
-
-        var voices: [AVAudioPlayerNode] = []
-        var mixers: [AVAudioMixerNode] = []
-        var handles: [UUID] = []
-        for index in 0..<Self.voicesPerTrack {
-            let voice = AVAudioPlayerNode()
-            let mixer = AVAudioMixerNode()
+            // The track's OWN output node when routed to a bus: every voice mixer
+            // sums into this single node, which then feeds the bus. It is the track's
+            // meter source (so the source meters regardless of routing, #62) and the
+            // single per-track input on the bus (so per-track inputs cannot collide).
+            let trackSumMixer = AVAudioMixerNode()
             // realtime-allow-graph-mutation: prepared bus voice setup occurs during document apply/setup, not tick dispatch. Test: RealtimePathLintTests.
-            audioGraph.attach(voice)
+            audioGraph.attach(trackSumMixer)
+
+            var voices: [AVAudioPlayerNode] = []
+            var mixers: [AVAudioMixerNode] = []
+            var handles: [UUID] = []
+            for index in 0..<Self.voicesPerTrack {
+                let voice = AVAudioPlayerNode()
+                let mixer = AVAudioMixerNode()
+                // realtime-allow-graph-mutation: prepared bus voice setup occurs during document apply/setup, not tick dispatch. Test: RealtimePathLintTests.
+                audioGraph.attach(voice)
+                // realtime-allow-graph-mutation: prepared bus voice setup occurs during document apply/setup, not tick dispatch. Test: RealtimePathLintTests.
+                audioGraph.attach(mixer)
+                // realtime-allow-graph-mutation: prepared bus voice setup occurs during document apply/setup, not tick dispatch. Test: RealtimePathLintTests.
+                audioGraph.engine.connect(voice, to: mixer, fromBus: 0, toBus: 0, format: nil)
+                // Each voice mixer feeds a distinct input on the per-track sum mixer.
+                // realtime-allow-graph-mutation: prepared bus voice setup occurs during document apply/setup, not tick dispatch. Test: RealtimePathLintTests.
+                audioGraph.engine.connect(mixer, to: trackSumMixer, fromBus: 0, toBus: index, format: nil)
+                voices.append(voice)
+                mixers.append(mixer)
+                handles.append(UUID())
+            }
+
             // realtime-allow-graph-mutation: prepared bus voice setup occurs during document apply/setup, not tick dispatch. Test: RealtimePathLintTests.
-            audioGraph.attach(mixer)
+            // One connection per track to the shared bus input mixer (a unique free
+            // input bus allocated inside connectPreparedSampleVoiceOutput), so tracks
+            // routed to the same bus cannot collide. The bus input mixer SUMS these
+            // per-track outputs — the bus meters that sum (#59).
+            audioGraph.connectPreparedSampleVoiceOutput(
+                trackSumMixer,
+                toMixerBus: busID
+            )
+            // The per-track sum node is the track's terminal point when bus-routed —
+            // register it as the strip's meter source so the SOURCE track keeps
+            // metering its own level even though its output goes to a bus (#62).
+            audioGraph.setTrackMeterSources(trackIDs: [trackID], node: trackSumMixer)
+
+            let pool = BusVoicePool(voices: voices, voiceMixers: mixers, trackSumMixer: trackSumMixer, handles: handles, cursor: 0)
+            let fanout = withLifecycleLock { () -> SamplerFilterFanout in
+                busVoicePools[trackID] = pool
+                _ = deferredPreparedTrackRepairIDs.remove(trackID)
+                return filterFanoutLocked(for: trackID)
+            }
+            fanout.setTargets([])
+            // INCOMING side of the crossfade: bring the new sum-node chokepoint up
+            // from silence rather than snapping it on. `applyBusVoiceMix` sets the
+            // configured fader level immediately; override the sum node to a ramp
+            // from 0 to that level (mute-respecting). Voice mixers stay at unity.
+            applyBusVoiceMix(trackID: trackID, pool: pool)
+            let target: Float = withLifecycleLock {
+                let mix = trackMixValues[trackID] ?? (level: 1, pan: 0)
+                return effectiveMuteLocked(trackID) ? 0 : mix.level
+            }
+            rampIncomingChokepointUp(trackSumMixer, to: target)
             // realtime-allow-graph-mutation: prepared bus voice setup occurs during document apply/setup, not tick dispatch. Test: RealtimePathLintTests.
-            audioGraph.engine.connect(voice, to: mixer, fromBus: 0, toBus: 0, format: nil)
-            // Each voice mixer feeds a distinct input on the per-track sum mixer.
-            // realtime-allow-graph-mutation: prepared bus voice setup occurs during document apply/setup, not tick dispatch. Test: RealtimePathLintTests.
-            audioGraph.engine.connect(mixer, to: trackSumMixer, fromBus: 0, toBus: index, format: nil)
-            voices.append(voice)
-            mixers.append(mixer)
-            handles.append(UUID())
+            audioGraph.engine.prepare()
+            // Republish fast-path here: when the build is DEFERRED behind the
+            // outgoing down-ramp, the caller's synchronous post-call read of
+            // `busVoicePools[trackID]` is still nil, so the gate must be set from
+            // inside the deferred block. Idempotent with the caller's own publish.
+            publishBusTrackFastPathIfConnected(trackID: trackID, busID: busID, pool: pool)
         }
 
-        // realtime-allow-graph-mutation: prepared bus voice setup occurs during document apply/setup, not tick dispatch. Test: RealtimePathLintTests.
-        // One connection per track to the shared bus input mixer (a unique free
-        // input bus allocated inside connectPreparedSampleVoiceOutput), so tracks
-        // routed to the same bus cannot collide. The bus input mixer SUMS these
-        // per-track outputs — the bus meters that sum (#59).
-        audioGraph.connectPreparedSampleVoiceOutput(
-            trackSumMixer,
-            toMixerBus: busID
-        )
-        // The per-track sum node is the track's terminal point when bus-routed —
-        // register it as the strip's meter source so the SOURCE track keeps
-        // metering its own level even though its output goes to a bus (#62).
-        audioGraph.setTrackMeterSources(trackIDs: [trackID], node: trackSumMixer)
-
-        let pool = BusVoicePool(voices: voices, voiceMixers: mixers, trackSumMixer: trackSumMixer, handles: handles, cursor: 0)
-        let fanout = withLifecycleLock { () -> SamplerFilterFanout in
-            busVoicePools[trackID] = pool
-            _ = deferredPreparedTrackRepairIDs.remove(trackID)
-            return filterFanoutLocked(for: trackID)
-        }
-        fanout.setTargets([])
-        applyBusVoiceMix(trackID: trackID, pool: pool)
-        // realtime-allow-graph-mutation: prepared bus voice setup occurs during document apply/setup, not tick dispatch. Test: RealtimePathLintTests.
-        audioGraph.engine.prepare()
+        rampOutgoingThenSwitch(outgoing: outgoingChokepoints, switchAndBringUp: buildBusRoute)
     }
 
     @MainActor
