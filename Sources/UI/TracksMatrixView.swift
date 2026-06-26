@@ -444,27 +444,34 @@ struct TracksMatrixView: View {
         )
     }
 
+    /// One flat navigator grid: ungrouped track cells, then each kit (a single
+    /// kit cell when collapsed, or the kit cell followed inline by its per-part
+    /// cells when expanded), then the add-track tile. Kit cells reuse the same
+    /// cell chrome + footprint as normal track cells — no surrounding wrapper
+    /// section. The expand/collapse affordance lives ON the kit cell itself.
     private func matrixSections(tracks: [StepSequenceTrack], selectedTrackID: UUID) -> some View {
-        VStack(alignment: .leading, spacing: 18) {
-            if !ungroupedTracks.isEmpty {
-                tracksGrid(ungroupedTracks, group: nil, selectedTrackID: selectedTrackID)
+        LazyVGrid(columns: columns, spacing: 14) {
+            ForEach(ungroupedTracks, id: \.id) { track in
+                #if DEBUG
+                let _ = { TracksPageInvalidationProbe.cardContentEvaluations += 1 }()
+                #endif
+                trackCell(track, group: nil, selectedTrackID: selectedTrackID)
             }
 
             ForEach(groupedSections) { section in
-                let isCollapsed = isGroupCollapsed(section.group)
-                GroupSectionView(
-                    section: section,
-                    isCollapsed: isCollapsed,
-                    onCollapse: isCollapsed ? nil : { collapseGroup(section.group) },
-                    grid: {
-                        if isCollapsed {
-                            collapsedKitCell(section: section, selectedTrackID: selectedTrackID)
-                        } else {
-                            tracksGrid(section.members, group: section.group, selectedTrackID: selectedTrackID)
-                        }
+                kitCell(section: section, selectedTrackID: selectedTrackID)
+
+                if !isGroupCollapsed(section.group) {
+                    ForEach(section.members, id: \.id) { member in
+                        #if DEBUG
+                        let _ = { TracksPageInvalidationProbe.cardContentEvaluations += 1 }()
+                        #endif
+                        trackCell(member, group: section.group, selectedTrackID: selectedTrackID)
                     }
-                )
+                }
             }
+
+            addTrackCard
         }
     }
 
@@ -483,32 +490,67 @@ struct TracksMatrixView: View {
         forceExpandedGroups.remove(group.id)
     }
 
+    /// The kit's single navigator cell — same chrome/footprint as a normal
+    /// track cell (`KitMatrixCard`). When collapsed it carries an Expand
+    /// affordance and a thumbnail strip of its contained parts; when expanded
+    /// it carries a Collapse affordance and the parts render as sibling cells
+    /// following it in the grid. Selecting/opening speaks for the whole kit.
     @ViewBuilder
-    private func collapsedKitCell(section: GroupedTrackSection, selectedTrackID: UUID) -> some View {
+    private func kitCell(section: GroupedTrackSection, selectedTrackID: UUID) -> some View {
+        #if DEBUG
+        let _ = { TracksPageInvalidationProbe.cardContentEvaluations += 1 }()
+        #endif
         let representativeTrackID = section.members.first?.id
         let memberIDs = section.members.map(\.id)
         // A grouped kit tile selects (or deselects) all its members at once so
         // the actions nav speaks for the whole kit.
         let kitSelected = !memberIDs.isEmpty && memberIDs.allSatisfy { session.tracksSelection.contains($0) }
-        LazyVGrid(columns: columns, spacing: 14) {
-            CollapsedKitCell(
-                group: section.group,
-                memberCount: section.members.count,
-                patternSlotLabel: collapsedKitPatternSlotLabel(section),
-                destinationLabel: section.group.sharedDestination?.summary ?? "Own bus",
-                isFocused: section.members.contains { $0.id == selectedTrackID },
-                isSelectionMode: session.tracksSelectionMode,
-                isSelected: kitSelected,
-                onOpenKit: {
-                    if session.tracksSelectionMode {
-                        session.toggleTracksSelected(memberIDs)
-                    } else if let representativeTrackID {
-                        session.setSelectedTrackID(representativeTrackID)
-                        onOpenTrack()
-                    }
-                },
-                onExpand: { expandGroup(section.group) }
-            )
+        let isCollapsed = isGroupCollapsed(section.group)
+        KitMatrixCard(
+            group: section.group,
+            partNames: section.members.map(\.name),
+            patternSlotLabel: collapsedKitPatternSlotLabel(section),
+            isCollapsed: isCollapsed,
+            isFocused: section.members.contains { $0.id == selectedTrackID },
+            isSelectionMode: session.tracksSelectionMode,
+            isSelected: kitSelected,
+            onOpenKit: {
+                if session.tracksSelectionMode {
+                    session.toggleTracksSelected(memberIDs)
+                } else if let representativeTrackID {
+                    session.setSelectedTrackID(representativeTrackID)
+                    onOpenTrack()
+                }
+            },
+            onToggleExpand: {
+                if isCollapsed {
+                    expandGroup(section.group)
+                } else {
+                    collapseGroup(section.group)
+                }
+            }
+        )
+    }
+
+    @ViewBuilder
+    private func trackCell(_ track: StepSequenceTrack, group: TrackGroup?, selectedTrackID: UUID) -> some View {
+        TrackMatrixCard(
+            track: track,
+            group: group,
+            isMuted: track.mix.isMuted,
+            isFocused: track.id == selectedTrackID,
+            isSelectionMode: session.tracksSelectionMode,
+            isSelected: session.tracksSelection.contains(track.id),
+            onToggleMute: {
+                session.toggleTrackMute(trackID: track.id)
+            }
+        ) {
+            if session.tracksSelectionMode {
+                session.toggleTrackSelected(track.id)
+            } else {
+                session.setSelectedTrackID(track.id)
+                onOpenTrack()
+            }
         }
     }
 
@@ -519,42 +561,6 @@ struct TracksMatrixView: View {
             return "P1"
         }
         return "P\(session.store.selectedPatternIndex(for: firstMemberID) + 1)"
-    }
-
-    @ViewBuilder
-    private func tracksGrid(_ tracks: [StepSequenceTrack], group: TrackGroup?, selectedTrackID: UUID) -> some View {
-        // The navigator grid: each tile shows just the track name + a type
-        // icon and a tiny mute toggle. No pattern/layer preview, no perform
-        // chrome — clicking a tile opens that track's single-track detail.
-        LazyVGrid(columns: columns, spacing: 14) {
-            ForEach(tracks, id: \.id) { track in
-                #if DEBUG
-                let _ = { TracksPageInvalidationProbe.cardContentEvaluations += 1 }()
-                #endif
-                TrackMatrixCard(
-                    track: track,
-                    group: group,
-                    isMuted: track.mix.isMuted,
-                    isFocused: track.id == selectedTrackID,
-                    isSelectionMode: session.tracksSelectionMode,
-                    isSelected: session.tracksSelection.contains(track.id),
-                    onToggleMute: {
-                        session.toggleTrackMute(trackID: track.id)
-                    }
-                ) {
-                    if session.tracksSelectionMode {
-                        session.toggleTrackSelected(track.id)
-                    } else {
-                        session.setSelectedTrackID(track.id)
-                        onOpenTrack()
-                    }
-                }
-            }
-
-            if group == nil {
-                addTrackCard
-            }
-        }
     }
 
     // Same footprint as TrackMatrixCard (minHeight 132 + comfortable padding)
@@ -575,132 +581,37 @@ private struct GroupedTrackSection: Identifiable {
     var id: TrackGroupID { group.id }
 }
 
-private struct GroupSectionView<Grid: View>: View {
-    let section: GroupedTrackSection
-    /// AC18: true when the linked kit is showing its single collapsed cell.
-    var isCollapsed: Bool = false
-    /// Non-nil only when expanded AND the kit is linked, so the user can fold
-    /// the per-part cells back to one cell without changing the link state.
-    var onCollapse: (() -> Void)? = nil
-    @ViewBuilder let grid: Grid
-
-    private var accent: Color {
-        Color(hex: section.group.color) ?? StudioTheme.success
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 12) {
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack(spacing: 8) {
-                        Text(section.group.name)
-                            .studioText(.title)
-                            .foregroundStyle(StudioTheme.text)
-
-                        Text("\(section.members.count) tracks")
-                            .studioText(.eyebrowBold)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 5)
-                            .background(accent, in: Capsule())
-                            .foregroundStyle(StudioTheme.background)
-
-                        if section.group.isPatternLinked {
-                            Text("LINKED")
-                                .studioText(.micro)
-                                .tracking(0.8)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .overlay(Capsule().stroke(accent.opacity(StudioOpacity.accentStroke), lineWidth: StudioMetrics.borderWidth))
-                                .foregroundStyle(accent)
-                        }
-                    }
-
-                    Text(section.group.sharedDestination?.summary ?? "Shared destination not assigned")
-                        .studioText(.body)
-                        .foregroundStyle(StudioTheme.mutedText)
-                        .lineLimit(1)
-                }
-
-                Spacer(minLength: 8)
-
-                if let onCollapse {
-                    Button(action: onCollapse) {
-                        HStack(spacing: 5) {
-                            Image(systemName: "arrow.down.right.and.arrow.up.left")
-                                .font(.system(size: 10, weight: .bold))
-                            Text("COLLAPSE")
-                                .studioText(.micro)
-                                .tracking(0.8)
-                        }
-                        .foregroundStyle(accent)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .overlay(Capsule().stroke(accent.opacity(StudioOpacity.accentStroke), lineWidth: StudioMetrics.borderWidth))
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("kit-collapse")
-                    .help("Collapse \(section.group.name) back to one cell")
-                }
-            }
-
-            grid
-        }
-        .padding(StudioMetrics.Spacing.roomy)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.section, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.section, style: .continuous)
-                .stroke(accent.opacity(StudioOpacity.hoverFill), lineWidth: StudioMetrics.borderWidth)
-        )
-    }
-}
-
-/// AC18: the single cell a LINKED drum kit collapses to in the track/perform
-/// matrix. Tapping the body opens the kit matrix (kit-first, same as selecting
-/// a member); the Expand control is a separate affordance that reveals the
-/// per-part cells without changing the link state. Styled to match
-/// `TrackMatrixCard` (same minHeight + outline grammar).
-private struct CollapsedKitCell: View {
+/// A drum kit's navigator cell. It sits in the same flat grid as normal track
+/// cells (matching `TrackMatrixCard`'s footprint + outline grammar) — there is
+/// no surrounding wrapper section. Tapping the body opens the kit matrix
+/// (kit-first, same as selecting a member). The expand/collapse affordance
+/// lives ON the cell: collapsed, it shows a thumbnail strip of the contained
+/// parts as small cells inside this cell ("for indication purposes") plus an
+/// Expand control; expanded, the parts render as sibling cells following this
+/// one in the grid and the control becomes Collapse.
+private struct KitMatrixCard: View {
     let group: TrackGroup
-    let memberCount: Int
+    let partNames: [String]
     let patternSlotLabel: String
-    let destinationLabel: String
+    let isCollapsed: Bool
     let isFocused: Bool
     var isSelectionMode: Bool = false
     var isSelected: Bool = false
     let onOpenKit: () -> Void
-    let onExpand: () -> Void
+    let onToggleExpand: () -> Void
 
     private var accent: Color {
         Color(hex: group.color) ?? StudioTheme.success
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 10) {
                 Image(systemName: "square.grid.2x2.fill")
-                    .font(.system(size: 16, weight: .bold))
+                    .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(StudioTheme.background)
-                    .frame(width: 28, height: 28)
-                    .background(accent, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(group.name)
-                        .studioText(.subtitle)
-                        .foregroundStyle(StudioTheme.text)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.7)
-
-                    HStack(spacing: 6) {
-                        Text("KIT")
-                        Text("\(memberCount) PARTS")
-                        Text(patternSlotLabel)
-                    }
-                    .studioText(.micro)
-                    .tracking(0.8)
-                    .foregroundStyle(StudioTheme.mutedText)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.75)
-                }
+                    .frame(width: 30, height: 30)
+                    .background(accent, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
 
                 Spacer(minLength: 0)
 
@@ -708,44 +619,57 @@ private struct CollapsedKitCell: View {
                     Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                         .font(.system(size: 16, weight: .bold))
                         .foregroundStyle(isSelected ? accent : StudioTheme.mutedText)
+                        .frame(width: 26, height: 26)
                         .accessibilityIdentifier("kit-card-select-mark")
+                } else {
+                    // The expand/collapse affordance lives ON the cell.
+                    Button(action: onToggleExpand) {
+                        Image(systemName: isCollapsed
+                            ? "arrow.up.left.and.arrow.down.right"
+                            : "arrow.down.right.and.arrow.up.left")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(accent)
+                            .frame(width: 26, height: 26)
+                            .background(Color.white.opacity(StudioOpacity.subtleFill), in: Circle())
+                            .overlay(Circle().stroke(accent.opacity(StudioOpacity.accentStroke), lineWidth: StudioMetrics.borderWidth))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier(isCollapsed ? "kit-expand" : "kit-collapse")
+                    .help(isCollapsed
+                        ? "Expand \(group.name) to its per-part cells"
+                        : "Collapse \(group.name) back to one cell")
                 }
             }
 
-            Text(destinationLabel.uppercased())
-                .studioText(.micro)
-                .tracking(0.8)
-                .foregroundStyle(accent)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .overlay(
-                    Capsule()
-                        .stroke(accent.opacity(StudioOpacity.accentStroke), lineWidth: StudioMetrics.borderWidth)
-                )
-                .lineLimit(1)
+            // The contained parts shown as small cells inside the kit cell, for
+            // indication, while collapsed. When expanded they live in the grid
+            // as sibling cells instead, so the strip is hidden.
+            if isCollapsed, !partNames.isEmpty {
+                partThumbnailStrip
+            }
 
             Spacer(minLength: 0)
 
-            Button(action: onExpand) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(group.name)
+                    .studioText(.subtitle)
+                    .foregroundStyle(StudioTheme.text)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+
                 HStack(spacing: 6) {
-                    Image(systemName: "arrow.up.left.and.arrow.down.right")
-                        .font(.system(size: 11, weight: .bold))
-                    Text("Expand")
-                        .studioText(.labelBold)
+                    Text("KIT")
+                    Text("\(partNames.count) PARTS")
+                    Text(patternSlotLabel)
                 }
-                .foregroundStyle(accent)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 8)
-                .overlay(
-                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-                        .stroke(accent.opacity(StudioOpacity.accentStroke), lineWidth: StudioMetrics.borderWidth)
-                )
+                .studioText(.micro)
+                .tracking(0.8)
+                .foregroundStyle(StudioTheme.mutedText)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
             }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("kit-expand")
-            .help("Expand \(group.name) to its per-part cells")
         }
-        .frame(maxWidth: .infinity, minHeight: 210, alignment: .topLeading)
+        .frame(maxWidth: .infinity, minHeight: 132, alignment: .topLeading)
         .padding(StudioMetrics.Spacing.comfortable)
         .background(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
@@ -761,6 +685,40 @@ private struct CollapsedKitCell: View {
         .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
         .onTapGesture(perform: onOpenKit)
         .accessibilityIdentifier("kit-collapsed-cell")
+    }
+
+    /// The contained part tracks rendered as small nested cells inside the kit
+    /// cell — an indication of membership, not interactive (tapping the kit
+    /// opens the kit matrix). Caps the count with a "+N" overflow chip.
+    private var partThumbnailStrip: some View {
+        let maxShown = 4
+        let shown = Array(partNames.prefix(maxShown))
+        let overflow = partNames.count - shown.count
+        return HStack(spacing: 4) {
+            ForEach(Array(shown.enumerated()), id: \.offset) { _, name in
+                Text(name)
+                    .studioText(.micro)
+                    .foregroundStyle(StudioTheme.mutedText)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 4)
+                    .frame(maxWidth: .infinity)
+                    .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous).stroke(accent.opacity(StudioOpacity.accentStroke), lineWidth: StudioMetrics.borderWidth))
+            }
+
+            if overflow > 0 {
+                Text("+\(overflow)")
+                    .studioText(.micro)
+                    .tracking(0.6)
+                    .foregroundStyle(accent)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 4)
+                    .background(accent.opacity(StudioOpacity.accentFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+            }
+        }
+        .accessibilityIdentifier("kit-part-thumbnails")
     }
 }
 
