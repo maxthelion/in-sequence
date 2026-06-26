@@ -21,14 +21,15 @@ set -euo pipefail
 #   - Rule 4 (#39): disk on the sample-trigger path (scheduleSegment(file:) /
 #     AVAudioFile(forReading:) in SamplePlaybackEngine).
 #
-# DEFERRED — Rule 3 (AU note path) is NOT enforced yet. The plan's Rule-3 lint
-# would forbid DispatchQueue.main / startNote / stopNote on the AU note path in
-# Sources/Audio/AudioInstrumentHost.swift. Those calls STILL EXIST in current
-# (pre-P1) code — adding the rule now would fail the lint on legitimate code.
-# ADD IN PHASE 1 (#36) once AudioInstrumentHost's startNote main-hop is removed:
-# scope an awk block to AudioInstrumentHost.swift that flags unannotated
-# `DispatchQueue.main`, `startNote(`, `stopNote(` on the note/tick path, mirroring
-# the Rule 1 / Rule 4 blocks below. Do not weaken anything to add it early.
+# Rule 3 (#36, Phase 1) — AU notes are sample-stamped, never main-hopped. NOW
+# ENFORCED. On the AU note sink (Sources/Audio/AudioInstrumentHost.swift) forbid
+# `startNote(` and `stopNote(` (bare AU note triggering) and `DispatchQueue.main`
+# UNLESS annotated `realtime-allow-<reason>: ... Test: <name>`. Phase 1 moved the
+# per-note trigger path to `scheduleMIDIEventBlock` (sample-stamped), so the only
+# legitimate remaining sites are control-path (graph/preset setup main hops, the
+# all-notes-off panic stopNote) — each annotated. A NEW unannotated
+# startNote/stopNote/DispatchQueue.main on the note path fails the lint (the
+# Rule 3 block below; RealtimePathLintTests plants a violation to prove it).
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 rg_bin="${RG_BIN:-$(command -v rg || true)}"
@@ -208,6 +209,36 @@ for file in "${files[@]}"; do
   # fails the lint. (`AVAudioFile(forReading:` is also in base_forbidden_regex
   # above for the whole realtime path; this block additionally pins
   # `scheduleSegment(`, which base_forbidden does not cover.)
+  # Rule 3 (Audio Engine Hard Rule 3, #36/Phase 1): AU notes are sample-stamped
+  # via scheduleMIDIEventBlock, never a DispatchQueue.main hop or a bare
+  # startNote/stopNote on the note/tick path. On the AU note sink
+  # (AudioInstrumentHost.swift) forbid `startNote(` and `stopNote(` UNLESS
+  # annotated. Phase 1 removed the per-note startNote/stopNote main-hop; the only
+  # sanctioned remaining note-off is the all-notes-off panic on the control path
+  # (stop/shutdown/preset-silence), annotated `realtime-allow-control-stopnote`.
+  # A NEW unannotated startNote/stopNote on this file fails the lint. (Main hops
+  # are already covered above: DispatchQueue.main.sync via base_forbidden, and
+  # unannotated DispatchQueue.main.async via the shared awk block — the AU
+  # graph/preset setup hops are annotated `realtime-allow-main-*`.)
+  case "$file" in
+    */AudioInstrumentHost.swift|Sources/Audio/AudioInstrumentHost.swift)
+      awk -v file="$file" '
+        function has_allow(line) {
+          return line ~ /realtime-allow-[a-z-]+: .+Test: [A-Za-z0-9_]+/
+        }
+        /\.startNote\(|\.stopNote\(|[^A-Za-z0-9_]startNote\(|[^A-Za-z0-9_]stopNote\(/ {
+          if ($0 ~ /^[[:space:]]*\/\//) { previous = $0; next }
+          if (!has_allow($0) && !has_allow(previous)) {
+            printf "%s:%d: Rule 3 (AU notes sample-stamped, never main-hopped) violated: unannotated startNote/stopNote on the AU note path — AU notes must be scheduled via scheduleMIDIEventBlock with an AUEventSampleTime; only the control-path all-notes-off panic may call stopNote, annotated `// realtime-allow-control-stopnote: <reason> . Test: <name>`: %s\n", file, NR, $0 > "/dev/stderr"
+            failed = 1
+          }
+        }
+        { previous = $0 }
+        END { exit failed ? 1 : 0 }
+      ' "$path" || failed=1
+      ;;
+  esac
+
   case "$file" in
     */SamplePlaybackEngine.swift|Sources/Audio/SamplePlaybackEngine.swift)
       awk -v file="$file" '

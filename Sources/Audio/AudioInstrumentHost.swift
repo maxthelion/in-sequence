@@ -23,6 +23,24 @@ protocol TrackPlaybackSink: AnyObject {
     func selectInstrument(_ choice: AudioInstrumentChoice)
     func captureStateBlob() throws -> Data?
     func play(noteEvents: [NoteEvent], bpm: Double, stepsPerBar: Int)
+    /// Sample-accurate AU note trigger (Audio Engine Hard Rule 3, Phase 1).
+    ///
+    /// `noteOnSampleTime` is the absolute render frame the note-on should sound
+    /// on — the SAME unified-clock frame a slice on this step receives
+    /// (`AudioMasterClock.sampleTime(atMusicalSeconds:)`). `sampleRate` is the
+    /// render sample rate, used to convert the per-note gate length into a
+    /// note-off frame. When `noteOnSampleTime` is nil (no render origin /
+    /// pre-render), the sink falls back to its immediate (non-stamped) path.
+    ///
+    /// Default-forwards to the legacy `play(noteEvents:bpm:stepsPerBar:)` so
+    /// non-AU sinks (and test doubles) need not implement it.
+    func play(
+        noteEvents: [NoteEvent],
+        bpm: Double,
+        stepsPerBar: Int,
+        noteOnSampleTime: AVAudioFramePosition?,
+        sampleRate: Double
+    )
 }
 
 extension TrackPlaybackSink {
@@ -37,12 +55,46 @@ extension TrackPlaybackSink {
     /// Sinks that own a graph node may register it as the meter source for
     /// the tracks they play (roadmap 29). Default: no metering.
     func setMeterTrackIDs(_ trackIDs: Set<UUID>) {}
+
+    /// Default: ignore the sample-accurate stamp and forward to the legacy
+    /// immediate path. Only `AudioInstrumentHost` (the AU note sink) overrides
+    /// this to schedule via `scheduleMIDIEventBlock` at `noteOnSampleTime`.
+    func play(
+        noteEvents: [NoteEvent],
+        bpm: Double,
+        stepsPerBar: Int,
+        noteOnSampleTime: AVAudioFramePosition?,
+        sampleRate: Double
+    ) {
+        play(noteEvents: noteEvents, bpm: bpm, stepsPerBar: stepsPerBar)
+    }
 }
 
 final class AudioInstrumentHost: TrackPlaybackSink {
     private let audioGraph: MainAudioGraph
     private let queue = DispatchQueue(label: "ai.sequencer.SequencerAI.AudioInstrumentHost")
     private let snapshotLock = NSLock()
+    /// Serializes mutation of, and scheduling against, the LIVE AU's internal
+    /// state across thread domains (Phase 1 concurrency fix, defect D2). Two
+    /// writers can otherwise touch the same `AUAudioUnit` with no mutual
+    /// exclusion now that note scheduling left the main thread:
+    ///   - note scheduling (`scheduleMIDIEventBlock`) runs on the host `queue`;
+    ///   - `loadPreset` writes `au.currentPreset = ...` + `captureState` on MAIN;
+    ///   - the lifecycle detach (`disconnectCurrentInstrument`) nils the live
+    ///     instrument (on MAIN via `performOnMain`).
+    /// Pre-P1 note-on ran on MAIN too (it hopped via `performOnMainAsync`), so it
+    /// was serialized against `loadPreset` by the main thread; P1 moved it to the
+    /// host queue, removing that implicit serialization. This lock restores it.
+    ///
+    /// THREADING / DEADLOCK D3: this is a LEAF lock — it is only ever held around
+    /// non-blocking AU calls (`scheduleMIDIEventBlock`, `currentPreset=`,
+    /// `captureState`, an instrument-reference read/write). It is NEVER held
+    /// across a `queue.sync`/`DispatchQueue.main.sync` (or any cross-domain
+    /// wait), so it cannot form the host-queue↔main AB-BA cycle that D3 is. Lock
+    /// order is fixed and shallow: nothing acquires another host lock while
+    /// holding `auMutationLock`, and nothing acquires `auMutationLock` while
+    /// waiting on the other thread domain.
+    private let auMutationLock = NSLock()
     private let instrumentChoices: [AudioInstrumentChoice]
     private let factory: AUAudioUnitFactory
     private let autoStartEngine: Bool
@@ -87,12 +139,12 @@ final class AudioInstrumentHost: TrackPlaybackSink {
         }
     }
 
-    /// Fire-and-forget main hop for per-note MIDI dispatch (deadlock D3):
-    /// the host queue must never sync-wait on main per note-on/off — note
-    /// timing comes from the schedule (the note-off rides queue.asyncAfter),
-    /// not from the hop. Mirrors SamplePlaybackEngine's confirmed fix.
-    /// Runs inline when already on main so synchronous callers keep their
-    /// ordering.
+    /// Fire-and-forget main hop for the CONTROL path only: the all-notes-off
+    /// panic on stop / shutdown / disconnect / preset-browser-silence. The
+    /// per-note trigger path no longer uses this — Phase 1 moved note-on/off to
+    /// `scheduleMIDIEventBlock` (sample-stamped, no main hop). This hop must
+    /// never sync-wait on main (deadlock D3 against main's queue.sync readouts).
+    /// Runs inline when already on main so synchronous callers keep ordering.
     private func performOnMainAsync(_ work: @escaping @MainActor () -> Void) {
         if Thread.isMainThread {
             MainActor.assumeIsolated {
@@ -101,7 +153,7 @@ final class AudioInstrumentHost: TrackPlaybackSink {
             return
         }
 
-        // realtime-allow-main-async: AU note/control dispatch debt; avoids deadlock but remains classified for timing work. Test: RealtimePathLintTests.
+        // realtime-allow-main-async: AU control-path all-notes-off panic only (stop/shutdown/preset-silence), NOT the note/tick trigger path. Test: RealtimePathLintTests.
         DispatchQueue.main.async {
             MainActor.assumeIsolated {
                 work()
@@ -413,11 +465,52 @@ final class AudioInstrumentHost: TrackPlaybackSink {
         // async coordination with the AU notification thread.
         // TODO(u5): introduce a wait-for-parameter-tree-change here once the audio
         // ownership pass (U5) establishes a safe notification subscription pattern.
+        //
+        // Serialize the preset assignment + capture against host-queue note
+        // scheduling (defect D2): both touch the SAME live AU's internal state.
+        // The lock wraps only these two non-blocking AU calls and is never held
+        // across a cross-domain wait, so it cannot recreate deadlock D3.
+        auMutationLock.lock()
+        defer { auMutationLock.unlock() }
         au.currentPreset = preset
         return try factory.captureState(instrument)
     }
 
     func play(noteEvents: [NoteEvent], bpm: Double, stepsPerBar: Int) {
+        play(
+            noteEvents: noteEvents,
+            bpm: bpm,
+            stepsPerBar: stepsPerBar,
+            noteOnSampleTime: nil,
+            sampleRate: 0
+        )
+    }
+
+    /// Sample-accurate AU note trigger (Audio Engine Hard Rule 3, Phase 1 —
+    /// the flam fix). Schedules note-on and note-off on the AU's render
+    /// timeline via `scheduleMIDIEventBlock`, so an AU note and a slice on the
+    /// same step land on the SAME frame. No main-thread hop on the note path.
+    ///
+    /// `noteOnSampleTime` is the absolute render frame the note-on sounds on —
+    /// the unified-clock frame (`AudioMasterClock.sampleTime(atMusicalSeconds:)`)
+    /// that a slice on this step also receives. The AU's `scheduleMIDIEventBlock`
+    /// takes an `AUEventSampleTime` on the AU's own render timeline; for an AU
+    /// hosted in AVAudioEngine that timeline is the engine render `sampleTime`
+    /// (one render clock drives every attached node), so the absolute render
+    /// frame the unified clock computes IS a valid `AUEventSampleTime` and
+    /// matches the slice exactly.
+    ///
+    /// When `noteOnSampleTime` is nil (no render origin yet, or sample-time
+    /// scheduling unavailable on the AU), falls back to immediate scheduling
+    /// (`AUEventSampleTimeImmediate`) — still off-main via the MIDI block, never
+    /// a `startNote` main hop.
+    func play(
+        noteEvents: [NoteEvent],
+        bpm: Double,
+        stepsPerBar: Int,
+        noteOnSampleTime: AVAudioFramePosition?,
+        sampleRate: Double
+    ) {
         guard !noteEvents.isEmpty else {
             return
         }
@@ -437,24 +530,103 @@ final class AudioInstrumentHost: TrackPlaybackSink {
 
             self.startEngineIfPossible()
 
-            let tickDuration = 60.0 / max(bpm, 1) / Double(max(stepsPerBar, 1)) * 4.0
-            for event in noteEvents where event.gate {
-                // Async hop (D3): a per-note main.sync from this queue
-                // deadlocks against main's queue.sync readouts (preset
-                // browser while notes play).
-                self.performOnMainAsync {
-                    instrument.startNote(event.pitch, withVelocity: event.velocity, onChannel: 0)
-                }
-                let noteLength = tickDuration * Double(event.length)
-                self.queue.asyncAfter(deadline: .now() + noteLength) { [weak instrument] in
-                    guard let instrument else {
-                        return
-                    }
-                    self.performOnMainAsync {
-                        instrument.stopNote(event.pitch, onChannel: 0)
-                    }
-                }
+            // Detached/teardown guard (defect D4 lifecycle half): capture the
+            // live AU once and re-check we are not shutting down. A note must
+            // never schedule onto a detached/deallocated/mid-reset AU. The
+            // `instrument` reference is mutated (set to nil on detach) on MAIN;
+            // we capture the `auAudioUnit` here on the host queue and only
+            // schedule against that captured reference under `auMutationLock`,
+            // so a concurrent `loadPreset`/detach can't interleave with the
+            // scheduling block on the same live AU.
+            let au = instrument.auAudioUnit
+            guard let scheduleMIDI = au.scheduleMIDIEventBlock else {
+                // AU does not expose a MIDI scheduling block. Without it there is
+                // no sample-stamped path; do NOT reintroduce the deleted
+                // main-hop/startNote debt. The note is dropped (rare for MIDI
+                // instruments, which all vend this block). Logged for evidence.
+                self.log("play dropped — AU exposes no scheduleMIDIEventBlock choice=\(self.currentChoice.displayName)")
+                return
             }
+
+            // Serialize against `loadPreset`'s `currentPreset=`/captureState and
+            // the lifecycle detach (defect D2). The lock wraps ONLY the
+            // scheduleMIDIEventBlock calls (non-blocking, RT-safe — the block
+            // copies the bytes synchronously), never a cross-domain wait, so D3
+            // cannot recur. We re-confirm under the lock that this AU is still
+            // the live instrument and the host is not shutting down before
+            // touching it.
+            self.auMutationLock.lock()
+            defer { self.auMutationLock.unlock() }
+            guard !self.isShutdown, self.instrument?.auAudioUnit === au else {
+                self.log("play dropped — AU detached/torn down before scheduling choice=\(self.currentChoice.displayName)")
+                return
+            }
+
+            // Past-frame floor (defect D4): the unified-clock note-on frame is an
+            // absolute OUTPUT-node render frame; the AU honours an
+            // `AUEventSampleTime` on its OWN render timeline. For an AU hosted in
+            // AVAudioEngine one render clock drives every attached node, so the
+            // output frame and the AU render frame share a base — BUT origin/now
+            // skew (a stamp computed against an origin captured slightly before
+            // the AU's live render position, or a late pump wake) can yield a
+            // frame already in the AU's past. Handing the AU a past frame is
+            // undefined/dropped, so we clamp such a note to immediate
+            // (`AUEventSampleTimeImmediate`) rather than into the past. The AU's
+            // current render frame is read from its `lastRenderTime` (nil before
+            // the first render → no floor, fallback already handles pre-render).
+            //
+            // HUMAN ACOUSTIC RISK (not machine-verifiable here): that the
+            // output-node render frame and the AU's internal render frame are the
+            // SAME absolute frame (render-clock base equality) is an Apple
+            // AVAudioEngine property we rely on but cannot assert offline — it is
+            // the documented human acoustic check (a real AU on the device).
+            let currentRenderFrame = instrument.lastRenderTime?.sampleTime
+            for event in noteEvents where event.gate {
+                let stamps = Self.noteStamps(
+                    noteOnSampleTime: noteOnSampleTime,
+                    length: event.length,
+                    bpm: bpm,
+                    stepsPerBar: stepsPerBar,
+                    sampleRate: sampleRate,
+                    currentRenderFrame: currentRenderFrame
+                )
+                Self.scheduleNote(
+                    event,
+                    stamps: stamps,
+                    using: scheduleMIDI
+                )
+            }
+        }
+    }
+
+    /// AU MIDI note-on / note-off bytes for channel 0 (status 0x90 / 0x80).
+    ///
+    /// KNOWN LIMITATION (Phase 1 point 5 — same-pitch overlap on channel 0): all
+    /// notes are scheduled on MIDI channel 0. If the SAME pitch retriggers while
+    /// a previous long gate is still ringing, this note-off (`0x80 pitch`) can
+    /// cancel the NEW note-on instead of the old one — standard MIDI has no
+    /// per-voice note identity, only (channel, pitch). This is NOT new (the
+    /// pre-P1 single-channel `startNote`/`stopNote` path had the same property);
+    /// sample-accurate stamping only makes the ordering deterministic. A real fix
+    /// is per-voice channel rotation / voice allocation, deliberately OUT OF
+    /// SCOPE for this task (see docs/plans/2026-06-24-sample-accurate-timing.md).
+    private static func scheduleNote(
+        _ event: NoteEvent,
+        stamps: AUNoteStamps,
+        using scheduleMIDI: AUScheduleMIDIEventBlock
+    ) {
+        let velocity = event.velocity
+        let pitch = event.pitch
+        // Note-on (0x90), then note-off (0x80) one gate-length later, both
+        // stamped on the AU render timeline. scheduleMIDIEventBlock copies the
+        // bytes synchronously, so a stack array is RT-safe here.
+        let noteOn: [UInt8] = [0x90, pitch, velocity]
+        noteOn.withUnsafeBufferPointer { buffer in
+            scheduleMIDI(stamps.noteOn, 0, buffer.count, buffer.baseAddress!)
+        }
+        let noteOff: [UInt8] = [0x80, pitch, 0]
+        noteOff.withUnsafeBufferPointer { buffer in
+            scheduleMIDI(stamps.noteOff, 0, buffer.count, buffer.baseAddress!)
         }
     }
 
@@ -463,8 +635,8 @@ final class AudioInstrumentHost: TrackPlaybackSink {
             return
         }
 
-        // Async hop (D3): runs on the host queue (stop/shutdown/disconnect)
-        // — same cycle as the per-note hop.
+        // Control-path all-notes-off panic (stop/shutdown/disconnect), NOT the
+        // note/tick trigger path. Async-to-main avoids deadlock D3.
         Self.stopAllNotes(on: instrument, performOnMain: performOnMainAsync)
     }
 
@@ -482,6 +654,7 @@ final class AudioInstrumentHost: TrackPlaybackSink {
     ) {
         performOnMain {
             for pitch in UInt8(0)...UInt8(127) {
+                // realtime-allow-control-stopnote: all-notes-off panic on stop/shutdown/preset-silence, NOT the note/tick trigger path (which is sample-stamped via scheduleMIDIEventBlock). Test: RealtimePathLintTests.
                 instrument.stopNote(pitch, onChannel: 0)
             }
         }
@@ -534,7 +707,11 @@ final class AudioInstrumentHost: TrackPlaybackSink {
         log("connectLoadedInstrument")
         disconnectCurrentInstrument()
         performOnMain {
+            // Set the live reference under `auMutationLock` to pair with the
+            // detach nil-out and the note path's `=== au` guard (defect D2/D4).
+            self.auMutationLock.lock()
             self.instrument = nextInstrument
+            self.auMutationLock.unlock()
             self.updateSnapshotInstrument(nextInstrument)
             if nextInstrument.engine == nil {
                 // realtime-allow-graph-mutation: AU load/setup connection only, not tick dispatch. Test: RealtimePathLintTests.
@@ -609,7 +786,13 @@ final class AudioInstrumentHost: TrackPlaybackSink {
             self.audioGraph.disconnectOutput(instrument)
             // realtime-allow-graph-mutation: AU destination teardown only, not tick dispatch. Test: RealtimePathLintTests.
             self.audioGraph.detach(instrument)
+            // Nil the live reference under `auMutationLock` so the host-queue
+            // note path's `instrument?.auAudioUnit === au` guard observes the
+            // detach atomically and skips scheduling onto the torn-down AU
+            // (defect D2/D4 lifecycle). Leaf-lock, no cross-domain wait inside.
+            self.auMutationLock.lock()
             self.instrument = nil
+            self.auMutationLock.unlock()
             self.updateSnapshotInstrument(nil)
         }
     }
@@ -769,6 +952,75 @@ final class AudioInstrumentHost: TrackPlaybackSink {
         case .indexed, .boolean, .generic, .customUnit, .ratio: return nil
         default: return nil
         }
+    }
+
+    /// The note-on / note-off `AUEventSampleTime` pair for one note.
+    struct AUNoteStamps: Equatable {
+        let noteOn: AUEventSampleTime
+        let noteOff: AUEventSampleTime
+    }
+
+    /// PURE stamp math (Audio Engine Hard Rule 3 / Phase 1 zero-flam gate). No
+    /// AU instance, no engine, no clock — fully unit-testable.
+    ///
+    /// Given the note-on absolute render frame (`noteOnSampleTime`, the SAME
+    /// unified-clock frame `AudioMasterClock.sampleTime(atMusicalSeconds:)`
+    /// hands a slice on this step) and the per-note gate length, returns the
+    /// note-on and note-off `AUEventSampleTime`s on the AU render timeline.
+    ///
+    /// Zero-flam invariant: `noteStamps(noteOnSampleTime: F, ...).noteOn == F`.
+    /// So the AU note-on lands on the EXACT frame the matching slice does — the
+    /// stamp-level zero-flam assertion (the acoustic level is the human's).
+    ///
+    /// Gate length in frames = `length` steps × frames-per-step, where
+    /// frames-per-step = `secondsPerStep(bpm,stepsPerBar) × sampleRate`. The
+    /// note-off is `noteOn + max(1, gateFrames)` (always at least one frame
+    /// after the note-on so a zero/under-rounded length never produces a
+    /// degenerate note-off at or before the note-on).
+    ///
+    /// When `noteOnSampleTime` is nil (no render origin), both stamps are
+    /// `AUEventSampleTimeImmediate` — the AU schedules them at the head of the
+    /// next render cycle (still off-main, still via the MIDI block).
+    ///
+    /// `currentRenderFrame` is the AU's current render `sampleTime` (its
+    /// `lastRenderTime`), used as a PAST-FRAME FLOOR (defect D4): if the computed
+    /// note-on frame is < the AU's current render frame (origin/now skew, a late
+    /// pump wake), handing the AU a past frame is undefined/dropped, so BOTH
+    /// stamps fall back to immediate (the AU sounds it at the head of the next
+    /// render cycle) — never a past frame. nil (no render yet) means no floor.
+    static func noteStamps(
+        noteOnSampleTime: AVAudioFramePosition?,
+        length: UInt16,
+        bpm: Double,
+        stepsPerBar: Int,
+        sampleRate: Double,
+        currentRenderFrame: AVAudioFramePosition? = nil
+    ) -> AUNoteStamps {
+        guard let noteOnSampleTime, sampleRate > 0 else {
+            return AUNoteStamps(
+                noteOn: AUEventSampleTime(AUEventSampleTimeImmediate),
+                noteOff: AUEventSampleTime(AUEventSampleTimeImmediate)
+            )
+        }
+
+        // Past-frame guard (D4): a note-on frame already behind the AU's live
+        // render position can never sound at that frame — clamp to immediate
+        // rather than hand the AU a past frame.
+        if let currentRenderFrame, noteOnSampleTime < currentRenderFrame {
+            return AUNoteStamps(
+                noteOn: AUEventSampleTime(AUEventSampleTimeImmediate),
+                noteOff: AUEventSampleTime(AUEventSampleTimeImmediate)
+            )
+        }
+
+        let secondsPerStep = (60.0 / max(bpm, 1)) * (4.0 / Double(max(stepsPerBar, 1)))
+        let gateSeconds = secondsPerStep * Double(length)
+        let gateFrames = AVAudioFramePosition((gateSeconds * sampleRate).rounded())
+        let noteOff = noteOnSampleTime + max(1, gateFrames)
+        return AUNoteStamps(
+            noteOn: AUEventSampleTime(noteOnSampleTime),
+            noteOff: AUEventSampleTime(noteOff)
+        )
     }
 
     private func withSnapshot<T>(_ body: () -> T) -> T {

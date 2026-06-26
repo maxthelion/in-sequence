@@ -237,6 +237,78 @@ final class RealtimePathLintTests: XCTestCase {
         XCTAssertEqual(result.status, 0, result.output)
     }
 
+    // MARK: - Rule 3 (AU notes sample-stamped, never main-hopped) — #36 / Phase 1
+
+    func test_realtimePathLintFailsOnInjectedStartNoteInAudioInstrumentHost() throws {
+        let fixture = try makeFixture("""
+        import AVFoundation
+        func play(note: AVAudioUnitMIDIInstrument) {
+            note.startNote(60, withVelocity: 100, onChannel: 0)
+        }
+        """, fileName: "AudioInstrumentHost.swift")
+
+        let result = try runLint(arguments: [fixture.path])
+        XCTAssertNotEqual(result.status, 0)
+        XCTAssertTrue(result.output.contains("Rule 3"), result.output)
+        XCTAssertTrue(result.output.contains("startNote"), result.output)
+    }
+
+    func test_realtimePathLintFailsOnInjectedStopNoteInAudioInstrumentHost() throws {
+        let fixture = try makeFixture("""
+        import AVFoundation
+        func panic(note: AVAudioUnitMIDIInstrument) {
+            note.stopNote(60, onChannel: 0)
+        }
+        """, fileName: "AudioInstrumentHost.swift")
+
+        let result = try runLint(arguments: [fixture.path])
+        XCTAssertNotEqual(result.status, 0)
+        XCTAssertTrue(result.output.contains("Rule 3"), result.output)
+        XCTAssertTrue(result.output.contains("stopNote"), result.output)
+    }
+
+    func test_realtimePathLintAllowsAnnotatedControlStopNoteInAudioInstrumentHost() throws {
+        let fixture = try makeFixture("""
+        import AVFoundation
+        func panic(note: AVAudioUnitMIDIInstrument) {
+            // realtime-allow-control-stopnote: all-notes-off panic on stop/shutdown. Test: RealtimePathLintTests.
+            note.stopNote(60, onChannel: 0)
+        }
+        """, fileName: "AudioInstrumentHost.swift")
+
+        let result = try runLint(arguments: [fixture.path])
+        XCTAssertEqual(result.status, 0, result.output)
+    }
+
+    func test_realtimePathLintIgnoresStartNoteOutsideAudioInstrumentHost() throws {
+        // Rule 3 is scoped to the AU note sink; startNote in some other file is
+        // not the AU note/tick path this rule guards.
+        let fixture = try makeFixture("""
+        import AVFoundation
+        func preview(note: AVAudioUnitMIDIInstrument) {
+            note.startNote(60, withVelocity: 100, onChannel: 0)
+        }
+        """, fileName: "SomeUnrelatedFile.swift")
+
+        let result = try runLint(arguments: [fixture.path])
+        XCTAssertEqual(result.status, 0, result.output)
+    }
+
+    func test_realtimePathLintFailsOnInjectedMainHopOnAUNotePath() throws {
+        // A re-introduced main hop on the AU note path must fail (the deleted D3
+        // workaround). DispatchQueue.main.async is caught by the shared awk block.
+        let fixture = try makeFixture("""
+        import Foundation
+        func play() {
+            DispatchQueue.main.async {}
+        }
+        """, fileName: "AudioInstrumentHost.swift")
+
+        let result = try runLint(arguments: [fixture.path])
+        XCTAssertNotEqual(result.status, 0)
+        XCTAssertTrue(result.output.contains("DispatchQueue.main.async"), result.output)
+    }
+
     func test_realtimePathLintRequiresReasonedAllowAnnotation() throws {
         let fixture = try makeFixture("""
         import Foundation

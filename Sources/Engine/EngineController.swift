@@ -459,16 +459,50 @@ final class EngineController: RouterDispatcher {
     /// Builds the future `AVAudioTime` an event is stamped with (Rule 2). The
     /// argument is the event's MUSICAL position in cumulative seconds (derived
     /// from the unified clock's tempo map at prepare time), NOT a wall-clock
-    /// value. Production maps it onto the audio render clock's `sampleTime`
-    /// (Rule 1) via `AudioMasterClock` → `AVAudioTime(sampleTime:atRate:)`. The
-    /// offline gate harness installs `scheduledAudioTimeOverrideForTesting` to
-    /// read the stamped frame deterministically; it stands in for this exact
-    /// conversion (musical-seconds → frame), so it verifies production accuracy.
+    /// value. Production builds a HOST TIME — `audioMasterClock.audioTime(
+    /// atMusicalSeconds:)` = `AVAudioTime(hostTime: originHostSeconds +
+    /// musicalSeconds)` — NOT a raw device `sampleTime`: an `AVAudioPlayerNode`'s
+    /// `sampleTime` reference is its OWN player timeline, so a frame read from the
+    /// output render position cannot be handed to `scheduleSegment/Buffer(at:)`; a
+    /// host time can, and AVFoundation correlates it to the render clock live.
+    /// Rule 1 still holds: the host-time ORIGIN is the render position's
+    /// `hostTime` (captured in `AudioMasterClock`), and the musical OFFSET comes
+    /// from the tempo map — neither is a free-running wall clock. The
+    /// render-derived `sampleTime(atMusicalSeconds:)` view of that same origin is
+    /// retained for the offline gate / diagnostics and is what the AU note path
+    /// (`scheduledAUNoteSampleTime`) stamps against. The offline gate harness
+    /// installs `scheduledAudioTimeOverrideForTesting` to capture the stamped
+    /// frame deterministically (it reads `sampleTime(atMusicalSeconds:)`, the
+    /// render-frame view of the same origin the production host time anchors to).
     private func scheduledAudioTime(for scheduledMusicalSeconds: TimeInterval) -> AVAudioTime? {
         if let scheduledAudioTimeOverrideForTesting {
             return scheduledAudioTimeOverrideForTesting(scheduledMusicalSeconds)
         }
         return audioMasterClock.audioTime(atMusicalSeconds: max(0, scheduledMusicalSeconds))
+    }
+
+    /// The absolute render frame an AU note at `scheduledMusicalSeconds` should
+    /// sound on (Audio Engine Hard Rule 3, Phase 1). This is the SAME unified-
+    /// clock frame a slice on the same step receives — a slice gets
+    /// `scheduledAudioTime(for:)` (host-time-anchored to the render origin), and
+    /// this returns the matching `sampleTime(atMusicalSeconds:)` (the render-
+    /// frame view of the identical origin + musical offset). The AU host stamps
+    /// `scheduleMIDIEventBlock` at this frame, so AU note-on and slice land on
+    /// the same frame (zero flam at the stamp level). Returns nil until the
+    /// render origin is established (no sample-accurate stamp yet → host falls
+    /// back to immediate scheduling).
+    ///
+    /// The offline gate harness installs `scheduledAudioTimeOverrideForTesting`
+    /// to capture the slice frame deterministically; this path delegates to the
+    /// SAME `AudioMasterClock.sampleTime(atMusicalSeconds:)` the override reads,
+    /// so the AU frame and slice frame are computed by one converter — the
+    /// stamp-level zero-flam property is structural, not coincidental.
+    func scheduledAUNoteSampleTime(
+        for scheduledMusicalSeconds: TimeInterval
+    ) -> (sampleTime: AVAudioFramePosition, sampleRate: Double)? {
+        guard audioMasterClock.hasRenderOrigin else { return nil }
+        let frame = audioMasterClock.sampleTime(atMusicalSeconds: max(0, scheduledMusicalSeconds))
+        return (frame, audioMasterClock.sampleRate)
     }
 
     private func stepDurationSeconds(bpm: Double) -> TimeInterval {
@@ -2228,10 +2262,18 @@ final class EngineController: RouterDispatcher {
                     continue
                 }
                 applyDestinationIfNeeded(destination, trackID: trackID, host: host, outputKeys: outputKeys)
-                // TrackPlaybackSink is immediate-only today. The queued host time is
-                // retained for ownership/cancellation evidence; sink-level AU timing
-                // needs a future contract extension before it can be claimed.
-                host.play(noteEvents: notes, bpm: bpm, stepsPerBar: stepsPerBar)
+                // Phase 1: AU notes are sample-stamped on the unified clock — the
+                // note-on frame is the SAME frame a slice on this step gets, so
+                // they land zero-flam (`scheduledAUNoteSampleTime` delegates to
+                // the same `AudioMasterClock` the slice path uses).
+                let auStamp = scheduledAUNoteSampleTime(for: event.scheduledHostTime)
+                host.play(
+                    noteEvents: notes,
+                    bpm: bpm,
+                    stepsPerBar: stepsPerBar,
+                    noteOnSampleTime: auStamp?.sampleTime,
+                    sampleRate: auStamp?.sampleRate ?? 0
+                )
 
             case let .routedAU(trackID, destination, notes, bpm, stepsPerBar):
                 SequencerTimingProbe.eventDispatch(
@@ -2244,8 +2286,15 @@ final class EngineController: RouterDispatcher {
                     continue
                 }
                 applyDestinationIfNeeded(destination, trackID: trackID, host: host, outputKeys: outputKeys)
-                // Routed AU output shares the immediate TrackPlaybackSink contract.
-                host.play(noteEvents: notes, bpm: bpm, stepsPerBar: stepsPerBar)
+                // Routed AU output shares the sample-stamped note path (Phase 1).
+                let routedAUStamp = scheduledAUNoteSampleTime(for: event.scheduledHostTime)
+                host.play(
+                    noteEvents: notes,
+                    bpm: bpm,
+                    stepsPerBar: stepsPerBar,
+                    noteOnSampleTime: routedAUStamp?.sampleTime,
+                    sampleRate: routedAUStamp?.sampleRate ?? 0
+                )
 
             case let .chordContextBroadcast(lane, chord):
                 // Engine copy under stateLock at dispatch time (tick queue);

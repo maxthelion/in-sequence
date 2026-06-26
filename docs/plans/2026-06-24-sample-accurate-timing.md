@@ -143,6 +143,23 @@ must never reach a `MIDITimeStamp`, and the host-time value must never reach the
 - `realtime-path-lint` confirms no `DispatchQueue.main`/`startNote`-on-main on the
   note/tick path (see lint extension below).
 
+**Known limitations recorded with Phase 1 (NOT fixed here):**
+- *Same-pitch overlap on channel 0 (point 5).* All AU notes schedule on MIDI
+  channel 0. If the same pitch retriggers while a previous long gate still rings,
+  the new note's note-off (or the old note's note-off) can cancel the wrong
+  voice — standard MIDI keys voices by (channel, pitch), with no per-voice
+  identity. This is pre-existing (the old single-channel `startNote`/`stopNote`
+  path had it too); sample-accurate stamping only makes the ordering
+  deterministic. A real fix is per-voice channel rotation / voice allocation,
+  deferred (do not redesign voice allocation under this plan).
+- *Render-clock base equality (human acoustic check).* The note-on
+  `AUEventSampleTime` is an absolute output-node render frame; we rely on the
+  AVAudioEngine property that the output node's render frame and the hosted AU's
+  internal render frame are the SAME absolute frame. That base equality is NOT
+  machine-verifiable offline — it is the documented human acoustic check on a
+  real AU/device. A past-frame guard clamps a stamp that lands behind the AU's
+  live render position to immediate.
+
 ### Phase 2 — Sample/slice path: feed from the unified clock AND play resident buffers, not disk streams
 
 Two parts:

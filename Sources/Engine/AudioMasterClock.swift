@@ -71,6 +71,18 @@ final class AudioMasterClock {
     /// True once any origin is captured (render-derived OR the pre-render
     /// `systemUptime`/`now` fallback). While false the converters use a 0 origin.
     private var hasOrigin = false
+
+    /// Whether an origin has been established (render-derived OR the pre-render
+    /// fallback). The AU note path uses this to decide between a sample-stamped
+    /// note (`sampleTime(atMusicalSeconds:)`) and an immediate fallback: with no
+    /// origin the frame would be a bare `musicalSeconds * sampleRate` relative to
+    /// frame 0, which is not the live render frame, so the AU host schedules
+    /// immediately instead. `refreshOriginIfAvailable` is called first so a
+    /// just-available render position upgrades the answer.
+    var hasRenderOrigin: Bool {
+        refreshOriginIfAvailable()
+        return hasOrigin
+    }
     /// True only once the origin is the render-derived host time (the authoritative
     /// Rule-1 origin). When the origin is still the pre-render fallback this stays
     /// false, so `refreshOriginIfAvailable` UPGRADES the fallback to the render
@@ -239,5 +251,49 @@ final class AudioMasterClock {
 
     static func secondsPerStep(bpm: Double, stepsPerBar: Int) -> TimeInterval {
         (60.0 / max(1, bpm)) * (4.0 / Double(max(1, stepsPerBar)))
+    }
+
+    /// The captured origin correlation: the single (frame, host-seconds) pair
+    /// that anchors BOTH conversions. `originSampleTime` and `originHostSeconds`
+    /// are captured TOGETHER from the SAME render position in `captureOrigin`
+    /// (Rule 1), so they describe one instant in two units. `sampleTime(
+    /// atMusicalSeconds:)` adds the musical offset in FRAMES to `sampleTime`;
+    /// `audioTime(atMusicalSeconds:)` adds it in SECONDS to `hostSeconds`. The
+    /// host→frame map `originSampleTime + (H - originHostSeconds) * sampleRate`
+    /// is therefore the real correlation the engine relies on to land a
+    /// host-time-stamped slice and a frame-stamped AU note on the same frame.
+    ///
+    /// Exposed for the offline zero-flam gate (DEFECT 3 rework): the gate
+    /// converts a slice's PRODUCTION host-time stamp back to a frame through this
+    /// correlation and asserts it equals the AU's `sampleTime` stamp — exercising
+    /// `audioTime` (production path) + the origin correlation + `sampleTime`, not
+    /// `sampleTime == sampleTime` (the prior tautology).
+    struct CapturedOriginCorrelation: Equatable {
+        let sampleTime: AVAudioFramePosition
+        let hostSeconds: TimeInterval
+        let sampleRate: Double
+        let hasOrigin: Bool
+        let isRenderDerived: Bool
+
+        /// Map an absolute host-time (seconds) onto a render frame through this
+        /// captured correlation — the real host→frame mapping the engine relies
+        /// on (a host-stamped slice and a frame-stamped AU note land here).
+        func frame(forHostSeconds host: TimeInterval) -> AVAudioFramePosition {
+            sampleTime + AVAudioFramePosition(((host - hostSeconds) * sampleRate).rounded())
+        }
+    }
+
+    /// The captured origin correlation (see `CapturedOriginCorrelation`). Calls
+    /// `refreshOriginIfAvailable` first so a just-available render position is
+    /// reflected, matching the live converters.
+    func capturedOriginCorrelation() -> CapturedOriginCorrelation {
+        refreshOriginIfAvailable()
+        return CapturedOriginCorrelation(
+            sampleTime: hasOrigin ? originSampleTime : 0,
+            hostSeconds: hasOrigin ? originHostSeconds : 0,
+            sampleRate: sampleRate,
+            hasOrigin: hasOrigin,
+            isRenderDerived: originIsRenderDerived
+        )
     }
 }
