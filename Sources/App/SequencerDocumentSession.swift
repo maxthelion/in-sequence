@@ -452,6 +452,15 @@ final class SequencerDocumentSession {
         setTrackSends(trackID: trackID, sendA: track.mix.sendA, sendB: value)
     }
 
+    /// R4 scene-send selector: set the persistent per-track send gains to the
+    /// preset for `mode` (A → {1,0}, A+B → {1,1}, B → {0,1}). Rides the existing
+    /// `setTrackSends` live-mix path, so the apply is the now-ramped, glitch-free
+    /// gain change on the fixed graph — no topology change.
+    func setTrackSceneSend(trackID: UUID, mode: SceneSendMode) {
+        let gains = mode.sendGains
+        setTrackSends(trackID: trackID, sendA: gains.sendA, sendB: gains.sendB)
+    }
+
     @discardableResult
     func addMixerBus(name: String? = nil, color: String? = nil) -> UUID {
         let busID = store.appendMixerBus(name: name, color: color)

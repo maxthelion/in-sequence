@@ -320,6 +320,70 @@ assert_bus_gain_muted() {
   return 1
 }
 
+# --- R4 scene-send (A / A+B / B) engine-truth assertions --------------------
+# Assert a track's ENGINE-TRUTH applied send gains (read off the live send-mixer
+# nodes via track<N>AppliedSendA/B) match the preset for the selected mode
+# EXACTLY. The send gains RAMP (~12ms), so we poll a short window for the settled
+# value. Crucially this also proves an A-only track contributes NOTHING to B (and
+# a B-only track nothing to A): the "off" side must read ~0.
+SEND_GAIN_EPSILON=0.01
+assert_track_send_gains() {
+  local op="$1" idx="$2" expA="$3" expB="$4"
+  local tries=40 i=0 a b ok=1
+  while [ "$i" -lt "$tries" ]; do
+    a="$(status_value "track${idx}AppliedSendA" 2>/dev/null || echo n/a)"
+    b="$(status_value "track${idx}AppliedSendB" 2>/dev/null || echo n/a)"
+    if is_number "$a" && is_number "$b" \
+      && awk -v a="$a" -v e="$expA" -v eps="$SEND_GAIN_EPSILON" 'BEGIN { exit (((a-e)<eps)&&((e-a)<eps)) ? 0 : 1 }' \
+      && awk -v b="$b" -v e="$expB" -v eps="$SEND_GAIN_EPSILON" 'BEGIN { exit (((b-e)<eps)&&((e-b)<eps)) ? 0 : 1 }'; then
+      ok=0; break
+    fi
+    i=$((i+1)); sleep 0.05
+  done
+  if [ "$ok" -eq 0 ]; then
+    log "    send-ok  $op: track$idx appliedSendA=$a appliedSendB=$b (expA=$expA expB=$expB)"
+    report "    - send-ok: track$idx appliedSendA=$a appliedSendB=$b (expected A=$expA B=$expB)"
+    return 0
+  fi
+  POSTFAIL=$((POSTFAIL+1))
+  log "    POST-FAIL $op: track$idx appliedSend A=$a B=$b, expected A=$expA B=$expB"
+  report "    - **POST-FAIL**: track$idx applied send A=$a B=$b, expected A=$expA B=$expB"
+  return 1
+}
+
+# Assert reconnectTrackOutputCount did NOT change across an op (a pure send-gain
+# scene switch must not reconnect / restructure the graph).
+assert_no_reconnect_delta() {
+  local op="$1" before="$2"
+  local after; after="$(status_value reconnectTrackOutputCount 2>/dev/null || echo n/a)"
+  if [ "$after" = "$before" ]; then
+    log "    reconnect-ok $op: reconnectTrackOutputCount unchanged ($after)"
+    report "    - reconnect-ok: reconnectTrackOutputCount unchanged ($after)"
+    return 0
+  fi
+  POSTFAIL=$((POSTFAIL+1))
+  log "    POST-FAIL $op: reconnectTrackOutputCount $before -> $after (a scene-send switch must NOT reconnect)"
+  report "    - **POST-FAIL**: reconnectTrackOutputCount $before -> $after (scene-send must be pure gain)"
+  return 1
+}
+
+# Assert sendRampCount INCREASED across an op (the switch rode the glitch-free
+# ramp path, not a hard write).
+assert_send_ramped() {
+  local op="$1" before="$2"
+  local after; after="$(status_value sendRampCount 2>/dev/null || echo n/a)"
+  if is_number "$before" && is_number "$after" \
+    && awk -v a="$after" -v b="$before" 'BEGIN { exit (a > b) ? 0 : 1 }'; then
+    log "    ramp-ok  $op: sendRampCount $before -> $after"
+    report "    - ramp-ok: sendRampCount $before -> $after"
+    return 0
+  fi
+  POSTFAIL=$((POSTFAIL+1))
+  log "    POST-FAIL $op: sendRampCount $before -> $after (expected increase = ramp path)"
+  report "    - **POST-FAIL**: sendRampCount $before -> $after (expected increase)"
+  return 1
+}
+
 # --- the watchdog -----------------------------------------------------------
 # Args: op-label, command-payload, [extra env to wrap the command write].
 # After PASS, also evaluates the per-op CLICK metric. Returns 0 PASS,1 HANG,2 CRASH.
@@ -775,6 +839,88 @@ if launch_app "$FIXTURE_SAMPLE_SRC"; then
   stop_app
 fi
 
+# ---------------------------------------------------------------------------
+# PASS 4 — per-track scene-send selector A / A+B / B DURING PLAYBACK (R4)
+# ---------------------------------------------------------------------------
+# Verifies the R4 feature on the drum-free tonal fixture: switching a SOUNDING
+# track's scene-send mode a -> ab -> b -> a during playback is a PURE GAIN ramp
+# on the fixed graph. Engine-truth post-conditions per switch:
+#   (i)  the applied send gains read back EXACTLY the preset (a => sendA=1,
+#        sendB=0; ab => 1,1; b => 0,1) — proving an A-only track contributes
+#        NOTHING to B and a B-only track nothing to A, by construction;
+#   (ii) reconnectTrackOutputCount does NOT increase across the toggles (no
+#        topology reconnect / no engine stop — it is plain gain);
+#   (iii) sendRampCount INCREASES (the switch took the glitch-free ramp path,
+#        not a click-prone hard write).
+# Sample-only / native, no AU. CLICK/SILENCE are diag-only (same rationale as
+# the other passes); click-freeness rests on the ramp + the unit test asserting
+# the steady-state ramp path.
+report ""
+report "## PASS 4 — per-track scene-send selector A / A+B / B during playback (R4)"
+report "fixture: \`$(basename "$FIXTURE_DRONE_SRC")\` (track 0 = Main, sounding)"
+log ""
+log "==== PASS 4: scene-send A/A+B/B during playback (R4) ===="
+
+EVAL_CLICK=0
+EVAL_SILENCE=0
+
+if launch_app "$FIXTURE_DRONE_SRC"; then
+  SCENE_TRACK_IDX=0
+  # Track 0 should be sounding on the tonal bed.
+  assert_track_audible "sceneSend-baseline-audible" "$SCENE_TRACK_IDX"
+
+  # WARM-UP (not asserted): the FIRST send-level change on a track establishes
+  # the persistent send NODES via the one-time setup write (no ramp). Do that
+  # warm-up here so every MEASURED toggle below is a steady-state RAMP and the
+  # sendRampCount-increase assertion is meaningful.
+  drive "sceneSend-warmup" "trackSceneSend=$SCENE_TRACK_IDX:ab" >/dev/null || true
+  sleep 0.3
+
+  # a: sendA=1, sendB=0 (A-only — contributes nothing to B).
+  RECONNECT_BEFORE="$(status_value reconnectTrackOutputCount 2>/dev/null || echo 0)"
+  RAMP_BEFORE="$(status_value sendRampCount 2>/dev/null || echo 0)"
+  if drive "sceneSend-0-a" "trackSceneSend=$SCENE_TRACK_IDX:a"; then
+    assert_status            "sceneSend-0-a" "track${SCENE_TRACK_IDX}SceneSendMode" "a"
+    assert_track_send_gains  "sceneSend-0-a" "$SCENE_TRACK_IDX" 1 0
+    assert_no_reconnect_delta "sceneSend-0-a" "$RECONNECT_BEFORE"
+    assert_send_ramped        "sceneSend-0-a" "$RAMP_BEFORE"
+    assert_track_audible      "sceneSend-0-a" "$SCENE_TRACK_IDX"
+  fi
+
+  # ab: sendA=1, sendB=1 (both scenes).
+  RECONNECT_BEFORE="$(status_value reconnectTrackOutputCount 2>/dev/null || echo 0)"
+  RAMP_BEFORE="$(status_value sendRampCount 2>/dev/null || echo 0)"
+  if drive "sceneSend-0-ab" "trackSceneSend=$SCENE_TRACK_IDX:ab"; then
+    assert_status            "sceneSend-0-ab" "track${SCENE_TRACK_IDX}SceneSendMode" "ab"
+    assert_track_send_gains  "sceneSend-0-ab" "$SCENE_TRACK_IDX" 1 1
+    assert_no_reconnect_delta "sceneSend-0-ab" "$RECONNECT_BEFORE"
+    assert_send_ramped        "sceneSend-0-ab" "$RAMP_BEFORE"
+  fi
+
+  # b: sendA=0, sendB=1 (B-only — contributes nothing to A).
+  RECONNECT_BEFORE="$(status_value reconnectTrackOutputCount 2>/dev/null || echo 0)"
+  RAMP_BEFORE="$(status_value sendRampCount 2>/dev/null || echo 0)"
+  if drive "sceneSend-0-b" "trackSceneSend=$SCENE_TRACK_IDX:b"; then
+    assert_status            "sceneSend-0-b" "track${SCENE_TRACK_IDX}SceneSendMode" "b"
+    assert_track_send_gains  "sceneSend-0-b" "$SCENE_TRACK_IDX" 0 1
+    assert_no_reconnect_delta "sceneSend-0-b" "$RECONNECT_BEFORE"
+    assert_send_ramped        "sceneSend-0-b" "$RAMP_BEFORE"
+  fi
+
+  # back to a: full A-only restore (and still no reconnect).
+  RECONNECT_BEFORE="$(status_value reconnectTrackOutputCount 2>/dev/null || echo 0)"
+  RAMP_BEFORE="$(status_value sendRampCount 2>/dev/null || echo 0)"
+  if drive "sceneSend-0-a-again" "trackSceneSend=$SCENE_TRACK_IDX:a"; then
+    assert_status            "sceneSend-0-a-again" "track${SCENE_TRACK_IDX}SceneSendMode" "a"
+    assert_track_send_gains  "sceneSend-0-a-again" "$SCENE_TRACK_IDX" 1 0
+    assert_no_reconnect_delta "sceneSend-0-a-again" "$RECONNECT_BEFORE"
+    assert_send_ramped        "sceneSend-0-a-again" "$RAMP_BEFORE"
+    assert_track_audible      "sceneSend-0-a-again" "$SCENE_TRACK_IDX"
+  fi
+
+  stop_app
+fi
+
 # --- summary ----------------------------------------------------------------
 CONTROL_OK="no"
 if [ "$CONTROL_EXPECTED_CLICK" = "1" ] && [ "$CONTROL_OBSERVED_CLICK" = "1" ]; then
@@ -808,6 +954,12 @@ report "  it on unmute (engine-truth; the bus acoustic meter is unreliable and i
 report "  diag-only — a separate pre-existing bus-meter-tap gap)."
 report "- FX insert count is the INSTALLED NODE count in the graph, and the track→bus"
 report "  reassignment is the bus the graph actually connected (both engine-truth)."
+report "- R4 scene-send A / A+B / B (PASS 4): switching a SOUNDING track's mode during"
+report "  playback reads back the EXACT preset send gains off the live send-mixer nodes"
+report "  (a ⇒ sendA=1,sendB=0; ab ⇒ 1,1; b ⇒ 0,1 — so an A-only track contributes"
+report "  NOTHING to B, by construction), with reconnectTrackOutputCount UNCHANGED (pure"
+report "  gain, no topology reconnect) and sendRampCount INCREASING each switch (the"
+report "  glitch-free ramp path was taken, not a click-prone hard write)."
 report ""
 report "Does NOT prove (honest limits — see report + task #40):"
 report "- click-FREENESS. The acoustic master discontinuity metric is normalized and"

@@ -2113,6 +2113,22 @@ extension SamplePlaybackEngine {
         }
     }
 
+    /// ENGINE-TRUTH per-track send gains read from the live send-mixer nodes in
+    /// `MainAudioGraph` (the value `setTrackSendLevels` ramps), keyed by the
+    /// track's filter source node — the same node `setTrackSends` passes to the
+    /// graph. Returns nil when no filter / send geometry exists yet. Used by the
+    /// R4 scene-send rig to assert the applied preset gains exactly (A ⇒ sendB=0,
+    /// B ⇒ sendA=0). NOTE: reads the node's current outputVolume, so callers must
+    /// poll past the ~12 ms gain ramp for the settled value.
+    func trackAppliedSendLevelsForTesting(trackID: UUID) -> (sendA: Float, sendB: Float)? {
+        let filter: SamplerFilterNode? = performOnMain { [self] in
+            withLifecycleLock { trackFilters[trackID] }
+        }
+        guard let filter else { return nil }
+        guard let readout = audioGraph.trackSendReadoutForTesting(filter.avNode) else { return nil }
+        return (readout.sendAGain, readout.sendBGain)
+    }
+
     /// The track's output chokepoint mixer node (track mixer, or first bus-voice
     /// mixer) — captured BEFORE a teardown so a test can watch its `outputVolume`
     /// fade to 0 across the ramp-before-detach. Returns nil once the track's

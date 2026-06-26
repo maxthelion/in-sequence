@@ -219,6 +219,74 @@ click/glitch in a human pass, revisit a pool scoped to that case.
   (assert no reconnect / no stop), and a track set to A-only contributes nothing
   to B (and vice-versa).
 
+#### R4 build landed (2026-06-26): ENGINE + MODEL + RIG done; UI DEFERRED
+
+The audio plumbing, model, session mutation, command vocab, and rig coverage for
+the A / A+B / B selector are built. **Only the UI selector remains**, and it is
+deliberately deferred to the `feature/routing-source-mixer-split` tab rework (see
+"Home" above) to avoid a guaranteed merge conflict on the routing tab.
+
+What is now in place (all uncommitted on `audio-routing-cleanup`):
+
+- **Engine — glitch-free live switch.** `MainAudioGraph.setTrackSendLevels`
+  (`Sources/Audio/MainAudioGraph.swift`) now RAMPS the steady-state path: when
+  the persistent send nodes already exist (the live A/A+B/B switch on a sounding
+  track), it applies the new sendA/sendB via `MixerGainRamp.shared.ramp(...)` on
+  the send-mixer nodes instead of a hard `outputVolume =` write (which clicked the
+  aux bus). The first-time-setup path (send nodes not yet created →
+  `reconnectTrackOutputOnMain`) still uses the immediate setup write — nothing is
+  sounding through brand-new send nodes, so ramping from a default would be wrong.
+  This is pure gain: no attach/detach/connect/disconnect, no engine stop/start, no
+  topology change. New counter `sendRampCountForTesting` asserts the ramp path.
+- **Model — `SceneSendMode`.** `Sources/Document/SceneSendMode.swift`: enum
+  `{ a, ab, b }` with `init?(sendA:sendB:)` (exact-match derivation else nil =
+  Custom), `var sendGains` (a→(1,0), ab→(1,1), b→(0,1)), and
+  `TrackMixSettings.sceneSendMode`. Pure derivation over the EXISTING persisted
+  `sendA`/`sendB` — **no new persisted field.**
+- **Session mutation.** `SequencerDocumentSession.setTrackSceneSend(trackID:,
+  mode:)` (`Sources/App/SequencerDocumentSession.swift`) writes the preset gains
+  through the existing `setTrackSends` live-mix path, so it rides the now-ramped
+  apply (mutate live owner → scoped engine update → debounced flush; the
+  performance-time-mutation guardrail shape).
+- **Command + rig.** Command key `trackSceneSend=<idx>:<a|ab|b>` in
+  `VisualScenarioCommandRunner.swift`, plus engine-truth status readbacks
+  `track<N>AppliedSendA/B`, `track<N>SceneSendMode`, `reconnectTrackOutputCount`,
+  `sendRampCount`. routing-stress.sh PASS 4 toggles a→ab→b→a on a SOUNDING track
+  during playback and asserts the exact preset gains, reconnect-count flat, and
+  sendRampCount increasing. GATE: PASS.
+
+**The exact remaining UI step (do it on the split-tab branch):** add a segmented
+`Picker` over `SceneSendMode.allCases` (labels "A" / "A+B" / "B"), bound to
+`track.mix.sceneSendMode` (show no selection when it is `nil` / Custom), whose
+`onChange`/selection action calls `session.setTrackSceneSend(trackID: track.id,
+mode: selected)`. Place it in the **mixer/FX well** of the new split routing tab
+(the rework target, `Sources/UI/TrackSource/TrackRoutingTabContent.swift`). No
+engine, model, or session work is needed — only this view + binding.
+
+**Adversarial-review fixes (2026-06-26):**
+- *Ramp-vs-reconnect race (fixed).* The direct `outputVolume` writes in
+  `MainAudioGraph.sendNodes` (the reconnect path: bus reroute / FX-insert edit /
+  bus reinstall) did NOT bump `MixerGainRamp`'s per-node generation token, so a
+  reconnect firing during an in-flight steady-state send ramp could be clobbered
+  by the stale ramp landing its old target — the same "deferred path overwrites
+  the latest intent" class as the route-teardown bug. Those writes now go through
+  `MixerGainRamp.setImmediate` (bumps the generation, cancels any in-flight ramp,
+  writes the authoritative value at once).
+- *Scope: audio-input tracks are out of the R4 ramp.* An audio-input track's send
+  change does NOT take the steady-state send ramp — it fails the equality guard in
+  `applyAudioInputRoutingParametersOnMain` and takes `withTrackGainRampedToSilence`
+  + full reconnect (the heavier monitor-safe path). So "glitch-free A/A+B/B" is
+  proven for **sample/AU** tracks; audio-input send switching rides the existing
+  reconnect-with-output-ramp and is a human-tier (mic-permission) check anyway.
+- *Pre-existing red test (NOT R4).* `SamplePlaybackEngineFilterWiringTests`
+  `test_sampleTrackSendTapRoutesAfterSamplerFilter` /
+  `test_trackFilterRoutesToInjectedGraphPreMaster` fail on the clean baseline
+  (verified): the first throws `XCTUnwrap` on `engine.filterNode(for:)` returning
+  nil at line ~90, *before* any send/gain assertion — unrelated to the R4 ramp.
+  When that pre-existing wiring issue is fixed, its synchronous send-gain read
+  (line ~99, accuracy 0.0001) will also need the `waitForSendGains`-style poll the
+  other two MainAudioGraphTests now use (the send change ramps).
+
 ## Enforcement
 
 - **`graph-mutation-conformity` observer** (from the audio adherence set): flags

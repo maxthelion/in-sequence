@@ -1586,6 +1586,28 @@ final class EngineController: RouterDispatcher {
         return audioInstrumentHost(for: trackID)?.currentOutputGainForTesting()
     }
 
+    /// ENGINE-TRUTH applied per-track send gains (the values setTrackSendLevels
+    /// ramps), read from the live send-mixer nodes. nil when no send geometry is
+    /// installed for the track. R4 scene-send rig asserts these match each preset
+    /// exactly (a ⇒ sendB=0, b ⇒ sendA=0). Sample engine only.
+    func trackAppliedSendLevelsForTesting(trackID: UUID) -> (sendA: Float, sendB: Float)? {
+        (sampleEngine as? SamplePlaybackEngine)?.trackAppliedSendLevelsForTesting(trackID: trackID)
+    }
+
+    /// Count of live track-output topology rewires (reconnect). A pure send-gain
+    /// change (R4 A/A+B/B switch) must NOT bump this — the rig asserts it stays
+    /// flat across scene-send toggles.
+    var reconnectTrackOutputCountForTesting: Int {
+        mainAudioGraph.reconnectTrackOutputCountForTesting
+    }
+
+    /// Count of steady-state send-level applies that took the glitch-free RAMP
+    /// path. The rig asserts this INCREASES across A/A+B/B toggles (the switch
+    /// rode the ramp, not a hard write).
+    var sendRampCountForTesting: Int {
+        mainAudioGraph.sendRampCountForTesting
+    }
+
     /// The bus the engine has ACTUALLY routed a track's output to (nil = master),
     /// read from the engine's applied routing record (not the document). Outer
     /// nil = no engine record (track has no prepared output / unknown). Sample

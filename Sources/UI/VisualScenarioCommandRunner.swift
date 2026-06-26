@@ -589,6 +589,16 @@ enum VisualScenarioCommandRunner {
             session.setTrackSends(trackID: track.id, sendA: sendA, sendB: sendB)
         }
 
+        // trackSceneSend=<idx>:<a|ab|b> — R4 per-track scene-send selector. Sets
+        // the persistent send-gain preset for the mode (a → {1,0}, ab → {1,1},
+        // b → {0,1}) through the now-ramped live setTrackSends path.
+        if let raw = command["trackSceneSend"],
+           let (index, value) = parseIndexedValue(raw),
+           session.store.tracks.indices.contains(index),
+           let mode = SceneSendMode(rawValue: value.lowercased()) {
+            session.setTrackSceneSend(trackID: session.store.tracks[index].id, mode: mode)
+        }
+
         // resetClickHold=1 — reset the master maxSampleDelta peak-hold so the
         // next op's discontinuity is measured from a clean baseline.
         if command["resetClickHold"] == "1" {
@@ -844,7 +854,20 @@ enum VisualScenarioCommandRunner {
             lines.append("track\(index)Gain=\(appliedGain.map { String($0) } ?? "n/a")")
             lines.append("track\(index)FXInsertCount=\(installedInserts)")
             lines.append("track\(index)DocFXInsertCount=\(track.fxInserts.count)")
+
+            // R4 scene-send: ENGINE-TRUTH applied send gains (live send-mixer
+            // node outputVolume) + the document-derived scene mode. The gate
+            // asserts an A-only track reads sendB≈0 and a B-only track reads
+            // sendA≈0 (it contributes nothing to the other scene by construction).
+            let appliedSends = engineController.trackAppliedSendLevelsForTesting(trackID: track.id)
+            lines.append("track\(index)AppliedSendA=\(appliedSends.map { String($0.sendA) } ?? "n/a")")
+            lines.append("track\(index)AppliedSendB=\(appliedSends.map { String($0.sendB) } ?? "n/a")")
+            lines.append("track\(index)DocSendA=\(track.mix.sendA)")
+            lines.append("track\(index)DocSendB=\(track.mix.sendB)")
+            lines.append("track\(index)SceneSendMode=\(track.mix.sceneSendMode?.rawValue ?? "custom")")
         }
+        lines.append("reconnectTrackOutputCount=\(engineController.reconnectTrackOutputCountForTesting)")
+        lines.append("sendRampCount=\(engineController.sendRampCountForTesting)")
         lines.append("masterMaxSampleDeltaHold=\(masterMaxSampleDeltaHold)")
         for (index, bus) in buses.enumerated() {
             let meter = engineController

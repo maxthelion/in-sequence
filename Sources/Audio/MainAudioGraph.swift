@@ -89,6 +89,11 @@ final class MainAudioGraph {
     /// path (engine running + sounding mixer-node gain stage). Lets the
     /// ramp-before-disconnect tests assert the click-safe path was exercised.
     private(set) var rampedReconnectCountForTesting = 0
+    /// Counts steady-state (send nodes already exist) send-level applies that
+    /// took the glitch-free gain RAMP path (vs an immediate setup write). Lets
+    /// R4 tests assert a live A/A+B/B switch ramps the send gains rather than
+    /// hard-jumping (a click on the aux bus) — and that it does NOT reconnect.
+    private(set) var sendRampCountForTesting = 0
     /// Calibration-only: when true the ramp-before-disconnect guard is bypassed
     /// (old hard-disconnect path) so the click metric can be measured against a
     /// known-clicking control. Driven by SEQUENCER_AI_DISABLE_ROUTING_RAMP=1.
@@ -998,16 +1003,27 @@ final class MainAudioGraph {
 
             // R0 (fixed-superset): send nodes are persistent. When they exist
             // (the send buses are installed), any level change — including
-            // crossing zero in either direction — is a pure outputVolume write
-            // with no live disconnect/reconnect; they are torn down only when
-            // the track is removed. If they do not exist yet (send buses not
-            // installed), establish the geometry once.
+            // crossing zero in either direction — is a pure gain change with no
+            // live disconnect/reconnect; they are torn down only when the track
+            // is removed. If they do not exist yet (send buses not installed),
+            // establish the geometry once.
             guard let nodes = self.trackSendNodes[key] else {
+                // First-time setup: the send nodes are brand-new and not yet
+                // sounding (reconnectTrackOutputOnMain attaches them), so the
+                // initial gain is a setup write, NOT a ramp — ramping from a
+                // default would be wrong here.
                 self.reconnectTrackOutputOnMain(routing)
                 return
             }
-            nodes.sendA.outputVolume = sendLevels.clampedSendA
-            nodes.sendB.outputVolume = sendLevels.clampedSendB
+            // R4 (steady-state live switch): the send nodes already exist and
+            // may be sounding (e.g. an A/A+B/B scene-send switch on a playing
+            // track). Hard-writing outputVolume here hard-jumps the send gain =
+            // a click on the aux bus. RAMP it instead. This is pure gain — NO
+            // attach/detach/connect/disconnect, NO topology change, NO reconnect
+            // (rampedReconnectCountForTesting stays flat).
+            self.sendRampCountForTesting += 1
+            MixerGainRamp.shared.ramp(nodes.sendA, to: sendLevels.clampedSendA)
+            MixerGainRamp.shared.ramp(nodes.sendB, to: sendLevels.clampedSendB)
         }
     }
 
@@ -2216,8 +2232,13 @@ final class MainAudioGraph {
     private func sendNodes(for source: AVAudioNode, levels: TrackSendLevels) -> TrackSendNodes {
         let key = ObjectIdentifier(source)
         if let nodes = trackSendNodes[key] {
-            nodes.sendA.outputVolume = levels.clampedSendA
-            nodes.sendB.outputVolume = levels.clampedSendB
+            // This is a reconnect (bus reroute / FX-insert edit / bus reinstall)
+            // re-asserting the AUTHORITATIVE send levels. It may race a still
+            // in-flight steady-state send ramp (R4) on these same nodes — go
+            // through setImmediate so the ramp's generation token is bumped and
+            // the stale ramp can't land its old target on top of this value.
+            MixerGainRamp.shared.setImmediate(nodes.sendA, to: levels.clampedSendA)
+            MixerGainRamp.shared.setImmediate(nodes.sendB, to: levels.clampedSendB)
             return nodes
         }
 
@@ -2225,8 +2246,8 @@ final class MainAudioGraph {
         engine.attach(nodes.fanout)
         engine.attach(nodes.sendA)
         engine.attach(nodes.sendB)
-        nodes.sendA.outputVolume = levels.clampedSendA
-        nodes.sendB.outputVolume = levels.clampedSendB
+        MixerGainRamp.shared.setImmediate(nodes.sendA, to: levels.clampedSendA)
+        MixerGainRamp.shared.setImmediate(nodes.sendB, to: levels.clampedSendB)
         trackSendNodes[key] = nodes
         return nodes
     }

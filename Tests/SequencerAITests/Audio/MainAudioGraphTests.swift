@@ -3,6 +3,32 @@ import XCTest
 @testable import SequencerAI
 
 final class MainAudioGraphTests: XCTestCase {
+    /// Steady-state send-level changes now RAMP on a background queue (R4), so a
+    /// readback immediately after `setTrackSendLevels` can be stale mid-ramp.
+    /// Spin the main run loop until the live send gains settle (or time out).
+    @MainActor
+    private func waitForSendGains(
+        _ graph: MainAudioGraph,
+        source: AVAudioNode,
+        sendA: Float,
+        sendB: Float,
+        accuracy: Float = 0.0005,
+        timeout: TimeInterval = 1.0
+    ) -> MainAudioGraph.TrackSendReadout? {
+        let deadline = Date().addingTimeInterval(timeout)
+        var last: MainAudioGraph.TrackSendReadout?
+        while Date() < deadline {
+            last = graph.trackSendReadoutForTesting(source)
+            if let r = last,
+               abs(r.sendAGain - sendA) <= accuracy,
+               abs(r.sendBGain - sendB) <= accuracy {
+                return r
+            }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.005))
+        }
+        return last
+    }
+
     @MainActor
     func test_installMixerBuses_reusesHostsByStableIDAndTearsDownRemovedBuses() throws {
         let graph = MainAudioGraph()
@@ -133,13 +159,14 @@ final class MainAudioGraphTests: XCTestCase {
 
         graph.setTrackSendLevels(source, sendA: 0.6, sendB: 0.3)
 
-        let readout = try XCTUnwrap(graph.trackSendReadoutForTesting(source))
+        // Steady-state send change RAMPS (R4) — poll past the ~12 ms ramp.
+        let readout = try XCTUnwrap(waitForSendGains(graph, source: source, sendA: 0.6, sendB: 0.3))
         let outputsAfter = graph.engine.outputConnectionPoints(for: source, outputBus: 0).map(\.node)
         XCTAssertEqual(outputsBefore.count, outputsAfter.count)
         XCTAssertTrue(zip(outputsBefore, outputsAfter).allSatisfy { $0 === $1 })
         XCTAssertEqual(graph.masterMeterTapRemoveCountForTesting, tapRemovalsBefore)
-        XCTAssertEqual(readout.sendAGain, 0.6, accuracy: 0.0001)
-        XCTAssertEqual(readout.sendBGain, 0.3, accuracy: 0.0001)
+        XCTAssertEqual(readout.sendAGain, 0.6, accuracy: 0.0005)
+        XCTAssertEqual(readout.sendBGain, 0.3, accuracy: 0.0005)
     }
 
     @MainActor
@@ -255,17 +282,52 @@ final class MainAudioGraphTests: XCTestCase {
         graph.setTrackSendLevels(source, sendA: 0.5, sendB: 0)
         graph.setTrackSendLevels(source, sendA: 0.6, sendB: 0.1)
         XCTAssertEqual(graph.reconnectTrackOutputCountForTesting, reconnectsAfterSetup)
-        let readout = try XCTUnwrap(graph.trackSendReadoutForTesting(source))
-        XCTAssertEqual(readout.sendAGain, 0.6, accuracy: 0.0001)
-        XCTAssertEqual(readout.sendBGain, 0.1, accuracy: 0.0001)
+        // Steady-state send change RAMPS (R4) — poll past the ramp.
+        let readout = try XCTUnwrap(waitForSendGains(graph, source: source, sendA: 0.6, sendB: 0.1))
+        XCTAssertEqual(readout.sendAGain, 0.6, accuracy: 0.0005)
+        XCTAssertEqual(readout.sendBGain, 0.1, accuracy: 0.0005)
 
         // Returning to zero does NOT tear nodes down: still no reconnect, and
         // the gains simply ramp to 0.
         graph.setTrackSendLevels(source, sendA: 0, sendB: 0)
         XCTAssertEqual(graph.reconnectTrackOutputCountForTesting, reconnectsAfterSetup)
-        let zeroedReadout = try XCTUnwrap(graph.trackSendReadoutForTesting(source))
-        XCTAssertEqual(zeroedReadout.sendAGain, 0, accuracy: 0.0001)
-        XCTAssertEqual(zeroedReadout.sendBGain, 0, accuracy: 0.0001)
+        let zeroedReadout = try XCTUnwrap(waitForSendGains(graph, source: source, sendA: 0, sendB: 0))
+        XCTAssertEqual(zeroedReadout.sendAGain, 0, accuracy: 0.0005)
+        XCTAssertEqual(zeroedReadout.sendBGain, 0, accuracy: 0.0005)
+    }
+
+    /// R4: a steady-state send-level change (the send nodes already exist) takes
+    /// the glitch-free RAMP path — `sendRampCountForTesting` increments per
+    /// change and the gains settle on target — WITHOUT any topology reconnect.
+    /// This is the A/A+B/B-switch click fix: a live switch must ramp, not jump.
+    @MainActor
+    func test_setTrackSendLevels_steadyState_takesRampPath_noReconnect() throws {
+        let graph = MainAudioGraph()
+        let source = AVAudioPlayerNode()
+        graph.attach(source)
+        graph.installSendBuses([.sendA, .sendB])
+        // Establish the persistent send nodes (first apply = setup write).
+        graph.connectTrackOutput(source, to: nil, sends: .zero)
+        let reconnectsAfterSetup = graph.reconnectTrackOutputCountForTesting
+        let rampsAfterSetup = graph.sendRampCountForTesting
+
+        // A: sendA=1, sendB=0. Steady-state → RAMP.
+        graph.setTrackSendLevels(source, sendA: 1, sendB: 0)
+        XCTAssertEqual(graph.sendRampCountForTesting, rampsAfterSetup + 1,
+                       "a live (steady-state) send-level change must take the ramp path")
+        XCTAssertEqual(graph.reconnectTrackOutputCountForTesting, reconnectsAfterSetup,
+                       "a pure send-gain change must NOT reconnect the track output")
+        let a = try XCTUnwrap(waitForSendGains(graph, source: source, sendA: 1, sendB: 0))
+        XCTAssertEqual(a.sendAGain, 1, accuracy: 0.0005)
+        XCTAssertEqual(a.sendBGain, 0, accuracy: 0.0005, "A-only contributes nothing to B")
+
+        // B: sendA=0, sendB=1. Another ramp, still no reconnect.
+        graph.setTrackSendLevels(source, sendA: 0, sendB: 1)
+        XCTAssertEqual(graph.sendRampCountForTesting, rampsAfterSetup + 2)
+        XCTAssertEqual(graph.reconnectTrackOutputCountForTesting, reconnectsAfterSetup)
+        let b = try XCTUnwrap(waitForSendGains(graph, source: source, sendA: 0, sendB: 1))
+        XCTAssertEqual(b.sendAGain, 0, accuracy: 0.0005, "B-only contributes nothing to A")
+        XCTAssertEqual(b.sendBGain, 1, accuracy: 0.0005)
     }
 
     @MainActor
