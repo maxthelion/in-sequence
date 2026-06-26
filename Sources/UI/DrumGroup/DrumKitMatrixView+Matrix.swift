@@ -94,6 +94,7 @@ extension DrumKitMatrixView {
                     isSelected ? accent : Color.clear,
                     in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
                 )
+                .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
         }
         .buttonStyle(.plain)
         .disabled(!isEnabled)
@@ -117,6 +118,7 @@ extension DrumKitMatrixView {
                     isSelected ? accent : Color.clear,
                     in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
                 )
+                .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Step layer \(layer.title)")

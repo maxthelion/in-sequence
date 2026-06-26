@@ -58,6 +58,10 @@ struct StudioTopBar: View {
                             Capsule()
                                 .stroke(buttonStroke(for: sectionValue), lineWidth: StudioMetrics.borderWidth)
                         )
+                        // Inactive pills have a clear fill, so without this the
+                        // hit area collapses to the icon/text glyph. The whole
+                        // capsule (padding included) should be tappable.
+                        .contentShape(Capsule())
                     }
                     .buttonStyle(.plain)
                 }

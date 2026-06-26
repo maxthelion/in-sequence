@@ -89,6 +89,7 @@ struct StudioFXOptionRow: View {
             .padding(.horizontal, 10)
             .padding(.vertical, 9)
             .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
         }
         .buttonStyle(.plain)
         .overlay(

@@ -453,6 +453,9 @@ private struct TransportModePicker: View {
                             Capsule()
                                 .stroke(selection == mode ? StudioTheme.amber : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
                         )
+                        // Unselected modes have a clear fill; pin the hit area to
+                        // the whole capsule so taps don't require the glyph.
+                        .contentShape(Capsule())
                 }
                 .buttonStyle(.plain)
             }
@@ -476,6 +479,8 @@ private struct TransportButtonStyle: ButtonStyle {
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
                     .stroke(accent.opacity(StudioOpacity.mediumStroke), lineWidth: StudioMetrics.borderWidth)
             )
+            // The glyph alone is a small target; make the whole tile tappable.
+            .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
     }
 }
 

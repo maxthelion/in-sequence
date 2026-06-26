@@ -232,6 +232,9 @@ struct StudioSegmentedControl<Value: Equatable>: View {
             isSelected ? accent : Color.clear,
             in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
         )
+        // An unselected chip has a clear fill; without an explicit hit shape its
+        // tap target shrinks to the text glyph. The whole chip should be tappable.
+        .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
     }
 
     private func segmentForeground(isSelected: Bool, isEnabled: Bool) -> Color {

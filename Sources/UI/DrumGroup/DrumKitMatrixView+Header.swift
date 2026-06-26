@@ -215,6 +215,7 @@ extension DrumKitMatrixView {
                     isSelected ? accent : Color.clear,
                     in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
                 )
+                .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
         }
         .buttonStyle(.plain)
         .help("Show steps \(title)")
