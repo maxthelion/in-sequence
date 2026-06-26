@@ -117,6 +117,17 @@ final class AudioInstrumentHost: TrackPlaybackSink {
     private var snapshotChoice: AudioInstrumentChoice
     private var snapshotAudioUnit: AVAudioUnit?
     private var snapshotAvailable = false
+    /// Snapshot of the output routing (mixer presence + bus) for the test
+    /// readouts. Published under `snapshotLock` whenever `outputMixer` /
+    /// `currentOutputBusID` change, so `current*ForTesting()` can read engine-
+    /// truth WITHOUT a `queue.sync` onto the host queue. A bare `queue.sync`
+    /// from the main thread deadlocks against the host queue's own
+    /// `connectLoadedInstrument -> performOnMain` (main.sync) during AU setup —
+    /// an AB-BA cycle that froze the app when the command-channel status writer
+    /// polled these on main while an AU was instantiating (found in the
+    /// 2026-06-26 real-AU verification pass). Same rationale as `snapshotAudioUnit`.
+    private var snapshotOutputMixer: AVAudioMixerNode?
+    private var snapshotOutputBusID: UUID?
 
     private func log(_ message: String) {
         NSLog("[AudioInstrumentHost] \(message)")
@@ -312,6 +323,7 @@ final class AudioInstrumentHost: TrackPlaybackSink {
                     // realtime-allow-graph-mutation: AU shutdown teardown only, not tick dispatch. Test: RealtimePathLintTests.
                     self.audioGraph.detach(outputMixer)
                     self.outputMixer = nil
+                    self.updateSnapshotOutput()
                 }
                 self.updateSnapshotInstrument(nil)
             }
@@ -345,6 +357,7 @@ final class AudioInstrumentHost: TrackPlaybackSink {
             guard self.currentOutputBusID != busID else { return }
 
             self.currentOutputBusID = busID
+            self.updateSnapshotOutput()
             guard let outputMixer = self.outputMixer else { return }
             self.audioGraph.connectTrackOutput(outputMixer, to: busID, sends: self.currentMix.graphSendLevels)
             self.audioGraph.setTrackMeterSources(trackIDs: self.currentMeterTrackIDs, node: outputMixer)
@@ -724,6 +737,7 @@ final class AudioInstrumentHost: TrackPlaybackSink {
                 self.audioGraph.attach(mixer)
                 self.audioGraph.connectTrackOutput(mixer, to: self.currentOutputBusID, sends: self.currentMix.graphSendLevels)
                 self.audioGraph.setTrackMeterSources(trackIDs: self.currentMeterTrackIDs, node: mixer)
+                self.updateSnapshotOutput()
             }
             if self.audioGraph.engine.outputConnectionPoints(for: nextInstrument, outputBus: 0).isEmpty {
                 // realtime-allow-graph-mutation: AU load/setup connection only, not tick dispatch. Test: RealtimePathLintTests.
@@ -838,22 +852,25 @@ final class AudioInstrumentHost: TrackPlaybackSink {
     /// NOTE: for `.inheritGroup` shared hosts this is ONE value for the whole
     /// group — there is no per-member gain stage (see the F1.1/F2.1 finding).
     func currentOutputGainForTesting() -> Float? {
-        performOnMainReturningOptional { [weak self] in
-            self?.outputMixer?.outputVolume
-        }
+        // Read the output mixer via the snapshot (leaf lock) — NOT a queue/main
+        // hop — so a status-writer poll on main can't deadlock against the host
+        // queue's AU setup. outputVolume is safe to read off the node directly.
+        withSnapshot { snapshotOutputMixer }?.outputVolume
     }
 
     /// The bus the host has ACTUALLY routed its shared output to (nil = master).
     /// Engine-truth for the gate: set inside `setOutputBusID`, which is the call
     /// that drives the live `connectTrackOutput`. Outer nil = host not loaded.
     func currentOutputBusIDForTesting() -> UUID?? {
-        // currentOutputBusID is mutated on the host queue; read it there to
-        // avoid a torn read against an in-flight setOutputBusID.
-        var result: UUID?? = .none
-        queue.sync {
-            result = self.outputMixer == nil ? UUID??.none : .some(self.currentOutputBusID)
-        }
-        return result
+        // Read the routing snapshot under the leaf snapshotLock — NOT a
+        // `queue.sync` onto the host queue. The host queue runs
+        // connectLoadedInstrument -> performOnMain (main.sync) during AU setup,
+        // so a main-thread `queue.sync` here is an AB-BA deadlock (it froze the
+        // app when the command-channel status writer polled this on main while
+        // an AU was instantiating — 2026-06-26). The snapshot is published under
+        // the lock on every outputMixer/currentOutputBusID change, so this is
+        // torn-read-safe without hopping the queue. Outer nil = host not loaded.
+        withSnapshot { snapshotOutputMixer == nil ? UUID??.none : .some(snapshotOutputBusID) }
     }
 
     private func performOnMainReturningOptional<T>(_ work: @escaping @MainActor () -> T?) -> T? {
@@ -1039,6 +1056,17 @@ final class AudioInstrumentHost: TrackPlaybackSink {
         snapshotLock.lock()
         snapshotAudioUnit = instrument
         snapshotAvailable = instrument != nil
+        snapshotLock.unlock()
+    }
+
+    /// Publish the current output routing into the snapshot. MUST be called on
+    /// the host queue right after `outputMixer` / `currentOutputBusID` change, so
+    /// the test readouts can read it under `snapshotLock` (a leaf lock) instead
+    /// of hopping the host queue.
+    private func updateSnapshotOutput() {
+        snapshotLock.lock()
+        snapshotOutputMixer = outputMixer
+        snapshotOutputBusID = currentOutputBusID
         snapshotLock.unlock()
     }
 }
