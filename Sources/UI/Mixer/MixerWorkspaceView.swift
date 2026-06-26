@@ -205,6 +205,9 @@ struct MixerWorkspaceView: View {
     private func sendInsertRow(_ insert: SendBusInsert, bus: SendBusState, accent: Color) -> some View {
         let isSelected = selectedInsert(in: bus)?.id == insert.id
         return VStack(alignment: .leading, spacing: 7) {
+            // Title row: icon badge + name/summary get the full strip width.
+            // At the slim 96pt strip the enable toggle no longer shares this
+            // row, so the summary chip ("8-bit", "440 Hz") stops truncating.
             HStack(spacing: 8) {
                 Image(systemName: insertIconName(for: insert.kind))
                     .font(.system(size: 11, weight: .semibold))
@@ -221,24 +224,23 @@ struct MixerWorkspaceView: View {
                         .studioText(.micro)
                         .foregroundStyle(StudioTheme.mutedText)
                         .lineLimit(1)
+                        .minimumScaleFactor(0.8)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
 
-                Spacer(minLength: 4)
-
+            // Control row: enable toggle + reorder + remove. The toggle's
+            // own colour reads bypass state, so the redundant text label is
+            // dropped to free the cramped/overlapping controls.
+            HStack(spacing: 6) {
                 Toggle("Enabled", isOn: sendInsertBinding(insert.id, busID: bus.id, keyPath: \.isEnabled, fallback: insert.isEnabled))
                     .labelsHidden()
                     .toggleStyle(.switch)
                     .controlSize(.mini)
                     .tint(StudioTheme.success)
-            }
+                    .help(insert.isEnabled ? "Bypass insert" : "Enable insert")
 
-            HStack(spacing: 6) {
-                Text(insert.isEnabled ? "Enabled" : "Bypassed")
-                    .studioText(.micro)
-                    .tracking(0.8)
-                    .foregroundStyle(insert.isEnabled ? StudioTheme.success : StudioTheme.mutedText)
-
-                Spacer()
+                Spacer(minLength: 4)
 
                 insertMoveButton(insert, bus: bus, systemName: "arrow.up", delta: -1)
                 insertMoveButton(insert, bus: bus, systemName: "arrow.down", delta: 1)
@@ -255,7 +257,7 @@ struct MixerWorkspaceView: View {
                 .help("Remove insert")
             }
         }
-        .padding(9)
+        .padding(StudioMetrics.Spacing.snug)
         // Colour identifies, it never floods (ux-canon rule 12): selection
         // reads from the accent outline, not a tinted row fill.
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))

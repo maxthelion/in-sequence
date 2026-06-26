@@ -39,3 +39,18 @@ captured by the harness — add a capture row if reproducing
 Send-return strip header row lays out cleanly (no truncated chip, no
 cramped/overlapping controls), matching the channel-strip grammar used
 elsewhere in the mixer.
+
+Status: RESOLVED (uncommitted) — Root cause: commit 475b050c ("Rework scenes
+FX-add grammar and slim mixer strips") cut the shared mixer strip width
+142pt→96pt, but `sendInsertRow` in Sources/UI/Mixer/MixerWorkspaceView.swift
+still packed the icon badge + name/summary + enable Toggle into a single header
+HStack. At 96pt that HStack squeezed the name/summary VStack, truncating the
+kind-summary chip (e.g. "8-bit"→"8…") and crowding the row below. Fix
+(UI-only): moved the enable Toggle out of the title row down to the control row
+(giving the icon+name/summary the full strip width via
+`.frame(maxWidth:.infinity)` + `.minimumScaleFactor(0.8)` on the summary),
+dropped the now-redundant "Enabled/Bypassed" text label (the green-tinted
+toggle already reads state), and aligned the row padding to
+`StudioMetrics.Spacing.snug` (8pt) to match the master-bus insert row grammar
+in Sources/UI/MixerView.swift. Visual confirmation is the owner's. Build
+SUCCEEDED; realtime-path-lint.sh and runtime-ownership-lint.sh both exit 0.
