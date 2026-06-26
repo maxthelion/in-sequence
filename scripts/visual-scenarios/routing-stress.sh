@@ -266,6 +266,30 @@ assert_track_audible_eventually() {
   return 1
 }
 
+# Assert a BUS's per-bus meter peak rises above the silence threshold within a
+# polling window (the bus carries the SUM of all tracks routed to it). Now a REAL
+# assertion: the bus meter tap was fixed (#59) to install on the bus summing node
+# once it has a formatted output, so bus<N>Peak reads the routed signal instead of
+# the old -inf. The bus tap can lag the first onset after a route, so we poll like
+# a freshly-routed track rather than reading a single settle window.
+assert_bus_audible_eventually() {
+  local op="$1" idx="$2" tries=25 i=0 peak
+  while [ "$i" -lt "$tries" ]; do
+    peak="$(status_value "bus${idx}Peak" 2>/dev/null || echo "-inf")"
+    if [ "$peak" != "-inf" ] && is_number "$peak" \
+       && awk -v p="$peak" -v t="$TRACK_SILENCE_DBFS" 'BEGIN { exit (p > t) ? 0 : 1 }'; then
+      log "    bus-level-ok $op: bus$idx audible (meterPeak=$peak)"
+      report "    - bus-level-ok: bus$idx audible within window (meterPeak=$peak)"
+      return 0
+    fi
+    i=$((i+1)); sleep 0.2
+  done
+  SILENCE=$((SILENCE+1))
+  log "    SILENCE  $op: bus$idx expected audible but meter stayed silent (last meterPeak=$peak)"
+  report "    - **SILENCE**: bus$idx expected audible, meter stayed silent (last meterPeak=$peak)"
+  return 1
+}
+
 # Assert a track's settled peak is ABOVE the silence threshold (expected audible).
 assert_track_audible() {
   local op="$1" idx="$2"
@@ -640,11 +664,17 @@ if drive "trackRemoveInsert-0" "trackRemoveInsert=0:0"; then
 fi
 
 # 4) Route track 1 to bus 0 → destination bus reads back (ENGINE-truth: the bus
-#    the graph actually connected track1 to), and the bus must carry track1's
-#    level acoustically.
+#    the graph actually connected track1 to), the bus output gain is open, AND —
+#    now that the metering cluster is fixed — BOTH meters read real level:
+#    * the SOURCE track meter (track1Peak) stays audible even though the track is
+#      now routed to a bus (it meters its OWN pre-bus output, #62), and
+#    * the DESTINATION bus meter (bus0Peak) carries track1's summed level (#59) —
+#      upgraded from diag-only to a REAL assertion now that the bus tap captures.
 if drive "routeTrack-1-to-bus0" "routeTrackToBus=1:0"; then
   assert_status      "routeTrack-1-to-bus0" "track1OutputBus" "FX Bus"
   assert_bus_gain_open "routeTrack-1-to-bus0" 0
+  assert_track_audible_eventually "routeTrack-1-to-bus0" 1
+  assert_bus_audible_eventually   "routeTrack-1-to-bus0" 0
 fi
 
 # 4b) BUS MUTE (the bus-mute-as-gain path), with track1 feeding bus0. Engine-
@@ -950,8 +980,12 @@ report "  (per-track channel-meter peak), and layer-unmute does NOT resurrect a"
 report "  still-mixer-muted track (the F1 regression)."
 report "- a routed-into-MUTED track stays silent (F2 consistency, silence side)."
 report "- bus mute drives the live bus mixer's APPLIED OUTPUT GAIN to 0 and reopens"
-report "  it on unmute (engine-truth; the bus acoustic meter is unreliable and is"
-report "  diag-only — a separate pre-existing bus-meter-tap gap)."
+report "  it on unmute (engine-truth)."
+report "- a track routed to a bus meters at BOTH ends: the SOURCE track meter"
+report "  (track<N>Peak) stays audible — it meters its OWN pre-bus output (#62) —"
+report "  AND the DESTINATION bus meter (bus<N>Peak) carries the routed signal (the"
+report "  bus tap was fixed to install on the bus summing node once it has a"
+report "  formatted output, #59). Both are now REAL assertions, no longer diag-only."
 report "- FX insert count is the INSTALLED NODE count in the graph, and the track→bus"
 report "  reassignment is the bus the graph actually connected (both engine-truth)."
 report "- R4 scene-send A / A+B / B (PASS 4): switching a SOUNDING track's mode during"

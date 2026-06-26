@@ -970,19 +970,17 @@ final class MainAudioGraph {
             self.trackOutputDestinationsForTesting[ObjectIdentifier(source)] = destinationMixer
             // The bus now has at least one input — (re)assert its output edge to
             // preMaster so the routed signal actually reaches master.
-            let wiredBusOutput = self.ensureMixerBusTerminalReachesPreMasterOnMain(busID: busID)
-            if wiredBusOutput {
-                // The bus input mixer only acquired a resolvable format once it
-                // got an input + output edge. Its per-bus meter tap was installed
-                // at install time on the then-formatless mixer and read silent
-                // (bus<N>Peak = -inf even with signal). Reinstall the channel
-                // meter taps now so the bus tap re-attaches on the live node and
-                // reports real level. Only on the FIRST voice that wires the bus
-                // (wiredBusOutput is false for the siblings), so a route is one
-                // tap refresh, not four.
-                self.removeChannelMeterTapsIfNeeded()
-                self.installChannelMeterTapsIfNeeded()
-            }
+            self.ensureMixerBusTerminalReachesPreMasterOnMain(busID: busID)
+            // The bus input mixer only acquires a resolvable output format once
+            // it has at least one input + a live output edge. Its per-bus meter
+            // tap (installed at graph-build time on the then-formatless mixer)
+            // never captured (bus<N>Peak = -inf even with signal, #59). Install
+            // the bus meter tap HERE on the now-formatted summing node — a single
+            // targeted install, idempotent (no-op if already tapped), NOT a
+            // remove-all + reinstall-all thrash on every routed voice (that was
+            // the #61 route-to-bus click suspect AND was ineffective at making
+            // the bus read). Read-only observer — does not touch the audio path.
+            self.installBusMeterTapIfNeeded(busID: busID, on: destinationMixer)
         }
     }
 
@@ -1689,6 +1687,17 @@ final class MainAudioGraph {
         }
     }
 
+    /// The node currently registered as a track's meter source (the node whose
+    /// output the track strip meters). Lets a test assert that a bus-routed track
+    /// meters its OWN pre-bus output rather than following the bus (#62).
+    func trackMeterSourceNodeForTesting(trackID: UUID) -> AVAudioNode? {
+        performOnMainReturning {
+            self.lockGraphLock()
+            defer { self.unlockGraphLock() }
+            return self.trackMeterSources[trackID]
+        }
+    }
+
     var channelMeterTappedNodeCountForTesting: Int {
         performOnMainReturning {
             self.channelMeterTappedNodes.count
@@ -1758,6 +1767,48 @@ final class MainAudioGraph {
         channelMeterTappedNodes = [:]
         channelMeterBank.recordSilenceEverywhere()
         areChannelMeterTapsInstalled = false
+    }
+
+    /// Install the per-bus meter tap on a bus's summing node once it has a
+    /// resolvable (formatted) output — i.e. when a routed track first wires a
+    /// voice into it. The general `installChannelMeterTapsIfNeeded` registers the
+    /// bus node at graph-build time, but the bus input mixer is FORMATLESS then
+    /// (no inputs), so that tap never captures (bus<N>Peak = -inf despite signal,
+    /// #59). This targeted installer re-attaches just the bus tap on the live,
+    /// summed node — capturing the SUM of every track routed to the bus — without
+    /// the remove-all + reinstall-all thrash that glitched the render on a route
+    /// (#61). It is idempotent: a no-op if the node is already tapped, and only
+    /// runs while channel meter taps are active (so it tracks the same lifecycle
+    /// as the bank).
+    @MainActor
+    private func installBusMeterTapIfNeeded(busID: UUID, on node: AVAudioNode) {
+        guard node.engine === engine, node !== finalOutputMixer else { return }
+        let key = ObjectIdentifier(node)
+        guard channelMeterTappedNodes[key] == nil else { return }
+        // Use the LIVE generation so a later tap teardown silences this closure.
+        // The node is tracked in `channelMeterTappedNodes`, so the normal
+        // remove-all / install-all bank cycle reclaims and re-adds it cleanly; it
+        // works whether or not the general bank is currently installed (the
+        // offline render path wires the route before the engine runs the bank).
+        let generation = channelMeterTapGeneration.load()
+        let publisher = channelMeterBank.publisher(for: .bus(busID))
+        // installTap throws an uncatchable NSException if the node already has a
+        // tap — the shim turns a bookkeeping slip into a skipped meter, not a crash.
+        let exception = SEQRunCatchingObjCException {
+            node.installTap(onBus: 0, bufferSize: 1024, format: nil) { [weak self] buffer, _ in
+                guard let self, self.channelMeterTapGeneration.load() == generation else { return }
+                publisher.process(buffer: buffer)
+            }
+        }
+        guard exception == nil else {
+            DevActivity.trace(
+                DevActivity.audioGraph,
+                "bus meter tap skipped: \(exception?.reason ?? "unknown")"
+            )
+            return
+        }
+        channelMeterTappedNodes[key] = node
+        channelMeterTapInstallCountForTesting += 1
     }
 
     /// Removes one node's meter tap immediately (e.g. before the capture

@@ -150,6 +150,13 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
     private struct BusVoicePool {
         var voices: [AVAudioPlayerNode]
         var voiceMixers: [AVAudioMixerNode]
+        /// Per-track summing node: every voice mixer feeds this single node,
+        /// which is the track's OWN output (pre-bus). It connects to the bus
+        /// input mixer (one input per track, not one per voice — also avoids the
+        /// per-voice bus-input collision), and it is registered as the track's
+        /// meter source so the SOURCE track keeps metering its own level even
+        /// when routed to a bus (#62). The bus meters the sum of these.
+        var trackSumMixer: AVAudioMixerNode
         var handles: [UUID]
         var cursor: Int
     }
@@ -976,9 +983,9 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         }
         let target: Float = effectiveMuted ? 0 : level
         if let busPool {
-            for voiceMixer in busPool.voiceMixers {
-                MixerGainRamp.shared.ramp(voiceMixer, to: target)
-            }
+            // The track fader/mute lives on the per-track sum node (the track's
+            // own output); ramp it, not the unity voice mixers.
+            MixerGainRamp.shared.ramp(busPool.trackSumMixer, to: target)
             return
         }
         guard let mixer else { return }
@@ -1137,12 +1144,13 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
                 }
             }
 
-            // The track's signal chokepoint(s): the track mixer (non-bus track)
-            // or each bus-voice mixer (bus-routed track). Ramping these to 0
-            // fades the whole track to silence before any node leaves the graph.
+            // The track's signal chokepoint: the track mixer (non-bus track) or
+            // the per-track sum node (bus-routed track) — the single node the
+            // whole track flows through. Ramping it to 0 fades the whole track to
+            // silence before any node leaves the graph.
             var chokepoints: [AVAudioMixerNode] = []
             if let removedMixer { chokepoints.append(removedMixer) }
-            if let removedBusPool { chokepoints.append(contentsOf: removedBusPool.voiceMixers) }
+            if let removedBusPool { chokepoints.append(removedBusPool.trackSumMixer) }
             rampMixersToSilenceThenDetach(chokepoints, detach: detachCapturedNodes)
         }
     }
@@ -1289,10 +1297,18 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
             audioGraph.detach(staleFilter.avNode)
         }
 
+        // The track's OWN output node when routed to a bus: every voice mixer
+        // sums into this single node, which then feeds the bus. It is the track's
+        // meter source (so the source meters regardless of routing, #62) and the
+        // single per-track input on the bus (so per-track inputs cannot collide).
+        let trackSumMixer = AVAudioMixerNode()
+        // realtime-allow-graph-mutation: prepared bus voice setup occurs during document apply/setup, not tick dispatch. Test: RealtimePathLintTests.
+        audioGraph.attach(trackSumMixer)
+
         var voices: [AVAudioPlayerNode] = []
         var mixers: [AVAudioMixerNode] = []
         var handles: [UUID] = []
-        for _ in 0..<Self.voicesPerTrack {
+        for index in 0..<Self.voicesPerTrack {
             let voice = AVAudioPlayerNode()
             let mixer = AVAudioMixerNode()
             // realtime-allow-graph-mutation: prepared bus voice setup occurs during document apply/setup, not tick dispatch. Test: RealtimePathLintTests.
@@ -1301,21 +1317,29 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
             audioGraph.attach(mixer)
             // realtime-allow-graph-mutation: prepared bus voice setup occurs during document apply/setup, not tick dispatch. Test: RealtimePathLintTests.
             audioGraph.engine.connect(voice, to: mixer, fromBus: 0, toBus: 0, format: nil)
+            // Each voice mixer feeds a distinct input on the per-track sum mixer.
             // realtime-allow-graph-mutation: prepared bus voice setup occurs during document apply/setup, not tick dispatch. Test: RealtimePathLintTests.
-            // Each voice mixer lands on a UNIQUE free input bus on the shared
-            // bus input mixer (allocated inside connectPreparedSampleVoiceOutput);
-            // a per-track 0..N index would collide across tracks routed to the
-            // same bus (multi-track / drum-kit silence).
-            audioGraph.connectPreparedSampleVoiceOutput(
-                mixer,
-                toMixerBus: busID
-            )
+            audioGraph.engine.connect(mixer, to: trackSumMixer, fromBus: 0, toBus: index, format: nil)
             voices.append(voice)
             mixers.append(mixer)
             handles.append(UUID())
         }
 
-        let pool = BusVoicePool(voices: voices, voiceMixers: mixers, handles: handles, cursor: 0)
+        // realtime-allow-graph-mutation: prepared bus voice setup occurs during document apply/setup, not tick dispatch. Test: RealtimePathLintTests.
+        // One connection per track to the shared bus input mixer (a unique free
+        // input bus allocated inside connectPreparedSampleVoiceOutput), so tracks
+        // routed to the same bus cannot collide. The bus input mixer SUMS these
+        // per-track outputs — the bus meters that sum (#59).
+        audioGraph.connectPreparedSampleVoiceOutput(
+            trackSumMixer,
+            toMixerBus: busID
+        )
+        // The per-track sum node is the track's terminal point when bus-routed —
+        // register it as the strip's meter source so the SOURCE track keeps
+        // metering its own level even though its output goes to a bus (#62).
+        audioGraph.setTrackMeterSources(trackIDs: [trackID], node: trackSumMixer)
+
+        let pool = BusVoicePool(voices: voices, voiceMixers: mixers, trackSumMixer: trackSumMixer, handles: handles, cursor: 0)
         let fanout = withLifecycleLock { () -> SamplerFilterFanout in
             busVoicePools[trackID] = pool
             _ = deferredPreparedTrackRepairIDs.remove(trackID)
@@ -1335,13 +1359,20 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         else {
             return false
         }
+        guard pool.trackSumMixer.engine === audioGraph.engine,
+              // The per-track sum node is the track's output — verify it reaches
+              // the bus (voices -> voiceMixers -> sumMixer -> bus input mixer).
+              outputConnectionExists(from: pool.trackSumMixer)
+        else {
+            return false
+        }
         for index in pool.voices.indices {
             let voice = pool.voices[index]
             let mixer = pool.voiceMixers[index]
             guard voice.engine === audioGraph.engine,
                   mixer.engine === audioGraph.engine,
                   outputConnectionExists(from: voice, to: mixer),
-                  outputConnectionExists(from: mixer)
+                  outputConnectionExists(from: mixer, to: pool.trackSumMixer)
             else {
                 return false
             }
@@ -1365,9 +1396,14 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
             (trackMixValues[trackID] ?? (level: 1, pan: 0), effectiveMuteLocked(trackID))
         }
         let effectiveLevel = muted ? 0 : mix.level
+        // Apply the track fader/pan on the per-track sum node (the track's own
+        // output); voice mixers stay at unity. This keeps the meter source (the
+        // sum node) reading the post-fader track level.
+        MixerGainRamp.shared.setImmediate(pool.trackSumMixer, to: effectiveLevel)
+        pool.trackSumMixer.pan = mix.pan
         for mixer in pool.voiceMixers {
-            MixerGainRamp.shared.setImmediate(mixer, to: effectiveLevel)
-            mixer.pan = mix.pan
+            MixerGainRamp.shared.setImmediate(mixer, to: 1)
+            mixer.pan = 0
         }
     }
 
@@ -1403,6 +1439,12 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
             // realtime-allow-graph-mutation: prepared route switch setup only, not tick dispatch. Test: RealtimePathLintTests.
             audioGraph.detach(mixer)
         }
+        // realtime-allow-graph-mutation: prepared route switch setup only, not tick dispatch. Test: RealtimePathLintTests.
+        audioGraph.disconnectOutput(pool.trackSumMixer)
+        // The per-track sum node was the track's meter source — detach clears
+        // its meter tap + meter-source registration (MainAudioGraph.detach).
+        // realtime-allow-graph-mutation: prepared route switch setup only, not tick dispatch. Test: RealtimePathLintTests.
+        audioGraph.detach(pool.trackSumMixer)
     }
 
     private func validatePreparedTrackGraphs() {
@@ -2327,6 +2369,16 @@ extension SamplePlaybackEngine {
         }
     }
 
+    /// The per-track sum node for a bus-routed track: the single node every voice
+    /// mixer feeds, which connects to the bus input mixer (one input per track)
+    /// and is the track's meter source. Lets a test inspect the
+    /// voiceMixers → trackSumMixer → bus-input-mixer → preMaster chain.
+    func busTrackSumMixerForTesting(trackID: UUID) -> AVAudioMixerNode? {
+        performOnMain { [self] in
+            withLifecycleLock { busVoicePools[trackID]?.trackSumMixer }
+        }
+    }
+
     func disconnectFirstPreparedVoiceForTesting(trackID: UUID) {
         performOnMain { [self] in
             let voice: AVAudioPlayerNode? = withLifecycleLock {
@@ -2424,8 +2476,10 @@ extension SamplePlaybackEngine {
     func trackOutputGainForTesting(trackID: UUID) -> Float? {
         performOnMain { [self] in
             withLifecycleLock {
-                if let pool = busVoicePools[trackID], let mixer = pool.voiceMixers.first {
-                    return mixer.outputVolume
+                if let pool = busVoicePools[trackID] {
+                    // The fader/mute gain lives on the per-track sum node (the
+                    // track's own output); voice mixers stay at unity.
+                    return pool.trackSumMixer.outputVolume
                 }
                 return trackMixers[trackID]?.outputVolume
             }
@@ -2455,8 +2509,10 @@ extension SamplePlaybackEngine {
     func trackOutputChokepointNodeForTesting(trackID: UUID) -> AVAudioMixerNode? {
         performOnMain { [self] in
             withLifecycleLock {
-                if let pool = busVoicePools[trackID], let mixer = pool.voiceMixers.first {
-                    return mixer
+                if let pool = busVoicePools[trackID] {
+                    // Chokepoint is the per-track sum node (the single node the
+                    // whole bus-routed track flows through).
+                    return pool.trackSumMixer
                 }
                 return trackMixers[trackID]
             }
