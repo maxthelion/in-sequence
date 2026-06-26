@@ -100,6 +100,108 @@ exactly the workload this punishes.
 - **Acceptance:** add/remove a drum part during playback with no `engine.stop()`
   and no disconnect of a sounding node.
 
+#### R3 verification (2026-06-26): a dedicated node pool is NOT needed — VERDICT
+
+R3 was written before R0–R2, the deadlock root-fix (lifecycleLock made a leaf
+lock), ramp-before-disconnect, and the live-safe reconnect landed. With those in
+place the dedicated pre-attached part-voice pool is **unnecessary**: drum-part
+add/remove during playback already flows through the unified, hang-safe,
+live-safe structural path, and Hard Rule 5's "pre-attached node pool" intent is
+satisfied-in-spirit by that path.
+
+What the path actually is (a drum part is a standalone `StepSequenceTrack` with a
+`groupID`, not a sub-object — see `TrackGroup.memberIDs`):
+
+- Add/remove a part → `SequencerDocumentSession.addDrumPart` / `removeDrumPart`
+  (`Sources/App/SequencerDocumentSession+Mutations.swift`) → `batch(impact:
+  .fullEngineApply)` → `EngineController.apply(documentModel:)`. Because
+  `pipelineShape` is one entry per track
+  (`EngineControllerRoutingHelpers.swift:34`), a part add/remove changes the shape
+  and routes to `buildPipeline` → `applyBroadSync`. `buildPipeline` rebuilds only
+  the **note-generation `Executor`** (not the AVAudioEngine graph) and calls
+  `syncAudioOutputs` / `installMixerBuses`; it does **not** `engine.stop()/start()`.
+- The actual audio nodes for a sample/slicer part are managed by
+  `SamplePlaybackEngine.prepareTrack` / `removeTrack`
+  (`Sources/Audio/SamplePlaybackEngine.swift`). `removeTrack` first drops the
+  track from every tick-path dictionary **under the leaf `lifecycleLock`** (so the
+  tick path can never select its voices again), then detaches the captured nodes
+  **outside the lock** — i.e. no lock held across a live `engine.disconnect`/
+  `detach` (the old deadlock shape), and the node is removed from the trigger
+  selection before teardown so nothing new schedules onto it.
+
+**Ramp-before-detach fix (2026-06-26 adversarial review).** The first pass of this
+verification was caught hard-cutting on **removal**: `removeTrack` /
+`teardownTrackVoicePool` / `teardownBusVoicePool` detached a potentially-sounding
+node with **no gain ramp** — the exact click Hard Rule 5's "ramp to silence first"
+clause forbids (the codebase's `withTrackGainRampedToSilence` was wired for FX
+inserts / AU host / audio-input routes but *not* for sample-track teardown). Fixed
+for the **removal** path: `removeTrack` now ramps the track's output chokepoint(s)
+— the track mixer (non-bus) or the bus-voice mixers (bus-routed) — to silence via
+`MixerGainRamp`, detaching only on ramp completion (`rampMixersToSilenceThenDetach`).
+The dictionary removal still runs synchronously under the lock, so engine-truth
+readbacks (`trackAppliedOutputGainForTesting`, the rig's
+`EngineConnectedMemberCount`) drop immediately; only the physical node detach is
+deferred ~12 ms behind the fade. Covered by
+`RampBeforeDisconnectTests.test_removeTrack_soundingSampleTrack_rampsChokepointToSilenceBeforeDetach`
+(asserts the ramp path is taken and the chokepoint reaches 0 before detach).
+
+**Known residual — route-switch teardown still hard-cuts.** The same hard-cut
+shape also lives in the two *route-switch* teardowns (`setTrackOutputBus`'s
+bus→master `.teardownBus` branch and `prepareBusVoicePool`'s stale / master→bus
+teardown). Applying the same defer-detach-behind-a-ramp there **regressed
+route-to-master to silence** (the rig caught it: `routeTrack-1-to-master` stayed
+silent for the full poll) — the route-switch *rebuild* depends on the old pool
+being torn down synchronously *before* `prepareTrack` rebuilds, so a naïve defer
+breaks it. Reverted to the original synchronous teardown. A correct fix needs a
+real crossfade (ramp the outgoing nodes to silence while preserving teardown→rebuild
+ordering), which is more than R3's scope. Filed as
+`docs/bugs/20260626-route-switch-teardown-hard-cut/`. Removal (drum-part / track
+delete) is the common, now-fixed case; route-switch hard-cut clicks remain on the
+backlog.
+
+Evidence — routing-stress rig PASS 3 (real HAL, headless, sample-only fixture),
+`scripts/visual-scenarios/routing-stress.sh`: during playback, on the "Audio Rich
+Kit" group, it adds 2 sample-backed sounding parts, then removes the added parts
+AND an original sounding member (the Snare), interleaved with the sounding drum
+bed. Result: **HANG=0, CRASH=0, SILENCE=0, CLICK=0, POSTFAIL=0** with engine-truth
+post-conditions: the group's engine-connected member count tracks the document
+member count after every edit (added part's sample mixer node attached; removed
+part's node gone), and the newly-added part is acoustically audible. New command
+keys: `drumGroupAddPart=<groupIdx>:<sampleSourceTrackIdx>` and
+`drumGroupRemovePart=<groupIdx>:<memberIdx>` in
+`Sources/UI/VisualScenarioCommandRunner.swift`; new status readbacks
+`drumGroup<N>MemberCount` / `drumGroup<N>EngineConnectedMemberCount`.
+
+Honest limits (from the adversarial review + the rig's standing caveats):
+- **Destination coverage.** The rig only exercises `.sample` parts. A real drum
+  part's destination (`Project.defaultDestination`) can also be `.internalSampler`
+  (silent/unimplemented fallback), `.inheritGroup` (shared AU/MIDI host), or
+  `.auInstrument`/`.midi` — these fall into `syncSampleMixers`'s `default: continue`
+  and take entirely different sync paths (`syncAudioOutputs` / `syncMidiOutputs`).
+  Their live add/remove safety is **not** proven here; AU needs a human-granted TCC
+  session and cannot be exercised unattended. The `.inheritGroup` shared-host case
+  also intersects the open AU group-member mute decision
+  (`docs/human-attention/DECISION-au-group-member-mute.md`).
+- **Add has no current UI counterpart.** There is no app affordance to add a
+  single part to an already-playing group — groups are created atomically via
+  `addDrumGroup` (the in-memory `DrumGroupPlan` is committed in one shot). The
+  rig's `addDrumPart` is a synthetic live structural add that exercises the same
+  `prepareTrack` live-attach the real atomic creation uses; part *removal* maps
+  cleanly to the real `removeTrack`.
+- **Coarse master metrics.** CLICK/SILENCE master metrics are diag-only on the
+  noisy drum fixture; per-track audibility + engine-truth membership are the
+  gating signals. The added-part audibility check is a permissive (-90 dBFS,
+  first-hit) liveness ping, not a rhythmic-correctness check.
+
+Click-freeness of the *removal* is now backed by the ramp-before-detach fix above
+(no longer "rests on the ear" for the sample path); the human-ear pass remains the
+backstop for the AU / shared-host destinations the rig can't reach.
+
+**Decision:** do NOT build the speculative part-voice pool. R3 is closed as
+satisfied by the general live-safe path; keep the new PASS 3 rig coverage as
+permanent regression protection. If an AU-drum-part live edit is ever shown to
+click/glitch in a human pass, revisit a pool scoped to that case.
+
 ### R4 — Per-track scene-send selector: A / A+B / B (the feature)
 
 - UI: a control in the track-detail **audio-out / ROUTING tab** offering

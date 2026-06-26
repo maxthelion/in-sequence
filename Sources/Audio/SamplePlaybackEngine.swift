@@ -236,6 +236,12 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
     private var voiceParams: [UUID: [BuiltinMacroKind: Double]] = [:]
     #if DEBUG
     private(set) var voiceSelectionsForTesting: [(trackID: UUID, voiceMode: SlicerVoiceMode, voiceIndex: Int, stoppedPriorVoice: Bool)] = []
+    /// Number of times a sample-track teardown took the ramp-to-silence path
+    /// (one or more sounding chokepoint mixers faded out before detach). Mirrors
+    /// `MainAudioGraph.rampedReconnectCountForTesting` — lets a test assert that
+    /// `removeTrack` / route-switch teardown of a sounding track does NOT
+    /// hard-cut (Hard Rule 5).
+    private(set) var sampleTeardownRampCountForTesting = 0
     #endif
 
     var preparedTrackIDs: Set<UUID> {
@@ -957,25 +963,75 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
                 return (trackPool, busPool, mixer, filter)
             }
 
-            // Post-lock section: tear down the captured graph nodes.
-            if let removedTrackPool {
-                teardownTrackVoicePool(removedTrackPool)
+            // Post-lock section: tear down the captured graph nodes — but RAMP
+            // the track's output chokepoint(s) to silence FIRST, then detach
+            // only once the fade completes. Hard Rule 5: "never disconnect a
+            // sounding node; ramp to silence first." A removed part's voices may
+            // still be mid-decay; detaching them live is the exact click the
+            // 2026-06-25 hard-disconnect bug is about. The tick path has already
+            // stopped selecting these voices (their dictionary entries were
+            // removed under the lock above), so nothing re-triggers through them
+            // while they fade out.
+            let detachCapturedNodes: @MainActor () -> Void = { [self] in
+                if let removedTrackPool {
+                    teardownTrackVoicePool(removedTrackPool)
+                }
+                if let removedBusPool {
+                    teardownBusVoicePool(removedBusPool)
+                }
+                if let removedMixer {
+                    // realtime-allow-graph-mutation: track teardown is document/routing cleanup, not tick dispatch. Test: RealtimePathLintTests.
+                    audioGraph.disconnectOutput(removedMixer)
+                    // realtime-allow-graph-mutation: track teardown is document/routing cleanup, not tick dispatch. Test: RealtimePathLintTests.
+                    audioGraph.detach(removedMixer)
+                }
+                // Also tear down the filter inserted after this mixer.
+                if let removedFilter {
+                    // realtime-allow-graph-mutation: track teardown is document/routing cleanup, not tick dispatch. Test: RealtimePathLintTests.
+                    audioGraph.disconnectOutput(removedFilter.avNode)
+                    // realtime-allow-graph-mutation: track teardown is document/routing cleanup, not tick dispatch. Test: RealtimePathLintTests.
+                    audioGraph.detach(removedFilter.avNode)
+                }
             }
-            if let removedBusPool {
-                teardownBusVoicePool(removedBusPool)
-            }
-            guard let removedMixer else { return }
-            // realtime-allow-graph-mutation: track teardown is document/routing cleanup, not tick dispatch. Test: RealtimePathLintTests.
-            audioGraph.disconnectOutput(removedMixer)
-            // realtime-allow-graph-mutation: track teardown is document/routing cleanup, not tick dispatch. Test: RealtimePathLintTests.
-            audioGraph.detach(removedMixer)
-            // Also tear down the filter inserted after this mixer.
-            if let removedFilter {
-                // realtime-allow-graph-mutation: track teardown is document/routing cleanup, not tick dispatch. Test: RealtimePathLintTests.
-                audioGraph.disconnectOutput(removedFilter.avNode)
-                // realtime-allow-graph-mutation: track teardown is document/routing cleanup, not tick dispatch. Test: RealtimePathLintTests.
-                audioGraph.detach(removedFilter.avNode)
-            }
+
+            // The track's signal chokepoint(s): the track mixer (non-bus track)
+            // or each bus-voice mixer (bus-routed track). Ramping these to 0
+            // fades the whole track to silence before any node leaves the graph.
+            var chokepoints: [AVAudioMixerNode] = []
+            if let removedMixer { chokepoints.append(removedMixer) }
+            if let removedBusPool { chokepoints.append(contentsOf: removedBusPool.voiceMixers) }
+            rampMixersToSilenceThenDetach(chokepoints, detach: detachCapturedNodes)
+        }
+    }
+
+    /// Ramp each chokepoint mixer's output to silence, then run `detach` on the
+    /// main actor once ALL ramps finish (or right away if there is nothing to
+    /// ramp). `detach` ALWAYS runs — even if a ramp is superseded — because the
+    /// captured nodes were already removed from the tick-path dictionaries and
+    /// MUST be freed (never leaked). Uses `MixerGainRamp` (writes `outputVolume`
+    /// only — no graph mutation, no `lifecycleLock`), so it cannot stall the
+    /// tick thread, and the detach is deferred ~12 ms, not blocked on.
+    private func rampMixersToSilenceThenDetach(
+        _ mixers: [AVAudioMixerNode],
+        detach: @escaping @MainActor () -> Void
+    ) {
+        guard !mixers.isEmpty else {
+            // Nothing to fade (e.g. a track with no resident output nodes);
+            // detach right away on the main actor.
+            // realtime-allow-main-async: deferred node teardown hop to main, off the tick path (control/teardown only). Test: RealtimePathLintTests.
+            DispatchQueue.main.async { MainActor.assumeIsolated { detach() } }
+            return
+        }
+        #if DEBUG
+        sampleTeardownRampCountForTesting += 1
+        #endif
+        let group = DispatchGroup()
+        for mixer in mixers {
+            group.enter()
+            MixerGainRamp.shared.ramp(mixer, to: 0) { _ in group.leave() }
+        }
+        group.notify(queue: .main) {
+            MainActor.assumeIsolated { detach() }
         }
     }
 
@@ -2053,6 +2109,21 @@ extension SamplePlaybackEngine {
                     return mixer.outputVolume
                 }
                 return trackMixers[trackID]?.outputVolume
+            }
+        }
+    }
+
+    /// The track's output chokepoint mixer node (track mixer, or first bus-voice
+    /// mixer) — captured BEFORE a teardown so a test can watch its `outputVolume`
+    /// fade to 0 across the ramp-before-detach. Returns nil once the track's
+    /// dictionary entries are gone (after the synchronous under-lock removal).
+    func trackOutputChokepointNodeForTesting(trackID: UUID) -> AVAudioMixerNode? {
+        performOnMain { [self] in
+            withLifecycleLock {
+                if let pool = busVoicePools[trackID], let mixer = pool.voiceMixers.first {
+                    return mixer
+                }
+                return trackMixers[trackID]
             }
         }
     }

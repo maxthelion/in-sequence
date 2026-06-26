@@ -1666,6 +1666,76 @@ extension SequencerDocumentSession {
         return resultGroupID
     }
 
+    /// Add a single sample-backed part (member track) to an existing drum group
+    /// while the engine may be playing.
+    ///
+    /// The new part reuses the `.sample(...)` destination of an existing resident
+    /// member track (`sampleSourceTrackID`) so it makes SOUND immediately without
+    /// minting a new sample asset at runtime — the same working render path the
+    /// fixture uses. It is armed with a basic pattern so a sounding voice is
+    /// present during the structural edit.
+    ///
+    /// Routes through the standard `.fullEngineApply` structural path (the same
+    /// path drum-group add/remove and track add/remove use). This is the path the
+    /// routing-stress rig exercises to prove drum-part add/remove is live-safe.
+    @discardableResult
+    func addDrumPart(groupID: TrackGroupID, sampleSourceTrackID: UUID) -> UUID? {
+        var createdTrackID: UUID?
+        batch(impact: .fullEngineApply, changed: .full) { s in
+            var p = s.exportToProject()
+            guard p.trackGroups.contains(where: { $0.id == groupID }),
+                  let source = p.tracks.first(where: { $0.id == sampleSourceTrackID }),
+                  case .sample = source.destination
+            else { return }
+            // Append a real track (gets clip / pattern-bank / phrase bookkeeping),
+            // then re-point it at the source's sample destination and arm it.
+            p.appendTrack(trackType: .monoMelodic)
+            let newTrackID = p.selectedTrackID
+            let armedPattern = Self.everyNthDrumPartStep(every: 4, count: 16)
+            if let index = p.tracks.firstIndex(where: { $0.id == newTrackID }) {
+                p.tracks[index].name = "Added Part \(p.tracks.count)"
+                p.tracks[index].destination = source.destination
+                p.tracks[index].stepPattern = armedPattern
+            }
+            // Seed the new part's owned clip so it actually TRIGGERS during
+            // playback — the snapshot compiler reads clip CONTENT, not the
+            // track's `stepPattern` (matching `appendSliceTrack`/`addDrumGroup`).
+            if let clipID = p.patternBank(for: newTrackID).slot(at: 0).sourceRef.clipID {
+                p.updateClipEntry(id: clipID) { clip in
+                    clip.content = .stepSequence(stepPattern: armedPattern, pitches: [60])
+                }
+            }
+            p.addToGroup(trackID: newTrackID, groupID: groupID)
+            s.importFromProject(p)
+            createdTrackID = newTrackID
+        }
+        return createdTrackID
+    }
+
+    /// Remove the member at `memberIndex` from an existing drum group while the
+    /// engine may be playing. Removes the underlying member track from the
+    /// document (which cascades the group membership cleanup) through the standard
+    /// `.fullEngineApply` structural path.
+    @discardableResult
+    func removeDrumPart(groupID: TrackGroupID, memberIndex: Int) -> Bool {
+        var removed = false
+        batch(impact: .fullEngineApply, changed: .full) { s in
+            var p = s.exportToProject()
+            guard let group = p.trackGroups.first(where: { $0.id == groupID }),
+                  group.memberIDs.indices.contains(memberIndex)
+            else { return }
+            let memberID = group.memberIDs[memberIndex]
+            p.removeTrack(id: memberID)
+            s.importFromProject(p)
+            removed = true
+        }
+        return removed
+    }
+
+    private static func everyNthDrumPartStep(every: Int, count: Int) -> [Bool] {
+        (0..<count).map { every > 0 && $0 % every == 0 }
+    }
+
     // MARK: - Route mutations
 
     /// Returns a default route originating from the given track.

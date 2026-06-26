@@ -243,6 +243,29 @@ assert_track_silent() {
   return 1
 }
 
+# Assert a track's peak rises above the silence threshold within a LONGER window.
+# Used for a freshly-ADDED sounding part: its voice only sounds on its next armed
+# step, and a brand-new track mixer's meter tap can lag an onset, so a short
+# settle window is racy. We poll for up to ~5s and pass on the FIRST audible read
+# (engine-truth node presence is asserted separately and is the primary signal).
+assert_track_audible_eventually() {
+  local op="$1" idx="$2" tries=25 i=0 peak
+  while [ "$i" -lt "$tries" ]; do
+    peak="$(status_value "track${idx}Peak" 2>/dev/null || echo "-inf")"
+    if [ "$peak" != "-inf" ] && is_number "$peak" \
+       && awk -v p="$peak" -v t="$TRACK_SILENCE_DBFS" 'BEGIN { exit (p > t) ? 0 : 1 }'; then
+      log "    level-ok $op: track$idx audible (peak=$peak)"
+      report "    - level-ok: track$idx audible within window (peak=$peak)"
+      return 0
+    fi
+    i=$((i+1)); sleep 0.2
+  done
+  SILENCE=$((SILENCE+1))
+  log "    SILENCE  $op: track$idx expected audible but stayed silent (last peak=$peak)"
+  report "    - **SILENCE**: track$idx expected audible, stayed silent (last peak=$peak)"
+  return 1
+}
+
 # Assert a track's settled peak is ABOVE the silence threshold (expected audible).
 assert_track_audible() {
   local op="$1" idx="$2"
@@ -574,9 +597,14 @@ if drive "busMute-0-off" "busMute=0:off"; then
 fi
 
 # 5) Route track1 back to master → engine reads master; track stays audible.
+#    Routing rebuilds the track's master voice pool, whose new voices only sound
+#    on their NEXT armed step — a single settle-window read can race between
+#    steps and see -inf (intermittent false SILENCE observed pre-change). Poll
+#    for audibility like the freshly-rebuilt drum-part add; still fails (SILENCE)
+#    if the track never recovers within the window.
 if drive "routeTrack-1-to-master" "routeTrackToBus=1:master"; then
-  assert_status        "routeTrack-1-to-master" "track1OutputBus" "master"
-  assert_track_audible "routeTrack-1-to-master" 1
+  assert_status                   "routeTrack-1-to-master" "track1OutputBus" "master"
+  assert_track_audible_eventually "routeTrack-1-to-master" 1
 fi
 
 # 7) Remove the last track (the drone) — the op the noisy fixture once "spiked"
@@ -670,6 +698,80 @@ if launch_app "$FIXTURE_SAMPLE_SRC"; then
     fi
     sleep 0.5
   done
+  stop_app
+fi
+
+# ---------------------------------------------------------------------------
+# PASS 3 — drum-part structural add/remove DURING PLAYBACK (R3 verification)
+# ---------------------------------------------------------------------------
+# Verifies guardrail Hard Rule 5 for the genuinely-dynamic case: adding and
+# removing a drum PART (a sample-backed voice/track inside a drum group) while
+# the engine is playing and voices are sounding. The sample-only fixture's
+# "Audio Rich Kit" group (index 0) has 4 members (tracks 3..6: Kick/Snare/Hat/
+# Clap), all on the working .sample render path. We interleave structural
+# add/remove with the sounding drum bed and assert:
+#   - no HANG / no CRASH (the watchdog),
+#   - the structural edit landed in the LIVE GRAPH (engine-truth: the group's
+#     engine-connected member count tracks the document member count — the added
+#     part's sample mixer node is attached; the removed part's node is gone),
+#   - the newly-added part is acoustically AUDIBLE (it makes sound — proves we
+#     added a real sounding voice, not a silent placeholder).
+# CLICK/SILENCE master metrics are diag-only here for the same reason as PASS 2:
+# the continuous drum bed dominates the master discontinuity metric. Click-
+# freeness of the structural edit rests on the ramp-before-disconnect unit tests
+# + the human ear (per PASS 2's honest-limits note).
+report ""
+report "## PASS 3 — drum-part structural add/remove during playback (R3)"
+report "fixture: \`$(basename "$FIXTURE_SAMPLE_SRC")\` (drum group idx 0 = 4 sample parts)"
+log ""
+log "==== PASS 3: drum-part structural add/remove during playback ===="
+
+EVAL_CLICK=0
+EVAL_SILENCE=0
+
+if launch_app "$FIXTURE_SAMPLE_SRC"; then
+  # Baseline: 4 members, all engine-connected.
+  assert_status "drumPart-baseline" "drumGroup0MemberCount" "4"
+  assert_status "drumPart-baseline-connected" "drumGroup0EngineConnectedMemberCount" "4"
+
+  # Add a 5th part during playback, cloning the Kick's (track 3) sample so it
+  # SOUNDS. New member track is appended at the end (track index 8).
+  if drive "drumGroupAddPart-0-from3" "drumGroupAddPart=0:3"; then
+    assert_status "drumGroupAddPart-0-from3" "drumGroup0MemberCount" "5"
+    assert_status "drumGroupAddPart-0-from3-connected" "drumGroup0EngineConnectedMemberCount" "5"
+    # The new part is the last track in the document; assert it becomes audible
+    # (it sounds on its next armed step — poll a longer window to avoid a race
+    # with the just-attached node's first onset).
+    assert_track_audible_eventually "drumGroupAddPart-0-from3" 8
+  fi
+
+  # Add a 6th part too, then remove parts while the bed is sounding.
+  if drive "drumGroupAddPart-0-from1" "drumGroupAddPart=0:1"; then
+    assert_status "drumGroupAddPart-0-from1" "drumGroup0MemberCount" "6"
+    assert_status "drumGroupAddPart-0-from1-connected" "drumGroup0EngineConnectedMemberCount" "6"
+  fi
+
+  # Remove the most-recently-added part (member index 5) during playback.
+  if drive "drumGroupRemovePart-0-5" "drumGroupRemovePart=0:5"; then
+    assert_status "drumGroupRemovePart-0-5" "drumGroup0MemberCount" "5"
+    assert_status "drumGroupRemovePart-0-5-connected" "drumGroup0EngineConnectedMemberCount" "5"
+  fi
+
+  # Remove an ORIGINAL sounding member (the Snare, member index 1) during
+  # playback — exercises tearing down a node whose voices have been triggering.
+  if drive "drumGroupRemovePart-0-1" "drumGroupRemovePart=0:1"; then
+    assert_status "drumGroupRemovePart-0-1" "drumGroup0MemberCount" "4"
+    assert_status "drumGroupRemovePart-0-1-connected" "drumGroup0EngineConnectedMemberCount" "4"
+  fi
+
+  # After removing the Snare (member 1), the group is [Kick, Hat, Clap, Added5]
+  # = 4 members; the last-added still-present part (Added5) is now at member
+  # index 3. Remove it to return toward baseline (3 members).
+  if drive "drumGroupRemovePart-0-3" "drumGroupRemovePart=0:3"; then
+    assert_status "drumGroupRemovePart-0-3" "drumGroup0MemberCount" "3"
+    assert_status "drumGroupRemovePart-0-3-connected" "drumGroup0EngineConnectedMemberCount" "3"
+  fi
+
   stop_app
 fi
 

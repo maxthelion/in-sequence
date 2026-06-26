@@ -125,4 +125,55 @@ final class RampBeforeDisconnectTests: XCTestCase {
 
         graph.stop()
     }
+
+    /// A SOUNDING sample track's teardown (`removeTrack`) must ramp its output
+    /// chokepoint to silence BEFORE detaching the node — never hard-cut a
+    /// sounding node (Hard Rule 5). Regression for the 2026-06-26 adversarial
+    /// review finding that `SamplePlaybackEngine` sample-track teardown skipped
+    /// the ramp the rest of the graph uses, so removing a mid-decay drum part
+    /// clicked. The dictionary removal stays synchronous (engine-truth readback
+    /// drops immediately); only the physical detach is deferred behind the fade.
+    @MainActor
+    func test_removeTrack_soundingSampleTrack_rampsChokepointToSilenceBeforeDetach() throws {
+        MainAudioGraph.useManualRenderingForAutomation = true
+        defer { MainAudioGraph.useManualRenderingForAutomation = false }
+
+        let graph = MainAudioGraph()
+        let engine = SamplePlaybackEngine(audioGraph: graph)
+        try engine.start()
+        defer { engine.stop() }
+
+        let trackID = UUID()
+        engine.prepareTrack(trackID: trackID)
+        // Make the track's output chokepoint sounding (a hard-cut here would click).
+        let chokepoint = try XCTUnwrap(engine.trackOutputChokepointNodeForTesting(trackID: trackID))
+        chokepoint.outputVolume = 0.8
+
+        let rampsBefore = engine.sampleTeardownRampCountForTesting
+        engine.removeTrack(trackID: trackID)
+
+        // The teardown took the ramp-to-silence path, not a hard-cut.
+        XCTAssertEqual(
+            engine.sampleTeardownRampCountForTesting, rampsBefore + 1,
+            "removing a sounding sample track must ramp the chokepoint to silence, not hard-cut"
+        )
+        // Dictionary removal is synchronous — engine-truth readback drops at once.
+        XCTAssertNil(engine.trackOutputGainForTesting(trackID: trackID))
+        XCTAssertFalse(engine.preparedTrackIDs.contains(trackID))
+
+        // The chokepoint fades to silence before the deferred (~12 ms) detach.
+        let faded = expectation(description: "chokepoint ramps to silence")
+        let deadline = Date().addingTimeInterval(2.0)
+        func poll() {
+            if chokepoint.outputVolume <= 0.001 {
+                faded.fulfill()
+                return
+            }
+            if Date() > deadline { return }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.005) { poll() }
+        }
+        poll()
+        wait(for: [faded], timeout: 3.0)
+        XCTAssertEqual(chokepoint.outputVolume, 0, accuracy: 0.001)
+    }
 }

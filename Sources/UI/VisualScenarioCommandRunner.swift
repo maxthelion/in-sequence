@@ -613,6 +613,35 @@ enum VisualScenarioCommandRunner {
            session.store.tracks.indices.contains(index) {
             session.removeTrack(id: session.store.tracks[index].id)
         }
+
+        // drumGroupAddPart=<groupIdx>:<sampleSourceTrackIdx> — add a sample-backed
+        // part to an existing drum group DURING PLAYBACK. The new part reuses the
+        // sample destination of an existing resident sample track so it SOUNDS
+        // immediately (NOT internalSampler — that is silent). Structural add on
+        // the live engine via the unified .fullEngineApply path. NO AU.
+        if let raw = command["drumGroupAddPart"],
+           let (groupIndex, sourceRaw) = parseIndexedValue(raw),
+           let sourceIndex = Int(sourceRaw),
+           session.store.trackGroups.indices.contains(groupIndex),
+           session.store.tracks.indices.contains(sourceIndex) {
+            session.addDrumPart(
+                groupID: session.store.trackGroups[groupIndex].id,
+                sampleSourceTrackID: session.store.tracks[sourceIndex].id
+            )
+        }
+
+        // drumGroupRemovePart=<groupIdx>:<memberIdx> — remove the Nth member from
+        // a drum group DURING PLAYBACK (structural remove on the live engine via
+        // the unified .fullEngineApply path; the part's voices may be sounding).
+        if let raw = command["drumGroupRemovePart"],
+           let (groupIndex, memberRaw) = parseIndexedValue(raw),
+           let memberIndex = Int(memberRaw),
+           session.store.trackGroups.indices.contains(groupIndex) {
+            session.removeDrumPart(
+                groupID: session.store.trackGroups[groupIndex].id,
+                memberIndex: memberIndex
+            )
+        }
     }
 
     /// Parse `<idx>:<on|off>` (also accepts true/false/1/0).
@@ -836,6 +865,21 @@ enum VisualScenarioCommandRunner {
             lines.append("bus\(index)DocMuted=\(docMuteState.mutedBusIDs.contains(bus.id))")
             lines.append("bus\(index)RawMuted=\(bus.mix.isMuted)")
             lines.append("bus\(index)AppliedGain=\(appliedBusGain.map { String($0) } ?? "n/a")")
+        }
+
+        // Drum-group membership + per-member ENGINE-TRUTH node presence. After a
+        // drumGroupAddPart the new member's track should be engine-connected
+        // (applied output gain reads non-`n/a` because its sample mixer node is
+        // attached); after drumGroupRemovePart the member is gone from the group
+        // and its node is detached. Used by the routing-stress rig to assert the
+        // structural edit landed in the live graph (not just the document).
+        for (groupIndex, group) in session.store.trackGroups.enumerated() {
+            lines.append("drumGroup\(groupIndex)MemberCount=\(group.memberIDs.count)")
+            // Count members whose output node is actually present in the engine.
+            let connectedMembers = group.memberIDs.filter { memberID in
+                engineController.trackAppliedOutputGainForTesting(trackID: memberID) != nil
+            }
+            lines.append("drumGroup\(groupIndex)EngineConnectedMemberCount=\(connectedMembers.count)")
         }
         return lines.joined(separator: "\n")
     }
