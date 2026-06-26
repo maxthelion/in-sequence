@@ -167,7 +167,10 @@ for file in "${files[@]}"; do
   #     (THE one site allowed to touch host time for musical timing);
   #   - pump-pacing: TickClock's DispatchSourceTimer wake — paces *when* we
   #     commit, never the sounding frame;
-  #   - midi-host: router / MIDI keeps wall-clock host time until Phase 3;
+  #   - midi-host: control-path MIDI note-off FLUSH timestamps (repeat/cleanup
+  #     teardown) — off the sounding path, no musical position to anchor. The
+  #     SOUNDING MIDI-out stamp is now (Phase 3) derived from AudioMasterClock
+  #     (`hostSeconds(atMusicalSeconds:)`), NOT wall clock;
   #   - diagnostic: SequencerTimingProbe / DevActivity / control-path (stop,
   #     shutdown, note-off flush) timestamps — not event scheduling.
   # Any NEW unannotated wall-clock-as-timing on these files fails the lint. The

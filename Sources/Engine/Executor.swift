@@ -32,11 +32,23 @@ final class Executor {
         self.orderedBlockIDs = try Self.topologicalOrder(blocks: blocks, wiring: wiring)
     }
 
+    /// Tick all blocks for one step.
+    ///
+    /// `now` is the HOST-TIME seconds value handed to each block's
+    /// `TickContext.now`. Only `MidiOut` reads it (to build its `MIDITimeStamp`).
+    /// Since Phase 3 the engine supplies a unified-clock-derived host time via
+    /// `resolveNow`, which is evaluated AFTER `drainCommands()` so it sees the
+    /// post-drain `currentBPM` (a mid-step `setBPM` applies to this step with no
+    /// one-tick lag) — matching how the routed-audio/MIDI path stamps. When
+    /// `resolveNow` is nil the static `now` is used (test/back-compat seam).
     func tick(
         now: TimeInterval,
-        preparedNotesByBlockID: [BlockID: [NoteEvent]] = [:]
+        preparedNotesByBlockID: [BlockID: [NoteEvent]] = [:],
+        resolveNow: ((_ bpm: Double) -> TimeInterval)? = nil
     ) -> [BlockID: [PortID: Stream]] {
         drainCommands()
+
+        let effectiveNow = resolveNow?(currentBPM) ?? now
 
         var allOutputs: [BlockID: [PortID: Stream]] = [:]
 
@@ -50,7 +62,7 @@ final class Executor {
                 tickIndex: tickCounter,
                 bpm: currentBPM,
                 inputs: inputs,
-                now: now,
+                now: effectiveNow,
                 preparedNotesByBlockID: preparedNotesByBlockID
             )
             allOutputs[blockID] = block.tick(context: context)

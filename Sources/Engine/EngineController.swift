@@ -1094,7 +1094,7 @@ final class EngineController: RouterDispatcher {
 
         applyDocumentModelCallCount += 1
         let previousDocumentModel = currentDocumentModel
-        // realtime-allow-midi-host: document-apply path flushes MIDI note-offs for detached destinations; `now` is the MIDI wall-clock host time (not on the unified clock until Phase 3), never an audio sounding frame (Rule 1). Test: RealtimePathLintTests.
+        // realtime-allow-midi-host: document-apply path flushes MIDI note-offs for detached destinations; `now` is a control-path wall-clock host time (off the sounding path; the SOUNDING MIDI stamp is on AudioMasterClock since Phase 3), never an audio sounding frame (Rule 1). Test: RealtimePathLintTests.
         flushDetachedMIDINoteOffs(from: previousDocumentModel, to: documentModel, now: ProcessInfo.processInfo.systemUptime)
         let deltas = documentModel.deltas(from: previousDocumentModel)
         currentDocumentModel = documentModel
@@ -2052,7 +2052,23 @@ final class EngineController: RouterDispatcher {
             capturableNotesByBlockID[generatorBlockID] = noteEvents
             preparedNotesByBlockID[generatorBlockID] = activeNoteRepeatTrackIDs.contains(track.id) ? [] : noteEvents
         }
-        let outputs = executor.tick(now: now, preparedNotesByBlockID: preparedNotesByBlockID)
+        // Per-track direct MIDI-out blocks emit inside `executor.tick` and stamp
+        // their `MIDITimeStamp` from `TickContext.now`. Phase 3: supply the
+        // unified-clock host time for this step (render-origin host time + the
+        // step's musical offset) instead of the pump wall-clock `now`, so a
+        // direct-MIDI track shares the audio sinks' timeline (origin-anchored,
+        // jitter-free). `resolveNow` is evaluated AFTER the executor drains
+        // `setBPM`, so the step's musical offset uses the post-drain BPM with no
+        // one-tick lag; `advance` is idempotent, so the later
+        // `eventScheduledHostTime` advance for the same step returns this value.
+        let outputs = executor.tick(
+            now: now,
+            preparedNotesByBlockID: preparedNotesByBlockID,
+            resolveNow: { [audioMasterClock] bpm in
+                let musicalSeconds = audioMasterClock.advance(toStep: upcomingStep, bpm: bpm)
+                return audioMasterClock.hostSeconds(atMusicalSeconds: musicalSeconds)
+            }
+        )
         recordPreparedNoteRepeatCaptures(
             stepIndex: upcomingStep,
             generatorIDsByTrackID: generatorIDs,
@@ -2069,12 +2085,21 @@ final class EngineController: RouterDispatcher {
             toStep: upcomingStep,
             bpm: newCurrentBPM
         )
-        // Wall-clock host time for the MIDI-out / router path ONLY. MidiOut
-        // stamps a MIDITimeStamp from this `now` (AudioConvertNanosToHostTime),
-        // so it must stay a real future host time, NOT the audio clock's
-        // musical-seconds value (which would resolve to ~boot time → "fire
-        // now"). Pointing MIDI-out at the unified clock's hostTime is Phase 3
-        // (explicitly out of scope here); this preserves existing MIDI timing.
+        // Phase 3: the SOUNDING MIDI-out stamp now derives from the unified
+        // AudioMasterClock — the render-origin host time plus this step's
+        // musical offset — so external gear shares the audio sinks' timeline
+        // (origin-anchored, jitter-free under pump wake jitter) instead of the
+        // old pump wall-clock `now + stepDuration`. `eventScheduledHostTime` is
+        // the step's MUSICAL seconds; `hostSeconds(atMusicalSeconds:)` adds the
+        // captured render origin to make it a real future host time a
+        // `MIDITimeStamp` can carry.
+        let midiScheduledHostSeconds = audioMasterClock.hostSeconds(
+            atMusicalSeconds: eventScheduledHostTime
+        )
+        // Wall-clock host time retained for the control-path note-off flush
+        // (repeat/cleanup teardown), which is off the sounding path and has no
+        // musical position to anchor against.
+        // realtime-allow-midi-host: control-path note-off flush fallback only (repeat/cleanup teardown); the SOUNDING MIDI-out stamp uses `midiScheduledHostSeconds` from AudioMasterClock (Rule 1) — this `now + stepDuration` never reaches a sounding MIDITimeStamp. Test: RealtimePathLintTests.
         let routerScheduledHostTime = now + stepDurationSeconds(bpm: newCurrentBPM)
         let completedStep = upcomingStep == 0 ? 0 : upcomingStep &- 1
         // Written here on the tick queue so cross-thread readers
@@ -2183,12 +2208,22 @@ final class EngineController: RouterDispatcher {
             }
         }
 
-        // Two units, threaded separately on purpose: `routerScheduledHostTime`
-        // (wall-clock) drives the MIDI-out MIDITimeStamp path; `eventScheduledHostTime`
-        // (unified-clock MUSICAL seconds) drives the routed-AUDIO path so routed
-        // slicer/AU share the own-pattern audio stamp's units (Defect-1 fix:
-        // routed audio must NOT carry wall-clock seconds into scheduledAudioTime).
-        routerDispatch.beginTick(now: routerScheduledHostTime, musicalSeconds: eventScheduledHostTime)
+        // Three units, threaded separately on purpose:
+        //  - `midiScheduledHostSeconds` (unified-clock HOST time) drives the
+        //    SOUNDING MIDI-out MIDITimeStamp path (Phase 3 — shares the audio
+        //    timeline);
+        //  - `eventScheduledHostTime` (unified-clock MUSICAL seconds) drives the
+        //    routed-AUDIO path so routed slicer/AU share the own-pattern audio
+        //    stamp's units and land on the same frame (zero flam);
+        //  - `routerScheduledHostTime` (wall-clock) is the control-path note-off
+        //    flush fallback only (off the sounding path).
+        // The musical-seconds value must never reach a MIDITimeStamp, and the
+        // host-time values must never reach the `scheduledAudioTime(for:)` audio seam.
+        routerDispatch.beginTick(
+            now: routerScheduledHostTime,
+            musicalSeconds: eventScheduledHostTime,
+            midiHostSeconds: midiScheduledHostSeconds
+        )
         // Phase 1b: iterate snapshot-carried tracks, not currentDocumentModel.tracks.
         let trackInputs = playbackSnapshot.tracks.compactMap { track -> RouterTickInput? in
             guard !effectiveMutedTrackIDs.contains(track.id),
@@ -2500,7 +2535,9 @@ final class EngineController: RouterDispatcher {
                     tickIndex: tickState.currentClockThreadTickIndex(),
                     bpm: bpm,
                     inputs: ["notes": .notes(notes)],
-                    now: routerDispatch.dispatchNow,
+                    // Phase 3: the sounding MIDI stamp is the unified clock's
+                    // host time for this step, not the pump wall-clock `now`.
+                    now: routerDispatch.dispatchMIDIHostSeconds,
                     preparedNotesByBlockID: [:]
                 )
             )

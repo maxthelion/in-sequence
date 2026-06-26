@@ -14,7 +14,7 @@ extension EngineController {
             return
         }
 
-        // realtime-allow-midi-host: engage gesture; `now` stamps MIDI note-off flush during cleanup (wall-clock host time, not on the unified clock until Phase 3), never an audio sounding frame (Rule 1). Test: RealtimePathLintTests.
+        // realtime-allow-midi-host: engage gesture; `now` stamps a control-path MIDI note-off flush during cleanup (wall-clock host time — off the sounding path, no musical position to anchor; the SOUNDING MIDI stamp is on AudioMasterClock since Phase 3), never an audio sounding frame (Rule 1). Test: RealtimePathLintTests.
         cleanupNoteRepeats(for: [trackID], now: ProcessInfo.processInfo.systemUptime, clearActiveState: true)
         withStateLock {
             activeNoteRepeatsByTrackID[trackID] = ActiveNoteRepeatRuntime(
@@ -29,7 +29,7 @@ extension EngineController {
     }
 
     func releaseNoteRepeat(trackID: UUID) {
-        // realtime-allow-midi-host: release gesture; `now` stamps MIDI note-off flush during cleanup (wall-clock host time, not on the unified clock until Phase 3), never an audio sounding frame (Rule 1). Test: RealtimePathLintTests.
+        // realtime-allow-midi-host: release gesture; `now` stamps a control-path MIDI note-off flush during cleanup (wall-clock host time — off the sounding path, no musical position to anchor; the SOUNDING MIDI stamp is on AudioMasterClock since Phase 3), never an audio sounding frame (Rule 1). Test: RealtimePathLintTests.
         cleanupNoteRepeats(for: [trackID], now: ProcessInfo.processInfo.systemUptime, clearActiveState: true)
         invalidatePreparedNoteRepeatScheduling()
     }
@@ -54,7 +54,7 @@ extension EngineController {
         withStateLock { Set(activeNoteRepeatsByTrackID.keys) }
     }
 
-    // realtime-allow-midi-host: default `now` for note-off flush during repeat cleanup (wall-clock host time, not on the unified clock until Phase 3); callers on the sounding path pass an explicit time and the audio frame is stamped in AudioMasterClock (Rule 1). Test: RealtimePathLintTests.
+    // realtime-allow-midi-host: default `now` for the control-path note-off flush during repeat cleanup (wall-clock host time — off the sounding path; the SOUNDING MIDI stamp is on AudioMasterClock since Phase 3, and the audio frame is stamped in AudioMasterClock). Test: RealtimePathLintTests.
     func clearAllNoteRepeats(now: TimeInterval = ProcessInfo.processInfo.systemUptime) {
         let trackIDs = withStateLock { Set(activeNoteRepeatsByTrackID.keys) }
         cleanupNoteRepeats(for: trackIDs, now: now, clearActiveState: true)
@@ -110,11 +110,12 @@ extension EngineController {
         }
 
         let secondsPerStep = Self.secondsPerStep(bpm: bpm, stepsPerBar: stepsPerBar)
-        // Musical-position anchor for the AUDIO sub-step stamps (Rule 1): the
-        // cumulative musical seconds of this tick from the unified clock,
-        // independent of the pump's wake `now`. `anchorHostTime` (wall clock)
-        // stays the anchor for the MIDI/router path and note-activity UI, whose
-        // timestamps are not yet on the unified clock (Phase 3).
+        // Musical-position anchor for the AUDIO and (since Phase 3) MIDI sub-step
+        // stamps (Rule 1): the cumulative musical seconds of this tick from the
+        // unified clock, independent of the pump's wake `now`. Each sub-step's
+        // MIDI host time is derived from this via `hostSeconds(atMusicalSeconds:)`
+        // in `dispatchNoteRepeatOutput`. `anchorHostTime` (wall clock) now only
+        // anchors the control-path note-off flush fallback and note-activity UI.
         let anchorMusicalSeconds = audioMasterClock.musicalSeconds(forStep: anchorTickIndex)
             ?? audioMasterClock.advance(toStep: anchorTickIndex, bpm: bpm)
         var noteActivityCount = 0
@@ -189,6 +190,13 @@ extension EngineController {
         effectiveMutedTrackIDs: Set<UUID>
     ) {
         let resolved = snapshot.resolvedDestination(for: track.id)
+        // Phase 3: the sub-step's SOUNDING MIDI host time on the unified clock
+        // (render-origin host time + the sub-step's musical offset), so a
+        // repeated MIDI note shares the audio sinks' timeline. `scheduledHostTime`
+        // (wall clock) is no longer the MIDI stamp source.
+        let scheduledMIDIHostSeconds = audioMasterClock.hostSeconds(
+            atMusicalSeconds: scheduledMusicalSeconds
+        )
         switch resolved.destination {
         case let .midi(port, channel, noteOffset):
             guard port != nil,
@@ -203,7 +211,7 @@ extension EngineController {
                     tickIndex: anchorTickIndex,
                     bpm: bpm,
                     inputs: ["notes": .notes(notes)],
-                    now: scheduledHostTime,
+                    now: scheduledMIDIHostSeconds,
                     preparedNotesByBlockID: [:]
                 )
             )
@@ -264,13 +272,19 @@ extension EngineController {
             break
         }
 
-        // Routed note-repeat output: `scheduledHostTime` (wall clock) drives the
-        // MIDI-out timestamp path; `scheduledMusicalSeconds` (unified-clock sub-
-        // step musical seconds) drives the routed-AUDIO path, matching the
-        // own-pattern note-repeat audio stamps enqueued above (Defect-1 fix:
-        // routed-note-repeat audio must not carry wall-clock seconds into
-        // scheduledAudioTime).
-        routerDispatch.beginTick(now: scheduledHostTime, musicalSeconds: scheduledMusicalSeconds)
+        // Routed note-repeat output (Phase 3 / Defect-1):
+        //  - `scheduledMIDIHostSeconds` (unified-clock HOST time) drives the
+        //    SOUNDING routed MIDI-out timestamp;
+        //  - `scheduledMusicalSeconds` (unified-clock sub-step musical seconds)
+        //    drives the routed-AUDIO path, matching the own-pattern note-repeat
+        //    audio stamps enqueued above;
+        //  - `scheduledHostTime` (wall clock) stays the control-path note-off
+        //    flush fallback only.
+        routerDispatch.beginTick(
+            now: scheduledHostTime,
+            musicalSeconds: scheduledMusicalSeconds,
+            midiHostSeconds: scheduledMIDIHostSeconds
+        )
         router.tick([RouterTickInput(sourceTrack: track.id, notes: notes, chordContext: nil)])
         flushRoutedEvents(
             bpm: bpm,
@@ -397,7 +411,7 @@ extension EngineController {
         if !unsupportedTrackIDs.isEmpty {
             cleanupNoteRepeats(
                 for: unsupportedTrackIDs,
-                // realtime-allow-midi-host: reconcile drops repeats whose source no longer supports them; `now` stamps MIDI note-off flush during cleanup (wall-clock host time, not on the unified clock until Phase 3), never an audio sounding frame (Rule 1). Test: RealtimePathLintTests.
+                // realtime-allow-midi-host: reconcile drops repeats whose source no longer supports them; `now` stamps a control-path MIDI note-off flush during cleanup (wall-clock host time — off the sounding path; the SOUNDING MIDI stamp is on AudioMasterClock since Phase 3), never an audio sounding frame (Rule 1). Test: RealtimePathLintTests.
                 now: ProcessInfo.processInfo.systemUptime,
                 clearActiveState: true
             )

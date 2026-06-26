@@ -200,7 +200,9 @@ final class AudioMasterClock {
     /// Host-time (seconds) an event at `musicalSeconds` should sound: the render
     /// origin's host time plus the musical offset. Monotonic and independent of
     /// pump jitter (the origin is captured once at start; later wakes do not
-    /// move it).
+    /// move it). Phase 3: this is the MIDI-out timestamp source — `MidiOut`
+    /// converts the returned seconds to a mach `MIDITimeStamp`, so external gear
+    /// shares the audio sinks' timeline.
     func hostSeconds(atMusicalSeconds musicalSeconds: TimeInterval) -> TimeInterval {
         refreshOriginIfAvailable()
         let origin = hasOrigin ? originHostSeconds : 0
@@ -211,9 +213,12 @@ final class AudioMasterClock {
     /// AUDIO sink (`AVAudioPlayerNode.scheduleSegment/Buffer(at:)`) schedules
     /// against host time, which the engine correlates to its render clock; the
     /// frame is anchored to the render-derived origin and the event's musical
-    /// position, so pump jitter never moves the sounding time (Rule 1). MIDI-out
-    /// is NOT on this clock yet (Phase 3) — it keeps its own host-time path and
-    /// must never be stamped from this converter.
+    /// position, so pump jitter never moves the sounding time (Rule 1).
+    /// MIDI-out (Phase 3) is now ALSO on this clock: it derives its
+    /// `MIDITimeStamp` from `hostSeconds(atMusicalSeconds:)` (same origin + the
+    /// step's musical offset), so external gear shares this timeline. MIDI uses
+    /// the host-SECONDS converter (it builds its own mach `MIDITimeStamp`), not
+    /// this `AVAudioTime` builder.
     func audioTime(atMusicalSeconds musicalSeconds: TimeInterval) -> AVAudioTime {
         AVAudioTime(hostTime: AVAudioTime.hostTime(forSeconds: max(0, hostSeconds(atMusicalSeconds: musicalSeconds))))
     }

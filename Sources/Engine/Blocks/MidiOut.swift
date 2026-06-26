@@ -17,6 +17,15 @@ final class MidiOut: Block {
     private var noteOffset: Int
     private var pendingNoteOffs: [UInt64: [UInt8]] = [:]
 
+    /// Per-port hardware-calibration output offset, in SECONDS, ADDED to every
+    /// MIDI timestamp before send (note-on and note-off). Plumbed for Phase 3:
+    /// a human can later dial in the constant latency of a specific external
+    /// instrument/interface so its notes line up acoustically with the audio
+    /// sinks. PLUMB-ONLY — default 0, never auto-detected/tuned here. Read it
+    /// back via `outputOffsetSeconds` for tests. Threading: set/read on the
+    /// tick queue (same as `channel`/`noteOffset`).
+    private(set) var outputOffsetSeconds: TimeInterval = 0
+
     init(
         id: BlockID,
         params: [String: ParamValue] = [:],
@@ -40,7 +49,7 @@ final class MidiOut: Block {
         }
 
         var builder = MIDIPacketBuilder()
-        let timestamp = Self.timestamp(from: context.now)
+        let timestamp = Self.timestamp(from: context.now, offsetSeconds: outputOffsetSeconds)
 
         if let dueNoteOffs = pendingNoteOffs.removeValue(forKey: context.tickIndex) {
             for pitch in dueNoteOffs {
@@ -82,9 +91,20 @@ final class MidiOut: Block {
             self.channel = channel
         case let ("noteOffset", .number(nextOffset)):
             noteOffset = Int(nextOffset.rounded())
+        case let ("outputOffsetSeconds", .number(nextOffset)):
+            setOutputOffsetSeconds(nextOffset)
         default:
             return
         }
+    }
+
+    /// Set the per-port hardware-calibration output offset (seconds). PLUMB-ONLY
+    /// config seam — a future calibration UI/config writes here; the engine
+    /// never auto-tunes it. Negative values are clamped to 0 (a port cannot be
+    /// asked to send before the scheduled musical time; only positive latency
+    /// compensation — pushing a note later — is meaningful here).
+    func setOutputOffsetSeconds(_ seconds: TimeInterval) {
+        outputOffsetSeconds = max(0, seconds)
     }
 
     func flushPendingNoteOffs(now: TimeInterval) {
@@ -103,7 +123,7 @@ final class MidiOut: Block {
         }
 
         var builder = MIDIPacketBuilder()
-        let timestamp = Self.timestamp(from: now)
+        let timestamp = Self.timestamp(from: now, offsetSeconds: outputOffsetSeconds)
         for pitch in noteOffs {
             builder.addNoteOff(channel: channel, pitch: pitch, timestamp: timestamp)
         }
@@ -129,7 +149,20 @@ final class MidiOut: Block {
         UInt8(min(max(Int(pitch) + noteOffset, 0), 127))
     }
 
-    private static func timestamp(from now: TimeInterval) -> MIDITimeStamp {
-        AudioConvertNanosToHostTime(UInt64((max(0, now) * 1_000_000_000).rounded()))
+    /// Build the `MIDITimeStamp` (mach host-time units) for a send.
+    ///
+    /// `now` is a HOST-TIME seconds value that, since Phase 3, is derived from
+    /// the unified `AudioMasterClock` (`hostSeconds(atMusicalSeconds:)`): the
+    /// render-origin host time plus the event's musical offset. That makes the
+    /// MIDI stamp share the audio sinks' timeline — origin-anchored and
+    /// jitter-free under pump wake jitter — instead of the old pump wall-clock
+    /// `now + stepDuration`. The per-port `offsetSeconds` is ADDED here so a
+    /// human can calibrate a specific port's hardware latency (default 0).
+    private static func timestamp(
+        from now: TimeInterval,
+        offsetSeconds: TimeInterval
+    ) -> MIDITimeStamp {
+        let seconds = max(0, now + offsetSeconds)
+        return AudioConvertNanosToHostTime(UInt64((seconds * 1_000_000_000).rounded()))
     }
 }
