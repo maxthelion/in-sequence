@@ -8,14 +8,20 @@ struct AUPresetRowView: View {
     var body: some View {
         Button(action: onTap) {
             HStack(spacing: 10) {
-                Image(systemName: isLoaded ? "star.fill" : "star")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(isLoaded ? StudioTheme.amber : StudioTheme.mutedText.opacity(0.4))
+                // The loaded preset is marked with a checkmark (the conventional
+                // "currently selected" affordance). A star previously stood in for
+                // this, but a star reads as "favourite", not "current", which made
+                // the picker confusing. Unselected rows reserve the same width so
+                // the names stay aligned.
+                Image(systemName: "checkmark")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(StudioTheme.cyan)
                     .frame(width: 16)
+                    .opacity(isLoaded ? 1 : 0)
 
                 Text(descriptor.name)
                     .studioText(.body)
-                    .foregroundStyle(StudioTheme.text)
+                    .foregroundStyle(isLoaded ? StudioTheme.text : StudioTheme.text.opacity(0.85))
 
                 Spacer()
             }

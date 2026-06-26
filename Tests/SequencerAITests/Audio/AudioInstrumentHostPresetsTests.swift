@@ -174,6 +174,84 @@ final class AudioInstrumentHostPresetsTests: XCTestCase {
         XCTAssertIdentical(resolvedSecond, lead2)
     }
 
+    // MARK: – Program-change bytes (the immediate-switch fix)
+
+    // A few AUs (Arturia Analog Lab V et al.) vend factory presets that are really
+    // MIDI program-change SLOTS named literally "ProgramChangeN"; those only switch
+    // their live patch on a real MIDI Program Change, not on a bare `currentPreset =`.
+    // `loadPreset` sends these bytes via the AU's `scheduleMIDIEventBlock` so such a
+    // selection switches the patch immediately. The byte layout is the load-bearing
+    // part of that fix.
+
+    func test_programChangeBytes_uses_status_C0_on_channel_0() {
+        let bytes = AudioInstrumentHost.programChangeBytes(programNumber: 0)
+        XCTAssertEqual(bytes.count, 2, "Program Change is a 2-byte MIDI message")
+        XCTAssertEqual(bytes[0], 0xC0, "Status nibble must be Program Change (0xC0) on channel 0")
+    }
+
+    func test_programChangeBytes_carries_the_program_number() {
+        XCTAssertEqual(AudioInstrumentHost.programChangeBytes(programNumber: 11), [0xC0, 11])
+        XCTAssertEqual(AudioInstrumentHost.programChangeBytes(programNumber: 42), [0xC0, 42])
+    }
+
+    func test_programChangeBytes_clamps_into_legal_0_127_data_range() {
+        XCTAssertEqual(AudioInstrumentHost.programChangeBytes(programNumber: 127), [0xC0, 127])
+        XCTAssertEqual(AudioInstrumentHost.programChangeBytes(programNumber: 200), [0xC0, 127],
+                       "Program number above 127 must clamp to the MIDI data ceiling")
+        XCTAssertEqual(AudioInstrumentHost.programChangeBytes(programNumber: -3), [0xC0, 0],
+                       "Negative program numbers must clamp to 0")
+    }
+
+    // MARK: – ProgramChange name parser / gate decision (the regression guard)
+
+    // The fix is SAFE-BY-CONSTRUCTION: a Program Change is sent ONLY when the
+    // factory preset's NAME matches "ProgramChangeN", and the program number is
+    // derived from N in the name (the AU's declared program), not from the array
+    // index. These tests pin BOTH halves: that quirk slots ARE recognised (with
+    // the name-derived number) and — the key regression guard — that NORMAL AU
+    // factory preset names are NOT, so a normal AU is never program-changed.
+
+    func test_programNumberFromPresetName_parses_trailing_integer() {
+        XCTAssertEqual(AudioInstrumentHost.programNumberFromPresetName("ProgramChange7"), 7)
+        XCTAssertEqual(AudioInstrumentHost.programNumberFromPresetName("ProgramChange0"), 0)
+        XCTAssertEqual(AudioInstrumentHost.programNumberFromPresetName("ProgramChange128"), 128,
+                       "Parser returns the raw declared number; clamping is programChangeBytes' job")
+    }
+
+    func test_programNumberFromPresetName_is_case_insensitive() {
+        XCTAssertEqual(AudioInstrumentHost.programNumberFromPresetName("programchange7"), 7)
+        XCTAssertEqual(AudioInstrumentHost.programNumberFromPresetName("PROGRAMCHANGE7"), 7)
+        XCTAssertEqual(AudioInstrumentHost.programNumberFromPresetName("ProGramChAnge7"), 7)
+    }
+
+    func test_programNumberFromPresetName_tolerates_whitespace() {
+        XCTAssertEqual(AudioInstrumentHost.programNumberFromPresetName("  ProgramChange7  "), 7)
+        XCTAssertEqual(AudioInstrumentHost.programNumberFromPresetName("ProgramChange 7"), 7)
+        XCTAssertEqual(AudioInstrumentHost.programNumberFromPresetName("\tProgramChange\t12\t"), 12)
+    }
+
+    func test_programNumberFromPresetName_returns_nil_for_normal_preset_names() {
+        // The key regression guard: a normal AU's factory presets must NOT match,
+        // so no Program Change is sent and `currentPreset =` stays authoritative.
+        XCTAssertNil(AudioInstrumentHost.programNumberFromPresetName("Warm Pad"))
+        XCTAssertNil(AudioInstrumentHost.programNumberFromPresetName("Bright Lead"))
+        XCTAssertNil(AudioInstrumentHost.programNumberFromPresetName("Bass 3"))
+        XCTAssertNil(AudioInstrumentHost.programNumberFromPresetName("Init"))
+        XCTAssertNil(AudioInstrumentHost.programNumberFromPresetName("Mega Bass"))
+    }
+
+    func test_programNumberFromPresetName_returns_nil_for_near_miss_names() {
+        XCTAssertNil(AudioInstrumentHost.programNumberFromPresetName("Program Bank"),
+                     "Must be the literal token 'ProgramChange', not just 'Program'")
+        XCTAssertNil(AudioInstrumentHost.programNumberFromPresetName("ProgramChange"),
+                     "No trailing number means no derivable program — must not match")
+        XCTAssertNil(AudioInstrumentHost.programNumberFromPresetName("ProgramChange7a"),
+                     "Trailing non-digit must not match (anchored regex)")
+        XCTAssertNil(AudioInstrumentHost.programNumberFromPresetName("MyProgramChange7"),
+                     "Leading text must not match (anchored regex)")
+        XCTAssertNil(AudioInstrumentHost.programNumberFromPresetName(""))
+    }
+
     // MARK: – Host no-AU edge cases
 
     func test_host_presetReadout_returns_nil_when_no_AU_loaded() {

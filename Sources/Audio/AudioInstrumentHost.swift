@@ -486,7 +486,66 @@ final class AudioInstrumentHost: TrackPlaybackSink {
         auMutationLock.lock()
         defer { auMutationLock.unlock() }
         au.currentPreset = preset
+
+        // SAFE-BY-CONSTRUCTION program-change quirk handling.
+        //
+        // A few AUs (Arturia Analog Lab V et al.) vend factory presets that are
+        // really MIDI program-change SLOTS, named literally "ProgramChange1",
+        // "ProgramChange2", … . On those AUs `currentPreset =` alone does NOT
+        // audibly switch the patch (this bug) — the patch only switches on a real
+        // MIDI Program Change. So ONLY for a factory preset whose NAME matches the
+        // "ProgramChangeN" pattern do we send a real Program Change, and we derive
+        // the program number from the NAME (the AU's own declared program), NOT
+        // from `preset.number` (which is merely the factory-presets array index and
+        // would clamp/collide).
+        //
+        // A normal AU's factory presets ("Warm Pad", "Bright Lead") do NOT match
+        // the pattern, so NO Program Change is sent and the common case — where
+        // `currentPreset =` is authoritative — cannot regress (no double-switch).
+        // User presets are real saved AU states and never get a Program Change.
+        if descriptor.kind == .factory,
+           let scheduleMIDI = au.scheduleMIDIEventBlock,
+           let programNumber = Self.programNumberFromPresetName(preset.name) {
+            let bytes = Self.programChangeBytes(programNumber: programNumber)
+            bytes.withUnsafeBufferPointer { buffer in
+                scheduleMIDI(
+                    AUEventSampleTime(AUEventSampleTimeImmediate),
+                    0,
+                    buffer.count,
+                    buffer.baseAddress!
+                )
+            }
+        }
+
         return try factory.captureState(instrument)
+    }
+
+    /// MIDI Program Change bytes on channel 0 (status `0xC0`) for a program number,
+    /// clamped to the legal 0...127 data range.
+    static func programChangeBytes(programNumber: Int) -> [UInt8] {
+        let program = UInt8(max(0, min(127, programNumber)))
+        return [0xC0, program]
+    }
+
+    /// Parses the trailing integer N from a "ProgramChangeN" factory-preset name
+    /// (e.g. Arturia Analog Lab V's program-change slots), case-insensitive and
+    /// tolerant of surrounding/interstitial whitespace: `^\s*ProgramChange\s*\d+\s*$`.
+    ///
+    /// Returns N — the AU's own declared program number — for a matching name, or
+    /// `nil` for any other name. A `nil` result means "this is a normal preset; do
+    /// NOT send a Program Change", which is the key regression guard that keeps the
+    /// common AU case (real parameter-state presets) on the `currentPreset =` path.
+    static func programNumberFromPresetName(_ name: String) -> Int? {
+        let pattern = #"^\s*ProgramChange\s*(\d+)\s*$"#
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else {
+            return nil
+        }
+        let range = NSRange(name.startIndex..<name.endIndex, in: name)
+        guard let match = regex.firstMatch(in: name, options: [], range: range),
+              let digitsRange = Range(match.range(at: 1), in: name) else {
+            return nil
+        }
+        return Int(name[digitsRange])
     }
 
     func play(noteEvents: [NoteEvent], bpm: Double, stepsPerBar: Int) {
