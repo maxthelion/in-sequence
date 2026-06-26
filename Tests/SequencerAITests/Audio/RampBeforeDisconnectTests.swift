@@ -126,6 +126,88 @@ final class RampBeforeDisconnectTests: XCTestCase {
         graph.stop()
     }
 
+    /// Regression for the intermittent route-to-master / drum-part-add silence
+    /// (docs/bugs/20260626-route-to-master-intermittent-silence): when two
+    /// ramp-to-silence cycles overlap on the SAME gain stage (a second routing
+    /// splice arriving while the first's ~12 ms dip is still in flight), the
+    /// second cycle used to capture the first's MID-DIP `outputVolume` as its
+    /// "restore" level and ramp back to that near-zero transient — leaving the
+    /// track stuck silent. The fix captures the restore level from the ramp's
+    /// recorded SETTLED target, not the live volume, so the node always returns
+    /// to its true rest level regardless of interleaving.
+    @MainActor
+    func test_overlappingRoutingSplices_restoreToTrueLevel_notMidDipTransient() throws {
+        MainAudioGraph.useManualRenderingForAutomation = true
+        defer { MainAudioGraph.useManualRenderingForAutomation = false }
+
+        let graph = MainAudioGraph()
+        // Send buses must exist so the track routes its dry signal THROUGH its
+        // persistent fanout — the exact gain stage the route-to-master rebuild
+        // ramps to silence.
+        graph.installSendBuses([.sendA, .sendB])
+        let busID = UUID()
+        graph.installMixerBuses([MixerBus(id: busID, name: "FX")])
+
+        // A non-mixer source (track filter terminal) → its gain stage is the
+        // fanout, not the source itself.
+        let source = SamplerFilterNode().avNode
+        graph.attach(source)
+
+        // First splice while STOPPED — synchronous; this creates the persistent
+        // fanout (rest level 1.0) and records its settled target.
+        graph.connectTrackOutput(source, to: nil)
+        let fanout = try XCTUnwrap(graph.trackGainStageForTesting(source))
+        XCTAssertEqual(fanout.outputVolume, 1.0, accuracy: 0.001)
+
+        // Go live so the splices below take the ramp-to-silence (dip) path.
+        try graph.start()
+
+        // Splice #1 kicks a ~12 ms down-ramp dip on the fanout (on MixerGainRamp's
+        // background queue). Wait until the dip is genuinely IN FLIGHT (the live
+        // outputVolume has fallen well below the rest level) — this is the exact
+        // window in which a second routing splice arrives in the real bug.
+        graph.connectTrackOutput(source, to: busID)
+        let dipping = expectation(description: "fanout dip is in flight (volume below rest level)")
+        let dipDeadline = Date().addingTimeInterval(1.0)
+        func awaitDip() {
+            if fanout.outputVolume < 0.7 {
+                dipping.fulfill()
+                return
+            }
+            if Date() > dipDeadline { return }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.001) { awaitDip() }
+        }
+        awaitDip()
+        wait(for: [dipping], timeout: 2.0)
+
+        // Splice #2 arrives mid-dip. With the OLD code it captured the fanout's
+        // mid-dip outputVolume (< 0.7) as its restore level and ramped "back" to
+        // that transient — leaving the track quiet/silent. With the fix it reads
+        // the recorded SETTLED level (1.0) instead.
+        graph.connectTrackOutput(source, to: nil)
+
+        // After both dips and the up-ramp settle, the fanout must be back at its
+        // true rest level (1.0), not stuck at a mid-dip transient.
+        let restored = expectation(description: "fanout restores to rest level after overlapping splices")
+        let deadline = Date().addingTimeInterval(3.0)
+        func poll() {
+            if fanout.outputVolume > 0.95 {
+                restored.fulfill()
+                return
+            }
+            if Date() > deadline { return }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.01) { poll() }
+        }
+        poll()
+        wait(for: [restored], timeout: 4.0)
+        XCTAssertGreaterThan(
+            fanout.outputVolume, 0.95,
+            "overlapping routing splices must restore the gain stage to its true rest level, not a mid-dip transient"
+        )
+
+        graph.stop()
+    }
+
     /// A SOUNDING sample track's teardown (`removeTrack`) must ramp its output
     /// chokepoint to silence BEFORE detaching the node — never hard-cut a
     /// sounding node (Hard Rule 5). Regression for the 2026-06-26 adversarial

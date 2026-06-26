@@ -232,6 +232,18 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
     private var trackSendLevels: [UUID: MainAudioGraph.TrackSendLevels] = [:]
     private var fastPathReadyTrackIDs: Set<UUID> = []
     private var deferredPreparedTrackRepairIDs: Set<UUID> = []
+    /// Per-track count of how many times the bounded last-resort self-heal
+    /// backstop (`deferPreparedTrackRepair` → `repairDeferredPreparedTrackIfNeeded`)
+    /// has fired for the track's CURRENT deferral episode. Reset to 0 whenever a
+    /// track is successfully (re)published fast-path-ready (a healthy prepare /
+    /// repair / route), so a normal track never accumulates. Capped at
+    /// `maxDeferredRepairAttempts`: a genuinely-unconnectable track logs once and
+    /// STOPS scheduling heals so it can never oscillate and pin the main thread.
+    private var deferredPreparedTrackRepairAttempts: [UUID: Int] = [:]
+    /// Hard cap on the bounded self-heal backstop (see
+    /// `deferredPreparedTrackRepairAttempts`). After the gate fix the steady
+    /// state is ~0 defers, so this only ever trips for a genuinely-broken track.
+    private static let maxDeferredRepairAttempts = 3
     /// Per-track, per-kind voice params. Applied at voice scheduling time (next trigger).
     private var voiceParams: [UUID: [BuiltinMacroKind: Double]] = [:]
     #if DEBUG
@@ -310,19 +322,19 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
 
             if let busID, audioGraph.mixerBusReadoutForTesting(busID: busID) != nil {
                 prepareBusVoicePool(trackID: trackID, busID: busID)
-                withLifecycleLock {
-                    _ = fastPathReadyTrackIDs.insert(trackID)
-                    _ = deferredPreparedTrackRepairIDs.remove(trackID)
+                // Fast-path gate: publish only after the bus chain is validated.
+                if let pool = withLifecycleLock({ busVoicePools[trackID] }) {
+                    publishBusTrackFastPathIfConnected(trackID: trackID, busID: busID, pool: pool)
                 }
                 return
             }
             if let existingPool {
                 if !isPreparedTrackPoolReadyForPlayback(trackID: trackID, pool: existingPool) {
+                    // repairPreparedTrackGraph republishes through the gate itself.
                     repairPreparedTrackGraph(trackID: trackID, pool: existingPool)
-                }
-                withLifecycleLock {
-                    _ = fastPathReadyTrackIDs.insert(trackID)
-                    _ = deferredPreparedTrackRepairIDs.remove(trackID)
+                } else {
+                    // Already fully connected — publish through the gate.
+                    publishPreparedTrackFastPathIfConnected(trackID: trackID, pool: existingPool)
                 }
                 return
             }
@@ -353,11 +365,9 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
             withLifecycleLock {
                 trackVoicePools[trackID] = pool
             }
+            // repairPreparedTrackGraph wires the chain and republishes through the
+            // fast-path gate (validated-connected) itself.
             repairPreparedTrackGraph(trackID: trackID, pool: pool)
-            withLifecycleLock {
-                _ = fastPathReadyTrackIDs.insert(trackID)
-                _ = deferredPreparedTrackRepairIDs.remove(trackID)
-            }
         }
     }
 
@@ -873,14 +883,22 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
             let useBus = busID != nil && audioGraph.mixerBusReadoutForTesting(busID: busID!) != nil
             let branch: Branch = withLifecycleLock {
                 trackOutputBusIDs[trackID] = busID
+                // Fast-path GATE: drop the track from fast-path-ready BEFORE the
+                // teardown/disconnect/reconnect window of EVERY rebuild branch, so
+                // a concurrent tick-thread `play()` can never select a voice while
+                // its output chain is mid-rebuild. Each branch re-publishes only
+                // after validating the new connection (publish*FastPathIfConnected).
                 if useBus, let busID {
+                    _ = fastPathReadyTrackIDs.remove(trackID)
                     return .prepareBus(busID)
                 } else if let pool = busVoicePools.removeValue(forKey: trackID) {
                     _ = fastPathReadyTrackIDs.remove(trackID)
                     return .teardownBus(pool)
                 } else if let pool = trackVoicePools[trackID] {
+                    _ = fastPathReadyTrackIDs.remove(trackID)
                     return .repairTrack(pool)
                 } else if let filter = trackFilters[trackID] {
+                    _ = fastPathReadyTrackIDs.remove(trackID)
                     return .wireFilterOutput(filter, busID, trackSendLevels[trackID] ?? .zero)
                 }
                 return .none
@@ -889,6 +907,9 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
             switch branch {
             case let .prepareBus(busID):
                 prepareBusVoicePool(trackID: trackID, busID: busID)
+                if let pool = withLifecycleLock({ busVoicePools[trackID] }) {
+                    publishBusTrackFastPathIfConnected(trackID: trackID, busID: busID, pool: pool)
+                }
             case let .teardownBus(pool):
                 // Routing a bus-routed track back to master: tear down the bus
                 // voice pool, then re-establish the track's MASTER voice pool so
@@ -899,19 +920,23 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
                 // under the lock, mutates after — same leaf-lock invariant), and
                 // because `trackOutputBusIDs[trackID]` was just set to nil above,
                 // it rebuilds the prepared master pool rather than a bus pool.
+                // `prepareTrack` republishes fast-path through the gate itself.
+                DevActivity.trace(DevActivity.audioGraph, "route-to-master teardownBus start track=\(trackID.uuidString)")
                 teardownBusVoicePool(pool)
                 prepareTrack(trackID: trackID)
+                DevActivity.trace(DevActivity.audioGraph, "route-to-master teardownBus done track=\(trackID.uuidString)")
             case let .repairTrack(pool):
+                // repairPreparedTrackGraph republishes through the gate itself.
                 repairPreparedTrackGraph(trackID: trackID, pool: pool)
             case let .wireFilterOutput(filter, busID, sends):
                 audioGraph.connectTrackOutput(filter.avNode, to: busID, sends: sends)
+                if let pool = withLifecycleLock({ trackVoicePools[trackID] }) {
+                    publishPreparedTrackFastPathIfConnected(trackID: trackID, pool: pool)
+                }
             case .none:
+                // No pool/filter to (re)wire yet — nothing to publish. The track
+                // becomes fast-path-ready when prepareTrack later builds its pool.
                 break
-            }
-
-            withLifecycleLock {
-                _ = fastPathReadyTrackIDs.insert(trackID)
-                _ = deferredPreparedTrackRepairIDs.remove(trackID)
             }
         }
     }
@@ -958,6 +983,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
                 trackFilterFanouts.removeValue(forKey: trackID)
                 _ = fastPathReadyTrackIDs.remove(trackID)
                 _ = deferredPreparedTrackRepairIDs.remove(trackID)
+                deferredPreparedTrackRepairAttempts.removeValue(forKey: trackID)
                 let mixer = trackMixers.removeValue(forKey: trackID)
                 let filter = trackFilters.removeValue(forKey: trackID)
                 return (trackPool, busPool, mixer, filter)
@@ -1075,10 +1101,16 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         audioGraph.attach(filter.avNode)
         // realtime-allow-graph-mutation: prepared track output setup occurs during setup/repair, not tick dispatch. Test: RealtimePathLintTests.
         audioGraph.connect(mixer, to: filter.avNode)
+        // Setup/rebuild: splice synchronously (no ramp dip). The new voices are
+        // not sounding through this graph yet, and a rebuild issues several of
+        // these in quick succession — overlapping deferred dips on the same
+        // fanout race and can leave the filter disconnected (the intermittent
+        // drum-part-add / route-to-master silence).
         audioGraph.connectTrackOutput(
             filter.avNode,
             to: busID,
-            sends: sends
+            sends: sends,
+            ramped: false
         )
         // The filter node is the track's terminal point (post level/pan,
         // post filter) — register it as the strip's meter source.
@@ -1261,7 +1293,9 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
 
             for (trackID, pool) in trackPools {
                 guard !isPreparedTrackPoolReadyForPlayback(trackID: trackID, pool: pool) else {
-                    withLifecycleLock { _ = deferredPreparedTrackRepairIDs.remove(trackID) }
+                    // Healthy — (re)publish through the gate (clears deferred +
+                    // resets the backstop attempt count for a recovered track).
+                    publishPreparedTrackFastPathIfConnected(trackID: trackID, pool: pool)
                     continue
                 }
                 repairPreparedTrackGraph(trackID: trackID, pool: pool)
@@ -1272,11 +1306,14 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
                 else {
                     if let busID = busRouting[trackID] {
                         prepareBusVoicePool(trackID: trackID, busID: busID)
+                        if let rebuilt = withLifecycleLock({ busVoicePools[trackID] }) {
+                            publishBusTrackFastPathIfConnected(trackID: trackID, busID: busID, pool: rebuilt)
+                        }
                     }
                     continue
                 }
-                withLifecycleLock { _ = deferredPreparedTrackRepairIDs.remove(trackID) }
                 applyBusVoiceMix(trackID: trackID, pool: pool)
+                publishBusTrackFastPathIfConnected(trackID: trackID, busID: busID, pool: pool)
             }
         }
     }
@@ -1770,6 +1807,74 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         return true
     }
 
+    /// The fast-path-ready GATE (watertight prevention of the disconnect-window
+    /// race). Re-publish a prepared-MASTER track as fast-path-ready ONLY after
+    /// VALIDATING that its full output chain (voice→voiceFilter→mixer→trackFilter
+    /// →output) is actually connected in the live graph — the same
+    /// `outputConnectionExists`-backed predicate `repairTrackMixerOutput` uses.
+    ///
+    /// Every prepare/repair/route path drops the track from `fastPathReadyTrackIDs`
+    /// BEFORE its teardown/disconnect/reconnect window (under the lock), does the
+    /// synchronous topology edit on main, and then calls this. Because the whole
+    /// disconnect→reconnect window is synchronous on main and we only re-add the
+    /// track after the new connection is proven present, the concurrent
+    /// tick-thread `play()` can NEVER select a voice whose chain is mid-rebuild →
+    /// it never lands a `play()` in the disconnected window → no
+    /// "player started when in a disconnected state" → no defer. Steady-state
+    /// defers drop to ~0 (the disconnect is PREVENTED, not recovered from).
+    ///
+    /// If validation fails (the rebuild did not produce a complete chain — should
+    /// be rare), the track is left OUT of fast-path and marked repair-deferred so
+    /// the bounded backstop can have one more bounded attempt rather than
+    /// publishing a half-connected track the tick path would trip on.
+    /// - Returns: `true` if the track was published fast-path-ready.
+    @MainActor
+    @discardableResult
+    private func publishPreparedTrackFastPathIfConnected(trackID: UUID, pool: TrackVoicePool) -> Bool {
+        guard isPreparedTrackPoolReadyForPlayback(trackID: trackID, pool: pool) else {
+            DevActivity.trace(
+                DevActivity.audioGraph,
+                "fast-path gate WITHHELD (chain not fully connected) track=\(trackID.uuidString)"
+            )
+            // Leave the track OUT of fast-path and route it through the BOUNDED
+            // backstop so it gets one more capped+backed-off repair attempt rather
+            // than silently staying dropped. `deferPreparedTrackRepair` removes
+            // fast-path under the lock and schedules the heal (subject to the cap).
+            deferPreparedTrackRepair(trackID: trackID, scheduled: nil)
+            return false
+        }
+        withLifecycleLock {
+            trackVoicePools[trackID] = pool
+            _ = fastPathReadyTrackIDs.insert(trackID)
+            _ = deferredPreparedTrackRepairIDs.remove(trackID)
+            deferredPreparedTrackRepairAttempts.removeValue(forKey: trackID)
+        }
+        return true
+    }
+
+    /// Bus-pool counterpart of `publishPreparedTrackFastPathIfConnected`:
+    /// re-publish a bus-routed track as fast-path-ready ONLY after validating the
+    /// bus voice pool's full chain (each voice→voiceMixer→bus) is live.
+    @MainActor
+    @discardableResult
+    private func publishBusTrackFastPathIfConnected(trackID: UUID, busID: UUID, pool: BusVoicePool) -> Bool {
+        guard isBusVoicePoolReadyForPlayback(pool: pool, busID: busID) else {
+            DevActivity.trace(
+                DevActivity.audioGraph,
+                "fast-path gate WITHHELD (bus chain not fully connected) track=\(trackID.uuidString)"
+            )
+            // Bounded backstop (capped + backed off) for the rare unconnected case.
+            deferPreparedTrackRepair(trackID: trackID, scheduled: nil)
+            return false
+        }
+        withLifecycleLock {
+            _ = fastPathReadyTrackIDs.insert(trackID)
+            _ = deferredPreparedTrackRepairIDs.remove(trackID)
+            deferredPreparedTrackRepairAttempts.removeValue(forKey: trackID)
+        }
+        return true
+    }
+
     /// Lock contract: callers MUST NOT hold `lifecycleLock`. Runs on
     /// `@MainActor`; drops the track from the fast-path (under the lock) before
     /// the rewire so the tick path can't select a half-rebuilt pool, performs
@@ -1857,22 +1962,65 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
             mutationCount += 1
             mixerInputBus += 1
         }
-        withLifecycleLock {
-            trackVoicePools[trackID] = pool
-            _ = fastPathReadyTrackIDs.insert(trackID)
-            _ = deferredPreparedTrackRepairIDs.remove(trackID)
-        }
+        // Fast-path gate: publish the rebuilt pool as ready ONLY after validating
+        // the chain is fully connected (prevents the tick-thread disconnect race).
+        publishPreparedTrackFastPathIfConnected(trackID: trackID, pool: pool)
     }
 
     private func deferPreparedTrackRepair(trackID: UUID, scheduled: TimeInterval?) {
-        let didInsert = withLifecycleLock {
-            markPreparedTrackRepairDeferredLocked(trackID: trackID)
+        // The fast-path GATE (publish*FastPathIfConnected) now prevents the
+        // disconnect-window race that caused this defer: a track is never
+        // published fast-path-ready while its output chain is mid-rebuild, so the
+        // tick `play()` never lands in the disconnected window. Steady-state
+        // defers should therefore be ~0. This path remains ONLY as a bounded
+        // last-resort BACKSTOP for any residual edge (e.g. an unforeseen
+        // engine-level disconnect): it schedules a SINGLE main-hop repair per
+        // deferral episode with a HARD PER-TRACK ATTEMPT CAP + linear backoff, so
+        // a genuinely-unconnectable track can NEVER oscillate forever and pin the
+        // main thread (the prior band-aid had no cap → ~100+ heals/run).
+        let (didInsert, attempt): (Bool, Int) = withLifecycleLock {
+            let inserted = markPreparedTrackRepairDeferredLocked(trackID: trackID)
+            // Count attempts only on the transition INTO the deferred set so a
+            // storm of re-defers within one episode does not inflate the count.
+            if inserted {
+                let next = (deferredPreparedTrackRepairAttempts[trackID] ?? 0) + 1
+                deferredPreparedTrackRepairAttempts[trackID] = next
+                return (true, next)
+            }
+            return (false, deferredPreparedTrackRepairAttempts[trackID] ?? 0)
         }
         if didInsert {
+            guard attempt <= Self.maxDeferredRepairAttempts else {
+                // Cap hit: stop scheduling. Log ONCE and leave the track deferred
+                // (the tick path keeps dropping its triggers rather than throwing)
+                // until a user-driven prepare/route/validate sweep heals it. This
+                // bounds the backstop so it can never pin main.
+                DevActivity.trace(
+                    DevActivity.audioGraph,
+                    "prepared sample graph repair backstop CAPPED (attempts=\(attempt)) track=\(trackID.uuidString) — leaving deferred until next prepare/validate"
+                )
+                SequencerTimingProbe.sampleFastPath(
+                    trackID: trackID,
+                    scheduled: scheduled,
+                    actual: ProcessInfo.processInfo.systemUptime,
+                    result: "repair-deferred-capped"
+                )
+                return
+            }
             DevActivity.trace(
                 DevActivity.audioGraph,
-                "deferred prepared sample graph repair track=\(trackID.uuidString) reason=post-failure"
+                "deferred prepared sample graph repair track=\(trackID.uuidString) attempt=\(attempt) reason=post-failure"
             )
+            // Linear backoff: attempt N waits N * base. Keeps the backstop off the
+            // main queue's hot path even in the (now unexpected) repeat case.
+            let backoff = Double(attempt) * 0.02
+            // realtime-allow-main-async: bounded last-resort self-heal off the tick path (capped + backed off, not event scheduling). Test: RealtimePathLintTests.
+            DispatchQueue.main.asyncAfter(deadline: .now() + backoff) { [weak self] in
+                guard let self else { return }
+                MainActor.assumeIsolated {
+                    self.repairDeferredPreparedTrackIfNeeded(trackID: trackID)
+                }
+            }
         }
         SequencerTimingProbe.sampleFastPath(
             trackID: trackID,
@@ -1880,6 +2028,21 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
             actual: ProcessInfo.processInfo.systemUptime,
             result: didInsert ? "repair-deferred" : "repair-deferred-pending"
         )
+    }
+
+    /// Bounded last-resort self-heal for a track marked repair-deferred by a
+    /// tick-path schedule failure. Re-prepares/repairs the prepared graph; the
+    /// gated republish (publish*FastPathIfConnected) clears the deferred flag +
+    /// resets the attempt count only if the chain validates as connected. Capped
+    /// + backed-off by `deferPreparedTrackRepair`.
+    @MainActor
+    private func repairDeferredPreparedTrackIfNeeded(trackID: UUID) {
+        // Still deferred? A concurrent prepare/route may already have healed it.
+        guard withLifecycleLock({ deferredPreparedTrackRepairIDs.contains(trackID) }) else { return }
+        // `prepareTrack` resolves the right branch (bus pool vs prepared master
+        // pool), repairs the graph, and re-publishes through the fast-path gate
+        // (which clears the deferred flag + attempt count on a validated chain).
+        prepareTrack(trackID: trackID)
     }
 
     @discardableResult
@@ -1920,10 +2083,16 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         if audioGraph.trackOutputDestinationForTesting(filter.avNode) == nil ||
             !outputConnectionExists(from: filter.avNode)
         {
+            // Repair path: splice synchronously (no ramp dip). Repairs run
+            // repeatedly during a rebuild/validate pass; overlapping deferred
+            // dips on the same fanout race and can leave the filter
+            // disconnected (the intermittent silence). The track's voices are
+            // (re)wired here, not sounding through a stale path, so no click.
             audioGraph.connectTrackOutput(
                 filter.avNode,
                 to: busID,
-                sends: sends
+                sends: sends,
+                ramped: false
             )
         }
         audioGraph.setTrackMeterSources(trackIDs: [trackID], node: filter.avNode)

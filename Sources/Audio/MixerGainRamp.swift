@@ -37,6 +37,19 @@ final class MixerGainRamp: @unchecked Sendable {
     /// Per-node ramp generation. A new request bumps the generation so any
     /// older in-flight ramp for the same node bails out at its next step.
     private var generationByNode: [ObjectIdentifier: UInt64] = [:]
+    /// Per-node SETTLED steady-state target — the value the node is meant to
+    /// rest at, recorded by every normal (non-transient) `ramp`/`setImmediate`.
+    /// A transient ramp-to-silence (the routing splice dip, `markSettled:false`)
+    /// deliberately does NOT update it, so a caller that needs to restore the
+    /// node's intended level after the dip can read the TRUE steady-state value
+    /// here instead of the live `outputVolume` — which, mid-dip, is a transient
+    /// well below the intended level. Reading the live volume to capture a
+    /// "restore" level is the route-to-master / drum-part-add intermittent
+    /// silence bug (docs/bugs/20260626-route-to-master-intermittent-silence):
+    /// two ramp-to-silence cycles overlapping on the same gain stage made the
+    /// second capture the first's mid-ramp (near-zero) volume as its restore
+    /// target, leaving the track stuck silent.
+    private var settledTargetByNode: [ObjectIdentifier: Float] = [:]
 
     init(rampDuration: TimeInterval = 0.012, stepCount: Int = 24) {
         self.rampDuration = max(0, rampDuration)
@@ -54,15 +67,25 @@ final class MixerGainRamp: @unchecked Sendable {
     /// proceed" (a newer request now owns the node). This lets the routing
     /// ramp-before-disconnect work schedule the disconnect only after the
     /// down-ramp has actually reached silence — without blocking a thread.
-    func ramp(_ node: AVAudioMixerNode, to target: Float, completion: ((_ reachedTarget: Bool) -> Void)? = nil) {
+    /// - Parameter markSettled: when `true` (the default), `target` is recorded
+    ///   as the node's steady-state value (see `settledTarget(for:)`). Pass
+    ///   `false` for a TRANSIENT dip (e.g. the ramp-to-silence before a routing
+    ///   splice) so the dip does not overwrite the node's intended rest level.
+    func ramp(
+        _ node: AVAudioMixerNode,
+        to target: Float,
+        markSettled: Bool = true,
+        completion: ((_ reachedTarget: Bool) -> Void)? = nil
+    ) {
         let nodeID = ObjectIdentifier(node)
+        let clampedTarget = min(max(target, 0), 1)
         let generation: UInt64 = lock.withLock {
             let next = (generationByNode[nodeID] ?? 0) &+ 1
             generationByNode[nodeID] = next
+            if markSettled { settledTargetByNode[nodeID] = clampedTarget }
             return next
         }
 
-        let clampedTarget = min(max(target, 0), 1)
         queue.async { [weak self, weak node] in
             guard let self, let node else {
                 completion?(false)
@@ -77,10 +100,33 @@ final class MixerGainRamp: @unchecked Sendable {
     /// in-flight ramp. Used where a ramp is not wanted (e.g. setup/teardown).
     func setImmediate(_ node: AVAudioMixerNode, to target: Float) {
         let nodeID = ObjectIdentifier(node)
+        let clamped = min(max(target, 0), 1)
         lock.withLock {
             generationByNode[nodeID] = (generationByNode[nodeID] ?? 0) &+ 1
+            settledTargetByNode[nodeID] = clamped
         }
-        node.outputVolume = min(max(target, 0), 1)
+        node.outputVolume = clamped
+    }
+
+    /// The node's recorded steady-state target — the value it is meant to rest
+    /// at, independent of any in-flight transient dip. Returns `nil` if the node
+    /// has never been driven by this ramp (the caller should then fall back to a
+    /// known intended level). Used by the routing ramp-to-silence path to
+    /// restore the TRUE level after the splice dip rather than re-capturing a
+    /// mid-ramp transient.
+    func settledTarget(for node: AVAudioMixerNode) -> Float? {
+        let nodeID = ObjectIdentifier(node)
+        return lock.withLock { settledTargetByNode[nodeID] }
+    }
+
+    /// Forget a node's settled target (call on teardown so a recycled
+    /// `ObjectIdentifier` can't inherit a stale level).
+    func forgetSettledTarget(for node: AVAudioMixerNode) {
+        let nodeID = ObjectIdentifier(node)
+        lock.withLock {
+            settledTargetByNode.removeValue(forKey: nodeID)
+            generationByNode.removeValue(forKey: nodeID)
+        }
     }
 
     /// Returns `true` if the ramp ran to completion and this generation is

@@ -250,6 +250,11 @@ final class AudioInstrumentHost: TrackPlaybackSink {
                     self.instrument = nil
                 }
                 if let outputMixer = self.outputMixer {
+                    // Forget this gain stage's recorded settled target so a future
+                    // node recycled at the same ObjectIdentifier can't inherit a
+                    // stale rest level (the outputMixer is a routing gain stage
+                    // driven by MixerGainRamp; recycled-node hygiene).
+                    MixerGainRamp.shared.forgetSettledTarget(for: outputMixer)
                     // realtime-allow-graph-mutation: AU shutdown teardown only, not tick dispatch. Test: RealtimePathLintTests.
                     self.audioGraph.disconnectOutput(outputMixer)
                     // realtime-allow-graph-mutation: AU shutdown teardown only, not tick dispatch. Test: RealtimePathLintTests.

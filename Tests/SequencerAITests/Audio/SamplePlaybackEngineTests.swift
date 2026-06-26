@@ -519,7 +519,15 @@ final class SamplePlaybackEngineTests: XCTestCase {
         wait(for: [drained], timeout: 2)
     }
 
-    func test_backgroundFastPathFailureDefersRepairInsteadOfMainHopRepairStorm() throws {
+    /// A failed fast-path playback defers the repair and then SELF-HEALS with
+    /// exactly ONE main-hop repair per deferral episode — not a per-trigger
+    /// repair storm, and not a permanent silence trap. The original design
+    /// deferred without any repair to avoid a storm, but that left a track that
+    /// hit a transient disconnected-voice failure during a live rebuild silent
+    /// for the rest of the session (docs/bugs/20260626-route-to-master-
+    /// intermittent-silence). The `didInsert` dedupe makes the self-heal fire
+    /// at most once per episode, so there is still no storm.
+    func test_backgroundFastPathFailureDefersThenSelfHealsOnceNoStorm() throws {
         guard let engine = makeEngine() else { return }
         defer { engine.stop() }
 
@@ -535,19 +543,34 @@ final class SamplePlaybackEngineTests: XCTestCase {
         }
 
         wait(for: [returned], timeout: 2)
+        // The failed fast path defers the track (drops it from the fast path).
         XCTAssertEqual(engine.deferredPreparedTrackRepairIDsForTesting, [trackID])
 
-        let drained = expectation(description: "main queue drained")
-        DispatchQueue.main.async { drained.fulfill() }
-        wait(for: [drained], timeout: 2)
-        XCTAssertFalse(
+        // The bounded backstop schedules the self-heal with a small backoff
+        // (asyncAfter), so poll the main queue until it runs: it re-prepares the
+        // graph and republishes through the gate, which reconnects the voice and
+        // clears the deferred flag — WITHOUT any further play() calls (no storm).
+        let healed = expectation(description: "deferred track self-heals once")
+        let deadline = Date().addingTimeInterval(2.0)
+        func poll() {
+            if engine.isFirstPreparedVoiceConnectedForTesting(trackID: trackID),
+               engine.deferredPreparedTrackRepairIDsForTesting.isEmpty {
+                healed.fulfill()
+                return
+            }
+            if Date() > deadline { return }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.005) { poll() }
+        }
+        DispatchQueue.main.async { poll() }
+        wait(for: [healed], timeout: 3)
+        XCTAssertTrue(
             engine.isFirstPreparedVoiceConnectedForTesting(trackID: trackID),
-            "Failed fast-path playback must not queue a main-thread graph repair"
+            "the deferred track must self-heal via a single main-hop repair"
         )
-
-        engine.prepareTrack(trackID: trackID)
-        XCTAssertTrue(engine.isFirstPreparedVoiceConnectedForTesting(trackID: trackID))
-        XCTAssertTrue(engine.deferredPreparedTrackRepairIDsForTesting.isEmpty)
+        XCTAssertTrue(
+            engine.deferredPreparedTrackRepairIDsForTesting.isEmpty,
+            "self-heal must clear the deferred flag so the fast path resumes"
+        )
     }
 
     /// Main-thread play keeps returning a live voice handle.

@@ -655,6 +655,109 @@ final class MasterMeterPublisherTests: XCTestCase {
         XCTAssertNil(graph.audioInputCaptureFormat(trackID: trackID))
     }
 
+    /// Regression for the audio-input MUTE-ESCAPE on a routing change
+    /// (docs/bugs/20260626-route-to-master-intermittent-silence, finding B):
+    /// the audio-input host's outputMixer is the track's gain stage, but its
+    /// mute/level used to be written DIRECTLY to `outputMixer.outputVolume`,
+    /// bypassing MixerGainRamp. So `settledTargetByNode[outputMixer]` stayed at a
+    /// prior AUDIBLE level after a mute. A later routing change runs the
+    /// ramp-to-silence restore, which reads the (stale, audible) settled target —
+    /// and AUDIBLY UN-MUTES a muted track. The fix routes the host's mute/level
+    /// writes THROUGH MixerGainRamp.setImmediate so settledTarget always tracks
+    /// the intended rest level; a routing change on a muted track stays silent.
+    ///
+    /// Graph/engine-state level — no mic (simulateAudioInputConnection). Proven
+    /// to FAIL on the pre-fix direct-write code (restore ramped back to ~0.8).
+    @MainActor
+    func test_audioInputMute_thenRoutingChange_staysSilent_noMuteEscape() throws {
+        MainAudioGraph.simulateAudioInputConnectionForTesting = true
+        defer { MainAudioGraph.simulateAudioInputConnectionForTesting = false }
+        MainAudioGraph.useManualRenderingForAutomation = true
+        defer { MainAudioGraph.useManualRenderingForAutomation = false }
+
+        let graph = MainAudioGraph()
+        graph.installSendBuses([.sendA, .sendB])
+        let busID = UUID()
+        graph.installMixerBuses([MixerBus(id: busID, name: "FX")])
+        let trackID = UUID()
+
+        // 1. Audible on master.
+        let audibleMaster = MainAudioGraph.AudioInputRoutingRequest(
+            trackID: trackID,
+            source: .input,
+            selectedChannel: .stereo(firstChannel: 0),
+            outputBusID: nil,
+            mix: TrackMixSettings(level: 0.8, pan: 0, isMuted: false)
+        )
+        graph.syncAudioInputRoutings([audibleMaster])
+        try graph.start()
+        let mixer = try XCTUnwrap(
+            graph.audioInputRoutingReadoutForTesting(trackID: trackID)?.outputMixer
+        )
+
+        // 2. Reroute WHILE AUDIBLE (master -> bus). This takes the ramp-to-silence
+        //    path; its restore ramps the gain stage back up and RECORDS the
+        //    settled target = 0.8. This is the prior-route step that seeds the
+        //    stale settled target the bug depends on.
+        let audibleBus = MainAudioGraph.AudioInputRoutingRequest(
+            trackID: trackID,
+            source: .input,
+            selectedChannel: .stereo(firstChannel: 0),
+            outputBusID: busID,
+            mix: TrackMixSettings(level: 0.8, pan: 0, isMuted: false)
+        )
+        graph.updateAudioInputRoutingParameters([audibleBus])
+        // Let the reroute ramp + restore settle back to the audible level.
+        let restored = Date().addingTimeInterval(1.0)
+        while Date() < restored, mixer.outputVolume < 0.75 {
+            RunLoop.current.run(until: Date().addingTimeInterval(0.005))
+        }
+        XCTAssertEqual(mixer.outputVolume, 0.8, accuracy: 0.05, "audible reroute restores the gain stage")
+
+        // 3. MUTE (same bus — a pure level/mute write, NOT a reroute). With the
+        //    fix this goes through MixerGainRamp.setImmediate so settledTarget
+        //    becomes 0; with the old code it was a direct outputVolume write and
+        //    settledTarget stayed stale at 0.8 (the seed from step 2).
+        let mutedBus = MainAudioGraph.AudioInputRoutingRequest(
+            trackID: trackID,
+            source: .input,
+            selectedChannel: .stereo(firstChannel: 0),
+            outputBusID: busID,
+            mix: TrackMixSettings(level: 0.8, pan: 0, isMuted: true)
+        )
+        graph.updateAudioInputRoutingParameters([mutedBus])
+        XCTAssertEqual(mixer.outputVolume, 0, accuracy: 0.001, "mute must silence the gain stage")
+
+        // 4. Routing change while MUTED (bus -> master): the reroute runs the
+        //    ramp-to-silence restore. It must restore to the SETTLED level (0,
+        //    muted), not the stale audible target seeded in step 2. With the old
+        //    code it ramped back to ~0.8 — the mute escape.
+        let mutedRerouted = MainAudioGraph.AudioInputRoutingRequest(
+            trackID: trackID,
+            source: .input,
+            selectedChannel: .stereo(firstChannel: 0),
+            outputBusID: nil,
+            mix: TrackMixSettings(level: 0.8, pan: 0, isMuted: true)
+        )
+        graph.updateAudioInputRoutingParameters([mutedRerouted])
+
+        // Spin the run loop past the ~12 ms ramp + restore; the muted track must
+        // STAY silent throughout and after.
+        let deadline = Date().addingTimeInterval(1.0)
+        var maxObserved: Float = mixer.outputVolume
+        while Date() < deadline {
+            maxObserved = max(maxObserved, mixer.outputVolume)
+            RunLoop.current.run(until: Date().addingTimeInterval(0.005))
+        }
+        XCTAssertLessThan(
+            maxObserved, 0.05,
+            "a routing change on a MUTED audio-input track must not un-mute it (mute escape)"
+        )
+        XCTAssertLessThan(mixer.outputVolume, 0.05, "muted track must rest silent after the reroute")
+
+        graph.stop()
+    }
+
     // MARK: - Track insert chain splice (no render cycle)
 
     /// Walk the engine graph UPSTREAM from `start` (via per-input-bus

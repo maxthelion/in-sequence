@@ -805,10 +805,23 @@ final class MainAudioGraph {
         installSendBuses(existing)
     }
 
+    /// - Parameter ramped: when `true` (the default — the LIVE single-track
+    ///   reroute path), the splice runs under a ramp-to-silence dip so a SOUNDING
+    ///   node is never hard-disconnected (Hard Rule 5). Pass `false` for the
+    ///   SETUP / REPAIR / REBUILD path (prepared-track build, `repairTrackMixer-
+    ///   Output`): the track's new voices are not yet sounding through this graph,
+    ///   so there is nothing to click — and the dip is actively harmful there.
+    ///   A rebuild issues several `connectTrackOutput`s in quick succession; if
+    ///   each took the ~12 ms deferred dip, the overlapping deferred reconnects
+    ///   race on the same fanout and can leave the filter disconnected from it
+    ///   (the intermittent drum-part-add / route-to-master silence,
+    ///   docs/bugs/20260626-route-to-master-intermittent-silence). The synchronous
+    ///   splice lands the connection immediately and deterministically.
     func connectTrackOutput(
         _ source: AVAudioNode,
         to busID: UUID?,
-        sends sendLevels: TrackSendLevels = .zero
+        sends sendLevels: TrackSendLevels = .zero,
+        ramped: Bool = true
     ) {
         TickPathMainSyncGuard.assertNotHoldingLifecycleLockForGraphMutation("MainAudioGraph.connectTrackOutput")
         performOnMain {
@@ -830,7 +843,45 @@ final class MainAudioGraph {
             // so a live bus reassign no longer hard-cuts a playing node.
             let routing = TrackOutputRouting(source: source, busID: busID, sendLevels: sendLevels)
             self.trackOutputRoutings[ObjectIdentifier(source)] = routing
-            self.reconnectTrackOutputRampedOnMain(routing)
+            // The synchronous splice (reconnectTrackOutputOnMain) unconditionally
+            // disconnects the track's SHARED per-track fanout. The fanout is
+            // shared across ALL the track's voices, so even on a setup/repair
+            // triggered by ONE voice, a SIBLING voice may still be sustaining a
+            // sample through it. Hard-disconnecting a fanout that is currently
+            // passing a sibling's audio is a Hard Rule 5 hard-cut (click).
+            //
+            // Guard: take the synchronous (un-ramped) path ONLY when the gain
+            // stage is genuinely not passing audio — engine not running, OR the
+            // gain stage has no live output edge yet (a fresh build, nothing
+            // sounding). If the fanout already has an output connection while the
+            // engine runs (a sibling could be sounding), PROMOTE to the ramped
+            // path so the splice lands on silence. This keeps the silence fix
+            // intact (the overlapping-dip race is independently solved by the
+            // settled-target restore) while never hard-cutting a sounding sibling.
+            let canSpliceSynchronously: Bool = {
+                if ramped { return false }
+                guard self.engine.isRunning else { return true }
+                guard let gainStage = self.trackGainStage(for: source) else { return true }
+                // A sibling voice can only be PASSING audio through the fanout if
+                // the fanout is fed (has a live INPUT edge) AND has a downstream
+                // OUTPUT edge. A fanout with an output edge but no input (the
+                // common repair case: the filter→fanout INPUT is exactly what we
+                // are re-wiring) is silent → the synchronous splice is safe.
+                let inputConnected = self.engine.inputConnectionPoint(for: gainStage, inputBus: 0) != nil
+                let outputConnected = !self.engine.outputConnectionPoints(for: gainStage, outputBus: 0).isEmpty
+                return !(inputConnected && outputConnected)
+            }()
+            if canSpliceSynchronously {
+                // Setup/repair/rebuild with nothing sounding through the fanout:
+                // splice synchronously (no dip). The connection lands immediately
+                // and deterministically, avoiding the overlapping-deferred race.
+                self.reconnectTrackOutputOnMain(routing)
+            } else {
+                // Live single-track reroute, OR a setup/repair where a sibling
+                // voice may still be sounding through the shared fanout: ramp the
+                // gain stage to silence first so no sounding node is hard-cut.
+                self.reconnectTrackOutputRampedOnMain(routing)
+            }
         }
     }
 
@@ -1279,6 +1330,14 @@ final class MainAudioGraph {
             defer { self.unlockGraphLock() }
             return self.sendBusHosts[busID]?.readout()
         }
+    }
+
+    /// Test accessor for the per-track gain stage (the fanout for sample/native
+    /// tracks) that the ramp-to-silence path dips. Used by the overlapping-splice
+    /// restore-level regression test.
+    @MainActor
+    func trackGainStageForTesting(_ source: AVAudioNode) -> AVAudioMixerNode? {
+        trackGainStage(for: source)
     }
 
     func trackOutputDestinationForTesting(_ source: AVAudioNode) -> AVAudioNode? {
@@ -1761,9 +1820,21 @@ final class MainAudioGraph {
             return
         }
 
-        let storedLevel = gainStage.outputVolume
+        // Restore level: read the gain stage's SETTLED steady-state target, not
+        // its live `outputVolume`. The live value can be a transient mid-dip if
+        // a previous ramp-to-silence on this same stage is still in flight (two
+        // routing/rebuild splices overlapping within the ~12 ms dip) — capturing
+        // that transient as the "restore" level is the intermittent route-to-
+        // master / drum-part-add silence bug: the second cycle would ramp "back"
+        // to a near-zero value and the track stayed silent. The fanout splitter
+        // is only ever driven by this dip path, so its settled target is its
+        // intended rest level (1.0 unless an outer mute set it). Fall back to the
+        // live volume for a stage this ramp has never driven (first-ever splice).
+        let storedLevel = MixerGainRamp.shared.settledTarget(for: gainStage) ?? gainStage.outputVolume
         // Already silent (muted / level 0): a hard disconnect on silence does
-        // not click, and ramping a silent node back up would itself click.
+        // not click, and ramping a silent node back up would itself click. Use
+        // the SETTLED level (not the possibly-mid-dip live volume) so an
+        // in-flight transient dip does not make us wrongly skip the restore.
         guard storedLevel > 0.0005 else {
             work()
             return
@@ -1774,20 +1845,35 @@ final class MainAudioGraph {
         // Ramp the track's gain stage to silence, then — once silence is
         // actually reached — run the graph edit and ramp back. The completion
         // fires on MixerGainRamp's background queue, so hop to main and acquire
-        // graphLock there (never held across the ramp wait).
-        MixerGainRamp.shared.ramp(gainStage, to: 0) { [weak self] reachedTarget in
+        // graphLock there (never held across the ramp wait). The down-ramp is a
+        // TRANSIENT dip (`markSettled: false`) so it does not overwrite the
+        // stage's recorded steady-state target — a concurrent splice that starts
+        // mid-dip still reads the true restore level above.
+        MixerGainRamp.shared.ramp(gainStage, to: 0, markSettled: false) { [weak self] reachedTarget in
             guard let self else { return }
             // Superseded by a newer ramp for this node → that newer request now
-            // owns the gain stage and its edit. Drop this stale one.
+            // owns the gain stage and its edit (and restores its settled level).
+            // Drop this stale one.
             guard reachedTarget else { return }
             // realtime-allow-main-async: ramp-completion graph-edit hop off the ramp queue (not tick/event scheduling), graphLock acquired here. Test: RampBeforeDisconnectTests.
             DispatchQueue.main.async {
                 MainActor.assumeIsolated {
-                    guard source.engine === self.engine else { return }
+                    guard source.engine === self.engine else {
+                        // Source was detached/torn down before the dip completed
+                        // (e.g. removeTrack). Skip the reconnect — but STILL
+                        // restore the gain stage to its settled level so a
+                        // recycled/persistent stage is never left stuck silent.
+                        DevActivity.trace(DevActivity.audioGraph, "ramp-silence DROP reason=source-detached storedLevel=\(storedLevel)")
+                        if gainStage.engine === self.engine {
+                            MixerGainRamp.shared.ramp(gainStage, to: storedLevel)
+                        }
+                        return
+                    }
                     self.lockGraphLock()
                     work()
                     self.unlockGraphLock()
-                    // Ramp the gain stage back to its pre-edit level on silence.
+                    // Ramp the gain stage back to its pre-edit (settled) level on
+                    // silence — a normal ramp, re-recording the settled target.
                     MixerGainRamp.shared.ramp(gainStage, to: storedLevel)
                 }
             }
@@ -2030,7 +2116,18 @@ final class MainAudioGraph {
         }
 
         host.outputBusID = request.outputBusID
-        host.outputMixer.outputVolume = request.source == .silent || request.mix.isMuted ? 0 : Float(request.mix.clampedLevel)
+        // The outputMixer IS this track's gain stage (trackGainStage returns the
+        // source mixer for audio-input tracks). Write its level/mute THROUGH
+        // MixerGainRamp.setImmediate so the ramp records this as the node's
+        // SETTLED steady-state target. If we wrote `outputMixer.outputVolume`
+        // directly (out-of-band), settledTarget would stay stale at a prior
+        // level — and a later routing change's ramp-to-silence restore would read
+        // that stale target and AUDIBLY UN-MUTE a muted audio-input track (the
+        // mute-escape regression). Routing all gain-stage writes through the ramp
+        // keeps the invariant "settledTarget == intended rest level" for ALL
+        // track kinds (sample/AU/audio-input).
+        let intendedLevel: Float = request.source == .silent || request.mix.isMuted ? 0 : Float(request.mix.clampedLevel)
+        MixerGainRamp.shared.setImmediate(host.outputMixer, to: intendedLevel)
         host.outputMixer.pan = Float(request.mix.clampedPan)
 
         let sendLevels = request.mix.graphSendLevels
@@ -2085,13 +2182,15 @@ final class MainAudioGraph {
             }
             guard Self.liveAudioInputAuthorized else {
                 host.connectedSource = .silent
-                host.outputMixer.outputVolume = 0
+                // Through the ramp so settledTarget tracks this forced-silent rest
+                // level (keeps the mute-escape invariant; see installAudioInput…).
+                MixerGainRamp.shared.setImmediate(host.outputMixer, to: 0)
                 return
             }
             let inputFormat = engine.inputNode.inputFormat(forBus: 0)
             guard inputFormat.channelCount > 0 else {
                 host.connectedSource = .silent
-                host.outputMixer.outputVolume = 0
+                MixerGainRamp.shared.setImmediate(host.outputMixer, to: 0)
                 return
             }
             applyInputChannelMapOnMain(
@@ -2147,6 +2246,10 @@ final class MainAudioGraph {
         host.loopPlayer.stop()
         engine.disconnectNodeOutput(host.loopPlayer)
         engine.disconnectNodeInput(host.outputMixer)
+        // Forget the outputMixer's recorded settled target — it is a routing gain
+        // stage driven by MixerGainRamp (mute/level), so a node recycled at the
+        // same ObjectIdentifier must not inherit a stale rest level.
+        MixerGainRamp.shared.forgetSettledTarget(for: host.outputMixer)
         disconnectOutput(host.outputMixer)
         detach(host.loopPlayer)
         detach(host.outputMixer)
@@ -2246,6 +2349,14 @@ final class MainAudioGraph {
         engine.attach(nodes.fanout)
         engine.attach(nodes.sendA)
         engine.attach(nodes.sendB)
+        // Seed the fanout's SETTLED target at its rest level (1.0). The fanout is
+        // a pure dry/send splitter whose `outputVolume` is only ever moved by the
+        // routing ramp-to-silence dip — so its steady-state is always full. The
+        // ramp-to-silence restore reads this settled value, not the live volume,
+        // so a splice that lands mid-dip restores to 1.0 (not the transient).
+        // Without this seed, settledTarget(for: fanout) would be nil and the
+        // restore would fall back to the mid-dip live volume — the silence bug.
+        MixerGainRamp.shared.setImmediate(nodes.fanout, to: 1.0)
         MixerGainRamp.shared.setImmediate(nodes.sendA, to: levels.clampedSendA)
         MixerGainRamp.shared.setImmediate(nodes.sendB, to: levels.clampedSendB)
         trackSendNodes[key] = nodes
@@ -2264,6 +2375,12 @@ final class MainAudioGraph {
         engine.disconnectNodeOutput(nodes.fanout)
         engine.disconnectNodeOutput(nodes.sendA)
         engine.disconnectNodeOutput(nodes.sendB)
+        // Forget the ramp's per-node settled targets so a recycled
+        // ObjectIdentifier (a new node at the same address) can't inherit a
+        // stale rest level.
+        MixerGainRamp.shared.forgetSettledTarget(for: nodes.fanout)
+        MixerGainRamp.shared.forgetSettledTarget(for: nodes.sendA)
+        MixerGainRamp.shared.forgetSettledTarget(for: nodes.sendB)
         engine.detach(nodes.fanout)
         engine.detach(nodes.sendA)
         engine.detach(nodes.sendB)
