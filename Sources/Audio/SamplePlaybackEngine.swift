@@ -254,6 +254,16 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
     /// `removeTrack` / route-switch teardown of a sounding track does NOT
     /// hard-cut (Hard Rule 5).
     private(set) var sampleTeardownRampCountForTesting = 0
+    /// Number of triggered voices scheduled via a RESIDENT `AVAudioPCMBuffer`
+    /// (`scheduleBuffer`) — the warm-from-RAM path that Hard Rule 4 mandates for
+    /// every trigger. A default forward slice / one-shot MUST land here.
+    private(set) var residentBufferScheduleCountForTesting = 0
+    /// Number of triggered voices that fell back to streaming a file segment
+    /// (`scheduleSegment(file:)`) because no resident buffer was available. On
+    /// the live trigger path (always a warmed `PreparedSampleAsset`) this must
+    /// stay 0; it only moves for the legacy URL/audition path that has no PCM
+    /// buffer. Lets a test assert the resident path is the default.
+    private(set) var fileSegmentScheduleCountForTesting = 0
     #endif
 
     var preparedTrackIDs: Set<UUID> {
@@ -375,7 +385,10 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
     func play(sampleURL: URL, settings: SamplerSettings, trackID: UUID, at when: AVAudioTime? = nil) -> VoiceHandle? {
         guard withLifecycleLock({ isStarted }) else { return nil }
         guard let file = cachedFile(url: sampleURL) else { return nil }
-        return playPreparedSample(file: file, sampleURL: sampleURL, settings: settings, trackID: trackID, at: when)
+        // URL-only path (audition / tests) has no resident PCM buffer; the live
+        // trigger path always routes through `play(sampleAsset:)` below, which
+        // carries the warmed buffer.
+        return playPreparedSample(file: file, pcmBuffer: nil, sampleURL: sampleURL, settings: settings, trackID: trackID, at: when)
     }
 
     @discardableResult
@@ -383,6 +396,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         guard withLifecycleLock({ isStarted }) else { return nil }
         return playPreparedSample(
             file: sampleAsset.file,
+            pcmBuffer: sampleAsset.pcmBuffer,
             sampleURL: sampleAsset.url,
             settings: settings,
             trackID: trackID,
@@ -392,6 +406,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
 
     private func playPreparedSample(
         file: AVAudioFile,
+        pcmBuffer: AVAudioPCMBuffer?,
         sampleURL: URL,
         settings: SamplerSettings,
         trackID: UUID,
@@ -400,6 +415,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         if withLifecycleLock({ busVoicePools[trackID] != nil }) {
             return playPreparedBusSample(
                 file: file,
+                pcmBuffer: pcmBuffer,
                 sampleURL: sampleURL,
                 settings: settings,
                 trackID: trackID,
@@ -433,6 +449,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
                 voice,
                 voiceFilter: self.trackOutputBusIDs[trackID] == nil ? voiceFilter : nil,
                 file: file,
+                pcmBuffer: pcmBuffer,
                 settings: settings,
                 params: params,
                 at: effectiveWhen
@@ -442,6 +459,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
 
     private func playPreparedBusSample(
         file: AVAudioFile,
+        pcmBuffer: AVAudioPCMBuffer?,
         sampleURL: URL,
         settings: SamplerSettings,
         trackID: UUID,
@@ -514,12 +532,18 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         }
 
         voice.stop()
-        voice.scheduleSegment(
-            file,
-            startingFrame: frameRange.startFrame,
+        // Hard Rule 4: schedule the RESIDENT PCM buffer (warm-from-RAM). The
+        // live trigger path always supplies a warmed `pcmBuffer`; the file
+        // fallback below is reserved for the URL/audition path with no buffer.
+        scheduleResidentOrFileSegment(
+            voice,
+            file: file,
+            pcmBuffer: pcmBuffer,
+            startFrame: frameRange.startFrame,
             frameCount: frameRange.frameLength,
-            at: effectiveWhen,
-            completionHandler: nil
+            transforms: nil,
+            playbackFormat: voice.outputFormat(forBus: 0),
+            at: effectiveWhen
         )
         guard startVoiceSafely(voice, at: effectiveWhen) else {
             deferPreparedTrackRepair(trackID: trackID, scheduled: scheduled)
@@ -672,10 +696,24 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         return true
     }
 
+    /// Per-trigger transforms applied to the resident sub-range buffer (reverse,
+    /// attack/release envelope). Run on the RAM buffer copy, never on a streamed
+    /// file. `nil` means "no transform" (the common forward, no-envelope case).
+    private struct SliceBufferTransforms {
+        var reverse: Bool
+        var attackMs: Double
+        var releaseMs: Double
+
+        var isIdentity: Bool {
+            !reverse && attackMs <= 0 && releaseMs <= 0
+        }
+    }
+
     private func scheduleAndStart(
         _ voice: AVAudioPlayerNode,
         voiceFilter: SamplerFilterNode?,
         file: AVAudioFile,
+        pcmBuffer: AVAudioPCMBuffer?,
         settings: SamplerSettings,
         params: [BuiltinMacroKind: Double]?,
         at when: AVAudioTime?
@@ -691,14 +729,19 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
             voiceFilter.apply(SamplerFilterSettings())
         }
 
-        // Sample start / length: schedule a segment of the file if set.
+        // Hard Rule 4: triggered playback reads the RESIDENT PCM buffer. Schedule
+        // the in-RAM sub-range (sample start / length); the file fallback only
+        // engages when no resident buffer exists (URL/audition path).
         let frameRange = Self.sampleFrameRange(file: file, settings: settings, params: params)
-        voice.scheduleSegment(
-            file,
-            startingFrame: frameRange.startFrame,
+        scheduleResidentOrFileSegment(
+            voice,
+            file: file,
+            pcmBuffer: pcmBuffer,
+            startFrame: frameRange.startFrame,
             frameCount: frameRange.frameLength,
-            at: when,
-            completionHandler: nil
+            transforms: nil,
+            playbackFormat: voice.outputFormat(forBus: 0),
+            at: when
         )
         return startVoiceSafely(voice, at: when)
     }
@@ -726,35 +769,109 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
             voiceFilter.setCutoff(hz: cutoffHz(for: sliceParameters.filter))
         }
 
-        let shouldBuffer = reverse || sliceParameters.attackMs > 0 || sliceParameters.releaseMs > 0
-        if shouldBuffer,
-           let buffer = sliceBuffer(
-               pcmBuffer: pcmBuffer,
-               fileFormat: file.processingFormat,
-               playbackFormat: voice.outputFormat(forBus: 0),
-               startFrame: startFrame,
-               endFrame: endFrame
-           )
-        {
-            if reverse {
+        // Hard Rule 4: ALL slice triggers play the resident sub-range buffer from
+        // RAM — the default forward case included (previously this streamed the
+        // file). Reverse / envelope still operate on that same resident buffer.
+        let transforms = SliceBufferTransforms(
+            reverse: reverse,
+            attackMs: sliceParameters.attackMs,
+            releaseMs: sliceParameters.releaseMs
+        )
+        scheduleResidentOrFileSegment(
+            voice,
+            file: file,
+            pcmBuffer: pcmBuffer,
+            startFrame: startFrame,
+            frameCount: AVAudioFrameCount(max(1, endFrame - startFrame)),
+            transforms: transforms,
+            playbackFormat: voice.outputFormat(forBus: 0),
+            at: when
+        )
+        return startVoiceSafely(voice, at: when)
+    }
+
+    /// The single trigger-scheduling site. Schedules a RESIDENT `AVAudioPCMBuffer`
+    /// (`scheduleBuffer`) for the requested sub-range whenever a warmed
+    /// `pcmBuffer` is available — Hard Rule 4's warm-from-RAM default for every
+    /// slice / one-shot / drum hit. Per-trigger transforms (reverse, envelope)
+    /// are applied to that RAM copy.
+    ///
+    /// The `scheduleSegment(file:)` branch is the bounded, explicit exception for
+    /// a trigger whose source has NO resident buffer: today only the legacy
+    /// URL/audition path (`play(sampleURL:)`, `playSlice(sampleURL:)`) and any
+    /// asset whose PCM load was skipped because the audio was too large to make
+    /// resident (`SampleAssetCache.loadPCMBuffer` returns nil over the frame cap)
+    /// — i.e. large/long loops, exactly the case the rule reserves streaming for.
+    /// The live cache-warmed trigger path never reaches it.
+    private func scheduleResidentOrFileSegment(
+        _ voice: AVAudioPlayerNode,
+        file: AVAudioFile,
+        pcmBuffer: AVAudioPCMBuffer?,
+        startFrame: AVAudioFramePosition,
+        frameCount: AVAudioFrameCount,
+        transforms: SliceBufferTransforms?,
+        playbackFormat: AVAudioFormat,
+        at when: AVAudioTime?
+    ) {
+        if let buffer = residentTriggerBuffer(
+            pcmBuffer: pcmBuffer,
+            fileFormat: file.processingFormat,
+            playbackFormat: playbackFormat,
+            startFrame: startFrame,
+            frameCount: frameCount,
+            transforms: transforms
+        ) {
+            voice.scheduleBuffer(buffer, at: when, options: [], completionHandler: nil)
+            #if DEBUG
+            residentBufferScheduleCountForTesting += 1
+            #endif
+            return
+        }
+
+        // realtime-allow-file-stream: bounded large-loop / no-resident-buffer fallback only; warmed PreparedSampleAsset triggers always take the resident scheduleBuffer branch above (verified: EngineController dispatches sampleAsset assets carrying pcmBuffer). Test: SamplePlaybackEngineResidentBufferTests.
+        voice.scheduleSegment(
+            file,
+            startingFrame: startFrame,
+            frameCount: frameCount,
+            at: when,
+            completionHandler: nil
+        )
+        #if DEBUG
+        fileSegmentScheduleCountForTesting += 1
+        #endif
+    }
+
+    /// Build the resident sub-range buffer for a trigger from the warmed
+    /// `pcmBuffer`, applying any per-trigger transforms on the RAM copy. Returns
+    /// nil only when there is no resident buffer (forcing the file fallback).
+    private func residentTriggerBuffer(
+        pcmBuffer: AVAudioPCMBuffer?,
+        fileFormat: AVAudioFormat,
+        playbackFormat: AVAudioFormat,
+        startFrame: AVAudioFramePosition,
+        frameCount: AVAudioFrameCount,
+        transforms: SliceBufferTransforms?
+    ) -> AVAudioPCMBuffer? {
+        guard let buffer = sliceBuffer(
+            pcmBuffer: pcmBuffer,
+            fileFormat: fileFormat,
+            playbackFormat: playbackFormat,
+            startFrame: startFrame,
+            frameCount: frameCount
+        ) else {
+            return nil
+        }
+        if let transforms, !transforms.isIdentity {
+            if transforms.reverse {
                 Self.reverse(buffer)
             }
             applyEnvelope(
                 to: buffer,
-                attackMs: sliceParameters.attackMs,
-                releaseMs: sliceParameters.releaseMs
-            )
-            voice.scheduleBuffer(buffer, at: when, options: [], completionHandler: nil)
-        } else {
-            voice.scheduleSegment(
-                file,
-                startingFrame: startFrame,
-                frameCount: AVAudioFrameCount(endFrame - startFrame),
-                at: when,
-                completionHandler: nil
+                attackMs: transforms.attackMs,
+                releaseMs: transforms.releaseMs
             )
         }
-        return startVoiceSafely(voice, at: when)
+        return buffer
     }
 
     func stopVoice(_ handle: VoiceHandle) {
@@ -1358,17 +1475,30 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         }
     }
 
+    /// Copy `frameCount` frames starting at `startFrame` out of the resident
+    /// `pcmBuffer` into a fresh playback-format buffer — purely an in-RAM
+    /// sub-range copy, no file I/O. Returns nil when there is no resident source
+    /// or the range is out of bounds. `frameCount` is clamped to the frames
+    /// actually available from `startFrame` so a slightly-overlong request
+    /// (e.g. last slice) still produces a resident buffer instead of falling
+    /// through to file streaming.
     private func sliceBuffer(
         pcmBuffer: AVAudioPCMBuffer?,
         fileFormat: AVAudioFormat,
         playbackFormat: AVAudioFormat,
         startFrame: AVAudioFramePosition,
-        endFrame: AVAudioFramePosition
+        frameCount: AVAudioFrameCount
     ) -> AVAudioPCMBuffer? {
-        let frameCount = AVAudioFrameCount(max(1, endFrame - startFrame))
         guard let source = pcmBuffer,
-              let buffer = AVAudioPCMBuffer(pcmFormat: fileFormat, frameCapacity: frameCount),
-              Self.copyFrames(from: source, startFrame: startFrame, frameCount: frameCount, into: buffer)
+              startFrame >= 0,
+              startFrame < AVAudioFramePosition(source.frameLength)
+        else {
+            return nil
+        }
+        let available = AVAudioFrameCount(AVAudioFramePosition(source.frameLength) - startFrame)
+        let clampedCount = max(1, min(frameCount, available))
+        guard let buffer = AVAudioPCMBuffer(pcmFormat: fileFormat, frameCapacity: clampedCount),
+              Self.copyFrames(from: source, startFrame: startFrame, frameCount: clampedCount, into: buffer)
         else {
             return nil
         }
