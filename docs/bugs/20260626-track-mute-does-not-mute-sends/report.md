@@ -37,3 +37,5 @@ send-bus contribution — extend it).
 ## Relates to
 #49 (mute as gain), #54 (mute OR-combine + routed-audio mute consistency). This is
 the send-leg gap in that mute model.
+
+Status: RESOLVED — ae862ac9 (mute now silences sends)

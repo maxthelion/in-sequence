@@ -24,3 +24,5 @@ If a click remains, ramp the route-to-bus reconnect (gain to silence → splice 
 gain back), consistent with the ramp-before-disconnect model. Verify on a quiet
 single-track fixture by ear + the routing-stress CLICK gate (which is coarse and
 did not catch this subtle one — consider tightening).
+
+Status: RESOLVED — 05f7739e (route-switch crossfade)

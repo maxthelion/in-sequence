@@ -1,0 +1,1 @@
+On the tracks page, make kit tracks show in the grid like normal tracks. Take out most of the UI stuff surrounding it. Show the contained tracks as cells within the cell, for indication purposes. Expand button should be in the cell. When clicked, have the kit as a cell, and the parts as cells following it. No wrapper around them.

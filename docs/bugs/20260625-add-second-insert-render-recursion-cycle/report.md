@@ -21,3 +21,5 @@ hang-trackAddInsert-1-bitcrusher.sample; reports under .meta/routing-stress/.
 
 Acceptance: add 2+ native inserts on a track during playback — no hang, audio
 flows through the full chain in order, no cycle.
+
+Status: RESOLVED — graph-cycle fix (#52)

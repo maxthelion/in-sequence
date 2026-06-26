@@ -13,3 +13,5 @@ deadlock, but it is the same graph-edit-during-playback class and root cause
 engine mutation); native vs AU insert both exercise the live-rebuild path.
 
 Acceptance: add/remove an effect on a track during playback — no hang, no click.
+
+Status: RESOLVED — lifecycleLock leaf-lock fix (#47)

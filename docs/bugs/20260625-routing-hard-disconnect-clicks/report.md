@@ -12,3 +12,5 @@ it's a "follow-up"). So live bus-reassign / insert change clicks.
 
 Fix: implement equal-power ramps; ramp to silence before any disconnect, cut on
 silence, ramp back. Task #48.
+
+Status: RESOLVED — ramp-before-disconnect (#48) + route crossfade (05f7739e)

@@ -179,3 +179,5 @@ the separate hard-cut bug). None hold the lifecycle lock across an engine connec
   concurrent-op cases still need a human real-audio pass. The audio-input mute-escape fix is proven at the
   graph/engine-state level (no mic) by the new regression test; its acoustic behaviour with a real mic is
   not part of the unattended tier.
+
+Status: RESOLVED — 7d8aecf6 (prevent-the-disconnect gate)

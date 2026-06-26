@@ -13,3 +13,5 @@ trigger-gate guard (`currentLayerSnapshot.isMuted`).
 Fix: track mute → ramped gain (mirror bus mute), unify mixer + layer mute on it;
 keep MIDI/external gated (no gain). Task #49. See
 docs/plans/2026-06-25-audio-graph-watertight.md.
+
+Status: RESOLVED — mute-as-gain (#49)

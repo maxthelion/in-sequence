@@ -18,3 +18,5 @@ In the track mute/solo state model + the mixer toggle handlers, make mute and so
 mutually exclusive per track (or define a clear precedence). Ensure the resolved
 effective-audibility (the OR-combine mute model, #54, + solo set) reflects the
 chosen rule, and the UI indicators follow.
+
+Status: RESOLVED — ae862ac9 (mutually exclusive at model setters)

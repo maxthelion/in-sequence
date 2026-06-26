@@ -5,6 +5,50 @@
 **Crash report:** `~/Library/Logs/DiagnosticReports/SequencerAI-2026-06-24-165713.ips`
 (pid 89038, SIGTRAP — intentional deadlock-guard assertion)
 
+## STATUS: RESOLVED (triaged 2026-06-26, audio-routing-cleanup)
+
+Verdict: **structurally fixed** — the track-insert add-FX path cannot re-enter
+`graphLock` on the same thread. Evidence:
+
+- `TrackInsertChainHost.startLoadingAUEffect` (Sources/Audio/TrackInsertChainHost.swift:255)
+  ALWAYS re-enters the rebuild via `DispatchQueue.main.async`. Even when the AU
+  factory completes INLINE on main (which it can — `AUAudioUnitFactory` runs its
+  completion through `performOnMain`, i.e. inline on the main thread), the
+  post-load rebuild is deferred to a *fresh* main-queue turn.
+- Every graphLock holder on the main thread releases the lock synchronously
+  before returning: `setTrackInserts` (MainAudioGraph.swift:1028),
+  `rebuildTrackInsertChainAfterLoad` (1042), and the live-engine ramp-completion
+  path `withTrackGainRampedToSilence` (2054) all do `lockGraphLock(); …;
+  unlockGraphLock()` with **no run-loop spin** in between. So by the time the
+  deferred `DispatchQueue.main.async` re-entry runs, graphLock is free.
+- `lockGraphLock` is non-recursive and trips
+  `debugAssertGraphLockNotHeldByCurrentThread` (135/146) on re-entry, and
+  `performOnMain` trips `debugAssertNotHoldingGraphLockForMainHop` (2603) on any
+  hold-across-sync-hop — so a regression of either shape FAILS loudly rather
+  than wedging.
+
+The crash-report "real puzzle" (lock still held on a fresh turn) was based on the
+state at filing; the async-hop discipline + the two guards make the re-entry the
+crash described impossible on this path now. The async hop has been present since
+the first wiring commit (3c9bfb38), and subsequent graphLock work (#47 leaf-lock,
+the AB-BA fixes, R0–R2, ramp-to-silence) closed the surrounding hold-under-hop and
+stop/start shapes.
+
+Regression coverage added:
+`ConcurrencyChurnStressTests.test_trackInsertChain_inlineAUInstantiation_noGraphLockReentry_andWiresNode`
+— injects an inline-completing AU factory, adds an AU FX insert via
+`setTrackInserts`, asserts (a) no graphLock re-entry violation fires (the
+detector is armed in `setUp`) and (b) the AU node wires into the live chain.
+Mirrors the existing send-bus regression
+`test_installSendBus_inlineAUInstantiationCompletesWithoutDeadlockAndWiresNode`.
+Passes; the detector positive control (`test_graphLockReentryDetector_fires`)
+proves the assertion is non-vacuous.
+
+Residual (human): a real newly-instantiated AU effect added live during playback
+(needs the macOS lower-permissions modal granted) — sounding + click-free. The
+test exercises the locking/wiring shape with an inline native node, not a real
+out-of-process AU.
+
 ## What happens
 
 Adding an **AU effect** insert to a track crashes the app. The deadlock guard

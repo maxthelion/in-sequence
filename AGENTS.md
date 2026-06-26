@@ -172,6 +172,27 @@ Enforced by `realtime-path-lint.sh`, `runtime-ownership-lint.sh`, an offline
 frame-accuracy test (assert 0-frame error), and the audio adherence observers.
 Migration plan: [`docs/plans/2026-06-24-sample-accurate-timing.md`](docs/plans/2026-06-24-sample-accurate-timing.md).
 
+## Bug Reports & Status
+
+User-filed bug reports live under `docs/bugs/<timestamp-slug>/` (each is a
+`note.md`/`report.md` + optional screenshots, dropped by the intake tool). To see
+how many are left and of what status:
+
+```sh
+scripts/bug-status.sh          # summary counts (RESOLVED / WONTFIX / OPEN / total)
+scripts/bug-status.sh --open   # + list the OPEN bug dirs
+scripts/bug-status.sh --all    # + every bug dir with its status
+```
+
+**Status convention** (the script reads any `*.md` in each bug dir):
+- **RESOLVED** — the dir has a `Status: RESOLVED` (or `FIXED`/`DONE`) line, OR a
+  `## RESOLVED` / `## ROOT CAUSE + FIX` heading, OR `RESOLVED (20…`.
+- **WONTFIX** — a `Status: WONTFIX` (or `WON'T FIX`/`DUPLICATE`/`INVALID`) line.
+- **OPEN** — anything else (freshly-filed intake bugs default to OPEN).
+
+When you fix or reject a bug, append a `Status: RESOLVED <commit>` (or
+`Status: WONTFIX <reason>`) line to its note/report so the count stays accurate.
+
 ## How To Orient
 
 Run:

@@ -54,3 +54,5 @@ SamplePlaybackEngine `setVoiceParam`→withLock (:1828); holder:
 setTrackMix/setTrackSends lifecycleLock.withLock across audioGraph mutation,
 run inline on main. Root fix in task #47 (don't hold lifecycleLock across engine
 mutation). Not the offline pump (revert didn't fix this one).
+
+Status: RESOLVED — lifecycleLock leaf-lock fix (#47)

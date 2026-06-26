@@ -17,3 +17,5 @@ relevant (a routing edit silently loses audio), so fix it in the watertight push
 Acceptance: route a track to a bus, then back to master, during playback — the
 track keeps sounding (voices re-established on master). routing-stress reports 0
 SILENCE for route/send/scene/add/remove ops.
+
+Status: RESOLVED — route-to-master voice-loss fix (#53/#57)

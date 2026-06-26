@@ -44,3 +44,5 @@ masked the AU itself (connect never completed → "unavailable" → silent).
 Launch a real-AU fixture with the command channel: app stays responsive, status
 file keeps updating, transport plays, the AU completes its connection. (Verified
 live: post-fix the app is responsive and the status writer updates.)
+
+Status: RESOLVED — ee609420 (snapshot readout, no queue.sync)

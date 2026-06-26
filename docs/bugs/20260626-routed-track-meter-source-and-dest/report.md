@@ -22,3 +22,5 @@ follows the track's terminal, which for a bus-routed sample track is the bus voi
 pool, not the per-track filter). Keep a meter tap on the track's own output (pre-
 bus) so the source always meters, and fix the bus meter tap so the destination
 meters the sum. Relates to the bus-meter-tap gap in #59.
+
+Status: RESOLVED — b19a6941 (source + bus meters)

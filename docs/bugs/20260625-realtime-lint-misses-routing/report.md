@@ -13,3 +13,5 @@ observers — are also still unbuilt.)
 
 Fix: enforce engine.stop/start + disconnect-of-sounding-node + lifecycleLock-
 across-engine-mutation in routing paths. Task #50.
+
+Status: RESOLVED — realtime-path-lint routing coverage (#50)
