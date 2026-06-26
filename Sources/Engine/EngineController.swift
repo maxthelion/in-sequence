@@ -256,6 +256,10 @@ final class EngineController: RouterDispatcher {
     let registry: BlockRegistry
     let commandQueue: CommandQueue
     let clock: TickClock
+    /// The one audio-derived master clock (Audio Engine Hard Rule 1). Every
+    /// musical-time → sounding-frame conversion goes through this object + the
+    /// tempo map; nothing else derives a sounding time from a wall clock.
+    let audioMasterClock: AudioMasterClock
 
     let eventQueue = EventQueue()
     let sampleEngine: SamplePlaybackSink
@@ -451,11 +455,19 @@ final class EngineController: RouterDispatcher {
     @ObservationIgnored
     var scheduledAudioTimeOverrideForTesting: ((TimeInterval) -> AVAudioTime?)?
 
-    private func scheduledAudioTime(for scheduledHostTime: TimeInterval) -> AVAudioTime? {
+    /// Builds the future `AVAudioTime` an event is stamped with (Rule 2). The
+    /// argument is the event's MUSICAL position in cumulative seconds (derived
+    /// from the unified clock's tempo map at prepare time), NOT a wall-clock
+    /// value. Production maps it onto the audio render clock's `sampleTime`
+    /// (Rule 1) via `AudioMasterClock` → `AVAudioTime(sampleTime:atRate:)`. The
+    /// offline gate harness installs `scheduledAudioTimeOverrideForTesting` to
+    /// read the stamped frame deterministically; it stands in for this exact
+    /// conversion (musical-seconds → frame), so it verifies production accuracy.
+    private func scheduledAudioTime(for scheduledMusicalSeconds: TimeInterval) -> AVAudioTime? {
         if let scheduledAudioTimeOverrideForTesting {
-            return scheduledAudioTimeOverrideForTesting(scheduledHostTime)
+            return scheduledAudioTimeOverrideForTesting(scheduledMusicalSeconds)
         }
-        return AVAudioTime(hostTime: AVAudioTime.hostTime(forSeconds: max(0, scheduledHostTime)))
+        return audioMasterClock.audioTime(atMusicalSeconds: max(0, scheduledMusicalSeconds))
     }
 
     private func stepDurationSeconds(bpm: Double) -> TimeInterval {
@@ -795,6 +807,10 @@ final class EngineController: RouterDispatcher {
         self.registry = BlockRegistry()
         self.commandQueue = CommandQueue(capacity: 256)
         self.clock = TickClock(stepsPerBar: stepsPerBar)
+        self.audioMasterClock = AudioMasterClock(
+            stepsPerBar: stepsPerBar,
+            renderPositionProvider: { [weak mainAudioGraph] in mainAudioGraph?.renderPosition }
+        )
         self.currentBPM = 120
         self.selectedOutput = .midi
         self.publishesAudioInputCapture = publishesAudioInputCapture
@@ -844,6 +860,11 @@ final class EngineController: RouterDispatcher {
         hosts.forEach { $0.startIfNeeded() }
         try? sampleEngine.start()
 
+        // Capture the audio-render origin: musical second 0 maps to the render
+        // position current at transport start (Rule 1). Must precede
+        // prepareTick(0) so the first step's stamp resolves against the right
+        // origin. systemUptime is the host-time fallback before first render.
+        audioMasterClock.captureOrigin(fallbackHostSeconds: ProcessInfo.processInfo.systemUptime)
         prepareTick(upcomingStep: 0, now: ProcessInfo.processInfo.systemUptime)
         promotePreparedNoteRepeatCapture(for: 0)
         tickState.markPreparedTick(0)
@@ -871,6 +892,11 @@ final class EngineController: RouterDispatcher {
         hosts.forEach { $0.startIfNeeded() }
         try? sampleEngine.start()
 
+        // Offline / manual-driver path: capture the render origin (offline this
+        // is the deterministic manualRenderingSampleTime, typically 0) so the
+        // harness sees exact musical-second → frame stamps. `now` is the
+        // synthetic host-time fallback before first render.
+        audioMasterClock.captureOrigin(fallbackHostSeconds: now)
         prepareTick(upcomingStep: 0, now: now)
         promotePreparedNoteRepeatCapture(for: 0)
         tickState.markPreparedTick(0)
@@ -888,6 +914,7 @@ final class EngineController: RouterDispatcher {
 
         clearAllNoteRepeats(now: now)
         flushAllPendingMIDINoteOffs(now: now)
+        audioMasterClock.reset()
         DevActivity.trace(DevActivity.clock, "TickClock.stop requested (joins tick queue)")
         clock.stop()
         DevActivity.trace(DevActivity.clock, "TickClock.stop returned")
@@ -1834,16 +1861,18 @@ final class EngineController: RouterDispatcher {
         promotePreparedNoteRepeatCapture(for: tickIndex)
         scheduleActiveNoteRepeatsForCurrentTick(tickIndex: tickIndex, now: now)
         let eventCount = dispatchTick()
-        let nextStepBPM = withStateLock { executor?.currentBPM } ?? clock.bpm
-        prepareTick(upcomingStep: tickIndex &+ 1, now: now, scheduledHostTime: now + stepDurationSeconds(bpm: nextStepBPM))
+        // Prepare the next step. The event stamp is derived from the unified
+        // audio clock's tempo map inside prepareTick (musical position, NOT the
+        // pump's wake `now`), so pump jitter cannot move the sounding frame
+        // (Audio Engine Hard Rule 1).
+        prepareTick(upcomingStep: tickIndex &+ 1, now: now)
         tickState.markPreparedTick(tickIndex &+ 1)
         return eventCount
     }
 
     private func prepareTick(
         upcomingStep: UInt64,
-        now: TimeInterval,
-        scheduledHostTime explicitScheduledHostTime: TimeInterval? = nil
+        now: TimeInterval
     ) {
         let (
             executor,
@@ -1988,7 +2017,23 @@ final class EngineController: RouterDispatcher {
             preparedNotesByBlockID: capturableNotesByBlockID
         )
         let newCurrentBPM = executor.currentBPM
-        let eventScheduledHostTime = explicitScheduledHostTime ?? now
+        // The event stamp is the upcoming step's MUSICAL position (cumulative
+        // seconds) from the unified audio clock's tempo map — computed AFTER
+        // executor.tick has drained any setBPM command, so a mid-stream tempo
+        // change applies to this step's interval with no one-tick lag, and the
+        // value is independent of the pump's wake `now` (Rule 1). The
+        // `scheduledAudioTime(for:)` seam maps it onto the render sampleTime.
+        let eventScheduledHostTime = audioMasterClock.advance(
+            toStep: upcomingStep,
+            bpm: newCurrentBPM
+        )
+        // Wall-clock host time for the MIDI-out / router path ONLY. MidiOut
+        // stamps a MIDITimeStamp from this `now` (AudioConvertNanosToHostTime),
+        // so it must stay a real future host time, NOT the audio clock's
+        // musical-seconds value (which would resolve to ~boot time → "fire
+        // now"). Pointing MIDI-out at the unified clock's hostTime is Phase 3
+        // (explicitly out of scope here); this preserves existing MIDI timing.
+        let routerScheduledHostTime = now + stepDurationSeconds(bpm: newCurrentBPM)
         let completedStep = upcomingStep == 0 ? 0 : upcomingStep &- 1
         // Written here on the tick queue so cross-thread readers
         // (currentTransportTick) see the fresh value immediately; the
@@ -2096,7 +2141,12 @@ final class EngineController: RouterDispatcher {
             }
         }
 
-        routerDispatch.beginTick(now: eventScheduledHostTime)
+        // Two units, threaded separately on purpose: `routerScheduledHostTime`
+        // (wall-clock) drives the MIDI-out MIDITimeStamp path; `eventScheduledHostTime`
+        // (unified-clock MUSICAL seconds) drives the routed-AUDIO path so routed
+        // slicer/AU share the own-pattern audio stamp's units (Defect-1 fix:
+        // routed audio must NOT carry wall-clock seconds into scheduledAudioTime).
+        routerDispatch.beginTick(now: routerScheduledHostTime, musicalSeconds: eventScheduledHostTime)
         // Phase 1b: iterate snapshot-carried tracks, not currentDocumentModel.tracks.
         let trackInputs = playbackSnapshot.tracks.compactMap { track -> RouterTickInput? in
             guard !effectiveMutedTrackIDs.contains(track.id),
@@ -2523,9 +2573,17 @@ final class EngineController: RouterDispatcher {
             else {
                 return
             }
+            // Routed AU is an AUDIO event: stamp the unified clock's MUSICAL
+            // seconds, identical units to own-pattern AU (`.trackAU` above), not
+            // the wall-clock `dispatchNow`. The sink is immediate-only today so
+            // the stamp is currently retained for ownership/cancellation
+            // evidence (the same as own-pattern AU — see `.trackAU`/`.routedAU`
+            // in dispatchTick); keeping the unit consistent means that when AU
+            // gains a future contract (Phase 1) routed and own-pattern AU stamp
+            // the same way with no second unit-mismatch to find.
             eventQueue.enqueue(
                 ScheduledEvent(
-                    scheduledHostTime: routerDispatch.dispatchNow,
+                    scheduledHostTime: routerDispatch.dispatchMusicalSeconds,
                     payload: .routedAU(
                         trackID: track.id,
                         destination: destination,
@@ -2546,6 +2604,14 @@ final class EngineController: RouterDispatcher {
             guard let track else {
                 return
             }
+            // Routed slicer is an AUDIO event: stamp the unified clock's MUSICAL
+            // seconds (`dispatchMusicalSeconds`), the SAME units own-pattern
+            // slicer uses (`eventScheduledHostTime`, see the own-pattern slicer
+            // enqueue above). This is the Defect-1 fix: the wall-clock
+            // `dispatchNow` would be interpreted by `scheduledAudioTime(for:)` as
+            // musical seconds and stamp the slice ~systemUptime ahead → never
+            // sounds. With the musical value, a routed slice and an own-pattern
+            // trigger on the same step land on the same frame.
             EngineSlicerDispatcher.enqueueSliceTriggers(
                 for: notes,
                 trackID: track.id,
@@ -2555,7 +2621,7 @@ final class EngineController: RouterDispatcher {
                 sampleLibrary: sampleLibrary,
                 stepsPerBar: stepsPerBar,
                 bpm: bpm,
-                scheduledHostTime: routerDispatch.dispatchNow,
+                scheduledHostTime: routerDispatch.dispatchMusicalSeconds,
                 eventQueue: eventQueue,
                 repeatOwnerTrackID: repeatOwnerTrackID
             )

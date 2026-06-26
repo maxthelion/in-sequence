@@ -352,7 +352,12 @@ final class EngineControllerSampleTriggerTests: XCTestCase {
         )
     }
 
-    func test_sampleDestination_schedulesPreparedNextStepAtNextTickTime() throws {
+    /// P0: each step's sample trigger is stamped at the step's MUSICAL position
+    /// on the unified audio clock (`AVAudioTime(sampleTime:atRate:)`), NOT the
+    /// pump's wall-clock `now`. Step 0 → musical second 0, step 1 → one step
+    /// later (0.125 s at 120 BPM / 16 steps), regardless of the jittery `now`
+    /// values driven in. The stamp is read back as `sampleTime / sampleRate`.
+    func test_sampleDestination_schedulesPreparedNextStepAtMusicalPosition() throws {
         MainAudioGraph.useManualRenderingForAutomation = true
         defer { MainAudioGraph.useManualRenderingForAutomation = false }
 
@@ -380,15 +385,178 @@ final class EngineControllerSampleTriggerTests: XCTestCase {
         )
 
         controller.apply(documentModel: project)
+        // Pump `now` values are deliberately offset/jittered; they must NOT
+        // affect the stamped (musical) frame under P0.
         controller.processTick(tickIndex: 0, now: 100)
         controller.processTick(tickIndex: 1, now: 100.125)
 
-        let scheduledSeconds = spy.playCalls.compactMap { call in
-            call.3.map { AVAudioTime.seconds(forHostTime: $0.hostTime) }
+        // The live sink schedules against host time, so the stamps are host-time
+        // AVAudioTimes. Each stamp's ABSOLUTE host seconds must equal the unified
+        // clock's host time for that step's MUSICAL position — `origin + musical
+        // seconds`, NOT the jittered pump `now` (100 / 100.125) we drove in.
+        // Asserting the absolute value (not just the spacing) is what catches a
+        // wrong unit: if a trigger were stamped from a wall-clock value (Defect 1)
+        // its absolute host seconds would diverge from the clock's expected value.
+        let hostSeconds = spy.playCalls.compactMap { call -> Double? in
+            guard let when = call.3, when.isHostTimeValid else { return nil }
+            return AVAudioTime.seconds(forHostTime: when.hostTime)
         }
-        XCTAssertEqual(scheduledSeconds.count, 2)
-        XCTAssertEqual(scheduledSeconds[0], 100, accuracy: 0.000001)
-        XCTAssertEqual(scheduledSeconds[1], 100.125, accuracy: 0.000001)
+        let stepSeconds = (60.0 / 120.0) * (4.0 / 16.0)
+        // Expected absolute host seconds from the SAME production clock the engine
+        // stamped against (exercises AudioMasterClock end to end, not a re-derive).
+        let expectedStep0 = controller.audioMasterClock.hostSeconds(atMusicalSeconds: 0)
+        let expectedStep1 = controller.audioMasterClock.hostSeconds(atMusicalSeconds: stepSeconds)
+        XCTAssertEqual(hostSeconds.count, 2)
+        XCTAssertEqual(hostSeconds[0], expectedStep0, accuracy: 0.000001)
+        XCTAssertEqual(hostSeconds[1], expectedStep1, accuracy: 0.000001)
+        // And the spacing is exactly one musical step (independent corroboration).
+        XCTAssertEqual(hostSeconds[1] - hostSeconds[0], stepSeconds, accuracy: 0.000001)
+    }
+
+    /// REGRESSION GATE for Defect 1 (the audio-dispatch unit mismatch). An
+    /// OWN-pattern slice trigger and a ROUTED slice trigger that fire on the SAME
+    /// step must be stamped at the SAME sounding time (zero flam).
+    ///
+    /// Both audio events flow through the same dispatch seam
+    /// (`scheduledAudioTime(for:)`), which interprets the queued value as MUSICAL
+    /// seconds on the unified clock. Own-pattern events enqueue the unified
+    /// clock's musical seconds; the routed audio path must enqueue the SAME unit.
+    ///
+    /// Pre-fix the routed path enqueued `routerDispatch.dispatchNow` — a WALL-CLOCK
+    /// `systemUptime` seconds value (`now + stepDuration`). Fed into the
+    /// musical-seconds seam that adds it to the render origin, the routed slice was
+    /// stamped ~systemUptime (tens/hundreds of thousands of) seconds in the future
+    /// — i.e. it would never sound. This test FAILS on the pre-fix code (the two
+    /// stamps differ by ~`now`) and PASSES after routed audio carries musical
+    /// seconds. Sample/slice sources only (unattended tier — no AU, no mic).
+    func test_ownPatternAndRoutedSlice_onSameStep_landOnSameFrame_zeroFlam() throws {
+        let library = AudioSampleLibrary(libraryRoot: libraryRoot)
+        let kick = try XCTUnwrap(library.firstSample(in: .kick))
+        let spy = SpySamplePlaybackSink()
+
+        // One slice set shared by both slicer tracks (the actual sample content is
+        // irrelevant; we assert on the stamped time, not the audio).
+        let sliceSet = SliceSet(
+            sampleID: kick.id,
+            markers: [SliceMarker(startFrame: 0, endFrame: 4_800)]
+        )
+
+        // OWN track: a slicer whose own clip fires a slice trigger on step 0 →
+        // own-pattern slice (enqueued from the unified clock's musical seconds).
+        let ownClip = ClipPoolEntry(
+            id: UUID(),
+            name: "Own Slice Clip",
+            trackType: .slice,
+            content: .sliceTriggers(stepPattern: [true], sliceIndexes: [0], stepModes: [.single])
+        )
+        let ownTrack = StepSequenceTrack(
+            id: UUID(uuidString: "0A000000-0000-0000-0000-000000000001")!,
+            name: "Own",
+            trackType: .slice,
+            pitches: [60],
+            stepPattern: [true],
+            destination: .slicer(sliceSetID: sliceSet.id, settings: .default),
+            velocity: 100,
+            gateLength: 4
+        )
+        // ROUTE TARGET: a slicer that does NOT fire its own pattern; it only
+        // sounds via the route, so any slice stamped for it is the ROUTED one.
+        let routeTarget = StepSequenceTrack(
+            id: UUID(uuidString: "0A000000-0000-0000-0000-000000000002")!,
+            name: "RouteTarget",
+            trackType: .slice,
+            pitches: [60],
+            stepPattern: [false],
+            destination: .slicer(sliceSetID: sliceSet.id, settings: .default),
+            velocity: 100,
+            gateLength: 4
+        )
+        // SOURCE: produces notes (own destination .none so it makes no audio of
+        // its own) and routes them into the route target on the same step.
+        let sourceGen = makeAlwaysOnGenerator(id: UUID(), trackType: .monoMelodic)
+        let sourceTrack = StepSequenceTrack(
+            id: UUID(uuidString: "0A000000-0000-0000-0000-000000000003")!,
+            name: "Source",
+            pitches: [60],
+            stepPattern: [true],
+            destination: .none,
+            velocity: 100,
+            gateLength: 4
+        )
+
+        let tracks = [ownTrack, routeTarget, sourceTrack]
+        let layers = PhraseLayerDefinition.defaultSet(for: tracks)
+        let phrase = PhraseModel.default(
+            tracks: tracks,
+            layers: layers,
+            generatorPool: [sourceGen],
+            clipPool: [ownClip]
+        )
+        let route = Route(
+            source: .track(sourceTrack.id),
+            destination: .trackInput(routeTarget.id, tag: nil)
+        )
+        let project = Project(
+            version: 1,
+            tracks: tracks,
+            generatorPool: [sourceGen],
+            clipPool: [ownClip],
+            layers: layers,
+            routes: [route],
+            patternBanks: [
+                TrackPatternBank(
+                    trackID: ownTrack.id,
+                    slots: [TrackPatternSlot(slotIndex: 0, sourceRef: .clip(ownClip.id))]
+                ),
+                TrackPatternBank(
+                    trackID: sourceTrack.id,
+                    slots: (0..<16).map { TrackPatternSlot(slotIndex: $0, sourceRef: .generator(sourceGen.id)) }
+                )
+            ],
+            sliceSetPool: [sliceSet],
+            selectedTrackID: ownTrack.id,
+            phrases: [phrase],
+            selectedPhraseID: phrase.id
+        )
+
+        let controller = EngineController(
+            client: nil,
+            endpoint: nil,
+            sampleEngine: spy,
+            sampleLibrary: library
+        )
+        controller.apply(documentModel: project)
+        // Drive a single step at a deliberately large wall-clock `now` — this is
+        // what makes the pre-fix bug glaring: the routed path would carry ~`now`
+        // into the musical seam. A correct implementation ignores it entirely.
+        controller.processTick(tickIndex: 0, now: 100_000)
+
+        // Stamps grouped by destination track.
+        let ownStamps = spy.playSliceCalls
+            .filter { $0.4 == ownTrack.id }
+            .compactMap { $0.5 }
+        let routedStamps = spy.playSliceCalls
+            .filter { $0.4 == routeTarget.id }
+            .compactMap { $0.5 }
+
+        XCTAssertGreaterThanOrEqual(ownStamps.count, 1, "own-pattern slicer must fire on step 0")
+        XCTAssertGreaterThanOrEqual(routedStamps.count, 1, "routed slicer must fire on step 0")
+
+        let ownHostSeconds = try AVAudioTime.seconds(forHostTime: XCTUnwrap(ownStamps.first).hostTime)
+        let routedHostSecondsAll = routedStamps.map { AVAudioTime.seconds(forHostTime: $0.hostTime) }
+
+        // Zero flam: EVERY routed slice on this step is stamped at the IDENTICAL
+        // sounding time as the own-pattern slice. (Pre-fix: the routed stamps were
+        // ≈ ownHostSeconds + ~100_000 s, because the routed path carried wall-clock
+        // seconds into the musical seam — so this asserts both that routed audio
+        // sounds at all and that it shares the own-pattern frame.)
+        for routedHostSeconds in routedHostSecondsAll {
+            XCTAssertEqual(
+                routedHostSeconds, ownHostSeconds, accuracy: 0.000001,
+                "own-pattern and routed slices on the same step must land on the same frame (flam = " +
+                "\(routedHostSeconds - ownHostSeconds) s)"
+            )
+        }
     }
 
     func test_factory808Kit_dispatchesKickAndHatWhenBothFireOnSameStep() throws {
@@ -566,17 +734,37 @@ final class EngineControllerSampleTriggerTests: XCTestCase {
         controller.engageNoteRepeat(trackID: track.id)
         controller.processTick(tickIndex: 1, now: 1)
 
+        // P0: note-repeat sub-step stamps are anchored on the tick's MUSICAL
+        // position (unified clock), not the pump's wall-clock `now`, and spaced
+        // evenly by secondsPerStep/triggerCount. The live sink schedules against
+        // host time. Assert each stamp's ABSOLUTE host seconds equals the unified
+        // clock's host time for that sub-step's musical position — the absolute
+        // check (not just spacing) is what would catch a wrong-unit stamp.
         let repeatTimes = spy.playCalls.map(\.3)
         XCTAssertEqual(repeatTimes.count, 4)
-        XCTAssertTrue(repeatTimes.allSatisfy { $0 != nil })
-        let scheduledSeconds = repeatTimes.compactMap { when in
+        XCTAssertTrue(repeatTimes.allSatisfy { $0 != nil && $0!.isHostTimeValid })
+        let hostSeconds = repeatTimes.compactMap { when in
             when.map { AVAudioTime.seconds(forHostTime: $0.hostTime) }
         }
-        XCTAssertEqual(scheduledSeconds.count, 4)
-        zip(scheduledSeconds, [1.0, 1.03125, 1.0625, 1.09375]).forEach { actual, expected in
-            XCTAssertEqual(actual, expected, accuracy: 0.000001)
+        let stepSeconds = (60.0 / 120.0) * (4.0 / 16.0)   // one musical step
+        let spacing = stepSeconds / 4.0                     // 1/64 → 4 triggers per step
+        // The tick-1 musical anchor, read from the SAME production clock.
+        let anchorMusical = try XCTUnwrap(controller.audioMasterClock.musicalSeconds(forStep: 1))
+        XCTAssertEqual(hostSeconds.count, 4)
+        for index in 0..<hostSeconds.count {
+            let expected = controller.audioMasterClock.hostSeconds(
+                atMusicalSeconds: anchorMusical + Double(index) * spacing
+            )
+            XCTAssertEqual(
+                hostSeconds[index], expected, accuracy: 0.000001,
+                "sub-step \(index) must stamp at the unified clock's host time for its musical position"
+            )
         }
-        XCTAssertEqual(Set(scheduledSeconds).count, 4, "1/64 repeats must not collapse into one dispatch time")
+        // Spacing corroboration: consecutive sub-steps are one 1/64 apart.
+        for index in 1..<hostSeconds.count {
+            XCTAssertEqual(hostSeconds[index] - hostSeconds[index - 1], spacing, accuracy: 0.000001)
+        }
+        XCTAssertEqual(Set(hostSeconds).count, 4, "1/64 repeats must not collapse into one dispatch time")
     }
 
     func test_trackMix_appliedToSampleEngineOnDocumentApply() {

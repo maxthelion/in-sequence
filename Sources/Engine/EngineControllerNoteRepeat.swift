@@ -107,6 +107,13 @@ extension EngineController {
         }
 
         let secondsPerStep = Self.secondsPerStep(bpm: bpm, stepsPerBar: stepsPerBar)
+        // Musical-position anchor for the AUDIO sub-step stamps (Rule 1): the
+        // cumulative musical seconds of this tick from the unified clock,
+        // independent of the pump's wake `now`. `anchorHostTime` (wall clock)
+        // stays the anchor for the MIDI/router path and note-activity UI, whose
+        // timestamps are not yet on the unified clock (Phase 3).
+        let anchorMusicalSeconds = audioMasterClock.musicalSeconds(forStep: anchorTickIndex)
+            ?? audioMasterClock.advance(toStep: anchorTickIndex, bpm: bpm)
         var noteActivityCount = 0
         var latestNoteActivityHostTime = anchorHostTime
         for activeRepeat in activeRepeats {
@@ -139,10 +146,12 @@ extension EngineController {
 
             for triggerIndex in 0..<triggerCount {
                 let scheduledHostTime = anchorHostTime + (Double(triggerIndex) * triggerSpacing)
+                let scheduledMusicalSeconds = anchorMusicalSeconds + (Double(triggerIndex) * triggerSpacing)
                 dispatchNoteRepeatOutput(
                     notes: capturedStep.notes,
                     for: track,
                     at: scheduledHostTime,
+                    musicalSeconds: scheduledMusicalSeconds,
                     anchorTickIndex: anchorTickIndex,
                     bpm: bpm,
                     snapshot: snapshot,
@@ -169,6 +178,7 @@ extension EngineController {
         notes: [NoteEvent],
         for track: StepSequenceTrack,
         at scheduledHostTime: TimeInterval,
+        musicalSeconds scheduledMusicalSeconds: TimeInterval,
         anchorTickIndex: UInt64,
         bpm: Double,
         snapshot: PlaybackSnapshot,
@@ -200,9 +210,11 @@ extension EngineController {
             guard audioOutputs[track.id] != nil else {
                 break
             }
+            // Audio stamp on the unified clock's musical seconds (Rule 1),
+            // mapped to sampleTime by scheduledAudioTime(for:) at dispatch.
             eventQueue.enqueue(
                 ScheduledEvent(
-                    scheduledHostTime: scheduledHostTime,
+                    scheduledHostTime: scheduledMusicalSeconds,
                     payload: .trackAU(
                         trackID: track.id,
                         destination: resolved.destination,
@@ -218,12 +230,12 @@ extension EngineController {
             for _ in notes {
                 eventQueue.enqueue(
                     ScheduledEvent(
-                        scheduledHostTime: scheduledHostTime,
+                        scheduledHostTime: scheduledMusicalSeconds,
                         payload: .sampleTrigger(
                             trackID: track.id,
                             sampleID: sampleID,
                             settings: settings,
-                            scheduledHostTime: scheduledHostTime
+                            scheduledHostTime: scheduledMusicalSeconds
                         ),
                         repeatOwnerTrackID: track.id
                     )
@@ -240,7 +252,7 @@ extension EngineController {
                 sampleLibrary: sampleLibrary,
                 stepsPerBar: stepsPerBar,
                 bpm: bpm,
-                scheduledHostTime: scheduledHostTime,
+                scheduledHostTime: scheduledMusicalSeconds,
                 eventQueue: eventQueue,
                 repeatOwnerTrackID: track.id
             )
@@ -249,7 +261,13 @@ extension EngineController {
             break
         }
 
-        routerDispatch.beginTick(now: scheduledHostTime)
+        // Routed note-repeat output: `scheduledHostTime` (wall clock) drives the
+        // MIDI-out timestamp path; `scheduledMusicalSeconds` (unified-clock sub-
+        // step musical seconds) drives the routed-AUDIO path, matching the
+        // own-pattern note-repeat audio stamps enqueued above (Defect-1 fix:
+        // routed-note-repeat audio must not carry wall-clock seconds into
+        // scheduledAudioTime).
+        routerDispatch.beginTick(now: scheduledHostTime, musicalSeconds: scheduledMusicalSeconds)
         router.tick([RouterTickInput(sourceTrack: track.id, notes: notes, chordContext: nil)])
         flushRoutedEvents(
             bpm: bpm,

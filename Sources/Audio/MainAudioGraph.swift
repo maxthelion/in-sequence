@@ -461,6 +461,47 @@ final class MainAudioGraph {
         engine.isRunning
     }
 
+    /// The current audio-render position, as the unified master clock's origin
+    /// (Audio Engine Hard Rule 1). Reads the render `sampleTime` from the
+    /// engine itself — NEVER a wall clock:
+    ///
+    /// - **Offline manual-rendering mode** (the deterministic gate / automation
+    ///   path): `engine.manualRenderingSampleTime` is the exact frame the next
+    ///   `renderOffline` will produce. There is no live `hostTime`, so we pair
+    ///   it with `mach_absolute_time()` purely as a *correlation* stamp (the
+    ///   musical-time math never depends on it offline — `sampleTime` is the
+    ///   sole source of truth, which is what makes the offline gate exact).
+    /// - **Live HAL mode:** the output node's `lastRenderTime` carries the
+    ///   device render position as a monotonic `sampleTime` (+ matching
+    ///   `hostTime`). Before the first render (or if the node has not produced a
+    ///   valid render time yet) this returns nil and the clock falls back to its
+    ///   musical-time accumulator.
+    ///
+    /// Returns nil when no render position is available yet; the caller must
+    /// treat that as "origin not yet established".
+    ///
+    /// This is a pure READ of engine state — no allocation, no locks, no graph
+    /// mutation — so it is safe to call from the lookahead pump (Rule 6: it adds
+    /// no work to the render thread itself; the pump runs off it).
+    var renderPosition: (sampleTime: AVAudioFramePosition, hostTime: UInt64, sampleRate: Double)? {
+        if engine.isInManualRenderingMode {
+            let rate = engine.manualRenderingFormat.sampleRate
+            guard rate > 0 else { return nil }
+            return (engine.manualRenderingSampleTime, mach_absolute_time(), rate)
+        }
+        guard let renderTime = engine.outputNode.lastRenderTime,
+              renderTime.isSampleTimeValid
+        else {
+            return nil
+        }
+        let rate = renderTime.sampleRate > 0
+            ? renderTime.sampleRate
+            : engine.outputNode.outputFormat(forBus: 0).sampleRate
+        guard rate > 0 else { return nil }
+        let hostTime = renderTime.isHostTimeValid ? renderTime.hostTime : mach_absolute_time()
+        return (renderTime.sampleTime, hostTime, rate)
+    }
+
     /// True when `node` can be started right now: the engine is running and
     /// the node is still attached and connected. AVAudioPlayerNode.play()
     /// throws an uncatchable NSException for a detached/disconnected node

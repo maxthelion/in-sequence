@@ -500,6 +500,7 @@
 		EC11C7CD4E29613131F89F90 /* StoreAccessorHelpersTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30082F8F2581FEF46168A257 /* StoreAccessorHelpersTests.swift */; };
 		EC2541E884E74AC8B7D0C0BE /* TrackFXChainView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CACDB5C237894FAD226F78C /* TrackFXChainView.swift */; };
 		ED2B2D189FDDCDB6014BAD94 /* StudioOpacity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23295021310BA5D0FC985AA4 /* StudioOpacity.swift */; };
+		ED8836AD638C5CACD2E649FD /* AudioMasterClock.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6F7D1FA1A87A5E86E284D36 /* AudioMasterClock.swift */; };
 		EE125CE0AB3CC4B23D073F52 /* SliceIndexEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8E7C192A40514A0945B22CA /* SliceIndexEditor.swift */; };
 		EE3BC06D914E4092C8CE30BA /* SequencerAIAppDelegateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B429A3ED9DC172B8351D6DA7 /* SequencerAIAppDelegateTests.swift */; };
 		EE87267DF80AC112B2F611CE /* StudioMetrics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73E46AC9A8152C166CE53DC6 /* StudioMetrics.swift */; };
@@ -2054,6 +2055,7 @@
 		E68B29D1143C97E47A672605 /* DrumAssetLibrary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DrumAssetLibrary.swift; sourceTree = "<group>"; };
 		E6CC65391D8DDD5FD5350FE3 /* ProjectAttachNewGeneratorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectAttachNewGeneratorTests.swift; sourceTree = "<group>"; };
 		E6EB7D436F2D7B9D6A5DAC8D /* octatrack-reference.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "octatrack-reference.md"; sourceTree = "<group>"; };
+		E6F7D1FA1A87A5E86E284D36 /* AudioMasterClock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioMasterClock.swift; sourceTree = "<group>"; };
 		E722412B86369F239A97BDEB /* WaveformView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaveformView.swift; sourceTree = "<group>"; };
 		E7288E9EE51157E84F6424D9 /* report.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = report.md; sourceTree = "<group>"; };
 		E74C45850D80CB324BA4FBA1 /* image-3.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "image-3.png"; sourceTree = "<group>"; };
@@ -3042,6 +3044,7 @@
 			isa = PBXGroup;
 			children = (
 				3F55C92A665C6313D5B8E5E4 /* AudioInputCaptureStore.swift */,
+				E6F7D1FA1A87A5E86E284D36 /* AudioMasterClock.swift */,
 				16D79D625BD5365928D750F6 /* Block.swift */,
 				ABD557FC4B40463E9A90BAA0 /* BlockRegistry.swift */,
 				4164667705DDF9F1DA2E8724 /* CaptureSnapshot.swift */,
@@ -6885,6 +6888,7 @@
 				F2873CBFB0F90A9D00B19847 /* AudioInstrumentChoice.swift in Sources */,
 				181CFF71ABFDB7EA5FDEECF6 /* AudioInstrumentChoiceCache.swift in Sources */,
 				100D18E7E577F78A68EE89C7 /* AudioInstrumentHost.swift in Sources */,
+				ED8836AD638C5CACD2E649FD /* AudioMasterClock.swift in Sources */,
 				6905E6C35FEF776E7D7B44D6 /* AudioRichFixture.swift in Sources */,
 				6AB5790A472B5D8DDB13C3E0 /* AudioSample.swift in Sources */,
 				45B3F3FDD38CB0B4791706B5 /* AudioSampleCategory.swift in Sources */,

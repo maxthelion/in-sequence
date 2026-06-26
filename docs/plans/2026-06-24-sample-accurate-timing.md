@@ -79,6 +79,40 @@ at musical step rate; `processTick` prepares the next step one tick ahead
 **Keep:** `TickPathMainSyncGuard`, the `EventQueue` prepare/dispatch split, the
 `scheduledAudioTimeOverrideForTesting` hook, manual-rendering mode.
 
+**Host-time anchoring decision (Phase 0 as built).** The live AUDIO stamp is a
+*host time* (`AVAudioTime(hostTime:)`) computed as `originHostSeconds +
+musicalSeconds`, NOT a raw device `sampleTime`. This is deliberate and stays:
+an `AVAudioPlayerNode`'s `sampleTime` reference is its OWN player timeline, not
+the output node's, so a frame read from the output render position cannot be
+handed to `scheduleSegment/Buffer(at:)`; a host time can, and AVFoundation
+correlates it to the render clock live, jitter-free. Rule 1 is still honoured:
+the host-time ORIGIN is captured from the render position's `hostTime` (the
+render clock), and the musical OFFSET comes from the tempo map — neither is a
+free-running wall clock. `AudioMasterClock` is THE one sanctioned site that may
+touch `systemUptime`/host time for musical timing: the provisional pre-render
+origin fallback, the render-origin capture/upgrade, and the final
+`AVAudioTime(hostTime:)` stamp. Everything else derives its sounding time from
+this object. The render-derived `sampleTime(atMusicalSeconds:)` API is retained
+for the offline/deterministic gate and diagnostics (it IS the conversion the
+offline frame-accuracy gate exercises), not the live path. The wider
+~100–200 ms lookahead pump is NOT built in Phase 0 — the retained 1-tick prepare
+horizon already stamps each step from the tempo map (pump-jitter-independent),
+which meets the stamping goal; the dead `now()` pump-read API was removed rather
+than left claiming a window that does not exist.
+
+**Routed-audio vs MIDI unit separation (Phase 0 as built).** Routed AUDIO
+events (routed slicer / routed AU / routed note-repeat audio) stamp the unified
+clock's MUSICAL seconds — the SAME unit own-pattern audio uses — so an
+own-pattern and a routed trigger on the same step land on the same frame (zero
+flam, regression-gated by
+`EngineControllerSampleTriggerTests.test_ownPatternAndRoutedSlice_onSameStep_landOnSameFrame_zeroFlam`).
+MIDI-out is NOT on the unified clock yet (Phase 3): it keeps its own wall-clock
+host-time path (`RouterDispatchState.dispatchNow`) for its `MIDITimeStamp`. The
+two units are threaded separately through `RouterDispatchState`
+(`dispatchMusicalSeconds` for audio, `dispatchNow` for MIDI) — the musical value
+must never reach a `MIDITimeStamp`, and the host-time value must never reach the
+`scheduledAudioTime(for:)` audio seam.
+
 **Acceptance gate (must pass before Phase 1):**
 - New offline-render test: drive the engine in `enableManualRenderingMode(.offline)`,
   schedule events at known musical positions, assert each lands within **0

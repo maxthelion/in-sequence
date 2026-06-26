@@ -100,17 +100,27 @@ final class OfflineFrameAccuracyTests: XCTestCase {
             self.controller = controller
             self.sink = sink
 
-            // Stamp-capture seam: mirror P0's target conversion
-            // (AVAudioTime(sampleTime:atRate:)) and record the frame. This is
-            // the conversion the engine WILL use post-P0; feeding it the
-            // engine's current `scheduledHostTime` faithfully exposes whatever
-            // origin that seconds value came from (ideal grid vs jittered pump).
-            controller.scheduledAudioTimeOverrideForTesting = { [weak self] scheduledHostTime in
+            // Stamp-capture seam — exercises the REAL production conversion, not
+            // a re-derivation. The override DELEGATES to the engine's own
+            // `AudioMasterClock.sampleTime(atMusicalSeconds:)` (the render-derived
+            // frame API): it converts the upcoming step's MUSICAL-seconds value
+            // (the unit the engine now enqueues) onto an absolute render frame
+            // using the clock's captured origin, sampleRate, and rounding. Under
+            // offline manual rendering the render position is deterministic
+            // (`manualRenderingSampleTime`, typically 0 since the harness never
+            // renders), so the conversion is exact — and if `AudioMasterClock`'s
+            // math is wrong the captured frame diverges from `targetFrame` and
+            // the 0-frame gate FAILS. (Previously this re-implemented
+            // `musicalSeconds * sampleRate` inline, which made the gate assert
+            // its own arithmetic and never touched `AudioMasterClock` — a
+            // tautology.) The returned `AVAudioTime(sampleTime:)` is what the
+            // sink records, so the captured frame is the genuine end-to-end stamp.
+            controller.scheduledAudioTimeOverrideForTesting = { [weak self] scheduledMusicalSeconds in
                 guard let self else { return nil }
-                let frame = AVAudioFramePosition(
-                    ((scheduledHostTime - self.originSeconds) * self.sampleRate).rounded()
+                let frame = self.controller.audioMasterClock.sampleTime(
+                    atMusicalSeconds: scheduledMusicalSeconds
                 )
-                self.capturedFrames.append((scheduledHostTime, frame))
+                self.capturedFrames.append((scheduledMusicalSeconds, frame))
                 return AVAudioTime(sampleTime: frame, atRate: self.sampleRate)
             }
         }
@@ -147,12 +157,29 @@ final class OfflineFrameAccuracyTests: XCTestCase {
 
         /// The exact musical-target frame for `step` given a tempo map.
         /// `bpmForStep` returns the BPM in effect when `step` plays.
+        ///
+        /// The frame is computed at the SAME sample rate the production clock
+        /// stamped against (`AudioMasterClock.sampleRate`, seeded from the engine's
+        /// offline manual-rendering format), not a test-local rate — so target and
+        /// actual cannot diverge merely because the harness assumed a different
+        /// rate from the engine. The independently-computed `seconds` (tempo map
+        /// here vs the clock's incremental accumulator in production) is the real
+        /// check: if the clock's musical math is wrong the frames differ and the
+        /// 0-frame gate fails.
         func targetFrame(forStep step: Int, bpmForStep: (Int) -> Double) -> AVAudioFramePosition {
             var seconds = 0.0
             for priorStep in 0..<step {
                 seconds += secondsPerStep(bpm: bpmForStep(priorStep))
             }
-            return AVAudioFramePosition(((seconds) * sampleRate).rounded())
+            return AVAudioFramePosition(((seconds) * clockSampleRate).rounded())
+        }
+
+        /// The sample rate the production clock is using (offline: the manual-
+        /// rendering format rate). Falls back to the harness's nominal rate before
+        /// the clock has seen a render position.
+        var clockSampleRate: Double {
+            let rate = controller.audioMasterClock.sampleRate
+            return rate > 0 ? rate : sampleRate
         }
 
         func secondsPerStep(bpm: Double) -> TimeInterval {
@@ -345,28 +372,15 @@ final class OfflineFrameAccuracyTests: XCTestCase {
     }
 
     /// THE PHASE 0 TEMPO-CHANGE GATE (mandate: "the mapping stays exact across a
-    /// mid-stream tempo change"). Even on an IDEAL (jitter-free) timeline, the
-    /// current scheduler does NOT keep the mapping exact to the pure musical grid
-    /// across a mid-stream tempo change: `setBPM` enqueues a command consumed by
-    /// `executor.tick` INSIDE `prepareTick`, but the next step's
-    /// `scheduledHostTime` is computed from the BPM read BEFORE that consume
-    /// (EngineController.swift `nextStepBPM` / `eventScheduledHostTime`), so the
-    /// new step duration applies one tick late and the boundary step lands off
-    /// the grid. That one-tick command/clock coupling is exactly what P0's
-    /// unified audio clock removes, so this flips to PASS under P0.
-    ///
-    /// `XCTExpectFailure(strict: true)` keeps the suite green now and fails
-    /// loudly when P0 makes it pass (remove the marker then).
-    func test_idealTimeline_midStreamTempoChange_GATE_failsUntilP0() throws {
-        XCTExpectFailure(
-            "Phase 0 tempo-change gate: the mapping must stay exact to the musical grid across a " +
-            "mid-stream tempo change. Today setBPM applies to the next step's stamp one tick late " +
-            "(command-queue vs explicit-stepDur read in EngineController), so the boundary step lands " +
-            "off-grid. P0's unified audio clock removes this coupling and the gate passes — strict " +
-            "mode flags this marker for removal when it does.",
-            strict: true
-        )
-
+    /// mid-stream tempo change"). The mapping stays exact to the pure musical
+    /// grid across a mid-stream tempo change. P0's unified audio clock
+    /// (`AudioMasterClock`) advances the musical-position accumulator AFTER
+    /// `executor.tick` drains the `setBPM` command, so the new step duration
+    /// applies to the boundary step's interval with no one-tick lag and every
+    /// stamp lands on its exact frame. (Pre-P0 this failed: the next step's
+    /// stamp was computed from `now + stepDuration(BPM read before the consume)`,
+    /// so the boundary step landed off-grid.) Permanent 0-frame regression guard.
+    func test_idealTimeline_midStreamTempoChange_GATE() throws {
         let firstBPM = 120.0
         let secondBPM = 90.0
         let harness = try makeSampleHarness(bpm: firstBPM)
@@ -401,23 +415,13 @@ final class OfflineFrameAccuracyTests: XCTestCase {
     /// pump wakes late/early, as a real `DispatchSourceTimer` does), and asserts
     /// every event still lands on its exact musical-grid frame.
     ///
-    /// TODAY this FAILS: the engine stamps each step at the pump's wake time
-    /// (`eventScheduledHostTime = now`), so the sounding frame drifts by the
-    /// jitter. After P0 derives the sounding frame from the audio render clock
-    /// (independent of pump jitter), it PASSES.
-    ///
-    /// `XCTExpectFailure(strict: true)` keeps the suite green now AND fails
-    /// loudly the moment P0 makes it pass — signalling "remove this marker".
-    func test_jitteredPump_stampsExactTargetFrame_GATE_failsUntilP0() throws {
-        XCTExpectFailure(
-            "Phase 0 gate: asserts the not-yet-true 0-frame target under a jittered pump. " +
-            "Today the master clock is wall-clock derived (EngineController stamps each step at the " +
-            "pump's `now`), so the stamped frame drifts by the pump jitter. P0 derives the sounding " +
-            "frame from the audio render clock and this flips to PASS — when it does, strict mode " +
-            "FAILS here so this marker is removed.",
-            strict: true
-        )
-
+    /// P0 derives each step's stamp from the unified audio clock's musical
+    /// position (`AudioMasterClock.advance(toStep:bpm:)`), independent of the
+    /// pump's wake `now`, so pump jitter no longer moves the sounding frame —
+    /// every step lands at 0 frames. (Pre-P0 this failed: the engine stamped
+    /// each step at the pump's wake time `now`, so the frame drifted by the
+    /// injected jitter.) Permanent 0-frame regression guard.
+    func test_jitteredPump_stampsExactTargetFrame_GATE() throws {
         let bpm = 120.0
         let harness = try makeSampleHarness(bpm: bpm)
         let stepDuration = harness.secondsPerStep(bpm: bpm)
@@ -445,16 +449,12 @@ final class OfflineFrameAccuracyTests: XCTestCase {
         }
     }
 
-    /// THE PHASE 0 GATE across a mid-stream tempo change, under a jittered pump.
-    /// Same fail-until-P0 contract as above.
-    func test_jitteredPump_midStreamTempoChange_GATE_failsUntilP0() throws {
-        XCTExpectFailure(
-            "Phase 0 gate (tempo change): under a jittered pump the stamped frame must stay locked to " +
-            "the musical grid across a mid-stream tempo change. Fails until P0 moves the sounding frame " +
-            "onto the audio render clock; strict mode flags this marker for removal when it passes.",
-            strict: true
-        )
-
+    /// THE PHASE 0 GATE across a mid-stream tempo change, under a jittered pump —
+    /// the combined worst case (pump jitter AND a tempo change). Every stamp
+    /// stays locked to the musical grid at 0 frames because P0 derives it from
+    /// the unified clock's musical position, not the pump `now`. Permanent
+    /// 0-frame regression guard.
+    func test_jitteredPump_midStreamTempoChange_GATE() throws {
         let firstBPM = 120.0
         let secondBPM = 90.0
         let harness = try makeSampleHarness(bpm: firstBPM)
@@ -478,12 +478,15 @@ final class OfflineFrameAccuracyTests: XCTestCase {
         }
     }
 
-    /// Diagnostic (always green): records the ACTUAL measured frame error under
-    /// the jittered pump on the CURRENT code, so the report can cite a concrete
-    /// number rather than "fails". Confirms the wall-clock dependency is real
-    /// and bounded by the injected jitter — i.e. the gate above fails for the
-    /// documented reason, not some unrelated breakage.
-    func test_jitteredPump_currentCode_measuredFrameError_isWallClockJitter() throws {
+    /// Diagnostic: records the ACTUAL measured frame error under the jittered
+    /// pump, so the report can cite a concrete number. Post-P0 the measured
+    /// error is EXACTLY 0 at every step — the sounding frame no longer depends
+    /// on the pump's wake time. (Pre-P0 this diagnostic measured a non-zero
+    /// error equal to the prior step's injected pump jitter, pinning the defect
+    /// to the wall-clock pump origin; P0 removed that origin.) Asserting an
+    /// exact 0 here keeps the diagnostic a meaningful guard rather than a stale
+    /// "fails for the right reason" probe.
+    func test_jitteredPump_measuredFrameError_isZero() throws {
         let bpm = 120.0
         let harness = try makeSampleHarness(bpm: bpm)
         let stepDuration = harness.secondsPerStep(bpm: bpm)
@@ -497,25 +500,15 @@ final class OfflineFrameAccuracyTests: XCTestCase {
             errors.append(actual - target)
         }
 
-        // On current (wall-clock) code each step N is stamped during the PRIOR
-        // tick's prepare at `now_{N-1} + stepDuration`
-        // (EngineController.swift: step N's event carries the (N-1)-th pump
-        // wake time). So the frame error for step N equals the PRIOR step's
-        // injected pump jitter, in frames: error[N] = jitter[N-1] * sampleRate
-        // (and step 0/1 both carry jitter[0]). This pins the defect precisely to
-        // the wall-clock pump origin — exactly what P0 removes.
-        func jitterForStampOf(step: Int) -> Double { jitter[max(0, step - 1)] }
+        // P0: every stamp derives from the unified clock's musical position, not
+        // the pump's wake `now`, so the injected jitter contributes 0 frames.
         for step in 0..<jitter.count {
-            let expectedError = AVAudioFramePosition((jitterForStampOf(step: step) * harness.sampleRate).rounded())
             XCTAssertEqual(
-                errors[step], expectedError,
-                "step \(step): current code stamps at the prior pump wake time, so the frame error must " +
-                "equal the prior step's injected pump jitter (\(jitterForStampOf(step: step)) s = " +
-                "\(expectedError) frames). Measured \(errors[step])."
+                errors[step], 0,
+                "step \(step): under P0 the sounding frame is independent of pump jitter, so the frame " +
+                "error must be exactly 0 (measured \(errors[step]); injected pump jitter for this step " +
+                "was \(jitter[step]) s)."
             )
         }
-        // At least one non-zero error proves the wall-clock dependency exists
-        // (the gate is not passing vacuously).
-        XCTAssertTrue(errors.contains { $0 != 0 }, "jittered pump must produce a non-zero frame error on current code")
     }
 }
