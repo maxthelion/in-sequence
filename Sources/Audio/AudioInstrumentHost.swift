@@ -674,7 +674,8 @@ final class AudioInstrumentHost: TrackPlaybackSink {
             // undefined/dropped, so we clamp such a note to immediate
             // (`AUEventSampleTimeImmediate`) rather than into the past. The AU's
             // current render frame is read from its `lastRenderTime` (nil before
-            // the first render → no floor, fallback already handles pre-render).
+            // the first render → use immediate stamps until the AU exposes its
+            // timeline).
             //
             // HUMAN ACOUSTIC RISK (not machine-verifiable here): that the
             // output-node render frame and the AU's internal render frame are the
@@ -682,9 +683,13 @@ final class AudioInstrumentHost: TrackPlaybackSink {
             // AVAudioEngine property we rely on but cannot assert offline — it is
             // the documented human acoustic check (a real AU on the device).
             let currentRenderFrame = instrument.lastRenderTime?.sampleTime
+            let effectiveNoteOnSampleTime = Self.effectiveNoteOnSampleTime(
+                requested: noteOnSampleTime,
+                currentRenderFrame: currentRenderFrame
+            )
             for event in noteEvents where event.gate {
                 let stamps = Self.noteStamps(
-                    noteOnSampleTime: noteOnSampleTime,
+                    noteOnSampleTime: effectiveNoteOnSampleTime,
                     length: event.length,
                     bpm: bpm,
                     stepsPerBar: stepsPerBar,
@@ -698,6 +703,21 @@ final class AudioInstrumentHost: TrackPlaybackSink {
                 )
             }
         }
+    }
+
+    /// Before an AU has rendered at least once, `lastRenderTime` is nil and
+    /// third-party instruments can treat an absolute AUEventSampleTime as being
+    /// on an undefined timeline. Use immediate stamps for that first pre-render
+    /// event, then return to exact sample stamps as soon as the AU exposes its
+    /// render frame.
+    static func effectiveNoteOnSampleTime(
+        requested noteOnSampleTime: AVAudioFramePosition?,
+        currentRenderFrame: AVAudioFramePosition?
+    ) -> AVAudioFramePosition? {
+        guard currentRenderFrame != nil else {
+            return nil
+        }
+        return noteOnSampleTime
     }
 
     /// AU MIDI note-on / note-off bytes for channel 0 (status 0x90 / 0x80).

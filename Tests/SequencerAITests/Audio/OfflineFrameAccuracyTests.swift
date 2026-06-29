@@ -790,4 +790,23 @@ final class OfflineFrameAccuracyTests: XCTestCase {
         )
         XCTAssertEqual(noFloor.noteOn, AUEventSampleTime(5))
     }
+
+    func test_effectiveAUNoteOnSampleTime_usesImmediateUntilAUHasRendered() throws {
+        XCTAssertNil(
+            AudioInstrumentHost.effectiveNoteOnSampleTime(
+                requested: 12_000,
+                currentRenderFrame: nil
+            ),
+            "Before the AU has exposed lastRenderTime, an absolute AU stamp has no reliable AU timeline; use immediate for the first pre-render event."
+        )
+
+        XCTAssertEqual(
+            AudioInstrumentHost.effectiveNoteOnSampleTime(
+                requested: 12_000,
+                currentRenderFrame: 10_000
+            ),
+            12_000,
+            "Once the AU has rendered, keep the exact sample-time stamp."
+        )
+    }
 }
