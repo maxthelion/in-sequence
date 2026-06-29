@@ -822,7 +822,12 @@ final class AudioInstrumentHost: TrackPlaybackSink {
                 self.outputMixer = mixer
                 // realtime-allow-graph-mutation: AU load/setup connection only, not tick dispatch. Test: RealtimePathLintTests.
                 self.audioGraph.attach(mixer)
-                self.audioGraph.connectTrackOutput(mixer, to: self.currentOutputBusID, sends: self.currentMix.graphSendLevels)
+                self.audioGraph.connectTrackOutput(
+                    mixer,
+                    to: self.currentOutputBusID,
+                    sends: self.currentMix.graphSendLevels,
+                    ramped: false
+                )
                 self.audioGraph.setTrackMeterSources(trackIDs: self.currentMeterTrackIDs, node: mixer)
                 self.updateSnapshotOutput()
             }

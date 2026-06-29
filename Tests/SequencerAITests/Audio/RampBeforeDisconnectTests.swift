@@ -58,6 +58,49 @@ final class RampBeforeDisconnectTests: XCTestCase {
         graph.stop()
     }
 
+    /// Setup / repair connects must be allowed to splice synchronously even while
+    /// the engine is running when the fresh gain stage has no live input+output
+    /// path. Regression for AU instruments briefly loading but producing no sound:
+    /// the AU host created a fresh output mixer, routed it with the live-reroute
+    /// default (`ramped: true`), then immediately applied the track mix. That second
+    /// gain ramp superseded the deferred down-ramp, so the reconnect work was
+    /// dropped and the AU mixer never reached master.
+    @MainActor
+    func test_setupConnect_runningFreshMixer_splicesSynchronouslyBeforeFollowupMixRamp() throws {
+        MainAudioGraph.useManualRenderingForAutomation = true
+        defer { MainAudioGraph.useManualRenderingForAutomation = false }
+
+        let graph = MainAudioGraph()
+        try graph.start()
+        defer { graph.stop() }
+
+        let outputMixer = AVAudioMixerNode()
+        graph.attach(outputMixer)
+        outputMixer.outputVolume = 1
+
+        graph.connectTrackOutput(outputMixer, to: nil, ramped: false)
+        XCTAssertTrue(
+            graph.trackOutputDestinationForTesting(outputMixer) === graph.preMasterMixer,
+            "fresh setup connects must land immediately; a deferred ramp can be superseded before it reconnects"
+        )
+
+        MixerGainRamp.shared.ramp(outputMixer, to: 0.6)
+
+        let stillConnected = expectation(description: "setup connection survives follow-up mix ramp")
+        let deadline = Date().addingTimeInterval(1.0)
+        func poll() {
+            if graph.trackOutputDestinationForTesting(outputMixer) === graph.preMasterMixer {
+                stillConnected.fulfill()
+                return
+            }
+            if Date() > deadline { return }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.005) { poll() }
+        }
+        poll()
+        wait(for: [stillConnected], timeout: 2.0)
+        XCTAssertTrue(graph.trackOutputDestinationForTesting(outputMixer) === graph.preMasterMixer)
+    }
+
     /// Engine running + sounding mixer-node source → the ramp-to-silence path is
     /// taken (count increments), and after the ~12 ms down-ramp the deferred
     /// reconnect lands on the new destination and the gain stage ramps back to
