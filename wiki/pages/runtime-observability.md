@@ -9,36 +9,108 @@ last-modified-by: codex
 ## Purpose
 
 Runtime observability should help answer specific debugging questions without
-changing playback behaviour. SequencerAI has a real-time audio path, so
-diagnostics must be chosen by cost:
+changing playback behaviour. There are **two distinct concepts here — keep them
+separate, do not muddle them**:
 
-- user/session breadcrumbs for reconstructing broad interaction paths;
-- opt-in playback event probes for questions such as "was this hi-hat sample
-  dispatched?";
-- future audio capture for questions about the actual rendered signal, timing,
-  lag, or clipping.
+### Concept 1 — Activity log (reproduce *what happened*)
 
-Do not use one logging mechanism for all three. A trace that is suitable for a
-button click may be too expensive or too noisy for every played step.
+"What steps did the user take, and what did the app decide?" — a breadcrumb trail
+to **reproduce a problem**: view/workspace switches, transport start/stop, device
+changes, recording persistence, a preset being selected, broad audio-graph
+lifecycle. This is about the **sequence of actions and decisions**, not timing
+accuracy. It is low-rate (one entry per user action / lifecycle event) and is the
+first thing to reach for when a bug report is "I did X and then Y broke."
+
+### Concept 2 — Timing probe (is audio firing *at the correct time*?)
+
+"Did this note / sample fire on the intended sample frame, or is it late / the
+wrong length?" — sample-accurate **correctness** evidence: tick-clock expected vs
+actual, event-dispatch lateness, note-on/note-off sample stamps + gate length,
+sample/slice schedule frames, voice selection. This is higher-rate and exists to
+answer timing/lateness/stuck-note questions, NOT to reconstruct user steps.
+
+A third, future layer — **audio capture** — extends Concept 2 to the rendered
+signal itself (lag, clipping, drift); see "Future Audio Capture" below.
+
+**Do not use one mechanism for both concepts.** A breadcrumb suitable for a button
+click is the wrong tool for per-step note timing, and a per-note timing probe is
+far too noisy to read as a "what did I do" trail. When adding a trace, first
+decide which concept it serves, then use the matching mechanism in the table
+below.
 
 ## Existing Activity Log
 
-`DevActivity` writes debug-build breadcrumbs to macOS unified logging under:
+All three trace families below write to macOS unified logging under ONE subsystem:
 
 ```text
 subsystem == "ai.sequencer.SequencerAI.activity"
 ```
 
-It is useful for app/session/audio-graph breadcrumbs, for example:
+They compile away in release builds (`#if DEBUG`). There are **three distinct
+Swift types** — do not confuse them (a common mistake is calling
+`DevActivity.activity(...)`, which does not exist). Map each to a concept above:
 
-- transport start/stop;
-- device changes;
-- recording persistence;
-- visual harness commands;
-- broad audio-graph lifecycle events.
+| Type | Concept | What it is | Gated by a flag? | Category |
+|------|---------|------------|------------------|----------|
+| `DevActivity` | **1 — Activity** | Holds the `Logger`s + the unconditional `trace(logger:_)` breadcrumb helper (transport, device, recording, harness, graph lifecycle) | **No** — fires in any DEBUG build | engine / clock / audio-graph / harness / session / library |
+| `SequencerTimingProbe` | mixed (see wart) | `activity` / `viewSwitch` serve **Concept 1**; `tickClock` / `processTick` / `eventDispatch` / `sampleSchedule` / `sliceSchedule` / `voiceSelected` serve **Concept 2** | **Yes** — `TimingProbeEnabled` | timing-probe |
+| `SampleTriggerTrace` | **2 — Timing** | Opt-in sample dispatch/schedule/drop probes ("was this hi-hat dispatched, and was it late?") | **Yes** — `SampleTriggerTraceEnabled` | sample-trigger |
 
-The activity log compiles away in release builds. It should stay sparse enough
-that post-mortem `log show` output remains readable.
+**Known wart (do not muddle further):** `SequencerTimingProbe` currently carries
+BOTH concept-1 action breadcrumbs (`activity`, `viewSwitch`) and concept-2 timing
+probes under the SAME flag/category. When you add a probe, pick the method that
+matches its concept; if you need a concept-1 breadcrumb prefer `DevActivity.trace`
+(unconditional), and reserve `timing-probe` for genuine timing/lateness data. A
+future cleanup should split these into separate types/categories.
+
+To add a new gated probe, add a method to the matching enum (e.g. a timing probe
+goes on `SequencerTimingProbe`), **not** to `DevActivity`.
+
+Keep all of these sparse enough that post-mortem `log show` output stays readable
+— never add an unconditional trace on the per-render or per-step tick path.
+
+## Reading the activity log — gotchas
+
+These bite every time; if `log show` returns nothing, it is almost always one of
+these, NOT "the app isn't logging":
+
+1. **`log show` needs `--info` (and `--debug` for debug-level).** Every trace here
+   logs at `.info` level (`logger.info(...)`), and `log show` **excludes info/debug
+   by default**, returning a silent empty result. Always pass `--info`:
+   ```sh
+   log show --last 10m --info --predicate 'subsystem == "ai.sequencer.SequencerAI.activity"'
+   ```
+   `log stream` does NOT need the flag (it includes info/debug live).
+2. **The app is SANDBOXED — `defaults write ai.sequencer.SequencerAI …` does NOT
+   reach it.** A sandboxed app reads `UserDefaults.standard` from its **container**,
+   not the global `~/Library/Preferences`. Writing the bare bundle-id domain
+   (as older docs/commands show) lands in the global domain the app never reads, so
+   the flag silently has no effect. Write to the **container plist** instead:
+   ```sh
+   defaults write \
+     "$HOME/Library/Containers/ai.sequencer.SequencerAI/Data/Library/Preferences/ai.sequencer.SequencerAI" \
+     TimingProbeEnabled -bool YES
+   ```
+   (same for `SampleTriggerTraceEnabled`). Then relaunch — `open` is fine for the
+   defaults path.
+3. **`open` does not forward `SEQUENCERAI_*` env vars to the app.** `ENV=1 open Foo.app`
+   sets the var on `open`, not the app. The env enable path therefore works ONLY
+   when you exec the binary directly (which also bypasses the sandbox-defaults
+   issue above):
+   ```sh
+   SEQUENCERAI_TIMING_PROBE=1 ".../Build/Products/Debug/SequencerAI.app/Contents/MacOS/SequencerAI"
+   ```
+   Either enable path is read **once at startup**, so a **relaunch is required**
+   after changing it.
+4. **When in doubt, `log stream` beats `log show`.** `log stream --info --debug
+   --predicate '…' > /tmp/x.log &` captures live (no level-flag surprises, no
+   time-window skew); reproduce, then read the file.
+5. **Do not use `NSLog`/`print` for diagnostics.** They are not reliably captured
+   by `log show` in this app (sandbox + level filtering), so a probe written with
+   `NSLog` looks like "nothing is logging." Route every probe through
+   `DevActivity` / `SequencerTimingProbe` / `SampleTriggerTrace` (os.Logger).
+6. **Filter by category to cut noise**, e.g. add
+   `AND category == "timing-probe"` (or `"sample-trigger"`) to the predicate.
 
 ## Sample Trigger Trace
 
@@ -57,10 +129,13 @@ values mean the scheduler is behind the intended playback time. Large positive
 values during UI interaction point to main-thread scheduling latency rather than
 missing sequencer events.
 
-Enable it with:
+Enable it with (container path — see the sandbox gotcha above; the bare
+`defaults write ai.sequencer.SequencerAI …` form does NOT reach the sandboxed app):
 
 ```sh
-defaults write ai.sequencer.SequencerAI SampleTriggerTraceEnabled -bool YES
+defaults write \
+  "$HOME/Library/Containers/ai.sequencer.SequencerAI/Data/Library/Preferences/ai.sequencer.SequencerAI" \
+  SampleTriggerTraceEnabled -bool YES
 ```
 
 Then restart the app and watch:
@@ -123,10 +198,13 @@ For UI-induced lag investigations, the debug build also has an opt-in
 - sample-engine voice selection, including whether mono scheduling stops the
   prior voice.
 
-Enable it with:
+Enable it with (container path — see the sandbox gotcha above; the bare
+`defaults write ai.sequencer.SequencerAI …` form does NOT reach the sandboxed app):
 
 ```sh
-defaults write ai.sequencer.SequencerAI TimingProbeEnabled -bool YES
+defaults write \
+  "$HOME/Library/Containers/ai.sequencer.SequencerAI/Data/Library/Preferences/ai.sequencer.SequencerAI" \
+  TimingProbeEnabled -bool YES
 ```
 
 Then restart the app, press Play, reproduce the lag, and collect a bounded
