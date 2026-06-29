@@ -37,7 +37,7 @@ final class AUWindowHost: NSObject, NSWindowDelegate {
     }
 
     private struct WindowEntry {
-        weak var presenter: AudioUnitWindowPresentable?
+        let presenter: AudioUnitWindowPresentable
         let window: NSWindow
         let stateWriteback: (Data?) -> Void
     }
@@ -55,17 +55,11 @@ final class AUWindowHost: NSObject, NSWindowDelegate {
         stateWriteback: @escaping (Data?) -> Void
     ) {
         if let existing = windows[key] {
-            if let existingPresenter = existing.presenter, existingPresenter === presenter {
-                log("open reuse existing key=\(String(describing: key)) title=\(title)")
-                existing.window.makeKeyAndOrderFront(nil)
-                NSApp.activate(ignoringOtherApps: true)
-                return
-            }
-
-            log("open replacing existing key=\(String(describing: key)) title=\(title)")
-            windows.removeValue(forKey: key)
-            existing.window.delegate = nil
-            existing.window.close()
+            log("open reuse existing key=\(String(describing: key)) title=\(title)")
+            existing.window.title = title
+            existing.window.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            return
         }
 
         log("open request key=\(String(describing: key)) title=\(title)")
@@ -163,21 +157,16 @@ final class AUWindowHost: NSObject, NSWindowDelegate {
     }
 
     private func writeBackState(for key: WindowKey, entry: WindowEntry) {
-        if let presenter = entry.presenter {
-            let state: Data?
-            do {
-                state = try presenter.captureHostedState()
-            } catch {
-                assertionFailure("AUWindowHost state capture failed: \(error)")
-                NSLog("[AUWindowHost] state capture failed key=\(String(describing: key)) error=\(error)")
-                state = nil
-            }
-            log("state writeback key=\(String(describing: key)) state=\((state ?? nil)?.count ?? 0) bytes")
-            entry.stateWriteback(state ?? nil)
-        } else {
-            log("state writeback key=\(String(describing: key)) presenter gone")
-            entry.stateWriteback(nil)
+        let state: Data?
+        do {
+            state = try entry.presenter.captureHostedState()
+        } catch {
+            assertionFailure("AUWindowHost state capture failed: \(error)")
+            NSLog("[AUWindowHost] state capture failed key=\(String(describing: key)) error=\(error)")
+            state = nil
         }
+        log("state writeback key=\(String(describing: key)) state=\((state ?? nil)?.count ?? 0) bytes")
+        entry.stateWriteback(state ?? nil)
     }
 }
 

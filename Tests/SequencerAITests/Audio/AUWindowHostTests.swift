@@ -40,6 +40,31 @@ final class AUWindowHostTests: XCTestCase {
     }
 
     @MainActor
+    func test_open_same_key_with_new_presenter_reuses_window_insteadOfClosingPluginView() {
+        let host = AUWindowHost()
+        let firstPresenter = StubAudioUnitPresenter()
+        let secondPresenter = StubAudioUnitPresenter()
+        let trackID = UUID()
+        var capturedStates: [Data?] = []
+
+        host.open(for: trackID, presenter: firstPresenter, title: "Track") { state in
+            capturedStates.append(state)
+        }
+        host.open(for: trackID, presenter: secondPresenter, title: "Track") { _ in
+            XCTFail("reopening an already-hosted AU window should keep the original state writeback")
+        }
+
+        XCTAssertTrue(host.isOpen(for: trackID))
+        XCTAssertEqual(firstPresenter.requestCount, 1)
+        XCTAssertEqual(secondPresenter.requestCount, 0)
+        XCTAssertEqual(capturedStates.count, 0)
+
+        host.close(for: trackID)
+
+        XCTAssertEqual(capturedStates, [firstPresenter.stateData])
+    }
+
+    @MainActor
     func test_group_window_key_reuses_existing_window() {
         let host = AUWindowHost()
         let presenter = StubAudioUnitPresenter()
