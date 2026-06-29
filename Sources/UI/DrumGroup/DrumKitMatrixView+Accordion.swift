@@ -9,8 +9,31 @@ import SwiftUI
 /// shown for an inherited group AU — that member keeps the existing
 /// sampler/placeholder path (shared-kit AU is an open product decision).
 enum DrumKitSoundTabRouting {
+    /// Which Sound-tab surface a member's OWN destination renders.
+    enum Panel: Equatable {
+        /// Own `.auInstrument`: the AU instrument panel (name + presets + remove).
+        case au
+        /// Own `.none`: a neutral "choose a sound source" chooser (Sample / AU) —
+        /// distinct from a sampler that lost its sample (bug 20260629-101345).
+        case chooser
+        /// `.sample` (incl. missing-sample recovery) and `.inheritGroup`: the
+        /// sampler panel.
+        case sampler
+    }
+
+    static func panel(forOwnDestination ownDestination: Destination) -> Panel {
+        switch ownDestination.withoutTransientState.kind {
+        case .auInstrument:
+            return .au
+        case .none:
+            return .chooser
+        default:
+            return .sampler
+        }
+    }
+
     static func usesAUPanel(forOwnDestination ownDestination: Destination) -> Bool {
-        ownDestination.withoutTransientState.kind == .auInstrument
+        panel(forOwnDestination: ownDestination) == .au
     }
 }
 
@@ -356,17 +379,63 @@ extension DrumKitMatrixView {
         // per-member AU panel must not be shown (its preset/remove are keyed to a
         // member host it doesn't own). Inherit members keep the sampler/placeholder.
         let ownDestination = memberTrack(memberID)?.destination ?? .none
-        if DrumKitSoundTabRouting.usesAUPanel(forOwnDestination: ownDestination) {
+        switch DrumKitSoundTabRouting.panel(forOwnDestination: ownDestination) {
+        case .au:
             expandedSoundAUPanel(memberID: memberID)
-        } else {
+        case .chooser:
+            expandedSoundChooserPanel(memberID: memberID)
+        case .sampler:
             expandedSoundSamplerPanel(memberID: memberID)
         }
     }
 
+    /// Neutral "no sound source" empty state for a part with `.none` destination.
+    /// Offers the two source choices as equal, compact, clickable rows — distinct
+    /// from a sampler that lost its sample (which keeps its own recovery card).
+    /// Choosing Sample assigns the first library sample so the sampler card opens
+    /// populated; choosing AU opens the same instrument chooser as the per-track
+    /// editor (bug 20260629-101345).
+    @ViewBuilder
+    func expandedSoundChooserPanel(memberID: UUID) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("No sound source")
+                    .studioText(.subtitle)
+                    .foregroundStyle(StudioTheme.text)
+                Text("Choose what makes this part's sound.")
+                    .studioText(.label)
+                    .foregroundStyle(StudioTheme.mutedText)
+            }
+
+            StudioFXOptionRow(title: "Sample", systemImage: "waveform") {
+                guard let first = AudioSampleLibrary.shared.samples.first else { return }
+                applyMemberSoundDestination(
+                    .sample(sampleID: first.id, settings: .default),
+                    memberID: memberID
+                )
+            }
+            .accessibilityIdentifier("kit-row-choose-sample")
+
+            StudioFXOptionRow(title: "AU instrument", systemImage: "pianokeys") {
+                expandedSoundAUTarget = ExpandedSoundAUTarget(memberID: memberID)
+            }
+            .accessibilityIdentifier("kit-row-choose-au")
+        }
+        .padding(StudioMetrics.Spacing.standard)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
+                .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+        )
+    }
+
     /// Sampler sound source for the member: today's `SamplerDestinationWidget`
-    /// (mini sampler + the in-sampler filter) PLUS a "Load AU…" affordance that
-    /// swaps the part's sound to an AU instrument. Used for `.sample` and for the
-    /// orphan/placeholder states (`.none`, missing sample, `.inheritGroup`).
+    /// (mini sampler + the in-sampler filter) PLUS a compact "Load AU instrument"
+    /// button that swaps the part's sound to an AU. Used for `.sample` (incl. the
+    /// missing-sample recovery card) and `.inheritGroup`. A `.none` part routes to
+    /// `expandedSoundChooserPanel` instead, so clearing the sample (X → `.none`)
+    /// lands on the neutral chooser, not the sampler's missing-sample card.
     @ViewBuilder
     func expandedSoundSamplerPanel(memberID: UUID) -> some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -397,15 +466,19 @@ extension DrumKitMatrixView {
                 }
             )
 
-            // "Load AU…" reuses the per-track AU instrument chooser sheet; on
-            // selection it calls setEditedDestination(.auInstrument(...)) for the
-            // member (see applyMemberSoundDestination).
-            StudioOptionButton(
-                title: "Load AU…",
-                detail: "Replace the sampler + filter with an AU instrument."
-            ) {
+            // Compact "swap to an AU instrument" affordance — a real button, not
+            // the old always-on descriptive strip (bug 20260629-101345). Reuses
+            // the per-track AU chooser sheet; on selection it calls
+            // setEditedDestination(.auInstrument(...)) (see applyMemberSoundDestination).
+            Button {
                 expandedSoundAUTarget = ExpandedSoundAUTarget(memberID: memberID)
+            } label: {
+                Label("Load AU instrument", systemImage: "pianokeys")
+                    .studioText(.label)
             }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .tint(StudioTheme.cyan)
             .accessibilityIdentifier("kit-row-load-au")
         }
     }

@@ -79,11 +79,38 @@ final class DrumKitSoundTabAUTests: XCTestCase {
         )
         XCTAssertFalse(
             DrumKitSoundTabRouting.usesAUPanel(forOwnDestination: .none),
-            "A cleared destination must route to the sampler/placeholder panel"
+            "A cleared destination must NOT route to the AU panel"
         )
         XCTAssertFalse(
             DrumKitSoundTabRouting.usesAUPanel(forOwnDestination: .inheritGroup),
             "An inheritGroup member must NOT route to the per-member AU panel (open product decision)"
+        )
+    }
+
+    /// Three-way panel routing (bug 20260629-101345): `.none` must land on the
+    /// neutral "choose a sound source" chooser — NOT the sampler's missing-sample
+    /// card — while `.sample`/`.inheritGroup` keep the sampler panel and own-AU the
+    /// AU panel.
+    func test_soundTabRouting_noneRoutesToChooserNotSampler() {
+        XCTAssertEqual(
+            DrumKitSoundTabRouting.panel(forOwnDestination: .none),
+            .chooser,
+            "A cleared (.none) part must route to the neutral sound-source chooser"
+        )
+        XCTAssertEqual(
+            DrumKitSoundTabRouting.panel(forOwnDestination: .sample(sampleID: UUID(), settings: .default)),
+            .sampler,
+            "A sample destination (incl. missing-sample recovery) stays on the sampler panel"
+        )
+        XCTAssertEqual(
+            DrumKitSoundTabRouting.panel(forOwnDestination: .inheritGroup),
+            .sampler,
+            "An inheritGroup member keeps the sampler/placeholder panel"
+        )
+        XCTAssertEqual(
+            DrumKitSoundTabRouting.panel(forOwnDestination: .auInstrument(componentID: makeAUComponentID(), stateBlob: nil)),
+            .au,
+            "An own AU instrument routes to the AU panel"
         )
     }
 

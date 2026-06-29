@@ -5,7 +5,21 @@
   (`Sources/UI/DrumGroup/DrumKitMatrixView+Accordion.swift`,
    `Sources/UI/SamplerDestinationWidget.swift`)
 **Severity:** UX / design rework
-**Status:** OPEN
+**Status:** RESOLVED (2026-06-29)
+
+## Resolution (2026-06-29)
+
+`DrumKitSoundTabRouting` now routes three ways (`panel(forOwnDestination:)`):
+own-AU → AU panel, `.none` → a new `expandedSoundChooserPanel`, everything else
+(`.sample` incl. missing-sample, `.inheritGroup`) → the sampler panel. The new
+chooser is a neutral "No sound source" card offering **Sample** and **AU
+instrument** as two equal compact `StudioFXOptionRow` choices — so clearing a
+part (X → `.none`) lands here, NOT on the sampler's "Missing sample" card, which
+is now reserved for a genuine `.sample` with an unresolved sample. The always-on
+verbose "Load AU…" strip under the working sampler was replaced by a compact
+bordered "Load AU instrument" button. `.inheritGroup` untouched; filter still
+stays dormant-but-stored on swap. New routing test:
+`test_soundTabRouting_noneRoutesToChooserNotSampler`.
 
 Follow-up to the AU-as-drum-part work (commits `652f70e6` X-click clear,
 `87d412c2` AU panel). The mechanics work, but using it surfaced design problems.
