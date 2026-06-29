@@ -2371,6 +2371,14 @@ final class EngineController: RouterDispatcher {
                 // they land zero-flam (`scheduledAUNoteSampleTime` delegates to
                 // the same `AudioMasterClock` the slice path uses).
                 let auStamp = scheduledAUNoteSampleTime(for: event.scheduledHostTime)
+                AUNoteTriggerTrace.dispatch(
+                    kind: "track-au",
+                    trackID: trackID,
+                    noteCount: notes.count,
+                    scheduledMusicalSeconds: event.scheduledHostTime,
+                    noteOnSampleTime: auStamp.map { Int64($0.sampleTime) },
+                    sampleRate: auStamp?.sampleRate
+                )
                 host.play(
                     noteEvents: notes,
                     bpm: bpm,
@@ -2392,6 +2400,14 @@ final class EngineController: RouterDispatcher {
                 applyDestinationIfNeeded(destination, trackID: trackID, host: host, outputKeys: outputKeys)
                 // Routed AU output shares the sample-stamped note path (Phase 1).
                 let routedAUStamp = scheduledAUNoteSampleTime(for: event.scheduledHostTime)
+                AUNoteTriggerTrace.dispatch(
+                    kind: "routed-au",
+                    trackID: trackID,
+                    noteCount: notes.count,
+                    scheduledMusicalSeconds: event.scheduledHostTime,
+                    noteOnSampleTime: routedAUStamp.map { Int64($0.sampleTime) },
+                    sampleRate: routedAUStamp?.sampleRate
+                )
                 host.play(
                     noteEvents: notes,
                     bpm: bpm,

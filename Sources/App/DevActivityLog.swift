@@ -336,3 +336,67 @@ enum SampleTriggerTrace {
         #endif
     }
 }
+
+/// Opt-in trace for debugging whether AU-backed tracks are receiving and
+/// scheduling MIDI note events. This is intentionally off by default because it
+/// can log once per sounding step while the transport runs.
+enum AUNoteTriggerTrace {
+    private static let logger = Logger(subsystem: DevActivity.subsystem, category: "au-note-trigger")
+
+    #if DEBUG
+    private static let enabled: Bool = {
+        if ProcessInfo.processInfo.environment["SEQUENCERAI_AU_NOTE_TRACE"] == "1" {
+            return true
+        }
+        return UserDefaults.standard.bool(forKey: "AUNoteTraceEnabled")
+    }()
+    #endif
+
+    static func dispatch(
+        kind: String,
+        trackID: UUID,
+        noteCount: Int,
+        scheduledMusicalSeconds: TimeInterval,
+        noteOnSampleTime: Int64?,
+        sampleRate: Double?
+    ) {
+        #if DEBUG
+        guard enabled else { return }
+        let stamp = noteOnSampleTime.map(String.init) ?? "nil"
+        let rate = sampleRate.map { String(format: "%.1f", $0) } ?? "nil"
+        logger.info("au dispatch kind=\(kind, privacy: .public) track=\(trackID.uuidString, privacy: .public) notes=\(noteCount, privacy: .public) musical=\(scheduledMusicalSeconds, privacy: .public) sampleTime=\(stamp, privacy: .public) sampleRate=\(rate, privacy: .public)")
+        #endif
+    }
+
+    static func schedule(
+        choice: String,
+        gateCount: Int,
+        firstPitch: UInt8?,
+        requestedSampleTime: Int64?,
+        currentRenderFrame: Int64?,
+        firstNoteOn: Int64?,
+        firstNoteOff: Int64?
+    ) {
+        #if DEBUG
+        guard enabled else { return }
+        logger.info("au schedule choice=\(choice, privacy: .public) gates=\(gateCount, privacy: .public) firstPitch=\(format(firstPitch), privacy: .public) requested=\(format(requestedSampleTime), privacy: .public) currentRenderFrame=\(format(currentRenderFrame), privacy: .public) firstOn=\(format(firstNoteOn), privacy: .public) firstOff=\(format(firstNoteOff), privacy: .public)")
+        #endif
+    }
+
+    static func drop(choice: String, reason: String, noteCount: Int) {
+        #if DEBUG
+        guard enabled else { return }
+        logger.info("au drop choice=\(choice, privacy: .public) notes=\(noteCount, privacy: .public) reason=\(reason, privacy: .public)")
+        #endif
+    }
+
+    #if DEBUG
+    private static func format(_ value: UInt8?) -> String {
+        value.map(String.init) ?? "nil"
+    }
+
+    private static func format(_ value: Int64?) -> String {
+        value.map(String.init) ?? "nil"
+    }
+    #endif
+}

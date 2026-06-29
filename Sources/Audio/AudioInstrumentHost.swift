@@ -636,6 +636,11 @@ final class AudioInstrumentHost: TrackPlaybackSink {
             }
 
             guard let instrument = self.instrument else {
+                AUNoteTriggerTrace.drop(
+                    choice: self.currentChoice.displayName,
+                    reason: "instrument-not-loaded",
+                    noteCount: noteEvents.count
+                )
                 self.ensureInstrumentLoadedIfNeeded()
                 return
             }
@@ -657,6 +662,11 @@ final class AudioInstrumentHost: TrackPlaybackSink {
                 // main-hop/startNote debt. The note is dropped (rare for MIDI
                 // instruments, which all vend this block). Logged for evidence.
                 self.log("play dropped — AU exposes no scheduleMIDIEventBlock choice=\(self.currentChoice.displayName)")
+                AUNoteTriggerTrace.drop(
+                    choice: self.currentChoice.displayName,
+                    reason: "missing-schedule-midi-block",
+                    noteCount: noteEvents.count
+                )
                 return
             }
 
@@ -671,6 +681,11 @@ final class AudioInstrumentHost: TrackPlaybackSink {
             defer { self.auMutationLock.unlock() }
             guard !self.isShutdown, self.instrument?.auAudioUnit === au else {
                 self.log("play dropped — AU detached/torn down before scheduling choice=\(self.currentChoice.displayName)")
+                AUNoteTriggerTrace.drop(
+                    choice: self.currentChoice.displayName,
+                    reason: "detached-before-schedule",
+                    noteCount: noteEvents.count
+                )
                 return
             }
 
@@ -693,6 +708,10 @@ final class AudioInstrumentHost: TrackPlaybackSink {
             // AVAudioEngine property we rely on but cannot assert offline — it is
             // the documented human acoustic check (a real AU on the device).
             let currentRenderFrame = instrument.lastRenderTime?.sampleTime
+            var firstScheduledPitch: UInt8?
+            var firstScheduledOn: AUEventSampleTime?
+            var firstScheduledOff: AUEventSampleTime?
+            var gateCount = 0
             for event in noteEvents where event.gate {
                 let stamps = Self.noteStamps(
                     noteOnSampleTime: noteOnSampleTime,
@@ -702,12 +721,31 @@ final class AudioInstrumentHost: TrackPlaybackSink {
                     sampleRate: sampleRate,
                     currentRenderFrame: currentRenderFrame
                 )
+                gateCount += 1
+                if firstScheduledPitch == nil {
+                    firstScheduledPitch = event.pitch
+                    firstScheduledOn = stamps.noteOn
+                    firstScheduledOff = stamps.noteOff
+                }
                 Self.scheduleNote(
                     event,
                     stamps: stamps,
                     using: scheduleMIDI
                 )
             }
+            let requestedSampleTimeForTrace = noteOnSampleTime.map { Int64($0) }
+            let currentRenderFrameForTrace = currentRenderFrame.map { Int64($0) }
+            let firstNoteOnForTrace = firstScheduledOn.map { Int64($0) }
+            let firstNoteOffForTrace = firstScheduledOff.map { Int64($0) }
+            AUNoteTriggerTrace.schedule(
+                choice: self.currentChoice.displayName,
+                gateCount: gateCount,
+                firstPitch: firstScheduledPitch,
+                requestedSampleTime: requestedSampleTimeForTrace,
+                currentRenderFrame: currentRenderFrameForTrace,
+                firstNoteOn: firstNoteOnForTrace,
+                firstNoteOff: firstNoteOffForTrace
+            )
         }
     }
 
