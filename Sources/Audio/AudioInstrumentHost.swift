@@ -885,6 +885,16 @@ final class AudioInstrumentHost: TrackPlaybackSink {
             self.log("disconnectCurrentInstrument detach instrument")
             // realtime-allow-graph-mutation: AU destination teardown only, not tick dispatch. Test: RealtimePathLintTests.
             self.audioGraph.disconnectOutput(instrument)
+            // Flush the AU's render state + any note-ON already SCHEDULED
+            // (sample-stamped) into its own MIDI queue before the node is
+            // detached and the AU deallocated. `stopAllNotes()` above only sends
+            // note-OFFs; a queued future note-on is not cancellable via
+            // scheduleMIDIEventBlock, so without this reset it can fire into
+            // freed sample state on the render thread and crash INSIDE the AU
+            // (bug 20260629-121929: SIGSEGV in the AU's own noteOn during
+            // remove-while-playing). Output is already disconnected above, so the
+            // engine no longer pulls this node when we reset it.
+            instrument.auAudioUnit.reset()
             // realtime-allow-graph-mutation: AU destination teardown only, not tick dispatch. Test: RealtimePathLintTests.
             self.audioGraph.detach(instrument)
             // Nil the live reference under `auMutationLock` so the host-queue
