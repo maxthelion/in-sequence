@@ -150,6 +150,46 @@ struct TransportBar: View {
         )
     }
 
+    /// Live scene-crossfader position (0 = scene A, 1 = scene B), or nil when
+    /// the master has no A/B scene selection configured (intent 20260629-135428).
+    private var sceneCrossfaderValue: Double? {
+        guard session.store.masterBus.abSelection != nil else {
+            return nil
+        }
+        return engineController.effectiveCrossfader
+    }
+
+    /// Compact read-only transport indicator: scene slots A and B with the
+    /// crossfader thumb showing the live x-fader position between them.
+    private func sceneCrossfaderIndicator(value: Double) -> some View {
+        let clamped = min(max(value, 0), 1)
+        let trackWidth: CGFloat = 40
+        let thumb: CGFloat = 8
+        return HStack(spacing: 6) {
+            Text("A")
+                .studioText(.eyebrowBold)
+                .foregroundStyle(clamped <= 0.5 ? StudioTheme.cyan : StudioTheme.mutedText)
+            ZStack(alignment: .leading) {
+                Capsule()
+                    .fill(StudioTheme.border)
+                    .frame(width: trackWidth, height: 3)
+                Circle()
+                    .fill(StudioTheme.text)
+                    .frame(width: thumb, height: thumb)
+                    .offset(x: CGFloat(clamped) * (trackWidth - thumb))
+            }
+            .frame(width: trackWidth, height: thumb)
+            Text("B")
+                .studioText(.eyebrowBold)
+                .foregroundStyle(clamped >= 0.5 ? StudioTheme.violet : StudioTheme.mutedText)
+        }
+        .fixedSize()
+        .help("Scene crossfader — A \(Int(((1 - clamped) * 100).rounded()))% / B \(Int((clamped * 100).rounded()))%")
+        .accessibilityIdentifier("transport-scene-crossfader")
+        .accessibilityLabel("Scene crossfader")
+        .accessibilityValue("A \(Int(((1 - clamped) * 100).rounded())) percent, B \(Int((clamped * 100).rounded())) percent")
+    }
+
     var body: some View {
         HStack(spacing: 10) {
             Button {
@@ -177,16 +217,10 @@ struct TransportBar: View {
                 .fill(StudioTheme.border)
                 .frame(width: 1, height: 22)
 
-            Text("BPM")
-                .studioText(.eyebrow)
-                .tracking(0.8)
-                .foregroundStyle(StudioTheme.mutedText)
-                .lineLimit(1)
-                .fixedSize()
-                .layoutPriority(2)
-
             HStack(spacing: 6) {
-                // Bold-flat pass: values read in the accent colour.
+                // Bold-flat pass: values read in the accent colour. The "BPM"
+                // grey label was dropped (bug 20260629-135124) — the value +
+                // steppers read as tempo without it.
                 Text(String(format: "%.0f", engineController.currentBPM))
                     .studioText(.metricValue)
                     .monospacedDigit()
@@ -239,11 +273,17 @@ struct TransportBar: View {
                 .truncationMode(.tail)
                 .layoutPriority(-1)
 
+            if let crossfader = sceneCrossfaderValue {
+                sceneCrossfaderIndicator(value: crossfader)
+            }
+
             Spacer()
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 5)
-        .frame(minHeight: 38)
+        // Tighter left gap + a taller bar (bug 20260629-135124).
+        .padding(.leading, 4)
+        .padding(.trailing, 10)
+        .padding(.vertical, 7)
+        .frame(minHeight: 46)
     }
 
     private func stepBPM(by delta: Double) {

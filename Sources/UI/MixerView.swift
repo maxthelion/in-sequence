@@ -624,6 +624,7 @@ struct MixerInsertChainView: View {
     let updateInsert: (UUID, (inout MasterBusInsert) -> Void) -> Void
     let removeInsert: (UUID) -> Void
     let reorderInserts: ([UUID]) -> Void
+    @State private var editingInsertID: UUID?
 
     var body: some View {
         VStack(spacing: 6) {
@@ -653,15 +654,54 @@ struct MixerInsertChainView: View {
         }
     }
 
+    // Name-only FX row, uniform with the send strips (bug 20260629-140925):
+    // no icon badge, no kind subtitle, no dot, no chevron — just the name in
+    // the slim strip width. Tapping opens an editor popover that holds the
+    // enable/bypass toggle, reorder, and remove (moved off the row).
     private func insertRow(_ insert: MasterBusInsert) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 7) {
+        Button {
+            editingInsertID = insert.id
+        } label: {
+            Text(insert.name)
+                .studioText(.label)
+                .foregroundStyle(insert.isEnabled ? StudioTheme.text : StudioTheme.mutedText)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, StudioMetrics.Spacing.snug)
+                .padding(.vertical, 7)
+                .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
+                        .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+                )
+                .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .help(insert.name)
+        .popover(isPresented: editingBinding(for: insert.id), arrowEdge: Edge.trailing) {
+            insertEditor(insert)
+                .padding(StudioMetrics.Spacing.standard)
+                .frame(width: 280)
+                .background(StudioTheme.stageFill)
+        }
+    }
+
+    private func editingBinding(for id: UUID) -> Binding<Bool> {
+        Binding(
+            get: { editingInsertID == id },
+            set: { editingInsertID = $0 ? id : nil }
+        )
+    }
+
+    private func insertEditor(_ insert: MasterBusInsert) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
                 Image(systemName: iconName(for: insert.kind))
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(StudioTheme.background)
                     .frame(width: 22, height: 22)
                     .background(accent, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
-
                 VStack(alignment: .leading, spacing: 2) {
                     Text(insert.name)
                         .studioText(.labelBold)
@@ -672,37 +712,35 @@ struct MixerInsertChainView: View {
                         .foregroundStyle(StudioTheme.mutedText)
                         .lineLimit(1)
                 }
-            }
-
-            HStack(spacing: 5) {
+                Spacer(minLength: 4)
                 Toggle("Enabled", isOn: insertEnabledBinding(insert))
                     .labelsHidden()
                     .toggleStyle(.switch)
                     .controlSize(.mini)
                     .tint(StudioTheme.success)
+                    .help(insert.isEnabled ? "Bypass insert" : "Enable insert")
+            }
 
-                Spacer(minLength: 2)
+            Divider()
+                .overlay(StudioTheme.border)
 
+            HStack(spacing: 6) {
                 insertMoveButton(insert, systemName: "arrow.up", delta: -1)
                 insertMoveButton(insert, systemName: "arrow.down", delta: 1)
-
+                Spacer(minLength: 8)
                 Button(role: .destructive) {
                     removeInsert(insert.id)
+                    editingInsertID = nil
                 } label: {
-                    Image(systemName: "trash")
-                        .font(.system(size: 10, weight: .semibold))
+                    Label("Remove", systemImage: "trash")
+                        .studioText(.label)
                 }
                 .buttonStyle(.bordered)
-                .controlSize(.mini)
+                .controlSize(.small)
+                .tint(StudioTheme.danger)
                 .help("Remove insert")
             }
         }
-        .padding(StudioMetrics.Spacing.snug)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
-                .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
-        )
     }
 
     private var emptyInsertSlot: some View {

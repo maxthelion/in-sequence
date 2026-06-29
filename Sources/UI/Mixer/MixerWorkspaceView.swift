@@ -197,23 +197,15 @@ struct MixerWorkspaceView: View {
             selectedSendInsertIDs[bus.id] = insert.id
             editingSendBusID = bus.id
         } label: {
-            HStack(spacing: 8) {
-                // Tiny dot encodes enabled/bypassed without an inline toggle.
-                Circle()
-                    .fill(insert.isEnabled ? accent : StudioTheme.mutedText.opacity(0.5))
-                    .frame(width: 6, height: 6)
-                Text(insert.name)
-                    .studioText(.label)
-                    .foregroundStyle(insert.isEnabled ? StudioTheme.text : StudioTheme.mutedText)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.85)
-                Spacer(minLength: 4)
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 9, weight: .semibold))
-                    .foregroundStyle(StudioTheme.mutedText)
-            }
-            .padding(.horizontal, StudioMetrics.Spacing.snug)
-            .padding(.vertical, 8)
+            // Name only — dot + chevron removed so the name gets the full strip
+            // width (bug 20260629-140925); enabled state reads via text colour.
+            Text(insert.name)
+                .studioText(.label)
+                .foregroundStyle(insert.isEnabled ? StudioTheme.text : StudioTheme.mutedText)
+                .lineLimit(1)
+                .minimumScaleFactor(0.85)
+                .padding(.horizontal, StudioMetrics.Spacing.snug)
+                .padding(.vertical, 8)
             .frame(maxWidth: .infinity, alignment: .leading)
             // Colour identifies, it never floods (ux-canon rule 12): selection
             // reads from the accent outline, not a tinted row fill.
