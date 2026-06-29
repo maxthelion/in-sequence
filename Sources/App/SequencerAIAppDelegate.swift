@@ -1,7 +1,7 @@
 import AppKit
 import Foundation
 
-struct BuildIdentity: Equatable {
+struct BuildIdentity: Codable, Equatable {
     var version: String
     var bundleBuild: String
     var gitCommit: String
@@ -108,8 +108,26 @@ final class SequencerAIAppDelegate: NSObject, NSApplicationDelegate {
         // actual read will block only until the background task finishes, not for a full
         // duplicate scan).
         log("launch \(buildMetadataSummary)")
+        configureDiagnostics()
         NSLog("[U2] SequencerAIAppDelegate: beginWarmingIfNeeded")
         AudioInstrumentChoiceCache.shared.beginWarmingIfNeeded()
+    }
+
+    /// Point the diagnostic-event channel at Application Support and record a
+    /// structured launch event (observability harvest — events/evidence only).
+    /// Best-effort: a diagnostics failure must never disrupt launch.
+    private func configureDiagnostics() {
+        let root = FileManager.default
+            .urls(for: .applicationSupportDirectory, in: .userDomainMask).first?
+            .appendingPathComponent("SequencerAI/Diagnostics", isDirectory: true)
+            ?? FileManager.default.temporaryDirectory
+                .appendingPathComponent("SequencerAI/Diagnostics", isDirectory: true)
+        AppDiagnostics.configure(storageRoot: root)
+        do {
+            try AppDiagnostics.shared.emitLaunchEvent()
+        } catch {
+            log("diagnostics launch event failed: \(error)")
+        }
     }
 
     func applicationWillTerminate(_ notification: Notification) {
