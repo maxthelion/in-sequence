@@ -916,6 +916,19 @@ final class EngineController: RouterDispatcher {
             cycleStartTick: 0
         )
         try? sampleEngine.start()
+        guard audioOutputsHaveRenderOriginForTransportStart(hosts)
+                || deferredAttempt >= Self.maxDeferredTransportStartAttempts
+        else {
+            deferTransportStart(attempt: deferredAttempt + 1, reason: "AU render origin")
+            return
+        }
+        if deferredAttempt >= Self.maxDeferredTransportStartAttempts,
+           !audioOutputsHaveRenderOriginForTransportStart(hosts) {
+            DevActivity.trace(
+                DevActivity.engine,
+                "EngineController.start continuing after AU render-origin timeout attempts=\(deferredAttempt)"
+            )
+        }
 
         // Capture the audio-render origin: musical second 0 maps to the render
         // position current at transport start (Rule 1). Must precede
@@ -940,11 +953,18 @@ final class EngineController: RouterDispatcher {
         hosts.allSatisfy(\.isReadyForTransportStart)
     }
 
-    private func deferTransportStart(attempt: Int) {
+    private func audioOutputsHaveRenderOriginForTransportStart(_ hosts: [TrackPlaybackSink]) -> Bool {
+        guard hosts.contains(where: { $0.currentAudioUnit != nil }) else {
+            return true
+        }
+        return mainAudioGraph.renderPosition != nil
+    }
+
+    private func deferTransportStart(attempt: Int, reason: String = "AU readiness") {
         deferredTransportStartAttempt = attempt
         DevActivity.trace(
             DevActivity.engine,
-            "EngineController.start deferred waiting for AU readiness attempt=\(attempt)"
+            "EngineController.start deferred waiting for \(reason) attempt=\(attempt)"
         )
         let workItem = DispatchWorkItem { [weak self] in
             self?.start(deferredAttempt: attempt)

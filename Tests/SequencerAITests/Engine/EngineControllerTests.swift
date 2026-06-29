@@ -34,6 +34,17 @@ final class EngineControllerTests: XCTestCase {
         XCTAssertFalse(controller.isRunning)
     }
 
+    func test_scheduledAUNoteSampleTime_ignoresPreRenderFallbackOrigin() {
+        let controller = EngineController(client: nil, endpoint: nil)
+
+        controller.audioMasterClock.captureOrigin(fallbackHostSeconds: 123)
+
+        XCTAssertNil(
+            controller.scheduledAUNoteSampleTime(for: 0),
+            "A pre-render fallback origin is valid for host-time scheduling, but not for AU sample-frame stamps."
+        )
+    }
+
     func test_noteRepeatCommandsActivateClipBackedRuntimeStateAndReleaseIdempotently() {
         let controller = EngineController(client: nil, endpoint: nil, audioOutput: CountingAudioSink())
         let (project, trackID, _) = makeLiveStoreProject(clipPitch: 60, stepPattern: [true, false])

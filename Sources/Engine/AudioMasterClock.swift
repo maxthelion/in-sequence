@@ -72,16 +72,17 @@ final class AudioMasterClock {
     /// `systemUptime`/`now` fallback). While false the converters use a 0 origin.
     private var hasOrigin = false
 
-    /// Whether an origin has been established (render-derived OR the pre-render
-    /// fallback). The AU note path uses this to decide between a sample-stamped
-    /// note (`sampleTime(atMusicalSeconds:)`) and an immediate fallback: with no
-    /// origin the frame would be a bare `musicalSeconds * sampleRate` relative to
-    /// frame 0, which is not the live render frame, so the AU host schedules
-    /// immediately instead. `refreshOriginIfAvailable` is called first so a
-    /// just-available render position upgrades the answer.
+    /// Whether the authoritative render-derived origin has been established.
+    /// The AU note path uses this to decide between a sample-stamped note
+    /// (`sampleTime(atMusicalSeconds:)`) and an immediate fallback: the
+    /// pre-render host-time fallback is valid for host-time scheduling, but it
+    /// is NOT a valid AU render-frame base. Treating that fallback as render
+    /// origin stamps first-play AU notes at frame 0, which real plugins may
+    /// drop. `refreshOriginIfAvailable` is called first so a just-available
+    /// render position upgrades the answer.
     var hasRenderOrigin: Bool {
         refreshOriginIfAvailable()
-        return hasOrigin
+        return originIsRenderDerived
     }
     /// True only once the origin is the render-derived host time (the authoritative
     /// Rule-1 origin). When the origin is still the pre-render fallback this stays
