@@ -303,12 +303,13 @@ final class AudioInstrumentHost: TrackPlaybackSink {
             self.currentDestination = .none
             self.stopAllNotes()
 
+            self.rampOutputMixerToSilenceBeforeGraphTeardown(reason: "shutdown")
             self.performOnMain {
                 if let instrument = self.instrument {
                     self.log("shutdown detach instrument")
-                    // realtime-allow-graph-mutation: AU shutdown teardown only, not tick dispatch. Test: RealtimePathLintTests.
+                    // realtime-allow-graph-mutation: AU shutdown teardown after outputMixer ramp-to-silence, not tick dispatch. Test: RealtimePathLintTests.
                     self.audioGraph.disconnectOutput(instrument)
-                    // realtime-allow-graph-mutation: AU shutdown teardown only, not tick dispatch. Test: RealtimePathLintTests.
+                    // realtime-allow-graph-mutation: AU shutdown teardown after outputMixer ramp-to-silence, not tick dispatch. Test: RealtimePathLintTests.
                     self.audioGraph.detach(instrument)
                     self.instrument = nil
                 }
@@ -318,9 +319,9 @@ final class AudioInstrumentHost: TrackPlaybackSink {
                     // stale rest level (the outputMixer is a routing gain stage
                     // driven by MixerGainRamp; recycled-node hygiene).
                     MixerGainRamp.shared.forgetSettledTarget(for: outputMixer)
-                    // realtime-allow-graph-mutation: AU shutdown teardown only, not tick dispatch. Test: RealtimePathLintTests.
+                    // realtime-allow-graph-mutation: AU shutdown teardown after outputMixer ramp-to-silence, not tick dispatch. Test: RealtimePathLintTests.
                     self.audioGraph.disconnectOutput(outputMixer)
-                    // realtime-allow-graph-mutation: AU shutdown teardown only, not tick dispatch. Test: RealtimePathLintTests.
+                    // realtime-allow-graph-mutation: AU shutdown teardown after outputMixer ramp-to-silence, not tick dispatch. Test: RealtimePathLintTests.
                     self.audioGraph.detach(outputMixer)
                     self.outputMixer = nil
                     self.updateSnapshotOutput()
@@ -886,9 +887,10 @@ final class AudioInstrumentHost: TrackPlaybackSink {
             return
         }
 
+        rampOutputMixerToSilenceBeforeGraphTeardown(reason: "disconnectCurrentInstrument")
         performOnMain {
             self.log("disconnectCurrentInstrument detach instrument")
-            // realtime-allow-graph-mutation: AU destination teardown only, not tick dispatch. Test: RealtimePathLintTests.
+            // realtime-allow-graph-mutation: AU destination teardown after outputMixer ramp-to-silence, not tick dispatch. Test: RealtimePathLintTests.
             self.audioGraph.disconnectOutput(instrument)
             // Flush the AU's render state + any note-ON already SCHEDULED
             // (sample-stamped) into its own MIDI queue before the node is
@@ -900,7 +902,7 @@ final class AudioInstrumentHost: TrackPlaybackSink {
             // remove-while-playing). Output is already disconnected above, so the
             // engine no longer pulls this node when we reset it.
             instrument.auAudioUnit.reset()
-            // realtime-allow-graph-mutation: AU destination teardown only, not tick dispatch. Test: RealtimePathLintTests.
+            // realtime-allow-graph-mutation: AU destination teardown after outputMixer ramp-to-silence, not tick dispatch. Test: RealtimePathLintTests.
             self.audioGraph.detach(instrument)
             // Nil the live reference under `auMutationLock` so the host-queue
             // note path's `instrument?.auAudioUnit === au` guard observes the
@@ -910,6 +912,32 @@ final class AudioInstrumentHost: TrackPlaybackSink {
             self.instrument = nil
             self.auMutationLock.unlock()
             self.updateSnapshotInstrument(nil)
+        }
+    }
+
+    /// Hard Rule 5: before an AU node is disconnected/detached while the engine
+    /// may be live, silence the host's output gain stage first. This blocks only
+    /// this host's control queue for the short gain dip; it never runs on the
+    /// tick/render path and does not hold graph locks while waiting.
+    private func rampOutputMixerToSilenceBeforeGraphTeardown(reason: String) {
+        guard let outputMixer else { return }
+
+        var shouldRamp = false
+        performOnMain {
+            shouldRamp = self.audioGraph.isEngineRunning && outputMixer.outputVolume > 0.0005
+        }
+        guard shouldRamp else { return }
+
+        log("ramp output mixer to silence before graph teardown reason=\(reason)")
+        let group = DispatchGroup()
+        group.enter()
+        performOnMain {
+            MixerGainRamp.shared.ramp(outputMixer, to: 0, markSettled: false) { _ in
+                group.leave()
+            }
+        }
+        if group.wait(timeout: .now() + 0.2) == .timedOut {
+            log("ramp output mixer to silence timed out reason=\(reason)")
         }
     }
 

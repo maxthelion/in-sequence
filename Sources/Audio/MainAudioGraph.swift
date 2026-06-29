@@ -2441,6 +2441,21 @@ final class MainAudioGraph {
     private func teardownAudioInputRoutingOnMain(trackID: UUID) {
         guard let host = audioInputRoutingHosts.removeValue(forKey: trackID) else { return }
 
+        if engine.isRunning {
+            // Defensive Hard Rule 5 fallback: the normal full-routing sync stops
+            // the engine before removing audio-input hosts, but this method owns
+            // the teardown invariant if a future caller reaches it live.
+            withTrackGainRampedToSilence(source: host.outputMixer) { [weak self] in
+                self?.teardownAudioInputRoutingNodesOnMain(host: host)
+            }
+            return
+        }
+
+        teardownAudioInputRoutingNodesOnMain(host: host)
+    }
+
+    @MainActor
+    private func teardownAudioInputRoutingNodesOnMain(host: AudioInputRoutingHost) {
         if host.connectedSource == .input, !Self.simulateAudioInputConnectionForTesting {
             engine.disconnectNodeOutput(engine.inputNode)
         }
