@@ -600,8 +600,9 @@ private struct KitMatrixCard: View {
     let onOpenKit: () -> Void
     let onToggleExpand: () -> Void
 
+    // Identity hue shared with this kit's member parts (bug 20260629-100436).
     private var accent: Color {
-        Color(hex: group.color) ?? StudioTheme.success
+        group.identityColor
     }
 
     var body: some View {
@@ -868,20 +869,15 @@ private struct TrackMatrixCard: View {
     let onToggleMute: () -> Void
     let onTap: () -> Void
 
+    // Identity hue (bug 20260629-100436): a grouped part shares its kit's hue so
+    // they read as one group; an ungrouped track gets a stable per-track palette
+    // colour derived from its id. Selection is encoded by the outline, not the
+    // hue, so identity and selection no longer collide.
     private var accent: Color {
         if let group {
-            return Color(hex: group.color) ?? StudioTheme.cyan
+            return group.identityColor
         }
-        switch track.trackType {
-        case .monoMelodic:
-            return StudioTheme.cyan
-        case .polyMelodic:
-            return StudioTheme.amber
-        case .slice:
-            return StudioTheme.violet
-        case .audioInput:
-            return StudioTheme.success
-        }
+        return Color(hex: TrackPalette.identityHex(for: track.id)) ?? StudioTheme.cyan
     }
 
     private var typeLabel: String {
@@ -1543,5 +1539,18 @@ private extension Color {
             green: Double((value & 0x00FF00) >> 8) / 255.0,
             blue: Double(value & 0x0000FF) / 255.0
         )
+    }
+}
+
+private extension TrackGroup {
+    /// The group's identity hue: its stored colour when that is a valid 6-digit
+    /// hex, otherwise a stable palette colour derived from the group id. The
+    /// fallback means a kit and its parts resolve the SAME hue even for the
+    /// legacy malformed "#8AA" default — no document migration required.
+    var identityColor: Color {
+        if TrackPalette.isValidHex(color), let stored = Color(hex: color) {
+            return stored
+        }
+        return Color(hex: TrackPalette.identityHex(for: id)) ?? StudioTheme.success
     }
 }

@@ -3,7 +3,26 @@
 **Filed:** 2026-06-29 (owner, during the new-bugs verification pass)
 **Area:** Tracks page → track / kit grid cells (`Sources/UI/TracksMatrixView.swift`)
 **Severity:** UX / design (clarity + feature)
-**Status:** OPEN
+**Status:** RESOLVED (2026-06-29)
+
+## Resolution (2026-06-29)
+
+**Part A decision (documented in code):** colour encodes **identity** (which
+track / which kit), shown always on the cell's icon badge and — when selected —
+its outline. **Selection** is encoded by the outline *state* (a coloured 2px ring
+vs a thin grey border), identical grammar across `TrackMatrixCard` and
+`KitMatrixCard`. So identity = hue, selection = outline; they no longer collide.
+
+**Part B:** new `TrackPalette` (`Sources/Document/TrackPalette.swift`) gives a
+stable identity hue derived deterministically from an entity's id (first id byte,
+not per-run `hashValue`) — no document migration. `TrackGroup.identityColor` uses
+the stored colour when it is a valid 6-digit hex, else the id-derived palette
+colour. The root cause was the legacy `"#8AA"` default: `Color(hex:)` requires
+exactly 6 digits, so kits fell back to green and parts to cyan and never shared.
+Now both `KitMatrixCard` and a grouped part's `TrackMatrixCard` resolve the SAME
+`group.identityColor`, so a kit + its parts share one hue at a glance (badge,
+always-on); ungrouped tracks get a stable per-track palette colour from their id.
+Tests: `TrackPaletteTests` (validity / stability / wrapping / shared-id).
 
 Two related items, prompted by the owner asking why the "Snare" cell had a
 different border colour than the others in the tracks grid (see screenshot:
