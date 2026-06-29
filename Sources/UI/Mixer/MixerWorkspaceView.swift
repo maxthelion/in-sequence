@@ -84,7 +84,6 @@ struct MixerWorkspaceView: View {
     }
 
     private func sendReturnStrip(_ sendBus: SendBusState, accent: Color) -> some View {
-        let selectedInsert = selectedInsert(in: sendBus)
         let meterState = engineController.channelMeterPublisher(for: .send(sendBus.id)).displayState
         return StudioMixerStrip(
             width: MixerWorkspaceLayout.sendReturnStripWidth,
@@ -113,27 +112,10 @@ struct MixerWorkspaceView: View {
             // the slot's height so actions/footers align across strips.
             Color.clear
         } actions: {
-            HStack(spacing: 6) {
-                if selectedInsert != nil {
-                    MixerStripActionButton(
-                        title: "Edit FX",
-                        systemName: "slider.horizontal.3",
-                        accent: accent,
-                        minWidth: 64
-                    ) {
-                        editingSendBusID = sendBus.id
-                    }
-                    .popover(isPresented: editingBinding(for: sendBus.id), arrowEdge: Edge.bottom) {
-                        sendInsertEditor(selectedInsert, bus: sendBus, accent: accent)
-                            .padding(StudioMetrics.Spacing.standard)
-                            .frame(width: 360)
-                            .background(StudioTheme.stageFill)
-                    }
-                }
-
-                if !sendBus.inserts.isEmpty {
-                    addSendFXButton(sendBus.id, accent: accent)
-                }
+            // Each insert opens its own editor popover on tap (see
+            // sendInsertRow); the only strip-level action is Add.
+            if !sendBus.inserts.isEmpty {
+                addSendFXButton(sendBus.id, accent: accent)
             }
         } footer: {
             Text("→ Master")
@@ -151,9 +133,11 @@ struct MixerWorkspaceView: View {
         session.store.sendBus(id: busID)
     }
 
-    private func editingBinding(for busID: SendBusID) -> Binding<Bool> {
+    /// Presents the editor popover for the one insert that is BOTH selected and
+    /// has its bus marked for editing — set together by a row tap.
+    private func rowEditingBinding(busID: SendBusID, insertID: UUID) -> Binding<Bool> {
         Binding(
-            get: { editingSendBusID == busID },
+            get: { editingSendBusID == busID && selectedSendInsertIDs[busID] == insertID },
             set: { isPresented in
                 editingSendBusID = isPresented ? busID : nil
             }
@@ -202,89 +186,82 @@ struct MixerWorkspaceView: View {
         }
     }
 
+    /// Name-only clickable row: the slim strip lists each insert as just its
+    /// name (with a tiny enabled-state dot); tapping opens the editor popover
+    /// that holds enable/bypass, params, reorder and remove. No inline controls
+    /// crammed into the ~96pt strip (bug 20260629-095947).
     private func sendInsertRow(_ insert: SendBusInsert, bus: SendBusState, accent: Color) -> some View {
-        let isSelected = selectedInsert(in: bus)?.id == insert.id
-        return VStack(alignment: .leading, spacing: 7) {
-            // Title row: icon badge + name/summary get the full strip width.
-            // At the slim 96pt strip the enable toggle no longer shares this
-            // row, so the summary chip ("8-bit", "440 Hz") stops truncating.
-            HStack(spacing: 8) {
-                Image(systemName: insertIconName(for: insert.kind))
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(StudioTheme.background)
-                    .frame(width: 24, height: 24)
-                    .background(accent, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(insert.name)
-                        .studioText(.labelBold)
-                        .foregroundStyle(StudioTheme.text)
-                        .lineLimit(1)
-                    Text(insert.kind.summary)
-                        .studioText(.micro)
-                        .foregroundStyle(StudioTheme.mutedText)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
-
-            // Control row: enable toggle + reorder + remove. The toggle's
-            // own colour reads bypass state, so the redundant text label is
-            // dropped to free the cramped/overlapping controls.
-            HStack(spacing: 6) {
-                Toggle("Enabled", isOn: sendInsertBinding(insert.id, busID: bus.id, keyPath: \.isEnabled, fallback: insert.isEnabled))
-                    .labelsHidden()
-                    .toggleStyle(.switch)
-                    .controlSize(.mini)
-                    .tint(StudioTheme.success)
-                    .help(insert.isEnabled ? "Bypass insert" : "Enable insert")
-
-                Spacer(minLength: 4)
-
-                insertMoveButton(insert, bus: bus, systemName: "arrow.up", delta: -1)
-                insertMoveButton(insert, bus: bus, systemName: "arrow.down", delta: 1)
-
-                Button(role: .destructive) {
-                    session.removeSendBusInsert(insert.id, from: bus.id)
-                    selectedSendInsertIDs[bus.id] = bus.inserts.first(where: { $0.id != insert.id })?.id
-                } label: {
-                    Image(systemName: "trash")
-                        .font(.system(size: 10, weight: .semibold))
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.mini)
-                .help("Remove insert")
-            }
-        }
-        .padding(StudioMetrics.Spacing.snug)
-        // Colour identifies, it never floods (ux-canon rule 12): selection
-        // reads from the accent outline, not a tinted row fill.
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
-                .stroke(isSelected ? accent : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
-        )
-        .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
-        .onTapGesture {
+        let isSelected = selectedSendInsertIDs[bus.id] == insert.id
+        return Button {
+            // One tap selects AND opens the editor (no separate "Edit FX" step).
             selectedSendInsertIDs[bus.id] = insert.id
+            editingSendBusID = bus.id
+        } label: {
+            HStack(spacing: 8) {
+                // Tiny dot encodes enabled/bypassed without an inline toggle.
+                Circle()
+                    .fill(insert.isEnabled ? accent : StudioTheme.mutedText.opacity(0.5))
+                    .frame(width: 6, height: 6)
+                Text(insert.name)
+                    .studioText(.label)
+                    .foregroundStyle(insert.isEnabled ? StudioTheme.text : StudioTheme.mutedText)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
+                Spacer(minLength: 4)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(StudioTheme.mutedText)
+            }
+            .padding(.horizontal, StudioMetrics.Spacing.snug)
+            .padding(.vertical, 8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            // Colour identifies, it never floods (ux-canon rule 12): selection
+            // reads from the accent outline, not a tinted row fill.
+            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
+                    .stroke(isSelected ? accent : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+            )
+            .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .help(insert.name)
+        .popover(isPresented: rowEditingBinding(busID: bus.id, insertID: insert.id), arrowEdge: Edge.trailing) {
+            sendInsertEditor(insert, bus: bus, accent: accent)
+                .padding(StudioMetrics.Spacing.standard)
+                .frame(width: 320)
+                .background(StudioTheme.stageFill)
         }
     }
 
     @ViewBuilder
     private func sendInsertEditor(_ insert: SendBusInsert?, bus: SendBusState, accent: Color) -> some View {
         if let insert {
-            VStack(alignment: .leading, spacing: 7) {
-                HStack {
-                    Text("EDIT")
-                        .studioText(.micro)
-                        .tracking(0.8)
-                        .foregroundStyle(StudioTheme.mutedText)
-                    Spacer()
-                    Text(insert.name)
-                        .studioText(.microEmphasis)
-                        .foregroundStyle(accent)
-                        .lineLimit(1)
+            VStack(alignment: .leading, spacing: 9) {
+                HStack(spacing: 8) {
+                    Image(systemName: insertIconName(for: insert.kind))
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(StudioTheme.background)
+                        .frame(width: 24, height: 24)
+                        .background(accent, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(insert.name)
+                            .studioText(.labelBold)
+                            .foregroundStyle(StudioTheme.text)
+                            .lineLimit(1)
+                        Text(insert.kind.summary)
+                            .studioText(.micro)
+                            .foregroundStyle(StudioTheme.mutedText)
+                            .lineLimit(1)
+                    }
+                    Spacer(minLength: 4)
+                    // Enable/bypass moved off the strip row into the editor.
+                    Toggle("Enabled", isOn: sendInsertBinding(insert.id, busID: bus.id, keyPath: \.isEnabled, fallback: insert.isEnabled))
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                        .controlSize(.mini)
+                        .tint(StudioTheme.success)
+                        .help(insert.isEnabled ? "Bypass insert" : "Enable insert")
                 }
 
                 sendSliderRow(
@@ -296,6 +273,28 @@ struct MixerWorkspaceView: View {
                 )
 
                 sendKindEditor(insert, busID: bus.id, accent: accent)
+
+                Divider()
+                    .overlay(StudioTheme.border)
+
+                // Reorder + remove moved off the strip row into the editor.
+                HStack(spacing: 6) {
+                    insertMoveButton(insert, bus: bus, systemName: "arrow.up", delta: -1)
+                    insertMoveButton(insert, bus: bus, systemName: "arrow.down", delta: 1)
+                    Spacer(minLength: 8)
+                    Button(role: .destructive) {
+                        session.removeSendBusInsert(insert.id, from: bus.id)
+                        selectedSendInsertIDs[bus.id] = bus.inserts.first(where: { $0.id != insert.id })?.id
+                        editingSendBusID = nil
+                    } label: {
+                        Label("Remove", systemImage: "trash")
+                            .studioText(.label)
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .tint(StudioTheme.danger)
+                    .help("Remove insert")
+                }
             }
             .padding(StudioMetrics.Spacing.snug)
             .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
@@ -449,13 +448,6 @@ struct MixerWorkspaceView: View {
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
                 .stroke(StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
         )
-    }
-
-    private func selectedInsert(in sendBus: SendBusState) -> SendBusInsert? {
-        guard let selectedID = selectedSendInsertIDs[sendBus.id] else {
-            return sendBus.inserts.first
-        }
-        return sendBus.inserts.first(where: { $0.id == selectedID }) ?? sendBus.inserts.first
     }
 
     private func sendInsertBinding<Value>(

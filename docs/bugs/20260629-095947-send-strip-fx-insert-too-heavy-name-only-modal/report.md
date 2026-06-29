@@ -3,7 +3,17 @@
 **Filed:** 2026-06-29 (owner, during the new-bugs verification pass)
 **Area:** Mixer → Send / FX-return strips → FX insert row
 **Severity:** UI / design — the inline control is too large for the strip width
-**Status:** OPEN
+**Status:** RESOLVED (2026-06-29)
+
+## Resolution (2026-06-29)
+
+`MixerWorkspaceView.swift`: `sendInsertRow` is now a name-only clickable button
+(tiny enabled-state dot + name + chevron) that fits the slim strip; tapping it
+selects the insert AND opens its editor popover in one tap. The enable/bypass
+toggle, ↑/↓ reorder, and remove all moved off the row into `sendInsertEditor`
+(which also gained the icon badge + kind summary for context). The separate
+"Edit FX" action button + its strip-level popover were removed. No FX capability
+lost. Builds; no inline controls remain on the strip row.
 
 ## What's wrong
 
