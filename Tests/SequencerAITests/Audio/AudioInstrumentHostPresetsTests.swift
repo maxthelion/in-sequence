@@ -194,6 +194,16 @@ final class AudioInstrumentHostPresetsTests: XCTestCase {
         XCTAssertEqual(AudioInstrumentHost.programChangeBytes(programNumber: 42), [0xC0, 42])
     }
 
+    // MARK: – All-Notes-Off on preset switch (hung-note clear, 20260629-101847)
+
+    func test_allNotesOffBytes_is_CC123_value_0_on_channel_0() {
+        let bytes = AudioInstrumentHost.allNotesOffBytes()
+        XCTAssertEqual(bytes.count, 3, "All-Notes-Off is a 3-byte Control Change message")
+        XCTAssertEqual(bytes[0], 0xB0, "Status nibble must be Control Change (0xB0) on channel 0")
+        XCTAssertEqual(bytes[1], 0x7B, "Controller must be All-Notes-Off (123 / 0x7B)")
+        XCTAssertEqual(bytes[2], 0x00, "All-Notes-Off carries a 0 value")
+    }
+
     func test_programChangeBytes_clamps_into_legal_0_127_data_range() {
         XCTAssertEqual(AudioInstrumentHost.programChangeBytes(programNumber: 127), [0xC0, 127])
         XCTAssertEqual(AudioInstrumentHost.programChangeBytes(programNumber: 200), [0xC0, 127],

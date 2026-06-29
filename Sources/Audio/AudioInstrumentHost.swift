@@ -487,6 +487,27 @@ final class AudioInstrumentHost: TrackPlaybackSink {
         defer { auMutationLock.unlock() }
         au.currentPreset = preset
 
+        // Clear any note the patch reconfiguration left ringing. Bug
+        // 20260629-101847: switching a preset mid-playback could leave a note
+        // hung (~to the end of the bar). All-Notes-Off (CC 123) on channel 0 is
+        // sent sample-stamped through the AU's OWN MIDI block here, so it is
+        // ordered deterministically right after `currentPreset =` on this thread
+        // — unlike the async main-hop `stopNote` panic, which races the
+        // reconfiguration. RT-safe: the block copies the bytes synchronously
+        // (same path as the program-change quirk handling below). A no-op when
+        // nothing is held.
+        if let scheduleMIDI = au.scheduleMIDIEventBlock {
+            let allNotesOff = Self.allNotesOffBytes()
+            allNotesOff.withUnsafeBufferPointer { buffer in
+                scheduleMIDI(
+                    AUEventSampleTime(AUEventSampleTimeImmediate),
+                    0,
+                    buffer.count,
+                    buffer.baseAddress!
+                )
+            }
+        }
+
         // SAFE-BY-CONSTRUCTION program-change quirk handling.
         //
         // A few AUs (Arturia Analog Lab V et al.) vend factory presets that are
@@ -518,6 +539,13 @@ final class AudioInstrumentHost: TrackPlaybackSink {
         }
 
         return try factory.captureState(instrument)
+    }
+
+    /// MIDI All-Notes-Off (Control Change 123, value 0) on channel 0 — releases
+    /// every held note. Sent right after a preset switch to clear a note left
+    /// ringing by the patch reconfiguration (bug 20260629-101847).
+    static func allNotesOffBytes() -> [UInt8] {
+        [0xB0, 0x7B, 0x00]
     }
 
     /// MIDI Program Change bytes on channel 0 (status `0xC0`) for a program number,
