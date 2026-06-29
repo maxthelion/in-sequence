@@ -8,6 +8,9 @@ protocol TrackPlaybackSink: AnyObject {
     var availableInstruments: [AudioInstrumentChoice] { get }
     var selectedInstrument: AudioInstrumentChoice { get }
     var currentAudioUnit: AVAudioUnit? { get }
+    /// True when this sink can accept the first transport tick without silently
+    /// dropping it. AU hosts report false while a plugin is still instantiating.
+    var isReadyForTransportStart: Bool { get }
     func prepareIfNeeded()
     func preparePresetBrowser()
     func startIfNeeded()
@@ -44,6 +47,10 @@ protocol TrackPlaybackSink: AnyObject {
 }
 
 extension TrackPlaybackSink {
+    var isReadyForTransportStart: Bool {
+        true
+    }
+
     func preparePresetBrowser() {
         prepareIfNeeded()
     }
@@ -237,6 +244,10 @@ final class AudioInstrumentHost: TrackPlaybackSink {
 
     var currentAudioUnit: AVAudioUnit? {
         withSnapshot { snapshotAudioUnit }
+    }
+
+    var isReadyForTransportStart: Bool {
+        withSnapshot { snapshotAvailable }
     }
 
     func prepareIfNeeded() {

@@ -2192,6 +2192,34 @@ final class EngineControllerTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(sink.prepareCallCount, 1)
     }
 
+    @MainActor
+    func test_start_defers_until_audio_unit_host_is_ready() async throws {
+        let sink = CapturingAudioSink()
+        sink.isReadyForTransportStart = false
+        let controller = EngineController(client: nil, endpoint: nil, audioOutput: sink)
+        let track = StepSequenceTrack(
+            name: "Loading AU",
+            pitches: [60],
+            stepPattern: [true],
+            stepAccents: [false],
+            destination: .auInstrument(componentID: AudioInstrumentChoice.builtInSynth.audioComponentID, stateBlob: nil),
+            velocity: 100,
+            gateLength: 2
+        )
+
+        controller.apply(track: track)
+        controller.start()
+
+        XCTAssertFalse(controller.isRunning)
+        XCTAssertGreaterThanOrEqual(sink.startCallCount, 1)
+
+        sink.isReadyForTransportStart = true
+        try await waitForMainActorState {
+            controller.isRunning
+        }
+        controller.stop()
+    }
+
     func test_processTick_doesNotReapplyUnchangedAudioDestinationEveryDispatch() {
         let sink = CapturingAudioSink()
         let controller = EngineController(client: nil, endpoint: nil, audioOutput: sink)
@@ -3409,6 +3437,7 @@ private final class DocumentBox {
 private final class CapturingAudioSink: TrackPlaybackSink {
     let displayName = "Mock AU Instrument"
     var isAvailable = true
+    var isReadyForTransportStart = true
     let availableInstruments = [AudioInstrumentChoice.builtInSynth, .testInstrument]
     private(set) var selectedInstrument: AudioInstrumentChoice = .builtInSynth
     var currentAudioUnit: AVAudioUnit? = nil

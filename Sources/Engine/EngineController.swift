@@ -292,6 +292,10 @@ final class EngineController: RouterDispatcher {
     )
 
     private(set) var isRunning = false
+    @ObservationIgnored
+    private var pendingTransportStartWorkItem: DispatchWorkItem?
+    @ObservationIgnored
+    private var deferredTransportStartAttempt = 0
     private(set) var currentBPM: Double
     /// Main-published mirror of the transport tick for UI observation.
     /// Engine-internal code must read `currentTransportTick` instead: this
@@ -882,17 +886,35 @@ final class EngineController: RouterDispatcher {
     }
 
     func start() {
+        start(deferredAttempt: 0)
+    }
+
+    private func start(deferredAttempt: Int) {
+        pendingTransportStartWorkItem?.cancel()
+        pendingTransportStartWorkItem = nil
         guard !isRunning, executor != nil else {
             return
         }
         DevActivity.trace(DevActivity.engine, "EngineController.start")
 
+        let hosts = withStateLock { Self.uniqueHosts(Array(trackRuntime.audioOutputsByTrackID.values)) }
+        hosts.forEach { $0.startIfNeeded() }
+        guard audioOutputsReadyForTransportStart(hosts) || deferredAttempt >= Self.maxDeferredTransportStartAttempts else {
+            deferTransportStart(attempt: deferredAttempt + 1)
+            return
+        }
+        if deferredAttempt >= Self.maxDeferredTransportStartAttempts, !audioOutputsReadyForTransportStart(hosts) {
+            DevActivity.trace(
+                DevActivity.engine,
+                "EngineController.start continuing after AU readiness timeout attempts=\(deferredAttempt)"
+            )
+        }
+        deferredTransportStartAttempt = 0
+
         initializePhraseNavigationForPlaybackStart(
             snapshot: tickState.currentPlaybackSnapshot(),
             cycleStartTick: 0
         )
-        let hosts = withStateLock { Array(trackRuntime.audioOutputsByTrackID.values) }
-        hosts.forEach { $0.startIfNeeded() }
         try? sampleEngine.start()
 
         // Capture the audio-render origin: musical second 0 maps to the render
@@ -909,6 +931,30 @@ final class EngineController: RouterDispatcher {
         clock.start { [weak self] tickIndex, now in
             self?.processTick(tickIndex: tickIndex, now: now)
         }
+    }
+
+    private static let deferredTransportStartInterval: TimeInterval = 0.05
+    private static let maxDeferredTransportStartAttempts = 100
+
+    private func audioOutputsReadyForTransportStart(_ hosts: [TrackPlaybackSink]) -> Bool {
+        hosts.allSatisfy(\.isReadyForTransportStart)
+    }
+
+    private func deferTransportStart(attempt: Int) {
+        deferredTransportStartAttempt = attempt
+        DevActivity.trace(
+            DevActivity.engine,
+            "EngineController.start deferred waiting for AU readiness attempt=\(attempt)"
+        )
+        let workItem = DispatchWorkItem { [weak self] in
+            self?.start(deferredAttempt: attempt)
+        }
+        pendingTransportStartWorkItem = workItem
+        // realtime-allow-main-async: transport-start control retry while an AU is still instantiating; no musical event timing is derived here, and tick 0 is not prepared until the retry succeeds. Test: EngineControllerTests.test_start_defers_until_audio_unit_host_is_ready.
+        DispatchQueue.main.asyncAfter(
+            deadline: .now() + Self.deferredTransportStartInterval,
+            execute: workItem
+        )
     }
 
     /// Test-only: identical to `start()` minus starting the wall-clock
@@ -942,6 +988,9 @@ final class EngineController: RouterDispatcher {
 
     func stop() {
         DevActivity.trace(DevActivity.engine, "EngineController.stop (isRunning=\(isRunning))")
+        pendingTransportStartWorkItem?.cancel()
+        pendingTransportStartWorkItem = nil
+        deferredTransportStartAttempt = 0
         // realtime-allow-diagnostic: transport-stop control path; `now` stamps note-off flush / note-repeat cleanup (MIDI wall-clock + bookkeeping), never an event's sounding frame (Rule 1). Test: RealtimePathLintTests.
         let now = ProcessInfo.processInfo.systemUptime
         guard isRunning else {
