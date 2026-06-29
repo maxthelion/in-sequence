@@ -671,11 +671,10 @@ final class AudioInstrumentHost: TrackPlaybackSink {
             // skew (a stamp computed against an origin captured slightly before
             // the AU's live render position, or a late pump wake) can yield a
             // frame already in the AU's past. Handing the AU a past frame is
-            // undefined/dropped, so we clamp such a note to immediate
-            // (`AUEventSampleTimeImmediate`) rather than into the past. The AU's
-            // current render frame is read from its `lastRenderTime` (nil before
-            // the first render → use immediate stamps until the AU exposes its
-            // timeline).
+            // undefined/dropped, so we clamp the note-on to immediate while
+            // keeping a real future note-off. The AU's current render frame is
+            // read from its `lastRenderTime` (nil before the first render → no
+            // floor).
             //
             // HUMAN ACOUSTIC RISK (not machine-verifiable here): that the
             // output-node render frame and the AU's internal render frame are the
@@ -683,13 +682,9 @@ final class AudioInstrumentHost: TrackPlaybackSink {
             // AVAudioEngine property we rely on but cannot assert offline — it is
             // the documented human acoustic check (a real AU on the device).
             let currentRenderFrame = instrument.lastRenderTime?.sampleTime
-            let effectiveNoteOnSampleTime = Self.effectiveNoteOnSampleTime(
-                requested: noteOnSampleTime,
-                currentRenderFrame: currentRenderFrame
-            )
             for event in noteEvents where event.gate {
                 let stamps = Self.noteStamps(
-                    noteOnSampleTime: effectiveNoteOnSampleTime,
+                    noteOnSampleTime: noteOnSampleTime,
                     length: event.length,
                     bpm: bpm,
                     stepsPerBar: stepsPerBar,
@@ -703,21 +698,6 @@ final class AudioInstrumentHost: TrackPlaybackSink {
                 )
             }
         }
-    }
-
-    /// Before an AU has rendered at least once, `lastRenderTime` is nil and
-    /// third-party instruments can treat an absolute AUEventSampleTime as being
-    /// on an undefined timeline. Use immediate stamps for that first pre-render
-    /// event, then return to exact sample stamps as soon as the AU exposes its
-    /// render frame.
-    static func effectiveNoteOnSampleTime(
-        requested noteOnSampleTime: AVAudioFramePosition?,
-        currentRenderFrame: AVAudioFramePosition?
-    ) -> AVAudioFramePosition? {
-        guard currentRenderFrame != nil else {
-            return nil
-        }
-        return noteOnSampleTime
     }
 
     /// AU MIDI note-on / note-off bytes for channel 0 (status 0x90 / 0x80).
@@ -1158,9 +1138,9 @@ final class AudioInstrumentHost: TrackPlaybackSink {
     /// `currentRenderFrame` is the AU's current render `sampleTime` (its
     /// `lastRenderTime`), used as a PAST-FRAME FLOOR (defect D4): if the computed
     /// note-on frame is < the AU's current render frame (origin/now skew, a late
-    /// pump wake), handing the AU a past frame is undefined/dropped, so BOTH
-    /// stamps fall back to immediate (the AU sounds it at the head of the next
-    /// render cycle) — never a past frame. nil (no render yet) means no floor.
+    /// pump wake), handing the AU a past frame is undefined/dropped, so the
+    /// note-on falls back to immediate while the note-off stays a real future
+    /// frame. nil (no render yet) means no floor.
     static func noteStamps(
         noteOnSampleTime: AVAudioFramePosition?,
         length: UInt16,
@@ -1169,26 +1149,29 @@ final class AudioInstrumentHost: TrackPlaybackSink {
         sampleRate: Double,
         currentRenderFrame: AVAudioFramePosition? = nil
     ) -> AUNoteStamps {
+        let secondsPerStep = (60.0 / max(bpm, 1)) * (4.0 / Double(max(stepsPerBar, 1)))
+        let gateSeconds = secondsPerStep * Double(length)
+        let gateFrames = max(1, AVAudioFramePosition((gateSeconds * max(sampleRate, 1)).rounded()))
+
         guard let noteOnSampleTime, sampleRate > 0 else {
             return AUNoteStamps(
                 noteOn: AUEventSampleTime(AUEventSampleTimeImmediate),
-                noteOff: AUEventSampleTime(AUEventSampleTimeImmediate)
+                noteOff: currentRenderFrame.map { AUEventSampleTime($0 + gateFrames) }
+                    ?? AUEventSampleTime(AUEventSampleTimeImmediate)
             )
         }
 
         // Past-frame guard (D4): a note-on frame already behind the AU's live
-        // render position can never sound at that frame — clamp to immediate
-        // rather than hand the AU a past frame.
+        // render position can never sound at that frame. Clamp the note-on to
+        // immediate, but preserve the gate with a future note-off so the
+        // fallback is audible rather than a zero-duration note.
         if let currentRenderFrame, noteOnSampleTime < currentRenderFrame {
             return AUNoteStamps(
                 noteOn: AUEventSampleTime(AUEventSampleTimeImmediate),
-                noteOff: AUEventSampleTime(AUEventSampleTimeImmediate)
+                noteOff: AUEventSampleTime(currentRenderFrame + gateFrames)
             )
         }
 
-        let secondsPerStep = (60.0 / max(bpm, 1)) * (4.0 / Double(max(stepsPerBar, 1)))
-        let gateSeconds = secondsPerStep * Double(length)
-        let gateFrames = AVAudioFramePosition((gateSeconds * sampleRate).rounded())
         let noteOff = noteOnSampleTime + max(1, gateFrames)
         return AUNoteStamps(
             noteOn: AUEventSampleTime(noteOnSampleTime),

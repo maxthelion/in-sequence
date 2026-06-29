@@ -764,7 +764,11 @@ final class OfflineFrameAccuracyTests: XCTestCase {
             currentRenderFrame: 10_000
         )
         XCTAssertEqual(past.noteOn, AUEventSampleTime(AUEventSampleTimeImmediate))
-        XCTAssertEqual(past.noteOff, AUEventSampleTime(AUEventSampleTimeImmediate))
+        XCTAssertGreaterThan(
+            past.noteOff,
+            AUEventSampleTime(10_000),
+            "Past-frame fallback should keep a future note-off so the immediate note-on has an audible gate."
+        )
 
         // Note-on at/after the current render frame → stamped exactly (no clamp).
         let future = AudioInstrumentHost.noteStamps(
@@ -789,24 +793,5 @@ final class OfflineFrameAccuracyTests: XCTestCase {
             currentRenderFrame: nil
         )
         XCTAssertEqual(noFloor.noteOn, AUEventSampleTime(5))
-    }
-
-    func test_effectiveAUNoteOnSampleTime_usesImmediateUntilAUHasRendered() throws {
-        XCTAssertNil(
-            AudioInstrumentHost.effectiveNoteOnSampleTime(
-                requested: 12_000,
-                currentRenderFrame: nil
-            ),
-            "Before the AU has exposed lastRenderTime, an absolute AU stamp has no reliable AU timeline; use immediate for the first pre-render event."
-        )
-
-        XCTAssertEqual(
-            AudioInstrumentHost.effectiveNoteOnSampleTime(
-                requested: 12_000,
-                currentRenderFrame: 10_000
-            ),
-            12_000,
-            "Once the AU has rendered, keep the exact sample-time stamp."
-        )
     }
 }
