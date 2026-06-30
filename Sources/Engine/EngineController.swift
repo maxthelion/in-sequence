@@ -292,6 +292,24 @@ final class EngineController: RouterDispatcher {
     )
 
     private(set) var isRunning = false
+
+    /// P1-warm-engine RAIL STUB (frozen, authored by the rail author — builders
+    /// implement, do not edit).
+    ///
+    /// Records, the first time transport stamps step 0's events, whether the
+    /// `AudioMasterClock` origin in effect at that moment was the authoritative
+    /// RENDER-DERIVED origin (`true`) or the provisional pre-render
+    /// `systemUptime` fallback (`false`). `nil` until the first event is stamped.
+    ///
+    /// Phase-1 invariant: with a warm engine the render origin is established
+    /// (render-derived) BEFORE the first event is stamped, so this must be
+    /// `true` after the first transport start — never `false` (fallback) and
+    /// never `nil` (never stamped). Today nothing sets it (the controller stamps
+    /// step 0 immediately after `captureOrigin(fallbackHostSeconds:)` without
+    /// guaranteeing a render-derived origin), so it stays `nil` — the rail is RED.
+    @ObservationIgnored
+    private(set) var firstEventOriginWasRenderDerived: Bool?
+
     @ObservationIgnored
     private var pendingTransportStartWorkItem: DispatchWorkItem?
     @ObservationIgnored
