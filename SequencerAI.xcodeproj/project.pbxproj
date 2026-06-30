@@ -51,6 +51,7 @@
 		1297D30DD6B295C596BB62AB /* TracksMatrixView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0097C26CE717B68546B671EB /* TracksMatrixView.swift */; };
 		12C8B40C8727B23FAFE343BA /* StudioRotaryKnob.swift in Sources */ = {isa = PBXBuildFile; fileRef = BED192E17DC2ADD0DA71B0ED /* StudioRotaryKnob.swift */; };
 		12DA27C506B5F683A3B90CA2 /* DAWNoteNameTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11163218F974CA992AF481FD /* DAWNoteNameTests.swift */; };
+		1342CBA6B5D09D1D3B63BFBE /* LookAheadSchedulingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D441332F084BAC300E713657 /* LookAheadSchedulingTests.swift */; };
 		13C0D20E24601C96D109A96C /* SequencerDocumentSession+QuantisedToggles.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9BBAAD034ECDE5FF5D85300 /* SequencerDocumentSession+QuantisedToggles.swift */; };
 		147CAA19D1A50CDA73254F69 /* BarPrecompute.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2A7C7A93A1BC018217A78D4 /* BarPrecompute.swift */; };
 		1509687785CD80E997F309DE /* GeneratedSourceEvaluator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B433910D2FD5A19E98CD11FC /* GeneratedSourceEvaluator.swift */; };
@@ -427,6 +428,7 @@
 		BFF0D973ADDFD788FE262C31 /* DrumKitMatrixEditingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D607B232B0B516E5513AA5A6 /* DrumKitMatrixEditingTests.swift */; };
 		C01D0E83694CD432F5B1B821 /* StepSequenceTrackAudioInputCodableTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1BE28ABFBD630BEBF8ADA0C /* StepSequenceTrackAudioInputCodableTests.swift */; };
 		C07FA945096A74D2BEA9B361 /* SlicerWaveformWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36E333B8E586B97B0D21C363 /* SlicerWaveformWindow.swift */; };
+		C0E3EDF089557D99DBEF00C6 /* LookAheadScheduling.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53CFDC13D87E44E3EEC1E2E5 /* LookAheadScheduling.swift */; };
 		C0EE905489AAA186DFD8085E /* ChannelMeterBankTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2E63E555365536437DC2D3B /* ChannelMeterBankTests.swift */; };
 		C24268F8CBB721A896EBCEF7 /* Project+Phrases.swift in Sources */ = {isa = PBXBuildFile; fileRef = B375A9FBAE3604545F0076B7 /* Project+Phrases.swift */; };
 		C2E30B33B669BCD1A7E22017 /* SamplerDestinationWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4171B1290D6CAA19739A7D7A /* SamplerDestinationWidget.swift */; };
@@ -1115,6 +1117,7 @@
 		536BE14AC04832A0B56C7656 /* TrackFillPreviewState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackFillPreviewState.swift; sourceTree = "<group>"; };
 		53826EB36F9BA42B707164A7 /* user-stories.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "user-stories.md"; sourceTree = "<group>"; };
 		5390744211BEBB2803565CB2 /* validated-screen.err */ = {isa = PBXFileReference; path = "validated-screen.err"; sourceTree = "<group>"; };
+		53CFDC13D87E44E3EEC1E2E5 /* LookAheadScheduling.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LookAheadScheduling.swift; sourceTree = "<group>"; };
 		53E93A933726FAF55ABFF758 /* 04-mixer.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "04-mixer.png"; sourceTree = "<group>"; };
 		54005765D1EB6C8DDA9716C9 /* TrackMacroApplier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackMacroApplier.swift; sourceTree = "<group>"; };
 		54049B2C0F66311F0876AACA /* note.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = note.md; sourceTree = "<group>"; };
@@ -1986,6 +1989,7 @@
 		D3DBA8DAA37236A450E3064B /* AudioDeviceCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioDeviceCatalog.swift; sourceTree = "<group>"; };
 		D3F0BEA587983DD81D6B3D7A /* 2026-04-27-progression-chord-generator.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2026-04-27-progression-chord-generator.md"; sourceTree = "<group>"; };
 		D419E9B3B98D169C2F7AFD51 /* note.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = note.md; sourceTree = "<group>"; };
+		D441332F084BAC300E713657 /* LookAheadSchedulingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LookAheadSchedulingTests.swift; sourceTree = "<group>"; };
 		D47417C5EF49EC0F59E5989C /* ClipContentPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipContentPreview.swift; sourceTree = "<group>"; };
 		D4DE847F1A4F5E88F5159E35 /* PhraseCellPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhraseCellPreview.swift; sourceTree = "<group>"; };
 		D4E843105F96BC3538CF4728 /* DrumKitNoteMap.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DrumKitNoteMap.swift; sourceTree = "<group>"; };
@@ -3138,6 +3142,7 @@
 				36BF4AF5E234CEBAC34BA89B /* LayerSnapshot.swift */,
 				A268898E48CD801E7859CB51 /* LiveSequencerStore.swift */,
 				B155D688CADB8AB94B754066 /* LiveSequencerStore+Accessors.swift */,
+				53CFDC13D87E44E3EEC1E2E5 /* LookAheadScheduling.swift */,
 				6E5287FF85E53E1D764EC6FD /* MIDIRouter.swift */,
 				B8D351F99ADA535260060C8D /* PhrasePlaybackBuffer.swift */,
 				CD406C1DFC605824895BA3E6 /* PlaybackSnapshot.swift */,
@@ -3240,6 +3245,7 @@
 				862D25C1793168EC7115AE4B /* DrumAssetLibraryTests.swift */,
 				55515A765165CE47B7D93A66 /* EventRecordingRoundTripTests.swift */,
 				8DA39C9D199E4D93A1F1EEDC /* FullStateCoderTests.swift */,
+				D441332F084BAC300E713657 /* LookAheadSchedulingTests.swift */,
 				311BF68209189C2F543DD0F5 /* MainAudioGraphDeviceSwitchTests.swift */,
 				C28D5ECF8458D17E12C59FEE /* MainAudioGraphTests.swift */,
 				0D21CB82446FEAD2695BCB35 /* MasterBusHostTests.swift */,
@@ -6950,6 +6956,7 @@
 				B2571100CA4DC6AC75A26EBA /* LiveSequencerStoreResidentStateTests.swift in Sources */,
 				350297ECD76C2570D5737ECA /* LiveStoreTestSupport.swift in Sources */,
 				CCDD8565324F4AABBC097EE0 /* LiveWorkspaceViewTests.swift in Sources */,
+				1342CBA6B5D09D1D3B63BFBE /* LookAheadSchedulingTests.swift in Sources */,
 				6598766181BA2A8BA538B3EE /* MIDIClientSendTests.swift in Sources */,
 				664FF017DB8A34F84629BB05 /* MIDIClientTests.swift in Sources */,
 				AB80BE8BA10319450BD35A69 /* MIDIPacketBuilderTests.swift in Sources */,
@@ -7216,6 +7223,7 @@
 				5A62F6A8B55ABD5D639A206A /* LiveSequencerStore+Accessors.swift in Sources */,
 				F98D02D44AE1C4B1C07C4832 /* LiveSequencerStore.swift in Sources */,
 				5ED966B375E561049D3CCFE8 /* LiveWorkspaceView.swift in Sources */,
+				C0E3EDF089557D99DBEF00C6 /* LookAheadScheduling.swift in Sources */,
 				229B0B74F0D787F0F080BBA3 /* MIDIClient.swift in Sources */,
 				5CCF8B94538A8B9C6F1B9136 /* MIDIEndpoint.swift in Sources */,
 				4B7949C1B0F64DF9E6134757 /* MIDIPacketBuilder.swift in Sources */,
