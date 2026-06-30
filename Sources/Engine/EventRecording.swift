@@ -95,43 +95,95 @@ struct RealizedEvent: Codable, Equatable, Hashable, Sendable {
     }
 }
 
+/// A deterministic NDJSON codec for `RealizedEvent`, shared by the recorder and
+/// the replay source so record→replay→re-record reproduces byte-identical bytes.
+///
+/// `JSONEncoder.OutputFormatting.sortedKeys` pins object key order, so a given
+/// `RealizedEvent` always serializes to the same line regardless of dictionary
+/// hashing — the property the round-trip gate asserts.
+enum RealizedEventNDJSON {
+    private static let encoder: JSONEncoder = {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        return encoder
+    }()
+
+    private static let decoder = JSONDecoder()
+
+    /// Serialize a stream to NDJSON (one `RealizedEvent` JSON object per line).
+    /// A non-empty stream yields a non-empty, newline-terminated string; an empty
+    /// stream yields the empty string.
+    static func serialize(_ events: [RealizedEvent]) -> String {
+        guard !events.isEmpty else { return "" }
+        var output = ""
+        for event in events {
+            guard let data = try? encoder.encode(event),
+                  let line = String(data: data, encoding: .utf8) else {
+                continue
+            }
+            output += line
+            output += "\n"
+        }
+        return output
+    }
+
+    /// Parse an NDJSON recording back into a realized stream, preserving line
+    /// (realization) order. Blank lines are skipped.
+    static func parse(_ ndjson: String) -> [RealizedEvent] {
+        guard !ndjson.isEmpty else { return [] }
+        var events: [RealizedEvent] = []
+        ndjson.enumerateLines { line, _ in
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            guard !trimmed.isEmpty,
+                  let data = trimmed.data(using: .utf8),
+                  let event = try? decoder.decode(RealizedEvent.self, from: data) else {
+                return
+            }
+            events.append(event)
+        }
+        return events
+    }
+}
+
 /// Records the realized note stream into a bounded in-memory ring and serializes
 /// it to NDJSON (one `RealizedEvent` JSON object per line). The recorder sink is
 /// fed from `EngineController.prepareTick` where each realized `GeneratedNote` →
 /// `NoteEvent` is prepared for the dispatch path.
-///
-/// STUB: a no-op recorder so the rail compiles and runs RED. The builder
-/// implements the ring + NDJSON serialization.
 final class EventRecorder {
     /// Maximum events retained in the in-memory ring.
     let capacity: Int
+
+    /// The in-memory ring, oldest-first. Capped at `capacity`; recording past the
+    /// cap drops the oldest events.
+    private var ring: [RealizedEvent] = []
 
     init(capacity: Int = 8192) {
         self.capacity = capacity
     }
 
     /// The events recorded so far, in realization order.
-    /// STUB: always empty until the builder implements recording.
-    var recordedEvents: [RealizedEvent] { [] }
+    var recordedEvents: [RealizedEvent] { ring }
 
     /// Record one realized event as it is prepared for the dispatch path.
-    /// STUB: no-op.
     func record(_ event: RealizedEvent) {
-        _ = event
+        ring.append(event)
+        if ring.count > capacity {
+            ring.removeFirst(ring.count - capacity)
+        }
     }
 
     /// Record all realized note events for a single `(block, step)` slice of the
-    /// prepared dispatch map (`preparedNotesByBlockID`).
-    /// STUB: no-op.
+    /// prepared dispatch map (`preparedNotesByBlockID`), in order.
     func record(blockID: BlockID, step: Int, notes: [NoteEvent]) {
-        _ = (blockID, step, notes)
+        for note in notes {
+            record(RealizedEvent(blockID: blockID, step: step, noteEvent: note))
+        }
     }
 
     /// Serialize the recorded stream to NDJSON (one `RealizedEvent` per line),
     /// the optional on-disk form named in the spec.
-    /// STUB: returns empty.
     func serializedNDJSON() -> String {
-        ""
+        RealizedEventNDJSON.serialize(ring)
     }
 }
 
@@ -139,38 +191,31 @@ final class EventRecorder {
 /// `preparedNotesByBlockID(forStep:)` returns the `[BlockID: [NoteEvent]]` map
 /// the executor consumes, reconstructed from the recorded `RealizedEvent`s so
 /// the realized event list is byte-identical to the live run.
-///
-/// STUB: an empty replay source so the rail compiles and runs RED. The builder
-/// implements decoding + per-step grouping.
 struct EventReplaySource {
     /// The events this source will replay, in realization order.
-    /// STUB: always empty.
     private let events: [RealizedEvent]
 
-    /// Build a replay source from an in-memory recording.
-    /// STUB: drops the events (no-op) so replay produces nothing.
+    /// Build a replay source from an in-memory recording, preserving order.
     init(events: [RealizedEvent]) {
-        _ = events
-        self.events = []
+        self.events = events
     }
 
     /// Build a replay source from a serialized NDJSON recording.
-    /// STUB: parses nothing.
     init(ndjson: String) {
-        _ = ndjson
-        self.events = []
+        self.events = RealizedEventNDJSON.parse(ndjson)
     }
 
     /// All recorded events this source will replay, in order.
-    /// STUB: always empty.
     var recordedEvents: [RealizedEvent] { events }
 
     /// The prepared-notes map for one step, keyed by block id exactly as the
     /// live engine hands it to the executor (`preparedNotesByBlockID`). Feeding
     /// this into the dispatch path replays the recording deterministically.
-    /// STUB: returns empty.
     func preparedNotesByBlockID(forStep step: Int) -> [BlockID: [NoteEvent]] {
-        _ = step
-        return [:]
+        var map: [BlockID: [NoteEvent]] = [:]
+        for event in events where event.step == step {
+            map[event.blockID, default: []].append(event.noteEvent)
+        }
+        return map
     }
 }
