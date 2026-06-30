@@ -310,6 +310,16 @@ final class EngineController: RouterDispatcher {
     @ObservationIgnored
     private(set) var firstEventOriginWasRenderDerived: Bool?
 
+    /// Phase-1 in-flight-tick guard. Set `true` when a started transport is
+    /// stopped (`stop()`/`shutdown()`); cleared on a fresh transport start. A
+    /// tick that lands AFTER stop (a wake the pump already dispatched) must
+    /// schedule ZERO events. This is distinct from `isRunning`: the offline /
+    /// manual-driver harness pumps `processTick` WITHOUT a transport start
+    /// (`isRunning` stays false) and must still bootstrap+dispatch — so the guard
+    /// keys on "was explicitly stopped," not "is not running."
+    @ObservationIgnored
+    private var transportStoppedSuppressingTicks = false
+
     @ObservationIgnored
     private var pendingTransportStartWorkItem: DispatchWorkItem?
     @ObservationIgnored
@@ -952,6 +962,11 @@ final class EngineController: RouterDispatcher {
         // position current at transport start (Rule 1). Must precede
         // prepareTick(0) so the first step's stamp resolves against the right
         // origin. systemUptime is the host-time fallback before first render.
+        // Phase-1: re-arm the render-derived-origin recorder for this fresh
+        // transport start (recorded at the first event stamp in dispatchTick),
+        // and lift the post-stop in-flight-tick suppression.
+        firstEventOriginWasRenderDerived = nil
+        transportStoppedSuppressingTicks = false
         // realtime-allow-sanctioned-clock: pre-render host-time origin fallback handed to AudioMasterClock — THE one sanctioned site that may anchor host time for musical timing; it is upgraded to the render-derived origin on first render (Rule 1, AudioMasterClock.captureOrigin/refreshOriginIfAvailable). Test: OfflineFrameAccuracyTests.
         audioMasterClock.captureOrigin(fallbackHostSeconds: ProcessInfo.processInfo.systemUptime)
         // realtime-allow-pump-pacing: `now` is the wake/MIDI wall-clock passed through prepareTick; the AUDIO sounding frame is stamped from the unified clock's tempo map, not from this value (Rule 1). Test: OfflineFrameAccuracyTests.
@@ -1017,6 +1032,10 @@ final class EngineController: RouterDispatcher {
         // is the deterministic manualRenderingSampleTime, typically 0) so the
         // harness sees exact musical-second → frame stamps. `now` is the
         // synthetic host-time fallback before first render.
+        // Phase-1: re-arm the render-derived-origin recorder for this fresh
+        // start and lift any post-stop in-flight-tick suppression.
+        firstEventOriginWasRenderDerived = nil
+        transportStoppedSuppressingTicks = false
         audioMasterClock.captureOrigin(fallbackHostSeconds: now)
         prepareTick(upcomingStep: 0, now: now)
         promotePreparedNoteRepeatCapture(for: 0)
@@ -1026,6 +1045,10 @@ final class EngineController: RouterDispatcher {
 
     func stop() {
         DevActivity.trace(DevActivity.engine, "EngineController.stop (isRunning=\(isRunning))")
+        // Phase-1: suppress any pump-in-flight tick that lands after this stop
+        // drains the transport (it must schedule zero events). Cleared on the
+        // next transport start.
+        transportStoppedSuppressingTicks = true
         pendingTransportStartWorkItem?.cancel()
         pendingTransportStartWorkItem = nil
         deferredTransportStartAttempt = 0
@@ -1048,7 +1071,12 @@ final class EngineController: RouterDispatcher {
         isRunning = false
         lastNoteTriggerUptime = 0
         lastNoteTriggerCount = 0
-        sampleEngine.stop()
+        // Phase-1 warm engine: a transport stop silences voices but keeps the
+        // AVAudioEngine running (outputting silence) for the active document
+        // session, so the render origin stays valid for look-ahead and the next
+        // start() is not a cold start. The engine is torn down only on
+        // shutdown() (and other sanctioned events), which calls sampleEngine.stop().
+        sampleEngine.stopVoicesKeepingEngineWarm()
         // Stopped audio means no more meter taps fire; snap every mixer
         // meter (master + channels + buses) to zero so they don't freeze on
         // their last value.
@@ -1112,6 +1140,8 @@ final class EngineController: RouterDispatcher {
     func shutdown(completion: @escaping () -> Void) {
         shutdownObserver?()
         log("shutdown start")
+        // Phase-1: a tick in flight after shutdown must also schedule nothing.
+        transportStoppedSuppressingTicks = true
         // realtime-allow-diagnostic: shutdown control path; `now` stamps note-off flush / note-repeat cleanup (MIDI wall-clock + bookkeeping), never an event's sounding frame (Rule 1). Test: RealtimePathLintTests.
         let now = ProcessInfo.processInfo.systemUptime
         let hosts = withStateLock { Self.uniqueHosts(Array(trackRuntime.audioOutputsByTrackID.values)) }
@@ -1958,6 +1988,14 @@ final class EngineController: RouterDispatcher {
     }
 
     private func processTickMarked(tickIndex: UInt64, now: TimeInterval) -> Int {
+        // Phase-1 in-flight-tick guard: a wake the wall-clock pump already
+        // dispatched can land on the tick queue AFTER stop() drained the
+        // transport. Such a late tick must schedule ZERO events — it must not
+        // bootstrap/stamp/dispatch notes into a stopped transport. Without this
+        // guard processTickMarked would prepare + dispatch a step for a stopped
+        // transport. (Keys on an explicit stop, NOT `isRunning`: the offline
+        // manual-driver harness pumps ticks without a transport start.)
+        guard !transportStoppedSuppressingTicks else { return 0 }
         // Audio-input graph work hops to main FIRE-AND-FORGET (inline when
         // already on main, e.g. synchronous test drivers). A synchronous
         // main hop from the tick queue here closes the D2 deadlock cycle
@@ -2368,6 +2406,17 @@ final class EngineController: RouterDispatcher {
     private func dispatchTick() -> Int {
         let events = eventQueue.drain()
         let (audioOutputs, outputKeys) = withStateLock { (trackRuntime.audioOutputsByTrackID, trackRuntime.audioOutputKeysByTrackID) }
+
+        // Phase-1 render-origin guarantee: record, at the FIRST event stamp,
+        // whether the AudioMasterClock origin in effect is render-derived
+        // (`true`) or only the provisional pre-render systemUptime fallback
+        // (`false`). With a warm engine the render position is available before
+        // step 0 is stamped, so this is `true`. The flag is recorded once (it
+        // stays `nil` until a real event is dispatched) and reflects genuine
+        // clock state — it is not a constant.
+        if firstEventOriginWasRenderDerived == nil, !events.isEmpty {
+            firstEventOriginWasRenderDerived = audioMasterClock.capturedOriginCorrelation().isRenderDerived
+        }
 
         for event in events {
             // realtime-allow-diagnostic: SequencerTimingProbe scheduled-vs-actual dispatch latency probe (only when enabled); the actual sounding frame is the `at:` AVAudioTime built by scheduledAudioTime(for:), not this value (Rule 1). Test: RealtimePathLintTests.
