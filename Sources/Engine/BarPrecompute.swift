@@ -128,8 +128,72 @@ enum BarPrecomputeEvaluator {
         chordContext: Chord?,
         seedForStep: (Int) -> UInt64
     ) -> PrecomputedBar {
-        // STUB: no precompute yet — returns an empty bar so the rail is RED.
-        _ = (snapshot, phraseID, trackIDs, blockIDForTrack, startStep, stepCount, chordContext, seedForStep)
-        return .empty(startStep: startStep, stepCount: stepCount)
+        // Evaluate the whole bar OFF the realtime tick path, exactly mirroring the
+        // live per-step evaluation in `EngineController.prepareTick`:
+        // - one `GeneratedSourceEvaluationState` per track, threaded across the bar
+        //   IN STEP ORDER (so last-pitch / Markov generators reproduce a live run);
+        // - a FRESH per-step RNG, seeded deterministically from `seedForStep` so the
+        //   precomputed stream is byte-identical to the live one for the same inputs;
+        // - the resulting `GeneratedNote`s mapped to `NoteEvent`s via
+        //   `EngineController.noteEvent(from:)`, keyed by the track's generator block id.
+        //
+        // The result is consumed by the tick path with a pure dictionary read (no RNG,
+        // no generator evaluation, no generative allocation on the realtime path).
+
+        // Per-track evaluation state, threaded across the whole bar in step order.
+        var stateByTrack: [UUID: GeneratedSourceEvaluationState] = [:]
+        for trackID in trackIDs {
+            stateByTrack[trackID] = GeneratedSourceEvaluationState()
+        }
+
+        var notesByStep: [Int: [BlockID: [NoteEvent]]] = [:]
+        for step in startStep..<(startStep + stepCount) {
+            var perStep: [BlockID: [NoteEvent]] = [:]
+            for trackID in trackIDs {
+                // Fresh per-step RNG, seeded identically to the live tick path's
+                // per-(track, step) RNG via the injected deterministic seed.
+                var rng = PrecomputeSplitMix64(seed: seedForStep(step))
+                var state = stateByTrack[trackID] ?? GeneratedSourceEvaluationState()
+                let notes = EngineController.resolvedStepNotes(
+                    for: trackID,
+                    in: snapshot,
+                    phraseID: phraseID,
+                    stepIndex: step,
+                    chordContext: chordContext,
+                    state: &state,
+                    rng: &rng
+                )
+                stateByTrack[trackID] = state
+                let events = notes.map(EngineController.noteEvent(from:))
+                if !events.isEmpty {
+                    perStep[blockIDForTrack(trackID)] = events
+                }
+            }
+            if !perStep.isEmpty {
+                notesByStep[step] = perStep
+            }
+        }
+
+        return PrecomputedBar(
+            startStep: startStep,
+            stepCount: stepCount,
+            notesByStep: notesByStep
+        )
+    }
+}
+
+/// A deterministic splitmix64 RNG used to seed off-thread bar precompute so the
+/// precomputed stream is byte-identical to a live per-step evaluation seeded with
+/// the same per-step seed. (Same algorithm and constants as the seeded RNG the
+/// equivalence rail injects into the live reference route.)
+private struct PrecomputeSplitMix64: RandomNumberGenerator {
+    private var state: UInt64
+    init(seed: UInt64) { state = seed &+ 0x9E3779B97F4A7C15 }
+    mutating func next() -> UInt64 {
+        state = state &+ 0x9E3779B97F4A7C15
+        var z = state
+        z = (z ^ (z >> 30)) &* 0xBF58476D1CE4E5B9
+        z = (z ^ (z >> 27)) &* 0x94D049BB133111EB
+        return z ^ (z >> 31)
     }
 }
