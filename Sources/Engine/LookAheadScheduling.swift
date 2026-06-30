@@ -59,9 +59,21 @@ extension EngineController {
     /// into the prepare/dispatch split so events are handed to the schedulers
     /// early.
     var lookAheadLeadSeconds: TimeInterval {
-        // BUILDER: return the locked look-ahead lead (>= 0.100 s) once the
-        // dispatch pump runs ahead of the musical due time.
-        0
+        // Phase 3 — the look-ahead lead is realised by shifting the captured
+        // render origin forward by this much at LIVE transport start
+        // (`EngineController.start()` → `AudioMasterClock.captureOrigin(
+        // ..., leadSeconds:)`). Both the host-time stamp (`audioTime(
+        // atMusicalSeconds:)`) and the render-frame stamp (`sampleTime(
+        // atMusicalSeconds:)`) shift together by the SAME lead, so AU and sample
+        // stay frame-aligned (no stamp-level flam) while every event's stamp is
+        // now `lookAheadLeadSeconds` AHEAD of the pump wake that dispatches it.
+        // A dispatch that arrives up to the lead late is therefore still before
+        // the event's stamp, so `SamplePlaybackEngine.effectivePlaybackTime`
+        // sees a future `when` and never clamps to immediate — the stale→
+        // immediate flam is removed at the source. The OFFLINE frame-accuracy
+        // path never takes the live `start()` lead (it captures the origin with
+        // `leadSeconds: 0`), so the 0-frame gate is unaffected.
+        AudioMasterClock.lookAheadLeadSeconds
     }
 
     /// The future `AVAudioTime` an event at musical position `musicalSeconds`

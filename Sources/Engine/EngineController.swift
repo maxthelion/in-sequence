@@ -967,8 +967,14 @@ final class EngineController: RouterDispatcher {
         // and lift the post-stop in-flight-tick suppression.
         firstEventOriginWasRenderDerived = nil
         transportStoppedSuppressingTicks = false
+        // Phase 3: shift the captured origin forward by the look-ahead lead so
+        // every event's stamp lands `lookAheadLeadSeconds` ahead of the pump wake
+        // that dispatches it — the dispatch never sees a past-due `when`, so the
+        // sample/AU schedulers are handed events early and `effectivePlaybackTime`
+        // stops clamping to immediate (the flam fix). Both host and sample origins
+        // shift by the same lead, so AU and sample stay frame-aligned.
         // realtime-allow-sanctioned-clock: pre-render host-time origin fallback handed to AudioMasterClock — THE one sanctioned site that may anchor host time for musical timing; it is upgraded to the render-derived origin on first render (Rule 1, AudioMasterClock.captureOrigin/refreshOriginIfAvailable). Test: OfflineFrameAccuracyTests.
-        audioMasterClock.captureOrigin(fallbackHostSeconds: ProcessInfo.processInfo.systemUptime)
+        audioMasterClock.captureOrigin(fallbackHostSeconds: ProcessInfo.processInfo.systemUptime, leadSeconds: lookAheadLeadSeconds)
         // realtime-allow-pump-pacing: `now` is the wake/MIDI wall-clock passed through prepareTick; the AUDIO sounding frame is stamped from the unified clock's tempo map, not from this value (Rule 1). Test: OfflineFrameAccuracyTests.
         prepareTick(upcomingStep: 0, now: ProcessInfo.processInfo.systemUptime)
         promotePreparedNoteRepeatCapture(for: 0)
