@@ -293,6 +293,57 @@ final class EngineController: RouterDispatcher {
 
     private(set) var isRunning = false
 
+    /// Phase-0 event-recording sink (`docs/plans/2026-06-30-precompute-lookahead-recording.md`).
+    /// When non-nil, `prepareTick` records the REALIZED note stream
+    /// (`preparedNotesByBlockID`, per `(block, step)`) into this recorder as it is
+    /// produced for the dispatch path — the spec's "record the realized note
+    /// stream as it's produced ... to an in-memory ring + optional NDJSON."
+    /// Nil by default (no overhead, no behavior change) so recording is strictly
+    /// opt-in; runs on the tick/prepare queue, NOT the audio render callback (same
+    /// class as the existing `clipCaptureService.append` diagnostic capture), so
+    /// it does not touch the realtime render path (Audio Engine Hard Rule 1).
+    private var eventRecorder: EventRecorder?
+
+    /// Enable Phase-0 event recording, returning the recorder so callers (the
+    /// headless capture rig / tests) can read the realized stream or its NDJSON.
+    /// Idempotent: re-enabling keeps the existing recorder.
+    @discardableResult
+    func enableEventRecording(capacity: Int = 8192) -> EventRecorder {
+        if let existing = eventRecorder { return existing }
+        let recorder = EventRecorder(capacity: capacity)
+        eventRecorder = recorder
+        return recorder
+    }
+
+    /// Stop Phase-0 event recording (and drop the in-memory ring).
+    func disableEventRecording() {
+        eventRecorder = nil
+    }
+
+    /// The active Phase-0 event recorder, if recording is enabled.
+    var activeEventRecorder: EventRecorder? { eventRecorder }
+
+    /// Phase-0 replay source. When non-nil, `prepareTick` feeds the recorded
+    /// stream into the SAME dispatch path the live engine uses
+    /// (`preparedNotesByBlockID` → `executor.tick`), reconstructing the per-step
+    /// dispatch map from the recording instead of evaluating generators live —
+    /// the spec's "A replay source feeds the *same* dispatch path from a
+    /// recording," so a replay is indistinguishable from a live realization.
+    private var eventReplaySource: EventReplaySource?
+
+    /// Drive the dispatch path from a recording. While a replay source is set,
+    /// `prepareTick` dispatches the recording's notes for each step rather than
+    /// generating live; the headless capture rig uses this to replay a recording
+    /// deterministically.
+    func beginEventReplay(_ source: EventReplaySource) {
+        eventReplaySource = source
+    }
+
+    /// Stop replaying and return to live generation.
+    func endEventReplay() {
+        eventReplaySource = nil
+    }
+
     /// P1-warm-engine RAIL STUB (frozen, authored by the rail author — builders
     /// implement, do not edit).
     ///
@@ -2182,6 +2233,24 @@ final class EngineController: RouterDispatcher {
             let noteEvents = notes.map(Self.noteEvent(from:))
             capturableNotesByBlockID[generatorBlockID] = noteEvents
             preparedNotesByBlockID[generatorBlockID] = activeNoteRepeatTrackIDs.contains(track.id) ? [] : noteEvents
+        }
+        // Phase 0: if a replay source is driving the dispatch path, reconstruct
+        // this step's prepared-notes map from the recording and feed it into the
+        // SAME `executor.tick` path the live engine uses — a replay is
+        // indistinguishable from a live realization on the dispatch path.
+        if let eventReplaySource {
+            preparedNotesByBlockID = eventReplaySource.preparedNotesByBlockID(forStep: Int(upcomingStep))
+        }
+        // Phase 0: record the REALIZED note stream as it is produced for the
+        // dispatch path (`preparedNotesByBlockID`, per `(block, step)`), so a
+        // recording round-trips to the exact stream the executor consumes and a
+        // replay reproduces it byte-identically. Opt-in (nil recorder by default
+        // → zero cost); runs on the prepare/tick queue, NOT the audio render
+        // callback, so it does not touch the realtime render path (Rule 1).
+        if let eventRecorder {
+            for (blockID, noteEvents) in preparedNotesByBlockID where !noteEvents.isEmpty {
+                eventRecorder.record(blockID: blockID, step: Int(upcomingStep), notes: noteEvents)
+            }
         }
         // Per-track direct MIDI-out blocks emit inside `executor.tick` and stamp
         // their `MIDITimeStamp` from `TickContext.now`. Phase 3: supply the
