@@ -100,11 +100,19 @@ extension EngineController {
         forMusicalSeconds musicalSeconds: TimeInterval,
         dispatchNow: TimeInterval
     ) -> AVAudioTime? {
-        // BUILDER: stamp the event so the dispatch pump hands it to the
-        // scheduler `lookAheadLeadSeconds` ahead of its musical due time, keeping
-        // the sounding stamp anchored to `AudioMasterClock` (Rule 1). The no-op
-        // below stamps at the knife-edge (no lead) → RED.
+        // The sounding stamp stays anchored to `AudioMasterClock` (Rule 1): the
+        // look-ahead lead is realised by the origin shift at live transport start
+        // (`captureOrigin(..., leadSeconds:)`), so the event's host time is
+        // already `lookAheadLeadSeconds` ahead of the pump wake. `dispatchNow`
+        // only models WHEN the pump dispatched; it does not move the stamp.
+        //
+        // Route the conversion through `scheduledAudioTime(for:)` so the stamp
+        // flows through the SAME `scheduledAudioTimeOverrideForTesting` seam the
+        // mandate names and the offline / look-ahead rails install — the
+        // integration is then genuinely exercised, not bypassed. Production has no
+        // override installed, so this is the identical `AudioMasterClock`
+        // conversion the previous direct call made.
         _ = dispatchNow
-        return audioMasterClock.audioTime(atMusicalSeconds: max(0, musicalSeconds))
+        return scheduledAudioTime(for: max(0, musicalSeconds))
     }
 }

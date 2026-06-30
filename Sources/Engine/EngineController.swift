@@ -557,7 +557,7 @@ final class EngineController: RouterDispatcher {
     /// installs `scheduledAudioTimeOverrideForTesting` to capture the stamped
     /// frame deterministically (it reads `sampleTime(atMusicalSeconds:)`, the
     /// render-frame view of the same origin the production host time anchors to).
-    private func scheduledAudioTime(for scheduledMusicalSeconds: TimeInterval) -> AVAudioTime? {
+    func scheduledAudioTime(for scheduledMusicalSeconds: TimeInterval) -> AVAudioTime? {
         if let scheduledAudioTimeOverrideForTesting {
             return scheduledAudioTimeOverrideForTesting(scheduledMusicalSeconds)
         }
