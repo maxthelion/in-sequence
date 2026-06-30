@@ -2245,31 +2245,30 @@ final class EngineController: RouterDispatcher {
                 continue
             }
 
-            var rng = SystemRandomNumberGenerator()
+            // Phase 2: generative evaluation (and its fresh per-step RNG) is moved
+            // OFF this tick-path file into `BarPrecomputeEvaluator.resolveStep`
+            // (`Sources/Engine/BarPrecompute.swift`). The tick path no longer
+            // constructs a `SystemRandomNumberGenerator()` or calls the generator
+            // inline; it hands the per-step inputs to the precompute seam and
+            // consumes the realized notes. Behaviour is byte-identical (same RNG,
+            // same resolver, same threaded state).
             var state = nextGeneratedStates[track.id] ?? GeneratedSourceEvaluationState()
             let override = auditionOverridesByTrackID[track.id]
-            let notes: [GeneratedNote]
-            if let override {
-                notes = Self.resolvedAuditionOverrideNotes(
-                    for: override,
-                    trackType: track.trackType,
-                    stepIndex: stepInPhrase,
-                    rng: &rng
-                )
-            } else {
-                notes = Self.resolvedStepNotes(
-                    for: track.id,
-                    in: playbackSnapshot,
-                    phraseID: activePhraseID,
-                    stepIndex: stepInPhrase,
-                    chordContext: harmonicSidechainChord,
-                    trackFillPreview: trackFillPreview,
-                    quantisedFillFlagOverrides: quantisedFillFlagOverrides,
-                    quantisedPatternSlotOverrides: quantisedPatternSlotOverrides,
-                    quantisedFillCueTrackIDs: quantisedFillCueTrackIDs,
-                    state: &state,
-                    rng: &rng
-                )
+            let notes = BarPrecomputeEvaluator.resolveStep(
+                trackID: track.id,
+                in: playbackSnapshot,
+                phraseID: activePhraseID,
+                stepInPhrase: stepInPhrase,
+                chordContext: harmonicSidechainChord,
+                trackFillPreview: trackFillPreview,
+                quantisedFillFlagOverrides: quantisedFillFlagOverrides,
+                quantisedPatternSlotOverrides: quantisedPatternSlotOverrides,
+                quantisedFillCueTrackIDs: quantisedFillCueTrackIDs,
+                auditionOverride: override,
+                trackType: track.trackType,
+                state: &state
+            )
+            if override == nil {
                 nextGeneratedStates[track.id] = state
                 nextClipCaptureService.append(trackID: track.id, stepIndex: Int(upcomingStep), notes: notes)
             }
@@ -3130,7 +3129,7 @@ final class EngineController: RouterDispatcher {
         }
     }
 
-    private static func resolvedAuditionOverrideNotes<R: RandomNumberGenerator>(
+    static func resolvedAuditionOverrideNotes<R: RandomNumberGenerator>(
         for state: PseudoClipState,
         trackType: TrackType,
         stepIndex: Int,

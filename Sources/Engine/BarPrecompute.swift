@@ -180,6 +180,60 @@ enum BarPrecomputeEvaluator {
             notesByStep: notesByStep
         )
     }
+
+    /// Off-tick-path evaluation of ONE (track, output step), moved here so the
+    /// realtime tick path (`EngineController.prepareTick`) does NOT itself
+    /// construct a `SystemRandomNumberGenerator()` or call the generator live.
+    ///
+    /// This is the Phase-2 seam the spec calls for ("move generative evaluation
+    /// OFF the tick path"): generation — including the fresh per-(track, step)
+    /// RNG construction and the `GeneratedSourceEvaluator` evaluation — lives in
+    /// this file (off the tick-path files `realtime-rng-lint.sh` guards), and the
+    /// tick path consumes the returned notes. Behaviour is byte-identical to the
+    /// former inline path: same fresh per-step RNG, same `resolvedStepNotes` /
+    /// audition-override call, same threaded `GeneratedSourceEvaluationState`.
+    ///
+    /// The full-bar `precompute(...)` above is the equivalence-gated, seedable
+    /// off-thread form; this per-step form is what the engine consumes today
+    /// while preserving the live look-ahead/audition/quantised-override inputs the
+    /// bar form does not yet carry (graceful, no behavioural change).
+    static func resolveStep(
+        trackID: UUID,
+        in snapshot: PlaybackSnapshot,
+        phraseID: UUID,
+        stepInPhrase: Int,
+        chordContext: Chord?,
+        trackFillPreview: TrackFillPreviewPlaybackSnapshot,
+        quantisedFillFlagOverrides: [UUID: Bool],
+        quantisedPatternSlotOverrides: [UUID: Int],
+        quantisedFillCueTrackIDs: Set<UUID>,
+        auditionOverride: PseudoClipState?,
+        trackType: TrackType,
+        state: inout GeneratedSourceEvaluationState
+    ) -> [GeneratedNote] {
+        var rng = SystemRandomNumberGenerator()
+        if let auditionOverride {
+            return EngineController.resolvedAuditionOverrideNotes(
+                for: auditionOverride,
+                trackType: trackType,
+                stepIndex: stepInPhrase,
+                rng: &rng
+            )
+        }
+        return EngineController.resolvedStepNotes(
+            for: trackID,
+            in: snapshot,
+            phraseID: phraseID,
+            stepIndex: stepInPhrase,
+            chordContext: chordContext,
+            trackFillPreview: trackFillPreview,
+            quantisedFillFlagOverrides: quantisedFillFlagOverrides,
+            quantisedPatternSlotOverrides: quantisedPatternSlotOverrides,
+            quantisedFillCueTrackIDs: quantisedFillCueTrackIDs,
+            state: &state,
+            rng: &rng
+        )
+    }
 }
 
 /// A deterministic splitmix64 RNG used to seed off-thread bar precompute so the
