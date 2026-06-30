@@ -413,6 +413,38 @@ enum VisualScenarioCommandRunner {
         default:
             break
         }
+
+        // Headless master-audio capture (probe/drum-timing): `masterRender=start:<path>`
+        // begins writing the master output tap to a WAV; `masterRender=stop` ends it.
+        if let render = command["masterRender"] {
+            if render == "stop" {
+                _ = engineController.stopMasterRender()
+            } else if render.hasPrefix("start:") {
+                let path = String(render.dropFirst("start:".count))
+                _ = engineController.startMasterRender(to: URL(fileURLWithPath: path))
+            }
+        }
+
+        // Create the FACTORY default 808 kit + its factory "808" clip via the
+        // REAL app path (probe/drum-timing): session.addDrumGroup →
+        // Project.createDrumGroup resolves each part to a bundled sample by
+        // category and, given the plan's templateID, applies the template's
+        // clips into slot 0 — exactly what a user gets. No synthetic fixture.
+        // `createDefault808=1` (or `all`) builds the full factory 808 kit;
+        // `createDefault808=<tag>` (e.g. kick / snare / hat-closed / clap) builds
+        // a single-part kit for clean per-part timing isolation. Still the real
+        // path — real bundled sample + the factory clip's pattern for that tag.
+        if let raw = command["createDefault808"],
+           let kit = DrumAssetLibrary.factoryKits.first(where: { $0.name == "808" }) {
+            let templateID = DrumAssetLibrary.factoryTemplates.first(where: { $0.name == "808" })?.id
+            var plan = DrumGroupPlan.from(kit: kit, templateID: templateID)
+            if raw != "1", raw != "all" {
+                plan.members = plan.members.filter { $0.tag == raw }
+            }
+            if !plan.members.isEmpty {
+                _ = session.addDrumGroup(plan: plan)
+            }
+        }
     }
 
     private static func applySendEffects(command: [String: String], session: SequencerDocumentSession) {
@@ -973,6 +1005,7 @@ enum VisualScenarioCommandRunner {
         quantisePending=\(quantisePendingStatus(session: session, engineController: engineController))
         quantiseFillCueActive=\(quantiseFillCueActiveStatus(session: session, engineController: engineController))
         transport=\(engineController.isRunning ? "play" : "stop")
+        bpm=\(engineController.currentBPM)
         phraseCount=\(phrases.count)
         phraseNames=\(phrases.map(\.name).joined(separator: "|"))
         phraseControlsOpenIndex=\(visualPhraseControlsOpenIndex.map(String.init) ?? "none")
