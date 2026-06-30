@@ -564,6 +564,49 @@ final class EngineController: RouterDispatcher {
         return audioMasterClock.audioTime(atMusicalSeconds: max(0, scheduledMusicalSeconds))
     }
 
+    /// The `AVAudioTime` a SAMPLE/SLICE trigger is handed at dispatch — identical
+    /// to `scheduledAudioTime(for:)` EXCEPT it returns nil (→ immediate) in the
+    /// cold-start window where the clock origin is the provisional pre-render
+    /// fallback (not yet render-derived).
+    ///
+    /// # Why (the cold-start AU-vs-drum flam fix)
+    ///
+    /// The Phase 3 look-ahead lead is realised by shifting the captured origin
+    /// forward by `lookAheadLeadSeconds` (`AudioMasterClock.captureOrigin`). When
+    /// a render position exists, BOTH the host-time origin and the render-frame
+    /// origin shift together, so a sample (host-time path) and an AU note
+    /// (render-frame path, `scheduledAUNoteSampleTime`) stay frame-aligned.
+    ///
+    /// In the cold fallback branch (`renderPositionProvider() == nil` at start —
+    /// engine not yet rendering), only the HOST origin carries the lead; the
+    /// render-frame origin has no valid base, so `hasRenderOrigin` is false and an
+    /// AU note falls back to `AUEventSampleTimeImmediate` (no lead). If the sample
+    /// path still used the lead-shifted host time here, the drum would land
+    /// `lookAheadLeadSeconds` (~100 ms) AFTER the immediate AU — a first-play
+    /// AU-vs-drum flam, contradicting the Gate-1 first-play criterion (AU AND drum
+    /// within 10 ms of the grid). So in that window the sample path ALSO schedules
+    /// immediate, keeping the two paths aligned. `refreshOriginIfAvailable`
+    /// upgrades the origin to render-derived on the first render (carrying the
+    /// lead in BOTH units), after which both paths pick up the lead together.
+    ///
+    /// Offline manual-rendering (the deterministic gate path) always has a render
+    /// position, so `hasRenderOrigin` is true and this is identical to
+    /// `scheduledAudioTime(for:)` — the 0-frame and look-ahead rails are
+    /// unaffected.
+    private func dispatchSampleAudioTime(for scheduledMusicalSeconds: TimeInterval) -> AVAudioTime? {
+        if let scheduledAudioTimeOverrideForTesting {
+            return scheduledAudioTimeOverrideForTesting(scheduledMusicalSeconds)
+        }
+        guard audioMasterClock.hasRenderOrigin else {
+            // Cold fallback: no render-derived origin yet. Schedule immediate so a
+            // sample lands aligned with an AU note (which is immediate here too),
+            // rather than lead-shifted ~100 ms ahead of it. Both pick up the lead
+            // once the render origin is established.
+            return nil
+        }
+        return audioMasterClock.audioTime(atMusicalSeconds: max(0, scheduledMusicalSeconds))
+    }
+
     /// The absolute render frame an AU note at `scheduledMusicalSeconds` should
     /// sound on (Audio Engine Hard Rule 3, Phase 1). This is the SAME unified-
     /// clock frame a slice on the same step receives — a slice gets
@@ -2593,7 +2636,7 @@ final class EngineController: RouterDispatcher {
                     sampleAsset: sampleAsset,
                     settings: settings,
                     trackID: trackID,
-                    at: scheduledAudioTime(for: event.scheduledHostTime)
+                    at: dispatchSampleAudioTime(for: event.scheduledHostTime)
                 )
 
             case let .sliceTrigger(trackID, sampleID, startFrame, endFrame, settings, reverse, stepParameters, _):
@@ -2613,7 +2656,7 @@ final class EngineController: RouterDispatcher {
                     endFrame: AVAudioFramePosition(endFrame),
                     settings: settings,
                     trackID: trackID,
-                    at: scheduledAudioTime(for: event.scheduledHostTime),
+                    at: dispatchSampleAudioTime(for: event.scheduledHostTime),
                     reverse: reverse,
                     stepParameters: stepParameters
                 )
