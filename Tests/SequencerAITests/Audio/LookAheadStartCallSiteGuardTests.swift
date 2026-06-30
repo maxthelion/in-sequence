@@ -2,7 +2,20 @@ import AVFoundation
 import XCTest
 @testable import SequencerAI
 
-/// VERIFIER work-product guard (NOT a frozen rail) for the Phase 3 flam fix.
+/// FROZEN RAIL — Phase 3 flam-fix START call-site guard.
+///
+/// # Frozen-rail status (do NOT weaken/skip/delete — HARD RULE)
+///
+/// This file matches the fleet brief's frozen-rail glob ("any
+/// `Tests/.../*LookAhead*` test"), so it is a FROZEN RAIL: builders must not
+/// edit, weaken, `XCTSkip`, delete, or stub it, and the integrator's
+/// rails-diff-empty proof covers it. It was authored from the SPEC + the
+/// production call-site contract (NOT from a builder transcript) to close a
+/// reward-hacking hole the other Phase 3 rails leave open (below). Its earlier
+/// header described it as a deletable "verifier work-product"; that escape hatch
+/// was the very hole a prosecutor exploited ("the only catch is a file a builder
+/// may delete"), so it is removed: this guard is frozen exactly like
+/// `LookAheadSchedulingTests`.
 ///
 /// # The hole this closes (prosecution finding, 2026-06-30)
 ///
@@ -49,7 +62,8 @@ import XCTest
 /// monotonic and start() is fast, so the origin host-seconds read back for
 /// musical second 0 must exceed the `systemUptime` sampled just BEFORE `start()`
 /// by at least (most of) the lead. Revert the call site to `leadSeconds: 0` and
-/// this goes RED. It touches no frozen rail.
+/// this goes RED. It exercises only production seams and touches no OTHER frozen
+/// rail (it is itself one).
 final class LookAheadStartCallSiteGuardTests: XCTestCase {
 
     /// Gate-1 LOCKED lead (spec constant — not read back from the feature).
