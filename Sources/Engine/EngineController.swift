@@ -594,10 +594,29 @@ final class EngineController: RouterDispatcher {
     /// `scheduledAudioTime(for:)` — the 0-frame and look-ahead rails are
     /// unaffected.
     private func dispatchSampleAudioTime(for scheduledMusicalSeconds: TimeInterval) -> AVAudioTime? {
+        dispatchSampleAudioTime(
+            for: scheduledMusicalSeconds,
+            hasRenderOriginLatched: audioMasterClock.hasRenderOrigin
+        )
+    }
+
+    /// Latched-origin variant used inside the dispatch loop. `hasRenderOriginLatched`
+    /// is the render-origin decision read ONCE at the top of the current
+    /// `dispatchTick`. Both stamp paths must observe the SAME value within a tick:
+    /// `hasRenderOrigin` calls the state-mutating `refreshOriginIfAvailable`, so if
+    /// the render position became available mid-tick the AU read (earlier in the
+    /// loop) could see `false` while a later sample read sees `true` —
+    /// re-introducing the exact ~100 ms first-play AU-vs-drum flam this method
+    /// exists to prevent. Latching the flag once per tick keeps AU and sample on
+    /// the same side of the upgrade.
+    private func dispatchSampleAudioTime(
+        for scheduledMusicalSeconds: TimeInterval,
+        hasRenderOriginLatched: Bool
+    ) -> AVAudioTime? {
         if let scheduledAudioTimeOverrideForTesting {
             return scheduledAudioTimeOverrideForTesting(scheduledMusicalSeconds)
         }
-        guard audioMasterClock.hasRenderOrigin else {
+        guard hasRenderOriginLatched else {
             // Cold fallback: no render-derived origin yet. Schedule immediate so a
             // sample lands aligned with an AU note (which is immediate here too),
             // rather than lead-shifted ~100 ms ahead of it. Both pick up the lead
@@ -626,7 +645,22 @@ final class EngineController: RouterDispatcher {
     func scheduledAUNoteSampleTime(
         for scheduledMusicalSeconds: TimeInterval
     ) -> (sampleTime: AVAudioFramePosition, sampleRate: Double)? {
-        guard audioMasterClock.hasRenderOrigin else { return nil }
+        scheduledAUNoteSampleTime(
+            for: scheduledMusicalSeconds,
+            hasRenderOriginLatched: audioMasterClock.hasRenderOrigin
+        )
+    }
+
+    /// Latched-origin variant used inside the dispatch loop. `hasRenderOriginLatched`
+    /// is the render-origin decision read ONCE at the top of the current
+    /// `dispatchTick` and shared with `dispatchSampleAudioTime` so the AU and
+    /// sample paths cannot straddle a mid-tick fallback→render-derived upgrade
+    /// (which would split AU=immediate from sample=+lead — a first-play flam).
+    func scheduledAUNoteSampleTime(
+        for scheduledMusicalSeconds: TimeInterval,
+        hasRenderOriginLatched: Bool
+    ) -> (sampleTime: AVAudioFramePosition, sampleRate: Double)? {
+        guard hasRenderOriginLatched else { return nil }
         let frame = audioMasterClock.sampleTime(atMusicalSeconds: max(0, scheduledMusicalSeconds))
         return (frame, audioMasterClock.sampleRate)
     }
@@ -2535,6 +2569,15 @@ final class EngineController: RouterDispatcher {
             firstEventOriginWasRenderDerived = audioMasterClock.capturedOriginCorrelation().isRenderDerived
         }
 
+        // Latch the render-origin decision ONCE for this whole tick. `hasRenderOrigin`
+        // calls the state-mutating `refreshOriginIfAvailable`; reading it per event
+        // lets the fallback→render-derived upgrade fire BETWEEN an AU stamp and the
+        // sample stamp of the same step (engine starts rendering mid-tick), giving
+        // the AU `immediate` (no lead) while the sample gets the +100 ms lead — a
+        // first-play AU-vs-drum flam. Reading it once and reusing it for every event
+        // keeps both paths on the same side of the upgrade.
+        let hasRenderOriginThisTick = audioMasterClock.hasRenderOrigin
+
         for event in events {
             // realtime-allow-diagnostic: SequencerTimingProbe scheduled-vs-actual dispatch latency probe (only when enabled); the actual sounding frame is the `at:` AVAudioTime built by scheduledAudioTime(for:), not this value (Rule 1). Test: RealtimePathLintTests.
             let dispatchNow = SequencerTimingProbe.isEnabled ? ProcessInfo.processInfo.systemUptime : 0
@@ -2554,7 +2597,10 @@ final class EngineController: RouterDispatcher {
                 // note-on frame is the SAME frame a slice on this step gets, so
                 // they land zero-flam (`scheduledAUNoteSampleTime` delegates to
                 // the same `AudioMasterClock` the slice path uses).
-                let auStamp = scheduledAUNoteSampleTime(for: event.scheduledHostTime)
+                let auStamp = scheduledAUNoteSampleTime(
+                    for: event.scheduledHostTime,
+                    hasRenderOriginLatched: hasRenderOriginThisTick
+                )
                 AUNoteTriggerTrace.dispatch(
                     kind: "track-au",
                     trackID: trackID,
@@ -2583,7 +2629,10 @@ final class EngineController: RouterDispatcher {
                 }
                 applyDestinationIfNeeded(destination, trackID: trackID, host: host, outputKeys: outputKeys)
                 // Routed AU output shares the sample-stamped note path (Phase 1).
-                let routedAUStamp = scheduledAUNoteSampleTime(for: event.scheduledHostTime)
+                let routedAUStamp = scheduledAUNoteSampleTime(
+                    for: event.scheduledHostTime,
+                    hasRenderOriginLatched: hasRenderOriginThisTick
+                )
                 AUNoteTriggerTrace.dispatch(
                     kind: "routed-au",
                     trackID: trackID,
@@ -2635,7 +2684,10 @@ final class EngineController: RouterDispatcher {
                     sampleAsset: sampleAsset,
                     settings: settings,
                     trackID: trackID,
-                    at: dispatchSampleAudioTime(for: event.scheduledHostTime)
+                    at: dispatchSampleAudioTime(
+                        for: event.scheduledHostTime,
+                        hasRenderOriginLatched: hasRenderOriginThisTick
+                    )
                 )
 
             case let .sliceTrigger(trackID, sampleID, startFrame, endFrame, settings, reverse, stepParameters, _):
@@ -2655,7 +2707,10 @@ final class EngineController: RouterDispatcher {
                     endFrame: AVAudioFramePosition(endFrame),
                     settings: settings,
                     trackID: trackID,
-                    at: dispatchSampleAudioTime(for: event.scheduledHostTime),
+                    at: dispatchSampleAudioTime(
+                        for: event.scheduledHostTime,
+                        hasRenderOriginLatched: hasRenderOriginThisTick
+                    ),
                     reverse: reverse,
                     stepParameters: stepParameters
                 )
