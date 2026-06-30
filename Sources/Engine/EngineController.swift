@@ -593,16 +593,13 @@ final class EngineController: RouterDispatcher {
     /// position, so `hasRenderOrigin` is true and this is identical to
     /// `scheduledAudioTime(for:)` — the 0-frame and look-ahead rails are
     /// unaffected.
-    private func dispatchSampleAudioTime(for scheduledMusicalSeconds: TimeInterval) -> AVAudioTime? {
-        dispatchSampleAudioTime(
-            for: scheduledMusicalSeconds,
-            hasRenderOriginLatched: audioMasterClock.hasRenderOrigin
-        )
-    }
-
-    /// Latched-origin variant used inside the dispatch loop. `hasRenderOriginLatched`
-    /// is the render-origin decision read ONCE at the top of the current
-    /// `dispatchTick`. Both stamp paths must observe the SAME value within a tick:
+    ///
+    /// Used only inside the dispatch loop, so it takes the render-origin decision
+    /// pre-latched (see below) rather than reading it itself.
+    ///
+    /// `hasRenderOriginLatched` is the render-origin decision read ONCE at the top
+    /// of the current `dispatchTick`. Both stamp paths must observe the SAME value
+    /// within a tick:
     /// `hasRenderOrigin` calls the state-mutating `refreshOriginIfAvailable`, so if
     /// the render position became available mid-tick the AU read (earlier in the
     /// loop) could see `false` while a later sample read sees `true` —
