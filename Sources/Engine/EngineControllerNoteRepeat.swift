@@ -190,6 +190,11 @@ extension EngineController {
         effectiveMutedTrackIDs: Set<UUID>
     ) {
         let resolved = snapshot.resolvedDestination(for: track.id)
+        recordRealizedEventsIfNeeded(
+            blockID: Self.generatorBlockID(for: track.id),
+            step: Int(anchorTickIndex),
+            notes: notes
+        )
         // Phase 3: the sub-step's SOUNDING MIDI host time on the unified clock
         // (render-origin host time + the sub-step's musical offset), so a
         // repeated MIDI note shares the audio sinks' timeline. `scheduledHostTime`

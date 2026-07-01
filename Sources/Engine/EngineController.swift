@@ -328,6 +328,10 @@ final class EngineController: RouterDispatcher {
     /// The active Phase-0 event recorder, if recording is enabled.
     var activeEventRecorder: EventRecorder? { eventRecorder }
 
+    func recordRealizedEventsIfNeeded(blockID: BlockID, step: Int, notes: [NoteEvent]) {
+        eventRecorder?.record(blockID: blockID, step: step, notes: notes)
+    }
+
     /// Phase-0 replay source. When non-nil, `prepareTick` feeds the recorded
     /// stream into the SAME dispatch path the live engine uses
     /// (`preparedNotesByBlockID` → `executor.tick`), reconstructing the per-step

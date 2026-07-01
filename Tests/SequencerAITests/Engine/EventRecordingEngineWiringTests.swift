@@ -91,6 +91,30 @@ final class EventRecordingEngineWiringTests: XCTestCase {
         )
     }
 
+    func test_noteRepeatPath_recordsRealizedStreamThroughEngine() throws {
+        let sink = CountingAudioSink()
+        let controller = EngineController(client: nil, endpoint: nil, audioOutput: sink)
+        let (project, trackID) = makeNoteRepeatProject(interval: .oneSixtyFourth)
+        controller.apply(documentModel: project)
+
+        let recorder = controller.enableEventRecording()
+        controller.start()
+        controller.processTick(tickIndex: 0, now: 0)
+        controller.engageNoteRepeat(trackID: trackID)
+        for tick: UInt64 in 1...4 {
+            controller.processTick(tickIndex: tick, now: Double(tick))
+        }
+        controller.stop()
+
+        let soundedNotes = sink.playedEvents.flatMap { $0 }
+        XCTAssertFalse(soundedNotes.isEmpty, "fixture must sound note-repeat triggers")
+        XCTAssertGreaterThanOrEqual(
+            recorder.recordedEvents.count,
+            soundedNotes.count,
+            "event recording must include notes realized by the note-repeat dispatch path"
+        )
+    }
+
     // MARK: - Replay: a recording feeds the SAME dispatch path, deterministically
 
     func test_replaySource_feedsSameDispatchPath_isDeterministic() throws {
@@ -167,5 +191,59 @@ final class EventRecordingEngineWiringTests: XCTestCase {
         var counts: [RealizedEvent: Int] = [:]
         for event in events { counts[event, default: 0] += 1 }
         return counts
+    }
+
+    private func makeNoteRepeatProject(interval: NoteRepeatInterval) -> (Project, UUID) {
+        let trackID = UUID(uuidString: "51515151-5151-5151-5151-515151515151")!
+        let clipID = UUID(uuidString: "61616161-6161-6161-6161-616161616161")!
+        var track = StepSequenceTrack(
+            id: trackID,
+            name: "Repeat Clip",
+            pitches: [48],
+            stepPattern: [false],
+            stepAccents: [false],
+            destination: .auInstrument(componentID: AudioInstrumentChoice.builtInSynth.audioComponentID, stateBlob: nil),
+            velocity: 70,
+            gateLength: 1
+        )
+        track.noteRepeatInterval = interval
+        let clip = ClipPoolEntry(
+            id: clipID,
+            name: "Repeat Source",
+            trackType: .monoMelodic,
+            content: .noteGrid(
+                lengthSteps: 1,
+                steps: [
+                    ClipStep(
+                        main: ClipLane(chance: 1, notes: [ClipStepNote(pitch: 62, velocity: 91, lengthSteps: 3)]),
+                        fill: nil
+                    )
+                ]
+            )
+        )
+        let layers = PhraseLayerDefinition.defaultSet(for: [track])
+        let phrase = PhraseModel.default(
+            tracks: [track],
+            layers: layers,
+            generatorPool: GeneratorPoolEntry.defaultPool,
+            clipPool: [clip]
+        )
+        let patternBank = TrackPatternBank(
+            trackID: track.id,
+            slots: [TrackPatternSlot(slotIndex: 0, sourceRef: .clip(clip.id))]
+        )
+        let project = Project(
+            version: 1,
+            tracks: [track],
+            generatorPool: GeneratorPoolEntry.defaultPool,
+            clipPool: [clip],
+            layers: layers,
+            routes: [],
+            patternBanks: [patternBank],
+            selectedTrackID: track.id,
+            phrases: [phrase],
+            selectedPhraseID: phrase.id
+        )
+        return (project, trackID)
     }
 }
