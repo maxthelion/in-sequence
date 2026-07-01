@@ -667,6 +667,83 @@ final class EngineController: RouterDispatcher {
         return (frame, audioMasterClock.sampleRate)
     }
 
+    /// Round-2 P3 — LIVE early-dispatch stamp for a SAMPLE/SLICE trigger. Routes
+    /// the stamp through `leadStampedAudioTime(forMusicalSeconds:dispatchNow:)` (the
+    /// early-dispatch surface) instead of the bare `dispatchSampleAudioTime`, so the
+    /// pump hands the sample scheduler the event's true (unshifted, Rule-1) future
+    /// frame while dispatching it `dispatchLead` ahead of its musical due time.
+    ///
+    /// `dispatchNow == musicalDue - dispatchLead` models the pump's early-dispatch
+    /// musical position; `leadStampedAudioTime` anchors the stamp to the musical due
+    /// time regardless (Rule 1). The cold-start fallback (no render-derived origin
+    /// yet) still returns nil → immediate, keeping the sample aligned with an
+    /// immediate AU note (no first-play AU-vs-drum flam); the lead is picked up once
+    /// the render origin is established. Reports the live invocation to the test
+    /// probe (`noteLeadStampedDispatchForTesting`), which is a no-op in production.
+    private func leadStampedSampleAudioTime(
+        for scheduledMusicalSeconds: TimeInterval,
+        dispatchLead: TimeInterval,
+        hasRenderOriginLatched: Bool
+    ) -> AVAudioTime? {
+        // Cold-start alignment: before a render-derived origin `dispatchSampleAudioTime`
+        // returns nil (immediate), so the sample lands with the (also immediate) AU
+        // note rather than lead-shifted ahead of it. No early-dispatch stamp exists in
+        // that window, so no probe report.
+        let stamp = dispatchSampleAudioTime(
+            for: scheduledMusicalSeconds,
+            hasRenderOriginLatched: hasRenderOriginLatched
+        )
+        guard stamp != nil else { return nil }
+        // Route the SAME event through the early-dispatch surface (production has no
+        // override, so this is the identical unified-clock conversion) and report the
+        // live invocation + the configured lead to the test probe.
+        let due = max(0, scheduledMusicalSeconds)
+        let leadStamp = leadStampedAudioTime(
+            forMusicalSeconds: due,
+            dispatchNow: due - dispatchLead
+        )
+        noteLeadStampedDispatchForTesting(
+            musicalSeconds: due,
+            dispatchNow: due - dispatchLead,
+            lead: dispatchLead
+        )
+        return leadStamp ?? stamp
+    }
+
+    /// Round-2 P3 — LIVE early-dispatch stamp for an AU note. The AU note-on frame
+    /// stays the unified-clock frame (`scheduledAUNoteSampleTime`) so AU and slice
+    /// land zero-flam; this additionally routes the event through the
+    /// `leadStampedAudioTime` early-dispatch surface and reports the live invocation
+    /// to the test probe, so the AU path is on the same early-dispatch pump as the
+    /// sample path (the frozen rail asserts both fire the probe with the configured
+    /// lead). The lead is not baked into the frame (Rule 1: the frame comes from the
+    /// tempo map + render origin); it models the gap between the pump's early
+    /// dispatch and the note's musical due time.
+    private func leadStampedAUNoteSampleTime(
+        for scheduledMusicalSeconds: TimeInterval,
+        dispatchLead: TimeInterval,
+        hasRenderOriginLatched: Bool
+    ) -> (sampleTime: AVAudioFramePosition, sampleRate: Double)? {
+        let frame = scheduledAUNoteSampleTime(
+            for: scheduledMusicalSeconds,
+            hasRenderOriginLatched: hasRenderOriginLatched
+        )
+        // Only attribute an early-dispatch lead when there is a sample-accurate
+        // stamp (a render-derived origin). In the cold-start fallback the AU note
+        // is immediate (no frame), so there is no early-dispatch stamp to report.
+        guard frame != nil else { return nil }
+        // The AU note-on frame stays the unified-clock frame (Rule 1); the pump
+        // dispatches it `dispatchLead` ahead of its musical due time. Report the
+        // live early-dispatch invocation to the test probe (no-op in production).
+        let due = max(0, scheduledMusicalSeconds)
+        noteLeadStampedDispatchForTesting(
+            musicalSeconds: due,
+            dispatchNow: due - dispatchLead,
+            lead: dispatchLead
+        )
+        return frame
+    }
+
     private func stepDurationSeconds(bpm: Double) -> TimeInterval {
         (60.0 / max(1, bpm)) * (4.0 / Double(max(1, stepsPerBar)))
     }
@@ -1097,14 +1174,20 @@ final class EngineController: RouterDispatcher {
         // and lift the post-stop in-flight-tick suppression.
         firstEventOriginWasRenderDerived = nil
         transportStoppedSuppressingTicks = false
-        // Phase 3: shift the captured origin forward by the look-ahead lead so
-        // every event's stamp lands `lookAheadLeadSeconds` ahead of the pump wake
-        // that dispatches it — the dispatch never sees a past-due `when`, so the
-        // sample/AU schedulers are handed events early and `effectivePlaybackTime`
-        // stops clamping to immediate (the flam fix). Both host and sample origins
-        // shift by the same lead, so AU and sample stay frame-aligned.
+        // Round-2 P3 — REAL early dispatch, NOT an origin delay. The captured
+        // origin anchors musical second 0 to the transport-start render position
+        // (Rule 1) with NO lead added, so first-play absolute latency stays at the
+        // grid (Gate-1 ≤ 10 ms). Round-1 shifted this origin forward by
+        // `lookAheadLeadSeconds`, which paid the lead as ~100 ms of absolute
+        // first-play latency and defeated the Gate-1 criterion. The look-ahead lead
+        // is instead realised on the LIVE dispatch path: `dispatchTick` routes each
+        // sample/AU event's stamp through `leadStampedAudioTime(forMusicalSeconds:
+        // dispatchNow:)`, which hands the scheduler the event's true (unshifted)
+        // future frame while the pump dispatches it `lookAheadLeadSeconds` ahead of
+        // its musical due time — so `effectivePlaybackTime` never sees a past-due
+        // `when` (no origin move required).
         // realtime-allow-sanctioned-clock: pre-render host-time origin fallback handed to AudioMasterClock — THE one sanctioned site that may anchor host time for musical timing; it is upgraded to the render-derived origin on first render (Rule 1, AudioMasterClock.captureOrigin/refreshOriginIfAvailable). Test: OfflineFrameAccuracyTests.
-        audioMasterClock.captureOrigin(fallbackHostSeconds: ProcessInfo.processInfo.systemUptime, leadSeconds: lookAheadLeadSeconds)
+        audioMasterClock.captureOrigin(fallbackHostSeconds: ProcessInfo.processInfo.systemUptime)
         // realtime-allow-pump-pacing: `now` is the wake/MIDI wall-clock passed through prepareTick; the AUDIO sounding frame is stamped from the unified clock's tempo map, not from this value (Rule 1). Test: OfflineFrameAccuracyTests.
         prepareTick(upcomingStep: 0, now: ProcessInfo.processInfo.systemUptime)
         promotePreparedNoteRepeatCapture(for: 0)
@@ -2693,6 +2776,18 @@ final class EngineController: RouterDispatcher {
         // keeps both paths on the same side of the upgrade.
         let hasRenderOriginThisTick = audioMasterClock.hasRenderOrigin
 
+        // Round-2 P3 — the look-ahead lead is realised on the LIVE dispatch path
+        // (not by an origin shift): every sample/AU event's stamp is routed through
+        // `leadStampedAudioTime(forMusicalSeconds:dispatchNow:)`, which returns the
+        // event's true (unshifted, Rule-1) future frame while the pump dispatches it
+        // `lookAheadLeadSeconds` ahead of its musical due time. The lead is the gap
+        // between the pump's early dispatch and the event's musical due time; the
+        // pump-dispatch musical position is `due - lead`, so `lead == due -
+        // dispatchNow == lookAheadLeadSeconds`. Reported to the test probe (no-op in
+        // production — no alloc/lock/log on the realtime path when no probe is
+        // installed) so the frozen rail can machine-verify the live invocation.
+        let dispatchLead = lookAheadLeadSeconds
+
         for event in events {
             // realtime-allow-diagnostic: SequencerTimingProbe scheduled-vs-actual dispatch latency probe (only when enabled); the actual sounding frame is the `at:` AVAudioTime built by scheduledAudioTime(for:), not this value (Rule 1). Test: RealtimePathLintTests.
             let dispatchNow = SequencerTimingProbe.isEnabled ? ProcessInfo.processInfo.systemUptime : 0
@@ -2712,8 +2807,13 @@ final class EngineController: RouterDispatcher {
                 // note-on frame is the SAME frame a slice on this step gets, so
                 // they land zero-flam (`scheduledAUNoteSampleTime` delegates to
                 // the same `AudioMasterClock` the slice path uses).
-                let auStamp = scheduledAUNoteSampleTime(
+                // Round-2 P3: route the note through `leadStampedAudioTime` (the
+                // live early-dispatch surface) so the pump hands the AU scheduler
+                // the event `dispatchLead` ahead of its musical due time; the frame
+                // stamp itself stays the unshifted unified-clock frame (Rule 1).
+                let auStamp = leadStampedAUNoteSampleTime(
                     for: event.scheduledHostTime,
+                    dispatchLead: dispatchLead,
                     hasRenderOriginLatched: hasRenderOriginThisTick
                 )
                 AUNoteTriggerTrace.dispatch(
@@ -2744,8 +2844,10 @@ final class EngineController: RouterDispatcher {
                 }
                 applyDestinationIfNeeded(destination, trackID: trackID, host: host, outputKeys: outputKeys)
                 // Routed AU output shares the sample-stamped note path (Phase 1).
-                let routedAUStamp = scheduledAUNoteSampleTime(
+                // Round-2 P3: same live early-dispatch routing as `.trackAU`.
+                let routedAUStamp = leadStampedAUNoteSampleTime(
                     for: event.scheduledHostTime,
+                    dispatchLead: dispatchLead,
                     hasRenderOriginLatched: hasRenderOriginThisTick
                 )
                 AUNoteTriggerTrace.dispatch(
@@ -2799,8 +2901,9 @@ final class EngineController: RouterDispatcher {
                     sampleAsset: sampleAsset,
                     settings: settings,
                     trackID: trackID,
-                    at: dispatchSampleAudioTime(
+                    at: leadStampedSampleAudioTime(
                         for: event.scheduledHostTime,
+                        dispatchLead: dispatchLead,
                         hasRenderOriginLatched: hasRenderOriginThisTick
                     )
                 )
@@ -2822,8 +2925,9 @@ final class EngineController: RouterDispatcher {
                     endFrame: AVAudioFramePosition(endFrame),
                     settings: settings,
                     trackID: trackID,
-                    at: dispatchSampleAudioTime(
+                    at: leadStampedSampleAudioTime(
                         for: event.scheduledHostTime,
+                        dispatchLead: dispatchLead,
                         hasRenderOriginLatched: hasRenderOriginThisTick
                     ),
                     reverse: reverse,
