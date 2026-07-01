@@ -23,6 +23,20 @@ extension EngineController {
         )
     }
 
+    /// Reverse of `noteEvent(from:)` for the round-2 Phase-2 precompute-consume
+    /// path: reconstruct a `GeneratedNote` from a consumed `NoteEvent` so clip
+    /// capture records the realized (precomputed) notes exactly as a live run
+    /// would. Lossless for clip capture, which reads only pitch/velocity/length.
+    static func generatedNote(from event: NoteEvent) -> GeneratedNote {
+        GeneratedNote(
+            pitch: Int(event.pitch),
+            velocity: Int(event.velocity),
+            length: Int(event.length),
+            voiceTag: event.voiceTag,
+            sliceParameters: event.sliceParameters
+        )
+    }
+
     static func generatorBlockID(for trackID: UUID) -> BlockID {
         "gen-\(trackID.uuidString.lowercased())"
     }

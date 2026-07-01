@@ -7,6 +7,12 @@ final class TickStateBuffer {
         let playbackSnapshot: PlaybackSnapshot
         let trackFillPreview: TrackFillPreviewPlaybackSnapshot
         let auditionOverridesByTrackID: [UUID: PseudoClipState]
+        /// Round-2 Phase-2: a monotonically-increasing revision bumped on every
+        /// generation-input change (snapshot install, audition override, fill
+        /// preview). The off-thread bar precompute keys on this so a stale bar for
+        /// a superseded snapshot is invalidated (never consumed) even when the
+        /// `(phraseID, bar-start)` is unchanged (e.g. an in-place pattern edit).
+        let generationInputRevision: UInt64
     }
 
     private let lock = NSLock()
@@ -17,6 +23,8 @@ final class TickStateBuffer {
     private var auditionOverridesByTrackID: [UUID: PseudoClipState] = [:]
     private var preparedTickIndex: UInt64?
     private var tickIndexOnClockThread: UInt64 = 0
+    /// Bumped under `lock` on every generation-input change (see PrepareInputs).
+    private var generationInputRevision: UInt64 = 0
 
     init(playbackSnapshot: PlaybackSnapshot) {
         self.playbackSnapshot = playbackSnapshot
@@ -44,6 +52,7 @@ final class TickStateBuffer {
                 generatedStatesByTrackID = [:]
             }
             preparedTickIndex = nil
+            generationInputRevision &+= 1
         }
     }
 
@@ -54,6 +63,7 @@ final class TickStateBuffer {
             }
             trackFillPreview = snapshot
             preparedTickIndex = nil
+            generationInputRevision &+= 1
         }
     }
 
@@ -71,6 +81,7 @@ final class TickStateBuffer {
                 generatedStatesByTrackID = [:]
             }
             preparedTickIndex = nil
+            generationInputRevision &+= 1
         }
     }
 
@@ -79,6 +90,7 @@ final class TickStateBuffer {
             generatedStatesByTrackID = [:]
             preparedTickIndex = nil
             auditionOverridesByTrackID = [:]
+            generationInputRevision &+= 1
             if clearCapture {
                 clipCaptureService.removeAll()
             }
@@ -108,7 +120,8 @@ final class TickStateBuffer {
                 clipCaptureService: clipCaptureService,
                 playbackSnapshot: playbackSnapshot,
                 trackFillPreview: trackFillPreview,
-                auditionOverridesByTrackID: auditionOverridesByTrackID
+                auditionOverridesByTrackID: auditionOverridesByTrackID,
+                generationInputRevision: generationInputRevision
             )
         }
     }
@@ -127,6 +140,14 @@ final class TickStateBuffer {
 
     func currentClockThreadTickIndex() -> UInt64 {
         withLock { tickIndexOnClockThread }
+    }
+
+    /// The current generation-input revision (see `PrepareInputs`). Read fresh on
+    /// the tick path AFTER any in-tick snapshot mutation (e.g. a phrase-boundary
+    /// step-order commit) so the off-thread precompute keys on the just-installed
+    /// snapshot, never a stale pre-mutation bar.
+    func currentGenerationInputRevision() -> UInt64 {
+        withLock { generationInputRevision }
     }
 
     func capturedClipContent(trackID: UUID, lengthSteps: Int? = nil) -> ClipContent? {
@@ -149,6 +170,7 @@ final class TickStateBuffer {
                 auditionOverridesByTrackID.removeValue(forKey: trackID)
             }
             preparedTickIndex = nil
+            generationInputRevision &+= 1
         }
     }
 

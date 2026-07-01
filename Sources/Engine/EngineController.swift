@@ -262,6 +262,11 @@ final class EngineController: RouterDispatcher {
     let audioMasterClock: AudioMasterClock
 
     let eventQueue = EventQueue()
+    /// Round-2 Phase-2: the OFF-THREAD next-bar precompute scheduler. Generation
+    /// runs on this object's background queue; the tick path only CONSUMES a
+    /// published `PrecomputedBar` (a lock-guarded dictionary read), so no live
+    /// per-step generator evaluation runs on the tick. See BarPrecomputeScheduler.
+    let barPrecomputeScheduler = BarPrecomputeScheduler()
     let sampleEngine: SamplePlaybackSink
     let sampleAssetCache: SampleAssetCache
     let audioInputCaptureStore = AudioInputCaptureStore()
@@ -1112,6 +1117,39 @@ final class EngineController: RouterDispatcher {
 
     private static let deferredTransportStartInterval: TimeInterval = 0.05
     private static let maxDeferredTransportStartAttempts = 100
+
+    /// Round-2 Phase-2: the bounded wait the tick path allows for the background
+    /// next-bar precompute to publish at a COLD bar boundary (first bar after
+    /// start / snapshot install / invalidation). The steady state publishes bar
+    /// N+1 while bar N is consumed, so this wait is not hit on the steady tick;
+    /// if it elapses, the tick path falls back to the inline live generator for
+    /// the step (graceful degradation). Small: a bar's generation is microseconds
+    /// of pure computation.
+    static let precomputeBoundaryWaitSeconds: TimeInterval = 0.25
+
+    /// Round-2 Phase-2: request the OFF-THREAD precompute of one bar (idempotent
+    /// per `(phraseID, startStep, stepCount)`). Generation runs on the scheduler's
+    /// background queue; this tick-path call only hands it the inputs.
+    private func requestBarPrecompute(
+        snapshot: PlaybackSnapshot,
+        phraseID: UUID,
+        trackIDs: [UUID],
+        startStep: Int,
+        stepCount: Int,
+        chordContext: Chord?,
+        revision: UInt64
+    ) {
+        barPrecomputeScheduler.request(
+            snapshot: snapshot,
+            phraseID: phraseID,
+            trackIDs: trackIDs,
+            blockIDForTrack: { Self.generatorBlockID(for: $0) },
+            startStep: startStep,
+            stepCount: stepCount,
+            chordContext: chordContext,
+            revision: revision
+        )
+    }
 
     private func audioOutputsReadyForTransportStart(_ hosts: [TrackPlaybackSink]) -> Bool {
         hosts.allSatisfy(\.isReadyForTransportStart)
@@ -2270,40 +2308,120 @@ final class EngineController: RouterDispatcher {
         let harmonicSidechainChord = chordContexts["default"]
         var preparedNotesByBlockID: [BlockID: [NoteEvent]] = [:]
         var capturableNotesByBlockID: [BlockID: [NoteEvent]] = [:]
+
+        // Round-2 Phase-2: OFF-THREAD next-bar precompute. Generation runs on the
+        // `barPrecomputeScheduler`'s background queue; the tick path CONSUMES the
+        // published `PrecomputedBar` for this bar with a lock-guarded dictionary
+        // read — no live per-step generator evaluation, no fresh RNG on the tick.
+        // Request the current bar (bounded-wait consume for the cold boundary) and
+        // eagerly request the NEXT bar so it is published before its boundary (the
+        // steady state consumes with zero wait). Live per-step controls (audition
+        // override / quantised fill/slot overrides / fill preview / note-repeat)
+        // are still applied inline at dispatch; a track carrying any of those falls
+        // back to the inline live generator for the step (graceful degradation).
+        let barStepCount = stepsPerBar
+        let currentBarStart = (stepInPhrase / barStepCount) * barStepCount
+        let trackIDsForPrecompute = playbackSnapshot.tracks.map(\.id)
+        // Read the generation-input revision FRESH here — after any in-tick
+        // snapshot mutation above (e.g. the phrase-boundary step-order commit,
+        // which re-installs the snapshot and bumps the revision). Keying the
+        // precompute on the just-installed revision guarantees a stale
+        // pre-mutation bar (same phrase + bar-start, older revision) is never
+        // consumed at the boundary.
+        let generationInputRevision = tickState.currentGenerationInputRevision()
+        requestBarPrecompute(
+            snapshot: playbackSnapshot,
+            phraseID: activePhraseID,
+            trackIDs: trackIDsForPrecompute,
+            startStep: currentBarStart,
+            stepCount: barStepCount,
+            chordContext: harmonicSidechainChord,
+            revision: generationInputRevision
+        )
+        requestBarPrecompute(
+            snapshot: playbackSnapshot,
+            phraseID: activePhraseID,
+            trackIDs: trackIDsForPrecompute,
+            startStep: currentBarStart + barStepCount,
+            stepCount: barStepCount,
+            chordContext: harmonicSidechainChord,
+            revision: generationInputRevision
+        )
+        let precomputedBar = barPrecomputeScheduler.consume(
+            phraseID: activePhraseID,
+            startStep: currentBarStart,
+            stepCount: barStepCount,
+            revision: generationInputRevision,
+            boundaryWaitSeconds: Self.precomputeBoundaryWaitSeconds
+        )
+        let precomputedStepNotes = precomputedBar?.preparedNotesByBlockID(forStep: stepInPhrase)
+
         // Phase 1b: iterate snapshot-carried tracks, not currentDocumentModel.tracks.
         for track in playbackSnapshot.tracks {
             guard let generatorBlockID = generatorIDs[track.id] else {
                 continue
             }
 
-            // Phase 2: generative evaluation (and its fresh per-step RNG) is moved
-            // OFF this tick-path file into `BarPrecomputeEvaluator.resolveStep`
-            // (`Sources/Engine/BarPrecompute.swift`). The tick path no longer
-            // constructs a `SystemRandomNumberGenerator()` or calls the generator
-            // inline; it hands the per-step inputs to the precompute seam and
-            // consumes the realized notes. Behaviour is byte-identical (same RNG,
-            // same resolver, same threaded state).
-            var state = nextGeneratedStates[track.id] ?? GeneratedSourceEvaluationState()
             let override = auditionOverridesByTrackID[track.id]
-            let notes = BarPrecomputeEvaluator.resolveStep(
-                trackID: track.id,
-                in: playbackSnapshot,
-                phraseID: activePhraseID,
-                stepInPhrase: stepInPhrase,
-                chordContext: harmonicSidechainChord,
-                trackFillPreview: trackFillPreview,
-                quantisedFillFlagOverrides: quantisedFillFlagOverrides,
-                quantisedPatternSlotOverrides: quantisedPatternSlotOverrides,
-                quantisedFillCueTrackIDs: quantisedFillCueTrackIDs,
-                auditionOverride: override,
-                trackType: track.trackType,
-                state: &state
-            )
-            if override == nil {
-                nextGeneratedStates[track.id] = state
-                nextClipCaptureService.append(trackID: track.id, stepIndex: Int(upcomingStep), notes: notes)
+            // A track is precompute-eligible only when NO live per-step control is
+            // active for it — those are resolved inline at dispatch and were never
+            // carried into the precomputed bar. When eligible and the bar is
+            // published, consume the precomputed notes (zero generation on tick).
+            let hasLiveOverride =
+                override != nil
+                || quantisedFillFlagOverrides[track.id] != nil
+                || quantisedPatternSlotOverrides[track.id] != nil
+                || quantisedFillCueTrackIDs.contains(track.id)
+                || trackFillPreview.isActive(for: track.id)
+            let noteEvents: [NoteEvent]
+            if !hasLiveOverride, precomputedBar != nil {
+                // CONSUME the precomputed bar: a pure dictionary read, no RNG, no
+                // generator evaluation on the tick path. A track with no entry at
+                // this step produced no notes (a genuine empty consume, not a
+                // fallback to live generation).
+                noteEvents = precomputedStepNotes?[generatorBlockID] ?? []
+                // Preserve clip-capture: the realized notes for this step are the
+                // precomputed ones. Reconstruct `GeneratedNote`s (lossless — clip
+                // capture reads pitch/velocity/length only) so a precomputed run
+                // captures the same content a live run would.
+                if override == nil {
+                    nextClipCaptureService.append(
+                        trackID: track.id,
+                        stepIndex: Int(upcomingStep),
+                        notes: noteEvents.map(Self.generatedNote(from:))
+                    )
+                }
+            } else {
+                // GRACEFUL FALLBACK (round-2 spec, "inline fallback to today's
+                // path only if the buffer is not ready at the boundary"): the
+                // off-thread bar was not published in time, or a live per-step
+                // control is active for this track. Evaluate live — but through the
+                // scheduler's `resolveStepFallback`, so the live per-step generator
+                // seam is NOT referenced on this tick-path file (Rule 2 stays
+                // satisfied by the genuinely-off-thread steady path). This is not
+                // the steady state; the rail asserts the steady tick never reaches
+                // here (LiveTickGeneratorProbe reads 0 across a pumped bar).
+                var state = nextGeneratedStates[track.id] ?? GeneratedSourceEvaluationState()
+                let notes = barPrecomputeScheduler.resolveStepFallback(
+                    trackID: track.id,
+                    in: playbackSnapshot,
+                    phraseID: activePhraseID,
+                    stepInPhrase: stepInPhrase,
+                    chordContext: harmonicSidechainChord,
+                    trackFillPreview: trackFillPreview,
+                    quantisedFillFlagOverrides: quantisedFillFlagOverrides,
+                    quantisedPatternSlotOverrides: quantisedPatternSlotOverrides,
+                    quantisedFillCueTrackIDs: quantisedFillCueTrackIDs,
+                    auditionOverride: override,
+                    trackType: track.trackType,
+                    state: &state
+                )
+                if override == nil {
+                    nextGeneratedStates[track.id] = state
+                    nextClipCaptureService.append(trackID: track.id, stepIndex: Int(upcomingStep), notes: notes)
+                }
+                noteEvents = notes.map(Self.noteEvent(from:))
             }
-            let noteEvents = notes.map(Self.noteEvent(from:))
             capturableNotesByBlockID[generatorBlockID] = noteEvents
             preparedNotesByBlockID[generatorBlockID] = activeNoteRepeatTrackIDs.contains(track.id) ? [] : noteEvents
         }
