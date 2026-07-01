@@ -211,6 +211,12 @@ enum BarPrecomputeEvaluator {
         trackType: TrackType,
         state: inout GeneratedSourceEvaluationState
     ) -> [GeneratedNote] {
+        // Round-2 Phase-2 rail seam: this IS the live per-step generator
+        // evaluation on the tick path. A genuinely off-thread Phase-2 tick path
+        // consumes a precomputed bar and never reaches here during a tick, so the
+        // rail's `LiveTickGeneratorProbe.liveEvaluationCount` stays 0. Reaching
+        // here per step during a tick (today's hollow path) makes the rail RED.
+        LiveTickGeneratorProbe.recordLiveEvaluation()
         var rng = SystemRandomNumberGenerator()
         if let auditionOverride {
             return EngineController.resolvedAuditionOverrideNotes(
@@ -233,6 +239,53 @@ enum BarPrecomputeEvaluator {
             state: &state,
             rng: &rng
         )
+    }
+}
+
+/// Round-2 Phase-2 RAIL SEAM (frozen; authored by the rail owner).
+///
+/// A test-observable counter of LIVE per-step generator evaluations on the
+/// realtime tick path. Every call into the live per-step generator seam
+/// (`BarPrecomputeEvaluator.resolveStep`) increments it. The off-thread
+/// `BarPrecomputeEvaluator.precompute(...)` path does NOT touch this counter
+/// (it evaluates `EngineController.resolvedStepNotes` directly, off the tick),
+/// so a genuinely off-thread Phase-2 implementation — one whose `prepareTick`
+/// CONSUMES a precomputed bar instead of calling `resolveStep` — leaves this
+/// reading 0 across a pumped bar.
+///
+/// The rail (`Tests/.../TickConsumesPrecomputeRailTests.swift`) resets this
+/// before pumping ticks through a live `EngineController` and asserts it reads 0
+/// after. On the KNOWN-HOLLOW code (today's `prepareTick`, which calls
+/// `resolveStep` synchronously per track per step) it reads > 0 → the rail is
+/// RED. That is the adversarial-audit invariant: reverting the Phase-2 fix to the
+/// synchronous `resolveStep` form MUST make this rail RED.
+///
+/// It is a diagnostic counter only — never read on any sounding path — so it has
+/// no realtime cost obligation. Builders MUST NOT edit this seam or the rail.
+enum LiveTickGeneratorProbe {
+    private static let lock = NSLock()
+    private static var count = 0
+
+    /// Record one live per-step generator evaluation on the tick path.
+    static func recordLiveEvaluation() {
+        lock.lock()
+        count += 1
+        lock.unlock()
+    }
+
+    /// The number of live per-step generator evaluations recorded since the last
+    /// `reset()`.
+    static var liveEvaluationCount: Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return count
+    }
+
+    /// Reset the counter (call before pumping ticks in a test).
+    static func reset() {
+        lock.lock()
+        count = 0
+        lock.unlock()
     }
 }
 
