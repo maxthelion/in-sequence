@@ -74,6 +74,12 @@ return and re-gate if any is wrong.
   Capture the master-clock render origin **only once `lastRenderTime` is valid** —
   do not set `hasOrigin=true` on the provisional `systemUptime` fallback for AU
   stamping.
+- **Correction from 2026-07-01 attended AU test:** "while a document session is
+  active" means the shared `MainAudioGraph` is started by the document/session
+  owner before the first transport run, not lazily as a side effect of loading a
+  sample kit or pressing Play on a particular source. AU-only first play failed
+  until a kit was loaded, proving the prior warm-engine implementation was
+  incomplete.
 - **Why:** look-ahead can't stamp future frames without a valid render origin; and
   this closes the cold-start window that causes first-play AU/drum silence.
 - **Call sites:** `EngineController.start()/stop()` (`:884`/`:943`),

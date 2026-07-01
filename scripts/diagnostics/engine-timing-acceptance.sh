@@ -7,14 +7,14 @@ usage: scripts/diagnostics/engine-timing-acceptance.sh start|finish|status|clean
 
 start
   Enables AU/sample/timing probes in the sandboxed app preferences, opens the
-  latest SequencerAI build, and starts a live unified-log capture.
+  latest SequencerAI build, and records the acceptance start time.
 
 finish
-  Stops the live log capture, runs timing-probe-report, and writes a short
-  human acceptance checklist into the capture bundle.
+  Harvests unified logs since the recorded start time, runs timing-probe-report,
+  and writes a short human acceptance checklist into the capture bundle.
 
 status
-  Prints the current capture bundle, app path, log PID, and next manual steps.
+  Prints the current capture bundle, app path, start time, and next manual steps.
 
 cleanup
   Stops any capture started by this script. Does not delete evidence.
@@ -58,7 +58,7 @@ print_steps() {
   local bundle="$1"
   cat <<EOF
 
-Engine timing acceptance is capturing evidence in:
+Engine timing acceptance evidence bundle:
   ${bundle}
 
 Manual pass to run now:
@@ -95,12 +95,13 @@ case "${command}" in
     write_pref TimingProbeEnabled
 
     stamp="$(date +%Y%m%d-%H%M%S)"
+    started_at="$(date +%Y-%m-%dT%H:%M:%S)"
     bundle="${evidence_root}/${stamp}"
     mkdir -p "${bundle}"
 
     resolved_app_path="$(app_path)"
     {
-      printf 'started_at=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+      printf 'started_at=%s\n' "${started_at}"
       printf 'repo=%s\n' "${repo_root}"
       printf 'branch=%s\n' "$(git -C "${repo_root}" branch --show-current 2>/dev/null || printf unknown)"
       printf 'head=%s\n' "$(git -C "${repo_root}" rev-parse --short HEAD 2>/dev/null || printf unknown)"
@@ -109,18 +110,18 @@ case "${command}" in
       printf 'predicate=%s\n' "${focused_predicate}"
     } > "${bundle}/manifest.txt"
 
-    /usr/bin/log stream --info --debug --style compact --predicate "${predicate}" > "${bundle}/activity.log" 2> "${bundle}/log-stream.stderr" &
-    log_pid="$!"
+    : > "${bundle}/activity.log"
 
     cat > "${state_file}" <<EOF
 BUNDLE_DIR='${bundle}'
-LOG_PID='${log_pid}'
+LOG_PID=''
 APP_PATH='${resolved_app_path}'
 STARTED_AT='${stamp}'
+LOG_START='${started_at}'
 EOF
 
     open "${resolved_app_path}"
-    printf 'engine-timing-acceptance: log stream pid %s\n' "${log_pid}"
+    printf 'engine-timing-acceptance: opened %s\n' "${resolved_app_path}"
     print_steps "${bundle}"
     ;;
 
@@ -131,17 +132,14 @@ EOF
     fi
     # shellcheck disable=SC1090
     source "${state_file}"
-    if [[ -n "${LOG_PID:-}" ]] && kill -0 "${LOG_PID}" 2>/dev/null; then
-      kill "${LOG_PID}" 2>/dev/null || true
-      sleep 1
-    fi
-
     if [[ ! -d "${BUNDLE_DIR:-}" ]]; then
       printf 'engine-timing-acceptance: bundle missing: %s\n' "${BUNDLE_DIR:-}" >&2
       exit 1
     fi
 
-    log show --last 20m --info --debug --style compact --predicate "${focused_predicate}" > "${BUNDLE_DIR}/focused-last-20m.log" || true
+    log_start="${LOG_START:-${STARTED_AT:-}}"
+    log show --start "${log_start}" --info --debug --style compact --predicate "${predicate}" > "${BUNDLE_DIR}/activity.log" || true
+    log show --start "${log_start}" --info --debug --style compact --predicate "${focused_predicate}" > "${BUNDLE_DIR}/focused-since-start.log" || true
     "${repo_root}/scripts/diagnostics/timing-probe-report.sh" "${BUNDLE_DIR}/activity.log" > "${BUNDLE_DIR}/timing-probe-report.txt" || true
 
     cat > "${BUNDLE_DIR}/manual-acceptance.md" <<'EOF'
@@ -165,7 +163,7 @@ EOF
       printf 'finished_at=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
       printf 'bundle=%s\n' "${BUNDLE_DIR}"
       printf 'activity_log=%s\n' "${BUNDLE_DIR}/activity.log"
-      printf 'focused_log=%s\n' "${BUNDLE_DIR}/focused-last-20m.log"
+      printf 'focused_log=%s\n' "${BUNDLE_DIR}/focused-since-start.log"
       printf 'timing_report=%s\n' "${BUNDLE_DIR}/timing-probe-report.txt"
       printf 'manual_checklist=%s\n' "${BUNDLE_DIR}/manual-acceptance.md"
     } > "${BUNDLE_DIR}/finished.txt"
@@ -185,12 +183,7 @@ EOF
     source "${state_file}"
     printf 'bundle: %s\n' "${BUNDLE_DIR:-unknown}"
     printf 'app: %s\n' "${APP_PATH:-unknown}"
-    printf 'log pid: %s' "${LOG_PID:-unknown}"
-    if [[ -n "${LOG_PID:-}" ]] && kill -0 "${LOG_PID}" 2>/dev/null; then
-      printf ' (running)\n'
-    else
-      printf ' (not running)\n'
-    fi
+    printf 'started: %s\n' "${LOG_START:-${STARTED_AT:-unknown}}"
     print_steps "${BUNDLE_DIR:-unknown}"
     ;;
 

@@ -122,6 +122,39 @@ final class WarmEnginePhase1Tests: XCTestCase {
 
     // MARK: - Invariant 1: warm engine across transport stop/start
 
+    /// The document/session owner must warm the shared `MainAudioGraph` before
+    /// the first transport run. Loading a sample kit must not be the side effect
+    /// that makes AU playback possible.
+    func test_sessionWarmStart_startsAudioGraphBeforeTransport() throws {
+        let graph = MainAudioGraph()
+        let controller = EngineController(
+            client: nil,
+            endpoint: nil,
+            stepsPerBar: 16,
+            mainAudioGraph: graph,
+            sampleEngine: SamplePlaybackEngine(audioGraph: graph)
+        )
+
+        XCTAssertFalse(
+            graph.isEngineRunning,
+            "sanity: MainAudioGraph construction prepares the graph but does not start it"
+        )
+
+        controller.startSessionAudioGraph()
+
+        XCTAssertTrue(
+            graph.isEngineRunning,
+            "Phase-1 warm engine: the document session must start the shared audio graph " +
+            "before transport, so AU-only first play does not depend on loading a sample kit."
+        )
+
+        controller.shutdown()
+        XCTAssertFalse(
+            graph.isEngineRunning,
+            "shutdown remains the sanctioned graph teardown point after session warm-start"
+        )
+    }
+
     /// THE WARM-ENGINE GATE. After a transport `stop()` the underlying
     /// `AVAudioEngine` must STILL be running (warm, outputting silence). Only
     /// `shutdown()` (negative control below) may stop it.

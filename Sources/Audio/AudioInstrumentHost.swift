@@ -509,15 +509,7 @@ final class AudioInstrumentHost: TrackPlaybackSink {
         // (same path as the program-change quirk handling below). A no-op when
         // nothing is held.
         if let scheduleMIDI = au.scheduleMIDIEventBlock {
-            let allNotesOff = Self.allNotesOffBytes()
-            allNotesOff.withUnsafeBufferPointer { buffer in
-                scheduleMIDI(
-                    AUEventSampleTime(AUEventSampleTimeImmediate),
-                    0,
-                    buffer.count,
-                    buffer.baseAddress!
-                )
-            }
+            Self.scheduleAllNotesOff(using: scheduleMIDI)
         }
 
         // SAFE-BY-CONSTRUCTION program-change quirk handling.
@@ -558,6 +550,21 @@ final class AudioInstrumentHost: TrackPlaybackSink {
     /// ringing by the patch reconfiguration (bug 20260629-101847).
     static func allNotesOffBytes() -> [UInt8] {
         [0xB0, 0x7B, 0x00]
+    }
+
+    /// Send MIDI CC 123 through the AU's own sample-stamped MIDI block. This is
+    /// used on control paths only (transport stop / preset change), never as a
+    /// tick-path substitute for normal note-off scheduling.
+    static func scheduleAllNotesOff(using scheduleMIDI: AUScheduleMIDIEventBlock) {
+        let allNotesOff = allNotesOffBytes()
+        allNotesOff.withUnsafeBufferPointer { buffer in
+            scheduleMIDI(
+                AUEventSampleTime(AUEventSampleTimeImmediate),
+                0,
+                buffer.count,
+                buffer.baseAddress!
+            )
+        }
     }
 
     /// MIDI Program Change bytes on channel 0 (status `0xC0`) for a program number,
@@ -713,8 +720,15 @@ final class AudioInstrumentHost: TrackPlaybackSink {
             var firstScheduledOff: AUEventSampleTime?
             var gateCount = 0
             for event in noteEvents where event.gate {
+                // A render-frame stamp is only meaningful once this AU has
+                // produced a render frame. On a cold first transport start the
+                // engine can compute frame 0/12000/etc before the AU's
+                // `lastRenderTime` exists; handing those absolute frames to the
+                // AU is interpreted as a stale timeline and can be dropped. Use
+                // the immediate fallback until the AU render timeline is live.
+                let effectiveNoteOnSampleTime = currentRenderFrame == nil ? nil : noteOnSampleTime
                 let stamps = Self.noteStamps(
-                    noteOnSampleTime: noteOnSampleTime,
+                    noteOnSampleTime: effectiveNoteOnSampleTime,
                     length: event.length,
                     bpm: bpm,
                     stepsPerBar: stepsPerBar,
@@ -783,6 +797,14 @@ final class AudioInstrumentHost: TrackPlaybackSink {
     private func stopAllNotes() {
         guard let instrument else {
             return
+        }
+
+        if let scheduleMIDI = instrument.auAudioUnit.scheduleMIDIEventBlock {
+            auMutationLock.lock()
+            if self.instrument?.auAudioUnit === instrument.auAudioUnit {
+                Self.scheduleAllNotesOff(using: scheduleMIDI)
+            }
+            auMutationLock.unlock()
         }
 
         // Control-path all-notes-off panic (stop/shutdown/disconnect), NOT the
@@ -1203,10 +1225,11 @@ final class AudioInstrumentHost: TrackPlaybackSink {
         let gateFrames = max(1, AVAudioFramePosition((gateSeconds * max(sampleRate, 1)).rounded()))
 
         guard let noteOnSampleTime, sampleRate > 0 else {
+            let noteOff = currentRenderFrame.map { AUEventSampleTime($0 + gateFrames) }
+                ?? AUEventSampleTime(gateFrames)
             return AUNoteStamps(
                 noteOn: AUEventSampleTime(AUEventSampleTimeImmediate),
-                noteOff: currentRenderFrame.map { AUEventSampleTime($0 + gateFrames) }
-                    ?? AUEventSampleTime(AUEventSampleTimeImmediate)
+                noteOff: noteOff
             )
         }
 

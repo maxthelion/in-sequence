@@ -1132,6 +1132,22 @@ final class EngineController: RouterDispatcher {
         }
     }
 
+    /// Session-level audio warmup. A document session owns one `MainAudioGraph`;
+    /// while the session is active the graph should be running and outputting
+    /// silence, independent of transport state or whether the first sounding
+    /// source is an AU or a sample kit.
+    func startSessionAudioGraph() {
+        do {
+            try mainAudioGraph.start()
+            DevActivity.trace(DevActivity.audioGraph, "session audio graph warm-started")
+        } catch {
+            DevActivity.trace(
+                DevActivity.audioGraph,
+                "session audio graph warm-start failed: \(String(describing: error))"
+            )
+        }
+    }
+
     deinit {
         audioInputCaptureDrainTimer?.cancel()
     }
@@ -1446,6 +1462,10 @@ final class EngineController: RouterDispatcher {
         }
 
         sampleEngine.stop()
+        // The graph may have been started directly by the document-session warm
+        // path before the sample engine ever marked itself started. Shutdown is
+        // a sanctioned graph teardown, so stop the shared graph explicitly too.
+        mainAudioGraph.stop()
         tickState.resetRuntimeState()
 
         let finish: () -> Void = { [weak self] in
