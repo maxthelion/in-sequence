@@ -242,15 +242,16 @@ final class AudioMasterClock {
         AVAudioTime(hostTime: AVAudioTime.hostTime(forSeconds: max(0, hostSeconds(atMusicalSeconds: musicalSeconds))))
     }
 
-    // NOTE: No `now()` / lookahead-pump read is exposed here. Phase 0's stamping
-    // goal is met by the retained 1-tick prepare horizon (events for the upcoming
-    // step are stamped one tick ahead from the tempo map). The wider
-    // ~100–200 ms lookahead pump described in the plan is a later step; this
-    // object deliberately does not carry a dead pump API claiming a window that
-    // is not built. (Task #39 — the realtime-path-lint extension that forbids
-    // systemUptime/Date/DispatchTime as musical-timing sources — can carve out
-    // this file cleanly: the only host-time/systemUptime touch points are the
-    // documented origin capture/upgrade and the AVAudioTime host-time stamp.)
+    /// Convert a pump wake host-time into the musical position it corresponds to.
+    /// This is for look-ahead WINDOW SELECTION only: it decides which already-
+    /// due-soon steps the pump should prepare/hand to sinks. It never stamps an
+    /// event; stamping still goes through `audioTime(atMusicalSeconds:)` /
+    /// `sampleTime(atMusicalSeconds:)` using the event's due musical position.
+    func musicalSeconds(atHostSeconds hostSeconds: TimeInterval) -> TimeInterval {
+        refreshOriginIfAvailable()
+        let origin = hasOrigin ? originHostSeconds : 0
+        return max(0, hostSeconds - origin)
+    }
 
     // MARK: - Helpers
 

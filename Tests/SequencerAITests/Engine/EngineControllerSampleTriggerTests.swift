@@ -149,6 +149,55 @@ final class EngineControllerSampleTriggerTests: XCTestCase {
         XCTAssertEqual(spy.playCalls.count, 4, "manual processTick driving should dispatch one sample trigger per fired step")
     }
 
+    func test_liveLookAheadPump_dispatchesAllStepsInsideHorizonWithoutDuplicates() throws {
+        let library = AudioSampleLibrary(libraryRoot: libraryRoot)
+        let kick = try XCTUnwrap(library.firstSample(in: .kick))
+        let spy = SpySamplePlaybackSink()
+
+        let track = StepSequenceTrack(
+            name: "K",
+            pitches: [DrumKitNoteMap.baselineNote],
+            stepPattern: [true],
+            destination: .sample(sampleID: kick.id, settings: .default),
+            velocity: 100,
+            gateLength: 4
+        )
+        let generator = makeAlwaysOnGenerator(id: UUID(), trackType: track.trackType)
+        let layers = PhraseLayerDefinition.defaultSet(for: [track])
+        let phrase = PhraseModel.default(tracks: [track], layers: layers)
+        let project = makeProject(track: track, generator: generator, phrase: phrase, layers: layers)
+
+        let controller = EngineController(
+            client: nil,
+            endpoint: nil,
+            sampleEngine: spy,
+            sampleLibrary: library
+        )
+        controller.apply(documentModel: project)
+        controller.setBPM(300)
+
+        let origin = 1_000.0
+        controller.startTransportWithoutClockForTesting(now: origin)
+        defer { controller.stop() }
+        let pumpOrigin = controller.audioMasterClock.capturedOriginCorrelation().hostSeconds
+
+        let firstPumpCount = controller.processLookAheadPumpForTesting(now: pumpOrigin)
+        XCTAssertEqual(firstPumpCount, 3)
+        XCTAssertEqual(
+            spy.playCalls.count,
+            3,
+            "At 300 BPM, 16 steps/bar yields 50 ms per step. A 100 ms horizon should dispatch steps 0, 1, and 2 on the first pump wake."
+        )
+
+        let duplicatePumpCount = controller.processLookAheadPumpForTesting(now: pumpOrigin)
+        XCTAssertEqual(duplicatePumpCount, 0)
+        XCTAssertEqual(spy.playCalls.count, 3, "Repeating the same pump wake must not dispatch already-handed-off steps again.")
+
+        let nextPumpCount = controller.processLookAheadPumpForTesting(now: pumpOrigin + 0.050)
+        XCTAssertEqual(nextPumpCount, 1)
+        XCTAssertEqual(spy.playCalls.count, 4, "The next pump wake should dispatch only the next newly eligible step.")
+    }
+
     func test_sampleDestination_opensSampleOnceDuringWarmupNotPerDispatch() throws {
         let library = AudioSampleLibrary(libraryRoot: libraryRoot)
         let kick = try XCTUnwrap(library.firstSample(in: .kick))

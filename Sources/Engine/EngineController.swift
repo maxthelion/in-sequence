@@ -394,6 +394,11 @@ final class EngineController: RouterDispatcher {
     /// tick queue at prepare time.
     private let transportTickAtomic = AtomicInt64(0)
     private let transportGenerationAtomic = AtomicInt64(0)
+    /// Live look-ahead pump cursor. `processTick(tickIndex:now:)` remains the
+    /// one-step manual/offline driver; the live `TickClock` advances this cursor
+    /// through every step whose due time falls inside the pump horizon.
+    @ObservationIgnored
+    private var nextLivePumpStep: UInt64 = 0
 
     var currentTransportTick: UInt64 {
         UInt64(bitPattern: transportTickAtomic.load())
@@ -1215,9 +1220,10 @@ final class EngineController: RouterDispatcher {
         prepareTick(upcomingStep: 0, now: ProcessInfo.processInfo.systemUptime, boundaryWaitSeconds: 0)
         promotePreparedNoteRepeatCapture(for: 0)
         tickState.markPreparedTick(0)
+        nextLivePumpStep = 0
         isRunning = true
         clock.start(lookAheadLeadSeconds: lookAheadLeadSeconds) { [weak self] tickIndex, now in
-            self?.processTick(tickIndex: tickIndex, now: now)
+            self?.processLiveLookAheadPump(pumpIndex: tickIndex, now: now)
         }
     }
 
@@ -1316,6 +1322,7 @@ final class EngineController: RouterDispatcher {
         prepareTick(upcomingStep: 0, now: now)
         promotePreparedNoteRepeatCapture(for: 0)
         tickState.markPreparedTick(0)
+        nextLivePumpStep = 0
         isRunning = true
     }
 
@@ -1365,6 +1372,7 @@ final class EngineController: RouterDispatcher {
         // Armed quantised changes have no boundary to wait for once the
         // transport stops; overrides/cues lose their timeline with it.
         resetQuantisedToggles()
+        nextLivePumpStep = 0
     }
 
     /// Master render to file — records what reaches the master output.
@@ -2253,7 +2261,14 @@ final class EngineController: RouterDispatcher {
         // realtime-allow-diagnostic: SequencerTimingProbe processTick-duration measurement (only when the probe is enabled), never a sounding-time source (Rule 1). Test: RealtimePathLintTests.
         let started = SequencerTimingProbe.isEnabled ? ProcessInfo.processInfo.systemUptime : 0
         let eventCount = TickPathMainSyncGuard.withTickPathMarker {
-            processTickMarked(tickIndex: tickIndex, now: now)
+            if isRunning, tickIndex < nextLivePumpStep {
+                return 0
+            }
+            let count = processTickMarked(tickIndex: tickIndex, now: now)
+            if isRunning {
+                nextLivePumpStep = max(nextLivePumpStep, tickIndex &+ 1)
+            }
+            return count
         }
         if SequencerTimingProbe.isEnabled {
             SequencerTimingProbe.processTick(
@@ -2263,6 +2278,61 @@ final class EngineController: RouterDispatcher {
                 eventCount: eventCount
             )
         }
+    }
+
+    @discardableResult
+    func processLookAheadPumpForTesting(now: TimeInterval) -> Int {
+        processLiveLookAheadPump(pumpIndex: nextLivePumpStep, now: now)
+    }
+
+    @discardableResult
+    private func processLiveLookAheadPump(pumpIndex: UInt64, now: TimeInterval) -> Int {
+        // The live clock is a pump, not a step identity source. One wake may
+        // dispatch zero, one, or several musical steps depending on how much of
+        // the future lies inside the look-ahead horizon. Sounding timestamps
+        // remain per-step musical due times from AudioMasterClock.
+        // realtime-allow-diagnostic: SequencerTimingProbe process-pump duration measurement (only when the probe is enabled), never a sounding-time source (Rule 1). Test: RealtimePathLintTests.
+        let started = SequencerTimingProbe.isEnabled ? ProcessInfo.processInfo.systemUptime : 0
+        let eventCount = TickPathMainSyncGuard.withTickPathMarker {
+            processLiveLookAheadPumpMarked(now: now)
+        }
+        if SequencerTimingProbe.isEnabled {
+            SequencerTimingProbe.processTick(
+                tickIndex: pumpIndex,
+                // realtime-allow-diagnostic: SequencerTimingProbe duration readout for the pump wake, not a sounding-time source (Rule 1). Test: RealtimePathLintTests.
+                duration: ProcessInfo.processInfo.systemUptime - started,
+                eventCount: eventCount
+            )
+        }
+        return eventCount
+    }
+
+    private func processLiveLookAheadPumpMarked(now: TimeInterval) -> Int {
+        guard !transportStoppedSuppressingTicks else { return 0 }
+
+        var totalEvents = 0
+        let maxStepsPerWake = max(1, Int(ceil(lookAheadLeadSeconds / max(0.001, stepDurationSeconds(bpm: max(1, currentBPM))))) + 2)
+        var processedSteps = 0
+        while processedSteps < maxStepsPerWake,
+              livePumpShouldProcessStep(nextLivePumpStep, pumpHostSeconds: now)
+        {
+            totalEvents += processTickMarked(tickIndex: nextLivePumpStep, now: now)
+            nextLivePumpStep &+= 1
+            processedSteps += 1
+        }
+        return totalEvents
+    }
+
+    private func livePumpShouldProcessStep(_ step: UInt64, pumpHostSeconds: TimeInterval) -> Bool {
+        if step == 0 {
+            return true
+        }
+        guard let dueMusicalSeconds = audioMasterClock.musicalSeconds(forStep: step) else {
+            return false
+        }
+        let pumpMusicalSeconds = audioMasterClock.musicalSeconds(atHostSeconds: pumpHostSeconds)
+        let horizonEnd = pumpMusicalSeconds + lookAheadLeadSeconds
+        return dueMusicalSeconds <= horizonEnd + 0.000_001
     }
 
     private func processTickMarked(tickIndex: UInt64, now: TimeInterval) -> Int {

@@ -56,7 +56,7 @@ final class EventRecordingEngineWiringTests: XCTestCase {
         let recorder = controller.enableEventRecording()
         XCTAssertNotNil(controller.activeEventRecorder, "enabling recording must install a recorder sink")
 
-        controller.start()
+        controller.startTransportWithoutClockForTesting(now: 0)
         let played = pump(controller, sink: sink, steps: 4)
         controller.stop()
 
@@ -98,7 +98,7 @@ final class EventRecordingEngineWiringTests: XCTestCase {
         controller.apply(documentModel: project)
 
         let recorder = controller.enableEventRecording()
-        controller.start()
+        controller.startTransportWithoutClockForTesting(now: 0)
         controller.processTick(tickIndex: 0, now: 0)
         controller.engageNoteRepeat(trackID: trackID)
         for tick: UInt64 in 1...4 {
@@ -124,7 +124,7 @@ final class EventRecordingEngineWiringTests: XCTestCase {
         let (project, _, _) = makeLiveStoreProject(clipPitch: 64, stepPattern: [true, false, true, true])
         recController.apply(documentModel: project)
         let recorder = recController.enableEventRecording()
-        recController.start()
+        recController.startTransportWithoutClockForTesting(now: 0)
         pump(recController, sink: recSink, steps: 4)
         recController.stop()
 
@@ -143,7 +143,7 @@ final class EventRecordingEngineWiringTests: XCTestCase {
         replayController.apply(documentModel: project)
         replayController.beginEventReplay(EventReplaySource(ndjson: recordedNDJSON))
         let replayRecorder = replayController.enableEventRecording()
-        replayController.start()
+        replayController.startTransportWithoutClockForTesting(now: 0)
         let replayPlayed = pump(replayController, sink: replaySink, steps: 4)
         replayController.stop()
 
@@ -174,7 +174,7 @@ final class EventRecordingEngineWiringTests: XCTestCase {
         replayController2.apply(documentModel: project)
         replayController2.beginEventReplay(EventReplaySource(ndjson: recordedNDJSON))
         let replayRecorder2 = replayController2.enableEventRecording()
-        replayController2.start()
+        replayController2.startTransportWithoutClockForTesting(now: 0)
         pump(replayController2, sink: replaySink2, steps: 4)
         replayController2.stop()
 
