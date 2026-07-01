@@ -202,6 +202,39 @@ for file in "${files[@]}"; do
       ;;
   esac
 
+  # Rule 2 (Phase 2, 2026-06-30): generative note production is PRECOMPUTED off
+  # the realtime tick path, never evaluated live per-step during a tick. On the
+  # tick-path files (EngineController + the Engine dispatch files), forbid a
+  # synchronous call into the per-step live generator seam
+  # (`BarPrecomputeEvaluator.resolveStep(`) and a live `SystemRandomNumberGenerator(`.
+  # prepareTick must CONSUME a precomputed bar, not generate inside the tick. The
+  # off-thread precompute home (Sources/Engine/BarPrecompute.swift) is deliberately
+  # NOT scanned here — it is the sanctioned place for RNG/generation, reached from
+  # a background scheduler, never synchronously from prepareTick. Any site on these
+  # tick-path files must be annotated `// realtime-allow-<reason>: <why> . Test: <name>`
+  # where the named test PROVES the call runs off the realtime path.
+  case "$file" in
+    */EngineController.swift|Sources/Engine/EngineController.swift \
+    |*/EngineControllerNoteRepeat.swift|Sources/Engine/EngineControllerNoteRepeat.swift \
+    |*/EngineSlicerDispatcher.swift|Sources/Engine/EngineSlicerDispatcher.swift \
+    |*/RouterDispatchState.swift|Sources/Engine/RouterDispatchState.swift)
+      awk -v file="$file" '
+        function has_allow(line) {
+          return line ~ /realtime-allow-[a-z-]+: .+Test: [A-Za-z0-9_]+/
+        }
+        /BarPrecomputeEvaluator\.resolveStep\(|SystemRandomNumberGenerator\(/ {
+          if ($0 ~ /^[[:space:]]*\/\//) { previous = $0; next }
+          if (!has_allow($0) && !has_allow(previous)) {
+            printf "%s:%d: Rule 2 (generation precomputed off the tick path) violated: prepareTick must consume a precomputed bar, not evaluate the live per-step generator (BarPrecomputeEvaluator.resolveStep) or construct SystemRandomNumberGenerator on the tick path — move generation to the background precompute (BarPrecompute.swift) reached from a scheduler, or annotate a proven-off-thread site `// realtime-allow-<reason>: <why> . Test: <name>`: %s\n", file, NR, $0 > "/dev/stderr"
+            failed = 1
+          }
+        }
+        { previous = $0 }
+        END { exit failed ? 1 : 0 }
+      ' "$path" || failed=1
+      ;;
+  esac
+
   # Rule 4 (Audio Engine Hard Rule 4): triggered playback reads resident buffers
   # from RAM, never streams from disk. On the sample/slice TRIGGER path
   # (SamplePlaybackEngine), forbid `scheduleSegment(` (the file-streaming overload)
