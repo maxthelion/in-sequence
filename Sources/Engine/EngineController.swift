@@ -1189,7 +1189,19 @@ final class EngineController: RouterDispatcher {
         // realtime-allow-sanctioned-clock: pre-render host-time origin fallback handed to AudioMasterClock — THE one sanctioned site that may anchor host time for musical timing; it is upgraded to the render-derived origin on first render (Rule 1, AudioMasterClock.captureOrigin/refreshOriginIfAvailable). Test: OfflineFrameAccuracyTests.
         audioMasterClock.captureOrigin(fallbackHostSeconds: ProcessInfo.processInfo.systemUptime)
         // realtime-allow-pump-pacing: `now` is the wake/MIDI wall-clock passed through prepareTick; the AUDIO sounding frame is stamped from the unified clock's tempo map, not from this value (Rule 1). Test: OfflineFrameAccuracyTests.
-        prepareTick(upcomingStep: 0, now: ProcessInfo.processInfo.systemUptime)
+        //
+        // Transport start runs on the MAIN thread (SwiftUI transport action). The
+        // cold-boundary precompute for bar 0 was only just requested onto the
+        // `.userInitiated` background queue, so a non-zero boundary wait here would
+        // block the main/UI thread on a lower-QoS worker with no priority donation
+        // (NSCondition does not boost) — a priority inversion / UI-hang up to the
+        // full boundary-wait cap. Pass a ZERO boundary wait for tick 0 so the main
+        // thread never blocks: tick 0 takes the sanctioned inline fallback (it
+        // produces identical deterministic notes), and every subsequent prepareTick
+        // runs on the clock's background queue where the bounded boundary wait is
+        // acceptable and, in the steady state, not even hit (bar N+1 is published
+        // while bar N is consumed).
+        prepareTick(upcomingStep: 0, now: ProcessInfo.processInfo.systemUptime, boundaryWaitSeconds: 0)
         promotePreparedNoteRepeatCapture(for: 0)
         tickState.markPreparedTick(0)
         isRunning = true
@@ -2291,7 +2303,8 @@ final class EngineController: RouterDispatcher {
 
     private func prepareTick(
         upcomingStep: UInt64,
-        now: TimeInterval
+        now: TimeInterval,
+        boundaryWaitSeconds: TimeInterval = EngineController.precomputeBoundaryWaitSeconds
     ) {
         let (
             executor,
@@ -2435,7 +2448,7 @@ final class EngineController: RouterDispatcher {
             startStep: currentBarStart,
             stepCount: barStepCount,
             revision: generationInputRevision,
-            boundaryWaitSeconds: Self.precomputeBoundaryWaitSeconds
+            boundaryWaitSeconds: boundaryWaitSeconds
         )
         let precomputedStepNotes = precomputedBar?.preparedNotesByBlockID(forStep: stepInPhrase)
 
