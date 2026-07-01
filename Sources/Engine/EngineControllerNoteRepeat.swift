@@ -233,7 +233,8 @@ extension EngineController {
                         bpm: bpm,
                         stepsPerBar: stepsPerBar
                     ),
-                    repeatOwnerTrackID: track.id
+                    repeatOwnerTrackID: track.id,
+                    transportGeneration: transportGenerationForScheduling()
                 )
             )
 
@@ -248,7 +249,8 @@ extension EngineController {
                             settings: settings,
                             scheduledHostTime: scheduledMusicalSeconds
                         ),
-                        repeatOwnerTrackID: track.id
+                        repeatOwnerTrackID: track.id,
+                        transportGeneration: transportGenerationForScheduling()
                     )
                 )
             }
@@ -265,7 +267,8 @@ extension EngineController {
                 bpm: bpm,
                 scheduledHostTime: scheduledMusicalSeconds,
                 eventQueue: eventQueue,
-                repeatOwnerTrackID: track.id
+                repeatOwnerTrackID: track.id,
+                transportGeneration: transportGenerationForScheduling()
             )
 
         case .internalSampler, .inheritGroup, .none:

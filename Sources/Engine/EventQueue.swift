@@ -31,6 +31,15 @@ final class EventQueue {
         return drained
     }
 
+    func drain(matching transportGeneration: UInt64) -> [ScheduledEvent] {
+        lock.lock()
+        defer { lock.unlock() }
+
+        let drained = events.filter { $0.transportGeneration == transportGeneration }
+        events.removeAll(keepingCapacity: true)
+        return drained
+    }
+
     func clear() {
         lock.lock()
         events.removeAll(keepingCapacity: true)

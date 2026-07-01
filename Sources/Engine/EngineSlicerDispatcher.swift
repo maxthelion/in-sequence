@@ -12,7 +12,8 @@ enum EngineSlicerDispatcher {
         bpm: Double,
         scheduledHostTime: TimeInterval,
         eventQueue: EventQueue,
-        repeatOwnerTrackID: UUID? = nil
+        repeatOwnerTrackID: UUID? = nil,
+        transportGeneration: UInt64? = nil
     ) {
         guard let sliceSet = snapshot.sliceSet(id: sliceSetID),
               let sampleID = sliceSet.sampleID,
@@ -60,7 +61,8 @@ enum EngineSlicerDispatcher {
                     stepParameters: stepParameters,
                     scheduledHostTime: scheduledHostTime
                 ),
-                repeatOwnerTrackID: repeatOwnerTrackID
+                repeatOwnerTrackID: repeatOwnerTrackID,
+                transportGeneration: transportGeneration
             ))
         }
     }

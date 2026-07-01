@@ -389,9 +389,19 @@ final class EngineController: RouterDispatcher {
     /// Cross-thread source of truth for the transport tick, written on the
     /// tick queue at prepare time.
     private let transportTickAtomic = AtomicInt64(0)
+    private let transportGenerationAtomic = AtomicInt64(0)
 
     var currentTransportTick: UInt64 {
         UInt64(bitPattern: transportTickAtomic.load())
+    }
+
+    func transportGenerationForScheduling() -> UInt64 {
+        UInt64(bitPattern: transportGenerationAtomic.load())
+    }
+
+    @discardableResult
+    private func advanceTransportGeneration() -> UInt64 {
+        UInt64(bitPattern: transportGenerationAtomic.increment())
     }
     private(set) var transportPosition = "1:1:1"
     private(set) var transportMode: TransportMode = .free
@@ -1181,6 +1191,7 @@ final class EngineController: RouterDispatcher {
         // and lift the post-stop in-flight-tick suppression.
         firstEventOriginWasRenderDerived = nil
         transportStoppedSuppressingTicks = false
+        advanceTransportGeneration()
         // Round-2 P3 — REAL early dispatch, NOT an origin delay. The captured
         // origin anchors musical second 0 to the transport-start render position
         // (Rule 1) with NO lead added, so first-play absolute latency stays at the
@@ -1306,6 +1317,7 @@ final class EngineController: RouterDispatcher {
         // start and lift any post-stop in-flight-tick suppression.
         firstEventOriginWasRenderDerived = nil
         transportStoppedSuppressingTicks = false
+        advanceTransportGeneration()
         audioMasterClock.captureOrigin(fallbackHostSeconds: now)
         prepareTick(upcomingStep: 0, now: now)
         promotePreparedNoteRepeatCapture(for: 0)
@@ -1319,6 +1331,7 @@ final class EngineController: RouterDispatcher {
         // drains the transport (it must schedule zero events). Cleared on the
         // next transport start.
         transportStoppedSuppressingTicks = true
+        advanceTransportGeneration()
         pendingTransportStartWorkItem?.cancel()
         pendingTransportStartWorkItem = nil
         deferredTransportStartAttempt = 0
@@ -1412,6 +1425,7 @@ final class EngineController: RouterDispatcher {
         log("shutdown start")
         // Phase-1: a tick in flight after shutdown must also schedule nothing.
         transportStoppedSuppressingTicks = true
+        advanceTransportGeneration()
         // realtime-allow-diagnostic: shutdown control path; `now` stamps note-off flush / note-repeat cleanup (MIDI wall-clock + bookkeeping), never an event's sounding frame (Rule 1). Test: RealtimePathLintTests.
         let now = ProcessInfo.processInfo.systemUptime
         let hosts = withStateLock { Self.uniqueHosts(Array(trackRuntime.audioOutputsByTrackID.values)) }
@@ -2410,6 +2424,7 @@ final class EngineController: RouterDispatcher {
         let harmonicSidechainChord = chordContexts["default"]
         var preparedNotesByBlockID: [BlockID: [NoteEvent]] = [:]
         var capturableNotesByBlockID: [BlockID: [NoteEvent]] = [:]
+        let transportGeneration = transportGenerationForScheduling()
 
         // Round-2 Phase-2: OFF-THREAD next-bar precompute. Generation runs on the
         // `barPrecomputeScheduler`'s background queue; the tick path CONSUMES the
@@ -2651,7 +2666,8 @@ final class EngineController: RouterDispatcher {
                         notes: Self.shifted(events, by: runtime.pitchOffset),
                         bpm: executor.currentBPM,
                         stepsPerBar: stepsPerBar
-                    )
+                    ),
+                    transportGeneration: transportGeneration
                 )
             )
         }
@@ -2678,7 +2694,8 @@ final class EngineController: RouterDispatcher {
                             sampleID: sampleID,
                             settings: settings,
                             scheduledHostTime: eventScheduledHostTime
-                        )
+                        ),
+                        transportGeneration: transportGeneration
                     ))
                 }
 
@@ -2693,7 +2710,8 @@ final class EngineController: RouterDispatcher {
                     stepsPerBar: stepsPerBar,
                     bpm: executor.currentBPM,
                     scheduledHostTime: eventScheduledHostTime,
-                    eventQueue: eventQueue
+                    eventQueue: eventQueue,
+                    transportGeneration: transportGeneration
                 )
 
             default:
@@ -2772,7 +2790,7 @@ final class EngineController: RouterDispatcher {
     }
 
     private func dispatchTick() -> Int {
-        let events = eventQueue.drain()
+        let events = eventQueue.drain(matching: transportGenerationForScheduling())
         let (audioOutputs, outputKeys) = withStateLock { (trackRuntime.audioOutputsByTrackID, trackRuntime.audioOutputKeysByTrackID) }
 
         // Phase-1 render-origin guarantee: record, at the FIRST event stamp,
@@ -3116,7 +3134,8 @@ final class EngineController: RouterDispatcher {
                         lane: broadcastTag ?? lane ?? "default",
                         chord: chord
                     ),
-                    repeatOwnerTrackID: repeatOwnerTrackID
+                    repeatOwnerTrackID: repeatOwnerTrackID,
+                    transportGeneration: transportGenerationForScheduling()
                 )
             )
         }
@@ -3248,7 +3267,8 @@ final class EngineController: RouterDispatcher {
                         bpm: bpm,
                         stepsPerBar: stepsPerBar
                     ),
-                    repeatOwnerTrackID: repeatOwnerTrackID
+                    repeatOwnerTrackID: repeatOwnerTrackID,
+                    transportGeneration: transportGenerationForScheduling()
                 )
             )
 
@@ -3280,7 +3300,8 @@ final class EngineController: RouterDispatcher {
                 bpm: bpm,
                 scheduledHostTime: routerDispatch.dispatchMusicalSeconds,
                 eventQueue: eventQueue,
-                repeatOwnerTrackID: repeatOwnerTrackID
+                repeatOwnerTrackID: repeatOwnerTrackID,
+                transportGeneration: transportGenerationForScheduling()
             )
 
         case .internalSampler, .sample, .inheritGroup, .none:
