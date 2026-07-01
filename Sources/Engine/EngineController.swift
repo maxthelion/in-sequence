@@ -697,17 +697,29 @@ final class EngineController: RouterDispatcher {
         // Route the SAME event through the early-dispatch surface (production has no
         // override, so this is the identical unified-clock conversion) and report the
         // live invocation + the configured lead to the test probe.
-        let due = max(0, scheduledMusicalSeconds)
+        let due = reportLeadStampedDispatch(for: scheduledMusicalSeconds, dispatchLead: dispatchLead)
         let leadStamp = leadStampedAudioTime(
             forMusicalSeconds: due,
             dispatchNow: due - dispatchLead
         )
+        return leadStamp ?? stamp
+    }
+
+    /// Round-2 P3 — report a live early-dispatch invocation to the test probe and
+    /// return the event's musical due time (clamped at 0). Shared by the sample and
+    /// AU lead-stamp helpers so both attribute the identical lead. No-op in
+    /// production (no probe installed → no alloc/lock/log on the realtime path).
+    private func reportLeadStampedDispatch(
+        for scheduledMusicalSeconds: TimeInterval,
+        dispatchLead: TimeInterval
+    ) -> TimeInterval {
+        let due = max(0, scheduledMusicalSeconds)
         noteLeadStampedDispatchForTesting(
             musicalSeconds: due,
             dispatchNow: due - dispatchLead,
             lead: dispatchLead
         )
-        return leadStamp ?? stamp
+        return due
     }
 
     /// Round-2 P3 — LIVE early-dispatch stamp for an AU note. The AU note-on frame
@@ -735,12 +747,7 @@ final class EngineController: RouterDispatcher {
         // The AU note-on frame stays the unified-clock frame (Rule 1); the pump
         // dispatches it `dispatchLead` ahead of its musical due time. Report the
         // live early-dispatch invocation to the test probe (no-op in production).
-        let due = max(0, scheduledMusicalSeconds)
-        noteLeadStampedDispatchForTesting(
-            musicalSeconds: due,
-            dispatchNow: due - dispatchLead,
-            lead: dispatchLead
-        )
+        _ = reportLeadStampedDispatch(for: scheduledMusicalSeconds, dispatchLead: dispatchLead)
         return frame
     }
 
