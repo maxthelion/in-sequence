@@ -1216,7 +1216,7 @@ final class EngineController: RouterDispatcher {
         promotePreparedNoteRepeatCapture(for: 0)
         tickState.markPreparedTick(0)
         isRunning = true
-        clock.start { [weak self] tickIndex, now in
+        clock.start(lookAheadLeadSeconds: lookAheadLeadSeconds) { [weak self] tickIndex, now in
             self?.processTick(tickIndex: tickIndex, now: now)
         }
     }
