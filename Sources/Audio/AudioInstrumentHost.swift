@@ -894,19 +894,23 @@ final class AudioInstrumentHost: TrackPlaybackSink {
                 self.outputMixer = mixer
                 // realtime-allow-graph-mutation: AU load/setup connection only, not tick dispatch. Test: RealtimePathLintTests.
                 self.audioGraph.attach(mixer)
-                self.audioGraph.connectTrackOutput(
-                    mixer,
-                    to: self.currentOutputBusID,
-                    sends: self.currentMix.graphSendLevels,
-                    ramped: false
-                )
-                self.audioGraph.setTrackMeterSources(trackIDs: self.currentMeterTrackIDs, node: mixer)
                 self.updateSnapshotOutput()
             }
             if self.audioGraph.engine.outputConnectionPoints(for: nextInstrument, outputBus: 0).isEmpty {
                 // realtime-allow-graph-mutation: AU load/setup connection only, not tick dispatch. Test: RealtimePathLintTests.
                 self.audioGraph.connect(nextInstrument, to: mixer)
             }
+            // A newly-created output mixer may have had no upstream AU input when
+            // it was attached. Assert the track's downstream route after AU->mixer
+            // is live so AU-only tracks are pulled immediately, not only after a
+            // later graph change such as loading a drum kit.
+            self.audioGraph.connectTrackOutput(
+                mixer,
+                to: self.currentOutputBusID,
+                sends: self.currentMix.graphSendLevels,
+                ramped: false
+            )
+            self.audioGraph.setTrackMeterSources(trackIDs: self.currentMeterTrackIDs, node: mixer)
         }
         applyCurrentMix()
         startEngineIfPossible()
@@ -1017,12 +1021,7 @@ final class AudioInstrumentHost: TrackPlaybackSink {
             return
         }
 
-        do {
-            try audioGraph.start()
-            log("engine started")
-        } catch {
-            log("engine start failed error=\(String(describing: error))")
-        }
+        log("instrument armed; audio graph lifecycle is session-owned")
     }
 
     private func applyCurrentMix() {

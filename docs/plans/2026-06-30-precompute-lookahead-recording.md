@@ -80,6 +80,12 @@ return and re-gate if any is wrong.
   sample kit or pressing Play on a particular source. AU-only first play failed
   until a kit was loaded, proving the prior warm-engine implementation was
   incomplete.
+- **Follow-up correction from the same attended pass:** source hosts must not own
+  shared graph lifecycle at all. `AudioInstrumentHost` and `SamplePlaybackEngine`
+  may attach/connect/arm their nodes, but only the session/document owner starts
+  the graph and only shutdown/device recovery tears it down. AU setup must also
+  assert the downstream track route after the AU node is connected into its mixer,
+  so an AU-only branch is pulled before any sample-kit graph activity occurs.
 - **Why:** look-ahead can't stamp future frames without a valid render origin; and
   this closes the cold-start window that causes first-play AU/drum silence.
 - **Call sites:** `EngineController.start()/stop()` (`:884`/`:943`),

@@ -316,7 +316,6 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
     func start() throws {
         guard withLifecycleLock({ !isStarted }) else { return }
         validatePreparedTrackGraphs()
-        try audioGraph.start()
         withLifecycleLock {
             isStarted = true
         }
@@ -340,7 +339,6 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
             }
         }
         previewNode.stop()
-        audioGraph.stop()
     }
 
     /// Phase-1 warm engine: silence all voices for a transport stop but leave the

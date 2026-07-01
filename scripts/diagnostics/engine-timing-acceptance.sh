@@ -95,7 +95,7 @@ case "${command}" in
     write_pref TimingProbeEnabled
 
     stamp="$(date +%Y%m%d-%H%M%S)"
-    started_at="$(date +%Y-%m-%dT%H:%M:%S)"
+    started_at="$(date '+%Y-%m-%d %H:%M:%S')"
     bundle="${evidence_root}/${stamp}"
     mkdir -p "${bundle}"
 
@@ -138,8 +138,8 @@ EOF
     fi
 
     log_start="${LOG_START:-${STARTED_AT:-}}"
-    log show --start "${log_start}" --info --debug --style compact --predicate "${predicate}" > "${BUNDLE_DIR}/activity.log" || true
-    log show --start "${log_start}" --info --debug --style compact --predicate "${focused_predicate}" > "${BUNDLE_DIR}/focused-since-start.log" || true
+    /usr/bin/log show --start "${log_start}" --info --debug --style compact --predicate "${predicate}" > "${BUNDLE_DIR}/activity.log" || true
+    /usr/bin/log show --start "${log_start}" --info --debug --style compact --predicate "${focused_predicate}" > "${BUNDLE_DIR}/focused-since-start.log" || true
     "${repo_root}/scripts/diagnostics/timing-probe-report.sh" "${BUNDLE_DIR}/activity.log" > "${BUNDLE_DIR}/timing-probe-report.txt" || true
 
     cat > "${BUNDLE_DIR}/manual-acceptance.md" <<'EOF'

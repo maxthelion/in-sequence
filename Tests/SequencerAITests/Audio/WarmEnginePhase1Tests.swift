@@ -155,16 +155,43 @@ final class WarmEnginePhase1Tests: XCTestCase {
         )
     }
 
+    /// Source-specific playback engines must not become accidental graph owners.
+    /// AU and sample hosts may attach/connect/arm their own nodes, but session
+    /// lifetime owns `MainAudioGraph.start/stop`.
+    func test_sourcePlaybackEnginesDoNotStartOrStopSharedAudioGraph() throws {
+        let repoRoot = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let guardedFiles = [
+            repoRoot.appendingPathComponent("Sources/Audio/AudioInstrumentHost.swift"),
+            repoRoot.appendingPathComponent("Sources/Audio/SamplePlaybackEngine.swift")
+        ]
+
+        for url in guardedFiles {
+            let source = try String(contentsOf: url, encoding: .utf8)
+            XCTAssertFalse(
+                source.contains("audioGraph.start()"),
+                "\(url.lastPathComponent) must not start the shared graph; use EngineController.startSessionAudioGraph()"
+            )
+            XCTAssertFalse(
+                source.contains("audioGraph.stop()"),
+                "\(url.lastPathComponent) must not stop the shared graph; teardown belongs to EngineController.shutdown()"
+            )
+        }
+    }
+
     /// THE WARM-ENGINE GATE. After a transport `stop()` the underlying
     /// `AVAudioEngine` must STILL be running (warm, outputting silence). Only
     /// `shutdown()` (negative control below) may stop it.
     ///
-    /// Pre-P1 this fails: `EngineController.stop()` tears the engine down via
-    /// `sampleEngine.stop()` → `MainAudioGraph.stop()` → `engine.stop()`.
-    /// The transport is started (which starts the real engine via the real
-    /// `SamplePlaybackEngine` → `MainAudioGraph.start()`) but NO `processTick`
-    /// is pumped — so no sample buffers are scheduled on a player node (which on
-    /// the real graph would raise an uncatchable AVAudioPlayerNode NSException).
+    /// Pre-P1 this failed because `EngineController.stop()` tore the engine down
+    /// via `sampleEngine.stop()` → `MainAudioGraph.stop()` → `engine.stop()`.
+    /// The graph is now warmed by the document/session owner before transport;
+    /// this test pumps no ticks, so no sample buffers are scheduled on a player
+    /// node (which on the real graph would raise an uncatchable
+    /// AVAudioPlayerNode NSException).
     /// The engine-running lifecycle is exactly what this invariant is about; the
     /// note-dispatch path is covered by invariant 3.
     func test_transportStop_keepsAudioEngineWarm() throws {
@@ -180,6 +207,7 @@ final class WarmEnginePhase1Tests: XCTestCase {
         // starting the transport starts the engine without scheduling any voices.
         controller.apply(documentModel: .empty)
         controller.setBPM(120)
+        controller.startSessionAudioGraph()
 
         controller.startTransportWithoutClockForTesting(now: 0)
         XCTAssertTrue(
@@ -213,6 +241,7 @@ final class WarmEnginePhase1Tests: XCTestCase {
         )
         controller.apply(documentModel: .empty)
         controller.setBPM(120)
+        controller.startSessionAudioGraph()
 
         controller.startTransportWithoutClockForTesting(now: 0)
         controller.shutdown()
@@ -254,6 +283,7 @@ final class WarmEnginePhase1Tests: XCTestCase {
         )
         controller.apply(documentModel: project)
         controller.setBPM(120)
+        controller.startSessionAudioGraph()
 
         controller.startTransportWithoutClockForTesting(now: 0)
         controller.processTick(tickIndex: 0, now: 0)
@@ -331,6 +361,7 @@ final class WarmEnginePhase1Tests: XCTestCase {
         )
         controller.apply(documentModel: project)
         controller.setBPM(120)
+        controller.startSessionAudioGraph()
 
         controller.startTransportWithoutClockForTesting(now: 0)
         controller.processTick(tickIndex: 0, now: 0)
