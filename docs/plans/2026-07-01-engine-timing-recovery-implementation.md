@@ -297,24 +297,24 @@ comments.
 
 ### Final Acceptance Checklist
 
-- [ ] Worktree clean except deliberate generated evidence ignored by git.
-- [ ] App target builds from committed files only.
-- [ ] `realtime-path-lint.sh` green.
-- [ ] `runtime-ownership-lint.sh` green.
-- [ ] `realtime-rng-lint.sh` green.
-- [ ] Focused tests green:
+- [x] Worktree clean except deliberate generated evidence ignored by git.
+- [x] App target builds from committed files only.
+- [x] `realtime-path-lint.sh` green.
+- [x] `runtime-ownership-lint.sh` green.
+- [x] `realtime-rng-lint.sh` green.
+- [x] Focused tests green:
   - transport stop/in-flight scheduling
   - first-play cold fallback alignment
   - event recording + note repeat
   - precompute steady-state consumption
   - real look-ahead pump horizon
-- [ ] `OfflineFrameAccuracyTests` green.
+- [x] `OfflineFrameAccuracyTests` green.
 - [ ] Human/manual acoustic pass:
   - AU first play sounds on first transport run,
   - 808 kit sounds immediately,
   - Stop does not release a delayed bar of audio,
   - flam is not perceptible and/or measured below threshold.
-- [ ] Final implementation comments describe one model:
+- [x] Final implementation comments describe one model:
   warm graph, render-derived origin, transport generation, realized-event
   recording, precomputed bar consumption, horizon-based look-ahead dispatch.
 
@@ -331,3 +331,51 @@ order:
 4. look-ahead pump.
 
 P3 should not ride along with P0/P1 unless it has the real acoustic check.
+
+## Implementation Status — 2026-07-01
+
+Committed recovery work on `engine/precompute-lookahead`:
+
+- `0d92168d` — stabilized the branch evidence: prosecution repros are preserved
+  under `docs/plans/engine-timing-recovery-evidence/`, while active Xcode
+  membership keeps only product code needed by the build.
+- `1d9c410c` — Phase A transport generation: queued audible events carry a
+  transport generation; dispatch drains only the current generation so old
+  prepared events cannot leak across Stop/Start.
+- `23092b34` — Phase B guardrail cleanup: the active start-call test now asserts
+  the unshifted-origin model; comments no longer describe origin shift as the
+  production fix.
+- `080f0a5d` — Phase C event recording: note-repeat realized output is recorded
+  through the same recorder contract, with a focused engine-wiring regression.
+- Phase D precompute rails were already functional in this branch after
+  stabilization; `TickConsumesPrecomputeRailTests` and
+  `PrecomputeBarEquivalenceTests` now pass without further product-code changes.
+- `1d81cd6d` — Phase E first pump slice: `TickClock` keeps tick 0 immediate, then
+  wakes tick 1 at `stepInterval - lookAheadLeadSeconds` and continues at the
+  normal step interval.
+
+Deterministic verification run after implementation:
+
+- `xcodebuild test ... -only-testing:SequencerAITests/EventQueueTests`
+- `xcodebuild test ... -only-testing:SequencerAITests/TickClockTests`
+- `xcodebuild test ... -only-testing:SequencerAITests/LookAheadStartCallSiteGuardTests`
+- `xcodebuild test ... -only-testing:SequencerAITests/LookAheadEarlyDispatchTests`
+- `xcodebuild test ... -only-testing:SequencerAITests/EventRecordingEngineWiringTests`
+- `xcodebuild test ... -only-testing:SequencerAITests/PrecomputeBarEquivalenceTests`
+- `xcodebuild test ... -only-testing:SequencerAITests/TickConsumesPrecomputeRailTests`
+- `xcodebuild test ... -only-testing:SequencerAITests/OfflineFrameAccuracyTests`
+- `xcodebuild build -project SequencerAI.xcodeproj -scheme SequencerAI -destination 'platform=macOS'`
+- `scripts/diagnostics/realtime-path-lint.sh`
+- `scripts/diagnostics/runtime-ownership-lint.sh`
+- `scripts/diagnostics/realtime-rng-lint.sh`
+
+Known remaining gates before merge to main:
+
+- Run a real app/audio manual pass with AU + 808 kit:
+  - AU first play sounds on the first transport run,
+  - drums do not wait until Stop,
+  - no obvious flam under UI/nav load,
+  - mixer levels still reflect active tracks.
+- If the manual pass still exposes flam, add a sink-level deterministic rail that
+  observes `effectivePlaybackTime` receiving non-nil future `AVAudioTime` for
+  post-tick-0 sample/slice events.
