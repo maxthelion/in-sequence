@@ -353,13 +353,20 @@ Committed recovery work on `engine/precompute-lookahead`:
 - `1d81cd6d` — Phase E first pump slice: `TickClock` keeps tick 0 immediate, then
   wakes tick 1 at `stepInterval - lookAheadLeadSeconds` and continues at the
   normal step interval.
+- `386ece6c` — Phase E full horizon pump: live `TickClock` wakes now drive a
+  pump cursor that dispatches every prepared step whose due time falls inside
+  `pumpMusicalSeconds...pumpMusicalSeconds + lookAheadLeadSeconds`, without
+  duplicate handoff on repeated wakes. Manual/offline `processTick` remains a
+  one-step driver; no-clock tests use `startTransportWithoutClockForTesting`.
 
 Deterministic verification run after implementation:
 
 - `xcodebuild test ... -only-testing:SequencerAITests/EventQueueTests`
 - `xcodebuild test ... -only-testing:SequencerAITests/TickClockTests`
+- `xcodebuild test ... -only-testing:SequencerAITests/EngineControllerSampleTriggerTests/test_liveLookAheadPump_dispatchesAllStepsInsideHorizonWithoutDuplicates`
 - `xcodebuild test ... -only-testing:SequencerAITests/LookAheadStartCallSiteGuardTests`
 - `xcodebuild test ... -only-testing:SequencerAITests/LookAheadEarlyDispatchTests`
+- `xcodebuild test ... -only-testing:SequencerAITests/LookAheadSchedulingTests`
 - `xcodebuild test ... -only-testing:SequencerAITests/EventRecordingEngineWiringTests`
 - `xcodebuild test ... -only-testing:SequencerAITests/PrecomputeBarEquivalenceTests`
 - `xcodebuild test ... -only-testing:SequencerAITests/TickConsumesPrecomputeRailTests`
@@ -376,6 +383,6 @@ Known remaining gates before merge to main:
   - drums do not wait until Stop,
   - no obvious flam under UI/nav load,
   - mixer levels still reflect active tracks.
-- If the manual pass still exposes flam, add a sink-level deterministic rail that
-  observes `effectivePlaybackTime` receiving non-nil future `AVAudioTime` for
-  post-tick-0 sample/slice events.
+- If the manual pass still exposes flam, the failure is past the deterministic
+  pump/origin/precompute rails and should be debugged as an audio-sink/runtime
+  issue with `DevActivity` + AU/sample trigger traces enabled.
