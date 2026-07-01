@@ -59,20 +59,9 @@ extension EngineController {
     /// into the prepare/dispatch split so events are handed to the schedulers
     /// early.
     var lookAheadLeadSeconds: TimeInterval {
-        // Phase 3 — the look-ahead lead is realised by shifting the captured
-        // render origin forward by this much at LIVE transport start
-        // (`EngineController.start()` → `AudioMasterClock.captureOrigin(
-        // ..., leadSeconds:)`). Both the host-time stamp (`audioTime(
-        // atMusicalSeconds:)`) and the render-frame stamp (`sampleTime(
-        // atMusicalSeconds:)`) shift together by the SAME lead, so AU and sample
-        // stay frame-aligned (no stamp-level flam) while every event's stamp is
-        // now `lookAheadLeadSeconds` AHEAD of the pump wake that dispatches it.
-        // A dispatch that arrives up to the lead late is therefore still before
-        // the event's stamp, so `SamplePlaybackEngine.effectivePlaybackTime`
-        // sees a future `when` and never clamps to immediate — the stale→
-        // immediate flam is removed at the source. The OFFLINE frame-accuracy
-        // path never takes the live `start()` lead (it captures the origin with
-        // `leadSeconds: 0`), so the 0-frame gate is unaffected.
+        // Phase 3 — this is the pump's look-ahead horizon. It must not be paid
+        // as a master-clock origin delay. The event stamp remains the true
+        // musical due time; the pump must hand it to sinks before that due time.
         AudioMasterClock.lookAheadLeadSeconds
     }
 
@@ -100,12 +89,6 @@ extension EngineController {
         forMusicalSeconds musicalSeconds: TimeInterval,
         dispatchNow: TimeInterval
     ) -> AVAudioTime? {
-        // The sounding stamp stays anchored to `AudioMasterClock` (Rule 1): the
-        // look-ahead lead is realised by the origin shift at live transport start
-        // (`captureOrigin(..., leadSeconds:)`), so the event's host time is
-        // already `lookAheadLeadSeconds` ahead of the pump wake. `dispatchNow`
-        // only models WHEN the pump dispatched; it does not move the stamp.
-        //
         // Route the conversion through `scheduledAudioTime(for:)` so the stamp
         // flows through the SAME `scheduledAudioTimeOverrideForTesting` seam the
         // mandate names and the offline / look-ahead rails install — the

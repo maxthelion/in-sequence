@@ -48,12 +48,8 @@ import Foundation
 final class AudioMasterClock {
     /// Phase 3 look-ahead lead (seconds). Gate-1 LOCKED at 100 ms
     /// (`docs/plans/2026-06-30-precompute-lookahead-recording.md`: "Look-ahead
-    /// lead: 100 ms."). At LIVE transport start the captured origin is shifted
-    /// forward by this amount (see `captureOrigin(_:leadSeconds:)`) so every
-    /// event's stamp lands this far AHEAD of the pump wake that dispatches it —
-    /// the dispatch never sees a past-due `when`, eliminating the stale→immediate
-    /// flam. `EngineController.lookAheadLeadSeconds` returns this constant (the
-    /// frozen Phase 3 rail asserts `>= 0.100`).
+    /// lead: 100 ms."). This is a pump/dispatch horizon, not a master-clock
+    /// origin offset. Musical second 0 must remain anchored to transport start.
     static let lookAheadLeadSeconds: TimeInterval = 0.100
 
     /// Reads the live audio-render position. Returns nil until the engine has a
@@ -101,13 +97,9 @@ final class AudioMasterClock {
     /// is provisional, the render origin is the real one.
     private var originIsRenderDerived = false
 
-    /// Phase 3 look-ahead lead (seconds) applied to the captured origin so that
-    /// musical second 0 sounds `originLeadSeconds` AFTER the render position read
-    /// at transport start. Live `start()` passes the locked lead; the offline /
-    /// manual-driver path passes 0 (so the 0-frame gate is unaffected). Held so
-    /// the fallback→render-derived upgrade in `refreshOriginIfAvailable` keeps the
-    /// SAME lead — host-seconds and sample-frame origins always shift TOGETHER by
-    /// this amount, keeping AU and sample frame-aligned (no stamp-level flam).
+    /// Legacy isolated-verifier offset. Production transport start must pass zero:
+    /// the look-ahead lead is realized by dispatching before the event's due time,
+    /// not by moving the master-clock origin.
     private var originLeadSeconds: TimeInterval = 0
 
     /// Cumulative musical seconds at the most recently advanced step, and the
@@ -139,12 +131,8 @@ final class AudioMasterClock {
     /// position is available yet (engine not yet rendering at transport start) —
     /// pass `ProcessInfo.processInfo.systemUptime`, which shares the mach
     /// timebase with `AVAudioTime` host time.
-    /// `leadSeconds` (Phase 3 look-ahead) shifts the origin FORWARD so musical
-    /// second 0 sounds `leadSeconds` after the render position read here — both
-    /// the host-seconds and sample-frame origins shift by the SAME musical lead,
-    /// so AU and sample stay frame-aligned. Live transport passes
-    /// `AudioMasterClock.lookAheadLeadSeconds`; the offline / manual-driver path
-    /// passes 0 (default), keeping the 0-frame frame-accuracy gate unaffected.
+    /// `leadSeconds` is retained only for old isolated verifier coverage; live
+    /// transport must use the default zero. Do not use it to implement look-ahead.
     func captureOrigin(fallbackHostSeconds: TimeInterval, leadSeconds: TimeInterval = 0) {
         reset()
         let lead = max(0, leadSeconds)
@@ -158,9 +146,9 @@ final class AudioMasterClock {
             // No render position yet (engine not rendering at transport start):
             // anchor provisionally on the supplied fallback host time. This is
             // NOT the authoritative origin — `refreshOriginIfAvailable` upgrades
-            // it to the render-derived host time on the first render (carrying the
-            // same lead). The sample-frame origin has no valid render base yet, so
-            // it stays 0 until the upgrade applies the lead in frames.
+            // it to the render-derived host time on the first render. The
+            // sample-frame origin has no valid render base yet, so it stays 0
+            // until the upgrade.
             originSampleTime = 0
             originHostSeconds = fallbackHostSeconds + lead
             originIsRenderDerived = false
@@ -279,10 +267,9 @@ final class AudioMasterClock {
         guard let position = renderPositionProvider() else { return }
         sampleRate = position.sampleRate
         guard !originIsRenderDerived else { return }
-        // Upgrade carries the SAME Phase 3 look-ahead lead the fallback origin
-        // was captured with, applied to BOTH origins so host and sample stay
-        // consistent (the host-seconds fallback already included the lead; the
-        // sample-frame origin gets it now that a render base exists).
+        // Upgrade preserves any legacy isolated-verifier offset, but production
+        // transport start captures with zero offset so musical second 0 stays at
+        // the real render/fallback origin.
         originSampleTime = position.sampleTime + AVAudioFramePosition((originLeadSeconds * position.sampleRate).rounded())
         originHostSeconds = AVAudioTime.seconds(forHostTime: position.hostTime) + originLeadSeconds
         hasOrigin = true

@@ -586,23 +586,13 @@ final class EngineController: RouterDispatcher {
     ///
     /// # Why (the cold-start AU-vs-drum flam fix)
     ///
-    /// The Phase 3 look-ahead lead is realised by shifting the captured origin
-    /// forward by `lookAheadLeadSeconds` (`AudioMasterClock.captureOrigin`). When
-    /// a render position exists, BOTH the host-time origin and the render-frame
-    /// origin shift together, so a sample (host-time path) and an AU note
-    /// (render-frame path, `scheduledAUNoteSampleTime`) stay frame-aligned.
-    ///
-    /// In the cold fallback branch (`renderPositionProvider() == nil` at start —
-    /// engine not yet rendering), only the HOST origin carries the lead; the
-    /// render-frame origin has no valid base, so `hasRenderOrigin` is false and an
-    /// AU note falls back to `AUEventSampleTimeImmediate` (no lead). If the sample
-    /// path still used the lead-shifted host time here, the drum would land
-    /// `lookAheadLeadSeconds` (~100 ms) AFTER the immediate AU — a first-play
-    /// AU-vs-drum flam, contradicting the Gate-1 first-play criterion (AU AND drum
-    /// within 10 ms of the grid). So in that window the sample path ALSO schedules
-    /// immediate, keeping the two paths aligned. `refreshOriginIfAvailable`
-    /// upgrades the origin to render-derived on the first render (carrying the
-    /// lead in BOTH units), after which both paths pick up the lead together.
+    /// Look-ahead must not be realized by moving the master-clock origin. In the
+    /// cold fallback branch (`renderPositionProvider() == nil` at start — engine
+    /// not yet rendering), the render-frame origin has no valid base, so AU notes
+    /// fall back to `AUEventSampleTimeImmediate`. The sample path must make the
+    /// same cold-start decision for that tick rather than scheduling against a
+    /// host-time fallback that would split AU and drums. Once a render position is
+    /// available, both paths use the same render-derived origin.
     ///
     /// Offline manual-rendering (the deterministic gate path) always has a render
     /// position, so `hasRenderOrigin` is true and this is identical to
