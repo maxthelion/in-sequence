@@ -79,13 +79,24 @@ final class AudioMasterClock {
     /// render cycle "as soon as possible" and the first hit landed
     /// +34.6 ms ≈ 3 quanta off the grid, non-deterministically.
     ///
-    /// 30 ms = two render quanta at the 512-frame HAL buffer (23.2 ms @
-    /// 44.1 kHz, 21.3 ms @ 48 kHz) + margin for the measured ~9 ms cold
-    /// multi-track dispatch spread. This is NOT the look-ahead lead and it
-    /// does NOT move the master-clock origin (musical second 0 stays at the
-    /// transport-start render position; the frozen origin rails are
-    /// unaffected) — it lifts only an EVENT STAMP that would otherwise be
-    /// inside the unschedulable window.
+    /// 30 ms = two render quanta of schedule visibility at the 512-frame HAL
+    /// buffer (23.2 ms @ 44.1 kHz, 21.3 ms @ 48 kHz) + margin for the cold
+    /// multi-track dispatch spread.
+    ///
+    /// Measured landing (2026-07-02 rig): the first hit lands exactly ON its
+    /// lifted stamp, but the stamp is `renderPosition-at-dispatch + floor`,
+    /// and the render position advances 1–2 quanta during the ~20 ms of cold
+    /// first-tick work between origin capture and dispatch — so the first hit
+    /// lands at grid + floor + 1–2 quanta (≈ +41 ms typical, one-quantum
+    /// variance). Raising the floor only shifts the same landing later
+    /// (verified at 45 ms → +55.8), and pre-starting the player nodes does
+    /// not remove it (verified). A fully deterministic on-grid first hit
+    /// requires anchoring the transport grid itself a fixed lead after the
+    /// render position at start — a product decision that touches the frozen
+    /// ≤10 ms first-play rail, deferred to the human acceptance gate. This
+    /// floor is NOT the look-ahead lead and does NOT move the master-clock
+    /// origin — it lifts only an EVENT STAMP that would otherwise be inside
+    /// the unschedulable window.
     static let liveDispatchSchedulingFloorSeconds: TimeInterval = 0.030
 
     /// Reads the live audio-render position. Returns nil until the engine has a
