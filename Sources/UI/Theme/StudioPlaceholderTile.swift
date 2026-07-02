@@ -2,7 +2,9 @@ import SwiftUI
 
 struct StudioPlaceholderTile: View {
     let title: String
-    let detail: String
+    /// Optional short state caption. Instructional prose belongs in a `.help`
+    /// tooltip, not here (canon Rule 3: no explainer prose on surfaces).
+    var detail: String? = nil
     var accent: Color = StudioTheme.cyan
 
     var body: some View {
@@ -11,10 +13,12 @@ struct StudioPlaceholderTile: View {
                 .studioText(.placeholderTitle)
                 .foregroundStyle(StudioTheme.text)
 
-            Text(detail)
-                .studioText(.body)
-                .foregroundStyle(StudioTheme.mutedText)
-                .fixedSize(horizontal: false, vertical: true)
+            if let detail {
+                Text(detail)
+                    .studioText(.body)
+                    .foregroundStyle(StudioTheme.mutedText)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(StudioMetrics.Spacing.standard)

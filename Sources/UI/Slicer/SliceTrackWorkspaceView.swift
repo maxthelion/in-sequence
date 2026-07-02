@@ -173,38 +173,16 @@ struct SliceTrackWorkspaceView: View {
     private var topControlsPanel: some View {
         // The PATTERN section label lives in the workspace's compact top header
         // (collapsed top grammar), so this panel renders headerless — the slot
-        // palette + Lane/Length sit directly beneath the shared header.
+        // palette sits directly beneath the shared header. Lane/Layer/Length
+        // are value selectors, so they live INSIDE the step well (Variant D
+        // grammar), not up here.
         StudioPanel(title: "Pattern", accent: accent, showsHeader: false) {
-            VStack(alignment: .leading, spacing: 12) {
-                TrackPatternSlotPalette(
-                    selectedSlot: selectedPatternIndexBinding,
-                    occupiedSlots: occupiedPatternSlots,
-                    bypassState: .notApplicable,
-                    onBypassToggle: { _ in }
-                )
-
-                HStack(spacing: 18) {
-                    controlGroup(title: "Lane") {
-                        HStack(spacing: 8) {
-                            ForEach(SliceTrackLane.allCases) { lane in
-                                layerButton(title: lane.title, isSelected: selectedLane == lane, isEnabled: lane == .normal) {
-                                    selectedLane = lane
-                                }
-                            }
-                        }
-                    }
-
-                    Spacer()
-
-                    controlGroup(title: "Length") {
-                        HStack(spacing: 8) {
-                            ForEach([16, 32, 64, 128], id: \.self) { length in
-                                lengthButton(length)
-                            }
-                        }
-                    }
-                }
-            }
+            TrackPatternSlotPalette(
+                selectedSlot: selectedPatternIndexBinding,
+                occupiedSlots: occupiedPatternSlots,
+                bypassState: .notApplicable,
+                onBypassToggle: { _ in }
+            )
         }
     }
 
@@ -263,11 +241,47 @@ struct SliceTrackWorkspaceView: View {
     @ViewBuilder
     private var stepSequencePanel: some View {
         if currentSample != nil {
-            VStack(alignment: .leading, spacing: 12) {
+            // Variant D grammar: the step editor lives inside an accent-outlined
+            // well, and its Lane/Layer/Length value selectors are solid thumbs
+            // inside darker inset tracks INSIDE that well — never the pill-row
+            // (section switcher) grammar.
+            StudioTabWell(accent: accent) {
+                HStack(alignment: .top, spacing: StudioMetrics.Spacing.roomy) {
+                    laneSelector
+                    lengthSelector
+                    Spacer(minLength: 0)
+                }
                 sliceLayerSelector
                 sliceStepEditor
             }
         }
+    }
+
+    private var laneSelector: some View {
+        StudioSegmentedControl(
+            title: "Lane",
+            selection: $selectedLane,
+            segments: SliceTrackLane.allCases.map { lane in
+                StudioSegment(title: lane.title, value: lane, isEnabled: lane == .normal)
+            },
+            accent: accent,
+            layout: .init(fillsWidth: false, minWidth: 64)
+        )
+    }
+
+    private var lengthSelector: some View {
+        StudioSegmentedControl(
+            title: "Length",
+            selection: Binding(
+                get: { clipContent.stepCount },
+                set: { resizeClip(to: $0) }
+            ),
+            segments: [16, 32, 64, 128].map { length in
+                StudioSegment(title: "\(length)", value: length)
+            },
+            accent: accent,
+            layout: .init(fillsWidth: false, minWidth: 44)
+        )
     }
 
     // The step-layer selector sits directly above the steps, consistent with
@@ -275,9 +289,19 @@ struct SliceTrackWorkspaceView: View {
     // Direction / Note Repeat / Gate are real selectable layers shown read-only
     // until per-step engine params land (see NOTE in the strip).
     private var sliceLayerSelector: some View {
-        SliceLayerTabRow(selectedLayer: selectedLayer, accent: accent) { layer in
-            selectedLayer = layer
-        }
+        StudioSegmentedControl(
+            title: "Layer",
+            selection: $selectedLayer,
+            segments: SliceTrackClipLayer.allCases.map { layer in
+                StudioSegment(
+                    title: layer.title,
+                    value: layer,
+                    accessibilityIdentifier: "slice-layer-\(layer.rawValue)"
+                )
+            },
+            accent: accent,
+            layout: .init(fillsWidth: false, minWidth: 0)
+        )
     }
 
     @ViewBuilder
@@ -344,7 +368,7 @@ struct SliceTrackWorkspaceView: View {
                                     .foregroundStyle(page == selectedPage ? StudioTheme.background : StudioTheme.text)
                                     .frame(minWidth: 34)
                                     .padding(.vertical, 6)
-                                    .background(page == selectedPage ? StudioTheme.violet : Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
+                                    .background(page == selectedPage ? accent : Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
                             }
                             .buttonStyle(.plain)
                         }
@@ -360,12 +384,12 @@ struct SliceTrackWorkspaceView: View {
     // MARK: - Lower tabs (Source · Slice · FX · Macros · Mixer)
 
     private var lowerTabs: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            SliceLowerTabBar(selectedTab: selectedLowerTab, accent: accent) { tab in
-                selectedLowerTab = tab
-            }
+        // Unified tab grammar (Variant D): the section pills float a small gap
+        // above the accent-outlined well; tab content lives inside it.
+        VStack(alignment: .leading, spacing: StudioTabWellGrammar.pillRowToWellGap) {
+            sectionPills
 
-            Group {
+            StudioTabWell(accent: accent) {
                 switch selectedLowerTab {
                 case .source:
                     sourceTabBody
@@ -379,20 +403,23 @@ struct SliceTrackWorkspaceView: View {
                     mixerTabBody
                 }
             }
-            .padding(StudioMetrics.Spacing.roomy)
-            .frame(maxWidth: .infinity, alignment: .topLeading)
-            .background(Color.white.opacity(StudioOpacity.subtleFill))
-            .overlay(alignment: .top) {
-                Rectangle()
-                    .fill(accent)
-                    .frame(height: 3)
-            }
-            .overlay(
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                    .stroke(StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
-            )
-            .clipShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         }
+    }
+
+    private var sectionPills: some View {
+        StudioSectionPills(
+            pills: SliceTrackLowerTab.allCases.map { tab in
+                StudioSectionPill(
+                    section: tab,
+                    title: tab.title,
+                    accessibilityIdentifier: "slice-lower-tab-\(tab.rawValue)"
+                )
+            },
+            selection: selectedLowerTab,
+            accent: accent,
+            accessibilityIdentifier: "slice-lower-tabs",
+            onSelect: { selectedLowerTab = $0 }
+        )
     }
 
     // MARK: Source tab (sample + markers + slicing modal entry)
@@ -403,7 +430,6 @@ struct SliceTrackWorkspaceView: View {
             state: sourceState,
             sampleName: currentSample?.name,
             sliceCount: currentSliceSet?.userSliceCount ?? 0,
-            detectionLabel: currentSliceSet.map { Self.detectionLabel(for: $0.mode) } ?? "—",
             accent: accent,
             onChooseSample: { isPresentingAddLoop = true },
             onRemoveSample: removeSample,
@@ -428,6 +454,7 @@ struct SliceTrackWorkspaceView: View {
                   let markerIndex = currentSliceSet?.markers.firstIndex(where: { $0.id == assigned.id }) {
             SliceSamplerCard(
                 sampleName: currentSample?.name ?? "Slice",
+                accent: accent,
                 markerIndex: markerIndex,
                 buckets: currentSample.map { waveformBuckets(sample: $0) } ?? [],
                 marker: assigned,
@@ -465,7 +492,7 @@ struct SliceTrackWorkspaceView: View {
         // is fully editable, but inserts do not yet process slicer audio.
         TrackFXChainView(
             inserts: track.fxInserts,
-            accent: StudioTheme.violet,
+            accent: accent,
             onAddFX: { isAddFXPresented = true },
             onRemove: { insertID in
                 session.removeFXInsert(trackID: track.id, insertID: insertID)
@@ -481,19 +508,14 @@ struct SliceTrackWorkspaceView: View {
 
     @ViewBuilder
     private var macrosTabBody: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Macros")
-                .studioText(.bodyBold)
-                .foregroundStyle(StudioTheme.text)
-            Text("M1–M8 slot assignments. Drag to set, right-click to change or remove.")
-                .studioText(.body)
-                .foregroundStyle(StudioTheme.mutedText)
-            LazyVGrid(columns: macroSlotColumns, alignment: .leading, spacing: 12) {
-                ForEach(clipMacroSlots) { slot in
-                    macroSlotKnob(for: slot)
-                }
+        // The MACROS pill already names this panel (no header restating), and
+        // the how-to prose moved into a hover hint (canon Rules 1/3).
+        LazyVGrid(columns: macroSlotColumns, alignment: .leading, spacing: 12) {
+            ForEach(clipMacroSlots) { slot in
+                macroSlotKnob(for: slot)
             }
         }
+        .help("Drag a slot to set its value; right-click to change or remove the assignment.")
     }
 
     @ViewBuilder
@@ -516,7 +538,7 @@ struct SliceTrackWorkspaceView: View {
     private var sliceModal: some View {
         StudioModal(
             title: "Slice Source",
-            accent: StudioTheme.violet,
+            accent: accent,
             minWidth: 760,
             onClose: { isPresentingSliceModal = false },
             headerAccessory: {
@@ -536,11 +558,8 @@ struct SliceTrackWorkspaceView: View {
                 if let sample = currentSample, let sliceSet = displayedSliceSet {
                     sliceModalContent(sample: sample, sliceSet: sliceSet)
                 } else {
-                    StudioPlaceholderTile(
-                        title: "No Sample",
-                        detail: "Choose a sample before slicing.",
-                        accent: StudioTheme.violet
-                    )
+                    StudioPlaceholderTile(title: "No Sample", accent: accent)
+                        .help("Choose a sample before slicing.")
                 }
             }
         )
@@ -677,14 +696,6 @@ struct SliceTrackWorkspaceView: View {
         analysisMessage = "Markers normalized"
     }
 
-    static func detectionLabel(for mode: SliceMode) -> String {
-        switch mode {
-        case .transient: return "Transient detection"
-        case .grid: return "Grid detection"
-        case .manual: return "Manual markers"
-        }
-    }
-
     // An empty slicer is just a plus card; choosing a loop attaches it in
     // place (ux-canon rules 3/4).
     private var missingSampleState: some View {
@@ -701,7 +712,7 @@ struct SliceTrackWorkspaceView: View {
     private var addLoopSheet: some View {
         StudioModal(
             title: "Add Loop",
-            subtitle: "Choose the break loop this track slices.",
+            accent: accent,
             minWidth: 440,
             onClose: { isPresentingAddLoop = false }
         ) {
@@ -709,11 +720,8 @@ struct SliceTrackWorkspaceView: View {
                 lhs.name.localizedStandardCompare(rhs.name) == .orderedAscending
             }
             if loops.isEmpty {
-                StudioPlaceholderTile(
-                    title: "No Break Loops",
-                    detail: "Add WAV loops to the library's breaks folder.",
-                    accent: accent
-                )
+                StudioPlaceholderTile(title: "No Break Loops", accent: accent)
+                    .help("Add WAV loops to the library's breaks folder.")
             } else {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 10) {
@@ -813,7 +821,7 @@ struct SliceTrackWorkspaceView: View {
                 // tracks the preview the user sees on the waveform.
                 Text("\(detectionSliceCount) slices")
                     .studioText(.labelBold)
-                    .foregroundStyle(StudioTheme.violet)
+                    .foregroundStyle(accent)
             }
 
             if analysisMode == .transient {
@@ -942,7 +950,7 @@ struct SliceTrackWorkspaceView: View {
         let trackID = track.id
         return StudioModal(
             title: "Add FX",
-            accent: StudioTheme.violet,
+            accent: accent,
             minWidth: 360,
             onClose: { isAddFXPresented = false }
         ) {
@@ -985,7 +993,7 @@ struct SliceTrackWorkspaceView: View {
             HStack(spacing: 10) {
                 Image(systemName: systemName)
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(StudioTheme.violet)
+                    .foregroundStyle(accent)
                 Text(title)
                     .studioText(.labelBold)
                     .foregroundStyle(StudioTheme.text)
@@ -1179,45 +1187,6 @@ private extension SliceTrackWorkspaceView {
 
     func pageCount(for stepCount: Int) -> Int {
         max(1, (max(1, stepCount) + 15) / 16)
-    }
-
-    func lengthButton(_ length: Int) -> some View {
-        Button {
-            resizeClip(to: length)
-        } label: {
-            Text("\(length)")
-                .studioText(.labelBold)
-                .foregroundStyle(clipContent.stepCount == length ? StudioTheme.background : StudioTheme.text)
-                .frame(minWidth: 34)
-                .padding(.vertical, 7)
-                .background(clipContent.stepCount == length ? StudioTheme.violet : Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
-                .overlay(Capsule().stroke(clipContent.stepCount == length ? Color.clear : StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth))
-        }
-        .buttonStyle(.plain)
-    }
-
-    func layerButton(title: String, isSelected: Bool, isEnabled: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Text(title)
-                .studioText(.labelBold)
-                .foregroundStyle(isSelected ? StudioTheme.background : (isEnabled ? StudioTheme.text : StudioTheme.mutedText))
-                .padding(.horizontal, 13)
-                .padding(.vertical, 8)
-                .background(isSelected ? accent : Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
-                .overlay(Capsule().stroke(isSelected ? Color.clear : StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth))
-                .opacity(isEnabled ? 1 : 0.45)
-        }
-        .buttonStyle(.plain)
-        .disabled(!isEnabled)
-    }
-
-    func controlGroup<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(title)
-                .studioText(.eyebrow)
-                .foregroundStyle(StudioTheme.mutedText)
-            content()
-        }
     }
 
     func selectedSliceIndex(steps: SliceTriggerSteps) -> Int {

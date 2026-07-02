@@ -54,41 +54,12 @@ enum SliceTrackClipLayer: String, CaseIterable, Identifiable {
     }
 }
 
-struct SliceLayerTabRow: View {
-    let selectedLayer: SliceTrackClipLayer
-    let accent: Color
-    let onSelectLayer: (SliceTrackClipLayer) -> Void
-
-    var body: some View {
-        HStack(spacing: 8) {
-            ForEach(SliceTrackClipLayer.allCases) { layer in
-                layerButton(layer)
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func layerButton(_ layer: SliceTrackClipLayer) -> some View {
-        let isSelected = (selectedLayer == layer)
-        let textColor: Color = isSelected ? StudioTheme.background : StudioTheme.text
-        let fillColor: Color = isSelected ? accent : Color.white.opacity(StudioOpacity.subtleFill)
-        let strokeColor: Color = isSelected ? Color.clear : StudioTheme.border.opacity(0.8)
-        Button {
-            onSelectLayer(layer)
-        } label: {
-            Text(layer.title)
-                .studioText(.labelBold)
-                .foregroundStyle(textColor)
-                .padding(.horizontal, 13)
-                .padding(.vertical, 8)
-                .background(fillColor, in: Capsule())
-                .overlay(
-                    Capsule().stroke(strokeColor, lineWidth: StudioMetrics.borderWidth)
-                )
-        }
-        .buttonStyle(.plain)
-    }
-}
+// The slicer step-layer selector is a VALUE selector, so it renders through
+// the shared inset-track grammar (StudioSegmentedControl) inside the step
+// well — see SliceTrackWorkspaceView.sliceLayerSelector. The bespoke
+// capsule-pill SliceLayerTabRow this file used to own was deleted in the
+// Variant D migration (docs/roadmap/track-view-ia/
+// tab-unification-and-canon-creep.md → DECISION).
 
 struct StepLayerRotaryRow: View {
     let controls: [StepGridRotaryControl]
@@ -761,47 +732,10 @@ enum SliceTrackLowerTab: String, CaseIterable, Identifiable {
     }
 }
 
-struct SliceLowerTabBar: View {
-    let selectedTab: SliceTrackLowerTab
-    let accent: Color
-    let onSelect: (SliceTrackLowerTab) -> Void
-
-    private let columns = Array(repeating: GridItem(.flexible(), spacing: 8), count: 5)
-
-    var body: some View {
-        LazyVGrid(columns: columns, spacing: 8) {
-            ForEach(SliceTrackLowerTab.allCases) { tab in
-                tabButton(tab)
-            }
-        }
-        .padding(.bottom, 8)
-    }
-
-    private func tabButton(_ tab: SliceTrackLowerTab) -> some View {
-        let isSelected = tab == selectedTab
-        return Button {
-            onSelect(tab)
-        } label: {
-            Text(tab.title)
-                .studioText(.labelBold)
-                .foregroundStyle(isSelected ? StudioTheme.background : StudioTheme.text)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 9)
-            .background(
-                isSelected ? accent : Color.white.opacity(StudioOpacity.subtleFill),
-                in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-                    .stroke(isSelected ? Color.clear : StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
-            )
-        }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("slice-lower-tab-\(tab.rawValue)")
-        .accessibilityLabel("\(tab.title) tab")
-    }
-}
+// The lower tab bar is a SECTION switcher, so it renders through the shared
+// D-pill grammar (StudioSectionPills) floating above the StudioTabWell — see
+// SliceTrackWorkspaceView.sectionPills. The bespoke solid-fill SliceLowerTabBar
+// this file used to own was deleted in the Variant D migration.
 
 // MARK: - Source tab content (three states)
 
@@ -815,7 +749,6 @@ struct SliceSourceTabContent: View {
     let state: SliceSourceState
     let sampleName: String?
     let sliceCount: Int
-    let detectionLabel: String
     let accent: Color
     let onChooseSample: () -> Void
     let onRemoveSample: () -> Void
@@ -859,7 +792,7 @@ struct SliceSourceTabContent: View {
                     studioActionButton(
                         title: "Slice Sample",
                         systemImage: "scissors",
-                        accent: StudioTheme.violet,
+                        accent: accent,
                         action: onOpenSliceModal
                     )
                     Text("Unsliced")
@@ -876,19 +809,18 @@ struct SliceSourceTabContent: View {
             VStack(alignment: .leading, spacing: 12) {
                 sampleNameRow
                 HStack(spacing: 8) {
+                    // Slice count is real state; the detection-mode caption was
+                    // purged in the Variant D label purge (canon Rule 3).
                     Text("\(sliceCount) slice\(sliceCount == 1 ? "" : "s")")
                         .studioText(.labelBold)
                         .foregroundStyle(StudioTheme.success)
-                    Text(detectionLabel)
-                        .studioText(.label)
-                        .foregroundStyle(StudioTheme.mutedText)
                     Spacer()
                 }
                 HStack(spacing: 10) {
                     studioActionButton(
                         title: "Edit Slices",
                         systemImage: "slider.horizontal.3",
-                        accent: StudioTheme.violet,
+                        accent: accent,
                         action: onOpenSliceModal
                     )
                     studioActionButton(
@@ -919,8 +851,8 @@ struct SliceSourceTabContent: View {
         }
     }
 
-    // Studio-styled action button matching the app's capsule/outline grammar
-    // (cf. lengthButton): neutral fill, accent lives in the outline.
+    // Studio-styled action button matching the app's capsule/outline grammar:
+    // neutral fill, accent lives in the outline.
     private func studioActionButton(
         title: String,
         systemImage: String,
@@ -966,6 +898,9 @@ struct SliceSourceTabContent: View {
 /// selected step.
 struct SliceSamplerCard: View {
     let sampleName: String
+    /// The one chrome accent of the surface (track identity colour), passed
+    /// explicitly — no silent fallback.
+    let accent: Color
     let markerIndex: Int
     let buckets: [Float]
     let marker: SliceMarker
@@ -997,7 +932,7 @@ struct SliceSamplerCard: View {
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                .stroke(StudioTheme.violet.opacity(StudioOpacity.mediumStroke), lineWidth: StudioMetrics.borderWidth)
+                .stroke(accent.opacity(StudioOpacity.mediumStroke), lineWidth: StudioMetrics.borderWidth)
         )
         .frame(maxWidth: .infinity, alignment: .leading)
     }

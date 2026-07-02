@@ -431,7 +431,17 @@ private struct StepLayerRotaryRowVisualEvidenceView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             evidencePanel(title: "Plain Tabs", subtitle: "No Selection") {
-                SliceLayerTabRow(selectedLayer: .steps, accent: StudioTheme.cyan) { _ in }
+                // The slicer layer selector renders through the shared
+                // inset-track value-selector grammar (Variant D migration).
+                StudioSegmentedControl(
+                    title: nil,
+                    selection: .constant(SliceTrackClipLayer.steps),
+                    segments: SliceTrackClipLayer.allCases.map { layer in
+                        StudioSegment(title: layer.title, value: layer)
+                    },
+                    accent: StudioTheme.cyan,
+                    layout: .init(fillsWidth: false)
+                )
             }
 
             evidencePanel(title: "Rotary Row", subtitle: "Velocity Layer Selection") {

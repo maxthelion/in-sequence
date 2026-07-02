@@ -74,11 +74,8 @@ struct SlicerWaveformWindow: View {
                         normalizeAndCommit()
                     }
                 } else {
-                    StudioPlaceholderTile(
-                        title: "No Slice Selected",
-                        detail: "Select a slice marker to edit its range and playback options.",
-                        accent: StudioTheme.cyan
-                    )
+                    StudioPlaceholderTile(title: "No Slice Selected", accent: StudioTheme.cyan)
+                        .help("Select a slice marker to edit its range and playback options.")
                 }
             }
         }

@@ -158,14 +158,13 @@ struct SlicerSourceWidget: View {
 
     private var emptyState: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Pick a sample to create a slice set for this track.")
-                .studioText(.body)
-                .foregroundStyle(StudioTheme.mutedText)
-
+            // Canon Rule 3: no explainer prose — the sample grid below is the
+            // affordance; the empty-library case shows terse state only.
             if sampleChoices.isEmpty {
-                Text("The sample library is empty.")
+                Text("Sample library empty")
                     .studioText(.label)
                     .foregroundStyle(StudioTheme.mutedText)
+                    .help("Pick a sample to create a slice set for this track.")
             } else {
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 10)], alignment: .leading, spacing: 10) {
                     ForEach(sampleChoices.prefix(12)) { sample in
@@ -300,13 +299,10 @@ struct SlicerSourceWidget: View {
             Text("No slices yet")
                 .studioText(.bodyBold)
                 .foregroundStyle(StudioTheme.text)
-            Text("Use Auto Detect above to preview transient markers and apply them to the clip.")
-                .studioText(.body)
-                .foregroundStyle(StudioTheme.mutedText)
-                .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(StudioMetrics.Spacing.comfortable)
+        .help("Use Auto Detect above to preview transient markers and apply them to the clip.")
     }
 
     private func autoDetectControls(sample: AudioSample) -> some View {
