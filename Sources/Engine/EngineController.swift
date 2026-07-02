@@ -527,6 +527,14 @@ final class EngineController: RouterDispatcher {
     @ObservationIgnored
     private var chordContextByLaneEngine: [String: Chord] = [:]
 
+    /// Live macro-knob drag overrides (trackID → bindingID → value), guarded by
+    /// `stateLock`. Written from the session's scoped-runtime path on main,
+    /// applied to the layer snapshot at dispatch, cleared on every snapshot
+    /// install (the install recompiles from the store the drag already wrote,
+    /// so the compiled default is current again).
+    @ObservationIgnored
+    private var macroLayerDefaultOverrides: [UUID: [UUID: Double]] = [:]
+
     private(set) var currentPhraseID: UUID?
     private(set) var queuedPhraseID: UUID?
     private(set) var basisPhraseID: UUID?
@@ -1558,6 +1566,7 @@ final class EngineController: RouterDispatcher {
             currentTrackIDs: Set(documentModel.tracks.map(\.id)),
             clearAuditionOverrides: true
         )
+        withStateLock { macroLayerDefaultOverrides = [:] }
         reconcilePhraseNavigation(
             snapshot: compiledSnapshot,
             cycleStartTickForChangedCurrent: nextPhraseCycleStartTick()
@@ -1574,6 +1583,7 @@ final class EngineController: RouterDispatcher {
             currentTrackIDs: Set(playbackSnapshot.tracks.map(\.id)),
             resetGeneratedStates: true
         )
+        withStateLock { macroLayerDefaultOverrides = [:] }
         eventQueue.clear()
         reconcilePhraseNavigation(
             snapshot: playbackSnapshot,
@@ -2523,6 +2533,10 @@ final class EngineController: RouterDispatcher {
         )
         if !quantisedMuteOverrides.isEmpty {
             currentLayerSnapshot = currentLayerSnapshot.applyingMuteOverrides(quantisedMuteOverrides)
+        }
+        let liveMacroDefaultOverrides = withStateLock { macroLayerDefaultOverrides }
+        if !liveMacroDefaultOverrides.isEmpty {
+            currentLayerSnapshot = currentLayerSnapshot.applyingMacroDefaultOverrides(liveMacroDefaultOverrides)
         }
 
         // Unify perform-layer mute with mixer mute on the GAIN path: when a
@@ -3732,6 +3746,22 @@ final class EngineController: RouterDispatcher {
     /// the new chord. Guarded on a value change because the broadcast re-fires
     /// every step the progression sounds — an unconditional bump would
     /// invalidate the precompute cache every tick and disable it entirely.
+    /// Live macro-knob drag (scoped-runtime path, mirrors `setMix`): carries the
+    /// dragged layer-default value to dispatch without a snapshot install, so a
+    /// drag never bumps the generation revision, busts the precompute cache, or
+    /// clears the event queue. The session keeps writing the value into the
+    /// store, so the next real snapshot install compiles it and the override is
+    /// cleared there.
+    func setMacroLayerDefaultOverride(trackID: UUID, bindingID: UUID, value: Double) {
+        withStateLock {
+            macroLayerDefaultOverrides[trackID, default: [:]][bindingID] = value
+        }
+    }
+
+    var macroLayerDefaultOverridesForTesting: [UUID: [UUID: Double]] {
+        withStateLock { macroLayerDefaultOverrides }
+    }
+
     func applyChordContextBroadcast(lane: String, chord: Chord) {
         let chordChanged = withStateLock {
             let previous = chordContextByLaneEngine[lane]

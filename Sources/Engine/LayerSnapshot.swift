@@ -47,4 +47,28 @@ struct LayerSnapshot: Equatable, Sendable {
             macroValues: macroValues
         )
     }
+
+    /// Live macro-knob drags: a scoped-runtime override carries the dragged
+    /// value straight to dispatch, overriding the compiled layer default until
+    /// the next snapshot install (which recompiles from the store the drag
+    /// already wrote, so clearing the override there loses nothing). Same
+    /// shape as `applyingMuteOverrides`.
+    func applyingMacroDefaultOverrides(_ overrides: [UUID: [UUID: Double]]) -> LayerSnapshot {
+        guard !overrides.isEmpty else {
+            return self
+        }
+        var merged = macroValues
+        for (trackID, bindings) in overrides {
+            var trackValues = merged[trackID] ?? [:]
+            for (bindingID, value) in bindings {
+                trackValues[bindingID] = value
+            }
+            merged[trackID] = trackValues
+        }
+        return LayerSnapshot(
+            mute: mute,
+            fillEnabled: fillEnabled,
+            macroValues: merged
+        )
+    }
 }
