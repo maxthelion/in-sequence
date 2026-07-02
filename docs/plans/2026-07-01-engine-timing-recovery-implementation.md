@@ -376,6 +376,42 @@ Deterministic verification run after implementation:
 - `scripts/diagnostics/runtime-ownership-lint.sh`
 - `scripts/diagnostics/realtime-rng-lint.sh`
 
+## Hygiene / hardening pass — 2026-07-02
+
+Follow-up pass from the holistic engine review (four-area investigation +
+invalidation audit):
+
+- `07d0d660` — purged stale "RAIL STUB / RED" comments from
+  `LookAheadScheduling.swift` / `LookAheadEarlyDispatch.swift`; comments now
+  describe the implemented early-dispatch model (these stale comments had
+  repeatedly misled reviewers into reporting Phase 3 as unbuilt).
+- `70b0c8c7` — `EngineController.stop()` now explicitly clears the event queue
+  (hygiene on top of the generation gating), with a regression test.
+- `22f2a3fa` — cold-boundary precompute fallback is now observable in
+  production via a DevActivity trace (aggregated once per prepareTick).
+- `c08f849c` + `deba0221` — Phase-D continuity fixed: `PrecomputedBar` carries
+  per-track end states, the scheduler chains consecutive bars' states (revision
+  bump resets the chain), and consume adopts the end state at the bar's final
+  step. RED-first rail: `PrecomputeStateContinuityTests`.
+- `4e0ba807` — invalidation audit found exactly one gap: harmonic-sidechain
+  chord context is not part of `BarKey`. A lane's chord CHANGE now bumps the
+  generation revision (value-change guarded). Deeper fix (per-step chord
+  threading through precompute with chord-source-first ordering) remains a
+  design follow-up.
+- Audit also confirmed the suspected macro-invalidation gap does NOT exist
+  (macros over-invalidate if anything — see efficiency notes below), and
+  `b887e77e` from `audio-routing-cleanup` is already superseded on this branch.
+
+Efficiency follow-ups noted by the audit (not correctness, not done):
+- macro-layer-default drags trigger full snapshot installs (revision bump +
+  precompute bust) even for dispatch-only macros — same latency-cause class
+  already fixed for `setTrackMix`;
+- `setAuditionOverride` globally invalidates all tracks' bars;
+- `TickConsumesPrecomputeRailTests` showed two early-session flaky failures
+  under CoreAudio HAL warm-up noise (real-TickClock test under load; passed
+  14 consecutive combined runs after) — watch, and consider a deterministic
+  variant if it recurs.
+
 Known remaining gates before merge to main:
 
 - Run a real app/audio manual pass with AU + 808 kit:
