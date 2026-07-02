@@ -8,11 +8,17 @@ struct MacroSlot: Identifiable, Equatable {
 }
 
 struct MacroSlotKnobDescriptor: Equatable, Sendable {
+    /// Stable identity of the UNDERLYING macro (binding/parameter UUID), used
+    /// to key the knob's view identity so reassigning a slot to a different
+    /// macro re-seeds the knob's local display state even when the two macros
+    /// share a display name (or a name AND a range).
+    let identity: String
     let displayName: String
     let minValue: Double
     let maxValue: Double
 
-    init(displayName: String, valueRange: ClosedRange<Double>) {
+    init(identity: String, displayName: String, valueRange: ClosedRange<Double>) {
+        self.identity = identity
         self.displayName = displayName
         self.minValue = valueRange.lowerBound
         self.maxValue = valueRange.upperBound
@@ -54,6 +60,7 @@ struct AUMacroSlotKnob: View {
             slotIndex: slotIndex,
             descriptor: binding.map {
                 MacroSlotKnobDescriptor(
+                    identity: $0.id.uuidString,
                     displayName: $0.displayName,
                     valueRange: $0.descriptor.minValue...$0.descriptor.maxValue
                 )
@@ -131,7 +138,10 @@ struct MacroSlotKnob: View {
                 )
                 // Reassigning the slot swaps the knob identity so its local
                 // display state re-seeds from the new macro's value/range.
-                .id(descriptor.displayName)
+                // Keyed on the macro's stable UUID (NOT the display name):
+                // two different macros can share a name — or a name and a
+                // range — and must still re-seed on reassignment.
+                .id(descriptor.identity)
             } else {
                 // Empty slot keeps its own chrome: dashed circle + plus,
                 // tap to assign.

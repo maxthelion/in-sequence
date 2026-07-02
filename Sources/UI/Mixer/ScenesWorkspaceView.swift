@@ -303,18 +303,20 @@ struct ScenesWorkspaceView: View {
 
             Spacer(minLength: 0)
 
+            // Shared 24pt icon actions, same glyph/sizing grammar as the
+            // phrase-row action cluster (`StudioIconActionButton`).
             HStack(spacing: 6) {
                 Spacer(minLength: 0)
-                sceneCardActionButton(
+                StudioIconActionButton(
                     systemImage: "plus.square.on.square",
                     help: "New Scene From This"
                 ) {
                     duplicateScene(from: scene.id)
                 }
-                sceneCardActionButton(
+                StudioIconActionButton(
                     systemImage: "trash",
-                    help: "Delete Scene",
-                    isDisabled: masterBus.scenes.count <= 2
+                    isDisabled: masterBus.scenes.count <= 2,
+                    help: "Delete Scene"
                 ) {
                     session.removeMasterBusScene(scene.id)
                 }
@@ -368,27 +370,6 @@ struct ScenesWorkspaceView: View {
                 }
             }
         }
-    }
-
-    /// Compact 24pt icon action, same glyph/sizing grammar as the phrase-row
-    /// action cluster (`PhraseRowActions`).
-    private func sceneCardActionButton(
-        systemImage: String,
-        help: String,
-        isDisabled: Bool = false,
-        action: @escaping () -> Void
-    ) -> some View {
-        Button(action: action) {
-            Image(systemName: systemImage)
-                .font(.system(size: 11, weight: .bold))
-                .foregroundStyle(isDisabled ? StudioTheme.mutedText.opacity(StudioOpacity.inheritedContent) : StudioTheme.text)
-                .frame(width: 24, height: 24)
-                .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
-        }
-        .buttonStyle(.plain)
-        .disabled(isDisabled)
-        .help(help)
-        .accessibilityLabel(help)
     }
 
     /// "Create a new scene from one": whole-scene duplicate through the
@@ -666,7 +647,11 @@ struct ScenesWorkspaceView: View {
         return MacroSlotKnob(
             slotIndex: slotIndex,
             descriptor: binding.map {
-                MacroSlotKnobDescriptor(displayName: $0.name, valueRange: $0.target.valueRange)
+                MacroSlotKnobDescriptor(
+                    identity: $0.id.uuidString,
+                    displayName: $0.name,
+                    valueRange: $0.target.valueRange
+                )
             },
             value: binding.flatMap { $0.value(in: selectedScene) },
             accent: StudioTheme.cyan,

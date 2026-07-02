@@ -162,7 +162,11 @@ extension ScenesWorkspaceView {
         return MacroSlotKnob(
             slotIndex: slotIndex,
             descriptor: macro.map {
-                MacroSlotKnobDescriptor(displayName: $0.name, valueRange: $0.target.valueRange)
+                MacroSlotKnobDescriptor(
+                    identity: $0.id.uuidString,
+                    displayName: $0.name,
+                    valueRange: $0.target.valueRange
+                )
             },
             value: macro.map { resolvedMacroValue($0, scene: scene) },
             accent: StudioTheme.amber,

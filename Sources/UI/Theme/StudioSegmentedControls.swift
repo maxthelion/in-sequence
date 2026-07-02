@@ -253,3 +253,81 @@ private extension View {
         transform(self)
     }
 }
+
+// MARK: - Capsule mode pill
+
+/// One segment of `StudioModeSegmentedPill`: SF Symbol + uppercased label.
+struct StudioModeSegmentedPillSegment<Mode: Hashable> {
+    let mode: Mode
+    let symbolName: String
+    let label: String
+    var help: String = ""
+    var accessibilityIdentifier: String?
+}
+
+/// Third grammar: the capsule segmented MODE pill — fixed 96×32 glyph+label
+/// segments on a subtleFill capsule track with a medium-stroke accent
+/// outline; the selected segment is a fully solid accent capsule thumb
+/// ("colour identifies, it never floods": accent only on the live thumb and
+/// outline). Shared by the phrase-workspace mode switches (layer edit mode,
+/// scene Macros|Slots) so every mode switch reads identically — add new mode
+/// switches through this component, not per-surface copies.
+struct StudioModeSegmentedPill<Mode: Hashable>: View {
+    let segments: [StudioModeSegmentedPillSegment<Mode>]
+    let selection: Mode
+    let accent: Color
+    var accessibilityIdentifier: String?
+    let onSelect: (Mode) -> Void
+
+    var body: some View {
+        HStack(spacing: 0) {
+            ForEach(segments, id: \.mode) { segment in
+                segmentButton(segment)
+            }
+        }
+        .padding(2)
+        .background(Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
+        .overlay(
+            Capsule()
+                .stroke(accent.opacity(StudioOpacity.mediumStroke), lineWidth: StudioMetrics.borderWidth)
+        )
+        .modify { view in
+            if let accessibilityIdentifier {
+                view.accessibilityIdentifier(accessibilityIdentifier)
+            } else {
+                view
+            }
+        }
+    }
+
+    private func segmentButton(_ segment: StudioModeSegmentedPillSegment<Mode>) -> some View {
+        let isSelected = selection == segment.mode
+
+        return Button {
+            onSelect(segment.mode)
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: segment.symbolName)
+                    .font(.system(size: 11, weight: .bold))
+                Text(segment.label.uppercased())
+                    .studioText(.microEmphasis)
+                    .tracking(0.8)
+            }
+            .foregroundStyle(isSelected ? StudioTheme.background : StudioTheme.mutedText)
+            .frame(width: 96, height: 32)
+            .background(
+                isSelected ? accent : Color.white.opacity(StudioOpacity.subtleFill),
+                in: Capsule()
+            )
+        }
+        .buttonStyle(.plain)
+        .modify { view in
+            if let identifier = segment.accessibilityIdentifier {
+                view.accessibilityIdentifier(identifier)
+            } else {
+                view
+            }
+        }
+        .help(segment.help)
+    }
+}

@@ -492,78 +492,48 @@ struct PhraseWorkspaceView: View {
     }
 
     private var phraseLayerModeControl: some View {
-        HStack(spacing: 0) {
-            ForEach(PhraseLayerEditMode.allCases) { mode in
-                Button {
-                    phraseLayerEditMode = mode
-                    isPresentingPerformanceLayerSelection = false
-                    isPresentingGlobalApplyTrackSelector = false
-                    clampTrackPage()
-                    postRenderedMatrixVisualState(isVisible: true)
-                } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: mode.symbolName)
-                            .font(.system(size: 11, weight: .bold))
-                        Text(mode.label.uppercased())
-                            .studioText(.microEmphasis)
-                            .tracking(0.8)
-                    }
-                    .foregroundStyle(phraseLayerEditMode == mode ? StudioTheme.background : StudioTheme.mutedText)
-                    .frame(width: 96, height: 32)
-                    .background(
-                        phraseLayerEditMode == mode ? StudioTheme.violet : Color.white.opacity(StudioOpacity.subtleFill),
-                        in: Capsule()
-                    )
-                }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("phrase-layer-edit-mode-\(mode.rawValue)")
-                .help(mode.help)
-            }
+        StudioModeSegmentedPill(
+            segments: PhraseLayerEditMode.allCases.map { mode in
+                StudioModeSegmentedPillSegment(
+                    mode: mode,
+                    symbolName: mode.symbolName,
+                    label: mode.label,
+                    help: mode.help,
+                    accessibilityIdentifier: "phrase-layer-edit-mode-\(mode.rawValue)"
+                )
+            },
+            selection: phraseLayerEditMode,
+            accent: StudioTheme.violet,
+            accessibilityIdentifier: "phrase-layer-edit-mode-control"
+        ) { mode in
+            phraseLayerEditMode = mode
+            isPresentingPerformanceLayerSelection = false
+            isPresentingGlobalApplyTrackSelector = false
+            clampTrackPage()
+            postRenderedMatrixVisualState(isVisible: true)
         }
-        .padding(2)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
-        .overlay(
-            Capsule()
-                .stroke(StudioTheme.violet.opacity(StudioOpacity.mediumStroke), lineWidth: StudioMetrics.borderWidth)
-        )
-        .accessibilityIdentifier("phrase-layer-edit-mode-control")
     }
 
-    // Macros | Slots switch for the SCENES tab, mirroring the layer-mode
-    // segmented pill so every phrase-workspace mode switch shares one idiom.
-    // Amber accent matches the scenes surface.
+    // Macros | Slots switch for the SCENES tab: the SAME shared segmented
+    // pill as the layer-mode switch, so every phrase-workspace mode switch
+    // shares one idiom. Amber accent matches the scenes surface.
     private var phraseSceneViewModeControl: some View {
-        HStack(spacing: 0) {
-            ForEach(PhraseSceneViewMode.allCases) { mode in
-                Button {
-                    phraseSceneViewMode = mode
-                } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: mode.symbolName)
-                            .font(.system(size: 11, weight: .bold))
-                        Text(mode.label.uppercased())
-                            .studioText(.microEmphasis)
-                            .tracking(0.8)
-                    }
-                    .foregroundStyle(phraseSceneViewMode == mode ? StudioTheme.background : StudioTheme.mutedText)
-                    .frame(width: 96, height: 32)
-                    .background(
-                        phraseSceneViewMode == mode ? StudioTheme.amber : Color.white.opacity(StudioOpacity.subtleFill),
-                        in: Capsule()
-                    )
-                }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("phrase-scene-view-mode-\(mode.rawValue)")
-                .help(mode.help)
-            }
+        StudioModeSegmentedPill(
+            segments: PhraseSceneViewMode.allCases.map { mode in
+                StudioModeSegmentedPillSegment(
+                    mode: mode,
+                    symbolName: mode.symbolName,
+                    label: mode.label,
+                    help: mode.help,
+                    accessibilityIdentifier: "phrase-scene-view-mode-\(mode.rawValue)"
+                )
+            },
+            selection: phraseSceneViewMode,
+            accent: StudioTheme.amber,
+            accessibilityIdentifier: "phrase-scene-view-mode-control"
+        ) { mode in
+            phraseSceneViewMode = mode
         }
-        .padding(2)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
-        .overlay(
-            Capsule()
-                .stroke(StudioTheme.amber.opacity(StudioOpacity.mediumStroke), lineWidth: StudioMetrics.borderWidth)
-        )
-        .accessibilityIdentifier("phrase-scene-view-mode-control")
     }
 
     // Single toggle for the phrase layer track scope. Its label is the live
@@ -731,7 +701,11 @@ struct PhraseWorkspaceView: View {
         return MacroSlotKnob(
             slotIndex: slotIndex,
             descriptor: macro.map {
-                MacroSlotKnobDescriptor(displayName: $0.name, valueRange: $0.target.valueRange)
+                MacroSlotKnobDescriptor(
+                    identity: $0.id.uuidString,
+                    displayName: $0.name,
+                    valueRange: $0.target.valueRange
+                )
             },
             value: macro.map { phraseSceneMacroValue($0, scene: scene) },
             accent: StudioTheme.amber,
@@ -2332,11 +2306,12 @@ private struct PhraseRowActions: View {
 
     // The three row actions sit in one bordered container so they read as a
     // single control cluster rather than loose buttons (ux-canon rule 9).
+    // Buttons are the shared 24pt `StudioIconActionButton`.
     var body: some View {
         HStack(spacing: 6) {
-            actionButton(systemImage: "plus", action: onInsertBelow)
-            actionButton(systemImage: "plus.square.on.square", action: onDuplicate)
-            actionButton(systemImage: "trash", action: onRemove, isDisabled: !canRemove)
+            StudioIconActionButton(systemImage: "plus", help: "Insert phrase below", action: onInsertBelow)
+            StudioIconActionButton(systemImage: "plus.square.on.square", help: "Duplicate phrase", action: onDuplicate)
+            StudioIconActionButton(systemImage: "trash", isDisabled: !canRemove, help: "Remove phrase", action: onRemove)
         }
         .padding(6)
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
@@ -2345,18 +2320,6 @@ private struct PhraseRowActions: View {
                 .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
         )
         .frame(maxHeight: .infinity, alignment: .center)
-    }
-
-    private func actionButton(systemImage: String, action: @escaping () -> Void, isDisabled: Bool = false) -> some View {
-        Button(action: action) {
-            Image(systemName: systemImage)
-                .font(.system(size: 11, weight: .bold))
-                .foregroundStyle(isDisabled ? StudioTheme.mutedText.opacity(StudioOpacity.inheritedContent) : StudioTheme.text)
-                .frame(width: 24, height: 24)
-                .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
-        }
-        .buttonStyle(.plain)
-        .disabled(isDisabled)
     }
 }
 

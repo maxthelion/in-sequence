@@ -57,6 +57,32 @@ struct StudioCircleIconButton: View {
     }
 }
 
+/// The compact 24pt square icon action shared by row/card action clusters
+/// (phrase-row insert/duplicate/remove, scene-card duplicate/delete): 11pt
+/// bold glyph on a subtleFill badge, muted `inheritedContent` tint when
+/// disabled. Promoted from private per-surface copies — add new 24pt icon
+/// actions through this control, not a fresh copy.
+struct StudioIconActionButton: View {
+    let systemImage: String
+    var isDisabled: Bool = false
+    var help: String = ""
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(isDisabled ? StudioTheme.mutedText.opacity(StudioOpacity.inheritedContent) : StudioTheme.text)
+                .frame(width: 24, height: 24)
+                .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .disabled(isDisabled)
+        .help(help)
+        .accessibilityLabel(help.isEmpty ? systemImage : help)
+    }
+}
+
 /// Vertically stacked increment/decrement buttons (the BPM stepper, layer
 /// cycler, and friends). `symbols` defaults to plus/minus; pass chevrons for
 /// cycling semantics.
