@@ -78,6 +78,7 @@ CAPTURES=$(cat <<'TABLE'
 05b-scenes-edit-content|workspace=scenes,scenesMode=browseEdit,sceneEditorFixture=content|scenesMode=browseEdit;sceneEditorFixture=content;transport=stop
 05c-scenes-add-fx|workspace=scenes,scenesMode=browseEdit,sceneEditorFixture=content,scenesAddFXModalVisible=true|scenesMode=browseEdit;sceneEditorFixture=content;scenesAddFXModal=open;transport=stop
 05d-scenes-bitcrusher-editor|workspace=scenes,scenesMode=browseEdit,sceneEditorFixture=content,scenesSelectedInsertIndex=1|scenesMode=browseEdit;sceneEditorFixture=content;scenesAddFXModal=close;scenesSelectInsert=1;transport=stop
+05e-scenes-browse-fx|workspace=scenes,scenesMode=browseEdit,sceneEditorFixture=browse-content|scenesMode=browseEdit;sceneEditorFixture=browse-content;transport=stop
 06-phrase-scenes-perform|workspace=phrase,workspaceMode=perform,phraseWorkspaceTab=scenes|workspace=phrase;workspaceMode=perform;phraseWorkspaceTab=scenes;transport=stop
 06a-phrase-scene-select|workspace=phrase,phraseWorkspaceTab=scenes,phraseSceneSelectVisible=true|phraseMatrixTrackCount=8;phraseMatrixPhraseCount=8;phraseWorkspaceTab=scenes;phraseSceneSelect=a;transport=stop
 07-library|workspace=library|workspace=library;transport=stop

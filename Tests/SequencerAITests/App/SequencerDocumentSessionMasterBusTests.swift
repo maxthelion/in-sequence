@@ -59,6 +59,77 @@ final class SequencerDocumentSessionMasterBusTests: XCTestCase {
         SequencerDocumentSessionRegistry.unregister(session)
     }
 
+    func test_duplicateMasterBusScene_copiesInsertsViaScopedEnginePathAndFlushes() {
+        let documentBox = DocumentBox(document: SeqAIDocument(project: .empty))
+        let engine = EngineController(client: nil, endpoint: nil)
+        let session = SequencerDocumentSession(
+            document: Binding(
+                get: { documentBox.document },
+                set: { documentBox.document = $0 }
+            ),
+            engineController: engine,
+            debounceInterval: .seconds(100)
+        )
+
+        let sourceID = session.store.masterBus.activeSceneID
+        session.addMasterBusInsert(.bitcrusher(), to: sourceID)
+        let sourceInsertID = session.store.masterBus.activeScene.inserts[0].id
+        let snapshotCallsBefore = engine.applyPlaybackSnapshotCallCount
+        let documentApplyCallsBefore = engine.applyDocumentModelCallCount
+        let masterBusCallsBefore = engine.masterBusApplyCallCount
+
+        let newSceneID = session.duplicateMasterBusScene(sourceID)
+
+        XCTAssertNotNil(newSceneID)
+        XCTAssertEqual(session.store.masterBus.scenes.count, 3)
+        XCTAssertEqual(session.store.masterBus.activeSceneID, newSceneID)
+        let copy = newSceneID.flatMap { session.store.masterBus.scene(id: $0) }
+        XCTAssertEqual(copy?.inserts.count, 1)
+        XCTAssertNotEqual(copy?.inserts.first?.id, sourceInsertID)
+        // Scene duplication rides the scoped master-bus apply path — no full
+        // snapshot compile or document-model apply.
+        XCTAssertEqual(engine.applyPlaybackSnapshotCallCount, snapshotCallsBefore)
+        XCTAssertEqual(engine.applyDocumentModelCallCount, documentApplyCallsBefore)
+        XCTAssertEqual(engine.masterBusApplyCallCount, masterBusCallsBefore + 1)
+        XCTAssertEqual(engine.masterBusState.scenes.count, 3)
+
+        // Debounce has not flushed yet, so document authority is unchanged.
+        XCTAssertEqual(documentBox.document.project.masterBus.scenes.count, 2)
+
+        session.flushToDocument()
+        XCTAssertEqual(documentBox.document.project.masterBus.scenes.count, 3)
+
+        SequencerDocumentSessionRegistry.unregister(session)
+    }
+
+    func test_removeMasterBusScene_removesSceneAndKeepsTwoABSlots() {
+        let documentBox = DocumentBox(document: SeqAIDocument(project: .empty))
+        let engine = EngineController(client: nil, endpoint: nil)
+        let session = SequencerDocumentSession(
+            document: Binding(
+                get: { documentBox.document },
+                set: { documentBox.document = $0 }
+            ),
+            engineController: engine,
+            debounceInterval: .seconds(100)
+        )
+
+        let addedID = session.addMasterBusScene(name: "Third")
+        let masterBusCallsBefore = engine.masterBusApplyCallCount
+
+        session.removeMasterBusScene(addedID)
+
+        XCTAssertEqual(session.store.masterBus.scenes.count, 2)
+        XCTAssertNil(session.store.masterBus.scene(id: addedID))
+        XCTAssertNotNil(session.store.masterBus.abSelection)
+        XCTAssertEqual(engine.masterBusApplyCallCount, masterBusCallsBefore + 1)
+
+        session.flushToDocument()
+        XCTAssertEqual(documentBox.document.project.masterBus.scenes.count, 2)
+
+        SequencerDocumentSessionRegistry.unregister(session)
+    }
+
     func test_masterOutputInsertEdit_updatesPostBlendChainWithoutSceneMutation() {
         let documentBox = DocumentBox(document: SeqAIDocument(project: .empty))
         let engine = EngineController(client: nil, endpoint: nil)

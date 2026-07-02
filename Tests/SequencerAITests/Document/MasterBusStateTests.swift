@@ -6,8 +6,10 @@ final class MasterBusStateTests: XCTestCase {
         let project = Project.empty
 
         XCTAssertEqual(project.masterBus.scenes.count, 2)
-        XCTAssertEqual(project.masterBus.scenes.map(\.name), ["Scene A", "Scene B"])
-        XCTAssertEqual(project.masterBus.activeScene.name, "Scene A")
+        // Default scenes are named "1"/"2" since the scene-perform visual fix
+        // (913b5510) renamed the A/B seeds to numerals.
+        XCTAssertEqual(project.masterBus.scenes.map(\.name), ["1", "2"])
+        XCTAssertEqual(project.masterBus.activeScene.name, "1")
         XCTAssertTrue(project.masterBus.activeScene.macroBindings.isEmpty)
         XCTAssertEqual(project.masterBus.abSelection?.sceneAID, project.masterBus.scenes[0].id)
         XCTAssertEqual(project.masterBus.abSelection?.sceneBID, project.masterBus.scenes[1].id)
@@ -37,7 +39,7 @@ final class MasterBusStateTests: XCTestCase {
         let decoded = try JSONDecoder().decode(Project.self, from: oldData)
 
         XCTAssertEqual(decoded.masterBus.scenes.count, 2)
-        XCTAssertEqual(decoded.masterBus.activeScene.name, "Scene A")
+        XCTAssertEqual(decoded.masterBus.activeScene.name, "1")
         XCTAssertTrue(decoded.masterBus.scenes[0].inserts.isEmpty)
         XCTAssertNotNil(decoded.masterBus.abSelection)
     }
@@ -280,6 +282,50 @@ final class MasterBusStateTests: XCTestCase {
         XCTAssertEqual(state.abSelection?.sceneAID, state.scenes[0].id)
         XCTAssertEqual(state.abSelection?.sceneBID, state.scenes[1].id)
         XCTAssertEqual(state.abSelection?.crossfader, 1)
+    }
+
+    func test_addSceneCopyFrom_duplicatesInsertsAndRemapsMacroBindings() throws {
+        var state = MasterBusState.default
+        let sourceID = state.activeSceneID
+        let filter = MasterBusInsert.filter()
+        state.addInsert(filter, sceneID: sourceID)
+        state.upsertMacroBinding(
+            MasterSceneMacroBinding(slotIndex: 0, target: .filterCutoff(insertID: filter.id)),
+            sceneID: sourceID
+        )
+
+        let newSceneID = state.addScene(copyFrom: sourceID)
+
+        let source = try XCTUnwrap(state.scene(id: sourceID))
+        let copy = try XCTUnwrap(state.scene(id: newSceneID))
+        XCTAssertEqual(state.scenes.count, 3)
+        XCTAssertEqual(copy.name, "\(source.name) Copy")
+        XCTAssertEqual(state.activeSceneID, newSceneID)
+
+        // Inserts are value copies under fresh IDs; the source is untouched.
+        XCTAssertEqual(copy.inserts.count, 1)
+        let copiedInsert = try XCTUnwrap(copy.inserts.first)
+        XCTAssertNotEqual(copiedInsert.id, filter.id)
+        XCTAssertEqual(copiedInsert.kind, filter.kind)
+        XCTAssertEqual(source.inserts.map(\.id), [filter.id])
+
+        // Macro bindings are remapped onto the duplicated insert IDs so they
+        // stay valid inside the new scene.
+        XCTAssertEqual(copy.macroBindings.count, 1)
+        guard case let .filterCutoff(remappedInsertID) = try XCTUnwrap(copy.macroBindings.first).target else {
+            return XCTFail("Expected a filterCutoff macro target")
+        }
+        XCTAssertEqual(remappedInsertID, copiedInsert.id)
+    }
+
+    func test_addSceneCopyFrom_missingSource_fallsBackToFreshScene() {
+        var state = MasterBusState.default
+
+        let newSceneID = state.addScene(copyFrom: UUID())
+
+        XCTAssertEqual(state.scenes.count, 3)
+        XCTAssertTrue(state.scene(id: newSceneID)?.inserts.isEmpty == true)
+        XCTAssertEqual(state.activeSceneID, newSceneID)
     }
 
     func test_removingScenes_keepsTwoABSlots() {

@@ -216,36 +216,49 @@ struct ScenesWorkspaceView: View {
             session.setActiveMasterScene(sceneID)
 
         case "content":
-            let sceneID = ensureVisualScene(preferredIndex: 1, name: "Scene With Inserts")
-            var filter = MasterBusInsert.filter()
-            filter.name = "Visual Filter"
-            var bitcrusher = MasterBusInsert.bitcrusher()
-            bitcrusher.name = "Visual Crusher"
-            session.updateMasterBusScene(sceneID) { scene in
-                scene.name = "Scene With Inserts"
-                scene.inserts = [filter, bitcrusher]
-                scene.macroBindings = [
-                    MasterSceneMacroBinding(
-                        slotIndex: 0,
-                        name: "Cutoff",
-                        target: .filterCutoff(insertID: filter.id),
-                        authoredValue: 3_200
-                    ),
-                    MasterSceneMacroBinding(
-                        slotIndex: 1,
-                        name: "Drive",
-                        target: .bitcrusherDrive(insertID: bitcrusher.id),
-                        authoredValue: 0.35
-                    )
-                ]
-            }
+            let (sceneID, firstInsertID) = populateVisualContentScene()
             selectedSceneID = sceneID
-            selectedInsertID = filter.id
+            selectedInsertID = firstInsertID
+            session.setActiveMasterScene(sceneID)
+
+        case "browse-content":
+            // Same populated scene, but stay on the browser grid so the
+            // per-card FX chips + duplicate/delete cluster are capturable.
+            let (sceneID, _) = populateVisualContentScene()
+            selectedSceneID = nil
+            selectedInsertID = nil
             session.setActiveMasterScene(sceneID)
 
         default:
             break
         }
+    }
+
+    private func populateVisualContentScene() -> (sceneID: UUID, firstInsertID: UUID) {
+        let sceneID = ensureVisualScene(preferredIndex: 1, name: "Scene With Inserts")
+        var filter = MasterBusInsert.filter()
+        filter.name = "Visual Filter"
+        var bitcrusher = MasterBusInsert.bitcrusher()
+        bitcrusher.name = "Visual Crusher"
+        session.updateMasterBusScene(sceneID) { scene in
+            scene.name = "Scene With Inserts"
+            scene.inserts = [filter, bitcrusher]
+            scene.macroBindings = [
+                MasterSceneMacroBinding(
+                    slotIndex: 0,
+                    name: "Cutoff",
+                    target: .filterCutoff(insertID: filter.id),
+                    authoredValue: 3_200
+                ),
+                MasterSceneMacroBinding(
+                    slotIndex: 1,
+                    name: "Drive",
+                    target: .bitcrusherDrive(insertID: bitcrusher.id),
+                    authoredValue: 0.35
+                )
+            ]
+        }
+        return (sceneID, filter.id)
     }
 
     private func ensureVisualScene(preferredIndex: Int, name: String) -> UUID {
@@ -260,46 +273,132 @@ struct ScenesWorkspaceView: View {
     }
 
     private func sceneCard(_ scene: MasterBusScene) -> some View {
-        Button {
+        // The card body is tap-to-open (contentShape + tap gesture, matching
+        // the Perform slot cards) rather than one big Button so the inline
+        // duplicate/delete cluster stays independently clickable.
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                Image(systemName: "slider.horizontal.3")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(StudioTheme.background)
+                    .frame(width: 30, height: 30)
+                    .background(StudioTheme.amber, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
+                Spacer(minLength: 0)
+                sceneSlotBadges(scene.id)
+            }
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(scene.name)
+                    .studioText(.bodyEmphasis)
+                    .foregroundStyle(StudioTheme.text)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.72)
+                Text("\(scene.inserts.count) inserts - \(scene.macroBindings.count) macros")
+                    .studioText(.micro)
+                    .foregroundStyle(StudioTheme.mutedText)
+                    .lineLimit(1)
+            }
+
+            sceneCardFXChips(scene)
+
+            Spacer(minLength: 0)
+
+            HStack(spacing: 6) {
+                Spacer(minLength: 0)
+                sceneCardActionButton(
+                    systemImage: "plus.square.on.square",
+                    help: "New Scene From This"
+                ) {
+                    duplicateScene(from: scene.id)
+                }
+                sceneCardActionButton(
+                    systemImage: "trash",
+                    help: "Delete Scene",
+                    isDisabled: masterBus.scenes.count <= 2
+                ) {
+                    session.removeMasterBusScene(scene.id)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, minHeight: 132, alignment: .topLeading)
+        .padding(StudioMetrics.Spacing.comfortable)
+        // Colour identifies, it never floods (ux-canon rule 12): the card
+        // body stays neutral; the active scene reads from the amber
+        // outline and the solid slot badge.
+        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
+                .stroke(scene.id == masterBus.activeSceneID ? StudioTheme.amber : StudioTheme.border, lineWidth: scene.id == masterBus.activeSceneID ? 2 : StudioMetrics.borderWidth)
+        )
+        .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
+        .onTapGesture {
             selectedSceneID = scene.id
             selectedInsertID = scene.inserts.first?.id
             session.setActiveMasterScene(scene.id)
-        } label: {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(spacing: 8) {
-                    Image(systemName: "slider.horizontal.3")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(StudioTheme.background)
-                        .frame(width: 30, height: 30)
-                        .background(StudioTheme.amber, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
-                    Spacer(minLength: 0)
-                    sceneSlotBadges(scene.id)
-                }
+        }
+    }
 
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(scene.name)
-                        .studioText(.bodyEmphasis)
-                        .foregroundStyle(StudioTheme.text)
-                        .lineLimit(2)
-                        .minimumScaleFactor(0.72)
-                    Text("\(scene.inserts.count) inserts - \(scene.macroBindings.count) macros")
+    /// Cross-scene FX visibility: each browser card lists its actual insert
+    /// names/icons so "see all the FX" is one scan over the scene grid, not a
+    /// click into each scene. Long chains stay compact via a "+N more" line.
+    @ViewBuilder
+    private func sceneCardFXChips(_ scene: MasterBusScene) -> some View {
+        if !scene.inserts.isEmpty {
+            let visibleInserts = Array(scene.inserts.prefix(3))
+            VStack(alignment: .leading, spacing: 4) {
+                ForEach(visibleInserts) { insert in
+                    HStack(spacing: 5) {
+                        Image(systemName: iconName(for: insert.kind))
+                            .font(.system(size: 9, weight: .semibold))
+                            .foregroundStyle(StudioTheme.amber)
+                        Text(insert.name)
+                            .studioText(.micro)
+                            .foregroundStyle(StudioTheme.text)
+                            .lineLimit(1)
+                    }
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 3)
+                    .background(Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
+                    .overlay(Capsule().stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth))
+                }
+                if scene.inserts.count > visibleInserts.count {
+                    Text("+\(scene.inserts.count - visibleInserts.count) more")
                         .studioText(.micro)
                         .foregroundStyle(StudioTheme.mutedText)
-                        .lineLimit(1)
                 }
             }
-            .frame(maxWidth: .infinity, minHeight: 132, alignment: .topLeading)
-            .padding(StudioMetrics.Spacing.comfortable)
-            // Colour identifies, it never floods (ux-canon rule 12): the card
-            // body stays neutral; the active scene reads from the amber
-            // outline and the solid slot badge.
-            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                    .stroke(scene.id == masterBus.activeSceneID ? StudioTheme.amber : StudioTheme.border, lineWidth: scene.id == masterBus.activeSceneID ? 2 : StudioMetrics.borderWidth)
-            )
+        }
+    }
+
+    /// Compact 24pt icon action, same glyph/sizing grammar as the phrase-row
+    /// action cluster (`PhraseRowActions`).
+    private func sceneCardActionButton(
+        systemImage: String,
+        help: String,
+        isDisabled: Bool = false,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(isDisabled ? StudioTheme.mutedText.opacity(StudioOpacity.inheritedContent) : StudioTheme.text)
+                .frame(width: 24, height: 24)
+                .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
         }
         .buttonStyle(.plain)
+        .disabled(isDisabled)
+        .help(help)
+        .accessibilityLabel(help)
+    }
+
+    /// "Create a new scene from one": whole-scene duplicate through the
+    /// session seam (`duplicateMasterBusScene` → `addScene(copyFrom:)`), then
+    /// land directly in the new scene's editor, mirroring `openNewScene()`.
+    /// AB slot assignment is deliberately left untouched.
+    private func duplicateScene(from sceneID: UUID) {
+        guard let newSceneID = session.duplicateMasterBusScene(sceneID) else { return }
+        selectedSceneID = newSceneID
+        selectedInsertID = masterBus.scene(id: newSceneID)?.inserts.first?.id
     }
 
     @ViewBuilder

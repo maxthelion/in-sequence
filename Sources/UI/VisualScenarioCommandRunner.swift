@@ -2267,7 +2267,7 @@ enum VisualScenarioCommandRunner {
         }
 
         if let rawFixture = command["sceneEditorFixture"],
-           ["empty", "content"].contains(rawFixture) {
+           ["empty", "content", "browse-content"].contains(rawFixture) {
             session.workspaceMode = .setup
             sceneEditorFixtureState = rawFixture
             postRepeatedVisualCommand(name: .scenesWorkspaceVisualCommand, object: "mode:\(ScenesWorkspaceMode.browseEdit.rawValue)")
