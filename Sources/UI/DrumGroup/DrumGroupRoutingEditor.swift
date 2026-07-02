@@ -135,12 +135,7 @@ struct DrumGroupRoutingEditorSheet: View {
                     .studioText(.body)
                     .foregroundStyle(storedForGroupedModesOnly ? StudioTheme.mutedText : StudioTheme.text)
                     .lineLimit(2)
-
-                if storedForGroupedModesOnly {
-                    Text("Individual mode uses each part's own destination.")
-                        .studioText(.label)
-                        .foregroundStyle(StudioTheme.mutedText)
-                }
+                    .help(storedForGroupedModesOnly ? "Individual mode uses each part's own destination" : "")
             }
 
             Spacer()

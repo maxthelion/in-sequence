@@ -72,7 +72,8 @@ struct MacroPickerSheet: View {
         case .auPicker:
             return "\(selectedAddresses.count) of up to \(maxBindings) selected"
         case .builtinReadOnly:
-            return "Built-in macros for this device are pre-assigned and cannot be removed."
+            // Subtitle slot carries the read-only state, not a prose lecture.
+            return "Pre-assigned by this device"
         }
     }
 

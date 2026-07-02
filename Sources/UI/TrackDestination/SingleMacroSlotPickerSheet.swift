@@ -15,7 +15,6 @@ struct SingleMacroSlotPickerSheet: View {
     var body: some View {
         StudioModal(
             title: "Assign Macro \(slotIndex + 1)",
-            subtitle: "Choose one AU parameter for this macro slot.",
             minWidth: 420,
             minHeight: 480,
             onClose: { dismiss() }

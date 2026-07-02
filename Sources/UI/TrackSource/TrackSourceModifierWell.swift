@@ -103,19 +103,14 @@ struct TrackSourceModifierWell: View {
         slotWell(accent: StudioTheme.violet) {
             modifierBadge(title: displayState.badgeTitle, accent: StudioTheme.violet)
 
-            VStack(alignment: .leading, spacing: 3) {
-                Text("No modifier selected")
-                    .studioText(.bodyBold)
-                    .foregroundStyle(StudioTheme.text)
-
-                Text("Add one to process the resolved source without creating source material.")
-                    .studioText(.label)
-                    .foregroundStyle(StudioTheme.mutedText)
-            }
+            Text("No modifier selected")
+                .studioText(.bodyBold)
+                .foregroundStyle(StudioTheme.text)
 
             Spacer(minLength: 0)
 
             TrackSourceActionButton(title: "[+] Add Modifier", accent: StudioTheme.violet, action: onShowGeneratorPicker)
+                .help("Modifiers process the resolved source without creating source material")
         }
     }
 
@@ -123,15 +118,10 @@ struct TrackSourceModifierWell: View {
         slotWell(accent: StudioTheme.border) {
             modifierBadge(title: displayState.badgeTitle, accent: StudioTheme.border)
 
-            VStack(alignment: .leading, spacing: 3) {
-                Text("Modifiers are unavailable for this track type")
-                    .studioText(.bodyBold)
-                    .foregroundStyle(StudioTheme.text)
-
-                Text("\(trackType.label) tracks cannot host modifier generators.")
-                    .studioText(.label)
-                    .foregroundStyle(StudioTheme.mutedText)
-            }
+            Text("Modifiers are unavailable for this track type")
+                .studioText(.bodyBold)
+                .foregroundStyle(StudioTheme.text)
+                .help("\(trackType.label) tracks cannot host modifier generators")
 
             Spacer(minLength: 0)
         }

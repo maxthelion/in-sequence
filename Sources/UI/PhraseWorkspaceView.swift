@@ -1954,16 +1954,12 @@ struct SongWorkspaceView: View {
 
     private var songHeader: some View {
         HStack(alignment: .center, spacing: 10) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("SONG")
-                    .studioText(.microEmphasis)
-                    .tracking(0.9)
-                    .foregroundStyle(StudioTheme.cyan)
-                Text("Choose the phrase that opens in the phrase workspace.")
-                    .studioText(.body)
-                    .foregroundStyle(StudioTheme.mutedText)
-                    .lineLimit(2)
-            }
+            // Canon creep purge (2026-07-02): the eyebrow stands alone — the
+            // phrase list below is self-evidently the song's phrase chooser.
+            Text("SONG")
+                .studioText(.microEmphasis)
+                .tracking(0.9)
+                .foregroundStyle(StudioTheme.cyan)
 
             Spacer(minLength: 12)
 

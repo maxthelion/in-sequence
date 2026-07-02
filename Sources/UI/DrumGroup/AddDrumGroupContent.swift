@@ -89,10 +89,11 @@ struct AddDrumGroupContent: View {
                     }
 
                     if plan.members.isEmpty {
-                        Text("No parts yet — pick a kit or add parts one by one.")
+                        Text("No parts yet")
                             .studioText(.label)
                             .foregroundStyle(StudioTheme.mutedText)
                             .padding(.vertical, 4)
+                            .help("Pick a kit or add parts one by one")
                     }
 
                     Button {

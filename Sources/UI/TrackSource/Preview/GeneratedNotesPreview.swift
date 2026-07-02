@@ -33,9 +33,9 @@ struct GeneratedNotesPreview: View {
                     }
                 }
             }
-            Text("Preview is generated from the current trigger stage and pitch expander.")
-                .studioText(.label)
-                .foregroundStyle(StudioTheme.mutedText)
         }
+        // Canon creep purge (2026-07-02): provenance moved off the surface
+        // into hover help.
+        .help("Preview is generated from the current trigger stage and pitch expander")
     }
 }

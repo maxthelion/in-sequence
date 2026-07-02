@@ -128,11 +128,6 @@ struct TrackSourceContainedModifierPicker: View {
                     .studioText(.bodyBold)
                     .foregroundStyle(StudioTheme.text)
 
-                Text("Create a blank modifier to recover without leaving this modifier tab.")
-                    .studioText(.body)
-                    .foregroundStyle(StudioTheme.mutedText)
-                    .fixedSize(horizontal: false, vertical: true)
-
                 TrackSourceActionButton(
                     title: "New Blank Modifier",
                     accent: StudioTheme.violet,

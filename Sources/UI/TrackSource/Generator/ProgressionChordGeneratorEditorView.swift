@@ -85,15 +85,10 @@ struct ProgressionChordGeneratorEditorView: View {
     private var chordsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .firstTextBaseline, spacing: 12) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Chords")
-                        .studioText(.bodyEmphasis)
-                        .foregroundStyle(StudioTheme.text)
-                    Text("These are the chords in the clip. Select one to edit its defaults below.")
-                        .studioText(.body)
-                        .foregroundStyle(StudioTheme.mutedText)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
+                Text("Chords")
+                    .studioText(.bodyEmphasis)
+                    .foregroundStyle(StudioTheme.text)
+                    .help("Select a chord to edit its defaults below")
 
                 Spacer(minLength: 12)
 
@@ -113,11 +108,8 @@ struct ProgressionChordGeneratorEditorView: View {
             }
 
             if chordTriggers.isEmpty {
-                StudioPlaceholderTile(
-                    title: "No Chords",
-                    detail: "Load a preset to seed chords.",
-                    accent: accent
-                )
+                StudioPlaceholderTile(title: "No Chords", accent: accent)
+                    .help("Load a preset to seed chords")
             } else {
                 LazyVGrid(columns: chordColumns, alignment: .leading, spacing: 10) {
                     ForEach(Array(chordTriggers.enumerated()), id: \.element.step) { index, trigger in
@@ -131,14 +123,9 @@ struct ProgressionChordGeneratorEditorView: View {
     private var presetPanel: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .top, spacing: 12) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Load From Preset")
-                        .studioText(.bodyEmphasis)
-                        .foregroundStyle(StudioTheme.text)
-                    Text("Choose a seed and root, then apply it to the clip.")
-                        .studioText(.body)
-                        .foregroundStyle(StudioTheme.mutedText)
-                }
+                Text("Load From Preset")
+                    .studioText(.bodyEmphasis)
+                    .foregroundStyle(StudioTheme.text)
 
                 Spacer()
 
@@ -267,7 +254,8 @@ struct ProgressionChordGeneratorEditorView: View {
                     Text("16-Step Page")
                         .studioText(.bodyEmphasis)
                         .foregroundStyle(StudioTheme.text)
-                    Text("Steps \(pageStart + 1)-\(min(pageStart + 16, normalized.lengthSteps)) of \(normalized.lengthSteps).")
+                    // Functional page indicator — real state, no sentence dot.
+                    Text("Steps \(pageStart + 1)-\(min(pageStart + 16, normalized.lengthSteps)) of \(normalized.lengthSteps)")
                         .studioText(.body)
                         .foregroundStyle(StudioTheme.mutedText)
                 }

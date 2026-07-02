@@ -167,7 +167,7 @@ struct CreateTrackFlow: View {
         case .sliceSound:
             return "Choose a loop. Slices are detected after the track opens."
         case .drumGroupSound:
-            return "Pick sounds from a kit, optionally seed patterns from a template, then route the group."
+            return nil
         }
     }
 
@@ -212,46 +212,48 @@ struct CreateTrackFlow: View {
 
     private var pickTypeStep: some View {
         LazyVGrid(columns: columns, spacing: 12) {
-            createButton(title: "Mono", detail: "Single melodic lane", accent: StudioTheme.cyan) {
+            createButton(title: "Mono", accent: StudioTheme.cyan, help: "Single melodic lane") {
                 step = .monoPolySound(.monoMelodic)
             }
-            createButton(title: "Poly", detail: "Chord-capable lane", accent: StudioTheme.amber) {
+            createButton(title: "Poly", accent: StudioTheme.amber, help: "Chord-capable lane") {
                 step = .monoPolySound(.polyMelodic)
             }
-            createButton(title: "Slice", detail: "Sample/slice trigger lane", accent: StudioTheme.violet) {
+            createButton(title: "Slice", accent: StudioTheme.violet, help: "Sample/slice trigger lane") {
                 step = .sliceSound
             }
             createButton(
                 title: "Input",
-                detail: session.canAppendAudioInputTrack ? "Audio input lane" : "Already in project",
                 accent: StudioTheme.success,
+                help: "Audio input lane",
                 isEnabled: session.canAppendAudioInputTrack,
                 disabledHelp: "One audio input track is available in this version"
             ) {
                 session.appendTrack(trackType: .audioInput)
                 finish()
             }
-            createButton(title: "Drum Group", detail: "Grouped drum part tracks", accent: StudioTheme.amber) {
+            createButton(title: "Drum Group", accent: StudioTheme.amber, help: "Grouped drum part tracks") {
                 step = .drumGroupSound
             }
         }
     }
 
+    // Canon creep purge (2026-07-02): the type cards carry no subtitle
+    // explainers — the lane description lives in the hover help.
     private func createButton(
         title: String,
-        detail: String,
         accent: Color,
+        help: String,
         isEnabled: Bool = true,
         disabledHelp: String = "",
         action: @escaping () -> Void
     ) -> some View {
         StudioOptionButton(
             title: title,
-            detail: detail,
             accent: accent,
             minHeight: 120,
             isEnabled: isEnabled,
             disabledHelp: disabledHelp,
+            help: help,
             action: action
         )
     }

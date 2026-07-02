@@ -295,7 +295,8 @@ struct MixerWorkspaceView: View {
                     .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
             )
         } else {
-            StudioPlaceholderTile(title: "No Insert Selected", detail: "Add FX to shape the wet return", accent: accent)
+            StudioPlaceholderTile(title: "No Insert Selected", accent: accent)
+                .help("Add FX to shape the wet return")
         }
     }
 

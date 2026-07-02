@@ -10,14 +10,13 @@ struct TrackSourceGeneratorSelectionSheet: View {
     var body: some View {
         StudioModal(
             title: title,
-            subtitle: "Choose a compatible generator for this slot.",
             minWidth: 520,
             minHeight: 360,
             onClose: { dismiss() }
         ) {
             VStack(alignment: .leading, spacing: 12) {
                 if generators.isEmpty {
-                    Text("No compatible generators are available.")
+                    Text("No compatible generators")
                         .studioText(.body)
                         .foregroundStyle(StudioTheme.mutedText)
                 } else {

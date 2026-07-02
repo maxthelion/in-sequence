@@ -31,9 +31,9 @@ struct RoutesListView: View {
             if routes.isEmpty {
                 StudioPlaceholderTile(
                     title: "No Project Routes Yet",
-                    detail: "This track currently only plays to its own default destination. Add a route to duplicate notes to another track, a MIDI endpoint, or a chord-context lane.",
                     accent: StudioTheme.violet
                 )
+                .help("Routes duplicate this track's notes to another track, a MIDI endpoint, or a chord-context lane")
             } else {
                 VStack(spacing: 10) {
                     ForEach(routes) { route in

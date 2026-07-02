@@ -119,9 +119,10 @@ struct GeneratorParamsEditorView: View {
 
             case .drum:
                 sourceEditorContainer(title: "Generator Source", eyebrow: "Drum voices") {
-                    Text("Drum generator editing is not exposed in this track workspace.")
+                    Text("Not editable in this workspace")
                         .studioText(.body)
                         .foregroundStyle(StudioTheme.mutedText)
+                        .help("Drum generator editing is not exposed in this track workspace")
                 }
             }
         }
@@ -180,19 +181,19 @@ struct GeneratorParamsEditorView: View {
 
         case .progressionChords:
             modifierEditorContainer(title: "Pitch Modifier", eyebrow: "Not available for chord sources") {
-                Text("Progression chord generators emit complete chords, so they do not expose a separate modifier stage.")
+                Text("Chord sources emit complete chords")
                     .studioText(.body)
                     .foregroundStyle(StudioTheme.mutedText)
-                    .fixedSize(horizontal: false, vertical: true)
+                    .help("Progression chord generators emit complete chords, so they do not expose a separate modifier stage")
             }
 
         case .slice:
             if sourceMode == .clip {
                 modifierEditorContainer(title: "Generator Modifier", eyebrow: "Runs after the selected source") {
-                    Text("Slice tracks do not have a separate pitch modifier stage yet. Choose generator mode on the slot to use the generator as the source.")
+                    Text("No modifier stage in clip mode")
                         .studioText(.body)
                         .foregroundStyle(StudioTheme.mutedText)
-                        .fixedSize(horizontal: false, vertical: true)
+                        .help("Slice tracks have no separate pitch modifier stage yet — choose generator mode on the slot to use the generator as the source")
                 }
             }
 

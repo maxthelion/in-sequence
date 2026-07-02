@@ -120,15 +120,10 @@ struct TrackSourceSourceWell: View {
         slotWell(accent: accent) {
             sourceBadge(title: displayState.badgeTitle, accent: accent)
 
-            VStack(alignment: .leading, spacing: 3) {
-                Text("No source selected")
-                    .studioText(.bodyBold)
-                    .foregroundStyle(StudioTheme.text)
-
-                Text("This selected slot stays silent until you add a clip or generator.")
-                    .studioText(.label)
-                    .foregroundStyle(StudioTheme.mutedText)
-            }
+            Text("No source selected")
+                .studioText(.bodyBold)
+                .foregroundStyle(StudioTheme.text)
+                .help("This slot stays silent until you add a clip or generator")
 
             Spacer(minLength: 0)
 

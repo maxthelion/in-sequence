@@ -162,9 +162,9 @@ struct TracksMatrixView: View {
                     if tracks.isEmpty {
                         StudioPlaceholderTile(
                             title: "No Tracks Yet",
-                            detail: "Create a mono, poly, slice, or drum-kit bundle to start building the matrix.",
                             accent: StudioTheme.cyan
                         )
+                        .help("Create a mono, poly, slice, or drum-kit bundle to start building the matrix")
                     } else {
                         matrixSections(tracks: tracks, selectedTrackID: selectedTrackID)
                     }
@@ -735,10 +735,6 @@ struct PhrasePerformCaptureSheet: View {
             onClose: onCancel
         ) {
             VStack(alignment: .leading, spacing: 16) {
-                Text("Choose where in the phrase matrix this live phrase copy should be saved.")
-                    .studioText(.body)
-                    .foregroundStyle(StudioTheme.mutedText)
-
                 LazyVGrid(columns: columns, spacing: 10) {
                     ForEach(slots) { slot in
                         slotView(slot)

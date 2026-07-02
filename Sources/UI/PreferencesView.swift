@@ -41,7 +41,7 @@ private struct MIDIPreferences: View {
         Form {
             Section("Inputs") {
                 if sources.isEmpty {
-                    Text("No MIDI input endpoints found.")
+                    Text("No MIDI inputs")
                         .foregroundStyle(StudioTheme.mutedText)
                 } else {
                     ForEach(sources) { endpoint in
@@ -51,7 +51,7 @@ private struct MIDIPreferences: View {
             }
             Section("Outputs") {
                 if destinations.isEmpty {
-                    Text("No MIDI output endpoints found.")
+                    Text("No MIDI outputs")
                         .foregroundStyle(StudioTheme.mutedText)
                 } else {
                     ForEach(destinations) { endpoint in

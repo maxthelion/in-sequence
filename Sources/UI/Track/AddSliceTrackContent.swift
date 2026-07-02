@@ -35,9 +35,9 @@ struct AddSliceTrackContent: View {
             if samples.isEmpty {
                 StudioPlaceholderTile(
                     title: "No Break Loops Found",
-                    detail: "Add WAV loops to \(breaksFolderPath).",
                     accent: StudioTheme.violet
                 )
+                .help("Add WAV loops to \(breaksFolderPath)")
             } else {
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 8) {

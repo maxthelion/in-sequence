@@ -645,9 +645,10 @@ struct TrackDestinationEditor: View {
         VStack(alignment: .leading, spacing: 10) {
             StudioPlaceholderTile(
                 title: "Internal Sampler",
-                detail: "This track defaults to the bundled internal sampler destination for its type. The audio-side sampler host is still a later plan.",
+                detail: "Not implemented yet",
                 accent: StudioTheme.amber
             )
+            .help("This track defaults to the bundled internal sampler destination for its type; the audio-side sampler host is a later plan")
 
             Button("Macros…") {
                 showingMacroPickerSheet = true

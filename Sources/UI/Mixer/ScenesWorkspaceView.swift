@@ -724,12 +724,13 @@ struct ScenesWorkspaceView: View {
                     }
 
                     if nativeTargets.isEmpty, auCandidates.isEmpty {
-                        StudioPlaceholderTile(title: "No Assignable Targets", detail: "Add an insert", accent: StudioTheme.cyan)
+                        StudioPlaceholderTile(title: "No Assignable Targets", accent: StudioTheme.cyan)
+                            .help("Add an insert to expose assignable targets")
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             } else {
-                StudioPlaceholderTile(title: "Scene Missing", detail: "Select another scene", accent: StudioTheme.cyan)
+                StudioPlaceholderTile(title: "Scene Missing", accent: StudioTheme.cyan)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
         }
