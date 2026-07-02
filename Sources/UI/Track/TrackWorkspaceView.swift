@@ -469,15 +469,6 @@ private enum AudioInputTrackDetailTab: String, CaseIterable, Identifiable {
         case .mixer: return "Mixer"
         }
     }
-
-    var subtitle: String {
-        switch self {
-        case .source: return "live or playback"
-        case .fx: return "insert chain"
-        case .macros: return "M1-M8"
-        case .mixer: return "bus + sends"
-        }
-    }
 }
 
 private struct AudioInputRuntimePanel: View {
@@ -568,18 +559,22 @@ private struct AudioInputRuntimePanel: View {
                 )
             }
 
-            audioInputTabBar
+            // Unified tab grammar (Variant D): the section pills float a small
+            // gap above the accent-outlined well; tab content lives inside it.
+            VStack(alignment: .leading, spacing: StudioTabWellGrammar.pillRowToWellGap) {
+                sectionPills
 
-            Group {
-                switch selectedTab {
-                case .source:
-                    sourceTab
-                case .fx:
-                    fxTab
-                case .macros:
-                    macrosTab
-                case .mixer:
-                    mixerTab
+                StudioTabWell(accent: accent) {
+                    switch selectedTab {
+                    case .source:
+                        sourceTab
+                    case .fx:
+                        fxTab
+                    case .macros:
+                        macrosTab
+                    case .mixer:
+                        mixerTab
+                    }
                 }
             }
         }
@@ -598,71 +593,51 @@ private struct AudioInputRuntimePanel: View {
         }
     }
 
-    private var audioInputTabBar: some View {
-        HStack(spacing: 6) {
-            ForEach(AudioInputTrackDetailTab.allCases) { tab in
-                Button {
-                    selectedTab = tab
-                } label: {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(tab.title.uppercased())
-                            .studioText(.eyebrowBold)
-                            .foregroundStyle(selectedTab == tab ? StudioTheme.text : StudioTheme.mutedText)
-                        Text(tab.subtitle)
-                            .studioText(.micro)
-                            .foregroundStyle(StudioTheme.mutedText)
-                            .lineLimit(1)
-                    }
-                    .frame(maxWidth: .infinity, minHeight: 46, alignment: .leading)
-                    .padding(.horizontal, 12)
-                    .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                            .stroke(selectedTab == tab ? accent.opacity(StudioOpacity.ghostStroke) : StudioTheme.border, lineWidth: selectedTab == tab ? 1.5 : 1)
-                    )
-                    .overlay(alignment: .bottom) {
-                        Rectangle()
-                            .fill(selectedTab == tab ? accent : Color.clear)
-                            .frame(height: 2)
-                            .padding(.horizontal, 10)
-                    }
-                }
-                .buttonStyle(.plain)
-            }
-        }
+    private var sectionPills: some View {
+        StudioSectionPills(
+            pills: AudioInputTrackDetailTab.allCases.map { tab in
+                StudioSectionPill(
+                    section: tab,
+                    title: tab.title,
+                    accessibilityIdentifier: "audio-input-detail-tab-\(tab.rawValue)"
+                )
+            },
+            selection: selectedTab,
+            accent: accent,
+            accessibilityIdentifier: "audio-input-detail-tabs",
+            onSelect: { selectedTab = $0 }
+        )
     }
 
     private var sourceTab: some View {
-        StudioPanel(title: "Source", accent: accent, showsHeader: false) {
-            VStack(alignment: .leading, spacing: 16) {
-                HStack(alignment: .center, spacing: 12) {
-                    StudioSegmentedControl(
-                        title: "Mode",
-                        selection: monitorBinding,
-                        segments: [
-                            StudioSegment(title: "Live", value: .input),
-                            StudioSegment(
-                                title: "Playback",
-                                value: .loop,
-                                isEnabled: runtime?.hasRecordedLoop == true,
-                                help: runtime?.hasRecordedLoop == true ? nil : "The audio interface does not provide enough inputs for Playback"
-                            ),
-                        ],
-                        accent: accent
-                    )
-                    .frame(width: 210)
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(alignment: .center, spacing: 12) {
+                StudioSegmentedControl(
+                    title: "Mode",
+                    selection: monitorBinding,
+                    segments: [
+                        StudioSegment(title: "Live", value: .input),
+                        StudioSegment(
+                            title: "Playback",
+                            value: .loop,
+                            isEnabled: runtime?.hasRecordedLoop == true,
+                            help: runtime?.hasRecordedLoop == true ? nil : "The audio interface does not provide enough inputs for Playback"
+                        ),
+                    ],
+                    accent: accent
+                )
+                .frame(width: 210)
 
-                    statusLabel
+                statusLabel
 
-                    Spacer()
-                }
+                Spacer()
+            }
 
-                switch monitorMode {
-                case .input:
-                    liveSourceContent
-                case .loop:
-                    playbackSourceContent
-                }
+            switch monitorMode {
+            case .input:
+                liveSourceContent
+            case .loop:
+                playbackSourceContent
             }
         }
     }
@@ -822,9 +797,14 @@ private struct AudioInputRuntimePanel: View {
                 .studioText(.eyebrowBold)
                 .foregroundStyle(StudioTheme.mutedText)
 
-            writeTargetOption(title: "Rolling capture", subtitle: "Replace the live buffer.", isSelected: true, isEnabled: true)
-            writeTargetOption(title: "Replace saved buffer", subtitle: "Future saved take.", isSelected: false, isEnabled: false)
-            writeTargetOption(title: "New saved buffer", subtitle: "Name after capture.", isSelected: false, isEnabled: false)
+            writeTargetOption(
+                title: "Rolling capture",
+                isSelected: true,
+                isEnabled: true,
+                help: "Each capture replaces the live buffer."
+            )
+            writeTargetOption(title: "Replace saved buffer", isSelected: false, isEnabled: false)
+            writeTargetOption(title: "New saved buffer", isSelected: false, isEnabled: false)
         }
         .frame(maxHeight: .infinity, alignment: .top)
         .padding(StudioMetrics.Spacing.standard)
@@ -835,39 +815,31 @@ private struct AudioInputRuntimePanel: View {
         )
     }
 
-    private func writeTargetOption(title: String, subtitle: String, isSelected: Bool, isEnabled: Bool) -> some View {
+    private func writeTargetOption(title: String, isSelected: Bool, isEnabled: Bool, help: String? = nil) -> some View {
         Button {} label: {
-            VStack(alignment: .leading, spacing: 3) {
-                Text(title)
-                    .studioText(.labelBold)
-                    .foregroundStyle(isEnabled ? StudioTheme.text : StudioTheme.mutedText.opacity(0.55))
-                Text(subtitle)
-                    .studioText(.micro)
-                    .foregroundStyle(StudioTheme.mutedText)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(10)
-            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-                    .stroke(isSelected ? accent : StudioTheme.border.opacity(0.8), lineWidth: isSelected ? 1.5 : StudioMetrics.borderWidth)
-            )
+            Text(title)
+                .studioText(.labelBold)
+                .foregroundStyle(isEnabled ? StudioTheme.text : StudioTheme.mutedText.opacity(0.55))
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(10)
+                .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                        .stroke(isSelected ? accent : StudioTheme.border.opacity(0.8), lineWidth: isSelected ? 1.5 : StudioMetrics.borderWidth)
+                )
         }
         .buttonStyle(.plain)
         .disabled(!isEnabled)
+        .help(help ?? "")
     }
 
     private var playbackSourceContent: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .bottom, spacing: 12) {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(runtime?.hasRecordedLoop == true ? "Rolling capture" : "No captured buffer")
-                        .studioText(.subtitle)
-                        .foregroundStyle(StudioTheme.text)
-                    Text("Selected pattern playback")
-                        .studioText(.micro)
-                        .foregroundStyle(StudioTheme.mutedText)
-                }
+                Text(runtime?.hasRecordedLoop == true ? "Rolling capture" : "No captured buffer")
+                    .studioText(.subtitle)
+                    .foregroundStyle(StudioTheme.text)
+                    .help("Plays back the selected pattern's captured buffer.")
 
                 Spacer()
 
@@ -886,30 +858,28 @@ private struct AudioInputRuntimePanel: View {
         }
     }
 
+    // One chrome accent per surface: the FX + macros tabs share the track
+    // identity accent (no per-tab violet/cyan roulette).
     private var fxTab: some View {
-        StudioPanel(title: "FX", accent: StudioTheme.violet, showsHeader: false) {
-            HStack(spacing: 12) {
-                Button {
-                } label: {
-                    Label("+ FX", systemImage: "plus")
-                }
-                .buttonStyle(.bordered)
-                .disabled(true)
-
-                Text("Per-track audio channel inserts are reserved for the track-detail FX chain.")
-                    .studioText(.body)
-                    .foregroundStyle(StudioTheme.mutedText)
-            }
+        Button {
+        } label: {
+            Label("+ FX", systemImage: "plus")
         }
+        .buttonStyle(.bordered)
+        .disabled(true)
+        .help("Per-track audio channel inserts are reserved for the track-detail FX chain.")
     }
 
+    @ViewBuilder
     private var macrosTab: some View {
-        StudioPanel(title: "Macros", accent: StudioTheme.cyan, showsHeader: false) {
-            if track.macros.isEmpty {
-                StudioPlaceholderTile(title: "No Macros", detail: "Assign M1-M8 controls from routable parameters.", accent: StudioTheme.cyan)
-            } else {
-                MacroKnobRow(document: $document, trackID: track.id)
-            }
+        if track.macros.isEmpty {
+            Text("No Macros")
+                .studioText(.placeholderTitle)
+                .foregroundStyle(StudioTheme.mutedText)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .help("Assign M1-M8 controls from routable parameters.")
+        } else {
+            MacroKnobRow(document: $document, trackID: track.id)
         }
     }
 
@@ -1193,7 +1163,6 @@ private struct AudioInputChannelPickerSheet: View {
     var body: some View {
         StudioModal(
             title: "Audio Input",
-            subtitle: "Choose which device channel this track records.",
             accent: accent,
             minWidth: 420,
             onClose: { dismiss() }
@@ -1204,8 +1173,8 @@ private struct AudioInputChannelPickerSheet: View {
                     optionGroup(title: "Mono Channels", options: monoOptions)
 
                     if monoOptions.isEmpty, stereoOptions.isEmpty {
-                        Text("The interface reports no usable inputs.")
-                            .studioText(.body)
+                        Text("No usable inputs")
+                            .studioText(.placeholderTitle)
                             .foregroundStyle(StudioTheme.mutedText)
                     }
                 }
