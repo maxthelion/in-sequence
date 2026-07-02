@@ -89,6 +89,20 @@ final class LibraryAssetCatalogTests: XCTestCase {
         XCTAssertNil(LibraryCategory.drumKits.sampleCategory)
         XCTAssertNil(LibraryCategory.patternTemplates.sampleCategory)
         XCTAssertNil(LibraryCategory.stepOrderMaps.sampleCategory)
+        XCTAssertNil(LibraryCategory.auInstruments.sampleCategory)
+        XCTAssertNil(LibraryCategory.generators.sampleCategory)
+    }
+
+    /// AU instruments and generators are browsable categories but not
+    /// pool-backed assets: the catalog resolves them to NO entries (the
+    /// Library page renders their rows from the live component scan / project
+    /// pool instead), and they carry real display names.
+    func test_auInstrumentsAndGenerators_areNotCatalogResolved() {
+        let catalog = makeCatalog()
+        XCTAssertTrue(catalog.entries(in: .auInstruments).isEmpty)
+        XCTAssertTrue(catalog.entries(in: .generators).isEmpty)
+        XCTAssertEqual(LibraryCategory.auInstruments.displayName, "AU Instruments")
+        XCTAssertEqual(LibraryCategory.generators.displayName, "Generators")
     }
 
     func test_emptyLibraries_produceEmptyCategoriesWithoutCrashing() {

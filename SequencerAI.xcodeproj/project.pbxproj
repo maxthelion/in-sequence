@@ -418,6 +418,7 @@
 		B313DFC38A9FC3F700D9D55F /* TrackSourceClipHistoryTabContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC61EDFD65D7B8063FEE9CB1 /* TrackSourceClipHistoryTabContent.swift */; };
 		B34D8A2CBDD8F4719B64FA16 /* SequencerAIAppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDC8B78E1520E54A54C4AA07 /* SequencerAIAppDelegate.swift */; };
 		B39235CFD42753F60DA081CC /* EventRecording.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80F29E7E4C7F08680AB9332E /* EventRecording.swift */; };
+		B3BE2B79AC558D7BAE319DCC /* LibraryCreateFromEntityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4AB6399BC6DD3C1FFD108B86 /* LibraryCreateFromEntityTests.swift */; };
 		B48E8FC444AE80BE599E58F0 /* AudioRichFixtureTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1D4D208E6008BF470442452 /* AudioRichFixtureTests.swift */; };
 		B4A94C9CFF07BC3692E871D7 /* SampleAssetCacheTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3A0D0AB1E38CC5C432B46FA /* SampleAssetCacheTests.swift */; };
 		B54C56169F9B65C5D75613C5 /* TrackFXInsert.swift in Sources */ = {isa = PBXBuildFile; fileRef = 157D0A88F1CD2EB3E700F503 /* TrackFXInsert.swift */; };
@@ -1081,6 +1082,7 @@
 		4A6B194E38FF90BBD40180B7 /* 2026-05-20-structural-review.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2026-05-20-structural-review.md"; sourceTree = "<group>"; };
 		4A6CABB1C0A66AD96BE46E02 /* EventQueue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventQueue.swift; sourceTree = "<group>"; };
 		4A74E571140956A0BFF1DAE3 /* DrumGroupRoutingEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DrumGroupRoutingEditor.swift; sourceTree = "<group>"; };
+		4AB6399BC6DD3C1FFD108B86 /* LibraryCreateFromEntityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryCreateFromEntityTests.swift; sourceTree = "<group>"; };
 		4AE5CC55D6E6CB7D04E04EB9 /* analog-rytm-mkii-manual-os1.72.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; path = "analog-rytm-mkii-manual-os1.72.pdf"; sourceTree = "<group>"; };
 		4AE9F1C9C3653C4CD47D1AD5 /* architecture-review.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "architecture-review.md"; sourceTree = "<group>"; };
 		4B2353FDFA1CAEB1D6763DA3 /* xcodebuild.log */ = {isa = PBXFileReference; path = xcodebuild.log; sourceTree = "<group>"; };
@@ -4190,6 +4192,7 @@
 				E27F7E0208ECDE64C89E5AF2 /* DrumKitSoundTabAUTests.swift */,
 				FCD533A941618127A11B133C /* DrumTrackKitFirstRoutingTests.swift */,
 				76A702DE836B35158C5C1BFB /* LibraryAssetCatalogTests.swift */,
+				4AB6399BC6DD3C1FFD108B86 /* LibraryCreateFromEntityTests.swift */,
 				F30664B65174D4DBC1A81EB5 /* MacroPickerCandidateRankerTests.swift */,
 				2CBCB8E4F9E187F153308E8E /* MixerMasterOutputTests.swift */,
 				05678A1910138F50F12E90CB /* ObservationGranularityTests.swift */,
@@ -7042,6 +7045,7 @@
 				0B11AE0AB6086DAE708E4529 /* GridEditorTests.swift in Sources */,
 				E5DED0443CBBFBB090BFA6DF /* IncrementalCompileEquivalenceTests.swift in Sources */,
 				DE7E155B4DC728D3F7336A5A /* LibraryAssetCatalogTests.swift in Sources */,
+				B3BE2B79AC558D7BAE319DCC /* LibraryCreateFromEntityTests.swift in Sources */,
 				B2571100CA4DC6AC75A26EBA /* LiveSequencerStoreResidentStateTests.swift in Sources */,
 				350297ECD76C2570D5737ECA /* LiveStoreTestSupport.swift in Sources */,
 				CCDD8565324F4AABBC097EE0 /* LiveWorkspaceViewTests.swift in Sources */,

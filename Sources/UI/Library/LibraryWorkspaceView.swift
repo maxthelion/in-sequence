@@ -13,6 +13,9 @@ struct LibraryWorkspaceView: View {
     var sampleLibrary: AudioSampleLibrary = .shared
     var drumAssetLibrary: DrumAssetLibrary = .shared
     var recordingLibrary: RecordingLibrary = .shared
+    /// Navigate to the single-track detail after a create-from-entity action
+    /// (mirrors TracksMatrixView's onOpenTrack).
+    var onOpenTrack: () -> Void = {}
 
     @State private var selectedCategory: LibraryCategory = .breaks
     @State private var auditioningEntryID: String?
@@ -73,9 +76,29 @@ struct LibraryWorkspaceView: View {
         .frame(maxHeight: 560)
     }
 
+    /// Entry count per category. AU instruments and generators are not
+    /// catalog-resolved (no pool semantics), so their counts come straight
+    /// from the live component scan / project pool.
+    private func entryCount(for category: LibraryCategory) -> Int {
+        switch category {
+        case .auInstruments:
+            return auInstrumentChoices.count
+        case .generators:
+            return session.store.generatorPool.count
+        default:
+            return catalog.entryCount(in: category)
+        }
+    }
+
+    /// Live AU instrument list, deduplicated — same source and sanitisation
+    /// as AddDestinationSheet / CreateTrackFlow.
+    private var auInstrumentChoices: [AudioInstrumentChoice] {
+        AudioInstrumentChoice.deduplicated(engineController.availableAudioInstruments)
+    }
+
     private func categoryRow(_ category: LibraryCategory) -> some View {
         let isSelected = selectedCategory == category
-        let count = catalog.entryCount(in: category)
+        let count = entryCount(for: category)
         // Empty categories recede so the eye lands on real content (ux-canon
         // rule 11); they stay selectable, just dimmed.
         let isEmpty = count == 0
@@ -116,21 +139,116 @@ struct LibraryWorkspaceView: View {
     }
 
     private var entryList: some View {
-        let entries = catalog.entries(in: selectedCategory)
-
-        return ScrollView {
+        ScrollView {
             VStack(alignment: .leading, spacing: StudioMetrics.Spacing.tight) {
-                if entries.isEmpty {
-                    StudioEmptyListRow(message: "Empty")
-                } else {
-                    ForEach(entries) { entry in
-                        globalEntryRow(entry)
-                    }
+                switch selectedCategory {
+                case .auInstruments:
+                    auInstrumentList
+                case .generators:
+                    generatorList
+                default:
+                    pooledAssetList
                 }
             }
         }
         .scrollIndicators(.never)
         .frame(maxHeight: 560)
+    }
+
+    @ViewBuilder
+    private var pooledAssetList: some View {
+        let entries = catalog.entries(in: selectedCategory)
+        if entries.isEmpty {
+            StudioEmptyListRow(message: "Empty")
+        } else {
+            ForEach(entries) { entry in
+                globalEntryRow(entry)
+            }
+        }
+    }
+
+    /// AU instruments have no pool / audition / missing-asset semantics, so
+    /// they get their own row variant: name + facts and a single Create Track
+    /// action (the row IS the creation seed).
+    @ViewBuilder
+    private var auInstrumentList: some View {
+        StudioPluginRescanHeader()
+        if auInstrumentChoices.isEmpty {
+            StudioEmptyListRow(message: "No AU instruments found")
+        } else {
+            ForEach(auInstrumentChoices, id: \.id) { choice in
+                creationSeedRow(
+                    name: choice.name,
+                    facts: choice.manufacturerName.isEmpty ? "AU instrument" : choice.manufacturerName,
+                    createHelp: "Create a track hosting this AU instrument"
+                ) {
+                    createTrack(fromAUInstrument: choice)
+                }
+            }
+        }
+    }
+
+    /// Generators are project-pool state (already "in the project" by
+    /// definition) — no pool toggle, just the Create Track action.
+    @ViewBuilder
+    private var generatorList: some View {
+        let generators = session.store.generatorPool
+        if generators.isEmpty {
+            StudioEmptyListRow(message: "Empty")
+        } else {
+            ForEach(generators) { generator in
+                creationSeedRow(
+                    name: generator.name,
+                    facts: "\(generator.kind.label) · \(generator.trackType.label)",
+                    createHelp: "Create a \(generator.trackType.label) track driven by this generator"
+                ) {
+                    createTrack(fromGenerator: generator)
+                }
+            }
+        }
+    }
+
+    /// Row for entries that only seed track creation (AU instruments,
+    /// generators): same chrome as `globalEntryRow`, minus pool/audition.
+    private func creationSeedRow(
+        name: String,
+        facts: String,
+        createHelp: String,
+        onCreate: @escaping () -> Void
+    ) -> some View {
+        HStack(spacing: StudioMetrics.Spacing.comfortable) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(name)
+                    .studioText(.bodyBold)
+                    .foregroundStyle(StudioTheme.text)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+
+                Text(facts)
+                    .studioText(.micro)
+                    .foregroundStyle(StudioTheme.mutedText)
+                    .lineLimit(1)
+            }
+
+            Spacer(minLength: 4)
+
+            StudioCircleIconButton(
+                systemName: "plus",
+                size: StudioMetrics.ControlSize.small,
+                accent: StudioTheme.cyan,
+                help: createHelp,
+                action: onCreate
+            )
+        }
+        .padding(StudioMetrics.Spacing.compact)
+        .background(
+            Color.white.opacity(StudioOpacity.subtleFill),
+            in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+        )
     }
 
     private func globalEntryRow(_ entry: LibraryEntryPresentation) -> some View {
@@ -179,6 +297,21 @@ struct LibraryWorkspaceView: View {
                         .tracking(0.6)
                 }
                 .foregroundStyle(StudioTheme.success)
+            }
+
+            // Create-track affordance for entries that can seed a track
+            // directly (a break -> slice track, a kit -> drum group). The
+            // accented circle marks the primary creation action; the plain
+            // one stays the pool toggle.
+            if let createHelp = createTrackHelp {
+                StudioCircleIconButton(
+                    systemName: "plus",
+                    size: StudioMetrics.ControlSize.small,
+                    accent: StudioTheme.cyan,
+                    help: createHelp
+                ) {
+                    createTrack(from: entry)
+                }
             }
 
             StudioCircleIconButton(
@@ -289,6 +422,66 @@ struct LibraryWorkspaceView: View {
                     lineWidth: StudioMetrics.borderWidth
                 )
         )
+    }
+
+    // MARK: - Create track from entity
+
+    /// Help text for the create-track affordance on the CURRENT category's
+    /// pooled-asset rows; nil hides the button. Breaks seed a slice track and
+    /// kits seed a drum group; templates/step-order-maps only make sense
+    /// applied to an existing track, so they carry no creation action.
+    private var createTrackHelp: String? {
+        switch selectedCategory {
+        case .breaks:
+            return "Create a slice track from this break"
+        case .drumKits:
+            return "Create a drum group from this kit"
+        default:
+            return nil
+        }
+    }
+
+    /// Dispatch per-category to the SAME session mutations the Tracks page's
+    /// creation flow uses — the Library page is an additional entry point,
+    /// not a new creation pipeline.
+    private func createTrack(from entry: LibraryEntryPresentation) {
+        switch selectedCategory {
+        case .breaks:
+            guard let sample = sampleLibrary.sample(id: entry.assetID) else { return }
+            stopAudition()
+            _ = session.appendSliceTrack(sample: sample)
+            onOpenTrack()
+        case .drumKits:
+            guard let kit = drumAssetLibrary.kit(id: entry.assetID) else { return }
+            stopAudition()
+            // One-click create with the plan defaults (dedicated bus, no
+            // template, no shared destination) — parity with the break row.
+            _ = session.addDrumGroup(plan: .from(kit: kit))
+            onOpenTrack()
+        default:
+            break
+        }
+    }
+
+    /// AU fast path: same composition as CreateTrackFlow's AU rows — attach
+    /// through setEditedDestination (.fullEngineApply keeps the AU host
+    /// teardown/build on the safe path), then prime the host.
+    private func createTrack(fromAUInstrument choice: AudioInstrumentChoice) {
+        stopAudition()
+        let newTrackID = session.appendTrack(
+            trackType: .monoMelodic,
+            soundDestination: .auInstrument(componentID: choice.audioComponentID, stateBlob: nil)
+        )
+        if let newTrackID {
+            engineController.prepareAudioUnit(for: newTrackID)
+        }
+        onOpenTrack()
+    }
+
+    private func createTrack(fromGenerator generator: GeneratorPoolEntry) {
+        stopAudition()
+        _ = session.appendTrack(generator: generator)
+        onOpenTrack()
     }
 
     // MARK: - Actions

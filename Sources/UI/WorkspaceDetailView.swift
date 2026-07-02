@@ -90,7 +90,9 @@ struct WorkspaceDetailView: View {
         case .scenes:
             ScenesWorkspaceView(document: $document, resetToken: scenesResetToken)
         case .library:
-            LibraryWorkspaceView()
+            LibraryWorkspaceView(onOpenTrack: {
+                section = .track
+            })
         }
     }
 }

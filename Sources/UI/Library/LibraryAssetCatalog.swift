@@ -7,6 +7,14 @@ enum LibraryCategory: String, CaseIterable, Identifiable, Equatable, Sendable {
     case drumKits
     case patternTemplates
     case stepOrderMaps
+    /// AU instruments discovered on this machine (EngineController's live
+    /// component scan) — browsable so a track can be created straight from
+    /// one. Not pool-backed: no add-to-project, no audition.
+    case auInstruments
+    /// The project's generator pool. Project-scoped rather than a global
+    /// file-backed asset, but listed here so generators are browsable next to
+    /// every other track-creation seed. No pool toggle (already project-native).
+    case generators
     case kick, snare, sidestick, clap
     case hatClosed, hatOpen, hatPedal
     case tomLow, tomMid, tomHi
@@ -22,6 +30,8 @@ enum LibraryCategory: String, CaseIterable, Identifiable, Equatable, Sendable {
         case .drumKits: return "Drum Kits"
         case .patternTemplates: return "Pattern Templates"
         case .stepOrderMaps: return "Step Order Maps"
+        case .auInstruments: return "AU Instruments"
+        case .generators: return "Generators"
         default: return sampleCategory?.displayName ?? rawValue
         }
     }
@@ -29,7 +39,7 @@ enum LibraryCategory: String, CaseIterable, Identifiable, Equatable, Sendable {
     /// The sample-library category this browses, when sample-backed.
     var sampleCategory: AudioSampleCategory? {
         switch self {
-        case .drumKits, .patternTemplates, .stepOrderMaps:
+        case .drumKits, .patternTemplates, .stepOrderMaps, .auInstruments, .generators:
             return nil
         default:
             return AudioSampleCategory(rawValue: rawValue)
@@ -122,6 +132,12 @@ struct LibraryAssetCatalog {
                     auditionURL: nil
                 )
             }
+        case .auInstruments, .generators:
+            // Not pool-backed assets: AU instruments come from the live
+            // component scan and generators from the project pool, so the
+            // Library page renders their rows directly (no PooledAssetKind /
+            // audition / missing-asset semantics to resolve here).
+            return []
         default:
             guard let sampleCategory = category.sampleCategory else { return [] }
             return sampleLibrary.samples(in: sampleCategory)

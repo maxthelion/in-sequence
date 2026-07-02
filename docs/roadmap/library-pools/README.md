@@ -90,3 +90,29 @@ same grammar as note repeat). Session APIs for map CRUD already exist
 `docs/roadmap/drum-kits-and-templates/spec.md`, which defines the `DrumKit`
 and `PatternTemplate` asset shapes this item will shelve in the global
 library / project pool.
+
+## 2026-07 owner refinement: create-track-from-entity
+
+The next consumption-hook increment: Library entries can spawn tracks
+directly, instead of only feeding the Tracks page's creation flows.
+
+- **Break rows** (Breaks category) carry a Create Track action →
+  `session.appendSliceTrack(sample:)` (the same mutation as the slice loop
+  picker), then navigate to the track detail.
+- **Drum kit rows** carry a Create Track action → one-click
+  `session.addDrumGroup(plan: .from(kit:))` with the plan defaults
+  (dedicated bus, no template, no shared destination) — parity with the
+  break row rather than re-opening the full drum-group builder.
+- **AU Instruments** is a new browsable category (live component scan, not
+  pool-backed — no audition/pool toggle); each row creates a mono track
+  hosting that AU via `setEditedDestination(.auInstrument…)` +
+  `prepareAudioUnit`.
+- **Generators** is a new browsable category listing the project's
+  generator pool (project-scoped, so no pool toggle); each row creates a
+  track of the generator's type with the generator assigned as the slot-0
+  source (`appendTrack` + `assignGeneratorSource`).
+
+All four paths reuse existing session mutations — the Library page is an
+additional entry point, not a new creation pipeline. Pattern templates and
+step order maps deliberately carry no creation action (they only make sense
+applied to an existing track/group).
