@@ -2,37 +2,31 @@ import AVFoundation
 import XCTest
 @testable import SequencerAI
 
-/// Step-0 first-hit scheduling floor — regression pin for the 2026-07-02
-/// capture-rig outlier (+34.6 ms at t≈0.51 s; evidence in
+/// Transport-start step-0 scheduling — G2 startup-anchor model (owner-approved
+/// 2026-07-02: anchor = 50 ms, rail cap = 60 ms; evidence in
 /// `docs/plans/engine-timing-recovery-evidence/2026-07-02-lookahead-clock-skew/note.md`).
 ///
-/// # The defect being pinned
+/// # The model being pinned
 ///
-/// Step 0's musical due time IS the transport-start origin, so the 100 ms
-/// look-ahead lead is structurally unavailable for the first hit: the rig
-/// measured the step-0 stamp handed to the sample engine only +9.3 ms (kick)
-/// and +1.3 ms (hat) ahead of the dispatch wall-clock — inside the engine's
-/// schedule-visibility horizon (~2 render quanta ≈ 23 ms @ 512/44.1 kHz plus
-/// cold-voice start), so the player could not honour the stamp and joined a
-/// later render cycle "as soon as possible": the first hit landed
-/// +34.6 ms ≈ 3 quanta off the grid, non-deterministically.
+/// Transport start anchors musical second 0 a fixed
+/// `AudioMasterClock.startupAnchorLeadSeconds` AFTER the start render position,
+/// so step 0's due stamp is born schedulable (anchor 50 ms > visibility ~23 ms
+/// + cold dispatch ~20 ms) and lands ON the grid like every other step:
 ///
-/// # The pinned behaviour
+/// 1. On a NORMAL start, step 0's stamp equals musical zero (the anchored
+///    origin) EXACTLY — the `liveDispatchSchedulingFloorSeconds` last-resort
+///    floor must NOT fire (it would lift step 0 a couple ms off-grid).
+/// 2. AU and sample step-0 stamps still agree (parity latch): both land the
+///    SAME unified-clock frame — the musical-zero frame.
+/// 3. The floor STILL rescues a pathologically late dispatch (cold dispatch
+///    delay > anchor − floor): the stamp is lifted to
+///    `renderNow + floor` — slightly late but sounding, never an
+///    unschedulable knife-edge stamp.
+/// 4. Steady-state stamps far beyond the floor stay EXACT musical due times.
 ///
-/// The LIVE dispatch path must never hand a sink a stamp it cannot honour:
-/// each stamped event's musical position is lifted to at least the earliest
-/// reliably-schedulable time — the current render position plus
-/// `AudioMasterClock.liveDispatchSchedulingFloorSeconds` — computed ONCE per
-/// dispatch pass so every event on the same step (sample AND AU) receives the
-/// IDENTICAL lift (no intra-step flam). Steady-state events are dispatched
-/// ~lead ahead of their due time, far beyond the floor, so their stamps are
-/// untouched (pinned below).
-///
-/// This does NOT move the master-clock origin: musical second 0 stays anchored
-/// at the transport-start render position (the frozen rails
-/// `LookAheadEarlyDispatchTests` / `LookAheadStartCallSiteGuardTests` measure
-/// `hostSeconds(atMusicalSeconds: 0)` and remain untouched); only the FIRST
-/// hit's event stamp is deterministic instead of "immediate whenever".
+/// (The pre-anchor model — step-0 stamps lifted BY the floor on every start,
+/// landing grid +41 ms ± 1 quantum — is superseded; the floor is now a rescue,
+/// not the first-hit mechanism.)
 final class EngineControllerTransportStartSchedulingTests: XCTestCase {
 
     // MARK: - Sinks
@@ -173,14 +167,15 @@ final class EngineControllerTransportStartSchedulingTests: XCTestCase {
         return (project, track)
     }
 
-    // MARK: - The step-0 floor pin (RED before the fix)
+    // MARK: - Step 0 on a normal start: musical zero, UNLIFTED
 
-    /// THE PIN: at live transport start, the FIRST hit's sample stamp must be a
-    /// genuinely schedulable future time — at least
-    /// `AudioMasterClock.liveDispatchSchedulingFloorSeconds` past the captured
-    /// render origin — not the knife-edge origin itself (which the rig measured
-    /// landing +34.6 ms off-grid, non-deterministically).
-    func test_transportStart_step0SampleStamp_isLiftedToSchedulableFloor() throws {
+    /// THE PIN: at live transport start, the FIRST hit's sample stamp is
+    /// EXACTLY musical zero — the anchored origin
+    /// (`renderPositionAtStart + startupAnchorLeadSeconds`) — with NO floor
+    /// lift. The anchor makes the stamp schedulable by construction; a lifted
+    /// stamp here would mean the floor fired on a normal start and moved the
+    /// first hit off-grid.
+    func test_transportStart_step0SampleStamp_isMusicalZero_unlifted() throws {
         let library = AudioSampleLibrary(libraryRoot: libraryRoot)
         let kick = try XCTUnwrap(library.firstSample(in: .kick))
         let spy = SpySamplePlaybackSink()
@@ -213,39 +208,106 @@ final class EngineControllerTransportStartSchedulingTests: XCTestCase {
         )
         XCTAssertTrue(when.isHostTimeValid)
         let stampSeconds = AVAudioTime.seconds(forHostTime: when.hostTime)
-        let lift = stampSeconds - correlation.hostSeconds
+        let expectedMusicalZero = controller.audioMasterClock.hostSeconds(atMusicalSeconds: 0)
 
-        let floor = AudioMasterClock.liveDispatchSchedulingFloorSeconds
-        XCTAssertGreaterThanOrEqual(
-            lift, floor - 0.000_1,
-            "step 0's stamp must be lifted to the earliest reliably-schedulable time " +
-            "(>= render position + \(floor * 1000) ms). A lift of \(lift * 1000) ms is the " +
-            "knife-edge cold hit: the stamp is inside the schedule-visibility horizon, the " +
-            "player cannot honour it, and the first hit lands ~3 render quanta late " +
-            "non-deterministically (the measured +34.6 ms rig outlier)."
+        XCTAssertEqual(
+            stampSeconds, expectedMusicalZero, accuracy: 0.000_001,
+            "step 0's stamp must be EXACTLY musical zero (the anchored origin) — an excess is the " +
+            "last-resort floor firing on a normal start, lifting the first hit off-grid; a deficit " +
+            "means the stamp bypassed the unified clock."
         )
-        // Bounded: the lift is the documented floor plus only the µs-scale drift
-        // between origin capture and the pump wake — NOT the 100 ms look-ahead
-        // lead (that would be the rejected origin-delay in stamp clothing).
-        XCTAssertLessThanOrEqual(
-            lift, floor + 0.030,
-            "the step-0 lift must stay a small fixed transport-start scheduling floor; " +
-            "\(lift * 1000) ms looks like the look-ahead lead leaked into the stamp."
-        )
-        // The property that actually matters downstream: the stamp is still in
-        // the FUTURE when the sample engine's immediate-clamp inspects it.
+        // The stamp is genuinely schedulable: born startupAnchorLeadSeconds
+        // ahead of the start render position, it is still in the FUTURE when
+        // the sample engine's immediate-clamp inspects it.
         XCTAssertNotNil(
             SamplePlaybackEngine.effectivePlaybackTime(for: when, now: ProcessInfo.processInfo.systemUptime),
-            "the lifted step-0 stamp must not clamp to immediate at receipt"
+            "the anchored step-0 stamp must not clamp to immediate at receipt"
         )
     }
 
-    /// AU/sample parity through the lift: an AU note and a sample trigger on
-    /// step 0 must make the SAME scheduling decision and land on the SAME
-    /// unified-clock frame (the lifted one). Pins the "compute the floor once
-    /// per dispatch pass" requirement — per-event floors could straddle a
-    /// render-position advance and split AU from drums on the first hit.
-    func test_transportStart_step0_auNoteAndSample_shareLiftedFrame() throws {
+    // MARK: - The floor still rescues a pathologically late dispatch
+
+    /// LAST-RESORT RESCUE PIN: when dispatch is pathologically late (the render
+    /// position has advanced past `due − floor`, i.e. the cold dispatch delay
+    /// exceeds `startupAnchorLeadSeconds − liveDispatchSchedulingFloorSeconds`),
+    /// the stamp must be LIFTED to the earliest reliably-schedulable time
+    /// (`renderNow + floor`) instead of being handed to the sink as an
+    /// unschedulable past/knife-edge time. Slightly late but sounding.
+    ///
+    /// Offline manual rendering pairs the static render frame with a LIVE
+    /// mach host time, so sleeping past the rescue threshold between origin
+    /// capture and the pump wake deterministically models the late dispatch.
+    func test_transportStart_pathologicallyLateDispatch_isRescuedByFloor() throws {
+        let anchor = AudioMasterClock.startupAnchorLeadSeconds
+        let floor = AudioMasterClock.liveDispatchSchedulingFloorSeconds
+        XCTAssertLessThan(
+            floor, anchor,
+            "fixture: the rescue threshold (anchor − floor) must be positive — a floor >= the anchor " +
+            "would fire on EVERY normal start"
+        )
+
+        let library = AudioSampleLibrary(libraryRoot: libraryRoot)
+        let kick = try XCTUnwrap(library.firstSample(in: .kick))
+        let spy = SpySamplePlaybackSink()
+        let (project, _) = makeSampleProject(kickID: kick.id)
+
+        let controller = EngineController(
+            client: nil,
+            endpoint: nil,
+            sampleEngine: spy,
+            sampleLibrary: library
+        )
+        controller.apply(documentModel: project)
+        controller.setBPM(120)
+
+        controller.startTransportWithoutClockForTesting(now: ProcessInfo.processInfo.systemUptime)
+        defer { controller.stop() }
+        let correlation = controller.audioMasterClock.capturedOriginCorrelation()
+        XCTAssertTrue(correlation.isRenderDerived)
+
+        // Model the pathological cold start: dispatch delayed beyond the rescue
+        // threshold (anchor − floor), with margin for timer coarseness.
+        let simulatedDelay = (anchor - floor) + 0.020
+        Thread.sleep(forTimeInterval: simulatedDelay)
+
+        _ = controller.processLookAheadPumpForTesting(now: correlation.hostSeconds + simulatedDelay)
+
+        let when = try XCTUnwrap(
+            spy.playCalls.first?.3,
+            "a rescued step 0 must still carry a real AVAudioTime stamp (scheduled, not immediate)"
+        )
+        XCTAssertTrue(when.isHostTimeValid)
+        let stampSeconds = AVAudioTime.seconds(forHostTime: when.hostTime)
+        let lift = stampSeconds - correlation.hostSeconds
+
+        XCTAssertGreaterThan(
+            lift, 0.005,
+            "a dispatch \(simulatedDelay * 1000) ms late must be rescued: the stamp must be lifted " +
+            "above the (already-unschedulable) musical-zero due time to renderNow + floor. " +
+            "Zero lift hands the sink a stamp inside the schedule-visibility horizon — the " +
+            "non-deterministic +41 ms first-hit defect."
+        )
+        // Bounded: a rescue is renderNow + floor — never the look-ahead lead in
+        // stamp clothing.
+        XCTAssertLessThanOrEqual(
+            lift, simulatedDelay + floor + 0.050,
+            "the rescue lift must stay near renderNow + floor; \(lift * 1000) ms looks like the " +
+            "look-ahead lead leaked into the stamp."
+        )
+        // Still sounding: the rescued stamp is in the future at receipt.
+        XCTAssertNotNil(
+            SamplePlaybackEngine.effectivePlaybackTime(for: when, now: ProcessInfo.processInfo.systemUptime),
+            "the rescued step-0 stamp must not clamp to immediate at receipt"
+        )
+    }
+
+    /// AU/sample PARITY LATCH: an AU note and a sample trigger on step 0 must
+    /// make the SAME scheduling decision and land on the SAME unified-clock
+    /// frame — the musical-zero (anchored-origin) frame. Also pins the
+    /// "compute the floor once per dispatch pass" requirement — per-event
+    /// floors could straddle a render-position advance and split AU from
+    /// drums on the first hit.
+    func test_transportStart_step0_auNoteAndSample_shareMusicalZeroFrame() throws {
         let library = AudioSampleLibrary(libraryRoot: libraryRoot)
         let kick = try XCTUnwrap(library.firstSample(in: .kick))
         let spy = SpySamplePlaybackSink()
@@ -340,16 +402,22 @@ final class EngineControllerTransportStartSchedulingTests: XCTestCase {
         XCTAssertLessThanOrEqual(
             abs(sampleFrame - auFrame), 1,
             "AU note-on frame (\(auFrame)) and sample stamp frame (\(sampleFrame)) on step 0 " +
-            "must land on the same unified-clock frame — the floor lift must be identical for both paths"
+            "must land on the same unified-clock frame — the scheduling decision must be identical " +
+            "for both paths (parity latch)"
         )
 
-        // And both are the LIFTED frame, not the knife-edge origin frame.
-        let floorFrames = AVAudioFramePosition(
-            (AudioMasterClock.liveDispatchSchedulingFloorSeconds * correlation.sampleRate).rounded()
+        // And both are the MUSICAL-ZERO (anchored-origin) frame — unlifted on a
+        // normal start, not the old floor-lifted frame and never a lead-shifted
+        // one.
+        XCTAssertEqual(
+            auFrame, correlation.sampleTime,
+            "the step-0 AU frame must be exactly the anchored-origin (musical zero) frame — " +
+            "an offset means the last-resort floor fired on a normal start (off-grid first hit) " +
+            "or the stamp bypassed the unified clock"
         )
-        XCTAssertGreaterThanOrEqual(
-            auFrame - correlation.sampleTime, floorFrames - 8,
-            "the step-0 AU frame must sit at least the scheduling floor past the origin frame"
+        XCTAssertLessThanOrEqual(
+            abs(sampleFrame - correlation.sampleTime), 1,
+            "the step-0 sample frame must be the anchored-origin (musical zero) frame"
         )
     }
 
@@ -375,8 +443,9 @@ final class EngineControllerTransportStartSchedulingTests: XCTestCase {
         defer { controller.stop() }
         let correlation = controller.audioMasterClock.capturedOriginCorrelation()
 
-        // First pump wake at the origin dispatches step 0 (lifted) and step 1
-        // (due 125 ms — inside the lead+slack horizon, far beyond the floor).
+        // First pump wake at the origin dispatches step 0 (musical zero,
+        // anchored) and step 1 (due 125 ms — inside the lead+slack horizon,
+        // far beyond the floor).
         _ = controller.processLookAheadPumpForTesting(now: correlation.hostSeconds)
 
         let stepSeconds = (60.0 / 120.0) * (4.0 / 16.0)

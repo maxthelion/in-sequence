@@ -27,14 +27,27 @@ import XCTest
 /// the live `dispatchTick` loop stamps via `dispatchSampleAudioTime` /
 /// `scheduledAUNoteSampleTime` and never calls it.
 ///
-/// # The two invariants this rail encodes (from the mandate, verbatim intent)
+/// # The two invariants this rail encodes
 ///
-/// A. FIRST-PLAY ABSOLUTE LATENCY ≤ 10 ms. Driving the REAL production
-///    `EngineController.start()` over an offline `MainAudioGraph`, the first
-///    event (musical second 0) must be stamped within 10 ms of the
-///    transport-start render origin. The round-1 origin shift makes this ~100 ms
-///    → RED. The correct fix (dispatch early, do NOT move the sounding origin)
-///    keeps it ~0 → GREEN.
+/// A. THE MUSICAL-ZERO ANCHOR IS THE SMALL NAMED STARTUP ANCHOR, NEVER THE
+///    LOOK-AHEAD LEAD. G2-gate amendment, OWNER-APPROVED 2026-07-02 (per the
+///    plan's "adjust on return and re-gate" provision; locked thresholds:
+///    startup anchor lead = 50 ms, rail cap = 60 ms). The original ≤ 10 ms
+///    first-play window is superseded: the rig proved a zero-anchored origin
+///    makes step 0's stamp unschedulable (knife-edge inside the ~23 ms
+///    schedule-visibility horizon + ~20 ms cold dispatch), landing the first
+///    hit +41 ms off-grid non-deterministically. The amended contract, driving
+///    the REAL production `EngineController.start()` over an offline
+///    `MainAudioGraph`:
+///      (a) musical second 0 is anchored EXACTLY
+///          `AudioMasterClock.startupAnchorLeadSeconds` after the
+///          transport-start render position (frame-domain exact);
+///      (b) `startupAnchorLeadSeconds` ≤ 0.060 — the owner-locked rail cap;
+///      (c) `AudioMasterClock.lookAheadLeadSeconds` > 0.060 — so the 100 ms
+///          look-ahead lead can never masquerade as the startup anchor (the
+///          original anti-origin-delay property, encoded directly).
+///    The round-1 origin shift (origin + lookAheadLeadSeconds) violates (a)
+///    and blows the (b) cap → RED, exactly as the old 10 ms window made it.
 ///
 /// B. `leadStampedAudioTime` IS THE LIVE DISPATCH PATH, invoked with the
 ///    configured lead. Driving a firing track through `start()` + `processTick`,
@@ -48,9 +61,9 @@ import XCTest
 ///
 /// The KNOWN-hollow round-1 form (fixed origin-shift at start + a lead-less /
 /// dead `leadStampedAudioTime`) MUST make this rail RED: invariant A fails on the
-/// origin shift (100 ms > 10 ms), invariant B fails on the silent probe. The
-/// negative controls below prove each invariant is load-bearing, not a
-/// tautology.
+/// origin shift (100 ms lead ≠ the exact 50 ms anchor, and 100 ms > the 60 ms
+/// cap), invariant B fails on the silent probe. The negative controls below
+/// prove each invariant is load-bearing, not a tautology.
 ///
 /// # Determinism
 ///
@@ -60,11 +73,13 @@ import XCTest
 /// detection — only the deterministic stamp/probe seams.
 final class LookAheadEarlyDispatchTests: XCTestCase {
 
-    /// The Gate-1 LOCKED first-play window (seconds). SPEC constant — NOT read
-    /// back from the feature (a rail that derived its own threshold from the
-    /// implementation could never fail it). Spec: "first transport run after load
-    /// must produce ... audio audible within 10 ms of the grid."
-    private static let specFirstPlayWindowSeconds: TimeInterval = 0.010
+    /// The G2 OWNER-LOCKED rail cap on the startup anchor (seconds). SPEC
+    /// constant — NOT read back from the feature (a rail that derived its own
+    /// threshold from the implementation could never fail it). Owner approval
+    /// 2026-07-02: startup anchor lead = 50 ms, rail cap = 60 ms. Any origin
+    /// anchored MORE than this past the transport-start render position —
+    /// notably one shifted by the 100 ms look-ahead lead — fails the rail.
+    private static let specStartupAnchorRailCapSeconds: TimeInterval = 0.060
 
     /// The Gate-1 LOCKED look-ahead lead (seconds). SPEC constant. Spec:
     /// "Look-ahead lead: 100 ms."
@@ -184,25 +199,26 @@ final class LookAheadEarlyDispatchTests: XCTestCase {
         func filterNode(for trackID: UUID) -> (any SamplerFilterControlling)? { nil }
     }
 
-    // MARK: - INVARIANT A: first-play absolute latency <= 10 ms
+    // MARK: - INVARIANT A: musical zero anchored EXACTLY startupAnchorLeadSeconds
 
-    /// THE FIRST-PLAY LATENCY GATE. Drives the REAL production
-    /// `EngineController.start()` over an offline `MainAudioGraph` and asserts the
-    /// first event (musical second 0) is stamped within the Gate-1 10 ms window of
-    /// the transport-start render origin.
+    /// THE STARTUP-ANCHOR GATE (G2 amendment, owner-approved 50 ms / 60 ms cap).
+    /// Drives the REAL production `EngineController.start()` over an offline
+    /// `MainAudioGraph` and asserts:
     ///
-    /// `systemUptime` shares the mach timebase with the render origin's host time
-    /// and `start()` is fast, so the origin host-seconds read back for musical
-    /// second 0 must exceed the `systemUptime` sampled just BEFORE `start()` by
-    /// LESS than the first-play window. Round-1's origin shift makes it
-    /// `fallback + 100 ms` → ~100 ms over the window → RED. The correct fix
-    /// (dispatch early; do NOT shift the sounding origin) keeps it ~0 → GREEN.
+    ///   (a) musical second 0 is anchored EXACTLY
+    ///       `AudioMasterClock.startupAnchorLeadSeconds` after the
+    ///       transport-start render position. Frame-domain exact: in manual
+    ///       rendering the render `sampleTime` is static until frames are
+    ///       rendered (none are here), so the captured origin frame must equal
+    ///       renderFrame + round(anchor × sampleRate) to the frame.
+    ///   (b) the anchor constant is within the owner-locked 60 ms rail cap.
+    ///   (c) `lookAheadLeadSeconds` is ABOVE the cap — the 100 ms look-ahead
+    ///       lead structurally cannot pose as the startup anchor.
     ///
-    /// This is the discriminator between "lead by early dispatch" (good, ~0 ms
-    /// absolute latency) and "lead by origin shift" (bad, ~100 ms absolute
-    /// latency): the two are behaviourally identical to a dispatch-late test, but
-    /// only the origin shift adds absolute first-play latency.
-    func test_firstPlay_absoluteLatency_withinTenMillis_GATE() throws {
+    /// The round-1 origin-delay mechanism (origin + lookAheadLeadSeconds) fails
+    /// (a) exactly and blows the (b) cap in the host-domain window below → RED,
+    /// preserving the original rail's discriminating power.
+    func test_firstPlay_musicalZero_anchoredExactlyAtStartupAnchorLead_GATE() throws {
         let graph = MainAudioGraph()
         let controller = EngineController(
             client: nil,
@@ -216,48 +232,94 @@ final class LookAheadEarlyDispatchTests: XCTestCase {
         controller.apply(documentModel: .empty)
         controller.setBPM(120)
 
+        // (b) + (c): the constants contract. SPEC cap, not read back from the
+        // feature; the lead must sit strictly ABOVE the cap so no origin that
+        // passes this rail can have been anchored by the lead.
+        XCTAssertGreaterThan(
+            AudioMasterClock.startupAnchorLeadSeconds, 0,
+            "the startup anchor must be a real positive lead — a zero anchor is the knife-edge " +
+            "unschedulable step-0 stamp the 2026-07-02 rig measured landing +41 ms off-grid."
+        )
+        XCTAssertLessThanOrEqual(
+            AudioMasterClock.startupAnchorLeadSeconds, Self.specStartupAnchorRailCapSeconds,
+            "startupAnchorLeadSeconds must respect the owner-locked \(Self.specStartupAnchorRailCapSeconds * 1000) ms " +
+            "rail cap (G2 amendment, 2026-07-02)."
+        )
+        XCTAssertGreaterThan(
+            AudioMasterClock.lookAheadLeadSeconds, Self.specStartupAnchorRailCapSeconds,
+            "lookAheadLeadSeconds must exceed the \(Self.specStartupAnchorRailCapSeconds * 1000) ms anchor rail " +
+            "cap — otherwise the look-ahead lead could masquerade as the startup anchor (the round-1 " +
+            "origin-delay defect this rail exists to block)."
+        )
+
+        // The render frame at transport start: static in manual rendering mode
+        // (no frames are rendered by this test), so it is the exact frame
+        // `captureOrigin` reads inside `start()`.
+        let renderFrameAtStart = try XCTUnwrap(
+            graph.renderPosition,
+            "offline manual rendering must expose a render position for start() to anchor against"
+        ).sampleTime
+
         let before = ProcessInfo.processInfo.systemUptime
         controller.start()
         defer { controller.stop() }
 
         XCTAssertTrue(
             controller.isRunning,
-            "start() must take the transport live for this first-play gate to be meaningful"
+            "start() must take the transport live for this startup-anchor gate to be meaningful"
         )
 
-        // Origin host-seconds for musical second 0 == the captured sounding origin
-        // for the FIRST event. Round-1: fallback + lead. Correct: fallback (no shift).
+        // (a) frame-domain EXACT: origin frame == render frame + anchor frames.
+        let correlation = controller.audioMasterClock.capturedOriginCorrelation()
+        XCTAssertTrue(
+            correlation.isRenderDerived,
+            "start() over an offline graph must capture a render-derived origin — a fallback origin " +
+            "here would mean the anchor was not measured against the render position at all"
+        )
+        let expectedAnchorFrames = AVAudioFramePosition(
+            (AudioMasterClock.startupAnchorLeadSeconds * correlation.sampleRate).rounded()
+        )
+        XCTAssertEqual(
+            correlation.sampleTime, renderFrameAtStart + expectedAnchorFrames,
+            "musical second 0 must be anchored EXACTLY startupAnchorLeadSeconds " +
+            "(\(AudioMasterClock.startupAnchorLeadSeconds * 1000) ms = \(expectedAnchorFrames) frames) after " +
+            "the transport-start render position — measured origin frame \(correlation.sampleTime) vs " +
+            "render frame \(renderFrameAtStart). An excess near " +
+            "\(Self.specLeadSeconds * 1000) ms means the look-ahead lead was paid as an origin shift " +
+            "(the rejected round-1 mechanism); zero excess means the anchor was dropped and step 0 is " +
+            "back on the unschedulable knife edge."
+        )
+
+        // Host-domain window: the origin host-seconds for musical second 0 sits
+        // the anchor past the start instant (plus only start() overhead, well
+        // under the cap headroom). Bounds the ABSOLUTE first-play latency by the
+        // owner-locked cap: an origin shifted by the 100 ms lead lands ~100 ms
+        // here and fails.
         let firstPlayHostSeconds = controller.audioMasterClock.hostSeconds(atMusicalSeconds: 0)
         let absoluteLatency = firstPlayHostSeconds - before
-
-        XCTAssertLessThanOrEqual(
-            absoluteLatency, Self.specFirstPlayWindowSeconds,
-            "first-play ABSOLUTE latency must be <= \(Self.specFirstPlayWindowSeconds * 1000) ms " +
-            "(Gate-1). Musical second 0 was stamped \(absoluteLatency * 1000) ms after the " +
-            "transport-start origin. A value near \(Self.specLeadSeconds * 1000) ms means the " +
-            "master-clock origin was shifted forward by the look-ahead lead (the round-1 " +
-            "origin-delay mechanism) — the lead must be realised by dispatching EARLY, not by " +
-            "moving the sounding origin."
-        )
-
-        // Non-negativity guard: the stamp must not be BEFORE the origin either
-        // (that would be a sign flip, not a valid latency). `start()` samples
-        // `systemUptime` at/after `before`, so the true absolute latency is >= 0.
         XCTAssertGreaterThanOrEqual(
-            absoluteLatency, -Self.specFirstPlayWindowSeconds,
-            "first-play stamp must not precede the transport-start origin (a negative latency of " +
-            "\(absoluteLatency * 1000) ms indicates a lead sign flip)."
+            absoluteLatency, AudioMasterClock.startupAnchorLeadSeconds - 1e-6,
+            "musical second 0 must not precede renderStart + anchor (\(absoluteLatency * 1000) ms " +
+            "measured) — a smaller value means the anchor was not applied to the host origin."
+        )
+        XCTAssertLessThanOrEqual(
+            absoluteLatency, Self.specStartupAnchorRailCapSeconds,
+            "first-play ABSOLUTE latency (\(absoluteLatency * 1000) ms) must stay within the owner-locked " +
+            "\(Self.specStartupAnchorRailCapSeconds * 1000) ms rail cap. A value near " +
+            "\(Self.specLeadSeconds * 1000) ms means the master-clock origin was shifted by the " +
+            "look-ahead lead — the lead must be realised by dispatching EARLY, never by the origin."
         )
     }
 
-    /// NEGATIVE CONTROL for invariant A (proves the 10 ms gate is load-bearing,
+    /// NEGATIVE CONTROL for invariant A (proves the cap gate is load-bearing,
     /// not vacuously true for any origin): the KNOWN-hollow round-1 mechanism — a
-    /// captured origin shifted forward by the lead — DOES exceed the first-play
-    /// window. Exercised directly on `AudioMasterClock.captureOrigin(...,
-    /// leadSeconds:)` (round-1's shipped fix) with the render-position fallback, so
-    /// this fails IFF the origin shift is present. If invariant A's gate ever
-    /// passed for a shifted origin, this control would flag the gate as vacuous.
-    func test_originShiftedByLead_exceedsFirstPlayWindow_negativeControl() {
+    /// captured origin shifted forward by the LOOK-AHEAD LEAD — DOES exceed the
+    /// owner-locked startup-anchor rail cap. Exercised directly on
+    /// `AudioMasterClock.captureOrigin(..., leadSeconds:)` (round-1's shipped fix)
+    /// with the render-position fallback, so this fails IFF the origin shift is
+    /// present. If invariant A's gate ever passed for a lead-shifted origin, this
+    /// control would flag the gate as vacuous.
+    func test_originShiftedByLead_exceedsStartupAnchorRailCap_negativeControl() {
         // Round-1's mechanism in isolation: capture the origin shifted forward by
         // the lead (fallback branch: no render position).
         let clock = AudioMasterClock(stepsPerBar: 16, renderPositionProvider: { nil })
@@ -268,15 +330,16 @@ final class LookAheadEarlyDispatchTests: XCTestCase {
         let absoluteLatency = firstPlayHostSeconds - fallback
 
         XCTAssertGreaterThan(
-            absoluteLatency, Self.specFirstPlayWindowSeconds,
-            "the round-1 origin shift (leadSeconds: \(Self.specLeadSeconds)) must push musical second 0 " +
-            "MORE than the \(Self.specFirstPlayWindowSeconds * 1000) ms first-play window past the origin " +
-            "(measured \(absoluteLatency * 1000) ms) — otherwise invariant A's gate is vacuous."
+            absoluteLatency, Self.specStartupAnchorRailCapSeconds,
+            "an origin shifted by the look-ahead lead (leadSeconds: \(Self.specLeadSeconds)) must push " +
+            "musical second 0 MORE than the \(Self.specStartupAnchorRailCapSeconds * 1000) ms rail cap past " +
+            "the origin (measured \(absoluteLatency * 1000) ms) — otherwise invariant A's cap gate is " +
+            "vacuous and the lead could masquerade as the startup anchor."
         )
         XCTAssertEqual(
             absoluteLatency, Self.specLeadSeconds, accuracy: 1e-6,
             "the origin shift equals exactly the lead — confirming the shift IS the ~100 ms first-play " +
-            "latency the correct early-dispatch mechanism removes."
+            "latency the startup anchor (≤ \(Self.specStartupAnchorRailCapSeconds * 1000) ms) must never reach."
         )
     }
 

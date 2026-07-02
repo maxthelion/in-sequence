@@ -27,14 +27,18 @@ import Foundation
 //
 // # Current state: both invariants are implemented and live
 //
-// 1. FIRST-PLAY ABSOLUTE LATENCY ≤ 10 ms. `EngineController.start()` calls
-//    `audioMasterClock.captureOrigin(fallbackHostSeconds:)` with the default
-//    `leadSeconds: 0` (EngineController.swift ~1223, ~1337) — the master-clock
-//    origin is never shifted forward by the lead. The lead is instead realised
-//    by dispatching EARLY: `TickClock` reschedules its wakes to run
-//    `lookAheadLeadSeconds` ahead of the step grid after tick 0
-//    (`TickClock.swift:71-78`), so each wake hands due-soon events to the
-//    schedulers ahead of the wake, not by moving the sounding origin.
+// 1. THE ORIGIN IS NEVER SHIFTED BY THE LOOK-AHEAD LEAD. `EngineController.
+//    start()` calls `audioMasterClock.captureOrigin(fallbackHostSeconds:
+//    startupAnchorLeadSeconds:)` with the default `leadSeconds: 0` and the
+//    G2-approved `AudioMasterClock.startupAnchorLeadSeconds` (50 ms, owner-
+//    locked with a 60 ms rail cap) — a small named transport-start anchor
+//    that makes step 0's stamp schedulable, NOT the 100 ms lead (the amended
+//    rail pins anchor ≤ 0.060 < lookAheadLeadSeconds). The lead itself is
+//    realised by dispatching EARLY: `TickClock` reschedules its wakes to run
+//    ahead of the step grid after tick 0 (`TickClock.swift:71-78`; the wake
+//    phase is `lead − anchor` so wakes stay ~lead before the ANCHORED due
+//    times), so each wake hands due-soon events to the schedulers ahead of
+//    their due time, not by moving the sounding origin by the lead.
 //
 // 2. `leadStampedAudioTime` IS THE LIVE DISPATCH PATH, invoked with the
 //    configured lead. `EngineController.dispatchTick` routes each sample/AU
