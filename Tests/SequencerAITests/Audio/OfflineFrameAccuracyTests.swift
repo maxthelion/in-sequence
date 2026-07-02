@@ -536,10 +536,17 @@ final class OfflineFrameAccuracyTests: XCTestCase {
         let perStep = AudioMasterClock.secondsPerStep(bpm: bpm, stepsPerBar: harness.stepsPerBar)
         var seconds = 0.0
         var cursor = 0
+        // Pair-latch mirror: a swing change is adopted only when the crossing
+        // enters an odd (off-beat) step — the start of a swung pair — so both
+        // halves of every pair carry the same offset and down-beats never
+        // drift, regardless of the parity the `setSwing` drain lands on.
+        var latchedSwing = 0.0
         while cursor < step {
             cursor += 1
-            let swingOffset = min(max(swingForStep(cursor - 1), 0), 1)
-                * perStep * AudioMasterClock.swingMaxStepFraction
+            if cursor % 2 == 1 {
+                latchedSwing = min(max(swingForStep(cursor - 1), 0), 1)
+            }
+            let swingOffset = latchedSwing * perStep * AudioMasterClock.swingMaxStepFraction
             seconds += cursor % 2 == 1 ? perStep + swingOffset : perStep - swingOffset
         }
         return AVAudioFramePosition((seconds * harness.clockSampleRate).rounded())
@@ -588,11 +595,13 @@ final class OfflineFrameAccuracyTests: XCTestCase {
         }
     }
 
-    /// Mid-stream swing change gate: `setSwing` shares BPM's drain semantics
-    /// (immediate, in effect for the step being prepared, no one-tick lag), so
-    /// the mapping stays exact at 0 frames across the change — already-stamped
-    /// steps keep their grid (advance is idempotent per step) and subsequent
-    /// intervals swing by the new amount.
+    /// Mid-stream swing change gate: `setSwing` shares BPM's drain path, and
+    /// the drained value is LATCHED into the swung grid at the next off-beat
+    /// (odd) arrival — the start of the next 2-step pair — so the mapping
+    /// stays exact at 0 frames across the change, already-stamped steps keep
+    /// their grid (advance is idempotent per step), and subsequent pairs
+    /// swing by the new amount. Here the change drains while preparing an
+    /// ODD-arrival step, so it applies to the very next interval.
     func test_idealTimeline_midStreamSwingChange_GATE() throws {
         let bpm = 120.0
         let firstSwing = 0.3
@@ -623,6 +632,59 @@ final class OfflineFrameAccuracyTests: XCTestCase {
                 "step \(step) (swing \(swingForStep(step))): mapping must stay exact across the " +
                 "mid-stream swing change (off by \(actual - target) frames)"
             )
+        }
+    }
+
+    /// Mid-stream swing change draining at an EVEN (down-beat) arrival — the
+    /// unlucky parity: the interval closing the in-flight pair must keep the
+    /// OLD offset (pair-latch), otherwise the pair mixes an old-swing delay
+    /// with a new-swing shortening and every subsequent down-beat is
+    /// permanently offset by `(old − new) * perStep / 3` relative to the
+    /// pre-change grid (~41.7ms per toggle at 120 BPM 16ths). Down-beats are
+    /// asserted against the STRAIGHT grid, so this gate fails if the latch
+    /// ever regresses to immediate application.
+    func test_idealTimeline_midStreamSwingChange_atDownbeatArrival_keepsDownbeatsOnGrid_GATE() throws {
+        let bpm = 120.0
+        let firstSwing = 0.3
+        let secondSwing = 0.6
+        let harness = try makeSampleHarness(bpm: bpm)
+        harness.controller.setSwing(firstSwing)
+        let stepDuration = harness.secondsPerStep(bpm: bpm)
+
+        let steps = 8
+        // Enqueued before driving tick 3, so the executor drains it while
+        // preparing step 4 — an even (down-beat) arrival mid-pair.
+        let swingChangeTick = 3
+        func swingForStep(_ step: Int) -> Double { step < swingChangeTick ? firstSwing : secondSwing }
+
+        for step in 0..<steps {
+            if step == swingChangeTick {
+                harness.controller.setSwing(secondSwing)
+            }
+            harness.drive(step: step, now: Double(step) * stepDuration)
+        }
+
+        XCTAssertEqual(harness.capturedFrameByStep.count, steps)
+        for step in 0..<steps {
+            let target = swungTargetFrame(
+                forStep: step, harness: harness, bpm: bpm, swingForStep: swingForStep
+            )
+            let actual = try XCTUnwrap(harness.capturedFrame(forStep: step))
+            XCTAssertEqual(
+                actual, target,
+                "step \(step): mapping must stay exact when the swing change drains at a " +
+                "down-beat arrival (off by \(actual - target) frames)"
+            )
+            // The semantic guarantee (not just mirror-agreement): every
+            // down-beat stays on the straight unswung grid across the change.
+            if step % 2 == 0 {
+                let straight = harness.targetFrame(forStep: step, bpmForStep: { _ in bpm })
+                XCTAssertEqual(
+                    actual, straight,
+                    "step \(step): down-beat must never drift off the straight grid, whatever " +
+                    "parity the swing change drained at"
+                )
+            }
         }
     }
 

@@ -156,6 +156,14 @@ final class AudioMasterClock {
     private(set) var lastAdvancedStep: UInt64 = 0
     private var cumulativeMusicalSecondsByStep: [UInt64: TimeInterval] = [0: 0]
 
+    /// Swing currently applied to the in-flight 2-step pair. A new swing value
+    /// passed to `advance` is LATCHED only when the crossing enters an odd
+    /// (off-beat) step — the start of a swung pair — so both halves of every
+    /// pair are charged with the same offset and the pair-sum invariant
+    /// (`2 * perStep`) holds across mid-stream `setSwing` changes, whatever
+    /// step parity the command happens to drain at.
+    private var latchedSwing: Double = 0
+
     private let stepsPerBar: Int
 
     init(
@@ -212,6 +220,7 @@ final class AudioMasterClock {
         originLeadSeconds = 0
         lastAdvancedStep = 0
         cumulativeMusicalSecondsByStep = [0: 0]
+        latchedSwing = 0
     }
 
     // MARK: - Tempo map
@@ -227,20 +236,30 @@ final class AudioMasterClock {
     /// step the musical duration at `bpm`. Idempotent for an already-recorded
     /// step. `bpm` is the tempo *in effect for the interval leaving the prior
     /// step*, matching how the executor consumes a `setBPM` command at the step
-    /// it is prepared. `swing` (0…1, same drain semantics via `setSwing`)
-    /// delays every off-beat (odd-index) step: the interval ARRIVING at an odd
-    /// step is lengthened by `swing * perStep * swingMaxStepFraction` and the
-    /// interval arriving at the following even (down-beat) step is shortened by
-    /// the same amount, so every 2-step pair sums to exactly `2 * perStep` —
-    /// down-beats and bar boundaries never drift, and `swing == 0` is
-    /// byte-identical to the unswung accumulator.
+    /// it is prepared. `swing` (0…1, drained via `setSwing`) delays every
+    /// off-beat (odd-index) step: the interval ARRIVING at an odd step is
+    /// lengthened by `swing * perStep * swingMaxStepFraction` and the interval
+    /// arriving at the following even (down-beat) step is shortened by the
+    /// same amount, so at constant tempo every 2-step pair sums to exactly
+    /// `2 * perStep` — down-beats and bar boundaries never drift, and
+    /// `swing == 0` is byte-identical to the unswung accumulator.
+    ///
+    /// A mid-stream swing CHANGE is latched at the next odd (off-beat) arrival
+    /// — the start of the next swung pair — never mid-pair: if the drained
+    /// value were applied to an interval arriving at an even step, that pair
+    /// would mix an old-swing delay with a new-swing shortening and every
+    /// subsequent down-beat would be permanently offset by
+    /// `(old − new) * perStep * swingMaxStepFraction` relative to the
+    /// pre-change grid. Latching keeps the pair-sum invariant exact across
+    /// changes at any drain parity, at the cost of the change taking effect at
+    /// most one step later.
     @discardableResult
     func advance(toStep step: UInt64, bpm: Double, swing: Double = 0) -> TimeInterval {
         if let existing = cumulativeMusicalSecondsByStep[step] {
             return existing
         }
         let perStep = Self.secondsPerStep(bpm: bpm, stepsPerBar: stepsPerBar)
-        let swingOffset = min(max(swing, 0), 1) * perStep * Self.swingMaxStepFraction
+        let clampedSwing = min(max(swing, 0), 1)
         var seconds = cumulativeMusicalSecondsByStep[lastAdvancedStep] ?? 0
         var cursor = lastAdvancedStep
         while cursor < step {
@@ -249,6 +268,13 @@ final class AudioMasterClock {
             // swung grid is stable across bars and across mid-stream swing
             // changes — an interval is swung by the parity of the step it
             // arrives at, never by how many steps this call happened to cross.
+            if cursor % 2 == 1 {
+                // Pair boundary: adopt the (possibly changed) swing for this
+                // pair — the odd delay and the following even shortening are
+                // charged with the SAME offset.
+                latchedSwing = clampedSwing
+            }
+            let swingOffset = latchedSwing * perStep * Self.swingMaxStepFraction
             seconds += cursor % 2 == 1 ? perStep + swingOffset : perStep - swingOffset
             cumulativeMusicalSecondsByStep[cursor] = seconds
         }

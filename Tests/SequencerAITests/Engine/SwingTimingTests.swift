@@ -7,6 +7,9 @@ import XCTest
 /// `swing * perStep * AudioMasterClock.swingMaxStepFraction`; the interval
 /// into the following even (down-beat) step is shortened by the same amount,
 /// so 2-step pairs sum to exactly `2 * perStep` and down-beats never drift.
+/// A mid-stream swing CHANGE is pair-latched: it is adopted at the next odd
+/// (off-beat) arrival, never mid-pair, so the pair-sum invariant holds across
+/// changes at any drain parity.
 ///
 /// The end-to-end stamped-frame gates (setSwing → CommandQueue → Executor
 /// drain → advance → captured sink stamp, including a mid-stream swing
@@ -95,6 +98,41 @@ final class SwingTimingTests: XCTestCase {
         // Step 1 was recorded during the crossing to step 2 (swing 0), so a
         // later swung re-advance cannot move it either.
         XCTAssertEqual(clock.advance(toStep: 1, bpm: bpm, swing: 1), perStep, accuracy: 1e-12)
+    }
+
+    func test_midStreamSwingChange_atEvenArrival_isLatchedToTheNextPair_downbeatsStayOnGrid() {
+        let clock = makeClock()
+        let oldSwing = 0.9
+        let newSwing = 0.2
+        let oldOffset = oldSwing * perStep * AudioMasterClock.swingMaxStepFraction
+        let newOffset = newSwing * perStep * AudioMasterClock.swingMaxStepFraction
+
+        // Steps 1-3 advance with the old swing; the pair (3, 4) is in flight
+        // when the change lands on the interval arriving at EVEN step 4.
+        for step in 1...3 {
+            _ = clock.advance(toStep: UInt64(step), bpm: bpm, swing: oldSwing)
+        }
+
+        // The new swing must NOT close the in-flight pair: step 4 keeps the
+        // OLD offset so the down-beat lands exactly on the straight grid.
+        XCTAssertEqual(
+            clock.advance(toStep: 4, bpm: bpm, swing: newSwing),
+            4 * perStep, accuracy: 1e-9,
+            "a swing change draining at a down-beat arrival must not split the in-flight pair"
+        )
+
+        // From the next pair on, the new swing is in effect.
+        XCTAssertEqual(
+            clock.advance(toStep: 5, bpm: bpm, swing: newSwing),
+            5 * perStep + newOffset, accuracy: 1e-9
+        )
+        XCTAssertEqual(
+            clock.advance(toStep: 6, bpm: bpm, swing: newSwing),
+            6 * perStep, accuracy: 1e-9,
+            "down-beats stay on the straight grid after the change is adopted"
+        )
+        // Sanity: the latch genuinely changed something (old != new offsets).
+        XCTAssertNotEqual(oldOffset, newOffset)
     }
 
     func test_multiStepAdvance_swingsByAbsoluteStepParity() {
