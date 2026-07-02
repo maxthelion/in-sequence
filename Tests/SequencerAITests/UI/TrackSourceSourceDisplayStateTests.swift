@@ -467,17 +467,6 @@ final class TrackSourceSourceDisplayStateTests: XCTestCase {
         XCTAssertEqual(override.sourceTrackID, trackID)
     }
 
-    // Colour identifies, it never floods (ux-canon rule 12): the well body
-    // is always neutral, so the presentation no longer exposes a tinted
-    // "active section fill" — only the stroke style remains stateful.
-    func test_selectedWellBodyUsesSolidStrokeForBothStates() {
-        let emptyBody = TrackSourceSelectedWellBodyPresentation(isEmpty: true)
-        let occupiedBody = TrackSourceSelectedWellBodyPresentation(isEmpty: false)
-
-        XCTAssertFalse(emptyBody.usesDashedStroke)
-        XCTAssertFalse(occupiedBody.usesDashedStroke)
-    }
-
     func test_clipSourceWithClip_resolvesToOccupiedClip() {
         let state = TrackSourceSourceDisplayState.resolve(
             sourceMode: .clip,
@@ -690,11 +679,12 @@ final class TrackSourceSourceDisplayStateTests: XCTestCase {
         XCTAssertEqual(state.badgeTitle, "N/A")
     }
 
-    func test_emptyModifierTabUsesVioletSelectedAccentWithMutedBadge() {
+    // The unified tab grammar (Variant D) reserves the selected-thumb fill
+    // for the one surface accent, so the presentation maps badge accents only.
+    func test_emptyModifierTabUsesMutedBadgeAccent() {
         let presentation = TrackSourceSlotWellTabAccentPresentation.modifier(for: .empty)
 
         XCTAssertEqual(presentation.badge, .border)
-        XCTAssertEqual(presentation.selected, .violet)
     }
 
     func test_containedModifierPickerRootAndEmptyPoolPresentation() {
@@ -977,24 +967,26 @@ private struct ClipHistoryEvidenceSurface: View {
 
     var body: some View {
         ClipHistoryEvidenceShell {
-            TrackSourceSlotWellTabBar(
+            TrackSourceSectionPills(
                 selectedTab: .constant(.stepsClip),
                 sourceState: sourceState,
                 modifierState: .empty,
                 routingState: TrackSourceRoutingDisplayState(
-                    pillSummary: "AU Instrument → Master",
-                    soundBadgeTitle: "AU Instrument"
+                    soundBadgeTitle: "AU Instrument",
+                    mixerBadgeTitle: "Master"
                 ),
                 accent: StudioTheme.cyan
             )
 
-            TrackSourceClipHistoryTabContent(
-                model: model,
-                accent: StudioTheme.success,
-                sourceSummary: sourceSummary,
-                isDestinationMode: false,
-                onSaveClip: {}
-            )
+            StudioTabWell(accent: StudioTheme.cyan) {
+                TrackSourceClipHistoryTabContent(
+                    model: model,
+                    accent: StudioTheme.success,
+                    sourceSummary: sourceSummary,
+                    isDestinationMode: false,
+                    onSaveClip: {}
+                )
+            }
         }
     }
 }
@@ -1024,24 +1016,26 @@ private struct ClipHistoryDestinationEvidenceSurface: View {
                 }
             }
 
-            TrackSourceSlotWellTabBar(
+            TrackSourceSectionPills(
                 selectedTab: .constant(.stepsClip),
                 sourceState: .occupiedGenerator,
                 modifierState: .empty,
                 routingState: TrackSourceRoutingDisplayState(
-                    pillSummary: "AU Instrument → Master",
-                    soundBadgeTitle: "AU Instrument"
+                    soundBadgeTitle: "AU Instrument",
+                    mixerBadgeTitle: "Master"
                 ),
                 accent: StudioTheme.cyan
             )
 
-            TrackSourceClipHistoryTabContent(
-                model: model,
-                accent: StudioTheme.success,
-                sourceSummary: "Generator live history: Euclidean Mono",
-                isDestinationMode: true,
-                onSaveClip: {}
-            )
+            StudioTabWell(accent: StudioTheme.cyan) {
+                TrackSourceClipHistoryTabContent(
+                    model: model,
+                    accent: StudioTheme.success,
+                    sourceSummary: "Generator live history: Euclidean Mono",
+                    isDestinationMode: true,
+                    onSaveClip: {}
+                )
+            }
         }
     }
 
@@ -1091,18 +1085,18 @@ private struct ClipHistoryUnavailableEvidenceSurface: View {
 
     var body: some View {
         ClipHistoryEvidenceShell {
-            TrackSourceSlotWellTabBar(
+            TrackSourceSectionPills(
                 selectedTab: .constant(.stepsClip),
                 sourceState: sourceState,
                 modifierState: .empty,
                 routingState: TrackSourceRoutingDisplayState(
-                    pillSummary: "AU Instrument → Master",
-                    soundBadgeTitle: "AU Instrument"
+                    soundBadgeTitle: "AU Instrument",
+                    mixerBadgeTitle: "Master"
                 ),
                 accent: StudioTheme.cyan
             )
 
-            TrackSourceSelectedWellBody(accent: StudioTheme.success, isEmpty: false) {
+            StudioTabWell(accent: StudioTheme.cyan) {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("History")
                         .studioText(.bodyBold)
@@ -1112,7 +1106,6 @@ private struct ClipHistoryUnavailableEvidenceSurface: View {
                         .foregroundStyle(StudioTheme.mutedText)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(14)
             }
         }
     }

@@ -31,6 +31,9 @@ struct StudioSectionPill<Section: Hashable> {
     /// Optional SOLID status badge carrying real state ("Empty", "Insert").
     /// Never a subtitle explainer.
     var badgeTitle: String?
+    /// Optional state accent for the badge (e.g. the track-source display
+    /// state mapping). `nil` uses the row's surface accent.
+    var badgeAccent: Color?
     var isEnabled: Bool = true
     var accessibilityIdentifier: String?
     var help: String?
@@ -109,7 +112,7 @@ struct StudioSectionPills<Section: Hashable>: View {
             if let badgeTitle = pill.badgeTitle {
                 StudioSectionPillBadge(
                     title: badgeTitle,
-                    accent: accent,
+                    accent: pill.badgeAccent ?? accent,
                     isOnSolidThumb: isSelected
                 )
             }

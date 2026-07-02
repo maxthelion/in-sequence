@@ -39,60 +39,46 @@ struct TrackSourceSourceTabContent: View {
         )
     }
 
+    // The tab renders inside the editor's `StudioTabWell` (unified tab
+    // grammar, Variant D), which owns the outline + content inset; this body
+    // is well content only.
     var body: some View {
-        TrackSourceSelectedWellBody(accent: bodyAccent, isEmpty: displayState == .empty) {
-            switch displayState {
-            case .occupiedClip:
-                sourceSection
-
-                if sourcePickerStep == nil {
-                    TrackSourceClipPanel(
-                        previewClipContent: previewClipContent,
-                        defaultClipNote: defaultClipNote,
-                        clipMacroSlots: clipMacroSlots,
-                        macroBindings: macroBindings,
-                        macroLanes: macroLanes,
-                        macroFallbackValues: macroFallbackValues,
-                        canAssignAUMacros: canAssignAUMacros,
-                        playingStepIndex: playingStepIndex,
-                        stepGridCoordinator: stepGridCoordinator,
-                        onAssignMacroSlot: onAssignMacroSlot
-                    )
-                    .padding(.horizontal, 14)
-                    .padding(.bottom, 14)
-                    .padding(.top, 12)
-                }
-
-            case .occupiedGenerator:
-                sourceSection
-
-                if sourcePickerStep == nil, let selectedGenerator {
-                    GeneratorParamsEditorView(
-                        generator: selectedGenerator,
-                        inputClipChoices: generatedSourceInputClips,
-                        harmonicSidechainClipChoices: harmonicSidechainClips,
-                        sourceMode: .generator,
-                        accent: accent,
-                        layout: .sourceContained,
-                        onUpdate: onUpdateGeneratorParams
-                    )
-                    .padding(.horizontal, 14)
-                    .padding(.bottom, 14)
-                    .padding(.top, 12)
-                }
-
-            case .empty:
-                sourceSection
-            }
-        }
-    }
-
-    private var bodyAccent: Color {
         switch displayState {
         case .occupiedClip:
-            return StudioTheme.success
-        case .occupiedGenerator, .empty:
-            return accent
+            sourceSection
+
+            if sourcePickerStep == nil {
+                TrackSourceClipPanel(
+                    previewClipContent: previewClipContent,
+                    defaultClipNote: defaultClipNote,
+                    clipMacroSlots: clipMacroSlots,
+                    macroBindings: macroBindings,
+                    macroLanes: macroLanes,
+                    macroFallbackValues: macroFallbackValues,
+                    canAssignAUMacros: canAssignAUMacros,
+                    playingStepIndex: playingStepIndex,
+                    stepGridCoordinator: stepGridCoordinator,
+                    onAssignMacroSlot: onAssignMacroSlot
+                )
+            }
+
+        case .occupiedGenerator:
+            sourceSection
+
+            if sourcePickerStep == nil, let selectedGenerator {
+                GeneratorParamsEditorView(
+                    generator: selectedGenerator,
+                    inputClipChoices: generatedSourceInputClips,
+                    harmonicSidechainClipChoices: harmonicSidechainClips,
+                    sourceMode: .generator,
+                    accent: accent,
+                    layout: .sourceContained,
+                    onUpdate: onUpdateGeneratorParams
+                )
+            }
+
+        case .empty:
+            sourceSection
         }
     }
 
@@ -113,7 +99,6 @@ struct TrackSourceSourceTabContent: View {
                 onCreateBlankClip: onCreateBlankClipSource,
                 onSelectClip: onAssignClipSource
             )
-            .padding(StudioMetrics.Spacing.standard)
         } else {
             TrackSourceSourceWell(
                 sourceMode: sourceMode,

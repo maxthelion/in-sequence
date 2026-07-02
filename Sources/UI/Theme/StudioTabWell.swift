@@ -16,10 +16,9 @@ import SwiftUI
 // secondary/value selectors live INSIDE the well (value selectors use the
 // inset-track solid-thumb grammar, never the pill-row grammar).
 //
-// API modelled on TrackSourceSelectedWellBody
-// (Sources/UI/TrackSource/TrackSourceSelectedWellBody.swift), which this
-// primitive supersedes: surfaces migrate onto StudioTabWell task by task and
-// the old component is deleted when the last caller moves off it.
+// API modelled on the deleted TrackSourceSelectedWellBody (the square-top
+// track-source well this primitive superseded; last caller migrated
+// 2026-07-02).
 
 /// Grammar constants shared by the tab strip + well pairing.
 enum StudioTabWellGrammar {

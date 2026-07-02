@@ -1,5 +1,8 @@
 import SwiftUI
 
+/// State accent tokens for the section-pill status badges of the melodic/poly
+/// track detail (kept from the underline-tab era: the badges carry real
+/// display state — Clip/Gen/Empty, Mod/Byp — with a state colour).
 enum TrackSourceSlotWellTabAccentToken: Equatable {
     case trackAccent
     case success
@@ -23,31 +26,35 @@ enum TrackSourceSlotWellTabAccentToken: Equatable {
     }
 }
 
+/// Display-state → badge-accent mapping for the STEPS/CLIP and MACROS pills.
+///
+/// The unified tab grammar (Variant D, owner-locked 2026-07-02) reserves the
+/// selected-thumb fill for the one surface accent, so this mapping now drives
+/// the status badges only.
 struct TrackSourceSlotWellTabAccentPresentation: Equatable {
     let badge: TrackSourceSlotWellTabAccentToken
-    let selected: TrackSourceSlotWellTabAccentToken
 
     static func source(for state: TrackSourceSourceDisplayState) -> TrackSourceSlotWellTabAccentPresentation {
         switch state {
         case .occupiedClip:
-            return TrackSourceSlotWellTabAccentPresentation(badge: .success, selected: .success)
+            return TrackSourceSlotWellTabAccentPresentation(badge: .success)
         case .occupiedGenerator:
-            return TrackSourceSlotWellTabAccentPresentation(badge: .trackAccent, selected: .trackAccent)
+            return TrackSourceSlotWellTabAccentPresentation(badge: .trackAccent)
         case .empty:
-            return TrackSourceSlotWellTabAccentPresentation(badge: .border, selected: .border)
+            return TrackSourceSlotWellTabAccentPresentation(badge: .border)
         }
     }
 
     static func modifier(for state: TrackSourceModifierDisplayState) -> TrackSourceSlotWellTabAccentPresentation {
         switch state {
         case .occupied:
-            return TrackSourceSlotWellTabAccentPresentation(badge: .violet, selected: .violet)
+            return TrackSourceSlotWellTabAccentPresentation(badge: .violet)
         case .bypassed:
-            return TrackSourceSlotWellTabAccentPresentation(badge: .amber, selected: .amber)
+            return TrackSourceSlotWellTabAccentPresentation(badge: .amber)
         case .empty:
-            return TrackSourceSlotWellTabAccentPresentation(badge: .border, selected: .violet)
+            return TrackSourceSlotWellTabAccentPresentation(badge: .border)
         case .unavailable:
-            return TrackSourceSlotWellTabAccentPresentation(badge: .border, selected: .border)
+            return TrackSourceSlotWellTabAccentPresentation(badge: .border)
         }
     }
 }
@@ -91,15 +98,18 @@ enum TrackSourceHistoryDisplayState: Equatable {
     }
 }
 
-/// Tab-bar presentation shared by the SOUND and MIXER tabs.
+/// Status badges shared by the SOUND and MIXER pills — real state only
+/// (instrument name, destination), never a subtitle explainer.
 struct TrackSourceRoutingDisplayState: Equatable {
-    /// One-glance path summary shown under the MIXER label, e.g.
-    /// "Clap kit → Bus A".
-    let pillSummary: String
     let soundBadgeTitle: String
+    /// Destination label shown on the MIXER pill badge, e.g. "Master"/"Bus A".
+    let mixerBadgeTitle: String
 }
 
-struct TrackSourceSlotWellTabBar: View {
+/// The melodic/poly track-detail section switcher: the D-pill grammar
+/// (`StudioSectionPills`) floating above the `StudioTabWell`, with SOLID
+/// status badges carrying the source/modifier/routing display state.
+struct TrackSourceSectionPills: View {
     @Binding var selectedTab: TrackSourceEditorTab
     let sourceState: TrackSourceSourceDisplayState
     let modifierState: TrackSourceModifierDisplayState
@@ -107,113 +117,52 @@ struct TrackSourceSlotWellTabBar: View {
     let accent: Color
 
     var body: some View {
-        HStack(spacing: 4) {
-            slotButton(
-                tab: .stepsClip,
-                title: "Steps/Clip",
-                badgeTitle: sourceState.badgeTitle,
-                accentPresentation: sourceAccentPresentation
-            )
-
-            slotButton(
-                tab: .sound,
-                title: "Sound",
-                badgeTitle: routingState.soundBadgeTitle,
-                accentPresentation: TrackSourceSlotWellTabAccentPresentation(badge: .success, selected: .success)
-            )
-
-            slotButton(
-                tab: .fx,
-                title: "FX",
-                badgeTitle: "Insert",
-                accentPresentation: TrackSourceSlotWellTabAccentPresentation(badge: .violet, selected: .violet)
-            )
-
-            slotButton(
-                tab: .macros,
-                title: "Macros",
-                badgeTitle: modifierState.badgeTitle,
-                accentPresentation: modifierAccentPresentation
-            )
-
-            mixerButton
-        }
-        .padding(.horizontal, 10)
-    }
-
-    private var mixerButton: some View {
-        let isSelected = selectedTab == .mixer
-        let selectedAccent = StudioTheme.success
-
-        return Button {
-            selectedTab = .mixer
-        } label: {
-            VStack(spacing: 0) {
-                HStack(alignment: .center, spacing: 8) {
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text("MIXER")
-                            .studioText(.eyebrowBold)
-                            .foregroundStyle(isSelected ? StudioTheme.text : StudioTheme.mutedText)
-                            .tracking(0.8)
-                        Text(routingState.pillSummary)
-                            .studioText(.micro)
-                            .foregroundStyle(StudioTheme.mutedText)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.75)
-                    }
-                    Spacer(minLength: 0)
-                }
-                .padding(.vertical, 7)
-                .padding(.horizontal, 12)
-
-                Rectangle()
-                    .fill(isSelected ? selectedAccent : Color.clear)
-                    .frame(height: 2)
-            }
-            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-            .background(
-                Color.white.opacity(StudioOpacity.subtleFill),
-                in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                    .stroke(
-                        isSelected ? selectedAccent.opacity(StudioOpacity.ghostStroke) : StudioTheme.border,
-                        lineWidth: isSelected ? 1.5 : 1
-                    )
-            )
-            .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
-        }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("track-mixer-tab")
-        .accessibilityValue(routingState.pillSummary)
-    }
-
-    private func slotButton(
-        tab: TrackSourceEditorTab,
-        title: String,
-        badgeTitle: String,
-        accentPresentation: TrackSourceSlotWellTabAccentPresentation
-    ) -> some View {
-        let isSelected = selectedTab == tab
-        let badgeAccent = accentPresentation.badge.color(trackAccent: accent)
-        let selectedAccent = accentPresentation.selected.color(trackAccent: accent)
-
-        return StudioSlotTabButton(
-            title: title,
-            isSelected: isSelected,
-            selectedAccent: selectedAccent,
-            badgeTitle: badgeTitle,
-            badgeAccent: badgeAccent,
-            action: { selectedTab = tab }
+        StudioSectionPills(
+            pills: [
+                StudioSectionPill(
+                    section: TrackSourceEditorTab.stepsClip,
+                    title: TrackSourceEditorTab.stepsClip.title,
+                    badgeTitle: sourceState.badgeTitle,
+                    badgeAccent: badgeColor(TrackSourceSlotWellTabAccentPresentation.source(for: sourceState)),
+                    accessibilityIdentifier: "track-detail-tab-steps-clip"
+                ),
+                StudioSectionPill(
+                    section: TrackSourceEditorTab.sound,
+                    title: TrackSourceEditorTab.sound.title,
+                    badgeTitle: routingState.soundBadgeTitle,
+                    badgeAccent: StudioTheme.success,
+                    accessibilityIdentifier: "track-detail-tab-sound"
+                ),
+                StudioSectionPill(
+                    section: TrackSourceEditorTab.fx,
+                    title: TrackSourceEditorTab.fx.title,
+                    badgeTitle: "Insert",
+                    badgeAccent: StudioTheme.violet,
+                    accessibilityIdentifier: "track-detail-tab-fx"
+                ),
+                StudioSectionPill(
+                    section: TrackSourceEditorTab.macros,
+                    title: TrackSourceEditorTab.macros.title,
+                    badgeTitle: modifierState.badgeTitle,
+                    badgeAccent: badgeColor(TrackSourceSlotWellTabAccentPresentation.modifier(for: modifierState)),
+                    accessibilityIdentifier: "track-detail-tab-macros"
+                ),
+                StudioSectionPill(
+                    section: TrackSourceEditorTab.mixer,
+                    title: TrackSourceEditorTab.mixer.title,
+                    badgeTitle: routingState.mixerBadgeTitle,
+                    badgeAccent: StudioTheme.success,
+                    accessibilityIdentifier: "track-mixer-tab"
+                ),
+            ],
+            selection: selectedTab,
+            accent: accent,
+            accessibilityIdentifier: "track-detail-tabs",
+            onSelect: { selectedTab = $0 }
         )
     }
 
-    private var sourceAccentPresentation: TrackSourceSlotWellTabAccentPresentation {
-        TrackSourceSlotWellTabAccentPresentation.source(for: sourceState)
-    }
-
-    private var modifierAccentPresentation: TrackSourceSlotWellTabAccentPresentation {
-        TrackSourceSlotWellTabAccentPresentation.modifier(for: modifierState)
+    private func badgeColor(_ presentation: TrackSourceSlotWellTabAccentPresentation) -> Color {
+        presentation.badge.color(trackAccent: accent)
     }
 }

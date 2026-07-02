@@ -285,10 +285,13 @@ struct TrackSourceEditorView: View {
                 }
             )
 
-            VStack(alignment: .leading, spacing: 0) {
-                trackSourceHeader
+            // Unified tab grammar (Variant D): the section pills float a
+            // small gap above the accent-outlined well; tab content lives
+            // inside it.
+            VStack(alignment: .leading, spacing: StudioTabWellGrammar.pillRowToWellGap) {
+                sectionPills
 
-                Group {
+                StudioTabWell(accent: accent) {
                     switch selectedTab {
                     case .stepsClip:
                         sourceTab
@@ -397,21 +400,17 @@ struct TrackSourceEditorView: View {
         }
     }
 
-    private var trackSourceHeader: some View {
-        TrackSourceSlotWellTabBar(
+    private var sectionPills: some View {
+        TrackSourceSectionPills(
             selectedTab: $selectedTab,
             sourceState: sourceDisplayState,
             modifierState: modifierDisplayState,
             routingState: TrackSourceRoutingDisplayState(
-                pillSummary: routingPathSummary.pillSummary,
-                soundBadgeTitle: routingPathSummary.instrumentLabel
+                soundBadgeTitle: routingPathSummary.instrumentLabel,
+                mixerBadgeTitle: routingPathSummary.destinationLabel
             ),
             accent: accent
         )
-        .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
-        .padding(.trailing, 10)
-        .padding(.bottom, 8)
-        .background(Color.white.opacity(StudioOpacity.subtleFill))
     }
 
     @ViewBuilder
@@ -506,18 +505,15 @@ struct TrackSourceEditorView: View {
     @ViewBuilder
     private var clipHistoryTab: some View {
         if !historyDisplayState.isAvailable {
-            TrackSourceSelectedWellBody(accent: StudioTheme.success, isEmpty: false) {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("History")
-                        .studioText(.bodyBold)
-                        .foregroundStyle(StudioTheme.text)
-                    Text(clipHistoryUnavailableReason)
-                        .studioText(.body)
-                        .foregroundStyle(StudioTheme.mutedText)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(StudioMetrics.Spacing.standard)
+            VStack(alignment: .leading, spacing: 8) {
+                Text("History")
+                    .studioText(.bodyBold)
+                    .foregroundStyle(StudioTheme.text)
+                Text(clipHistoryUnavailableReason)
+                    .studioText(.body)
+                    .foregroundStyle(StudioTheme.mutedText)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .onAppear {
                 resetClipHistoryModel()
             }
@@ -536,19 +532,11 @@ struct TrackSourceEditorView: View {
                 }
             }
         } else {
-            TrackSourceSelectedWellBody(accent: StudioTheme.success, isEmpty: false) {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("History")
-                        .studioText(.bodyBold)
-                        .foregroundStyle(StudioTheme.text)
-                    Text("Listening to the rolling history buffer.")
-                        .studioText(.body)
-                        .foregroundStyle(StudioTheme.mutedText)
-                }
+            Text("History")
+                .studioText(.bodyBold)
+                .foregroundStyle(StudioTheme.text)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(StudioMetrics.Spacing.standard)
-            }
-            .onAppear(perform: refreshClipHistoryModel)
+                .onAppear(perform: refreshClipHistoryModel)
         }
     }
 
@@ -586,22 +574,20 @@ struct TrackSourceEditorView: View {
         // inserts do not yet process audio. Wiring `track.fxInserts` (respecting
         // order + bypass) into the per-track audio graph — reusing the existing
         // AU-effect host path used for bus/master/scene inserts — is a follow-up.
-        TrackSourceSelectedWellBody(accent: StudioTheme.violet, isEmpty: false) {
-            TrackFXChainView(
-                inserts: track.fxInserts,
-                accent: StudioTheme.violet,
-                onAddFX: { isAddFXPresented = true },
-                onRemove: { insertID in
-                    session.removeFXInsert(trackID: track.id, insertID: insertID)
-                },
-                onMove: { source, destination in
-                    session.moveFXInsert(trackID: track.id, from: source, to: destination)
-                },
-                onSetBypassed: { insertID, bypassed in
-                    session.setFXInsertBypassed(trackID: track.id, insertID: insertID, bypassed: bypassed)
-                }
-            )
-        }
+        TrackFXChainView(
+            inserts: track.fxInserts,
+            accent: StudioTheme.violet,
+            onAddFX: { isAddFXPresented = true },
+            onRemove: { insertID in
+                session.removeFXInsert(trackID: track.id, insertID: insertID)
+            },
+            onMove: { source, destination in
+                session.moveFXInsert(trackID: track.id, from: source, to: destination)
+            },
+            onSetBypassed: { insertID, bypassed in
+                session.setFXInsertBypassed(trackID: track.id, insertID: insertID, bypassed: bypassed)
+            }
+        )
     }
 
     private var addFXSheet: some View {
@@ -673,13 +659,8 @@ struct TrackSourceEditorView: View {
 
     @ViewBuilder
     private var macrosTab: some View {
-        TrackSourceSelectedWellBody(accent: StudioTheme.amber, isEmpty: false) {
-            VStack(alignment: .leading, spacing: 10) {
-                macroSlotGrid
-            }
+        macroSlotGrid
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(StudioMetrics.Spacing.standard)
-        }
     }
 
     private let macroSlotColumns = [

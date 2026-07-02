@@ -18,69 +18,33 @@ struct TrackSourceModifierTabContent: View {
     let onRemoveModifier: () -> Void
     let onUpdateGeneratorParams: (GeneratorParams) -> Void
 
+    // Renders inside the editor's `StudioTabWell` (unified tab grammar,
+    // Variant D), which owns the outline + content inset.
     var body: some View {
-        TrackSourceSelectedWellBody(accent: bodyAccent, isEmpty: bodyIsEmpty) {
-            modifierWell
+        modifierWell
 
-            if let modifierPickerStep {
-                TrackSourceContainedModifierPicker(
-                    step: modifierPickerStep,
-                    compatibleModifiers: compatibleGenerators,
-                    onBack: onShowGeneratorPicker,
-                    onCancel: onBackOutGeneratorPicker,
-                    onShowModifierPool: onShowModifierPool,
-                    onCreateBlankModifier: onCreateBlankModifier,
-                    onSelectModifier: onSelectModifier
-                )
-                .padding(.horizontal, 14)
-                .padding(.bottom, 14)
-                .padding(.top, 12)
-            }
-
-            if modifierPickerStep == nil, let selectedGenerator {
-                GeneratorParamsEditorView(
-                    generator: selectedGenerator,
-                    inputClipChoices: generatedSourceInputClips,
-                    harmonicSidechainClipChoices: harmonicSidechainClips,
-                    sourceMode: sourceMode,
-                    accent: StudioTheme.violet,
-                    layout: .modifierContained,
-                    onUpdate: onUpdateGeneratorParams
-                )
-                .padding(.horizontal, 14)
-                .padding(.bottom, 14)
-                .padding(.top, 12)
-            }
+        if let modifierPickerStep {
+            TrackSourceContainedModifierPicker(
+                step: modifierPickerStep,
+                compatibleModifiers: compatibleGenerators,
+                onBack: onShowGeneratorPicker,
+                onCancel: onBackOutGeneratorPicker,
+                onShowModifierPool: onShowModifierPool,
+                onCreateBlankModifier: onCreateBlankModifier,
+                onSelectModifier: onSelectModifier
+            )
         }
-    }
 
-    private var displayState: TrackSourceModifierDisplayState {
-        TrackSourceModifierDisplayState.resolve(
-            trackType: trackType,
-            selectedGenerator: selectedGenerator,
-            isBypassed: isBypassed
-        )
-    }
-
-    private var bodyAccent: Color {
-        switch displayState {
-        case .occupied:
-            return StudioTheme.violet
-        case .bypassed:
-            return StudioTheme.amber
-        case .empty:
-            return StudioTheme.violet
-        case .unavailable:
-            return StudioTheme.border
-        }
-    }
-
-    private var bodyIsEmpty: Bool {
-        switch displayState {
-        case .empty, .unavailable:
-            return true
-        case .occupied, .bypassed:
-            return false
+        if modifierPickerStep == nil, let selectedGenerator {
+            GeneratorParamsEditorView(
+                generator: selectedGenerator,
+                inputClipChoices: generatedSourceInputClips,
+                harmonicSidechainClipChoices: harmonicSidechainClips,
+                sourceMode: sourceMode,
+                accent: StudioTheme.violet,
+                layout: .modifierContained,
+                onUpdate: onUpdateGeneratorParams
+            )
         }
     }
 

@@ -376,7 +376,7 @@ struct ClipContentPreview: View {
                 }
             }
 
-            clipFooter(lengthSteps: lengthSteps, page: page, pageCount: pageCount, playheadPage: playheadPage, steps: steps)
+            clipFooter(lengthSteps: lengthSteps, page: page, pageCount: pageCount, playheadPage: playheadPage)
         }
         .background {
             StepGridEscapeKeyHandler(isEnabled: stepGridCoordinator?.isSelectionActive ?? false) {
@@ -548,22 +548,19 @@ struct ClipContentPreview: View {
         }
     }
 
+    // Canon creep purge (2026-07-02): the "N notes" counter was filler — the
+    // grid already shows its notes — so the footer is the pager alone.
+    @ViewBuilder
     private func clipFooter(
         lengthSteps: Int,
         page: Int,
         pageCount: Int,
-        playheadPage: Int?,
-        steps: [ClipStep]
+        playheadPage: Int?
     ) -> some View {
-        HStack(alignment: .bottom, spacing: 12) {
-            Text("\(noteCount(in: steps)) notes")
-                .studioText(.micro)
-                .foregroundStyle(StudioTheme.mutedText)
-                .monospacedDigit()
+        if pageCount > 1 {
+            HStack(alignment: .bottom, spacing: 12) {
+                Spacer(minLength: 12)
 
-            Spacer(minLength: 12)
-
-            if pageCount > 1 {
                 pageSelector(lengthSteps: lengthSteps, page: page, pageCount: pageCount, playheadPage: playheadPage)
             }
         }

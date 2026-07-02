@@ -8,16 +8,14 @@ struct TrackSourceClipHistoryTabContent: View {
     var isTransportRunning = true
     let onSaveClip: () -> Void
 
+    // Renders inside the editor's `StudioTabWell` (unified tab grammar,
+    // Variant D), which owns the outline + content inset.
     var body: some View {
-        TrackSourceSelectedWellBody(accent: accent, isEmpty: false) {
-            VStack(alignment: .leading, spacing: 14) {
-                header
-                virtualClipPreview
-                historyStrip
-                footer
-            }
-            .padding(.vertical, 14)
-            .padding(.horizontal, 14)
+        VStack(alignment: .leading, spacing: 14) {
+            header
+            virtualClipPreview
+            historyStrip
+            footer
         }
         .onDisappear {
             model.stopAudition()
@@ -152,10 +150,10 @@ struct TrackSourceClipHistoryTabContent: View {
                     .studioText(.labelBold)
                     .foregroundStyle(StudioTheme.text)
                 Spacer()
-                Text("Tap a region to loop it. Tap again to clear.")
-                    .studioText(.micro)
-                    .foregroundStyle(StudioTheme.mutedText)
             }
+            // Canon Rule 3: instruction lives in the tooltip, not on the
+            // surface.
+            .help("Tap a region to loop it; tap again to clear")
 
             LazyVGrid(columns: historyColumns, spacing: 0) {
                 ForEach(model.sourceCells) { cell in
@@ -175,23 +173,18 @@ struct TrackSourceClipHistoryTabContent: View {
         }
     }
 
+    // Canon Rule 3: the footer carries real failure state only — the workflow
+    // hints that used to sit here were explainer prose.
+    @ViewBuilder
     private var footer: some View {
-        HStack(spacing: 10) {
-            if let saveError = model.saveError {
+        if let saveError = model.saveError {
+            HStack(spacing: 10) {
                 Text(saveError)
                     .studioText(.label)
                     .foregroundStyle(StudioTheme.amber)
-            } else if model.selectedPseudoClip == nil {
-                Text("Rolling preview updates continuously. Select a region to audition and save.")
-                    .studioText(.label)
-                    .foregroundStyle(StudioTheme.mutedText)
-            } else {
-                Text("Save Clip uses the pattern row above.")
-                    .studioText(.label)
-                    .foregroundStyle(StudioTheme.mutedText)
-            }
 
-            Spacer(minLength: 0)
+                Spacer(minLength: 0)
+            }
         }
     }
 
@@ -431,19 +424,17 @@ struct ClipHistoryPianoRollPreview: View {
                     let clampedLower = min(max(selectionRange.lowerBound, 0), resolvedLength)
                     let clampedUpper = min(max(selectionRange.upperBound, clampedLower), resolvedLength)
                     let selectionWidth = max(stepWidth * CGFloat(clampedUpper - clampedLower), 2)
+                    // Colour identifies, it never floods (ux-canon rule 12):
+                    // the save window reads from the accent outline alone.
                     RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous)
                         .stroke(accent, lineWidth: 2)
-                        .background(
-                            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous)
-                                .fill(accent.opacity(StudioOpacity.hoverFill))
-                        )
                         .frame(width: selectionWidth)
                         .frame(maxHeight: .infinity)
                         .offset(x: stepWidth * CGFloat(clampedLower))
                 }
 
                 if notes.isEmpty {
-                    Text(isTransportRunning ? "Waiting for live notes." : "Press play to record live history.")
+                    Text(isTransportRunning ? "Waiting for live notes" : "Press play to record")
                         .studioText(.body)
                         .foregroundStyle(StudioTheme.mutedText)
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
