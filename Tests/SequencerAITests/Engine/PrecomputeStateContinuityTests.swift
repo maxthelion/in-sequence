@@ -526,4 +526,47 @@ final class PrecomputeStateContinuityTests: XCTestCase {
             "does not evaluate from stale state. observed=\(String(describing: lanePitch))"
         )
     }
+
+    /// `BarKey` carries no chord field, so a harmonic-sidechain follower's
+    /// precomputed bar bakes in whatever chord was live when the bar was
+    /// requested (up to a bar ahead of playback). A chord CHANGE must therefore
+    /// bump the generation-input revision so stale bars become unmatchable —
+    /// but only an actual value change may bump, because the broadcast re-fires
+    /// every step and an unconditional bump would disable precompute entirely.
+    func test_chordContextBroadcast_bumpsGenerationRevisionOnlyOnChordChange() {
+        let sink = CountingAudioSink()
+        let controller = EngineController(client: nil, endpoint: nil, audioOutput: sink)
+        let (project, _, _) = makeSequentialGeneratorProject()
+        controller.apply(documentModel: project)
+
+        let cMajor = Chord(root: 60, chordType: "majorTriad", scale: "major")
+        let fMajor = Chord(root: 65, chordType: "majorTriad", scale: "major")
+
+        let initial = controller.tickState.readPrepareInputs().generationInputRevision
+
+        controller.applyChordContextBroadcast(lane: "prog", chord: cMajor)
+        let afterFirst = controller.tickState.readPrepareInputs().generationInputRevision
+        XCTAssertEqual(
+            afterFirst, initial &+ 1,
+            "first chord on a lane is a change from nil — published bars baked without it are stale"
+        )
+
+        controller.applyChordContextBroadcast(lane: "prog", chord: cMajor)
+        XCTAssertEqual(
+            controller.tickState.readPrepareInputs().generationInputRevision, afterFirst,
+            "re-broadcasting an unchanged chord fires every step and must NOT invalidate precompute"
+        )
+
+        controller.applyChordContextBroadcast(lane: "prog", chord: fMajor)
+        XCTAssertEqual(
+            controller.tickState.readPrepareInputs().generationInputRevision, afterFirst &+ 1,
+            "a chord change must invalidate published bars that baked the previous chord"
+        )
+
+        controller.applyChordContextBroadcast(lane: "other", chord: fMajor)
+        XCTAssertEqual(
+            controller.tickState.readPrepareInputs().generationInputRevision, afterFirst &+ 2,
+            "lanes are independent — a first chord on another lane is a change on that lane"
+        )
+    }
 }

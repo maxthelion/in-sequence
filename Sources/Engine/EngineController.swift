@@ -3042,14 +3042,7 @@ final class EngineController: RouterDispatcher {
                 )
 
             case let .chordContextBroadcast(lane, chord):
-                // Engine copy under stateLock at dispatch time (tick queue);
-                // the @Observable mirror publishes on main (R2).
-                withStateLock {
-                    chordContextByLaneEngine[lane] = chord
-                }
-                publishToMain { [weak self] in
-                    self?.chordContextByLane[lane] = chord
-                }
+                applyChordContextBroadcast(lane: lane, chord: chord)
 
             case .routedMIDI:
                 break
@@ -3657,6 +3650,34 @@ final class EngineController: RouterDispatcher {
 
         withStateLock {
             routerDispatch.removeOutputs(for: detachedRoutedDestinations)
+        }
+    }
+
+    /// Applies a `.chordContextBroadcast` event at dispatch time (tick queue).
+    /// The engine copy updates under `stateLock`; the @Observable mirror
+    /// publishes on main (R2).
+    ///
+    /// When the lane's chord actually CHANGES, the generation-input revision is
+    /// bumped: `BarKey` carries no chord field, so an already-published or
+    /// prefetched precomputed bar has the previous chord baked into every
+    /// harmonic-sidechain evaluation for its whole bar. The bump makes those
+    /// bars unmatchable — the affected steps fall back to live per-step
+    /// generation (which reads the fresh chord context; visible via the
+    /// cold-boundary fallback diagnostic) while the bar re-precomputes with
+    /// the new chord. Guarded on a value change because the broadcast re-fires
+    /// every step the progression sounds — an unconditional bump would
+    /// invalidate the precompute cache every tick and disable it entirely.
+    func applyChordContextBroadcast(lane: String, chord: Chord) {
+        let chordChanged = withStateLock {
+            let previous = chordContextByLaneEngine[lane]
+            chordContextByLaneEngine[lane] = chord
+            return previous != chord
+        }
+        if chordChanged {
+            tickState.invalidatePreparedTick()
+        }
+        publishToMain { [weak self] in
+            self?.chordContextByLane[lane] = chord
         }
     }
 
