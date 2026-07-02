@@ -9,7 +9,6 @@ set -euo pipefail
 # Usage:
 #   scripts/diagnostics/ux-canon-lint.sh              # scan Sources/UI
 #   scripts/diagnostics/ux-canon-lint.sh <files...>   # scan specific files
-#   UX_CANON_LINT_BASELINE=<n> scripts/diagnostics/ux-canon-lint.sh
 #
 # Rules enforced here:
 #   1. translucent-accent-fill — `accent.opacity(`/`stateColor.opacity(` used
@@ -31,14 +30,14 @@ set -euo pipefail
 # offending line or the line above it. A bare annotation with no reason is
 # itself a failure.
 #
-# Baseline ratchet: the canon creep pre-dates this lint, so a bare run FAILS
-# today. Set UX_CANON_LINT_BASELINE=<n> to pass while total violations <= n;
-# migration tasks ratchet n down to 0 as surfaces move onto StudioTabWell /
-# StudioSectionPills and the label purge lands. Unset (or 0) means clean.
+# STRICT ZERO-TOLERANCE: the migration that this lint ratcheted (grey-default
+# flip + label purge, 2026-07-02) landed, so ANY violation fails. There is no
+# baseline/threshold escape hatch — legitimate sentence slots go in the
+# allowlist file, legitimate neutral/opacity uses get an inline
+# `ux-canon-allow: <reason>` annotation.
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 allowlist="$repo_root/scripts/diagnostics/ux-canon-prose-allowlist.txt"
-baseline="${UX_CANON_LINT_BASELINE:-0}"
 
 if (($# > 0)); then
   files=("$@")
@@ -152,13 +151,13 @@ total=$((fill_count + grey_count + prose_count + annotation_count))
 
 sed 's/^[a-z-]*|//' "$violations" >&2
 
-printf 'ux-canon-lint: translucent-accent-fill=%d grey-escape=%d explainer-prose=%d bad-annotation=%d total=%d baseline=%d\n' \
-  "$fill_count" "$grey_count" "$prose_count" "$annotation_count" "$total" "$baseline"
+printf 'ux-canon-lint: translucent-accent-fill=%d grey-escape=%d explainer-prose=%d bad-annotation=%d total=%d\n' \
+  "$fill_count" "$grey_count" "$prose_count" "$annotation_count" "$total"
 
-if ((total > baseline)); then
-  printf 'ux-canon-lint: FAIL (%d violations > baseline %d)\n' "$total" "$baseline"
+if ((total > 0)); then
+  printf 'ux-canon-lint: FAIL (%d violations; zero tolerance)\n' "$total"
   exit 1
 fi
 
-printf 'ux-canon-lint: OK (%d violations <= baseline %d)\n' "$total" "$baseline"
+printf 'ux-canon-lint: OK (0 violations)\n'
 exit 0

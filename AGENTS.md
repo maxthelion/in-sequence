@@ -172,6 +172,20 @@ Enforced by `realtime-path-lint.sh`, `runtime-ownership-lint.sh`, an offline
 frame-accuracy test (assert 0-frame error), and the audio adherence observers.
 Migration plan: [`docs/plans/2026-06-24-sample-accurate-timing.md`](docs/plans/2026-06-24-sample-accurate-timing.md).
 
+## UX Canon Lint
+
+UI surfaces have a codified canon (`docs/ux-canon.md`) enforced by
+`scripts/diagnostics/ux-canon-lint.sh` — strict zero-tolerance, run it next to
+the audio lints for any change under `Sources/UI`. It fails on translucent
+accent fills (Rule 12), system-grey escapes bypassing `StudioTheme` tokens,
+and explainer-prose `Text` sentences on working surfaces (Rule 3). Legitimate
+sentence slots (destructive-confirm messages) live in
+`scripts/diagnostics/ux-canon-prose-allowlist.txt`; a genuinely-correct
+neutral/opacity use takes an inline `// ux-canon-allow: <reason>` annotation.
+Section switchers use `StudioSectionPills` + `StudioTabWell`; value/layer
+selectors use `StudioSegmentedControl`/`StudioModeSegmentedPill` (the locked
+Variant D grammar — `docs/roadmap/track-view-ia/tab-unification-and-canon-creep.md`).
+
 ## Bug Reports & Status
 
 User-filed bug reports live under `docs/bugs/<timestamp-slug>/` (each is a
