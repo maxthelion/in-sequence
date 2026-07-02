@@ -70,3 +70,28 @@ WAVs (6.7 MB each, not committed): app container
    `cmd.env` and can steal the next run's commands — kill leftovers first.
 3. `render_8bar.py`'s deviation panel anchors to the first detected onset
    (often the render-start transient) — use `flam_analysis.py` for verdicts.
+
+---
+
+## Addendum — same-day follow-up pass (step-0, TCC, macro drags)
+
+- `e588c2eb` — step-0 stamps lifted to a 30 ms live scheduling floor (single
+  scheduled first hit, AU/sample parity, no kick/hat split). Rig-measured
+  landing: **grid + ~41 ms with one-quantum variance** — the hit lands exactly
+  ON its stamp, but the stamp derives from the render position at dispatch,
+  which advances 1–2 quanta during cold first-tick work. Verified dead ends:
+  45 ms floor (+55.8), pre-starting player nodes (no change, one run split).
+  The deterministic fix — anchoring the transport grid a fixed lead after the
+  start render position — touches the frozen ≤10 ms first-play rail:
+  **product decision for the human acceptance gate (G2)**.
+- `74ac91c3` — sample-only sessions no longer touch the input side of the
+  shared AUHAL (mic TCC fires only when an input routing arms). Empirically
+  confirmed: the rig now runs unattended on a freshly re-signed binary — the
+  exact scenario that stalled every time before.
+- `426c0771` — macro-knob drags no longer bust the precompute cache (scoped
+  runtime override; store still persists; structural layer edits still
+  install).
+- Final rig run (all fixes): steady state 74/75 onsets within ±0.71 ms of the
+  grid (rms 0.37 ms), zero same-step pairs, zero immediate-mode triggers,
+  single step-0 hit at +41.0 ms. Remaining before merge: human acoustic pass
+  (AU first play — rig is sample-only — plus the G2 step-0 decision).
