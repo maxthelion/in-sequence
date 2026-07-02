@@ -1,9 +1,9 @@
 import AVFoundation
 import Foundation
 
-// MARK: - Phase 3 look-ahead scheduling contract (RAIL STUB — builder implements)
+// MARK: - Phase 3 look-ahead scheduling contract (IMPLEMENTED — early dispatch)
 //
-// This file is the COMPILE-TIME CONTRACT for Phase 3 of
+// This file defines the look-ahead lead contract for Phase 3 of
 // `docs/plans/2026-06-30-precompute-lookahead-recording.md`:
 //
 //   "with a warm origin (P1) + a precomputed bar (P2), stamp events with a fixed
@@ -16,18 +16,25 @@ import Foundation
 //    probe under normal load" — i.e. `effectivePlaybackTime` never clamps to
 //    immediate (nil) when a dispatch arrives within the lead.
 //
-// The DECLARATIONS below are intentionally a NO-OP / knife-edge (lead == 0, the
-// pre-Phase-3 behaviour described at `AudioMasterClock.swift:227-235`: "No
-// `now()` / lookahead-pump read is exposed ... the ~100–200 ms lookahead pump
-// described in the plan is a later step"). They make the frozen rail
-// (`Tests/SequencerAITests/Audio/LookAheadSchedulingTests.swift`) COMPILE and run
-// RED on the current code (the feature is not built yet).
+// # How the lead is realised (implemented; see LookAheadEarlyDispatch.swift)
 //
-// FROZEN-RAIL DISCIPLINE: the BUILDER implements the bodies here (and may extend
-// / re-home these declarations as long as the rail keeps compiling and passes
-// HONESTLY). The builder MUST NOT edit the rail test file. The public surface
-// (member names, signatures, the `lookAheadLeadSeconds` value contract) is what
-// the frozen rail asserts against — it must stay stable.
+// The lead is NOT a master-clock origin shift. `TickClock` fires tick 0
+// immediately and then reschedules its repeating timer so every subsequent
+// wake runs `lookAheadLeadSeconds` ahead of the step grid (`TickClock.swift`,
+// the `tickIndex == 0` reschedule in the timer's event handler). Each wake
+// drives `EngineController.processLiveLookAheadPumpMarked`, which dispatches
+// every step whose musical due time falls within `pumpMusicalSeconds +
+// lookAheadLeadSeconds`, with the `nextLivePumpStep` cursor preventing
+// duplicate dispatch — so sinks receive events up to `lookAheadLeadSeconds`
+// before they are musically due. `AudioMasterClock.captureOrigin` is called
+// with the default `leadSeconds: 0` on the live transport-start path
+// (`EngineController.start`); the origin itself never moves, only the
+// dispatch wake does.
+//
+// FROZEN-RAIL DISCIPLINE: `Tests/SequencerAITests/Audio/LookAheadSchedulingTests.swift`
+// asserts against the public surface below (member names, signatures, the
+// `lookAheadLeadSeconds` value contract). Do not edit the rail test file; the
+// surface here must stay stable.
 //
 // # Why the lead is the contract, and why it is anchored to the musical origin
 //
@@ -54,10 +61,12 @@ extension EngineController {
     /// performance controls still apply at dispatch ON TOP of the lead, so the
     /// lead does not hurt responsiveness (spec, "Look-ahead lead: 100 ms").
     ///
-    /// STUB: `0` — no look-ahead built yet (knife-edge dispatch, the pre-Phase-3
-    /// behaviour). The builder replaces this with the locked lead and wires it
-    /// into the prepare/dispatch split so events are handed to the schedulers
-    /// early.
+    /// Implemented: forwards `AudioMasterClock.lookAheadLeadSeconds` (0.100 s).
+    /// `TickClock.start(lookAheadLeadSeconds:)` uses this value to reschedule
+    /// its wakes ~100 ms ahead of the step grid, and
+    /// `EngineController.processLiveLookAheadPumpMarked` uses it as the
+    /// dispatch horizon (`pumpMusicalSeconds + lookAheadLeadSeconds`) for
+    /// which due-soon steps to dispatch on each wake.
     var lookAheadLeadSeconds: TimeInterval {
         // Phase 3 — this is the pump's look-ahead horizon. It must not be paid
         // as a master-clock origin delay. The event stamp remains the true
@@ -82,9 +91,16 @@ extension EngineController {
     /// - Returns nil only when there is genuinely no sample-accurate stamp yet
     ///   (no render origin), mirroring `scheduledAUNoteSampleTime`'s contract.
     ///
-    /// STUB: returns the knife-edge stamp (the event's musical due host time, no
-    /// lead) — so a dispatch at or after the due time is past-due and the rail is
-    /// RED. The builder makes the dispatch run `lookAheadLeadSeconds` ahead.
+    /// Implemented: intentionally returns the musical-due-time stamp (no lead
+    /// added to the stamp itself) — the lead is realised upstream, by the pump
+    /// calling this EARLY (see the file header), not by shifting the stamp this
+    /// function returns. `dispatchNow` is accepted for the contract's
+    /// documentation/testing value (it lets callers/tests state WHEN the pump
+    /// dispatched relative to the due time) but is not read here: Rule 1
+    /// requires the stamp to be anchored purely to the unified clock's musical
+    /// due time, never to the wall-clock dispatch moment, so folding
+    /// `dispatchNow` into the returned stamp would be wrong even if it were
+    /// convenient.
     func leadStampedAudioTime(
         forMusicalSeconds musicalSeconds: TimeInterval,
         dispatchNow: TimeInterval

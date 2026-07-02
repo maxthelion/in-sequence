@@ -1,10 +1,10 @@
 import AVFoundation
 import Foundation
 
-// MARK: - P3 EARLY-DISPATCH contract (RAIL STUB — builder implements)
+// MARK: - P3 EARLY-DISPATCH contract (IMPLEMENTED — round-2 correction)
 //
-// This file is the COMPILE-TIME CONTRACT for the ROUND-2 correction of Phase 3
-// (`docs/plans/2026-07-01-round2-integration-spec.md`, "P3 — real early
+// This file defines the test-observation surface for the ROUND-2 correction of
+// Phase 3 (`docs/plans/2026-07-01-round2-integration-spec.md`, "P3 — real early
 // dispatch, not an origin delay"):
 //
 //   "stamp events with the 100 ms lead and hand them to the schedulers EARLY
@@ -12,41 +12,41 @@ import Foundation
 //    past-due `when`; `leadStampedAudioTime` must be the live path. Do NOT
 //    globally delay the master-clock origin."
 //
-// # What round-1 shipped WRONG (this contract exists to correct it)
+// # What round-1 shipped WRONG (this contract was written to correct it)
 //
 // Round-1 realised the lead as a FIXED ~100 ms forward shift of the captured
-// master-clock origin (`EngineController.start()` →
-// `AudioMasterClock.captureOrigin(..., leadSeconds: lookAheadLeadSeconds)`; the
-// origin shift in `AudioMasterClock.captureOrigin` /
-// `refreshOriginIfAvailable`). Net effect: musical second 0 SOUNDS ~100 ms
-// after the transport-start render position — ~100 ms of ABSOLUTE first-play
-// latency, which DEFEATS the Gate-1 ≤ 10 ms first-play criterion. And the real
-// early-dispatch surface `leadStampedAudioTime(forMusicalSeconds:dispatchNow:)`
-// (`Sources/Engine/LookAheadScheduling.swift`) is DEAD in production — the live
-// `dispatchTick` loop stamps via `dispatchSampleAudioTime` /
-// `scheduledAUNoteSampleTime` and never calls `leadStampedAudioTime`.
+// master-clock origin (`EngineController.start()` calling
+// `AudioMasterClock.captureOrigin(..., leadSeconds: lookAheadLeadSeconds)`).
+// Net effect: musical second 0 SOUNDED ~100 ms after the transport-start
+// render position — ~100 ms of ABSOLUTE first-play latency, which DEFEATED the
+// Gate-1 ≤ 10 ms first-play criterion. And the early-dispatch surface
+// `leadStampedAudioTime(forMusicalSeconds:dispatchNow:)`
+// (`Sources/Engine/LookAheadScheduling.swift`) was DEAD in production — the
+// live dispatch loop stamped via `dispatchSampleAudioTime` /
+// `scheduledAUNoteSampleTime` and never called `leadStampedAudioTime`.
 //
-// # The two invariants the frozen rail asserts (make it GREEN honestly)
+// # Current state: both invariants are implemented and live
 //
-// 1. FIRST-PLAY ABSOLUTE LATENCY ≤ 10 ms. The first event (musical second 0)
-//    must be stamped within 10 ms of the transport-start render origin — i.e.
-//    the master-clock origin must NOT be shifted forward by the lead. The lead
-//    is realised by dispatching EARLY (handing events to the schedulers ahead
-//    of the wake), NOT by moving the sounding origin.
+// 1. FIRST-PLAY ABSOLUTE LATENCY ≤ 10 ms. `EngineController.start()` calls
+//    `audioMasterClock.captureOrigin(fallbackHostSeconds:)` with the default
+//    `leadSeconds: 0` (EngineController.swift ~1223, ~1337) — the master-clock
+//    origin is never shifted forward by the lead. The lead is instead realised
+//    by dispatching EARLY: `TickClock` reschedules its wakes to run
+//    `lookAheadLeadSeconds` ahead of the step grid after tick 0
+//    (`TickClock.swift:71-78`), so each wake hands due-soon events to the
+//    schedulers ahead of the wake, not by moving the sounding origin.
 //
 // 2. `leadStampedAudioTime` IS THE LIVE DISPATCH PATH, invoked with the
-//    configured lead. The `dispatchTick` loop must route each sample/AU event's
-//    stamp through `leadStampedAudioTime(forMusicalSeconds:dispatchNow:)` and
-//    report it through `noteLeadStampedDispatchForTesting(...)` so the rail can
-//    machine-verify the live invocation + the lead applied.
+//    configured lead. `EngineController.dispatchTick` routes each sample/AU
+//    event's stamp through `leadStampedSampleAudioTime` /
+//    `leadStampedAUNoteSampleTime` (EngineController.swift ~692-762), which
+//    call `leadStampedAudioTime(forMusicalSeconds:dispatchNow:)` and report the
+//    invocation through `noteLeadStampedDispatchForTesting(...)` below, so the
+//    rail can machine-verify the live invocation + the lead applied.
 //
-// FROZEN-RAIL DISCIPLINE: the BUILDER wires the production dispatch path to call
-// `leadStampedAudioTime` and to report each call through the probe below, and
-// removes the origin shift so first-play latency is ≤ 10 ms. The builder MUST
-// NOT edit the rail test file
-// (`Tests/SequencerAITests/Audio/LookAheadEarlyDispatchTests.swift`). The public
-// surface here (member names / signatures) is what the frozen rail asserts
-// against — it must stay stable.
+// FROZEN-RAIL DISCIPLINE: `Tests/SequencerAITests/Audio/LookAheadEarlyDispatchTests.swift`
+// asserts against the public surface below (member names / signatures). Do not
+// edit the rail test file; the surface here must stay stable.
 
 extension EngineController {
 
@@ -60,27 +60,25 @@ extension EngineController {
     ///   - `lead`: the look-ahead lead the dispatch applied (the gap between the
     ///     pump's early dispatch and the event's musical due time).
     ///
-    /// STUB: never invoked — the production dispatch path does not call
-    /// `leadStampedAudioTime` yet (round-1 shipped the origin-shift mechanism
-    /// instead), so the probe stays silent and the frozen rail's live-path
-    /// invariant is RED. The builder makes `dispatchTick` route every sample/AU
-    /// stamp through `leadStampedAudioTime` and CALL this probe with the lead
-    /// applied.
+    /// Implemented: `EngineController.dispatchTick` calls
+    /// `noteLeadStampedDispatchForTesting(...)` below for every sample/AU event
+    /// it routes through `leadStampedAudioTime` (via `leadStampedSampleAudioTime`
+    /// / `leadStampedAUNoteSampleTime`), reporting the configured lead. The probe
+    /// stays nil in production (no test has installed one), so this fires the
+    /// no-op default and adds nothing to the realtime path.
     var leadStampedAudioTimeDispatchProbeForTesting: ((_ musicalSeconds: TimeInterval, _ dispatchNow: TimeInterval, _ lead: TimeInterval) -> Void)? {
         get { EngineControllerEarlyDispatchProbeStore.shared.probe(for: self) }
         set { EngineControllerEarlyDispatchProbeStore.shared.setProbe(newValue, for: self) }
     }
 
     /// Report one live-dispatch invocation of `leadStampedAudioTime` to the probe.
-    /// The BUILDER calls this from `dispatchTick` at the site where it routes a
+    /// Called from `leadStampedSampleAudioTime` / `leadStampedAUNoteSampleTime`
+    /// (`EngineController.swift`, the `dispatchTick` helpers that route a
     /// sample/AU event's stamp through `leadStampedAudioTime(forMusicalSeconds:
-    /// dispatchNow:)`, passing the SAME `musicalSeconds` / `dispatchNow` it
-    /// handed the stamp call and the `lead` it applied. No-op when no probe is
+    /// dispatchNow:)`), passing the SAME `musicalSeconds` / `dispatchNow` handed
+    /// to the stamp call and the `lead` applied. No-op when no probe is
     /// installed (production), so this adds nothing to the realtime path in the
     /// steady state.
-    ///
-    /// STUB present so the rail + the wiring compile now; the round-1 dispatch
-    /// path never calls it, which is why the rail is RED.
     func noteLeadStampedDispatchForTesting(
         musicalSeconds: TimeInterval,
         dispatchNow: TimeInterval,
