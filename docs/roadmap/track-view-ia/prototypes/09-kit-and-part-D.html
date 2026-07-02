@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Variant D on Kit + Part surfaces</title>
+<style>
+  :root {
+    --ground:#0d0d10; --inset:#060608; --border:#62626c; --text:#e8e8ec; --muted:#9a9aa4;
+    --fill1: rgba(255,255,255,.05);
+    --kit:#ff8738; --cyan:#00ccff; --green:#4ceb85;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:#000; color:var(--text); font:14px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; padding:28px 0 60px; }
+  .page { max-width:1180px; margin:0 auto; padding:0 20px; }
+  .page > h1 { font-size:19px; margin:0 0 3px; }
+  .page > .sub { color:var(--muted); font-size:12px; margin:0 0 22px; }
+
+  .statebar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; padding:10px 14px; border:1px solid #26262c; border-radius:10px; margin-bottom:26px; background:#0a0a0c; }
+  .statebar b { font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); margin-right:4px; }
+  .statebar button { font:inherit; font-size:11px; background:transparent; color:var(--muted); border:1px solid var(--border); border-radius:7px; padding:5px 9px; cursor:pointer; }
+  .statebar a.swap { margin-left:auto; font-size:11px; color:var(--cyan); text-decoration:none; border:1px solid var(--border); border-radius:7px; padding:5px 9px; }
+
+  .surface { background:var(--ground); border:1px solid #232328; border-radius:16px; padding:22px 22px 26px; margin-bottom:30px; --accent:var(--kit); }
+  .surface-head { display:flex; align-items:baseline; gap:10px; margin-bottom:14px; }
+  .surface-head .name { font-size:17px; font-weight:800; }
+  .surface-head .kind { font-size:10px; letter-spacing:.1em; text-transform:uppercase; font-weight:800; color:var(--accent); }
+
+  /* kit header card — grounding chrome (name, pattern slots, actions) */
+  .kit-card { border:1px solid rgba(98,98,108,.6); border-radius:12px; padding:14px 16px; margin-bottom:16px; }
+  .kit-card .toprow { display:flex; align-items:center; gap:10px; margin-bottom:12px; }
+  .kit-card .dot { width:8px; height:8px; border-radius:50%; background:var(--kit); }
+  .kit-card .kitname { font-size:20px; font-weight:800; }
+  .kit-card .actions { margin-left:auto; display:flex; gap:8px; }
+  .btn-outline { background:transparent; color:var(--text); border:1px solid rgba(98,98,108,.8); border-radius:9px; padding:8px 12px; font-size:12px; font-weight:700; cursor:pointer; }
+  .btn-solid { background:var(--kit); color:var(--ground); border:none; border-radius:9px; padding:8px 14px; font-size:12px; font-weight:800; cursor:pointer; }
+  .patterns { display:flex; gap:6px; flex-wrap:wrap; }
+  .pattern-slot { min-width:42px; padding:6px 0; text-align:center; font-size:12px; font-weight:800; border:1px solid rgba(98,98,108,.7); border-radius:9px; background:transparent; color:var(--muted); cursor:pointer; }
+  .pattern-slot.on { background:var(--green); border-color:var(--green); color:var(--ground); }
+
+  /* primary switcher — Variant D pills: solid kit-accent thumb, floating
+     OUTSIDE the well with the small gap */
+  .tabstrip.seg { display:flex; gap:4px; padding:3px; background:var(--fill1); border:1.5px solid rgba(98,98,108,.9); border-radius:12px; margin-bottom:5px; }
+  .tabstrip.seg .schip { flex:1; border:none; background:transparent; color:rgba(232,232,236,.78); font:inherit; font-size:11px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; padding:10px 8px; border-radius:10px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; white-space:nowrap; }
+  .tabstrip.seg .schip.active { background:var(--kit); color:var(--ground); }
+
+  /* the well — full-strength kit-accent outline, ALL corners 12px,
+     containing everything below (layer selector rows AND part rows) */
+  .well { background:var(--fill1); border:1.5px solid var(--kit); border-radius:12px; padding:16px; }
+  .well-pane[hidden] { display:none; }
+  .stub { border:1.5px dashed var(--border); border-radius:10px; padding:26px; text-align:center; color:var(--muted); font-size:12px; letter-spacing:.02em; }
+
+  /* subordinate selectors — solid thumbs INSIDE a visible darker inset
+     track/capsule; containment + smaller scale carries the hierarchy since
+     the shape now matches the primary */
+  .selrow { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:14px; }
+  .track { display:inline-flex; gap:3px; padding:3px; background:var(--inset); border:1px solid rgba(98,98,108,.55); border-radius:999px; }
+  .track .chip { border:none; background:transparent; color:rgba(232,232,236,.72); font:inherit; font-size:11px; font-weight:700; padding:6px 12px; border-radius:999px; cursor:pointer; white-space:nowrap; }
+  .track .chip.on { background:var(--kit); color:var(--ground); }
+  .track-label { font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); font-weight:700; margin:0 2px 0 6px; }
+  .selrow .apply { margin-left:auto; }
+
+  /* part rows */
+  .part-row { border:1px solid rgba(98,98,108,.6); border-radius:12px; padding:12px 14px; margin-bottom:10px; display:grid; grid-template-columns:130px 1fr; gap:14px; align-items:center; }
+  .part-row:last-child { margin-bottom:0; }
+  .part-name { font-size:13px; font-weight:800; }
+  .part-name .chev { color:var(--muted); font-weight:400; }
+  .part-meta { font-size:10px; color:var(--muted); margin-top:3px; }
+  .steprow { display:grid; grid-template-columns:repeat(16,1fr); gap:5px; }
+  .stepcol { display:flex; flex-direction:column; align-items:center; gap:3px; }
+  .stepcol .num { font-size:9px; color:var(--muted); font-weight:700; }
+  .stepcol .cell { width:100%; aspect-ratio:.82; border:1px solid rgba(98,98,108,.7); border-radius:8px; display:grid; place-items:center; }
+  .stepcol .cell::after { content:""; width:9px; height:9px; border-radius:50%; border:1.5px solid rgba(98,98,108,.7); }
+  .stepcol .cell.on { background:var(--cyan); border-color:var(--cyan); }
+  .stepcol .cell.on::after { border-color:var(--ground); background:var(--ground); }
+
+  /* expanded part row — a NEUTRAL-outlined sub-card inside the kit well:
+     border grey, not accent, so it never fights the kit's outline */
+  .part-card { border:1.5px solid var(--border); border-radius:12px; padding:14px; margin-bottom:10px; }
+  .part-card .part-hdr { display:flex; align-items:center; gap:12px; margin-bottom:12px; }
+  .part-card .part-hdr .part-name { font-size:14px; }
+  /* the part mini-switcher shares the subordinate segmented-track style */
+  .part-card .track { margin-left:auto; }
+
+  .sound-editor { border:1px solid rgba(98,98,108,.5); border-radius:10px; padding:14px; }
+  .sound-hdr { display:flex; align-items:center; gap:10px; margin-bottom:12px; }
+  .sound-hdr .sname { font-size:14px; font-weight:800; }
+  .sound-hdr .smeta { font-size:11px; color:var(--muted); }
+  .sound-hdr .icons { margin-left:auto; display:flex; gap:6px; }
+  .icon-btn { width:28px; height:28px; border-radius:9px; border:1px solid rgba(98,98,108,.7); background:transparent; color:var(--muted); display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:12px; }
+  .sound-grid { display:grid; grid-template-columns:1.2fr 1fr; gap:14px; }
+  .wavebox { background:var(--inset); border:1px solid rgba(98,98,108,.5); border-radius:10px; height:120px; display:flex; align-items:center; gap:2px; padding:0 10px; overflow:hidden; }
+  .wavebox .bar { width:4px; background:var(--green); border-radius:2px; }
+  .pager { display:flex; align-items:center; justify-content:space-between; margin-top:10px; }
+  .pager .plabel { font-size:12px; color:var(--muted); font-weight:700; }
+  .knobrow { display:flex; gap:18px; justify-content:space-around; margin-bottom:12px; }
+  .knob { display:flex; flex-direction:column; align-items:center; gap:6px; }
+  .knob .ring { width:52px; height:52px; border-radius:50%; border:2px solid rgba(98,98,108,.7); display:grid; place-items:center; font-size:10px; font-weight:800; }
+  .knob.hot .ring { border-color:var(--cyan); color:var(--cyan); }
+  .knob .klabel { font-size:10px; color:var(--muted); font-weight:700; }
+  .curvebox { background:var(--inset); border:1px solid rgba(98,98,108,.5); border-radius:10px; height:70px; position:relative; overflow:hidden; margin-bottom:12px; }
+  .curvebox svg { position:absolute; inset:0; width:100%; height:100%; }
+  .ftype-label { font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); font-weight:700; margin-bottom:7px; }
+  .ftypes { display:flex; gap:6px; flex-wrap:wrap; }
+  .ftype { border:1px solid rgba(98,98,108,.7); border-radius:999px; background:transparent; color:rgba(232,232,236,.72); font:inherit; font-size:11px; font-weight:700; padding:6px 13px; cursor:pointer; }
+  .ftype.on { background:var(--cyan); border-color:var(--cyan); color:var(--ground); }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>Variant D on the kit + part surfaces</h1>
+  <p class="sub">tab-unification-and-canon-creep.md nesting rules on the drum-kit view: D-pill primary switcher (solid kit-accent thumb) floating above a fully-rounded full-accent well that contains the layer selector rows AND the part rows; subordinate selectors as solid thumbs inside darker inset tracks; the expanded part row is a neutral-outlined sub-card whose mini-switcher reuses the subordinate track style. Compare 08-unified-tab-well-D.html (the chosen grammar on track surfaces).</p>
+
+  <div class="statebar">
+    <b>Jump to pane</b>
+    <button onclick="setPrototypeState('kit:fx')">kit:fx</button>
+    <button onclick="setPrototypeState('kit:macros')">kit:macros</button>
+    <button onclick="setPrototypeState('part:fx')">part:fx</button>
+    <a class="swap" href="08-unified-tab-well-D.html">→ Variant D (tracks)</a>
+  </div>
+
+  <!-- SECTION 1: collapsed matrix -->
+  <section class="surface" id="surface-kit">
+    <div class="surface-head"><span class="name">Kit view</span><span class="kind">Collapsed matrix</span></div>
+
+    <div class="kit-card">
+      <div class="toprow">
+        <span class="dot"></span><span class="kitname">808 Bones</span>
+        <div class="actions">
+          <button class="btn-outline">Routing</button>
+          <button class="btn-outline">Capture</button>
+          <button class="btn-solid">▶ Perform</button>
+        </div>
+      </div>
+      <div class="patterns" data-patterns></div>
+    </div>
+
+    <div class="tabstrip seg">
+      <button class="schip active" data-tab="matrix" onclick="selectTab('surface-kit','matrix')">Matrix</button>
+      <button class="schip" data-tab="fx" onclick="selectTab('surface-kit','fx')">FX</button>
+      <button class="schip" data-tab="macros" onclick="selectTab('surface-kit','macros')">Macros</button>
+      <button class="schip" data-tab="mixer" onclick="selectTab('surface-kit','mixer')">Mixer</button>
+    </div>
+    <div class="well">
+      <div class="well-pane" data-pane="matrix">
+        <div class="selrow">
+          <div class="track">
+            <button class="chip on">Steps</button>
+            <button class="chip">Velocity</button>
+            <button class="chip">Chance</button>
+          </div>
+          <div class="track">
+            <button class="chip on">Normal</button>
+            <button class="chip">Fill</button>
+          </div>
+          <span class="track-label">Bar</span>
+          <div class="track">
+            <button class="chip on">1–16</button>
+            <button class="chip">17–32</button>
+          </div>
+          <button class="btn-solid apply">▦ Apply Template…</button>
+        </div>
+        <div class="part-row">
+          <div><div class="part-name">Kick <span class="chev">›</span></div><div class="part-meta">2 bars · 32 steps</div></div>
+          <div class="steprow" data-steps="1,9"></div>
+        </div>
+        <div class="part-row">
+          <div><div class="part-name">Snare <span class="chev">›</span></div><div class="part-meta">2 bars · 32 steps</div></div>
+          <div class="steprow" data-steps="5,13"></div>
+        </div>
+        <div class="part-row">
+          <div><div class="part-name">Clap <span class="chev">›</span></div><div class="part-meta">2 bars · 32 steps</div></div>
+          <div class="steprow" data-steps="7,15"></div>
+        </div>
+      </div>
+      <div class="well-pane" data-pane="fx" hidden><div class="stub">[ kit-bus insert chain — off path ]</div></div>
+      <div class="well-pane" data-pane="macros" hidden><div class="stub">[ kit macros — off path ]</div></div>
+      <div class="well-pane" data-pane="mixer" hidden><div class="stub">[ kit bus + per-part levels — off path ]</div></div>
+    </div>
+  </section>
+
+  <!-- SECTION 2: expanded part -->
+  <section class="surface" id="surface-part">
+    <div class="surface-head"><span class="name">Kit view</span><span class="kind">Part expanded — Kick · Sound</span></div>
+
+    <div class="kit-card">
+      <div class="toprow">
+        <span class="dot"></span><span class="kitname">808 Bones</span>
+        <div class="actions">
+          <button class="btn-outline">Routing</button>
+          <button class="btn-outline">Capture</button>
+          <button class="btn-solid">▶ Perform</button>
+        </div>
+      </div>
+      <div class="patterns" data-patterns></div>
+    </div>
+
+    <div class="tabstrip seg">
+      <button class="schip active" data-tab="matrix" onclick="selectTab('surface-part','matrix')">Matrix</button>
+      <button class="schip" data-tab="fx" onclick="selectTab('surface-part','fx')">FX</button>
+      <button class="schip" data-tab="macros" onclick="selectTab('surface-part','macros')">Macros</button>
+      <button class="schip" data-tab="mixer" onclick="selectTab('surface-part','mixer')">Mixer</button>
+    </div>
+    <div class="well">
+      <div class="well-pane" data-pane="matrix">
+        <div class="selrow">
+          <div class="track">
+            <button class="chip on">Steps</button>
+            <button class="chip">Velocity</button>
+            <button class="chip">Chance</button>
+          </div>
+          <div class="track">
+            <button class="chip on">Normal</button>
+            <button class="chip">Fill</button>
+          </div>
+          <span class="track-label">Bar</span>
+          <div class="track">
+            <button class="chip on">1–16</button>
+            <button class="chip">17–32</button>
+          </div>
+          <button class="btn-solid apply">▦ Apply Template…</button>
+        </div>
+
+        <!-- expanded Kick: neutral-outlined sub-card, mini-switcher in the
+             subordinate segmented-track style -->
+        <div class="part-card">
+          <div class="part-hdr">
+            <div><div class="part-name">Kick <span class="chev">▾</span></div><div class="part-meta">2 bars · 32 steps</div></div>
+            <div class="track">
+              <button class="chip">Steps/Clip</button>
+              <button class="chip on">Sound</button>
+              <button class="chip">FX</button>
+              <button class="chip">Macros</button>
+              <button class="chip">Mixer</button>
+            </div>
+          </div>
+          <div class="sound-editor">
+            <div class="sound-hdr">
+              <span class="sname">audio-rich-kick</span>
+              <span class="smeta">Kick · 0.30s</span>
+              <div class="icons">
+                <button class="icon-btn">≡</button>
+                <button class="icon-btn">▶</button>
+                <button class="icon-btn">✕</button>
+              </div>
+            </div>
+            <div class="sound-grid">
+              <div>
+                <div class="wavebox" data-wave></div>
+                <div class="pager">
+                  <button class="icon-btn">‹</button>
+                  <span class="plabel">Browse kick</span>
+                  <button class="icon-btn">›</button>
+                </div>
+              </div>
+              <div>
+                <div class="knobrow">
+                  <div class="knob hot"><div class="ring">20.0k</div><div class="klabel">Cutoff</div></div>
+                  <div class="knob"><div class="ring">0%</div><div class="klabel">Reso</div></div>
+                  <div class="knob"><div class="ring">0%</div><div class="klabel">Drive</div></div>
+                </div>
+                <div class="curvebox">
+                  <svg viewBox="0 0 100 100" preserveAspectRatio="none"><polyline points="0,25 62,25 80,45 100,92" fill="none" stroke="#00ccff" stroke-width="2.5"/></svg>
+                </div>
+                <div class="ftype-label">Filter Type</div>
+                <div class="ftypes">
+                  <button class="ftype on">LP</button>
+                  <button class="ftype">HP</button>
+                  <button class="ftype">BP</button>
+                  <button class="ftype">Notch</button>
+                  <button class="ftype">Peak</button>
+                  <button class="ftype">Comb</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="part-row">
+          <div><div class="part-name">Snare <span class="chev">›</span></div><div class="part-meta">2 bars · 32 steps</div></div>
+          <div class="steprow" data-steps="5,13"></div>
+        </div>
+        <div class="part-row">
+          <div><div class="part-name">Clap <span class="chev">›</span></div><div class="part-meta">2 bars · 32 steps</div></div>
+          <div class="steprow" data-steps="7,15"></div>
+        </div>
+      </div>
+      <div class="well-pane" data-pane="fx" hidden><div class="stub">[ kit-bus insert chain — off path ]</div></div>
+      <div class="well-pane" data-pane="macros" hidden><div class="stub">[ kit macros — off path ]</div></div>
+      <div class="well-pane" data-pane="mixer" hidden><div class="stub">[ kit bus + per-part levels — off path ]</div></div>
+    </div>
+  </section>
+</div>
+
+<script>
+  function selectTab(surfaceId, tabName) {
+    const surface = document.getElementById(surfaceId);
+    surface.querySelectorAll('.tabstrip.seg .schip').forEach(el => {
+      el.classList.toggle('active', el.dataset.tab === tabName);
+    });
+    surface.querySelectorAll('.well-pane').forEach(el => {
+      el.hidden = el.dataset.pane !== tabName;
+    });
+  }
+
+  function setPrototypeState(spec) {
+    const [surface, tab] = spec.split(':');
+    const map = { kit:'surface-kit', part:'surface-part' };
+    selectTab(map[surface], tab);
+  }
+
+  // pattern slot rows (slot 1 active)
+  document.querySelectorAll('[data-patterns]').forEach(row => {
+    for (let i = 1; i <= 16; i++) {
+      const b = document.createElement('button');
+      b.className = 'pattern-slot' + (i === 1 ? ' on' : '');
+      b.textContent = i;
+      row.appendChild(b);
+    }
+  });
+
+  // 16-step part rows
+  document.querySelectorAll('[data-steps]').forEach(row => {
+    const on = new Set(row.dataset.steps.split(',').map(Number));
+    for (let i = 1; i <= 16; i++) {
+      const col = document.createElement('div');
+      col.className = 'stepcol';
+      const num = document.createElement('div');
+      num.className = 'num';
+      num.textContent = i;
+      const cell = document.createElement('div');
+      cell.className = 'cell' + (on.has(i) ? ' on' : '');
+      col.appendChild(num);
+      col.appendChild(cell);
+      row.appendChild(col);
+    }
+  });
+
+  // decaying kick waveform (adversarial: dense head, long tail)
+  document.querySelectorAll('[data-wave]').forEach(box => {
+    for (let i = 0; i < 56; i++) {
+      const bar = document.createElement('div');
+      bar.className = 'bar';
+      const h = Math.max(6, 92 * Math.exp(-i / 14) * (0.7 + 0.3 * Math.sin(i * 1.7)));
+      bar.style.height = h + '%';
+      box.appendChild(bar);
+    }
+  });
+</script>
+</body>
+</html>

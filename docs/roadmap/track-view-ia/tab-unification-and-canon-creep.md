@@ -92,7 +92,29 @@ scripts; the UX canon got nothing. This is the third grey-text purge.
    `subtitle:` explainer params on tab components. Wired next to the audio
    lints so creep pass #4 never ships.
 
-## Open choice for the owner (prototyped as variants)
+## DECISION — 2026-07-02: Variant D locked
+
+Owner selected **Variant D** (prototype `08-unified-tab-well-D.html`, commit
+`56e278be`): solid-thumb pills as the primary section switcher (selected =
+fully solid accent fill with dark glyph, unselected = outline pill), floating
+with a small gap above a complete well outlined at full-strength surface
+accent, **all four corners rounded** (12 px).
+
+Constraint added by the owner: the grammar must work on the KIT view
+(MATRIX/FX/MACROS/MIXER over the matrix + layer selectors + part rows) and
+the EXPANDED DRUM PART row (whose mini-switcher currently uses the same
+solid-thumb look D now claims for the primary). Open nesting problem —
+prototyped next as `09-…`:
+- primary D-pills float OUTSIDE the accent well; subordinate selectors keep
+  solid thumbs but sit INSIDE a visible segmented track/capsule container
+  within the well (containment + scale carries the hierarchy, not shape);
+- the expanded part row is a neutral-outlined sub-card inside the kit well
+  (no second accent outline fighting the kit's), with its mini-segments in
+  the segmented-track style;
+- kit accent stays the group colour; part-level accent usage to be judged in
+  the prototype.
+
+## Superseded: open choice (both prototyped, D chosen)
 
 - **Variant A** — canonical underline-tab grammar unified (per spec AC1)
   with the well; boldest-conforming, least churn.
