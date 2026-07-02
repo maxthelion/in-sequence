@@ -383,7 +383,11 @@ final class EngineController: RouterDispatcher {
     @ObservationIgnored
     private var pendingTransportStartWorkItem: DispatchWorkItem?
     @ObservationIgnored
-    private var deferredTransportStartAttempt = 0
+    /// Deferred transport-start retry bookkeeping. `private(set)` so the
+    /// deferral regression tests can assert an aborted (deferred) start left
+    /// only this counter behind — no origin capture, no prepared tick, no
+    /// queued events, no running clock.
+    private(set) var deferredTransportStartAttempt = 0
     private(set) var currentBPM: Double
     /// Main-published mirror of the transport tick for UI observation.
     /// Engine-internal code must read `currentTransportTick` instead: this

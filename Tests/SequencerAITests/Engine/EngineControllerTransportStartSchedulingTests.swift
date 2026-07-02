@@ -95,6 +95,42 @@ final class EngineControllerTransportStartSchedulingTests: XCTestCase {
         }
     }
 
+    /// AU-note capturing sink whose transport-start readiness is scriptable —
+    /// `isReadyForTransportStart == false` makes `EngineController.start`
+    /// take the deferral path (retry via `deferTransportStart`), the seam the
+    /// deferral-re-entry regression tests drive.
+    private final class DeferrableCapturingAUNoteSink: TrackPlaybackSink {
+        let displayName = "Deferrable AU Sink"
+        var isAvailable = true
+        let availableInstruments = [AudioInstrumentChoice.builtInSynth, .testInstrument]
+        private(set) var selectedInstrument: AudioInstrumentChoice = .builtInSynth
+        var currentAudioUnit: AVAudioUnit? { nil }
+        var readyForTransportStart = false
+        var isReadyForTransportStart: Bool { readyForTransportStart }
+        private(set) var stampedNoteOns: [(sampleTime: AVAudioFramePosition?, sampleRate: Double)] = []
+
+        func prepareIfNeeded() {}
+        func startIfNeeded() {}
+        func stop() {}
+        func shutdown() {}
+        func setMix(_ mix: TrackMixSettings) {}
+        func setDestination(_ destination: Destination) {}
+        func selectInstrument(_ choice: AudioInstrumentChoice) { selectedInstrument = choice }
+        func captureStateBlob() throws -> Data? { nil }
+        func play(noteEvents: [NoteEvent], bpm: Double, stepsPerBar: Int) {
+            stampedNoteOns.append((nil, 0))
+        }
+        func play(
+            noteEvents: [NoteEvent],
+            bpm: Double,
+            stepsPerBar: Int,
+            noteOnSampleTime: AVAudioFramePosition?,
+            sampleRate: Double
+        ) {
+            stampedNoteOns.append((noteOnSampleTime, sampleRate))
+        }
+    }
+
     // MARK: - Fixtures
 
     private var libraryRoot: URL!
@@ -460,5 +496,201 @@ final class EngineControllerTransportStartSchedulingTests: XCTestCase {
             "a steady-state stamp (due one full step out, beyond the scheduling floor) must be " +
             "EXACTLY the unified clock's musical due time — the floor must not lift on-grid events"
         )
+    }
+
+    // MARK: - Deferral re-entry (single-origin transport start)
+
+    /// Sample + AU two-track project whose AU host is the given (deferrable)
+    /// sink — the AU track is what registers the sink in
+    /// `audioOutputsByTrackID`, making `EngineController.start`'s readiness
+    /// gate observe it.
+    private func makeSampleAndAUProject(kickID: UUID) -> Project {
+        let sampleTrack = StepSequenceTrack(
+            name: "K",
+            pitches: [DrumKitNoteMap.baselineNote],
+            stepPattern: [true],
+            destination: .sample(sampleID: kickID, settings: .default),
+            velocity: 100,
+            gateLength: 4
+        )
+        let auTrack = StepSequenceTrack(
+            name: "Lead",
+            trackType: .monoMelodic,
+            pitches: [60],
+            stepPattern: [true],
+            destination: .auInstrument(
+                componentID: AudioInstrumentChoice.testInstrument.audioComponentID,
+                stateBlob: nil
+            ),
+            velocity: 100,
+            gateLength: 4
+        )
+        let sampleGen = makeAlwaysOnGenerator(id: UUID(), trackType: sampleTrack.trackType)
+        let auGen = makeAlwaysOnGenerator(id: UUID(), trackType: auTrack.trackType)
+        let tracks = [sampleTrack, auTrack]
+        let layers = PhraseLayerDefinition.defaultSet(for: tracks)
+        let phrase = PhraseModel.default(
+            tracks: tracks,
+            layers: layers,
+            generatorPool: [sampleGen, auGen],
+            clipPool: []
+        )
+        return Project(
+            version: 1,
+            tracks: tracks,
+            generatorPool: [sampleGen, auGen],
+            layers: layers,
+            patternBanks: [
+                TrackPatternBank(
+                    trackID: sampleTrack.id,
+                    slots: (0..<16).map { TrackPatternSlot(slotIndex: $0, sourceRef: .generator(sampleGen.id)) }
+                ),
+                TrackPatternBank(
+                    trackID: auTrack.id,
+                    slots: (0..<16).map { TrackPatternSlot(slotIndex: $0, sourceRef: .generator(auGen.id)) }
+                )
+            ],
+            selectedTrackID: sampleTrack.id,
+            phrases: [phrase],
+            selectedPhraseID: phrase.id
+        )
+    }
+
+    /// DEFERRAL HYGIENE PIN: a transport start that DEFERS (an AU host not yet
+    /// ready) must abort BEFORE any transport side effect — no origin capture,
+    /// no step-0 preparation, no queued events, no running TickClock — and a
+    /// re-entrant second `start()` while still deferred must be equally clean.
+    /// `stop()` must clear the retry bookkeeping.
+    ///
+    /// This is the structural guarantee that a deferral retry can never
+    /// produce a SECOND effective origin capture racing the first (grid
+    /// disagreement): the aborted attempt leaves literally nothing for the
+    /// eventual successful start to fight with.
+    func test_deferredStart_capturesNoOrigin_leavesNoClockOrQueuedEvents() throws {
+        let library = AudioSampleLibrary(libraryRoot: libraryRoot)
+        let kick = try XCTUnwrap(library.firstSample(in: .kick))
+        let spy = SpySamplePlaybackSink()
+        let auSink = DeferrableCapturingAUNoteSink()
+        let project = makeSampleAndAUProject(kickID: kick.id)
+
+        let controller = EngineController(
+            client: nil,
+            endpoint: nil,
+            audioOutput: auSink,
+            sampleEngine: spy,
+            sampleLibrary: library
+        )
+        controller.apply(documentModel: project)
+        controller.setBPM(120)
+        defer { controller.stop() }
+
+        controller.start()
+
+        XCTAssertFalse(controller.isRunning, "a deferred start must not mark the transport running")
+        XCTAssertEqual(controller.deferredTransportStartAttempt, 1, "the deferral must be recorded for the retry")
+        XCTAssertFalse(controller.clock.isRunning, "a deferred start must never have started the TickClock")
+        XCTAssertTrue(controller.eventQueueIsEmpty, "a deferred start must not enqueue events")
+        XCTAssertFalse(controller.tickState.hasPreparedTick(), "a deferred start must not prepare step 0")
+        XCTAssertTrue(spy.playCalls.isEmpty)
+        XCTAssertTrue(auSink.stampedNoteOns.isEmpty)
+
+        // Re-entry: a second external play command while the first start is
+        // still deferred (the 2026-07-02 rig fired start twice 9 ms apart).
+        controller.start()
+
+        XCTAssertFalse(controller.isRunning)
+        XCTAssertEqual(controller.deferredTransportStartAttempt, 1, "a fresh external start re-enters at attempt 0 and defers to 1")
+        XCTAssertFalse(controller.clock.isRunning)
+        XCTAssertTrue(controller.eventQueueIsEmpty)
+        XCTAssertFalse(controller.tickState.hasPreparedTick())
+        XCTAssertTrue(spy.playCalls.isEmpty)
+        XCTAssertTrue(auSink.stampedNoteOns.isEmpty)
+
+        controller.stop()
+        XCTAssertEqual(
+            controller.deferredTransportStartAttempt, 0,
+            "stop() must clear the deferral bookkeeping (and cancel the pending retry)"
+        )
+        XCTAssertFalse(controller.clock.isRunning)
+    }
+
+    /// SINGLE-ORIGIN PIN across deferral re-entry: after deferred start
+    /// attempts (including a re-entrant one), the start that finally completes
+    /// must produce exactly ONE effective origin capture and ONE step-0
+    /// preparation whose stamps agree with the FINAL captured origin — the
+    /// step-0 sample stamp is EXACTLY the final origin's musical zero, the AU
+    /// note-on frame is EXACTLY the final origin frame, and step 0 is
+    /// dispatched exactly once (no residue from the aborted attempts).
+    func test_deferredStartReentry_step0StampEqualsFinalCapturedOrigin() throws {
+        let library = AudioSampleLibrary(libraryRoot: libraryRoot)
+        let kick = try XCTUnwrap(library.firstSample(in: .kick))
+        let spy = SpySamplePlaybackSink()
+        let auSink = DeferrableCapturingAUNoteSink()
+        let project = makeSampleAndAUProject(kickID: kick.id)
+
+        let controller = EngineController(
+            client: nil,
+            endpoint: nil,
+            audioOutput: auSink,
+            sampleEngine: spy,
+            sampleLibrary: library
+        )
+        controller.apply(documentModel: project)
+        controller.setBPM(120)
+        defer { controller.stop() }
+
+        // Two aborted (deferred) attempts — the re-entry shape.
+        controller.start()
+        controller.start()
+        XCTAssertFalse(controller.isRunning)
+        XCTAssertTrue(controller.eventQueueIsEmpty)
+        XCTAssertFalse(controller.tickState.hasPreparedTick())
+
+        // Host becomes ready; the start now completes (clockless twin of the
+        // production path: identical origin capture + step-0 preparation).
+        auSink.readyForTransportStart = true
+        controller.startTransportWithoutClockForTesting(now: ProcessInfo.processInfo.systemUptime)
+        XCTAssertTrue(controller.isRunning)
+
+        let correlation = controller.audioMasterClock.capturedOriginCorrelation()
+        XCTAssertTrue(correlation.isRenderDerived)
+
+        _ = controller.processLookAheadPumpForTesting(now: correlation.hostSeconds)
+
+        // Step-0 sample stamp == the FINAL captured origin's musical zero.
+        let sampleWhen = try XCTUnwrap(spy.playCalls.first?.3, "step 0 must be dispatched with a real stamp")
+        let stampSeconds = AVAudioTime.seconds(forHostTime: sampleWhen.hostTime)
+        let finalOriginMusicalZero = controller.audioMasterClock.hostSeconds(atMusicalSeconds: 0)
+        XCTAssertEqual(
+            stampSeconds, finalOriginMusicalZero, accuracy: 0.000_001,
+            "after deferral re-entry, step 0's stamp must equal the FINAL captured origin's musical " +
+            "zero — any disagreement means an aborted attempt's origin/preparation leaked into the " +
+            "completed start (the double-origin grid split)"
+        )
+        XCTAssertEqual(
+            stampSeconds, correlation.hostSeconds, accuracy: 0.000_001,
+            "musical zero must BE the captured origin correlation's host anchor (one origin, one grid)"
+        )
+
+        // AU parity against the same single origin.
+        let auStamp = try XCTUnwrap(auSink.stampedNoteOns.first, "step 0 AU note must be dispatched")
+        let auFrame = try XCTUnwrap(auStamp.sampleTime, "step 0 AU note must be sample-stamped")
+        XCTAssertEqual(
+            auFrame, correlation.sampleTime,
+            "the step-0 AU frame must be exactly the final origin frame"
+        )
+
+        // Exactly ONE step-0 dispatch: no duplicate step-0 events survived the
+        // aborted attempts.
+        let originStampCount = spy.playCalls.filter { call in
+            guard let when = call.3, when.isHostTimeValid else { return false }
+            return abs(AVAudioTime.seconds(forHostTime: when.hostTime) - finalOriginMusicalZero) < 0.000_001
+        }.count
+        XCTAssertEqual(
+            originStampCount, 1,
+            "step 0 must be prepared and dispatched exactly once across the deferral re-entry"
+        )
+        let auOriginStampCount = auSink.stampedNoteOns.filter { $0.sampleTime == correlation.sampleTime }.count
+        XCTAssertEqual(auOriginStampCount, 1, "the AU step-0 note must be dispatched exactly once")
     }
 }

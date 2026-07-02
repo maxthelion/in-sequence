@@ -43,6 +43,17 @@ final class TickClock {
     func start(lookAheadLeadSeconds: TimeInterval = 0, onTick: @escaping (UInt64, TimeInterval) -> Void) {
         syncOnQueue {
             guard timer == nil else {
+                // A second start on a running clock is IGNORED by design (the
+                // first clock keeps its wake phase and callback). The engine
+                // must never reach this — `EngineController.start` guards on
+                // `!isRunning` and every stop joins `clock.stop()` before a
+                // new start. If this ever fires, a stale clock with the OLD
+                // wake phase would keep pumping against a NEW transport
+                // origin — grid disagreement — so leave loud evidence.
+                DevActivity.trace(
+                    DevActivity.clock,
+                    "TickClock.start ignored — timer already running (stale wake phase would fight a new origin)"
+                )
                 return
             }
 
