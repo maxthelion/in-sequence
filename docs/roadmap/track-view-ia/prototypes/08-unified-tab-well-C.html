@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Unified Tab Well — Variant B (segmented-primary)</title>
+<title>Unified Tab Well — Variant C (pill tabs + full-accent well border)</title>
 <style>
   :root {
     --ground:#0d0d10; --border:#62626c; --text:#e8e8ec; --muted:#9a9aa4;
@@ -26,24 +26,28 @@
   .surface-head .name { font-size:17px; font-weight:800; }
   .surface-head .kind { font-size:10px; letter-spacing:.1em; text-transform:uppercase; font-weight:800; color:var(--accent); }
 
-  /* primary section grammar in Variant B — solid-thumb segmented control
-     (StudioSegmentedControl), NOT underline tabs, rendered as a header row
-     INSIDE the well so no strip/container gap exists at all. This is the
-     only thing that differs from Variant A. */
-  .tabstrip.seg { display:flex; gap:4px; padding:3px; background:var(--fill1); border:1.5px solid rgba(98,98,108,.9); border-radius:12px; margin-bottom:16px; }
-  .tabstrip.seg .schip { flex:1; border:none; background:transparent; color:rgba(232,232,236,.78); font:inherit; font-size:11px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; padding:10px 8px; border-radius:10px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; white-space:nowrap; }
-  .tabstrip.seg .schip.active { background:var(--accent); color:var(--ground); }
-  .tabstrip.seg .schip .mini-badge { font-size:9px; font-weight:800; padding:2px 5px; border-radius:6px; background:var(--accent); color:var(--ground); text-transform:none; letter-spacing:0; }
-  .tabstrip.seg .schip.active .mini-badge { background:var(--ground); color:var(--accent); }
+  /* underline tab grammar — StudioSlotTabButton (pill look kept; the gap
+     to the well below is intentional in this variant) */
+  .tabstrip { display:flex; gap:6px; margin-bottom:5px; }
+  .tab { flex:1; background:var(--fill1); border:1px solid var(--border); border-radius:8px; padding:0; cursor:pointer; color:var(--muted); font:inherit; overflow:hidden; text-align:left; }
+  .tab .row { display:flex; align-items:center; gap:8px; padding:10px 12px; }
+  .tab .lbl { font-size:11px; letter-spacing:.08em; font-weight:800; text-transform:uppercase; color:var(--muted); }
+  .tab .underline { height:2px; background:transparent; }
+  .tab.active { border-color:var(--accent); border-width:1.5px; }
+  .tab.active .lbl { color:var(--text); }
+  .tab.active .underline { background:var(--accent); }
+  .tab .badge { font-size:10px; font-weight:800; padding:3px 7px; border-radius:8px; background:var(--accent); color:var(--ground); }
 
-  /* well — StudioTabWell: with the segmented row inside it there is nothing
-     to dock under, so the well is a complete accent-stroked container. */
-  .well { background:var(--fill1); border:1.5px solid var(--accent); border-radius:12px; padding:18px; }
+  /* well — StudioTabWell: square top, docks flush under tab strip.
+     Variant C: the border is the surface accent at FULL strength (no ghost
+     opacity) so the selected pill and the container read as one system —
+     an outline, never a fill (canon Rule 12). */
+  .well { background:var(--fill1); border:1.5px solid var(--accent); border-radius:0 0 12px 12px; padding:18px; }
   .well-pane[hidden] { display:none; }
 
   .stub { border:1.5px dashed var(--border); border-radius:10px; padding:26px; text-align:center; color:var(--muted); font-size:12px; letter-spacing:.02em; }
 
-  /* secondary selectors — StudioSegmentedControl (solid-thumb chips), identical to Variant A */
+  /* secondary selectors — StudioSegmentedControl (solid-thumb chips) */
   .seg-block { margin-bottom:16px; }
   .seg-block:last-child { margin-bottom:0; }
   .seg-label { font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); font-weight:700; margin-bottom:7px; }
@@ -95,8 +99,8 @@
 </head>
 <body>
 <div class="page">
-  <h1>Unified tab-well — Variant B: segmented-primary ("toggle-ish")</h1>
-  <p class="sub">tab-unification-and-canon-creep.md — primary sections as StudioSegmentedControl solid-thumb chips instead of underline tabs, rendered as a header row INSIDE the well so no strip/container gap exists. Same three surfaces, same content in every pane as 08-unified-tab-well-A.html; only the primary-selector grammar differs.</p>
+  <h1>Unified tab-well — Variant C: pill tabs, full-accent well border</h1>
+  <p class="sub">Owner-feedback form (2): the StudioSlotTabButton pill look is kept (gap/seam retained between the selected pill and the well edge), but the well border carries the surface accent at FULL strength — same highlight as the selected pill — so pill + container read as one system. Outline colour only; no accent fill (canon Rule 12 bans fills, not outlines). Compare 08-unified-tab-well-A.html (seamless folder-tab) and 08-unified-tab-well-B.html (segmented row inside the well).</p>
 
   <div class="statebar">
     <b>Jump to pane</b>
@@ -104,19 +108,19 @@
     <button onclick="setPrototypeState('mono:sound')">mono:sound</button>
     <button onclick="setPrototypeState('slicer:slice')">slicer:slice</button>
     <a class="swap" href="08-unified-tab-well-A.html">→ Variant A</a>
-    <a class="swap" style="margin-left:8px" href="08-unified-tab-well-C.html">→ Variant C</a>
+    <a class="swap" style="margin-left:8px" href="08-unified-tab-well-B.html">→ Variant B</a>
   </div>
 
   <!-- (a) AUDIO INPUT -->
   <section class="surface" id="surface-audio" style="--accent:var(--green)">
     <div class="surface-head"><span class="name">Audio Input 10</span><span class="kind">Audio Input</span></div>
+    <div class="tabstrip">
+      <button class="tab active" data-tab="source" onclick="selectTab('surface-audio','source')"><div class="row"><span class="lbl">Source</span></div><div class="underline"></div></button>
+      <button class="tab" data-tab="fx" onclick="selectTab('surface-audio','fx')"><div class="row"><span class="lbl">FX</span></div><div class="underline"></div></button>
+      <button class="tab" data-tab="macros" onclick="selectTab('surface-audio','macros')"><div class="row"><span class="lbl">Macros</span></div><div class="underline"></div></button>
+      <button class="tab" data-tab="mixer" onclick="selectTab('surface-audio','mixer')"><div class="row"><span class="lbl">Mixer</span></div><div class="underline"></div></button>
+    </div>
     <div class="well">
-      <div class="tabstrip seg">
-        <button class="schip active" data-tab="source" onclick="selectTab('surface-audio','source')">Source</button>
-        <button class="schip" data-tab="fx" onclick="selectTab('surface-audio','fx')">FX</button>
-        <button class="schip" data-tab="macros" onclick="selectTab('surface-audio','macros')">Macros</button>
-        <button class="schip" data-tab="mixer" onclick="selectTab('surface-audio','mixer')">Mixer</button>
-      </div>
       <div class="well-pane" data-pane="source">
         <div class="seg-block">
           <div class="seg-label">Mode</div>
@@ -173,14 +177,14 @@
   <!-- (b) MONO -->
   <section class="surface" id="surface-mono" style="--accent:var(--cyan)">
     <div class="surface-head"><span class="name">Mono 8</span><span class="kind">Mono Track</span></div>
+    <div class="tabstrip">
+      <button class="tab active" data-tab="steps" onclick="selectTab('surface-mono','steps')"><div class="row"><span class="lbl">Steps / Clip</span><span class="badge">Clip</span></div><div class="underline"></div></button>
+      <button class="tab" data-tab="sound" onclick="selectTab('surface-mono','sound')"><div class="row"><span class="lbl">Sound</span><span class="badge">Empty</span></div><div class="underline"></div></button>
+      <button class="tab" data-tab="fx" onclick="selectTab('surface-mono','fx')"><div class="row"><span class="lbl">FX</span><span class="badge">Insert</span></div><div class="underline"></div></button>
+      <button class="tab" data-tab="macros" onclick="selectTab('surface-mono','macros')"><div class="row"><span class="lbl">Macros</span><span class="badge">Empty</span></div><div class="underline"></div></button>
+      <button class="tab" data-tab="mixer" onclick="selectTab('surface-mono','mixer')"><div class="row"><span class="lbl">Mixer</span><span class="badge">Master</span></div><div class="underline"></div></button>
+    </div>
     <div class="well">
-      <div class="tabstrip seg">
-        <button class="schip active" data-tab="steps" onclick="selectTab('surface-mono','steps')">Steps / Clip<span class="mini-badge">Clip</span></button>
-        <button class="schip" data-tab="sound" onclick="selectTab('surface-mono','sound')">Sound<span class="mini-badge">Empty</span></button>
-        <button class="schip" data-tab="fx" onclick="selectTab('surface-mono','fx')">FX<span class="mini-badge">Insert</span></button>
-        <button class="schip" data-tab="macros" onclick="selectTab('surface-mono','macros')">Macros<span class="mini-badge">Empty</span></button>
-        <button class="schip" data-tab="mixer" onclick="selectTab('surface-mono','mixer')">Mixer<span class="mini-badge">Master</span></button>
-      </div>
       <div class="well-pane" data-pane="steps">
         <div class="clip-hdr">
           <span class="badge-lg">Clip</span>
@@ -232,14 +236,14 @@
 
     <div class="waveform" id="waveform"></div>
 
+    <div class="tabstrip">
+      <button class="tab active" data-tab="source" onclick="selectTab('surface-slicer','source')"><div class="row"><span class="lbl">Source</span></div><div class="underline"></div></button>
+      <button class="tab" data-tab="slice" onclick="selectTab('surface-slicer','slice')"><div class="row"><span class="lbl">Slice</span></div><div class="underline"></div></button>
+      <button class="tab" data-tab="fx" onclick="selectTab('surface-slicer','fx')"><div class="row"><span class="lbl">FX</span></div><div class="underline"></div></button>
+      <button class="tab" data-tab="macros" onclick="selectTab('surface-slicer','macros')"><div class="row"><span class="lbl">Macros</span></div><div class="underline"></div></button>
+      <button class="tab" data-tab="mixer" onclick="selectTab('surface-slicer','mixer')"><div class="row"><span class="lbl">Mixer</span></div><div class="underline"></div></button>
+    </div>
     <div class="well">
-      <div class="tabstrip seg">
-        <button class="schip active" data-tab="source" onclick="selectTab('surface-slicer','source')">Source</button>
-        <button class="schip" data-tab="slice" onclick="selectTab('surface-slicer','slice')">Slice</button>
-        <button class="schip" data-tab="fx" onclick="selectTab('surface-slicer','fx')">FX</button>
-        <button class="schip" data-tab="macros" onclick="selectTab('surface-slicer','macros')">Macros</button>
-        <button class="schip" data-tab="mixer" onclick="selectTab('surface-slicer','mixer')">Mixer</button>
-      </div>
       <div class="well-pane" data-pane="source">
         <div class="seg-block">
           <div class="seg-label">Layer</div>
@@ -268,7 +272,7 @@
 <script>
   function selectTab(surfaceId, tabName) {
     const surface = document.getElementById(surfaceId);
-    surface.querySelectorAll('.tabstrip.seg .schip').forEach(el => {
+    surface.querySelectorAll(':scope > .tabstrip > .tab, :scope > .segcontrol.wide.primary > .segchip').forEach(el => {
       el.classList.toggle('active', el.dataset.tab === tabName);
     });
     surface.querySelectorAll(':scope .well-pane').forEach(el => {

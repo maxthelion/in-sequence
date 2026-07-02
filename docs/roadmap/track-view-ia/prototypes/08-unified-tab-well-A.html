@@ -8,6 +8,9 @@
   :root {
     --ground:#0d0d10; --border:#62626c; --text:#e8e8ec; --muted:#9a9aa4;
     --fill1: rgba(255,255,255,.05);
+    /* the well fill flattened to a solid colour (ground + one 5% white step)
+       so the active folder tab can opaquely cover the well's top border */
+    --well:#19191c;
     --green:#4ceb85; --cyan:#00ccff; --violet:#a187ff;
   }
   * { box-sizing:border-box; }
@@ -26,19 +29,22 @@
   .surface-head .name { font-size:17px; font-weight:800; }
   .surface-head .kind { font-size:10px; letter-spacing:.1em; text-transform:uppercase; font-weight:800; color:var(--accent); }
 
-  /* underline tab grammar — StudioSlotTabButton */
-  .tabstrip { display:flex; gap:6px; }
-  .tab { flex:1; background:var(--fill1); border:1px solid var(--border); border-radius:8px; padding:0; cursor:pointer; color:var(--muted); font:inherit; overflow:hidden; text-align:left; }
-  .tab .row { display:flex; align-items:center; gap:8px; padding:10px 12px; }
+  /* folder-tab grammar — the selected tab's outline flows SEAMLESSLY into the
+     well border: the well's top border runs left of the tab, up and around
+     the selected tab's sides and top, back down, and continues right. No
+     line under the active tab; its interior is continuous with the well.
+     Unselected tabs keep the pill look, sitting above the border line. */
+  .tabstrip { display:flex; gap:6px; position:relative; z-index:2; }
+  .tab { flex:1; background:var(--fill1); border:1px solid var(--border); border-radius:8px; padding:0; cursor:pointer; color:var(--muted); font:inherit; text-align:left; }
+  .tab .row { display:flex; align-items:center; gap:8px; padding:11px 12px; }
   .tab .lbl { font-size:11px; letter-spacing:.08em; font-weight:800; text-transform:uppercase; color:var(--muted); }
-  .tab .underline { height:2px; background:transparent; }
-  .tab.active { border-color:var(--accent); border-width:1.5px; }
+  .tab.active { background:var(--well); border:1.5px solid var(--accent); border-bottom:none; border-radius:8px 8px 0 0; margin-bottom:-1.5px; }
   .tab.active .lbl { color:var(--text); }
-  .tab.active .underline { background:var(--accent); }
   .tab .badge { font-size:10px; font-weight:800; padding:3px 7px; border-radius:8px; background:var(--accent); color:var(--ground); }
 
-  /* well — StudioTabWell: square top, docks flush under tab strip */
-  .well { background:var(--fill1); border:1.5px solid var(--accent); border-top:none; border-radius:0 0 12px 12px; padding:18px; }
+  /* well — StudioTabWell: square top, the selected tab docks INTO its top
+     border (folder-tab connection), 12px bottom radius, accent stroke */
+  .well { background:var(--well); border:1.5px solid var(--accent); border-radius:0 0 12px 12px; padding:18px; position:relative; z-index:1; }
   .well-pane[hidden] { display:none; }
 
   .stub { border:1.5px dashed var(--border); border-radius:10px; padding:26px; text-align:center; color:var(--muted); font-size:12px; letter-spacing:.02em; }
@@ -95,8 +101,8 @@
 </head>
 <body>
 <div class="page">
-  <h1>Unified tab-well — Variant A: underline tabs</h1>
-  <p class="sub">tab-unification-and-canon-creep.md — canonical StudioSlotTabButton grammar (eyebrow caps, 2px accent underline, ghost-stroke, optional solid badge) + one StudioTabWell per surface. Compare against 08-unified-tab-well-B.html (segmented-primary variant).</p>
+  <h1>Unified tab-well — Variant A: seamless folder tabs</h1>
+  <p class="sub">tab-unification-and-canon-creep.md + owner-feedback form (1): canonical StudioSlotTabButton grammar (eyebrow caps, optional solid badge), with the selected tab's outline flowing seamlessly into the StudioTabWell border — no line under the active tab; its interior is continuous with the well. Compare 08-unified-tab-well-B.html (segmented row inside the well) and 08-unified-tab-well-C.html (pill tabs + full-accent well border).</p>
 
   <div class="statebar">
     <b>Jump to pane</b>
@@ -104,16 +110,17 @@
     <button onclick="setPrototypeState('mono:sound')">mono:sound</button>
     <button onclick="setPrototypeState('slicer:slice')">slicer:slice</button>
     <a class="swap" href="08-unified-tab-well-B.html">→ Variant B</a>
+    <a class="swap" style="margin-left:8px" href="08-unified-tab-well-C.html">→ Variant C</a>
   </div>
 
   <!-- (a) AUDIO INPUT -->
   <section class="surface" id="surface-audio" style="--accent:var(--green)">
     <div class="surface-head"><span class="name">Audio Input 10</span><span class="kind">Audio Input</span></div>
     <div class="tabstrip">
-      <button class="tab active" data-tab="source" onclick="selectTab('surface-audio','source')"><div class="row"><span class="lbl">Source</span></div><div class="underline"></div></button>
-      <button class="tab" data-tab="fx" onclick="selectTab('surface-audio','fx')"><div class="row"><span class="lbl">FX</span></div><div class="underline"></div></button>
-      <button class="tab" data-tab="macros" onclick="selectTab('surface-audio','macros')"><div class="row"><span class="lbl">Macros</span></div><div class="underline"></div></button>
-      <button class="tab" data-tab="mixer" onclick="selectTab('surface-audio','mixer')"><div class="row"><span class="lbl">Mixer</span></div><div class="underline"></div></button>
+      <button class="tab active" data-tab="source" onclick="selectTab('surface-audio','source')"><div class="row"><span class="lbl">Source</span></div></button>
+      <button class="tab" data-tab="fx" onclick="selectTab('surface-audio','fx')"><div class="row"><span class="lbl">FX</span></div></button>
+      <button class="tab" data-tab="macros" onclick="selectTab('surface-audio','macros')"><div class="row"><span class="lbl">Macros</span></div></button>
+      <button class="tab" data-tab="mixer" onclick="selectTab('surface-audio','mixer')"><div class="row"><span class="lbl">Mixer</span></div></button>
     </div>
     <div class="well">
       <div class="well-pane" data-pane="source">
@@ -173,11 +180,11 @@
   <section class="surface" id="surface-mono" style="--accent:var(--cyan)">
     <div class="surface-head"><span class="name">Mono 8</span><span class="kind">Mono Track</span></div>
     <div class="tabstrip">
-      <button class="tab active" data-tab="steps" onclick="selectTab('surface-mono','steps')"><div class="row"><span class="lbl">Steps / Clip</span><span class="badge">Clip</span></div><div class="underline"></div></button>
-      <button class="tab" data-tab="sound" onclick="selectTab('surface-mono','sound')"><div class="row"><span class="lbl">Sound</span><span class="badge">Empty</span></div><div class="underline"></div></button>
-      <button class="tab" data-tab="fx" onclick="selectTab('surface-mono','fx')"><div class="row"><span class="lbl">FX</span><span class="badge">Insert</span></div><div class="underline"></div></button>
-      <button class="tab" data-tab="macros" onclick="selectTab('surface-mono','macros')"><div class="row"><span class="lbl">Macros</span><span class="badge">Empty</span></div><div class="underline"></div></button>
-      <button class="tab" data-tab="mixer" onclick="selectTab('surface-mono','mixer')"><div class="row"><span class="lbl">Mixer</span><span class="badge">Master</span></div><div class="underline"></div></button>
+      <button class="tab active" data-tab="steps" onclick="selectTab('surface-mono','steps')"><div class="row"><span class="lbl">Steps / Clip</span><span class="badge">Clip</span></div></button>
+      <button class="tab" data-tab="sound" onclick="selectTab('surface-mono','sound')"><div class="row"><span class="lbl">Sound</span><span class="badge">Empty</span></div></button>
+      <button class="tab" data-tab="fx" onclick="selectTab('surface-mono','fx')"><div class="row"><span class="lbl">FX</span><span class="badge">Insert</span></div></button>
+      <button class="tab" data-tab="macros" onclick="selectTab('surface-mono','macros')"><div class="row"><span class="lbl">Macros</span><span class="badge">Empty</span></div></button>
+      <button class="tab" data-tab="mixer" onclick="selectTab('surface-mono','mixer')"><div class="row"><span class="lbl">Mixer</span><span class="badge">Master</span></div></button>
     </div>
     <div class="well">
       <div class="well-pane" data-pane="steps">
@@ -232,11 +239,11 @@
     <div class="waveform" id="waveform"></div>
 
     <div class="tabstrip">
-      <button class="tab active" data-tab="source" onclick="selectTab('surface-slicer','source')"><div class="row"><span class="lbl">Source</span></div><div class="underline"></div></button>
-      <button class="tab" data-tab="slice" onclick="selectTab('surface-slicer','slice')"><div class="row"><span class="lbl">Slice</span></div><div class="underline"></div></button>
-      <button class="tab" data-tab="fx" onclick="selectTab('surface-slicer','fx')"><div class="row"><span class="lbl">FX</span></div><div class="underline"></div></button>
-      <button class="tab" data-tab="macros" onclick="selectTab('surface-slicer','macros')"><div class="row"><span class="lbl">Macros</span></div><div class="underline"></div></button>
-      <button class="tab" data-tab="mixer" onclick="selectTab('surface-slicer','mixer')"><div class="row"><span class="lbl">Mixer</span></div><div class="underline"></div></button>
+      <button class="tab active" data-tab="source" onclick="selectTab('surface-slicer','source')"><div class="row"><span class="lbl">Source</span></div></button>
+      <button class="tab" data-tab="slice" onclick="selectTab('surface-slicer','slice')"><div class="row"><span class="lbl">Slice</span></div></button>
+      <button class="tab" data-tab="fx" onclick="selectTab('surface-slicer','fx')"><div class="row"><span class="lbl">FX</span></div></button>
+      <button class="tab" data-tab="macros" onclick="selectTab('surface-slicer','macros')"><div class="row"><span class="lbl">Macros</span></div></button>
+      <button class="tab" data-tab="mixer" onclick="selectTab('surface-slicer','mixer')"><div class="row"><span class="lbl">Mixer</span></div></button>
     </div>
     <div class="well">
       <div class="well-pane" data-pane="source">

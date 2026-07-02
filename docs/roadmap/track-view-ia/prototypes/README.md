@@ -50,17 +50,28 @@ sharing one `StudioTabWell` (square top corners docking under the tab strip,
 with secondary selectors (MODE, LANE/LAYER/LENGTH, the slicer layer row)
 living inside the well. Off-path tabs (FX/Macros/Mixer, Sound, Slice) are
 dashed stubs per the stub-treatment convention.
-- `08-unified-tab-well-A.html` — **Variant A**: primary sections as
-  `StudioSlotTabButton` underline tabs (all-caps eyebrow, 2px accent
-  underline, ghost-stroke outline, optional solid status badge — mono's five
-  tabs carry real-state badges: Clip/Empty/Insert/Empty/Master). Boldest
-  conformance to the accepted spec, least churn.
-- `08-unified-tab-well-B.html` — **Variant B**: identical surfaces and well,
-  but primary sections render as a full-width `StudioSegmentedControl`
-  solid-thumb pill (the "toggle-ish" grammar) instead of underline tabs;
-  mono's status badges become small inline chips inside each segment.
-  Diverges from the accepted spec — shown because the owner is "not set on
-  tabs".
+After the first render pass the owner flagged the strip/well GAP (selected
+tab floating above the well edge, reading as two artifacts); the three files
+now cover the three connection forms he asked to compare:
+- `08-unified-tab-well-A.html` — **Variant A, seamless folder tabs** (owner
+  form 1): `StudioSlotTabButton` grammar (all-caps eyebrow, optional solid
+  status badge — mono's five tabs carry real-state badges:
+  Clip/Empty/Insert/Empty/Master), with the selected tab's outline flowing
+  seamlessly into the well border: the well's top border runs left of the
+  tab, up and around its sides/top, back down, and continues right. No line
+  under the active tab; its interior is continuous with the well. Unselected
+  tabs stay pills above the border line.
+- `08-unified-tab-well-B.html` — **Variant B, segmented-primary**: primary
+  sections as a full-width `StudioSegmentedControl` solid-thumb pill (the
+  "toggle-ish" grammar) rendered as a header row INSIDE the well, so no
+  strip/container gap exists at all; mono's status badges become small
+  inline chips inside each segment. Diverges from the accepted spec — shown
+  because the owner is "not set on tabs".
+- `08-unified-tab-well-C.html` — **Variant C, pill + full-accent border**
+  (owner form 2): the original pill-tab look (2px accent underline, gap to
+  the well retained) but the well border carries the surface accent at full
+  strength so pill + container read as one system. Accent as outline only —
+  canon Rule 12 bans accent fills, not outlines.
 - States: `audio-input`, `mono-track`, `slicer-track` (each scrolls the
   matching surface into view — the page stacks all three, taller than one
   screenshot). Render:
@@ -72,7 +83,7 @@ dashed stubs per the stub-treatment convention.
     'mono-track=document.getElementById("surface-mono").scrollIntoView()' \
     'slicer-track=document.getElementById("surface-slicer").scrollIntoView()'
   ```
-  (swap `-A` for `-B` for the second file). Both files also expose
+  (swap `-A` for `-B` / `-C` for the other files). All files also expose
   `setPrototypeState("audio:fx")` / `"mono:sound"` / `"slicer:slice"` etc. to
   jump a given surface to an off-path stub pane, and cross-link to each other
   for direct A/B comparison in a browser.
