@@ -463,18 +463,18 @@ struct LibraryWorkspaceView: View {
         }
     }
 
-    /// AU fast path: same composition as CreateTrackFlow's AU rows — attach
-    /// through setEditedDestination (.fullEngineApply keeps the AU host
-    /// teardown/build on the safe path), then prime the host.
+    /// AU fast path: the SAME shared session seam CreateTrackFlow's AU rows
+    /// use (`appendTrack(trackType:auInstrument:preparingAudioUnitWith:)`) —
+    /// the attach goes through setEditedDestination (.fullEngineApply keeps
+    /// the AU host teardown/build on the safe path) and the host prime can
+    /// never be forgotten by an entry point.
     private func createTrack(fromAUInstrument choice: AudioInstrumentChoice) {
         stopAudition()
-        let newTrackID = session.appendTrack(
+        _ = session.appendTrack(
             trackType: .monoMelodic,
-            soundDestination: .auInstrument(componentID: choice.audioComponentID, stateBlob: nil)
+            auInstrument: choice,
+            preparingAudioUnitWith: engineController
         )
-        if let newTrackID {
-            engineController.prepareAudioUnit(for: newTrackID)
-        }
         onOpenTrack()
     }
 

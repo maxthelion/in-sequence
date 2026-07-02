@@ -273,11 +273,21 @@ struct CreateTrackFlow: View {
                 finish()
             }
 
+            // The Sampler fast path needs a library sample to seed; with an
+            // empty library it used to fall back silently to
+            // `.internalSampler(.drumKitDefault)` — a NOT-implemented, silent
+            // sound source — betraying the "track that makes sound in one
+            // gesture" promise. Disable it honestly instead.
             StudioOptionButton(
                 title: "Sampler",
-                detail: "Use the sample engine with a library sample."
+                detail: defaultSampleDestination == nil
+                    ? "No library samples yet — add one from the Library page first."
+                    : "Use the sample engine with a library sample.",
+                isEnabled: defaultSampleDestination != nil,
+                disabledHelp: "The sample library is empty"
             ) {
-                _ = session.appendTrack(trackType: trackType, soundDestination: defaultSampleDestination)
+                guard let destination = defaultSampleDestination else { return }
+                _ = session.appendTrack(trackType: trackType, soundDestination: destination)
                 finish()
             }
 
@@ -308,25 +318,23 @@ struct CreateTrackFlow: View {
         }
     }
 
-    /// Mirrors `AddDestinationSheet.defaultSampleDestination`.
-    private var defaultSampleDestination: Destination {
-        if let firstSample = sampleLibrary.samples.first {
-            return .sample(sampleID: firstSample.id, settings: .default)
-        }
-        return .internalSampler(bankID: .drumKitDefault, preset: "empty")
+    /// The first library sample, or nil when the library is empty — the
+    /// Sampler option is disabled then. Never falls back to
+    /// `.internalSampler` (an unimplemented, silent sound source).
+    private var defaultSampleDestination: Destination? {
+        sampleLibrary.samples.first.map { .sample(sampleID: $0.id, settings: .default) }
     }
 
-    /// The AU fast path: same session mutation + AU host prime as
-    /// `TrackDestinationEditor.applyAddedDestination` — never a bespoke attach
-    /// path (Hard Rule 5 stays inside `.fullEngineApply`).
+    /// The AU fast path: the ONE shared session seam
+    /// (`appendTrack(trackType:auInstrument:preparingAudioUnitWith:)`) does the
+    /// session mutation + AU host prime — never a bespoke attach path (Hard
+    /// Rule 5 stays inside `.fullEngineApply`).
     private func createTrackWithAUInstrument(_ choice: AudioInstrumentChoice, trackType: TrackType) {
-        let newTrackID = session.appendTrack(
+        _ = session.appendTrack(
             trackType: trackType,
-            soundDestination: .auInstrument(componentID: choice.audioComponentID, stateBlob: nil)
+            auInstrument: choice,
+            preparingAudioUnitWith: engineController
         )
-        if let newTrackID {
-            engineController.prepareAudioUnit(for: newTrackID)
-        }
         finish()
     }
 

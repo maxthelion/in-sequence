@@ -1606,6 +1606,30 @@ extension SequencerDocumentSession {
         return newTrackID
     }
 
+    /// The ONE "create a track that plays an AU instrument" composition:
+    /// append the track with the `.auInstrument` destination (keeping the
+    /// `.fullEngineApply` AU host teardown/build path) AND prime the AU host
+    /// for the new track. Every entry point (Create Track flow, Library page,
+    /// future surfaces) must call this seam — composing the two steps
+    /// independently lets a new entry point silently omit the
+    /// `prepareAudioUnit` prime. Returns the new track's id, or nil when the
+    /// append was refused.
+    @discardableResult
+    func appendTrack(
+        trackType: TrackType,
+        auInstrument choice: AudioInstrumentChoice,
+        preparingAudioUnitWith engineController: EngineController
+    ) -> UUID? {
+        let newTrackID = appendTrack(
+            trackType: trackType,
+            soundDestination: .auInstrument(componentID: choice.audioComponentID, stateBlob: nil)
+        )
+        if let newTrackID {
+            engineController.prepareAudioUnit(for: newTrackID)
+        }
+        return newTrackID
+    }
+
     /// Append a new track of the generator's track type and assign the
     /// generator as its slot-0 source (Library "create track from generator").
     /// Reuses `appendTrack` + `assignGeneratorSource` verbatim. Returns the new
