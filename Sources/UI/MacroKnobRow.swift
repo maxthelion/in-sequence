@@ -118,77 +118,22 @@ struct MacroKnobRow: View {
 
 // MARK: - MacroKnob
 
-/// A single macro knob with label.
+/// A single macro knob with label: a thin wrapper that routes the shared
+/// `StudioRotaryKnob` template through the macro descriptor's range and
+/// short-value formatting.
 private struct MacroKnob: View {
     let binding: TrackMacroBinding
     let value: Double
     let onChange: (Double) -> Void
 
-    @State private var dragStartValue: Double?
-    @State private var displayValue: Double
-
-    private let knobSize: CGFloat = 40
-
-    init(binding: TrackMacroBinding, value: Double, onChange: @escaping (Double) -> Void) {
-        self.binding = binding
-        self.value = value
-        self.onChange = onChange
-        self._displayValue = State(initialValue: value)
-    }
-
-    private var normalized: Double {
-        let range = binding.descriptor.maxValue - binding.descriptor.minValue
-        guard range > 0 else { return 0 }
-        return (displayValue - binding.descriptor.minValue) / range
-    }
-
     var body: some View {
-        VStack(spacing: 6) {
-            ZStack {
-                Circle()
-                    .stroke(StudioTheme.border, lineWidth: 2)
-                    .frame(width: knobSize, height: knobSize)
-
-                Circle()
-                    .trim(from: 0.15, to: 0.15 + 0.7 * normalized)
-                    .stroke(StudioTheme.cyan, style: StrokeStyle(lineWidth: 3, lineCap: .round))
-                    .frame(width: knobSize - 6, height: knobSize - 6)
-                    .rotationEffect(.degrees(-90))
-
-                Text(shortLabel(displayValue))
-                    .font(.system(size: 9, weight: .medium, design: .rounded))
-                    .foregroundStyle(StudioTheme.mutedText)
-            }
-            .gesture(
-                StudioDrag.verticalValueGesture(
-                    value: $displayValue,
-                    dragStart: $dragStartValue,
-                    range: binding.descriptor.minValue...binding.descriptor.maxValue,
-                    onCommit: onChange
-                )
-            )
-
-            Text(binding.displayName)
-                .font(.system(size: 10, weight: .medium, design: .rounded))
-                .foregroundStyle(StudioTheme.text)
-                .lineLimit(2)
-                .multilineTextAlignment(.center)
-                .frame(width: knobSize + 12)
-        }
-        .onChange(of: value) { _, newValue in
-            if dragStartValue == nil {
-                displayValue = newValue
-            }
-        }
-    }
-
-    private func shortLabel(_ val: Double) -> String {
-        if binding.descriptor.maxValue > 10 {
-            return "\(Int(val.rounded()))"
-        }
-        let fmt = NumberFormatter()
-        fmt.maximumFractionDigits = 2
-        fmt.minimumFractionDigits = 0
-        return fmt.string(from: NSNumber(value: val)) ?? "\(val)"
+        StudioRotaryKnob(
+            title: binding.displayName,
+            value: value,
+            range: binding.descriptor.minValue...binding.descriptor.maxValue,
+            size: StudioMetrics.ControlSize.knob,
+            format: { MacroValueText.short($0, maxValue: binding.descriptor.maxValue) },
+            onChange: onChange
+        )
     }
 }

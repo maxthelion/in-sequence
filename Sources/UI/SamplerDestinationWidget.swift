@@ -518,78 +518,24 @@ struct SamplerDestinationWidget: View {
     }
 }
 
+/// Sampler parameter knob: a thin wrapper over the shared `StudioRotaryKnob`
+/// template working in normalized 0...1 space with a caller-formatted
+/// absolute value string in the center.
 struct SamplerParameterKnob: View {
     let label: String
     let normalizedValue: Double
     let displayText: String
     let onCommit: (Double) -> Void
 
-    @State private var dragStartValue: Double?
-    @State private var displayValue: Double
-
-    private let knobSize: CGFloat = 42
-    private let dragSensitivity: Double = 220
-
-    init(
-        label: String,
-        normalizedValue: Double,
-        displayText: String,
-        onCommit: @escaping (Double) -> Void
-    ) {
-        self.label = label
-        self.normalizedValue = normalizedValue
-        self.displayText = displayText
-        self.onCommit = onCommit
-        _displayValue = State(initialValue: normalizedValue)
-    }
-
     var body: some View {
-        VStack(spacing: 8) {
-            ZStack {
-                Circle()
-                    .stroke(StudioTheme.border, lineWidth: 2)
-                    .frame(width: knobSize, height: knobSize)
-
-                Circle()
-                    .trim(from: 0.15, to: 0.15 + 0.7 * displayValue.clamped(to: 0...1))
-                    .stroke(StudioTheme.cyan, style: StrokeStyle(lineWidth: 3, lineCap: .round))
-                    .frame(width: knobSize - 6, height: knobSize - 6)
-                    .rotationEffect(.degrees(-90))
-
-                Text(displayText)
-                    .font(.system(size: 9, weight: .medium, design: .rounded))
-                    .foregroundStyle(StudioTheme.mutedText)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-            }
-            .gesture(
-                DragGesture(minimumDistance: 0)
-                    .onChanged { drag in
-                        if dragStartValue == nil {
-                            dragStartValue = displayValue
-                        }
-                        let delta = -drag.translation.height / dragSensitivity
-                        let nextValue = (dragStartValue ?? displayValue) + delta
-                        displayValue = nextValue.clamped(to: 0...1)
-                    }
-                    .onEnded { _ in
-                        dragStartValue = nil
-                        onCommit(displayValue)
-                    }
-            )
-
-            Text(label)
-                .font(.system(size: 10, weight: .medium, design: .rounded))
-                .foregroundStyle(StudioTheme.text)
-                .lineLimit(2)
-                .multilineTextAlignment(.center)
-                .frame(width: knobSize + 26)
-        }
-        .onChange(of: normalizedValue) { _, newValue in
-            if dragStartValue == nil {
-                displayValue = newValue.clamped(to: 0...1)
-            }
-        }
+        StudioRotaryKnob(
+            title: label,
+            value: normalizedValue.clamped(to: 0...1),
+            range: 0...1,
+            size: StudioMetrics.ControlSize.knob,
+            format: { _ in displayText },
+            onChange: onCommit
+        )
     }
 }
 

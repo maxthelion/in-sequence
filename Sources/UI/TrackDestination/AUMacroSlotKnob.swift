@@ -33,7 +33,7 @@ struct AUMacroSlotKnob: View {
         slotIndex: Int,
         binding: TrackMacroBinding?,
         value: Double?,
-        knobSize: CGFloat = 40,
+        knobSize: CGFloat = StudioMetrics.ControlSize.knob,
         showSlotLabel: Bool = true,
         onAssign: @escaping () -> Void,
         onChange: @escaping (Double) -> Void,
@@ -82,16 +82,13 @@ struct MacroSlotKnob: View {
     let onChange: (Double) -> Void
     let onRemove: (() -> Void)?
 
-    @State private var dragStartValue: Double?
-    @State private var displayValue: Double
-
     init(
         slotIndex: Int,
         descriptor: MacroSlotKnobDescriptor?,
         value: Double?,
         accent: Color,
         emptyLabel: String = "Assign",
-        knobSize: CGFloat = 40,
+        knobSize: CGFloat = StudioMetrics.ControlSize.knob,
         showSlotLabel: Bool = true,
         onAssign: (() -> Void)?,
         onEdit: (() -> Void)? = nil,
@@ -109,25 +106,6 @@ struct MacroSlotKnob: View {
         self.onEdit = onEdit
         self.onChange = onChange
         self.onRemove = onRemove
-        _displayValue = State(initialValue: value ?? descriptor?.minValue ?? 0)
-    }
-
-    private var normalized: Double {
-        guard let descriptor else { return 0 }
-        let range = descriptor.maxValue - descriptor.minValue
-        guard range > 0 else { return 0 }
-        return (displayValue - descriptor.minValue) / range
-    }
-
-    // Only attached when a descriptor exists (see the .gesture including:
-    // mask in body), so the fallback range never drives a live edit.
-    private var dragGesture: some Gesture {
-        StudioDrag.verticalValueGesture(
-            value: $displayValue,
-            dragStart: $dragStartValue,
-            range: (descriptor?.minValue ?? 0)...(descriptor?.maxValue ?? 1),
-            onCommit: onChange
-        )
     }
 
     var body: some View {
@@ -139,48 +117,51 @@ struct MacroSlotKnob: View {
                     .foregroundStyle(StudioTheme.mutedText)
             }
 
-            ZStack {
-                Circle()
-                    .stroke(
-                        descriptor == nil ? StudioTheme.border.opacity(0.7) : StudioTheme.border,
-                        style: StrokeStyle(lineWidth: 2, dash: descriptor == nil ? [5, 4] : [])
-                    )
-                    .frame(width: knobSize, height: knobSize)
+            if let descriptor {
+                // Assigned slot: the shared rotary template carries the arc,
+                // drag/scroll editing, value text, and the name underneath.
+                StudioRotaryKnob(
+                    title: descriptor.displayName,
+                    value: value ?? descriptor.minValue,
+                    range: descriptor.minValue...descriptor.maxValue,
+                    accent: accent,
+                    size: knobSize,
+                    format: { MacroValueText.short($0, maxValue: descriptor.maxValue) },
+                    onChange: onChange
+                )
+                // Reassigning the slot swaps the knob identity so its local
+                // display state re-seeds from the new macro's value/range.
+                .id(descriptor.displayName)
+            } else {
+                // Empty slot keeps its own chrome: dashed circle + plus,
+                // tap to assign.
+                ZStack {
+                    Circle()
+                        .stroke(
+                            StudioTheme.border.opacity(0.7),
+                            style: StrokeStyle(lineWidth: 2, dash: [5, 4])
+                        )
+                        .frame(width: knobSize, height: knobSize)
 
-                if descriptor == nil {
                     Image(systemName: "plus")
                         .font(.system(size: max(14, knobSize * 0.35), weight: .bold))
                         .foregroundStyle(StudioTheme.mutedText)
-                } else {
-                    Circle()
-                        .trim(from: 0.15, to: 0.15 + 0.7 * normalized)
-                        .stroke(accent, style: StrokeStyle(lineWidth: 3, lineCap: .round))
-                        .frame(width: knobSize - 6, height: knobSize - 6)
-                        .rotationEffect(.degrees(-90))
-
-                    Text(shortLabel(displayValue))
-                        .font(.system(size: max(9, knobSize * 0.22), weight: .medium, design: .rounded))
-                        .foregroundStyle(StudioTheme.mutedText)
                 }
-            }
-            .contentShape(Rectangle())
-            .gesture(dragGesture, including: descriptor == nil ? .none : .all)
-            .onTapGesture {
-                if descriptor == nil {
+                .contentShape(Rectangle())
+                .onTapGesture {
                     onAssign?()
                 }
-            }
 
-            // An empty label collapses entirely (callers pass "" when the
-            // dashed "+" knob alone should carry the assign affordance).
-            let footerLabel = descriptor?.displayName ?? emptyLabel
-            if !footerLabel.isEmpty {
-                Text(footerLabel)
-                    .font(.system(size: 10, weight: .medium, design: .rounded))
-                    .foregroundStyle(descriptor == nil ? StudioTheme.mutedText : StudioTheme.text)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.center)
-                    .frame(width: knobSize + 18)
+                // An empty label collapses entirely (callers pass "" when the
+                // dashed "+" knob alone should carry the assign affordance).
+                if !emptyLabel.isEmpty {
+                    Text(emptyLabel)
+                        .font(.system(size: 10, weight: .medium, design: .rounded))
+                        .foregroundStyle(StudioTheme.mutedText)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.center)
+                        .frame(width: knobSize + 18)
+                }
             }
         }
         .frame(minWidth: knobSize + 18, maxWidth: .infinity, minHeight: 86, alignment: .top)
@@ -196,21 +177,12 @@ struct MacroSlotKnob: View {
                 Button("Remove Macro", role: .destructive, action: onRemove)
             }
         }
-        .onChange(of: value) { _, newValue in
-            guard let newValue else {
-                return
-            }
-            if dragStartValue == nil {
-                displayValue = newValue
-            }
-        }
-        .onChange(of: descriptor) { _, newDescriptor in
-            if dragStartValue == nil {
-                displayValue = value ?? newDescriptor?.minValue ?? 0
-            }
-        }
     }
+}
 
+/// Short center-of-knob value formatting shared by the macro knob surfaces:
+/// integers for wide ranges, up to two decimals for unit-ish ranges.
+enum MacroValueText {
     private static let shortValueFormatter: NumberFormatter = {
         let f = NumberFormatter()
         f.maximumFractionDigits = 2
@@ -218,11 +190,10 @@ struct MacroSlotKnob: View {
         return f
     }()
 
-    private func shortLabel(_ value: Double) -> String {
-        guard let descriptor else { return "" }
-        if descriptor.maxValue > 10 {
+    static func short(_ value: Double, maxValue: Double) -> String {
+        if maxValue > 10 {
             return "\(Int(value.rounded()))"
         }
-        return Self.shortValueFormatter.string(from: NSNumber(value: value)) ?? "\(value)"
+        return shortValueFormatter.string(from: NSNumber(value: value)) ?? "\(value)"
     }
 }

@@ -175,6 +175,20 @@ hand-roll the identical icon+label tile:
 **Acceptance:** both sheets pixel-identical; build green; verifier sign-off.
 
 ## W4 — `StepLayerRotaryDial` → wrap `StudioRotaryKnob` (MED) — ✗ WON'T DO
+### 2026-07-02 update — arc-geometry blocker resolved, chrome delta remains
+
+The rotary-controls redesign rewrote `StudioRotaryKnob`'s value arc onto the
+shared `StudioRotaryArc` shape (135°→405°, 270° sweep over the top — the exact
+geometry `StepLayerRotaryArc` used), and `StepLayerRotaryDial` now draws that
+shared shape directly, so the "different arc grammar" half of the 2026-06-21
+verdict below no longer holds. What remains different is only chrome: 3pt
+dimmed border circle, 4pt arc weight, WHITE value text, tile background,
+amber active-layer outline, tap-to-select. Wrapping the dial around
+`StudioRotaryKnob` is now a plausible follow-up slice, but it still needs its
+own capture row first (the step-edit rotary cluster has none) and its own
+pixel baseline — do it as a separate verified slice, not opportunistically.
+
+Original 2026-06-21 verdict (arc half superseded):
 
 On inspection the two are genuinely different visual grammars, not a wrap:
 `StudioRotaryKnob` uses a 2pt `border` circle, a `trim(0.15…0.85)`-rotated 3pt
