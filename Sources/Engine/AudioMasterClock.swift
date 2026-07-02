@@ -186,6 +186,24 @@ final class AudioMasterClock {
     /// `musicalSeconds * sampleRate`.
     private var originStartupAnchorLeadSeconds: TimeInterval = 0
 
+    /// Highest render `sampleTime` observed on the CURRENT output render
+    /// timeline. Used to detect a render-timeline RESET: a live-engine
+    /// stop()/start() (e.g. `installMasterChains` rebuilding the master chain
+    /// for a scene-FX insert while the transport runs, or a device switch)
+    /// restarts the output node's sample counter near 0 (measured 2026-07-02:
+    /// pre-stop frame 48128 → post-restart frame 24576 after +0.55 s of wall
+    /// time). Host time and the AU's own render counter CONTINUE across the
+    /// restart, so only the FRAME view of the origin goes stale — see
+    /// `rebaseFrameOriginIfRenderTimelineReset`.
+    private var maxObservedRenderSampleTime: AVAudioFramePosition?
+
+    /// Regression slack for the timeline-reset detector, in seconds of render
+    /// frames. Must be far above per-quantum jitter (~23 ms) and far below any
+    /// real reset gap (the whole engine-session duration). A STALE frozen
+    /// render pair (read in the stopped window) never regresses — the counter
+    /// is frozen, not rewound — so this only fires on a genuine new timeline.
+    static let renderTimelineResetToleranceSeconds: TimeInterval = 0.5
+
     /// Cumulative musical seconds at the most recently advanced step, and the
     /// step index it corresponds to. The tempo map is expressed incrementally:
     /// each `advance(toStep:bpm:)` adds the duration of the steps between the
@@ -247,6 +265,7 @@ final class AudioMasterClock {
             originSampleTime = position.sampleTime + AVAudioFramePosition((offset * position.sampleRate).rounded())
             originHostSeconds = AVAudioTime.seconds(forHostTime: position.hostTime) + offset
             originIsRenderDerived = true
+            maxObservedRenderSampleTime = position.sampleTime
         } else {
             // No render position yet (engine not rendering at transport start):
             // anchor provisionally on the supplied fallback host time. This is
@@ -269,6 +288,7 @@ final class AudioMasterClock {
         originIsRenderDerived = false
         originLeadSeconds = 0
         originStartupAnchorLeadSeconds = 0
+        maxObservedRenderSampleTime = nil
         lastAdvancedStep = 0
         cumulativeMusicalSecondsByStep = [0: 0]
         latchedSwing = 0
@@ -430,11 +450,16 @@ final class AudioMasterClock {
     ///      time on the first render. (Before this fix `hasOrigin` was set true
     ///      even for the fallback, so the upgrade never happened and the live
     ///      stamp stayed anchored to the pre-render `systemUptime` fallback.)
-    /// Once the origin is render-derived it is stable for the rest of transport.
+    /// Once the origin is render-derived it is stable for the rest of transport
+    /// — EXCEPT that its FRAME view is rebased when the output render timeline
+    /// itself resets (see `rebaseFrameOriginIfRenderTimelineReset`).
     private func refreshOriginIfAvailable() {
         guard let position = renderPositionProvider() else { return }
         sampleRate = position.sampleRate
-        guard !originIsRenderDerived else { return }
+        guard !originIsRenderDerived else {
+            rebaseFrameOriginIfRenderTimelineReset(position)
+            return
+        }
         // Upgrade preserves the captured startup anchor (production transport
         // start anchors by `startupAnchorLeadSeconds`; the anchor must survive
         // the fallback→render upgrade or a cold start would run unanchored) and
@@ -447,6 +472,69 @@ final class AudioMasterClock {
         originHostSeconds = AVAudioTime.seconds(forHostTime: position.hostTime) + offset
         hasOrigin = true
         originIsRenderDerived = true
+        maxObservedRenderSampleTime = position.sampleTime
+    }
+
+    /// Rebase the FRAME origin after an output render-timeline RESET, keeping
+    /// the host-seconds origin (musical second 0) untouched.
+    ///
+    /// The scene-FX attenuation bug (docs/bugs/20260702-143000-scene-fx-
+    /// attenuates-au-track-until-restart): adding/removing a master-bus scene
+    /// insert while the transport runs rebuilds the master chain via
+    /// `MainAudioGraph.installMasterChains`, which stop()/start()s the LIVE
+    /// engine. On live HAL that restart RESETS the output node's render
+    /// `sampleTime` (measured 2026-07-02), while host time and the AU node's
+    /// own render counter continue. The frame origin captured at transport
+    /// start then sits on the DEAD timeline, so every subsequent
+    /// `sampleTime(atMusicalSeconds:)` stamp lands the whole pre-restart
+    /// elapsed time in the NEW timeline's future. Sample sinks are immune
+    /// (they schedule against host time — `audioTime(atMusicalSeconds:)`),
+    /// but the AU note path consumes these frame stamps
+    /// (`scheduledAUNoteSampleTime` → `AudioInstrumentHost.play`), so AU
+    /// notes stop landing (heard as the AU track dropping way down / notes
+    /// chopped to a buffer, drums unchanged), stay broken across the FX
+    /// removal (another restart, same dead origin), and heal only on
+    /// transport Stop→Play (`captureOrigin` re-anchors). This rebase is the
+    /// missing restorer: it re-derives the frame origin ON THE NEW TIMELINE
+    /// from the still-valid host-seconds origin through the fresh
+    /// (sampleTime, hostTime) correlation pair — the same correlation
+    /// `CapturedOriginCorrelation.frame(forHostSeconds:)` documents. Musical
+    /// time never jumps: the host anchor is unchanged (Rule 1 — both values
+    /// still derive from render positions, never a free-running wall clock).
+    ///
+    /// Detection is a REGRESSION of the render `sampleTime` against the
+    /// highest frame observed on the current timeline (beyond
+    /// `renderTimelineResetToleranceSeconds`). A frozen stale pair read in
+    /// the stopped window never regresses (the counter freezes, it does not
+    /// rewind), and offline manual rendering's `manualRenderingSampleTime`
+    /// is continuous across stop()/start() (measured), so the deterministic
+    /// 0-frame gate can never trigger a rebase.
+    private func rebaseFrameOriginIfRenderTimelineReset(
+        _ position: (sampleTime: AVAudioFramePosition, hostTime: UInt64, sampleRate: Double)
+    ) {
+        guard let maxObserved = maxObservedRenderSampleTime else {
+            maxObservedRenderSampleTime = position.sampleTime
+            return
+        }
+        let toleranceFrames = AVAudioFramePosition(
+            (Self.renderTimelineResetToleranceSeconds * position.sampleRate).rounded()
+        )
+        guard position.sampleTime + toleranceFrames < maxObserved else {
+            maxObservedRenderSampleTime = max(maxObserved, position.sampleTime)
+            return
+        }
+
+        let positionHostSeconds = AVAudioTime.seconds(forHostTime: position.hostTime)
+        let staleOriginSampleTime = originSampleTime
+        originSampleTime = position.sampleTime
+            - AVAudioFramePosition(((positionHostSeconds - originHostSeconds) * position.sampleRate).rounded())
+        maxObservedRenderSampleTime = position.sampleTime
+        DevActivity.trace(
+            DevActivity.audioGraph,
+            "master-clock frame origin REBASED after render-timeline reset: " +
+            "renderFrame=\(position.sampleTime) maxObserved=\(maxObserved) " +
+            "staleOrigin=\(staleOriginSampleTime) rebasedOrigin=\(originSampleTime)"
+        )
     }
 
     static func secondsPerStep(bpm: Double, stepsPerBar: Int) -> TimeInterval {

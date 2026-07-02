@@ -1388,6 +1388,16 @@ final class MainAudioGraph {
             let wasRunning = self.engine.isRunning
             self.removeMasterMeterTapIfNeeded()
             if wasRunning {
+                // NOTE: a LIVE stop() here resets the output node's render
+                // timeline on the HAL; the unified master clock detects the
+                // reset and rebases its frame origin
+                // (AudioMasterClock.rebaseFrameOriginIfRenderTimelineReset) so
+                // AU note stamps stay schedulable (the scene-FX AU-attenuation
+                // bug, docs/bugs/20260702-143000).
+                DevActivity.trace(
+                    DevActivity.audioGraph,
+                    "installMasterChains STOP live engine for master-chain rebuild chains=\(chains.count) postBlendNodes=\(postBlendMasterNodes.count)"
+                )
                 // routing-lint-allow: installMasterChains one-time master-chain topology setup
                 self.engine.stop()
             }
@@ -1492,6 +1502,10 @@ final class MainAudioGraph {
                 // routing-lint-allow: installMasterChains one-time master-chain topology setup
                 try? self.engine.start()
                 self.isStarted = self.engine.isRunning
+                DevActivity.trace(
+                    DevActivity.audioGraph,
+                    "installMasterChains RESTART live engine after master-chain rebuild running=\(self.engine.isRunning)"
+                )
             }
         }
     }
