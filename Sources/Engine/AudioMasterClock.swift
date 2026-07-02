@@ -65,6 +65,29 @@ final class AudioMasterClock {
     /// EARLIER than the nominal lead; stamps remain the true musical due time.
     static let lookAheadClockSkewSlackSeconds: TimeInterval = 0.025
 
+    /// Transport-start scheduling floor (seconds past the CURRENT render
+    /// position) for the LIVE dispatch path — the earliest stamp a sink can
+    /// still honour sample-accurately.
+    ///
+    /// Why it exists (2026-07-02 capture rig, step-0 first-hit outlier): step
+    /// 0's musical due time IS the transport-start origin, so the 100 ms
+    /// look-ahead lead is structurally unavailable for the first hit. The rig
+    /// measured the step-0 stamps handed to the sample engine only +9.3 ms
+    /// (kick) / +1.3 ms (hat) ahead of the dispatch wall-clock — inside the
+    /// engine's schedule-visibility horizon (~2 render quanta ≈ 23 ms at
+    /// 512/44.1 kHz, plus cold-voice start), so the player joined a later
+    /// render cycle "as soon as possible" and the first hit landed
+    /// +34.6 ms ≈ 3 quanta off the grid, non-deterministically.
+    ///
+    /// 30 ms = two render quanta at the 512-frame HAL buffer (23.2 ms @
+    /// 44.1 kHz, 21.3 ms @ 48 kHz) + margin for the measured ~9 ms cold
+    /// multi-track dispatch spread. This is NOT the look-ahead lead and it
+    /// does NOT move the master-clock origin (musical second 0 stays at the
+    /// transport-start render position; the frozen origin rails are
+    /// unaffected) — it lifts only an EVENT STAMP that would otherwise be
+    /// inside the unschedulable window.
+    static let liveDispatchSchedulingFloorSeconds: TimeInterval = 0.030
+
     /// Reads the live audio-render position. Returns nil until the engine has a
     /// valid render time (before first render / live-HAL warmup), in which case
     /// the clock falls back to its musical accumulator with a zero frame origin.
@@ -253,6 +276,31 @@ final class AudioMasterClock {
     /// this `AVAudioTime` builder.
     func audioTime(atMusicalSeconds musicalSeconds: TimeInterval) -> AVAudioTime {
         AVAudioTime(hostTime: AVAudioTime.hostTime(forSeconds: max(0, hostSeconds(atMusicalSeconds: musicalSeconds))))
+    }
+
+    /// The earliest musical position (cumulative seconds) a LIVE dispatch can
+    /// still hand a sink as a sample-accurately schedulable stamp: the CURRENT
+    /// render position plus `liveDispatchSchedulingFloorSeconds`, expressed on
+    /// the musical timeline. Returns nil while no render-derived origin exists
+    /// (cold fallback — the dispatch path keeps its aligned immediate
+    /// behaviour there).
+    ///
+    /// This is a DISPATCH-floor read, not a stamping source: the caller lifts
+    /// an already-past-due event's stamp UP to this value (`max(due, floor)`),
+    /// so on-time events (dispatched ~lead ahead) are never moved. Like the
+    /// other converters this is a pure read of the render position plus the
+    /// captured origin (Rule 1) — no wall clock is consulted.
+    func liveDispatchSchedulingFloorMusicalSeconds() -> TimeInterval? {
+        refreshOriginIfAvailable()
+        guard originIsRenderDerived, hasOrigin,
+              let position = renderPositionProvider()
+        else {
+            return nil
+        }
+        let renderHostSeconds = AVAudioTime.seconds(forHostTime: position.hostTime)
+        return musicalSeconds(
+            atHostSeconds: renderHostSeconds + Self.liveDispatchSchedulingFloorSeconds
+        )
     }
 
     /// Convert a pump wake host-time into the musical position it corresponds to.

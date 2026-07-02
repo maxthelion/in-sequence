@@ -760,6 +760,22 @@ final class EngineController: RouterDispatcher {
         return frame
     }
 
+    /// The stamp musical position for a live-dispatched event: the event's due
+    /// time, lifted to the dispatch pass's scheduling floor when the due time
+    /// is already inside the unschedulable window (the step-0 cold hit at
+    /// transport start, or an extreme past-due late wake). Identity when no
+    /// floor applies (offline harness / cold fallback) or the event is on time
+    /// (dispatched ~lookAheadLeadSeconds ahead of due — the steady state).
+    /// The floor is computed once per dispatch pass in `dispatchTick`, so all
+    /// events of a step (sample AND AU) receive the identical lift.
+    private static func schedulableStampMusicalSeconds(
+        _ dueMusicalSeconds: TimeInterval,
+        floor: TimeInterval?
+    ) -> TimeInterval {
+        guard let floor, dueMusicalSeconds < floor else { return dueMusicalSeconds }
+        return floor
+    }
+
     private func stepDurationSeconds(bpm: Double) -> TimeInterval {
         (60.0 / max(1, bpm)) * (4.0 / Double(max(1, stepsPerBar)))
     }
@@ -2974,6 +2990,29 @@ final class EngineController: RouterDispatcher {
         // installed) so the frozen rail can machine-verify the live invocation.
         let dispatchLead = lookAheadLeadSeconds
 
+        // Step-0 first-hit scheduling floor (2026-07-02 rig outlier, +34.6 ms):
+        // step 0's due time IS the transport-start origin, so its stamp is
+        // knife-edge — inside the schedule-visibility horizon — and the player
+        // joins a later render cycle "as soon as possible" (~3 quanta late,
+        // non-deterministic). Lift any already-past-due stamp to the earliest
+        // reliably-schedulable time (`max(due, renderNow + floor)`), computed
+        // ONCE per dispatch pass so every event on the step — sample AND AU —
+        // receives the IDENTICAL lift (no intra-step flam, same cold/scheduled
+        // decision as the `hasRenderOriginThisTick` latch). Steady-state events
+        // are dispatched ~lookAheadLeadSeconds ahead of due, far beyond the
+        // floor, so `max` is the identity for them. The master-clock ORIGIN is
+        // NOT moved (musical second 0 stays at the transport-start render
+        // position — the frozen origin rails measure exactly that); only an
+        // unschedulable EVENT STAMP is lifted. Live-transport only: the offline
+        // deterministic harnesses (override seam installed and/or no transport
+        // start) keep exact musical-position stamps for the 0-frame gate.
+        let schedulingFloorMusicalSeconds: TimeInterval?
+        if isRunning, hasRenderOriginThisTick, scheduledAudioTimeOverrideForTesting == nil, !events.isEmpty {
+            schedulingFloorMusicalSeconds = audioMasterClock.liveDispatchSchedulingFloorMusicalSeconds()
+        } else {
+            schedulingFloorMusicalSeconds = nil
+        }
+
         for event in events {
             // realtime-allow-diagnostic: SequencerTimingProbe scheduled-vs-actual dispatch latency probe (only when enabled); the actual sounding frame is the `at:` AVAudioTime built by scheduledAudioTime(for:), not this value (Rule 1). Test: RealtimePathLintTests.
             let dispatchNow = SequencerTimingProbe.isEnabled ? ProcessInfo.processInfo.systemUptime : 0
@@ -2996,9 +3035,14 @@ final class EngineController: RouterDispatcher {
                 // Round-2 P3: route the note through `leadStampedAudioTime` (the
                 // live early-dispatch surface) so the pump hands the AU scheduler
                 // the event `dispatchLead` ahead of its musical due time; the frame
-                // stamp itself stays the unshifted unified-clock frame (Rule 1).
+                // stamp itself stays the unshifted unified-clock frame (Rule 1),
+                // lifted only by the per-pass scheduling floor when already past
+                // due (step-0 cold hit).
                 let auStamp = leadStampedAUNoteSampleTime(
-                    for: event.scheduledHostTime,
+                    for: Self.schedulableStampMusicalSeconds(
+                        event.scheduledHostTime,
+                        floor: schedulingFloorMusicalSeconds
+                    ),
                     dispatchLead: dispatchLead,
                     hasRenderOriginLatched: hasRenderOriginThisTick
                 )
@@ -3030,9 +3074,13 @@ final class EngineController: RouterDispatcher {
                 }
                 applyDestinationIfNeeded(destination, trackID: trackID, host: host, outputKeys: outputKeys)
                 // Routed AU output shares the sample-stamped note path (Phase 1).
-                // Round-2 P3: same live early-dispatch routing as `.trackAU`.
+                // Round-2 P3: same live early-dispatch routing as `.trackAU`,
+                // including the per-pass scheduling-floor lift.
                 let routedAUStamp = leadStampedAUNoteSampleTime(
-                    for: event.scheduledHostTime,
+                    for: Self.schedulableStampMusicalSeconds(
+                        event.scheduledHostTime,
+                        floor: schedulingFloorMusicalSeconds
+                    ),
                     dispatchLead: dispatchLead,
                     hasRenderOriginLatched: hasRenderOriginThisTick
                 )
@@ -3081,7 +3129,10 @@ final class EngineController: RouterDispatcher {
                     settings: settings,
                     trackID: trackID,
                     at: leadStampedSampleAudioTime(
-                        for: event.scheduledHostTime,
+                        for: Self.schedulableStampMusicalSeconds(
+                            event.scheduledHostTime,
+                            floor: schedulingFloorMusicalSeconds
+                        ),
                         dispatchLead: dispatchLead,
                         hasRenderOriginLatched: hasRenderOriginThisTick
                     )
@@ -3105,7 +3156,10 @@ final class EngineController: RouterDispatcher {
                     settings: settings,
                     trackID: trackID,
                     at: leadStampedSampleAudioTime(
-                        for: event.scheduledHostTime,
+                        for: Self.schedulableStampMusicalSeconds(
+                            event.scheduledHostTime,
+                            floor: schedulingFloorMusicalSeconds
+                        ),
                         dispatchLead: dispatchLead,
                         hasRenderOriginLatched: hasRenderOriginThisTick
                     ),
