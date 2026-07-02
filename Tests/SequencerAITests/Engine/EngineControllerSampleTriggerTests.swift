@@ -114,6 +114,18 @@ final class EngineControllerSampleTriggerTests: XCTestCase {
         )
     }
 
+    /// Test-isolation teardown (bug 20260702-135500): a controller that is
+    /// only `stop()`ped (or not even that) can leak TickClock timers and
+    /// host-queue work that crash LATER suites via Swift exclusivity traps.
+    /// Every controller a test creates registers a full `shutdown()` here.
+    private func registerShutdownAtTeardown(_ controller: EngineController) {
+        addTeardownBlock {
+            controller.shutdown()
+            XCTAssertFalse(controller.clock.isRunning,
+                "no TickClock may survive test teardown")
+        }
+    }
+
     // MARK: - Tests
 
     func test_sampleDestination_firesPlayPerStep() {
@@ -140,6 +152,7 @@ final class EngineControllerSampleTriggerTests: XCTestCase {
             client: nil, endpoint: nil,
             sampleEngine: spy, sampleLibrary: library
         )
+        registerShutdownAtTeardown(controller)
         controller.apply(documentModel: project)
         let now = ProcessInfo.processInfo.systemUptime
         for step in 0..<4 {
@@ -173,6 +186,7 @@ final class EngineControllerSampleTriggerTests: XCTestCase {
             sampleEngine: spy,
             sampleLibrary: library
         )
+        registerShutdownAtTeardown(controller)
         controller.apply(documentModel: project)
         controller.setBPM(300)
 
@@ -233,6 +247,7 @@ final class EngineControllerSampleTriggerTests: XCTestCase {
             sampleEngine: spy,
             sampleLibrary: library
         )
+        registerShutdownAtTeardown(controller)
         controller.apply(documentModel: project)
         // Default 120 BPM: 125 ms per 16th step, 100 ms lead.
 
@@ -287,6 +302,7 @@ final class EngineControllerSampleTriggerTests: XCTestCase {
             sampleAssetCache: cache,
             sampleLibrary: library
         )
+        registerShutdownAtTeardown(controller)
 
         controller.apply(documentModel: project)
         XCTAssertEqual(openedURLs.count, 1)
@@ -356,6 +372,7 @@ final class EngineControllerSampleTriggerTests: XCTestCase {
             sampleAssetCache: cache,
             sampleLibrary: library
         )
+        registerShutdownAtTeardown(controller)
 
         controller.apply(documentModel: project)
         XCTAssertEqual(Set(openedURLs), expectedURLs)
@@ -428,6 +445,7 @@ final class EngineControllerSampleTriggerTests: XCTestCase {
             sampleAssetCache: cache,
             sampleLibrary: library
         )
+        registerShutdownAtTeardown(controller)
 
         controller.apply(documentModel: project)
         XCTAssertEqual(Set(openedURLs), expectedURLs)
@@ -492,6 +510,7 @@ final class EngineControllerSampleTriggerTests: XCTestCase {
             sampleEngine: spy,
             sampleLibrary: library
         )
+        registerShutdownAtTeardown(controller)
 
         controller.apply(documentModel: project)
         // Pump `now` values are deliberately offset/jittered; they must NOT
@@ -634,6 +653,7 @@ final class EngineControllerSampleTriggerTests: XCTestCase {
             sampleEngine: spy,
             sampleLibrary: library
         )
+        registerShutdownAtTeardown(controller)
         controller.apply(documentModel: project)
         // Drive a single step at a deliberately large wall-clock `now` — this is
         // what makes the pre-fix bug glaring: the routed path would carry ~`now`
@@ -699,6 +719,7 @@ final class EngineControllerSampleTriggerTests: XCTestCase {
             sampleEngine: spy,
             sampleLibrary: library
         )
+        registerShutdownAtTeardown(controller)
         controller.apply(documentModel: project)
         controller.processTick(tickIndex: 0, now: ProcessInfo.processInfo.systemUptime)
 
@@ -766,6 +787,7 @@ final class EngineControllerSampleTriggerTests: XCTestCase {
             sampleEngine: spy,
             sampleLibrary: library
         )
+        registerShutdownAtTeardown(controller)
         controller.apply(documentModel: project)
         controller.processTick(tickIndex: 0, now: ProcessInfo.processInfo.systemUptime)
 
@@ -836,6 +858,7 @@ final class EngineControllerSampleTriggerTests: XCTestCase {
             sampleEngine: spy,
             sampleLibrary: library
         )
+        registerShutdownAtTeardown(controller)
 
         controller.apply(documentModel: project)
         controller.processTick(tickIndex: 0, now: 0)
@@ -903,6 +926,7 @@ final class EngineControllerSampleTriggerTests: XCTestCase {
             client: nil, endpoint: nil,
             sampleEngine: spy, sampleLibrary: library
         )
+        registerShutdownAtTeardown(controller)
         controller.apply(documentModel: project)
 
         let last = spy.setTrackMixCalls.last(where: { $0.0 == track.id })
@@ -958,6 +982,7 @@ final class EngineControllerSampleTriggerTests: XCTestCase {
             sampleEngine: spy,
             sampleLibrary: library
         )
+        registerShutdownAtTeardown(controller)
 
         controller.apply(documentModel: project)
 
@@ -989,6 +1014,7 @@ final class EngineControllerSampleTriggerTests: XCTestCase {
             client: nil, endpoint: nil,
             sampleEngine: spy, sampleLibrary: library
         )
+        registerShutdownAtTeardown(controller)
         controller.apply(documentModel: project)
         XCTAssertTrue(spy.removeTrackCalls.isEmpty, "no removals on first apply")
 
@@ -1028,6 +1054,7 @@ final class EngineControllerSampleTriggerTests: XCTestCase {
             client: nil, endpoint: nil,
             sampleEngine: spy, sampleLibrary: library
         )
+        registerShutdownAtTeardown(controller)
         controller.apply(documentModel: project)
         controller.start()
         let now = ProcessInfo.processInfo.systemUptime
@@ -1068,6 +1095,7 @@ final class EngineControllerSampleTriggerTests: XCTestCase {
             client: nil, endpoint: nil,
             sampleEngine: spy, sampleLibrary: library
         )
+        registerShutdownAtTeardown(controller)
         controller.apply(documentModel: project)
         controller.start()
         let now = ProcessInfo.processInfo.systemUptime
@@ -1104,6 +1132,7 @@ final class EngineControllerSampleTriggerTests: XCTestCase {
             client: nil, endpoint: nil,
             sampleEngine: spy, sampleLibrary: library
         )
+        registerShutdownAtTeardown(controller)
         controller.apply(documentModel: project)
         controller.start()
         controller.processTick(tickIndex: 0, now: 0)
@@ -1157,6 +1186,7 @@ final class EngineControllerSampleTriggerTests: XCTestCase {
             sliceSetPool: [sliceSet]
         )
         let controller = EngineController(client: nil, endpoint: nil, sampleEngine: spy, sampleLibrary: library)
+        registerShutdownAtTeardown(controller)
 
         controller.apply(documentModel: project)
         controller.processTick(tickIndex: 0, now: ProcessInfo.processInfo.systemUptime)
@@ -1233,6 +1263,7 @@ final class EngineControllerSampleTriggerTests: XCTestCase {
             sliceSetPool: [sliceSet]
         )
         let controller = EngineController(client: nil, endpoint: nil, sampleEngine: spy, sampleLibrary: library)
+        registerShutdownAtTeardown(controller)
 
         controller.apply(documentModel: project)
         controller.processTick(tickIndex: 0, now: ProcessInfo.processInfo.systemUptime)
@@ -1330,6 +1361,7 @@ final class EngineControllerSampleTriggerTests: XCTestCase {
             sampleAssetCache: cache,
             sampleLibrary: library
         )
+        registerShutdownAtTeardown(controller)
 
         controller.apply(documentModel: project)
         XCTAssertEqual(openedURLs, [expectedURL])
@@ -1391,6 +1423,7 @@ final class EngineControllerSampleTriggerTests: XCTestCase {
             sliceSetPool: [sliceSet]
         )
         let controller = EngineController(client: nil, endpoint: nil, sampleEngine: spy, sampleLibrary: library)
+        registerShutdownAtTeardown(controller)
 
         controller.apply(documentModel: project)
         controller.processTick(tickIndex: 0, now: ProcessInfo.processInfo.systemUptime)
@@ -1442,6 +1475,7 @@ final class EngineControllerSampleTriggerTests: XCTestCase {
             sliceSetPool: [sliceSet]
         )
         let controller = EngineController(client: nil, endpoint: nil, sampleEngine: spy, sampleLibrary: library)
+        registerShutdownAtTeardown(controller)
 
         controller.apply(documentModel: project)
         controller.processTick(tickIndex: 0, now: ProcessInfo.processInfo.systemUptime)

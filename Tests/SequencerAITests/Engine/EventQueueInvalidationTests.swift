@@ -3,6 +3,18 @@ import XCTest
 
 final class EventQueueInvalidationTests: XCTestCase {
 
+    /// Test-isolation teardown (bug 20260702-135500): a controller that is
+    /// only `stop()`ped (or not even that) can leak TickClock timers and
+    /// host-queue work that crash LATER suites via Swift exclusivity traps.
+    /// Every controller a test creates registers a full `shutdown()` here.
+    private func registerShutdownAtTeardown(_ controller: EngineController) {
+        addTeardownBlock {
+            controller.shutdown()
+            XCTAssertFalse(controller.clock.isRunning,
+                "no TickClock may survive test teardown")
+        }
+    }
+
     // MARK: - Running-transport leak scenario (primary invariant)
 
     /// Proves that a note prepared for tick N+1 does NOT leak through when the snapshot
@@ -19,6 +31,7 @@ final class EventQueueInvalidationTests: XCTestCase {
     func test_snapshotMutation_invalidatesAlreadyPreparedStaleNote() {
         let sink = CountingAudioSink()
         let controller = EngineController(client: nil, endpoint: nil, audioOutput: sink)
+        registerShutdownAtTeardown(controller)
         let (initialProject, _, clipID) = makeLiveStoreProject(clipPitch: 60, stepPattern: [false, true])
 
         // Boot the engine with step 0=off, step 1=on.
@@ -66,6 +79,7 @@ final class EventQueueInvalidationTests: XCTestCase {
     func test_stop_clearsEventQueueEvenWhenEventsWereEnqueuedBeforeStop() {
         let sink = CountingAudioSink()
         let controller = EngineController(client: nil, endpoint: nil, audioOutput: sink)
+        registerShutdownAtTeardown(controller)
         let (project, _, _) = makeLiveStoreProject(clipPitch: 60, stepPattern: [false, true])
 
         controller.apply(documentModel: project)
@@ -96,6 +110,7 @@ final class EventQueueInvalidationTests: XCTestCase {
     func test_withoutSnapshotSwap_preparedNoteIsDispatched() {
         let sink = CountingAudioSink()
         let controller = EngineController(client: nil, endpoint: nil, audioOutput: sink)
+        registerShutdownAtTeardown(controller)
         let (project, _, _) = makeLiveStoreProject(clipPitch: 72, stepPattern: [false, true])
 
         controller.apply(documentModel: project)

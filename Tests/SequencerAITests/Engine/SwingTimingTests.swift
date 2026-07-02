@@ -192,6 +192,15 @@ final class SwingTimingTests: XCTestCase {
 
     func test_engineController_setSwing_clampsAndUpdatesPublishedValue() {
         let controller = EngineController(client: nil, endpoint: nil)
+        // Test-isolation teardown (bug 20260702-135500): every controller a
+        // test creates gets a full shutdown() so no TickClock timer or
+        // host-queue work can leak into later suites, even when this test
+        // never calls start().
+        addTeardownBlock {
+            controller.shutdown()
+            XCTAssertFalse(controller.clock.isRunning,
+                "no TickClock may survive test teardown")
+        }
         XCTAssertEqual(controller.currentSwing, 0, "swing is transient runtime state, defaulting to 0")
 
         controller.setSwing(0.25)
