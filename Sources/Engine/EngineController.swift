@@ -2565,6 +2565,15 @@ final class EngineController: RouterDispatcher {
         )
         let precomputedStepNotes = precomputedBar?.preparedNotesByBlockID(forStep: stepInPhrase)
 
+        // Cold-boundary fallback observability (diagnostics only, aggregated
+        // below the loop — never per-note): counts how many tracks this step
+        // took the live `resolveStepFallback` path instead of consuming the
+        // precomputed bar, so the fallback rate (expected to be rare) is
+        // visible in production via DevActivity rather than only inferable
+        // test-side from `LiveTickGeneratorProbe`.
+        var coldBoundaryFallbackTrackCount = 0
+        var coldBoundaryFallbackLiveOverrideCount = 0
+
         // Phase 1b: iterate snapshot-carried tracks, not currentDocumentModel.tracks.
         for track in playbackSnapshot.tracks {
             guard let generatorBlockID = generatorIDs[track.id] else {
@@ -2610,6 +2619,10 @@ final class EngineController: RouterDispatcher {
                 // satisfied by the genuinely-off-thread steady path). This is not
                 // the steady state; the rail asserts the steady tick never reaches
                 // here (LiveTickGeneratorProbe reads 0 across a pumped bar).
+                coldBoundaryFallbackTrackCount += 1
+                if hasLiveOverride {
+                    coldBoundaryFallbackLiveOverrideCount += 1
+                }
                 var state = nextGeneratedStates[track.id] ?? GeneratedSourceEvaluationState()
                 let notes = barPrecomputeScheduler.resolveStepFallback(
                     trackID: track.id,
@@ -2633,6 +2646,14 @@ final class EngineController: RouterDispatcher {
             }
             capturableNotesByBlockID[generatorBlockID] = noteEvents
             preparedNotesByBlockID[generatorBlockID] = activeNoteRepeatTrackIDs.contains(track.id) ? [] : noteEvents
+        }
+        // realtime-allow-diagnostic: DevActivity trace of the cold-boundary precompute fallback rate, aggregated once per prepareTick (not per-note); reports a count, never a sounding-time source (Rule 1). Test: RealtimePathLintTests.
+        if coldBoundaryFallbackTrackCount > 0 {
+            DevActivity.trace(
+                DevActivity.engine,
+                "prepareTick cold-boundary fallback step=\(stepInPhrase) trackCount=\(coldBoundaryFallbackTrackCount) " +
+                "barPublished=\(precomputedBar != nil) liveOverrideCount=\(coldBoundaryFallbackLiveOverrideCount)"
+            )
         }
         // Phase 0: if a replay source is driving the dispatch path, reconstruct
         // this step's prepared-notes map from the recording and feed it into the
