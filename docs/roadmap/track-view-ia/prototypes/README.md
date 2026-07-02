@@ -120,10 +120,252 @@ now cover the three connection forms he asked to compare:
     Render with the same command shape as the 08 files, output
     `rendered/09-kit-and-part-D/`.
 
-Copies of all rendered PNGs (08-A/B/C/D + 09) also live at
+### Generators (chord dual-role + mono split-vs-unified)
+- `14-generators.html` — D-grammar applied to the generator surfaces, for the
+  2026-07-02 intents (chord-generator revisit 150004, mono-generator options
+  150005). Three parts on one page:
+  - **(a) Chord generator, dual role.** (a-1) as a playable instrument on its
+    own track — full progression editor (Length chips, Chords trigger cards,
+    Load Preset panel with the real seeds Minor Descending / Pop Major / Jazz
+    Turnaround / Empty, selected-chord controls Position/Type/Inversion/
+    Voicing/Notes/Length as inset-track rows, Layer row, 16-step page whose
+    cells show roman + active-layer value). Amber = chord identity accent.
+    (a-2) the SAME source from a consumer's side: a mono track's Pitch stage
+    where the current opaque `Picker("Harmonic Sidechain", …)` menu becomes a
+    visible **Chord Source** inset-track row (None / Chord Context / Chords 3 /
+    Chords 7); picking a chord track lights the chip amber (the source's
+    identity colour) and shows a small solid "FOLLOWING Chords 3 · iv" badge.
+  - **(b) Mono generator, split form** — the current
+    `.mono(trigger:pitch:shape:)` pipeline as two D-pill stage tabs
+    (Trigger · Pitch). Trigger offers Euclidean (Pulses/Steps/Offset knobs,
+    per StepAlgoEditor) AND a proposed Weighted mode (per-step probability
+    bars reusing the GridEditor treatment). Pitch = algorithm row
+    (Manual/Scale/Chord/Prob/Markov/Clip/MIDI In per PitchAlgoKind) with
+    Markov controls (Root, Style Vocal/Balanced/Jazz, Scale, Leap, Color) +
+    the Chord Source row.
+  - **(c) Mono generator, unified alternative** — identical params on ONE
+    well with no stage tab: Trigger and Pitch as eyebrow-labelled regions
+    separated by a hairline, plus a read-only "Combined result" strip
+    (trigger dots + resolved note names) that only the unified form can show.
+    (b) and (c) are functionally equivalent so split-vs-unified reads as a
+    structural comparison only — the owner's open question from intent 150005.
+  - States: `chord-instrument`, `chord-sidechain`, `mono-split-euclidean`,
+    `mono-split-weighted`, `mono-split-pitch`, `mono-unified-euclidean`,
+    `mono-unified-weighted` (all via `setPrototypeState(...)`). Render with
+    the standard command, output `rendered/14-generators/`; copies at
+    `.meta/multipass/visual-review/feature-track-view-tab-unification/proto-14-*.png`.
+  - Deliberate stubs: Sound/FX/Macros/Mixer panes, and the sidechain
+    surface's own Trigger pane (shown fully in (b) instead). Weighted trigger
+    does not exist in `StepAlgo` yet — proposal only.
+
+Copies of all rendered PNGs (08-A/B/C/D + 09 + 14) also live at
 `.meta/multipass/visual-review/feature-track-view-tab-unification/` as
 `proto-08D-audio-input.png` / `proto-09-kit-matrix.png` etc., so the owner's
 bug-reporter app picks them up; `prototypes/rendered/` stays canonical.
+
+### Pattern-row state model: playing / displayed / perform-tracking / fill
+- `10-pattern-row-fill-states.html` — the pattern-slot row STATE MODEL on a
+  D-grammar mono-track surface, resolving intents
+  `20260702-150001-fill-mode-should-actually-work.md` (fill mode is currently
+  inert) and `20260702-150002-pattern-row-state-model-tension.md` (playing vs.
+  displayed vs. perform-tracking tension: "arguably there is also a perform
+  mode for tracks that changes the current pattern within the playing phrase
+  and tracks it as it changes"). Grounded on the current pattern-row
+  implementation (`Sources/UI/TrackSource/TrackPatternSlotPalette.swift`) and
+  `.meta/multipass/visual-review/engine-precompute-lookahead/18-track-detail-steps-clip.png`
+  / `20-track-fill-preview-active.png`. Six stacked scenarios, each an
+  independently-interactive mono-track surface (click any pattern slot,
+  Perform, the Tracking/Pinned segmented control, Lane, or Fill Preview to
+  explore combinations beyond the six named states):
+  - `a-baseline` — playing ≠ displayed: slot 1 plays, slot 4 is open for
+    editing.
+  - `a-combined` — playing == displayed: slot 4 is both.
+  - `b-tracking` — Perform ON, Tracking: displayed auto-follows playing as it
+    changes (clicking a slot both launches it live and opens it for editing).
+  - `b-pinned` — Perform ON, Pinned: playback keeps running on one slot while
+    the user pins a different slot open for editing without disturbing it; a
+    `⟲` resync icon (visible only when playing ≠ displayed while pinned)
+    snaps back to Tracking.
+  - `c-engaged` — Lane = Fill: the pattern row's markers and the step grid
+    switch to the clip's fill items.
+  - `c-preview` — Fill Preview ON while Lane stays Normal: fill-only steps
+    overlay as a dashed amber ring on top of the committed (solid) normal
+    steps, without switching the Lane selection.
+  - Visual grammar (all readable without text, canon Rule 3): **playing** =
+    small play-tick + a bottom progress bar + soft glow, independent of
+    selection; **displayed** = accent outline ring (no fill, canon Rule 12);
+    **tracking** = pulsing ring + solid `»` badge; **pinned** = solid `◆`
+    badge (neutral colour, not accent) + the `⟲` resync affordance;
+    **occupied/empty** = solid vs. hollow dot (unchanged from the shipped
+    component). Fill state recolors only the *content* accent (marker dots,
+    ticks, badges, step-grid on-color) to amber; the well/tab-strip/surface
+    chrome stays the track's identity accent (cyan) throughout — this follows
+    the LOCKED "one chrome accent per surface" rule (fill is content, not
+    surface identity) and mirrors the existing violet bypass-state override
+    already in `TrackPatternSlotPalette.swift`.
+  - States via `setPrototypeState(name)`: `a-baseline`, `a-combined`,
+    `b-tracking`, `b-pinned`, `c-engaged`, `c-preview`. Render:
+    ```sh
+    node scripts/render-html-prototype-screenshots.mjs \
+      docs/roadmap/track-view-ia/prototypes/10-pattern-row-fill-states.html \
+      docs/roadmap/track-view-ia/prototypes/rendered/10-pattern-row-fill-states \
+      'a-baseline=setPrototypeState("a-baseline")' \
+      'a-combined=setPrototypeState("a-combined")' \
+      'b-tracking=setPrototypeState("b-tracking")' \
+      'b-pinned=setPrototypeState("b-pinned")' \
+      'c-engaged=setPrototypeState("c-engaged")' \
+      'c-preview=setPrototypeState("c-preview")'
+    ```
+  - Copies also live at
+    `.meta/multipass/visual-review/feature-track-view-tab-unification/` as
+    `proto-10-a-baseline.png` / `proto-10-a-combined.png` /
+    `proto-10-b-tracking.png` / `proto-10-b-pinned.png` /
+    `proto-10-c-engaged.png` / `proto-10-c-preview.png` /
+    `proto-10-legend.png`.
+  - Off-path stubs: Sound/FX/Macros/Mixer tab panes; Layer = Velocity/Chance
+    and the Length row are decorative (unwired) in this pass.
+  - Reviewer-only legend (dashed border, marked "not app chrome") at the
+    bottom explains each visual cue.
+  - Coordination note: `13-track-perform.html`'s in-session pattern-row
+    treatment ("collapsed played+displayed into one TRACKED slot: solid
+    accent fill + second offset outline ring") predates this prototype and
+    uses a different tracking visual (solid fill vs. this file's pulsing
+    outline ring + `»` badge) — flagged there for reconciliation against this
+    file; not yet reconciled here.
+
+### Layer system: Pitch layer + quick-switch
+- `11-step-layer-system.html` — the unified step-layer system, addressing
+  three linked intent items: a dedicated PITCH layer (mono generators
+  currently decide pitch opaquely), octave as an editing dimension on that
+  layer, and a quick-switch layer selector (owner: "possibly based on the
+  8x8 matrix pattern we've used elsewhere" — the phrase-view Layers grid,
+  `.meta/multipass/visual-review/engine-precompute-lookahead/02b-tracks-layer-perform-nav.png`).
+  Rendered at the same production fidelity as 08/09 (D-well grammar: D-pill
+  section switcher outside the well, inset-track value selectors inside).
+  - **Mono layer set**: Steps · Velocity · Chance · Pitch · Gate.
+  - **Slicer layer set**: Slice Index · Velocity · Direction · Note Repeat ·
+    Gate · Chance — proves the same mechanism absorbs both track types.
+  - **Pitch cell**: scale degree is the dominant glyph (center, large);
+    octave is a separate 3-dot band (Low/Mid/High) along the bottom edge,
+    with a small corner badge for octaves beyond that immediate band. Dots
+    are click targets — octave is shiftable directly on the cell.
+  - **Quick-switch**: value-selector mechanism (inset-track family, never
+    the section-switcher pill grammar). Closed = a solid accent value-chip
+    showing only the current layer. Open = a compact square matrix of layer
+    cells (3 cols, sized to the layer count — mono pads one reserved dashed
+    stub cell to keep a stable 3x2 shape as future layers land), each
+    carrying its own state only (label + a "has content" dot), replacing
+    the old cluttered linear layer row.
+  - **One grid grammar**: binary (Steps) = solid fill, no glyph; continuous
+    magnitude (Velocity/Chance/Gate) = bar rising in an outlined cell;
+    discrete value (Pitch degree, Slice Index, Direction, Note Repeat) =
+    solid fill + centered glyph — same component family on both track
+    types.
+  - States: `setPrototypeState("mono:steps")`, `"mono:pitch"`,
+    `"mono:switch-open"`, `"slicer:index"`, `"slicer:direction"`,
+    `"slicer:switch-open"`. Render:
+    ```sh
+    node scripts/render-html-prototype-screenshots.mjs \
+      docs/roadmap/track-view-ia/prototypes/11-step-layer-system.html \
+      docs/roadmap/track-view-ia/prototypes/rendered/11-step-layer-system \
+      'mono-steps=setPrototypeState("mono:steps")' \
+      'mono-pitch=setPrototypeState("mono:pitch")' \
+      'mono-switch-open=setPrototypeState("mono:switch-open")' \
+      'slicer-index=setPrototypeState("slicer:index")' \
+      'slicer-direction=setPrototypeState("slicer:direction")' \
+      'slicer-switch-open=setPrototypeState("slicer:switch-open")'
+    ```
+  - Copies also live at
+    `.meta/multipass/visual-review/feature-track-view-tab-unification/` as
+    `proto-11-mono-steps.png`, `proto-11-mono-pitch.png`,
+    `proto-11-mono-switch-open.png`, `proto-11-slicer-index.png`,
+    `proto-11-slicer-direction.png`, `proto-11-slicer-switch-open.png`.
+  - Reviewer annotations (pitch-cell + quick-switch design notes) are a
+    marked, dashed-border legend at the bottom of the file — no explainer
+    prose lives on the surfaces themselves.
+  - Grounded on
+    `docs/intents/inbox/20260702-150006-mono-pitch-opacity-pitch-layer.md`,
+    `20260702-150007-octave-treatment.md`,
+    `20260702-150008-layer-controls-revisit.md`.
+
+### Clip randomize
+- `12-clip-randomize.html` — visualizes
+  `20260702-150003-clip-randomize-baked.md`: a dice-style Randomize action
+  above the pattern selector on the mono-track surface that BAKES step +
+  pitch data into the current clip by rules, destructively overwriting it
+  (with undo), with rule settings persisted per clip for later re-rolls.
+  Built on the locked Variant D tab-well grammar (`08-unified-tab-well-D.html`
+  mono surface); only Steps/Clip is on the path under test, Sound/FX/Macros/
+  Mixer stay stubs.
+  - States: `closed` (dice action button in its own row above the pattern
+    row; slot 4 active, never randomized; slot 7 shown with a persisted-dot
+    as a per-clip secondary example), `settings` (the rules sheet open,
+    reusing the shared StudioModal grammar per `02c-create-track-modal.png`
+    — no popover primitive exists in the repo — already mid-audition after
+    one simulated Re-Roll: green "Playing" pill, playhead ring, Undo
+    enabled), `rolled` (sheet closed; the plain on/off grid is replaced by a
+    pitch-labelled grid; persisted-dot now lit on both the dice button and
+    pattern slot 4). Render:
+    ```sh
+    node scripts/render-html-prototype-screenshots.mjs \
+      docs/roadmap/track-view-ia/prototypes/12-clip-randomize.html \
+      docs/roadmap/track-view-ia/prototypes/rendered/12-clip-randomize \
+      'closed=setPrototypeState("closed")' \
+      'settings=setPrototypeState("settings")' \
+      'rolled=setPrototypeState("rolled")'
+    ```
+  - Rule controls: Density/Velocity Variance/Gate Variance/Octave
+    Center/Span as rotary knobs (canon Rule 6 — no slider thumbs); Scale and
+    Root as inset-track solid-thumb chips (D-grammar value-selector rule);
+    Octave Range additionally shows a highlighted band over an octave strip
+    (center ± span) as the visual tie-in, not a caption.
+  - Copies of the three renders also live at
+    `.meta/multipass/visual-review/feature-track-view-tab-unification/` as
+    `proto-12-closed.png` / `proto-12-settings.png` / `proto-12-rolled.png`.
+  - Reviewer-annotation legend at the bottom of the file (dashed border,
+    marked "not part of the UI") explains each placement/grammar choice.
+
+### Track Perform: transactional perform session
+- `13-track-perform.html` — the transactional Track Perform session
+  (`20260702-150009-track-perform-mode.md`, clarified: tweaks ARE recorded as
+  events, same model as the scene-crossfader capture, in addition to the
+  commit/reset ending) on a mono track in phrase context. Same D-well
+  production fidelity as 08/09/11. States:
+  - `idle` (a — ENTER): header Perform button, no session chrome.
+  - `session` (b — IN SESSION): the session signal is canon-legal
+    outline/badge only — the outer surface border flips neutral-grey→track
+    accent and a solid "SESSION" badge appears, no container tint anywhere.
+    A dedicated red rec-strip ("Recording tweaks as events") states capture
+    is live. Macros pane carries the redrawn rotaries (shared 7-o'clock→
+    5-o'clock top arc template, one knob shown "live"/hot) plus a Randomize
+    action (stubbed, ties to the 12-prototype's dice). Pattern row: resolves
+    the `20260702-150002-pattern-row-state-model-tension.md` tension inside a
+    session by collapsing played+displayed into one TRACKED slot (solid
+    accent fill + second offset outline ring = "live and following"), while
+    the pre-session pattern keeps a dashed neutral BASIS-anchor outline for
+    Reset. Coordinator: reconcile this tracking visual against the
+    10-prototype's once it exists.
+  - `exit-fork` (c — EXIT): the Perform control is replaced by an explicit,
+    equal-weight two-option fork bar — Reset (outline, returns to the basis
+    pattern) vs Save (solid accent, labelled with and highlighting the next
+    free destination slot in the pattern row) — never a menu.
+  - Off-path stubs: Steps/Clip, Sound, FX, Mixer tabs (Macros is the tab
+    under test). Render:
+    ```sh
+    node scripts/render-html-prototype-screenshots.mjs \
+      docs/roadmap/track-view-ia/prototypes/13-track-perform.html \
+      docs/roadmap/track-view-ia/prototypes/rendered/13-track-perform \
+      'a-enter=setPrototypeState("idle")' \
+      'b-in-session=setPrototypeState("session")' \
+      'c-exit-fork=setPrototypeState("exit-fork")'
+    ```
+  - Copies also live at
+    `.meta/multipass/visual-review/feature-track-view-tab-unification/` as
+    `proto-13-a-enter.png`, `proto-13-b-in-session.png`,
+    `proto-13-c-exit-fork.png`.
+  - Reviewer annotations (session-signal / tracking / recording / fork design
+    notes) are a marked legend at the bottom of the file — no explainer prose
+    on the surfaces themselves.
 
 ## Decisions baked in
 - Re-cut detail tabs: Steps/Clip · Sound · FX · Macros · Mixer.

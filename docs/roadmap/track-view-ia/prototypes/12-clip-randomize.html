@@ -1,0 +1,501 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Clip randomize — baked step/pitch fill with re-roll</title>
+<style>
+  :root {
+    --ground:#0d0d10; --inset:#060608; --border:#62626c; --text:#e8e8ec; --muted:#9a9aa4;
+    --fill1: rgba(255,255,255,.05);
+    --green:#4ceb85; --cyan:#00ccff; --violet:#a187ff;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:#000; color:var(--text); font:14px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; padding:28px 0 60px; }
+  .page { max-width:1180px; margin:0 auto; padding:0 20px; }
+  .page > h1 { font-size:19px; margin:0 0 3px; }
+  .page > .sub { color:var(--muted); font-size:12px; margin:0 0 22px; max-width:900px; }
+
+  .statebar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; padding:10px 14px; border:1px solid #26262c; border-radius:10px; margin-bottom:26px; background:#0a0a0c; }
+  .statebar b { font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); margin-right:4px; }
+  .statebar button { font:inherit; font-size:11px; background:transparent; color:var(--muted); border:1px solid var(--border); border-radius:7px; padding:5px 9px; cursor:pointer; }
+  .statebar button.current { color:var(--cyan); border-color:var(--cyan); }
+  .statebar a.swap { margin-left:auto; font-size:11px; color:var(--cyan); text-decoration:none; border:1px solid var(--border); border-radius:7px; padding:5px 9px; }
+
+  .surface { background:var(--ground); border:1px solid #232328; border-radius:16px; padding:22px 22px 26px; margin-bottom:30px; --accent:var(--cyan); }
+  .surface-head { display:flex; align-items:baseline; gap:10px; margin-bottom:14px; }
+  .surface-head .name { font-size:17px; font-weight:800; }
+  .surface-head .kind { font-size:10px; letter-spacing:.1em; text-transform:uppercase; font-weight:800; color:var(--accent); }
+
+  /* track chrome: name row (Fill Preview / Perform / Delete are grounding
+     chrome only, off the path under test — kept plain, not stubbed-dashed,
+     since they are ordinary existing controls, not unbuilt features) */
+  .track-toprow { display:flex; align-items:center; gap:12px; margin-bottom:14px; }
+  .track-toprow .patternlabel { display:flex; align-items:center; gap:8px; font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); font-weight:800; }
+  .track-toprow .patternlabel .dash { width:22px; height:2px; background:var(--accent); }
+  .track-toprow .spacer { margin-left:auto; display:flex; align-items:center; gap:8px; }
+  .btn-outline { background:transparent; color:var(--text); border:1px solid rgba(98,98,108,.8); border-radius:9px; padding:8px 12px; font-size:12px; font-weight:700; cursor:pointer; }
+  .btn-solid { background:var(--accent); color:var(--ground); border:none; border-radius:9px; padding:8px 14px; font-size:12px; font-weight:800; cursor:pointer; }
+  .icon-btn { width:32px; height:32px; border-radius:9px; border:1px solid rgba(98,98,108,.7); background:transparent; color:var(--muted); display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:13px; }
+
+  /* (a) the randomize action button — its OWN row, above the pattern
+     selector. Deliberately the .btn-dice grammar (solid accent fill, icon +
+     label), never the pill/segment grammar used by selectors/switchers
+     below it, so it reads as an ACTION not a mode toggle. */
+  .rand-row { margin-bottom:12px; }
+  .btn-dice { position:relative; display:inline-flex; align-items:center; gap:9px; background:var(--accent); color:var(--ground); border:none; border-radius:11px; padding:11px 18px; font-weight:800; font-size:13px; letter-spacing:.02em; cursor:pointer; }
+  .btn-dice .ic { font-size:16px; }
+  .btn-dice .persist-dot { width:7px; height:7px; border-radius:50%; background:var(--ground); opacity:.28; }
+  .btn-dice.has-settings .persist-dot { opacity:1; box-shadow:0 0 0 3px rgba(6,6,8,.18); }
+
+  /* pattern selector row — the thing the dice button sits above */
+  .pattern-row { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:18px; }
+  .pattern-slot { position:relative; min-width:40px; padding:7px 4px 6px; text-align:center; font-size:11px; font-weight:800; border:1px solid rgba(98,98,108,.7); border-radius:9px; background:transparent; color:var(--muted); cursor:pointer; display:flex; align-items:center; justify-content:center; gap:4px; }
+  .pattern-slot.on { background:var(--accent); border-color:var(--accent); color:var(--ground); }
+  .pattern-slot .dot { width:4px; height:4px; border-radius:50%; background:currentColor; opacity:.5; }
+  /* subtle per-clip "has persisted randomize settings" indicator — a small
+     ring badge at the pill's corner, same accent as the surface (never a
+     rogue color), never text */
+  .pattern-slot .rand-badge { position:absolute; top:-4px; right:-4px; width:11px; height:11px; border-radius:50%; background:var(--accent); border:1.5px solid var(--ground); display:none; }
+  .pattern-slot.has-settings .rand-badge { display:block; }
+
+  .tabstrip.seg { display:flex; gap:4px; padding:3px; background:var(--fill1); border:1.5px solid rgba(98,98,108,.9); border-radius:12px; margin-bottom:5px; }
+  .tabstrip.seg .schip { flex:1; border:none; background:transparent; color:rgba(232,232,236,.78); font:inherit; font-size:11px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; padding:10px 8px; border-radius:10px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; white-space:nowrap; }
+  .tabstrip.seg .schip.active { background:var(--accent); color:var(--ground); }
+  .tabstrip.seg .schip .mini-badge { font-size:9px; font-weight:800; padding:2px 5px; border-radius:6px; background:var(--accent); color:var(--ground); text-transform:none; letter-spacing:0; }
+  .tabstrip.seg .schip.active .mini-badge { background:var(--ground); color:var(--accent); }
+
+  .well { background:var(--fill1); border:1.5px solid var(--accent); border-radius:12px; padding:18px; }
+  .well-pane[hidden] { display:none; }
+  .stub { border:1.5px dashed var(--border); border-radius:10px; padding:26px; text-align:center; color:var(--muted); font-size:12px; letter-spacing:.02em; }
+
+  .clip-hdr { display:flex; align-items:center; gap:10px; margin-bottom:16px; }
+  .clip-hdr .badge-lg { font-size:10px; font-weight:800; padding:4px 8px; border-radius:8px; background:var(--accent); color:var(--ground); }
+  .clip-hdr .t { font-size:14px; font-weight:800; }
+  .clip-hdr .m { font-size:11px; color:var(--muted); margin-left:2px; }
+  .clip-hdr .icon-btn { margin-left:auto; width:26px; height:26px; border-radius:8px; }
+
+  .seg-block { margin-bottom:14px; }
+  .seg-block:last-child { margin-bottom:0; }
+  .seg-label { font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); font-weight:700; margin-bottom:7px; }
+  .segcontrol { display:inline-flex; gap:4px; padding:3px; background:var(--fill1); border:1.5px solid rgba(98,98,108,.9); border-radius:12px; }
+  .segchip { border:none; background:transparent; color:rgba(232,232,236,.78); font:inherit; font-size:12px; font-weight:700; padding:7px 14px; border-radius:10px; cursor:pointer; white-space:nowrap; }
+  .segchip.active { background:var(--accent); color:var(--ground); }
+
+  /* (c) step grid — same grammar as 08-unified-tab-well-D.html, with an
+     added pitch-label row per column so pitch data is visible; used only
+     once a clip has been randomized (mono is a melodic lane) */
+  .steps-simple { display:grid; grid-template-columns:repeat(16,1fr); gap:4px; }
+  .steps-simple[hidden] { display:none; }
+  .steps-simple .step { aspect-ratio:1; border:1px solid rgba(98,98,108,.7); border-radius:6px; background:transparent; }
+  .steps-simple .step.on { background:var(--accent); border-color:var(--accent); }
+
+  .steps-pitch { display:grid; grid-template-columns:repeat(16,1fr); gap:4px; }
+  .steps-pitch .col { display:flex; flex-direction:column; align-items:center; gap:3px; }
+  .steps-pitch .pitch { font-size:8px; font-weight:800; color:var(--accent); height:10px; line-height:10px; }
+  .steps-pitch .cell { width:100%; aspect-ratio:1; border:1px solid rgba(98,98,108,.7); border-radius:6px; background:transparent; }
+  .steps-pitch .cell.on { background:var(--accent); border-color:var(--accent); }
+  .stepnum { font-size:9px; color:var(--muted); font-weight:700; text-align:center; margin-top:4px; }
+  .stepnums { display:grid; grid-template-columns:repeat(16,1fr); margin-bottom:4px; }
+
+  /* (b) OPEN SETTINGS — StudioModal sheet grammar, matching
+     02c-create-track-modal.png: dimmed backdrop, centered dark card,
+     title + short accent dash, circled-accent close button top right.
+     Chosen over a popover: the repo has no popover primitive (grep found
+     none in Sources/UI); every settings/rules surface with more than one
+     control group already ships as this centered sheet (RouteEditorSheet,
+     PhraseCellEditorSheet, MacroPickerSheet). Randomize rules (6 controls
+     + audition + undo) match that weight, so it reuses the sheet, not a
+     bespoke anchored popover. */
+  .modal-backdrop { position:fixed; inset:0; background:rgba(0,0,0,.6); display:flex; align-items:flex-start; justify-content:center; padding:40px 20px; z-index:50; }
+  .modal-backdrop[hidden] { display:none; }
+  .sheet { width:560px; max-width:94vw; background:#0a0a0c; border:1px solid #232328; border-radius:16px; padding:22px 24px 24px; --accent:var(--cyan); }
+  .sheet-hdr { display:flex; align-items:center; gap:10px; margin-bottom:18px; }
+  .sheet-hdr .t { font-size:19px; font-weight:800; }
+  .sheet-hdr .dash { width:26px; height:2px; background:var(--accent); }
+  .sheet-hdr .close { margin-left:auto; width:30px; height:30px; border-radius:50%; border:1.5px solid var(--accent); background:transparent; color:var(--accent); display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:13px; }
+
+  .rule-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:16px; }
+  .rule-card { border:1px solid rgba(98,98,108,.6); border-radius:12px; padding:13px 14px; }
+  .rule-card h4 { margin:0 0 10px; font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); font-weight:700; }
+  .rule-card.span2 { grid-column:1 / -1; }
+
+  .track { display:inline-flex; gap:3px; padding:3px; background:var(--inset); border:1px solid rgba(98,98,108,.55); border-radius:999px; flex-wrap:wrap; }
+  .track.wrap { display:flex; }
+  .track .chip { border:none; background:transparent; color:rgba(232,232,236,.72); font:inherit; font-size:11px; font-weight:700; padding:6px 10px; border-radius:999px; cursor:pointer; white-space:nowrap; }
+  .track .chip.on { background:var(--accent); color:var(--ground); }
+
+  .knobrow { display:flex; gap:16px; justify-content:space-around; }
+  .knob { display:flex; flex-direction:column; align-items:center; gap:6px; }
+  .knob .ring { width:48px; height:48px; border-radius:50%; border:2px solid rgba(98,98,108,.7); display:grid; place-items:center; font-size:10px; font-weight:800; }
+  .knob.hot .ring { border-color:var(--accent); color:var(--accent); }
+  .knob .klabel { font-size:9.5px; color:var(--muted); font-weight:700; text-align:center; }
+
+  /* octave range: center + span, visualised as a highlighted band over the
+     octave strip — this IS the "ties into the octave intent" affordance,
+     not a sentence explaining it */
+  .oct-strip { position:relative; height:32px; border:1px solid rgba(98,98,108,.6); border-radius:8px; background:var(--inset); margin-bottom:12px; overflow:hidden; }
+  .oct-strip .band { position:absolute; top:0; bottom:0; background:var(--accent); opacity:.85; }
+  .oct-strip .marks { display:flex; height:100%; position:relative; z-index:2; }
+  .oct-strip .marks span { flex:1; display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:700; color:var(--muted); border-right:1px solid rgba(98,98,108,.3); }
+  .oct-strip .marks span:last-child { border-right:none; }
+  .oct-strip .band ~ .marks span.in-band { color:var(--ground); font-weight:800; }
+
+  /* re-roll + undo row */
+  .reroll-row { display:flex; align-items:center; gap:10px; margin:4px 0 14px; }
+  .btn-reroll { flex:1; display:flex; align-items:center; justify-content:center; gap:10px; background:var(--accent); color:var(--ground); border:none; border-radius:12px; padding:15px; font-weight:800; font-size:14px; letter-spacing:.02em; cursor:pointer; }
+  .btn-reroll .ic { font-size:17px; }
+  .btn-undo { width:48px; height:48px; flex:0 0 auto; border-radius:12px; border:1.5px dashed rgba(98,98,108,.7); background:transparent; color:var(--muted); display:flex; align-items:center; justify-content:center; font-size:16px; cursor:not-allowed; }
+  .btn-undo.enabled { border-style:solid; border-color:var(--accent); color:var(--accent); cursor:pointer; }
+
+  /* audition strip — reads as "this is playing right now": a live pill
+     (canon Rule 11 green-live class) plus a playhead ring on the sounding
+     step, not a sentence */
+  .audition { border:1px solid rgba(98,98,108,.6); border-radius:10px; padding:11px 12px; }
+  .audition-hdr { display:flex; align-items:center; gap:8px; margin-bottom:9px; }
+  .audition-hdr .lbl { font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); font-weight:700; }
+  .live-pill { font-size:10px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; padding:3px 9px; border-radius:999px; background:var(--green); color:#06110a; align-items:center; gap:5px; display:none; }
+  .live-pill.on { display:inline-flex; }
+  .live-pill .dot { width:6px; height:6px; border-radius:50%; background:#06110a; }
+  .audition-steps { display:grid; grid-template-columns:repeat(16,1fr); gap:3px; }
+  .audition-steps .cell { aspect-ratio:1; border:1px solid rgba(98,98,108,.6); border-radius:5px; background:transparent; }
+  .audition-steps .cell.on { background:var(--accent); border-color:var(--accent); }
+  .audition-steps .cell.playhead { outline:2px solid var(--green); outline-offset:1px; }
+  .audition-placeholder { text-align:center; color:var(--muted); font-size:11px; padding:14px 0; }
+
+  /* reviewer legend */
+  .legend { margin-top:36px; border:1.5px dashed var(--border); border-radius:12px; padding:16px 18px; background:#0a0a0c; }
+  .legend .lt { font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); font-weight:800; margin-bottom:10px; }
+  .legend ul { margin:0; padding-left:18px; font-size:12px; color:#c9c9d1; line-height:1.6; }
+  .legend li b { color:var(--text); }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>Clip randomize — button above pattern selector, rules sheet, baked result</h1>
+  <p class="sub">Intent: <code>20260702-150003-clip-randomize-baked.md</code>. Fills the current clip's step/pitch data by rules (density, scale, octave, velocity/gate variance) and BAKES it — unlike a live generator the result persists as ordinary clip data. Settings persist per clip for later re-rolls; re-roll overwrites the clip destructively, with undo. Same D-grammar spine as <code>08-unified-tab-well-D.html</code> (tab strip + well) — only the mono/steps surface is on the path under test; Sound/FX/Macros/Mixer stay stubs.</p>
+
+  <div class="statebar">
+    <b>State</b>
+    <button id="btn-closed" onclick="setPrototypeState('closed')">closed</button>
+    <button id="btn-settings" onclick="setPrototypeState('settings')">settings</button>
+    <button id="btn-rolled" onclick="setPrototypeState('rolled')">rolled</button>
+    <a class="swap" href="08-unified-tab-well-D.html">→ 08-D (tab-well spine)</a>
+  </div>
+
+  <section class="surface" id="surface-mono">
+    <div class="surface-head"><span class="name">Mono 8</span><span class="kind">Mono Track</span></div>
+
+    <div class="track-toprow">
+      <div class="patternlabel"><span class="dash"></span>Pattern</div>
+      <div class="spacer">
+        <button class="btn-outline">Fill Preview</button>
+        <button class="btn-solid">▶ Perform</button>
+        <button class="icon-btn">🗑</button>
+      </div>
+    </div>
+
+    <!-- (a) CLOSED STATE: dice action button, own row, above the pattern
+         selector. Solid-fill grammar (.btn-dice) distinguishes it as an
+         ACTION from the pill/segment grammar used by every selector below
+         it. The small dot on the button lights up when the ACTIVE slot
+         already has persisted randomize settings. -->
+    <div class="rand-row">
+      <button class="btn-dice" id="diceBtn" onclick="setPrototypeState('settings')">
+        <span class="ic">🎲</span><span>Randomize…</span><span class="persist-dot"></span>
+      </button>
+    </div>
+
+    <div class="pattern-row" id="patternRow"></div>
+
+    <div class="tabstrip seg">
+      <button class="schip active" data-tab="steps" onclick="selectTab('steps')">Steps / Clip<span class="mini-badge">Clip</span></button>
+      <button class="schip" data-tab="sound" onclick="selectTab('sound')">Sound<span class="mini-badge">Empty</span></button>
+      <button class="schip" data-tab="fx" onclick="selectTab('fx')">FX<span class="mini-badge">Insert</span></button>
+      <button class="schip" data-tab="macros" onclick="selectTab('macros')">Macros<span class="mini-badge">Empty</span></button>
+      <button class="schip" data-tab="mixer" onclick="selectTab('mixer')">Mixer<span class="mini-badge">Master</span></button>
+    </div>
+    <div class="well">
+      <div class="well-pane" data-pane="steps">
+        <div class="clip-hdr">
+          <span class="badge-lg">Clip</span>
+          <span class="t">Mono 8 · Pattern 4</span>
+          <span class="m">1 bar</span>
+          <button class="icon-btn">✕</button>
+        </div>
+        <div class="seg-block">
+          <div class="seg-label">Lane</div>
+          <div class="segcontrol"><button class="segchip active">Normal</button><button class="segchip">Fill</button></div>
+        </div>
+        <div class="seg-block">
+          <div class="seg-label">Layer</div>
+          <div class="segcontrol"><button class="segchip active">Steps</button><button class="segchip">Velocity</button><button class="segchip">Chance</button></div>
+        </div>
+        <div class="seg-block">
+          <div class="seg-label">Length</div>
+          <div class="segcontrol"><button class="segchip active">16</button><button class="segchip">32</button><button class="segchip">64</button><button class="segchip">128</button></div>
+        </div>
+
+        <!-- (c) RESULT STATE lives here: swaps between the plain on/off
+             grid (never-randomized clip) and the pitch-labelled grid
+             (freshly baked). Only one is visible at a time. -->
+        <div class="steps-simple" id="stepsSimple"></div>
+        <div id="stepsPitchWrap" hidden>
+          <div class="steps-pitch" id="stepsPitch"></div>
+        </div>
+      </div>
+      <div class="well-pane" data-pane="sound" hidden><div class="stub">[ instrument picker — off path ]</div></div>
+      <div class="well-pane" data-pane="fx" hidden><div class="stub">[ insert chain — off path ]</div></div>
+      <div class="well-pane" data-pane="macros" hidden><div class="stub">[ M1–M8 — off path ]</div></div>
+      <div class="well-pane" data-pane="mixer" hidden><div class="stub">[ bus + sends — off path ]</div></div>
+    </div>
+  </section>
+
+  <!-- (b) OPEN SETTINGS -->
+  <div class="modal-backdrop" id="sheetBackdrop" hidden>
+    <div class="sheet">
+      <div class="sheet-hdr">
+        <span class="t">Randomize</span>
+        <span class="dash"></span>
+        <button class="close" onclick="closeSheet()">✕</button>
+      </div>
+
+      <div class="rule-grid">
+        <div class="rule-card">
+          <h4>Scale</h4>
+          <div class="track wrap" id="scaleRow"></div>
+        </div>
+        <div class="rule-card">
+          <h4>Root</h4>
+          <div class="track wrap" id="rootRow"></div>
+        </div>
+
+        <div class="rule-card span2">
+          <h4>Octave Range</h4>
+          <div class="oct-strip">
+            <div class="band" id="octBand"></div>
+            <div class="marks" id="octMarks"></div>
+          </div>
+          <div class="knobrow">
+            <div class="knob hot"><div class="ring">C4</div><div class="klabel">Center</div></div>
+            <div class="knob hot"><div class="ring">±1</div><div class="klabel">Span</div></div>
+          </div>
+        </div>
+
+        <div class="rule-card span2">
+          <h4>Density &amp; Feel</h4>
+          <div class="knobrow">
+            <div class="knob hot"><div class="ring">55%</div><div class="klabel">Density</div></div>
+            <div class="knob hot"><div class="ring">18%</div><div class="klabel">Velocity<br>Variance</div></div>
+            <div class="knob hot"><div class="ring">12%</div><div class="klabel">Gate<br>Variance</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- prominent re-roll; undo sits beside it and only lights up once
+           there is something to undo — the destructive-overwrite warning
+           is the control's own enabled/disabled state, not a sentence -->
+      <div class="reroll-row">
+        <button class="btn-reroll" id="rerollBtn" onclick="reroll()"><span class="ic">🎲</span><span>Re-Roll</span></button>
+        <button class="btn-undo" id="undoBtn" onclick="undoRoll()" disabled>↺</button>
+      </div>
+
+      <div class="audition">
+        <div class="audition-hdr">
+          <span class="lbl">Result</span>
+          <span class="live-pill" id="livePill"><span class="dot"></span>Playing</span>
+        </div>
+        <div id="auditionEmpty" class="audition-placeholder">Press Re-Roll to fill and hear this clip</div>
+        <div class="audition-steps" id="auditionSteps" hidden></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <div class="lt">⚠ Reviewer annotations — not part of the UI</div>
+    <ul>
+      <li><b>(a) Closed:</b> the dice button is its own row, directly above the pattern selector, per the owner's words. It uses the solid <code>.btn-dice</code> action grammar — never the pill/segment grammar of the tabs or Lane/Layer/Length below — so it never reads as a mode switcher. Slot 4 (active) has never been randomized, so the button and slot show no persisted-dot; jump to <code>rolled</code> to see the dot appear on both once settings exist.</li>
+      <li><b>Per-clip relationship:</b> slot 7 already carries persisted randomize settings from an earlier session (small accent ring at its corner) — a second, non-active example, proving the indicator is per-clip, not global/active-only.</li>
+      <li><b>(b) Settings surface:</b> built as the shared StudioModal sheet (matches <code>02c-create-track-modal.png</code>: dimmed backdrop, centered card, title + accent dash, circled close) rather than a bespoke popover — the repo has no popover primitive, and six rule groups + audition + undo match the weight of existing sheets (RouteEditorSheet, PhraseCellEditorSheet), not a lightweight anchored menu.</li>
+      <li><b>Continuous vs. discrete rules:</b> Density, Velocity Variance, Gate Variance, Octave Center/Span are rotary knobs per canon Rule 6 (no slider thumbs). Scale and Root are discrete choices, rendered as inset-track solid-thumb chips per the D-grammar's value-selector rule (never the tab-pill grammar).</li>
+      <li><b>Octave affordance:</b> the highlighted band over the octave strip visualises center ± span directly — this is the "ties into the octave intent" requirement, communicated by the band's position/width rather than a caption.</li>
+      <li><b>Auditioning:</b> pressing Re-Roll fills the audition strip and raises a green "Playing" pill (canon Rule 11 live-green class) with a playhead ring on the currently-sounding step — the affordance for "hear it play" without simulating real playback timing in a static prototype.</li>
+      <li><b>Undo:</b> disabled/dashed until a roll has happened in this sheet session, then becomes a solid accent icon button. No confirmation sentence for the destructive overwrite — the control's own state change is the warning + the escape hatch.</li>
+      <li><b>(c) Result:</b> closing the sheet after a roll bakes the data into the main Steps/Clip well — the plain on/off grid is replaced by a pitch-labelled grid (note name above each active step), and the persisted-dot now lights on both the dice button and pattern slot 4.</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+  var TRACK_ACCENT = 'cyan';
+  var NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+  var SCALES = ['Major','Minor','Dorian','Pentatonic','Chromatic'];
+  var OCT_MARKS = ['C1','C2','C3','C4','C5','C6','C7'];
+
+  var baselineSteps = [1,0,0,1,0,0,1,0,0,1,0,0,1,0,0,0]; // hand-built clip, never randomized
+
+  var rolledSteps = [1,1,0,0,1,1,0,0,1,0,1,1,0,1,0,1];
+  var rolledPitches = ['C4','D#4','','','G3','A#3','','','C5','','F#3','A3','','C4','','D#4'];
+
+  var previewOn = [1,0,1,1,0,0,1,0,0,1,1,0,0,1,0,0];
+  var playheadIndex = 6;
+
+  var hasRolledThisSession = false;
+
+  function buildPatternRow() {
+    var row = document.getElementById('patternRow');
+    row.innerHTML = '';
+    for (var i = 1; i <= 16; i++) {
+      var b = document.createElement('button');
+      b.className = 'pattern-slot' + (i === 4 ? ' on' : '');
+      b.id = 'slot-' + i;
+      var extra = '';
+      if (i === 7) extra = ' has-settings'; // secondary example: a different clip already has persisted settings
+      b.className += extra;
+      b.innerHTML = i + '<span class="dot"></span><span class="rand-badge"></span>';
+      row.appendChild(b);
+    }
+  }
+
+  function buildStepsSimple() {
+    var el = document.getElementById('stepsSimple');
+    el.innerHTML = '';
+    baselineSteps.forEach(function (on) {
+      var d = document.createElement('div');
+      d.className = 'step' + (on ? ' on' : '');
+      el.appendChild(d);
+    });
+  }
+
+  function buildStepsPitch() {
+    var el = document.getElementById('stepsPitch');
+    el.innerHTML = '';
+    rolledSteps.forEach(function (on, i) {
+      var col = document.createElement('div');
+      col.className = 'col';
+      var p = document.createElement('div');
+      p.className = 'pitch';
+      p.textContent = on ? rolledPitches[i] : '';
+      var cell = document.createElement('div');
+      cell.className = 'cell' + (on ? ' on' : '');
+      col.appendChild(p);
+      col.appendChild(cell);
+      el.appendChild(col);
+    });
+  }
+
+  function buildScaleRoot() {
+    var scaleRow = document.getElementById('scaleRow');
+    scaleRow.innerHTML = '';
+    SCALES.forEach(function (s, i) {
+      var b = document.createElement('button');
+      b.className = 'chip' + (i === 1 ? ' on' : ''); // default Minor
+      b.textContent = s;
+      scaleRow.appendChild(b);
+    });
+    var rootRow = document.getElementById('rootRow');
+    rootRow.innerHTML = '';
+    NOTE_NAMES.forEach(function (n, i) {
+      var b = document.createElement('button');
+      b.className = 'chip' + (i === 0 ? ' on' : ''); // default C
+      b.textContent = n;
+      rootRow.appendChild(b);
+    });
+  }
+
+  function buildOctStrip() {
+    var marks = document.getElementById('octMarks');
+    marks.innerHTML = '';
+    OCT_MARKS.forEach(function (m) { var s = document.createElement('span'); s.textContent = m; marks.appendChild(s); });
+    // center = C4 (index 3), span = 1 octave either side -> covers index 2..4
+    var pct = 100 / OCT_MARKS.length;
+    var band = document.getElementById('octBand');
+    band.style.left = (2 * pct) + '%';
+    band.style.width = (3 * pct) + '%';
+  }
+
+  function buildAuditionSteps() {
+    var el = document.getElementById('auditionSteps');
+    el.innerHTML = '';
+    previewOn.forEach(function (on, i) {
+      var d = document.createElement('div');
+      d.className = 'cell' + (on ? ' on' : '') + (i === playheadIndex ? ' playhead' : '');
+      el.appendChild(d);
+    });
+  }
+
+  function selectTab(tabName) {
+    document.querySelectorAll('#surface-mono .tabstrip.seg .schip').forEach(function (el) {
+      el.classList.toggle('active', el.dataset.tab === tabName);
+    });
+    document.querySelectorAll('#surface-mono .well-pane').forEach(function (el) {
+      el.hidden = el.dataset.pane !== tabName;
+    });
+  }
+
+  function openSheet() { document.getElementById('sheetBackdrop').hidden = false; }
+  function closeSheet() { document.getElementById('sheetBackdrop').hidden = true; }
+
+  function reroll() {
+    hasRolledThisSession = true;
+    document.getElementById('auditionEmpty').hidden = true;
+    document.getElementById('auditionSteps').hidden = false;
+    buildAuditionSteps();
+    document.getElementById('livePill').classList.add('on');
+    var undoBtn = document.getElementById('undoBtn');
+    undoBtn.classList.add('enabled');
+    undoBtn.disabled = false;
+  }
+
+  function undoRoll() {
+    hasRolledThisSession = false;
+    document.getElementById('auditionEmpty').hidden = false;
+    document.getElementById('auditionSteps').hidden = true;
+    document.getElementById('livePill').classList.remove('on');
+    var undoBtn = document.getElementById('undoBtn');
+    undoBtn.classList.remove('enabled');
+    undoBtn.disabled = true;
+  }
+
+  function setPersisted(on) {
+    document.getElementById('diceBtn').classList.toggle('has-settings', on);
+    document.getElementById('slot-4').classList.toggle('has-settings', on);
+  }
+
+  function setPrototypeState(name) {
+    selectTab('steps');
+    closeSheet();
+    undoRoll();
+    switch (name) {
+      case 'closed':
+        setPersisted(false);
+        document.getElementById('stepsSimple').hidden = false;
+        document.getElementById('stepsPitchWrap').hidden = true;
+        break;
+      case 'settings':
+        setPersisted(false);
+        document.getElementById('stepsSimple').hidden = false;
+        document.getElementById('stepsPitchWrap').hidden = true;
+        openSheet();
+        reroll(); // render the sheet already auditioning a roll, per spec
+        break;
+      case 'rolled':
+        setPersisted(true);
+        document.getElementById('stepsSimple').hidden = true;
+        document.getElementById('stepsPitchWrap').hidden = false;
+        break;
+    }
+    document.querySelectorAll('.statebar button[id^="btn-"]').forEach(function (b) {
+      b.classList.toggle('current', b.id === 'btn-' + name);
+    });
+  }
+
+  buildPatternRow();
+  buildStepsSimple();
+  buildStepsPitch();
+  buildScaleRoot();
+  buildOctStrip();
+  setPrototypeState('closed');
+</script>
+</body>
+</html>
