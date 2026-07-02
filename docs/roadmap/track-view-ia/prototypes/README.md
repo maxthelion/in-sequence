@@ -34,6 +34,49 @@ prototypes (light grayscale + accent, `setPrototypeState`).
 - `06-add-drum-group.html` — kit creation wizard. States: `sounds`, `patterns`,
   `routing` (own-bus-by-default).
 
+### Tab unification + canon-creep repair
+Visualizes `../tab-unification-and-canon-creep.md` — the fix for tab
+inconsistency across track types (no shared containing element), greyness
+creeping back in, and filler label text. Unlike the wireframes above, these
+two are rendered at production fidelity (near-black ground `#0d0d10`, drawn
+1.5px `#62626c` outlines, solid saturated accents, dark glyphs on solid
+fills — the tokens in `Sources/UI/Theme/StudioTheme.swift` /
+`StudioSegmentedControls.swift` / `TrackSourceSelectedWellBody.swift`) so the
+tab-grammar comparison reads exactly as it will in the app, matching the
+current-state screenshots they're diffed against. Each file stacks the same
+three surfaces — audio-input (green), mono track (cyan), slicer (violet) —
+sharing one `StudioTabWell` (square top corners docking under the tab strip,
+12px bottom radius, accent ghost-stroke, one neutral fill step above ground)
+with secondary selectors (MODE, LANE/LAYER/LENGTH, the slicer layer row)
+living inside the well. Off-path tabs (FX/Macros/Mixer, Sound, Slice) are
+dashed stubs per the stub-treatment convention.
+- `08-unified-tab-well-A.html` — **Variant A**: primary sections as
+  `StudioSlotTabButton` underline tabs (all-caps eyebrow, 2px accent
+  underline, ghost-stroke outline, optional solid status badge — mono's five
+  tabs carry real-state badges: Clip/Empty/Insert/Empty/Master). Boldest
+  conformance to the accepted spec, least churn.
+- `08-unified-tab-well-B.html` — **Variant B**: identical surfaces and well,
+  but primary sections render as a full-width `StudioSegmentedControl`
+  solid-thumb pill (the "toggle-ish" grammar) instead of underline tabs;
+  mono's status badges become small inline chips inside each segment.
+  Diverges from the accepted spec — shown because the owner is "not set on
+  tabs".
+- States: `audio-input`, `mono-track`, `slicer-track` (each scrolls the
+  matching surface into view — the page stacks all three, taller than one
+  screenshot). Render:
+  ```sh
+  node scripts/render-html-prototype-screenshots.mjs \
+    docs/roadmap/track-view-ia/prototypes/08-unified-tab-well-A.html \
+    docs/roadmap/track-view-ia/prototypes/rendered/08-unified-tab-well-A \
+    'audio-input=document.getElementById("surface-audio").scrollIntoView()' \
+    'mono-track=document.getElementById("surface-mono").scrollIntoView()' \
+    'slicer-track=document.getElementById("surface-slicer").scrollIntoView()'
+  ```
+  (swap `-A` for `-B` for the second file). Both files also expose
+  `setPrototypeState("audio:fx")` / `"mono:sound"` / `"slicer:slice"` etc. to
+  jump a given surface to an off-path stub pane, and cross-link to each other
+  for direct A/B comparison in a browser.
+
 ## Decisions baked in
 - Re-cut detail tabs: Steps/Clip · Sound · FX · Macros · Mixer.
 - Tracks get a real per-track FX chain (new model concept).
