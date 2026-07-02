@@ -203,6 +203,18 @@ final class EngineControllerTransportStartSchedulingTests: XCTestCase {
         return (project, track)
     }
 
+    /// Test-isolation teardown (bug 20260702-135500): a controller that is
+    /// only `stop()`ped (or not even that) can leak TickClock timers and
+    /// host-queue work that crash LATER suites via Swift exclusivity traps.
+    /// Every controller a test creates registers a full `shutdown()` here.
+    private func registerShutdownAtTeardown(_ controller: EngineController) {
+        addTeardownBlock {
+            controller.shutdown()
+            XCTAssertFalse(controller.clock.isRunning,
+                "no TickClock may survive test teardown")
+        }
+    }
+
     // MARK: - Step 0 on a normal start: musical zero, UNLIFTED
 
     /// THE PIN: at live transport start, the FIRST hit's sample stamp is
@@ -225,6 +237,7 @@ final class EngineControllerTransportStartSchedulingTests: XCTestCase {
         )
         controller.apply(documentModel: project)
         controller.setBPM(120)
+        registerShutdownAtTeardown(controller)
 
         controller.startTransportWithoutClockForTesting(now: ProcessInfo.processInfo.systemUptime)
         defer { controller.stop() }
@@ -295,6 +308,7 @@ final class EngineControllerTransportStartSchedulingTests: XCTestCase {
         )
         controller.apply(documentModel: project)
         controller.setBPM(120)
+        registerShutdownAtTeardown(controller)
 
         controller.startTransportWithoutClockForTesting(now: ProcessInfo.processInfo.systemUptime)
         defer { controller.stop() }
@@ -408,6 +422,7 @@ final class EngineControllerTransportStartSchedulingTests: XCTestCase {
         )
         controller.apply(documentModel: project)
         controller.setBPM(120)
+        registerShutdownAtTeardown(controller)
 
         controller.startTransportWithoutClockForTesting(now: ProcessInfo.processInfo.systemUptime)
         defer { controller.stop() }
@@ -474,6 +489,7 @@ final class EngineControllerTransportStartSchedulingTests: XCTestCase {
         )
         controller.apply(documentModel: project)
         controller.setBPM(120)
+        registerShutdownAtTeardown(controller)
 
         controller.startTransportWithoutClockForTesting(now: ProcessInfo.processInfo.systemUptime)
         defer { controller.stop() }
@@ -582,6 +598,7 @@ final class EngineControllerTransportStartSchedulingTests: XCTestCase {
         )
         controller.apply(documentModel: project)
         controller.setBPM(120)
+        registerShutdownAtTeardown(controller)
         defer { controller.stop() }
 
         controller.start()
@@ -637,6 +654,7 @@ final class EngineControllerTransportStartSchedulingTests: XCTestCase {
         )
         controller.apply(documentModel: project)
         controller.setBPM(120)
+        registerShutdownAtTeardown(controller)
         defer { controller.stop() }
 
         // Two aborted (deferred) attempts — the re-entry shape.

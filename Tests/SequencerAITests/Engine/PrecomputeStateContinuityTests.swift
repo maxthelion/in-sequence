@@ -504,9 +504,22 @@ final class PrecomputeStateContinuityTests: XCTestCase {
     /// a pumped bar the tick-state's lane-0 last pitch must be 72. On pre-fix
     /// code the consumed bar never updates the tick-state (only the tick-0
     /// cold-start fallback wrote `pitches[0] == 60`), so this reads 60 — RED.
+    /// Test-isolation teardown (bug 20260702-135500): a controller that is
+    /// only `stop()`ped (or not even that) can leak TickClock timers and
+    /// host-queue work that crash LATER suites via Swift exclusivity traps.
+    /// Every controller a test creates registers a full `shutdown()` here.
+    private func registerShutdownAtTeardown(_ controller: EngineController) {
+        addTeardownBlock {
+            controller.shutdown()
+            XCTAssertFalse(controller.clock.isRunning,
+                "no TickClock may survive test teardown")
+        }
+    }
+
     func test_tickState_adoptsGeneratorStateFromConsumedPrecomputedBar() {
         let sink = CountingAudioSink()
         let controller = EngineController(client: nil, endpoint: nil, audioOutput: sink)
+        registerShutdownAtTeardown(controller)
         let (project, trackID, _) = makeSequentialGeneratorProject()
         controller.apply(documentModel: project)
 
@@ -536,6 +549,7 @@ final class PrecomputeStateContinuityTests: XCTestCase {
     func test_chordContextBroadcast_bumpsGenerationRevisionOnlyOnChordChange() {
         let sink = CountingAudioSink()
         let controller = EngineController(client: nil, endpoint: nil, audioOutput: sink)
+        registerShutdownAtTeardown(controller)
         let (project, _, _) = makeSequentialGeneratorProject()
         controller.apply(documentModel: project)
 

@@ -145,7 +145,22 @@ final class AUTimelineNoteStampTranslationTests: XCTestCase {
             audioGraph: graph,
             autoStartEngine: false
         )
-        defer { host.shutdown() }
+        // Test-isolation teardown (bugs 20260702-140500 / 20260702-135500):
+        // shut the host down AND drain its async teardown inside THIS test,
+        // then stop the graph/engine, so no host-queue work, meter tap, or
+        // deferred RealtimeMessenger tap callback survives into the next
+        // suite. A leaked tap's late TapMessage delivery was one half of the
+        // pair-hang ABBA deadlock (the callback's `guard let self` upgrade
+        // deallocated the graph on the messenger service queue).
+        addTeardownBlock {
+            host.shutdown()
+            let drainDeadline = Date().addingTimeInterval(2)
+            while host.currentAudioUnit != nil, Date() < drainDeadline {
+                RunLoop.current.run(until: Date().addingTimeInterval(0.02))
+            }
+            graph.stop()
+            engine.stop()
+        }
         host.prepareIfNeeded()
 
         // The host instantiates + connects the DLS synth across its own queue

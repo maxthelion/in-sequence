@@ -24,6 +24,15 @@ final class LibraryCreateFromEntityTests: XCTestCase {
             ),
             engineController: EngineController(client: nil, endpoint: nil)
         )
+        // Test-isolation teardown (bug 20260702-135500): every controller this
+        // suite creates is fully shut down inside the test that created it, so
+        // no TickClock timer or host-queue work leaks into later suites.
+        addTeardownBlock {
+            session.engineController.shutdown()
+            XCTAssertFalse(session.engineController.clock.isRunning,
+                "no TickClock may survive test teardown")
+            SequencerDocumentSessionRegistry.unregister(session)
+        }
         return (session, box)
     }
 
