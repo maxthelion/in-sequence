@@ -1,0 +1,760 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Generators — chord dual-role + mono split-vs-unified (Variant D grammar)</title>
+<style>
+  :root {
+    --ground:#0d0d10; --inset:#060608; --border:#62626c; --text:#e8e8ec; --muted:#9a9aa4;
+    --fill1: rgba(255,255,255,.05);
+    --cyan:#00ccff; --amber:#ffb444; --green:#4ceb85; --violet:#a187ff;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:#000; color:var(--text); font:14px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; padding:28px 0 60px; }
+  .page { max-width:1180px; margin:0 auto; padding:0 20px; }
+  .page > h1 { font-size:19px; margin:0 0 3px; }
+  .page > .sub { color:var(--muted); font-size:12px; margin:0 0 22px; max-width:920px; }
+
+  .statebar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; padding:10px 14px; border:1px solid #26262c; border-radius:10px; margin-bottom:26px; background:#0a0a0c; }
+  .statebar b { font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); margin-right:4px; }
+  .statebar button { font:inherit; font-size:11px; background:transparent; color:var(--muted); border:1px solid var(--border); border-radius:7px; padding:5px 9px; cursor:pointer; }
+  .statebar a.swap { font-size:11px; color:var(--cyan); text-decoration:none; border:1px solid var(--border); border-radius:7px; padding:5px 9px; }
+  .statebar a.swap:last-child { margin-left:auto; }
+
+  .part-label { font-size:11px; letter-spacing:.1em; text-transform:uppercase; font-weight:800; color:var(--muted); margin:0 0 8px; }
+  .part-label span { color:var(--text); }
+
+  .surface { background:var(--ground); border:1px solid #232328; border-radius:16px; padding:22px 22px 26px; margin-bottom:20px; }
+  .surface-head { display:flex; align-items:baseline; gap:10px; margin-bottom:14px; }
+  .surface-head .name { font-size:17px; font-weight:800; }
+  .surface-head .kind { font-size:10px; letter-spacing:.1em; text-transform:uppercase; font-weight:800; color:var(--accent); }
+  .surface-head .role { margin-left:auto; font-size:10px; letter-spacing:.08em; text-transform:uppercase; font-weight:800; color:var(--muted); border:1px solid rgba(98,98,108,.6); border-radius:999px; padding:4px 10px; }
+
+  /* primary section switcher — Variant D pills (LOCKED grammar) */
+  .tabstrip.seg { display:flex; gap:4px; padding:3px; background:var(--fill1); border:1.5px solid rgba(98,98,108,.9); border-radius:12px; margin-bottom:5px; }
+  .tabstrip.seg .schip { flex:1; border:none; background:transparent; color:rgba(232,232,236,.78); font:inherit; font-size:11px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; padding:10px 8px; border-radius:10px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; white-space:nowrap; }
+  .tabstrip.seg .schip.active { background:var(--accent); color:var(--ground); }
+  .tabstrip.seg .schip .mini-badge { font-size:9px; font-weight:800; padding:2px 5px; border-radius:6px; background:var(--accent); color:var(--ground); text-transform:none; letter-spacing:0; }
+  .tabstrip.seg .schip.active .mini-badge { background:var(--ground); color:var(--accent); }
+  .tabstrip.seg.stage { max-width:340px; }
+
+  /* well — full-strength accent outline, all corners rounded */
+  .well { background:var(--fill1); border:1.5px solid var(--accent); border-radius:12px; padding:18px; }
+  .well.flat { border-radius:12px; }
+  .well-pane[hidden] { display:none; }
+  .stub { border:1.5px dashed var(--border); border-radius:10px; padding:26px; text-align:center; color:var(--muted); font-size:12px; letter-spacing:.02em; }
+
+  .seg-block { margin-bottom:16px; }
+  .seg-block:last-child { margin-bottom:0; }
+  .seg-label { font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); font-weight:700; margin-bottom:7px; display:flex; align-items:center; gap:8px; }
+  .seg-label .value { color:var(--amber); font-weight:800; text-transform:none; letter-spacing:0; }
+
+  /* subordinate value/layer selector — solid thumbs inside a darker inset capsule.
+     Function-based rule: never used for section switching, only for value choice
+     (mode, layer, algorithm, chord source). */
+  .track { display:inline-flex; gap:3px; padding:3px; background:var(--inset); border:1px solid rgba(98,98,108,.55); border-radius:999px; flex-wrap:wrap; }
+  .track.wide { display:flex; width:100%; }
+  .track .chip { border:none; background:transparent; color:rgba(232,232,236,.72); font:inherit; font-size:11px; font-weight:700; padding:7px 13px; border-radius:999px; cursor:pointer; white-space:nowrap; }
+  .track .chip.wide { flex:1; text-align:center; }
+  .track .chip.on { background:var(--accent); color:var(--ground); }
+  .track .chip.on.follow { background:var(--amber); color:#241a06; }
+
+  .following { display:inline-flex; align-items:center; gap:6px; font-size:10px; font-weight:800; letter-spacing:.04em; color:var(--amber); background:rgba(255,180,68,.12); border:1px solid var(--amber); border-radius:999px; padding:5px 10px; margin-top:8px; }
+  .following .lbl { color:var(--muted); font-weight:700; text-transform:uppercase; letter-spacing:.06em; }
+
+  .card { background:rgba(255,255,255,.03); border:1px solid rgba(98,98,108,.6); border-radius:12px; padding:14px; }
+  .card h4 { margin:0 0 12px; font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); font-weight:700; }
+
+  .btn-solid { background:var(--accent); color:var(--ground); border:none; border-radius:10px; padding:9px 14px; font-weight:800; font-size:12px; cursor:pointer; display:inline-flex; align-items:center; gap:6px; }
+  .btn-outline { background:transparent; color:var(--text); border:1px solid rgba(98,98,108,.8); border-radius:9px; padding:8px 12px; font-size:12px; font-weight:700; cursor:pointer; }
+
+  .clip-hdr { display:flex; align-items:center; gap:10px; margin-bottom:16px; }
+  .clip-hdr .badge-lg { font-size:10px; font-weight:800; padding:4px 8px; border-radius:8px; background:var(--accent); color:var(--ground); }
+  .clip-hdr .t { font-size:14px; font-weight:800; }
+  .clip-hdr .m { font-size:11px; color:var(--muted); margin-left:2px; }
+  .icon-btn { width:26px; height:26px; border-radius:8px; border:1px solid rgba(98,98,108,.7); background:transparent; color:var(--muted); display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:12px; }
+  .clip-hdr .icon-btn { margin-left:auto; }
+
+  /* chord grid — trigger cards (Progression Chords "Chords" grid) */
+  .chordgrid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:16px; }
+  .chordcard { border:1.5px solid rgba(98,98,108,.6); border-radius:10px; padding:10px 12px; cursor:pointer; background:rgba(255,255,255,.03); }
+  .chordcard .top { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px; }
+  .chordcard .idx { font-size:9px; color:var(--muted); font-weight:800; }
+  .chordcard .roman { font-size:15px; font-weight:800; }
+  .chordcard .step { font-size:10px; color:var(--muted); }
+  .chordcard.selected { border-color:var(--accent); border-width:2px; }
+
+  .presetpanel { border:1.5px dashed rgba(98,98,108,.7); border-radius:10px; padding:14px; margin-bottom:16px; display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap; }
+  .presetpanel .fld { display:flex; flex-direction:column; gap:6px; }
+  .presetpanel .fld .flbl { font-size:9px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); font-weight:700; }
+
+  .stepper { display:inline-flex; align-items:center; gap:8px; background:var(--inset); border:1px solid rgba(98,98,108,.55); border-radius:999px; padding:4px; }
+  .stepper .icon-btn { width:24px; height:24px; border:none; }
+  .stepper .val { min-width:34px; text-align:center; font-size:12px; font-weight:800; }
+
+  /* selected-chord control panel */
+  .chordctl { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:16px; }
+  .chordctl .fld { display:flex; flex-direction:column; gap:6px; }
+  .chordctl .flbl { font-size:9px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); font-weight:700; }
+
+  /* chord step page — trigger-and-value combined cell */
+  .csteps { display:grid; grid-template-columns:repeat(16,1fr); gap:6px; }
+  .cstep { border:1px solid rgba(98,98,108,.7); border-radius:9px; padding:6px 4px; min-height:64px; display:flex; flex-direction:column; gap:3px; cursor:pointer; background:rgba(255,255,255,.02); }
+  .cstep .num { font-size:8px; color:var(--muted); font-weight:700; }
+  .cstep .roman { font-size:12px; font-weight:800; }
+  .cstep .lval { font-size:8.5px; color:var(--muted); line-height:1.15; }
+  .cstep.filled { border-color:rgba(98,98,108,.9); }
+  .cstep.selected { border-color:var(--accent); border-width:2px; }
+  .cstep.empty .roman { color:var(--muted); }
+
+  /* knob + pager (trigger-stage Euclidean controls) */
+  .knobrow { display:flex; gap:22px; }
+  .knob-block { display:flex; flex-direction:column; align-items:center; gap:8px; }
+  .knob-block .ring { width:56px; height:56px; border-radius:50%; border:2px solid rgba(98,98,108,.7); display:grid; place-items:center; font-size:12px; font-weight:800; }
+  .knob-block.hot .ring { border-color:var(--accent); color:var(--accent); }
+  .knob-block .klabel { font-size:10px; color:var(--muted); font-weight:700; letter-spacing:.04em; text-transform:uppercase; }
+  .knob-block .pager { display:flex; align-items:center; gap:6px; }
+
+  /* weighted trigger — per-step probability bars */
+  .wbars { display:grid; grid-template-columns:repeat(16,1fr); gap:5px; height:110px; align-items:end; }
+  .wbar { display:flex; flex-direction:column; align-items:center; gap:5px; height:100%; justify-content:flex-end; cursor:pointer; }
+  .wbar .fill { width:100%; border-radius:4px 4px 2px 2px; background:var(--accent); min-height:4px; }
+  .wbar .n { font-size:8px; color:var(--muted); font-weight:700; }
+
+  .sliderrow { display:flex; flex-direction:column; gap:6px; margin-bottom:12px; }
+  .sliderrow .top { display:flex; justify-content:space-between; font-size:10px; color:var(--muted); font-weight:700; text-transform:uppercase; letter-spacing:.06em; }
+  .sliderrow .top .v { color:var(--text); }
+  .slidertrack { height:8px; border-radius:5px; background:var(--inset); border:1px solid rgba(98,98,108,.5); overflow:hidden; }
+  .slidertrack .fill { height:100%; background:var(--accent); }
+
+  /* combined per-step preview (unified alternative only) */
+  .previewgrid { display:grid; grid-template-columns:repeat(16,1fr); gap:5px; }
+  .pstep { border:1px solid rgba(98,98,108,.6); border-radius:8px; padding:6px 3px; min-height:52px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; background:rgba(255,255,255,.02); }
+  .pstep.on { border-color:var(--accent); }
+  .pstep .dot { width:8px; height:8px; border-radius:50%; border:1.5px solid rgba(98,98,108,.7); }
+  .pstep.on .dot { background:var(--accent); border-color:var(--accent); }
+  .pstep .note { font-size:9px; color:var(--muted); font-weight:700; }
+  .pstep.on .note { color:var(--text); }
+
+  .divider { height:1px; background:rgba(98,98,108,.3); margin:16px 0; }
+  .eyebrow-row { display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+  .eyebrow-row .eyebrow { font-size:10px; letter-spacing:.1em; text-transform:uppercase; font-weight:800; color:var(--muted); }
+  .eyebrow-row .eyebrow.accent { color:var(--accent); }
+
+  .legend { border:1.5px dashed var(--border); border-radius:12px; padding:16px 18px; margin-top:8px; background:#0a0a0c; }
+  .legend .lt { font-size:11px; letter-spacing:.08em; text-transform:uppercase; font-weight:800; color:var(--muted); margin-bottom:10px; }
+  .legend ul { margin:0; padding-left:18px; font-size:12px; color:#c9c9d1; line-height:1.7; }
+  .legend li b { color:var(--text); }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>Generators — chord dual-role + mono trigger/pitch split vs. unified</h1>
+  <p class="sub">Variant D grammar (docs/roadmap/track-view-ia/tab-unification-and-canon-creep.md, matching 08-unified-tab-well-D.html / 09-kit-and-part-D.html): D-pill primary switchers floating over a fully-rounded accent well; inset-track solid thumbs for value/layer/mode/algorithm selection; no explainer prose. (a) the chord generator as a playable instrument, and the SAME chord source consumed by another generator's pitch stage (the "Chord Source" chip row replaces today's opaque Harmonic Sidechain menu picker). (b) the mono generator's current two-stage pipeline (Trigger tab: Euclidean/Weighted · Pitch tab: Markov/Scale) made legible. (c) the same params on one unified surface, no stage tab, for honest visual comparison.</p>
+
+  <div class="statebar">
+    <b>Jump to state</b>
+    <button onclick="setPrototypeState('chord-instrument')">chord-instrument</button>
+    <button onclick="setPrototypeState('chord-sidechain')">chord-sidechain</button>
+    <button onclick="setPrototypeState('mono-split-euclidean')">mono-split-euclidean</button>
+    <button onclick="setPrototypeState('mono-split-weighted')">mono-split-weighted</button>
+    <button onclick="setPrototypeState('mono-split-pitch')">mono-split-pitch</button>
+    <button onclick="setPrototypeState('mono-unified-euclidean')">mono-unified-euclidean</button>
+    <button onclick="setPrototypeState('mono-unified-weighted')">mono-unified-weighted</button>
+    <a class="swap" href="08-unified-tab-well-D.html">→ 08-D (tab well)</a>
+    <a class="swap" href="09-kit-and-part-D.html">→ 09-D (kit/part)</a>
+  </div>
+
+  <!-- ================= (a) CHORD GENERATOR — dual role ================= -->
+  <p class="part-label">(a) Chord generator — <span>dual role</span></p>
+
+  <!-- (a-1) AS INSTRUMENT -->
+  <section class="surface" id="surface-chord-instrument" style="--accent:var(--amber)">
+    <div class="surface-head">
+      <span class="name">Chords 3</span><span class="kind">Chord Track</span>
+      <span class="role">Instrument</span>
+    </div>
+    <div class="tabstrip seg">
+      <button class="schip active" data-tab="steps" onclick="selectTab('surface-chord-instrument','steps')">Steps / Clip<span class="mini-badge">Gen</span></button>
+      <button class="schip" data-tab="sound" onclick="selectTab('surface-chord-instrument','sound')">Sound<span class="mini-badge">No instrument</span></button>
+      <button class="schip" data-tab="fx" onclick="selectTab('surface-chord-instrument','fx')">FX<span class="mini-badge">Insert</span></button>
+      <button class="schip" data-tab="macros" onclick="selectTab('surface-chord-instrument','macros')">Macros<span class="mini-badge">Empty</span></button>
+      <button class="schip" data-tab="mixer" onclick="selectTab('surface-chord-instrument','mixer')">Mixer<span class="mini-badge">Master</span></button>
+    </div>
+    <div class="well">
+      <div class="well-pane" data-pane="steps">
+        <div class="clip-hdr">
+          <span class="badge-lg">Gen</span>
+          <span class="t">Chords 3 · Pattern 1</span>
+          <span class="m">2 bars · 16 steps</span>
+          <button class="icon-btn">✕</button>
+        </div>
+
+        <div class="seg-block">
+          <div class="seg-label">Length</div>
+          <div class="track wide">
+            <button class="chip wide on">16</button>
+            <button class="chip wide">32</button>
+            <button class="chip wide">64</button>
+            <button class="chip wide">128</button>
+          </div>
+        </div>
+
+        <div class="seg-block">
+          <div class="seg-label">Chords <button class="btn-outline" style="margin-left:auto;font-size:10px;padding:5px 10px" onclick="togglePreset()">Load Preset</button></div>
+          <div class="presetpanel" id="presetPanel" hidden>
+            <div class="fld">
+              <span class="flbl">Seed</span>
+              <div class="track">
+                <button class="chip on">Minor Descending</button>
+                <button class="chip">Pop Major</button>
+                <button class="chip">Jazz Turnaround</button>
+                <button class="chip">Empty</button>
+              </div>
+            </div>
+            <div class="fld">
+              <span class="flbl">Root MIDI</span>
+              <div class="stepper"><button class="icon-btn">‹</button><span class="val">60</span><button class="icon-btn">›</button></div>
+            </div>
+            <div class="fld">
+              <span class="flbl">Root Position</span>
+              <div class="track"><button class="chip on">Minor</button><button class="chip">Major</button></div>
+            </div>
+            <button class="btn-solid" onclick="togglePreset()">Apply Preset</button>
+          </div>
+          <div class="chordgrid" id="chordGrid"></div>
+        </div>
+
+        <div class="seg-block">
+          <div class="seg-label">Selected chord <span class="value" id="selectedChordLabel">i</span></div>
+          <div class="chordctl">
+            <div class="fld"><span class="flbl">Position</span><div class="stepper"><button class="icon-btn" onclick="stepPosition(-1)">‹</button><span class="val" id="ctlPosition">0</span><button class="icon-btn" onclick="stepPosition(1)">›</button></div></div>
+            <div class="fld"><span class="flbl">Type</span><div class="track wide" id="ctlType"></div></div>
+            <div class="fld"><span class="flbl">Inversion</span><div class="track wide" id="ctlInversion"></div></div>
+            <div class="fld"><span class="flbl">Voicing</span><div class="track wide" id="ctlVoicing"></div></div>
+            <div class="fld"><span class="flbl">Notes</span><div class="stepper"><button class="icon-btn" onclick="stepNotes(-1)">‹</button><span class="val" id="ctlNotes">3</span><button class="icon-btn" onclick="stepNotes(1)">›</button></div></div>
+            <div class="fld"><span class="flbl">Length</span><div class="track wide" id="ctlLength"></div></div>
+          </div>
+        </div>
+
+        <div class="seg-block">
+          <div class="seg-label">Layer <span style="color:var(--muted);font-weight:400;text-transform:none;font-size:10px">— sets the step-cell value line below</span></div>
+          <div class="track" id="layerRow"></div>
+        </div>
+
+        <div class="seg-block">
+          <div class="seg-label">16-Step Page</div>
+          <div class="csteps" id="chordSteps"></div>
+        </div>
+      </div>
+      <div class="well-pane" data-pane="sound" hidden><div class="stub">[ instrument picker — off path ]</div></div>
+      <div class="well-pane" data-pane="fx" hidden><div class="stub">[ insert chain — off path ]</div></div>
+      <div class="well-pane" data-pane="macros" hidden><div class="stub">[ M1–M8 — off path ]</div></div>
+      <div class="well-pane" data-pane="mixer" hidden><div class="stub">[ bus + sends — off path ]</div></div>
+    </div>
+  </section>
+
+  <!-- (a-2) AS SIDECHAIN — the consumer's side -->
+  <section class="surface" id="surface-chord-sidechain" style="--accent:var(--cyan)">
+    <div class="surface-head">
+      <span class="name">Mono 12</span><span class="kind">Mono Track — Pitch Stage</span>
+      <span class="role">Sidechain consumer</span>
+    </div>
+    <div class="tabstrip seg stage">
+      <button class="schip" data-tab="trigger" onclick="selectTab('surface-chord-sidechain','trigger')">Trigger</button>
+      <button class="schip active" data-tab="pitch" onclick="selectTab('surface-chord-sidechain','pitch')">Pitch</button>
+    </div>
+    <div class="well">
+      <div class="well-pane" data-pane="trigger" hidden><div class="stub">[ trigger stage — see (b) below — off path here ]</div></div>
+      <div class="well-pane" data-pane="pitch">
+        <div class="seg-block">
+          <div class="seg-label">Algorithm</div>
+          <div class="track wide">
+            <button class="chip wide">Manual</button>
+            <button class="chip wide">Scale</button>
+            <button class="chip wide">Chord</button>
+            <button class="chip wide">Prob</button>
+            <button class="chip wide on">Markov</button>
+            <button class="chip wide">Clip</button>
+            <button class="chip wide">MIDI In</button>
+          </div>
+        </div>
+        <div class="seg-block">
+          <div class="fld" style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+            <div><div class="seg-label">Root</div><div class="stepper"><button class="icon-btn">‹</button><span class="val">C4</span><button class="icon-btn">›</button></div></div>
+            <div><div class="seg-label">Style</div><div class="track"><button class="chip">Vocal</button><button class="chip on">Balanced</button><button class="chip">Jazz</button></div></div>
+          </div>
+        </div>
+        <div class="seg-block">
+          <div class="seg-label">Scale</div>
+          <div class="track wide">
+            <button class="chip wide">Major</button>
+            <button class="chip wide on">Nat Minor</button>
+            <button class="chip wide">Dorian</button>
+            <button class="chip wide">Phrygian</button>
+            <button class="chip wide">Mixolydian</button>
+          </div>
+        </div>
+        <div class="sliderrow"><div class="top"><span>Leap</span><span class="v">35%</span></div><div class="slidertrack"><div class="fill" style="width:35%"></div></div></div>
+        <div class="sliderrow"><div class="top"><span>Color</span><span class="v">60%</span></div><div class="slidertrack"><div class="fill" style="width:60%"></div></div></div>
+
+        <div class="divider"></div>
+
+        <div class="seg-block">
+          <div class="seg-label">Chord Source <span style="color:var(--muted);font-weight:400;text-transform:none;font-size:10px">— today's opaque "Harmonic Sidechain" menu, made a visible affordance</span></div>
+          <div class="track wide" id="a2Follow"></div>
+          <div class="following" id="a2Following"><span class="lbl">Following</span> Chords 3 · iv</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= (b) MONO GENERATOR — split (trigger/pitch stages) ================= -->
+  <p class="part-label">(b) Mono generator — <span>split form (current pipeline: .mono(trigger:pitch:shape:))</span></p>
+  <section class="surface" id="surface-mono-split" style="--accent:var(--cyan)">
+    <div class="surface-head">
+      <span class="name">Mono 12</span><span class="kind">Mono Track</span>
+      <span class="role">Two stages, one tab each</span>
+    </div>
+    <div class="tabstrip seg stage">
+      <button class="schip active" data-tab="trigger" onclick="selectTab('surface-mono-split','trigger')">Trigger</button>
+      <button class="schip" data-tab="pitch" onclick="selectTab('surface-mono-split','pitch')">Pitch</button>
+    </div>
+    <div class="well">
+      <div class="well-pane" data-pane="trigger">
+        <div class="seg-block">
+          <div class="seg-label">Mode</div>
+          <div class="track" id="bMode">
+            <button class="chip on" data-mode="euclidean" onclick="setMode('b', 'euclidean')">Euclidean</button>
+            <button class="chip" data-mode="weighted" onclick="setMode('b', 'weighted')">Weighted</button>
+          </div>
+        </div>
+        <div id="bEuclidean">
+          <div class="knobrow">
+            <div class="knob-block hot">
+              <div class="ring">4</div>
+              <div class="klabel">Pulses</div>
+              <div class="pager"><button class="icon-btn">‹</button><button class="icon-btn">›</button></div>
+            </div>
+            <div class="knob-block">
+              <div class="ring">16</div>
+              <div class="klabel">Steps</div>
+              <div class="pager"><button class="icon-btn">‹</button><button class="icon-btn">›</button></div>
+            </div>
+            <div class="knob-block">
+              <div class="ring">0</div>
+              <div class="klabel">Offset</div>
+              <div class="pager"><button class="icon-btn">‹</button><button class="icon-btn">›</button></div>
+            </div>
+          </div>
+        </div>
+        <div id="bWeighted" hidden>
+          <div class="seg-label">Per-step weight <span style="color:var(--muted);font-weight:400;text-transform:none;font-size:10px">— tap a step to cycle 0 / .25 / .5 / .75 / 1</span></div>
+          <div class="wbars" id="bWeightedBars"></div>
+        </div>
+      </div>
+      <div class="well-pane" data-pane="pitch" hidden>
+        <div class="seg-block">
+          <div class="seg-label">Algorithm</div>
+          <div class="track wide">
+            <button class="chip wide">Manual</button>
+            <button class="chip wide">Scale</button>
+            <button class="chip wide">Chord</button>
+            <button class="chip wide">Prob</button>
+            <button class="chip wide on">Markov</button>
+            <button class="chip wide">Clip</button>
+            <button class="chip wide">MIDI In</button>
+          </div>
+        </div>
+        <div class="seg-block">
+          <div class="fld" style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+            <div><div class="seg-label">Root</div><div class="stepper"><button class="icon-btn">‹</button><span class="val">C4</span><button class="icon-btn">›</button></div></div>
+            <div><div class="seg-label">Style</div><div class="track"><button class="chip">Vocal</button><button class="chip on">Balanced</button><button class="chip">Jazz</button></div></div>
+          </div>
+        </div>
+        <div class="seg-block">
+          <div class="seg-label">Scale</div>
+          <div class="track wide">
+            <button class="chip wide">Major</button>
+            <button class="chip wide on">Nat Minor</button>
+            <button class="chip wide">Dorian</button>
+            <button class="chip wide">Phrygian</button>
+            <button class="chip wide">Mixolydian</button>
+          </div>
+        </div>
+        <div class="sliderrow"><div class="top"><span>Leap</span><span class="v">35%</span></div><div class="slidertrack"><div class="fill" style="width:35%"></div></div></div>
+        <div class="sliderrow"><div class="top"><span>Color</span><span class="v">60%</span></div><div class="slidertrack"><div class="fill" style="width:60%"></div></div></div>
+        <div class="divider"></div>
+        <div class="seg-block">
+          <div class="seg-label">Chord Source</div>
+          <div class="track wide" id="bFollow"></div>
+          <div class="following" id="bFollowing"><span class="lbl">Following</span> Chords 3 · iv</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= (c) MONO GENERATOR — unified alternative ================= -->
+  <p class="part-label">(c) Mono generator — <span>unified alternative (same params, one surface, no stage tab)</span></p>
+  <section class="surface" id="surface-mono-unified" style="--accent:var(--cyan)">
+    <div class="surface-head">
+      <span class="name">Mono 12</span><span class="kind">Mono Track</span>
+      <span class="role">One generator surface</span>
+    </div>
+    <div class="well">
+      <div class="eyebrow-row"><span class="eyebrow accent">Trigger</span></div>
+      <div class="seg-block">
+        <div class="seg-label">Mode</div>
+        <div class="track" id="cMode">
+          <button class="chip on" data-mode="euclidean" onclick="setMode('c', 'euclidean')">Euclidean</button>
+          <button class="chip" data-mode="weighted" onclick="setMode('c', 'weighted')">Weighted</button>
+        </div>
+      </div>
+      <div id="cEuclidean">
+        <div class="knobrow">
+          <div class="knob-block hot">
+            <div class="ring">4</div>
+            <div class="klabel">Pulses</div>
+            <div class="pager"><button class="icon-btn">‹</button><button class="icon-btn">›</button></div>
+          </div>
+          <div class="knob-block">
+            <div class="ring">16</div>
+            <div class="klabel">Steps</div>
+            <div class="pager"><button class="icon-btn">‹</button><button class="icon-btn">›</button></div>
+          </div>
+          <div class="knob-block">
+            <div class="ring">0</div>
+            <div class="klabel">Offset</div>
+            <div class="pager"><button class="icon-btn">‹</button><button class="icon-btn">›</button></div>
+          </div>
+        </div>
+      </div>
+      <div id="cWeighted" hidden>
+        <div class="seg-label">Per-step weight <span style="color:var(--muted);font-weight:400;text-transform:none;font-size:10px">— tap a step to cycle 0 / .25 / .5 / .75 / 1</span></div>
+        <div class="wbars" id="cWeightedBars"></div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="eyebrow-row"><span class="eyebrow accent">Pitch</span></div>
+      <div class="seg-block">
+        <div class="seg-label">Algorithm</div>
+        <div class="track wide">
+          <button class="chip wide">Manual</button>
+          <button class="chip wide">Scale</button>
+          <button class="chip wide">Chord</button>
+          <button class="chip wide">Prob</button>
+          <button class="chip wide on">Markov</button>
+          <button class="chip wide">Clip</button>
+          <button class="chip wide">MIDI In</button>
+        </div>
+      </div>
+      <div class="seg-block">
+        <div class="fld" style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+          <div><div class="seg-label">Root</div><div class="stepper"><button class="icon-btn">‹</button><span class="val">C4</span><button class="icon-btn">›</button></div></div>
+          <div><div class="seg-label">Style</div><div class="track"><button class="chip">Vocal</button><button class="chip on">Balanced</button><button class="chip">Jazz</button></div></div>
+        </div>
+      </div>
+      <div class="seg-block">
+        <div class="seg-label">Scale</div>
+        <div class="track wide">
+          <button class="chip wide">Major</button>
+          <button class="chip wide on">Nat Minor</button>
+          <button class="chip wide">Dorian</button>
+          <button class="chip wide">Phrygian</button>
+          <button class="chip wide">Mixolydian</button>
+        </div>
+      </div>
+      <div class="sliderrow"><div class="top"><span>Leap</span><span class="v">35%</span></div><div class="slidertrack"><div class="fill" style="width:35%"></div></div></div>
+      <div class="sliderrow"><div class="top"><span>Color</span><span class="v">60%</span></div><div class="slidertrack"><div class="fill" style="width:60%"></div></div></div>
+      <div class="seg-block">
+        <div class="seg-label">Chord Source</div>
+        <div class="track wide" id="cFollow"></div>
+        <div class="following" id="cFollowing"><span class="lbl">Following</span> Chords 3 · iv</div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="eyebrow-row"><span class="eyebrow">Combined result</span></div>
+      <div class="previewgrid" id="unifiedPreview"></div>
+    </div>
+  </section>
+
+  <div class="legend">
+    <div class="lt">Reviewer annotations — not part of the design</div>
+    <ul>
+      <li><b>Amber</b> marks the chord generator's identity (well outline in (a), content-accent chips/values wherever a chord source is referenced in (a-2)/(b)/(c)) — never used as a container fill, per canon Rule 12.</li>
+      <li><b>Chord Source</b> row replaces <code>PitchAlgoEditor</code>'s current <code>Picker("Harmonic Sidechain", …)</code> (a plain dropdown menu today) with the same inset-track chip grammar used for every other value selector, so the sidechain relationship is visible without opening a menu.</li>
+      <li><b>Weighted</b> trigger mode does not exist in <code>StepAlgo</code> yet (only <code>.euclidean</code>) — the bar treatment reuses the existing <code>GridEditor</code> component already shipped for pitch-stage degree weights (<code>PitchAlgoEditor.intervalProb</code>).</li>
+      <li>(b) and (c) carry identical params (Euclidean/Weighted trigger, Markov/Scale pitch, Chord Source) so the split-vs-unified comparison is structural only, not a difference in capability.</li>
+      <li>Dashed boxes are off-path stubs (Sound/FX/Macros/Mixer, and the sidechain surface's own Trigger pane, which is fully shown in (b) instead).</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+  function selectTab(surfaceId, tabName) {
+    const surface = document.getElementById(surfaceId);
+    surface.querySelectorAll(':scope > .tabstrip.seg .schip').forEach(el => {
+      el.classList.toggle('active', el.dataset.tab === tabName);
+    });
+    surface.querySelectorAll(':scope .well-pane').forEach(el => {
+      el.hidden = el.dataset.pane !== tabName;
+    });
+  }
+
+  function setPrototypeState(spec) {
+    switch (spec) {
+      case 'chord-instrument':
+        document.getElementById('surface-chord-instrument').scrollIntoView();
+        break;
+      case 'chord-sidechain':
+        document.getElementById('surface-chord-sidechain').scrollIntoView();
+        break;
+      case 'mono-split-euclidean':
+        selectTab('surface-mono-split', 'trigger');
+        setMode('b', 'euclidean');
+        document.getElementById('surface-mono-split').scrollIntoView();
+        break;
+      case 'mono-split-weighted':
+        selectTab('surface-mono-split', 'trigger');
+        setMode('b', 'weighted');
+        document.getElementById('surface-mono-split').scrollIntoView();
+        break;
+      case 'mono-split-pitch':
+        selectTab('surface-mono-split', 'pitch');
+        document.getElementById('surface-mono-split').scrollIntoView();
+        break;
+      case 'mono-unified-euclidean':
+        setMode('c', 'euclidean');
+        document.getElementById('surface-mono-unified').scrollIntoView();
+        break;
+      case 'mono-unified-weighted':
+        setMode('c', 'weighted');
+        document.getElementById('surface-mono-unified').scrollIntoView();
+        break;
+    }
+  }
+
+  // ---- mode toggle (Euclidean / Weighted) shared by (b) split-trigger and (c) unified ----
+  function setMode(scope, mode) {
+    const modeRow = document.getElementById(scope + 'Mode');
+    modeRow.querySelectorAll('.chip').forEach(chip => {
+      chip.classList.toggle('on', chip.dataset.mode === mode);
+    });
+    document.getElementById(scope + 'Euclidean').hidden = mode !== 'euclidean';
+    document.getElementById(scope + 'Weighted').hidden = mode !== 'weighted';
+  }
+
+  // ---- generic exclusive chip-row selection (chord source follow rows, etc.) ----
+  function wireExclusiveRow(row, onSelect) {
+    row.querySelectorAll('.chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        row.querySelectorAll('.chip').forEach(c => c.classList.remove('on', 'follow'));
+        chip.classList.add('on');
+        if (chip.dataset.follow === '1') chip.classList.add('follow');
+        onSelect(chip.textContent, chip.dataset.follow === '1');
+      });
+    });
+  }
+
+  function buildFollowRow(containerId, followingId) {
+    const row = document.getElementById(containerId);
+    const options = [
+      { label: 'None', follow: false },
+      { label: 'Chord Context', follow: false },
+      { label: 'Chords 3', follow: true, selected: true },
+      { label: 'Chords 7', follow: true },
+    ];
+    options.forEach(opt => {
+      const b = document.createElement('button');
+      b.className = 'chip wide' + (opt.selected ? ' on' + (opt.follow ? ' follow' : '') : '');
+      b.textContent = opt.label;
+      if (opt.follow) b.dataset.follow = '1';
+      row.appendChild(b);
+    });
+    const followingEl = document.getElementById(followingId);
+    wireExclusiveRow(row, (label, isFollow) => {
+      followingEl.hidden = !isFollow;
+      if (isFollow) followingEl.innerHTML = '<span class="lbl">Following</span> ' + label + ' · iv';
+    });
+  }
+  buildFollowRow('a2Follow', 'a2Following');
+  buildFollowRow('bFollow', 'bFollowing');
+  buildFollowRow('cFollow', 'cFollowing');
+
+  // ---- weighted per-step bars (adversarial: uneven weights, not a flat default) ----
+  function buildWeightedBars(containerId) {
+    const levels = [0, 0.25, 0.5, 0.75, 1];
+    const seed = [1, 0, 0.5, 0, 1, 0.25, 0, 0.75, 1, 0, 0.5, 0, 0.25, 0, 1, 0];
+    const el = document.getElementById(containerId);
+    seed.forEach((level, i) => {
+      const wrap = document.createElement('div');
+      wrap.className = 'wbar';
+      const fill = document.createElement('div');
+      fill.className = 'fill';
+      fill.style.height = Math.max(4, level * 100) + '%';
+      const n = document.createElement('div');
+      n.className = 'n';
+      n.textContent = i + 1;
+      wrap.appendChild(fill);
+      wrap.appendChild(n);
+      let idx = levels.indexOf(level);
+      wrap.addEventListener('click', () => {
+        idx = (idx + 1) % levels.length;
+        fill.style.height = Math.max(4, levels[idx] * 100) + '%';
+      });
+      el.appendChild(wrap);
+    });
+  }
+  buildWeightedBars('bWeightedBars');
+  buildWeightedBars('cWeightedBars');
+
+  // ---- unified combined step preview (trigger on/off + resolved pitch, one glance) ----
+  (function buildUnifiedPreview() {
+    const triggered = new Set([0, 4, 8, 10, 14]);
+    const notes = ['C4', '', '', '', 'Eb4', '', '', '', 'G4', '', 'Bb3', '', '', '', 'D4', ''];
+    const el = document.getElementById('unifiedPreview');
+    for (let i = 0; i < 16; i++) {
+      const cell = document.createElement('div');
+      cell.className = 'pstep' + (triggered.has(i) ? ' on' : '');
+      const dot = document.createElement('div');
+      dot.className = 'dot';
+      const note = document.createElement('div');
+      note.className = 'note';
+      note.textContent = triggered.has(i) ? notes[i] : '·';
+      cell.appendChild(dot);
+      cell.appendChild(note);
+      el.appendChild(cell);
+    }
+  })();
+
+  // ---- (a) progression chord editor: cards, selected-chord controls, layer, step page ----
+  const chordData = {
+    0: { roman: 'i', position: 0, type: 'Min', inversion: 'Root', voicing: 'Close', notes: 3, length: 'Until next' },
+    3: { roman: 'VI', position: 5, type: 'Maj', inversion: '1st', voicing: 'Open', notes: 4, length: '4 steps' },
+    6: { roman: 'III', position: 2, type: 'Maj', inversion: 'Root', voicing: 'Drop2', notes: 3, length: '8 steps' },
+    9: { roman: 'iv', position: 3, type: 'Min7', inversion: '2nd', voicing: 'Spread', notes: 5, length: 'Until next' },
+    12: { roman: 'v', position: 4, type: 'Dom7', inversion: 'Root', voicing: 'Close', notes: 4, length: '16 steps' },
+  };
+  const chordTypes = ['Maj', 'Min', 'Min7', 'Dom7', 'Dim'];
+  const chordInversions = ['Root', '1st', '2nd', '3rd'];
+  const chordVoicings = ['Close', 'Open', 'Drop2', 'Spread'];
+  const chordLengths = ['Until next', '4 steps', '8 steps', '16 steps'];
+  const layers = [
+    { id: 'position', label: 'Position' },
+    { id: 'type', label: 'Type' },
+    { id: 'inversion', label: 'Inversion' },
+    { id: 'voicing', label: 'Voicing' },
+    { id: 'notes', label: 'Notes' },
+    { id: 'length', label: 'Length' },
+  ];
+  let selectedLayer = 'type';
+  let selectedChordStep = 0;
+
+  function layerValue(chord) {
+    switch (selectedLayer) {
+      case 'position': return (chord.position >= 0 ? '+' : '') + chord.position;
+      case 'type': return chord.type;
+      case 'inversion': return chord.inversion;
+      case 'voicing': return chord.voicing;
+      case 'notes': return chord.notes + ' notes';
+      case 'length': return chord.length;
+    }
+  }
+
+  function renderChordGrid() {
+    const grid = document.getElementById('chordGrid');
+    grid.innerHTML = '';
+    Object.keys(chordData).forEach((stepKey, index) => {
+      const step = Number(stepKey);
+      const chord = chordData[step];
+      const card = document.createElement('div');
+      card.className = 'chordcard' + (selectedChordStep === step ? ' selected' : '');
+      card.innerHTML = '<div class="top"><span class="idx">' + (index + 1) + '</span><span class="roman">' + chord.roman + '</span></div><div class="step">Step ' + (step + 1) + '</div>';
+      card.addEventListener('click', () => { selectedChordStep = step; renderAll(); });
+      grid.appendChild(card);
+    });
+  }
+
+  function renderSelectedControls() {
+    const chord = chordData[selectedChordStep];
+    document.getElementById('selectedChordLabel').textContent = chord ? chord.roman : 'none';
+    document.getElementById('ctlPosition').textContent = chord ? chord.position : '0';
+    document.getElementById('ctlNotes').textContent = chord ? chord.notes : '-';
+
+    const buildRow = (id, values, current, onPick) => {
+      const row = document.getElementById(id);
+      row.innerHTML = '';
+      values.forEach(v => {
+        const b = document.createElement('button');
+        b.className = 'chip wide' + (v === current ? ' on' : '');
+        b.textContent = v;
+        b.addEventListener('click', () => { onPick(v); renderAll(); });
+        row.appendChild(b);
+      });
+    };
+    if (chord) {
+      buildRow('ctlType', chordTypes, chord.type, v => chord.type = v);
+      buildRow('ctlInversion', chordInversions, chord.inversion, v => chord.inversion = v);
+      buildRow('ctlVoicing', chordVoicings, chord.voicing, v => chord.voicing = v);
+      buildRow('ctlLength', chordLengths, chord.length, v => chord.length = v);
+    }
+  }
+
+  function renderLayerRow() {
+    const row = document.getElementById('layerRow');
+    row.innerHTML = '';
+    layers.forEach(layer => {
+      const b = document.createElement('button');
+      b.className = 'chip' + (layer.id === selectedLayer ? ' on' : '');
+      b.textContent = layer.label;
+      b.addEventListener('click', () => { selectedLayer = layer.id; renderAll(); });
+      row.appendChild(b);
+    });
+  }
+
+  function renderChordSteps() {
+    const el = document.getElementById('chordSteps');
+    el.innerHTML = '';
+    for (let i = 0; i < 16; i++) {
+      const chord = chordData[i];
+      const cell = document.createElement('div');
+      cell.className = 'cstep' + (chord ? ' filled' : ' empty') + (selectedChordStep === i && chord ? ' selected' : '');
+      cell.innerHTML = '<div class="num">' + (i + 1) + '</div>' +
+        '<div class="roman">' + (chord ? chord.roman : '-') + '</div>' +
+        '<div class="lval">' + (chord ? layerValue(chord) : 'empty') + '</div>';
+      cell.addEventListener('click', () => { if (chord) { selectedChordStep = i; renderAll(); } });
+      el.appendChild(cell);
+    }
+  }
+
+  function stepPosition(delta) {
+    const chord = chordData[selectedChordStep];
+    if (!chord) return;
+    chord.position = Math.max(-14, Math.min(14, chord.position + delta));
+    renderAll();
+  }
+  function stepNotes(delta) {
+    const chord = chordData[selectedChordStep];
+    if (!chord) return;
+    chord.notes = Math.max(2, Math.min(5, chord.notes + delta));
+    renderAll();
+  }
+
+  function renderAll() {
+    renderChordGrid();
+    renderSelectedControls();
+    renderLayerRow();
+    renderChordSteps();
+  }
+  renderAll();
+
+  function togglePreset() {
+    const panel = document.getElementById('presetPanel');
+    panel.hidden = !panel.hidden;
+  }
+</script>
+</body>
+</html>

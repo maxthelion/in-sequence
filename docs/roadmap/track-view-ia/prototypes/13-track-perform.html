@@ -1,0 +1,403 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Track Perform — transactional session on a mono track</title>
+<style>
+  :root {
+    --ground:#0d0d10; --inset:#060608; --border:#62626c; --text:#e8e8ec; --muted:#9a9aa4;
+    --fill1: rgba(255,255,255,.05);
+    --cyan:#00ccff; --green:#4ceb85; --red:#ff5a5a; --neutral:#232328;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:#000; color:var(--text); font:14px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; padding:28px 0 60px; }
+  .page { max-width:1180px; margin:0 auto; padding:0 20px; }
+  .page > h1 { font-size:19px; margin:0 0 3px; }
+  .page > .sub { color:var(--muted); font-size:12px; margin:0 0 22px; }
+
+  .statebar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; padding:10px 14px; border:1px solid #26262c; border-radius:10px; margin-bottom:26px; background:#0a0a0c; }
+  .statebar b { font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); margin-right:4px; }
+  .statebar button { font:inherit; font-size:11px; background:transparent; color:var(--muted); border:1px solid var(--border); border-radius:7px; padding:5px 9px; cursor:pointer; }
+  .statebar button.on { color:var(--cyan); border-color:var(--cyan); }
+
+  /* the outer surface border is the FIRST session signal: neutral grey by
+     default, flips to the track accent (outline only, no fill) while a
+     perform session is active. Second signal is the solid SESSION badge in
+     the header. Canon Rule 12: state via outline colour + a small solid
+     badge, never a container tint. */
+  .surface { --accent:var(--cyan); background:var(--ground); border:1.5px solid var(--neutral); border-radius:16px; padding:22px 22px 26px; transition:border-color .15s; }
+  .surface.in-session { border-color:var(--accent); }
+
+  .surface-head { display:flex; align-items:center; gap:10px; margin-bottom:16px; }
+  .surface-head .name { font-size:17px; font-weight:800; }
+  .surface-head .kind { font-size:10px; letter-spacing:.1em; text-transform:uppercase; font-weight:800; color:var(--accent); }
+  .surface-head .spacer { flex:1; }
+
+  /* perform header controls */
+  .perform-controls { display:flex; align-items:center; gap:8px; }
+  .btn-outline { background:transparent; color:var(--text); border:1.5px solid rgba(98,98,108,.8); border-radius:9px; padding:8px 12px; font-size:12px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:6px; white-space:nowrap; }
+  .btn-outline.accent { border-color:var(--accent); color:var(--accent); }
+  .btn-solid { background:var(--accent); color:var(--ground); border:none; border-radius:9px; padding:8px 14px; font-size:12px; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:6px; white-space:nowrap; }
+
+  .badge-pill { display:inline-flex; align-items:center; gap:6px; font-size:10px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; padding:6px 10px; border-radius:999px; }
+  .badge-pill.session { border:1.5px solid var(--accent); color:var(--accent); background:transparent; }
+  .badge-pill.session .dot { width:6px; height:6px; border-radius:50%; background:var(--accent); }
+  .badge-pill.rec { background:var(--red); color:var(--ground); border:none; }
+  .badge-pill.rec .dot { width:6px; height:6px; border-radius:50%; background:var(--ground); }
+
+  /* patterns row — persistent above tabs (spec: always visible) */
+  .patterns-row { margin-bottom:14px; }
+  .patterns-row .row-label { font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); font-weight:700; margin-bottom:7px; }
+  .patterns { display:flex; gap:6px; flex-wrap:wrap; }
+  .pattern-slot { position:relative; min-width:42px; padding:7px 0; text-align:center; font-size:12px; font-weight:800; border:1.5px solid rgba(98,98,108,.7); border-radius:9px; background:transparent; color:var(--muted); cursor:pointer; }
+  .pattern-slot .has-dot { position:absolute; top:4px; right:5px; width:4px; height:4px; border-radius:50%; background:var(--border); }
+  .pattern-slot.displayed { background:var(--accent); border-color:var(--accent); color:var(--ground); }
+  .pattern-slot.displayed .has-dot { background:var(--ground); }
+  .pattern-slot.playing .has-dot { background:var(--green); }
+  /* session tracking: the live-performed slot takes the solid fill AND an
+     outer ring (solid outline, offset — never a translucent glow) to read
+     as "currently driving playback, following the tweak" */
+  .pattern-slot.tracked { background:var(--accent); border-color:var(--accent); color:var(--ground); outline:2px solid var(--accent); outline-offset:2px; }
+  /* basis marker: the pre-session anchor for Reset — dashed NEUTRAL border,
+     never accent, so it never competes with the tracked slot */
+  .pattern-slot.basis { border-style:dashed; border-color:var(--border); color:var(--text); }
+  .pattern-slot.basis .reset-badge { position:absolute; bottom:-7px; left:50%; transform:translateX(-50%); font-size:8px; font-weight:800; background:var(--ground); border:1px solid var(--border); color:var(--muted); border-radius:5px; padding:1px 4px; }
+  /* save destination: dashed ACCENT outline + solid "+" corner badge */
+  .pattern-slot.target { border-style:dashed; border-color:var(--accent); color:var(--accent); }
+  .pattern-slot.target .target-badge { position:absolute; top:-7px; right:-7px; width:15px; height:15px; border-radius:50%; background:var(--accent); color:var(--ground); font-size:10px; font-weight:900; display:flex; align-items:center; justify-content:center; }
+
+  /* D-pill primary section switcher — matches 08-unified-tab-well-D.html */
+  .tabstrip.seg { display:flex; gap:4px; padding:3px; background:var(--fill1); border:1.5px solid rgba(98,98,108,.9); border-radius:12px; margin-bottom:5px; }
+  .tabstrip.seg .schip { flex:1; border:none; background:transparent; color:rgba(232,232,236,.78); font:inherit; font-size:11px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; padding:10px 8px; border-radius:10px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; white-space:nowrap; }
+  .tabstrip.seg .schip.active { background:var(--accent); color:var(--ground); }
+  .tabstrip.seg .schip .mini-badge { font-size:9px; font-weight:800; padding:2px 5px; border-radius:6px; background:var(--accent); color:var(--ground); text-transform:none; letter-spacing:0; }
+  .tabstrip.seg .schip.active .mini-badge { background:var(--ground); color:var(--accent); }
+
+  /* well — same grammar as 08-D/09-D: full-strength accent outline, all
+     corners rounded, one neutral fill step above ground */
+  .well { background:var(--fill1); border:1.5px solid var(--accent); border-radius:12px; padding:18px; }
+  .well-pane[hidden] { display:none; }
+  .stub { border:1.5px dashed var(--border); border-radius:10px; padding:26px; text-align:center; color:var(--muted); font-size:12px; letter-spacing:.02em; }
+
+  /* macros pane */
+  .macros-head { display:flex; align-items:center; gap:10px; margin-bottom:16px; }
+  .macros-head .row-label { font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); font-weight:700; }
+  .macros-head .spacer { flex:1; }
+
+  .macros-grid { display:grid; grid-template-columns:repeat(8, 1fr); gap:10px; }
+  .knob-wrap { display:flex; flex-direction:column; align-items:center; gap:8px; padding:12px 4px; border-radius:12px; border:1.5px solid transparent; }
+  .knob-wrap.hot { border-color:var(--accent); }
+  .knob-dial { position:relative; width:64px; height:64px; }
+  .knob-dial .ring-track, .knob-dial .ring-value {
+    position:absolute; inset:0; border-radius:50%;
+    -webkit-mask:radial-gradient(closest-side, transparent 0 65%, #000 67% 100%);
+    mask:radial-gradient(closest-side, transparent 0 65%, #000 67% 100%);
+  }
+  .knob-dial .ring-track { background:conic-gradient(from 210deg, rgba(98,98,108,.55) 0deg 300deg, transparent 300deg 360deg); }
+  .knob-dial .ring-value { background:conic-gradient(from 210deg, var(--accent) 0deg var(--sweep,0deg), transparent var(--sweep,0deg) 300deg, transparent 300deg 360deg); }
+  .knob-dial .needle { position:absolute; width:7px; height:7px; margin:-3.5px; border-radius:50%; background:var(--ground); border:2px solid var(--accent); }
+  .knob-dial .center { position:absolute; inset:12px; border-radius:50%; background:var(--ground); display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:800; text-align:center; padding:2px; }
+  .knob-empty .knob-dial { border:1.5px dashed rgba(98,98,108,.7); border-radius:50%; display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:20px; font-weight:300; }
+  .knob-label { font-size:10px; font-weight:700; color:var(--muted); text-align:center; }
+  .knob-wrap.hot .knob-label { color:var(--accent); }
+  .live-tag { font-size:8px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:var(--accent); }
+
+  /* recording indicator strip inside the well while a session is live */
+  .rec-strip { display:flex; align-items:center; gap:8px; margin-bottom:16px; padding:8px 10px; border:1px solid rgba(255,90,90,.5); border-radius:9px; }
+  .rec-strip .dot { width:7px; height:7px; border-radius:50%; background:var(--red); }
+  .rec-strip .label { font-size:10px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:var(--red); }
+  .rec-strip .count { font-size:10px; font-weight:700; color:var(--muted); margin-left:auto; }
+
+  /* exit fork — two explicit endings, not a menu */
+  .fork-bar { display:none; margin-top:18px; padding-top:16px; border-top:1.5px dashed rgba(98,98,108,.6); align-items:stretch; gap:12px; }
+  .fork-bar.show { display:flex; }
+  .fork-option { flex:1; border-radius:12px; padding:14px 16px; display:flex; flex-direction:column; gap:4px; cursor:pointer; }
+  .fork-option .flabel { font-size:12px; font-weight:800; letter-spacing:.04em; text-transform:uppercase; }
+  .fork-option .fmeta { font-size:11px; }
+  .fork-option.reset { border:1.5px solid rgba(98,98,108,.8); background:transparent; }
+  .fork-option.reset .flabel { color:var(--text); }
+  .fork-option.reset .fmeta { color:var(--muted); }
+  .fork-option.save { border:none; background:var(--accent); }
+  .fork-option.save .flabel, .fork-option.save .fmeta { color:var(--ground); }
+  .fork-option.save .fmeta { opacity:.75; }
+
+  .legend { margin-top:34px; border:1px solid #26262c; border-radius:10px; padding:14px 16px; background:#0a0a0c; }
+  .legend .lt { font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); font-weight:800; margin-bottom:8px; }
+  .legend ul { margin:0; padding-left:18px; }
+  .legend li { font-size:11.5px; color:#c9c9d1; margin-bottom:6px; line-height:1.5; }
+  .legend li:last-child { margin-bottom:0; }
+  .legend b { color:var(--text); }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>Track Perform — transactional session on a mono track, in phrase context</h1>
+  <p class="sub">Enters from the mono track header (matches the built app's header Perform button); the D-pill / accent-well grammar from 08-unified-tab-well-D.html and 09-kit-and-part-D.html. Rotaries redrawn to the shared 7-o'clock&rarr;5-o'clock top arc. Marked reviewer-annotation legend at the bottom.</p>
+
+  <div class="statebar">
+    <b>Session phase</b>
+    <button id="btnIdle" onclick="setPrototypeState('idle')">(a) Enter — idle</button>
+    <button id="btnSession" onclick="setPrototypeState('session')">(b) In session</button>
+    <button id="btnFork" onclick="setPrototypeState('exit-fork')">(c) Exit — fork</button>
+  </div>
+
+  <section class="surface" id="surface-mono">
+    <div class="surface-head">
+      <span class="name">Mono 8</span>
+      <span class="kind">Mono Track</span>
+      <span class="spacer"></span>
+      <div class="perform-controls" id="performControls"></div>
+    </div>
+
+    <div class="patterns-row">
+      <div class="row-label">Pattern</div>
+      <div class="patterns" id="patternsRow"></div>
+    </div>
+
+    <div class="tabstrip seg">
+      <button class="schip" data-tab="steps">Steps / Clip<span class="mini-badge">Clip</span></button>
+      <button class="schip" data-tab="sound">Sound<span class="mini-badge">Lead Saw</span></button>
+      <button class="schip" data-tab="fx">FX<span class="mini-badge">Insert</span></button>
+      <button class="schip active" data-tab="macros">Macros<span class="mini-badge">6/8</span></button>
+      <button class="schip" data-tab="mixer">Mixer<span class="mini-badge">Master</span></button>
+    </div>
+
+    <div class="well">
+      <div class="well-pane" data-pane="steps" hidden><div class="stub">[ Steps/Clip grid — off path, see 08-unified-tab-well-D.html mono pane ]</div></div>
+      <div class="well-pane" data-pane="sound" hidden><div class="stub">[ instrument picker — off path ]</div></div>
+      <div class="well-pane" data-pane="fx" hidden><div class="stub">[ insert chain — off path ]</div></div>
+
+      <div class="well-pane" data-pane="macros">
+        <div class="rec-strip" id="recStrip">
+          <span class="dot"></span>
+          <span class="label">Recording tweaks as events</span>
+          <span class="count" id="recCount">3 events this session</span>
+        </div>
+
+        <div class="macros-head">
+          <span class="row-label">Macros</span>
+          <span class="spacer"></span>
+          <button class="btn-outline accent" id="randomizeBtn" onclick="randomize()">&#127922; Randomize</button>
+        </div>
+
+        <div class="macros-grid" id="macrosGrid"></div>
+      </div>
+
+      <div class="well-pane" data-pane="mixer" hidden><div class="stub">[ bus + sends — off path ]</div></div>
+
+      <div class="fork-bar" id="forkBar">
+        <div class="fork-option reset" onclick="doReset()">
+          <span class="flabel">&#8630; Reset</span>
+          <span class="fmeta">Back to Pattern 4 as it was before this session</span>
+        </div>
+        <div class="fork-option save" onclick="doSave()">
+          <span class="flabel">&#128190; Save to Pattern 10</span>
+          <span class="fmeta">Writes the tweaked macros + recorded events as a new pattern</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="legend">
+    <div class="lt">Reviewer annotations</div>
+    <ul>
+      <li><b>Session signal (canon-legal, outline/badge not tint):</b> the outer
+        surface border flips from neutral grey to the track accent while a
+        session is live, plus a solid "SESSION" badge in the header — no
+        container fill changes anywhere.</li>
+      <li><b>Pattern-row tracking:</b> resolves the 150002 tension inside a
+        session — the tracked (currently-performed) slot takes the solid
+        accent fill plus a second offset outline ring so it reads as "live and
+        following"; the pre-session BASIS pattern (4) keeps a dashed neutral
+        outline as the Reset anchor. Coordinator: reconcile against the
+        10-prototype's tracking visual once it exists.</li>
+      <li><b>Recording indicator:</b> a dedicated red rec-strip inside the
+        well (never the track's own accent, so it never competes with
+        "session" cyan) states tweaks are being captured as events per the
+        clarified intent (150009) — this fires in addition to the
+        commit/reset ending, not instead of it.</li>
+      <li><b>Randomize:</b> stubbed as an outline accent button tied to the
+        12-prototype's dice action; scoped to the visible macros in this
+        pane (steps randomization is off-path here).</li>
+      <li><b>Exit fork:</b> two explicit, equally-sized options replace the
+        Perform control the moment a session ends — Reset (outline, returns
+        to the basis pattern) vs Save (solid accent, shows the destination
+        slot both in its own label and highlighted in the pattern row above)
+        — never a menu.</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+  const MACROS_BASE = [
+    { id:'M1', label:'Cutoff', sweep:0.78, display:'14.2k' },
+    { id:'M2', label:'Decay',  sweep:0.35, display:'220ms' },
+    { id:'M3', label:'Drive',  sweep:0.10, display:'10%' },
+    { id:'M4', label:'Pitch',  sweep:0.55, display:'+3st' },
+    { id:'M5', label:'Pan',    sweep:0.62, display:'R18' },
+    { id:'M6', label:'Send A', sweep:0.20, display:'-14dB' },
+    null,
+    null,
+  ];
+  const MACROS_RANDOMIZED = [
+    { id:'M1', label:'Cutoff', sweep:0.44, display:'6.1k' },
+    { id:'M2', label:'Decay',  sweep:0.81, display:'640ms' },
+    { id:'M3', label:'Drive',  sweep:0.58, display:'52%' },
+    { id:'M4', label:'Pitch',  sweep:0.29, display:'-5st' },
+    { id:'M5', label:'Pan',    sweep:0.15, display:'L27' },
+    { id:'M6', label:'Send A', sweep:0.67, display:'-6dB' },
+    null,
+    null,
+  ];
+
+  let phase = 'idle';       // 'idle' | 'session' | 'exit-fork'
+  let macros = MACROS_BASE;
+  let hotId = 'M1';
+  let trackedSlot = 6;      // slot the live perform session is currently driving
+  const BASIS_SLOT = 4;     // pre-session displayed pattern
+  const PLAYING_SLOT = 1;   // background transport-playing slot (idle state)
+  const TARGET_SLOT = 10;   // next free slot Save would land on
+  const HAS_CONTENT = new Set([1,2,3,4,5,6,7,8,9]);
+
+  function polar(cx, cy, r, angleDeg) {
+    const a = (angleDeg - 90) * Math.PI / 180; // 0deg = top(12 o'clock)
+    return { x: cx + r * Math.cos(a) + 90 /*noop guard*/ - 90, y: cy + r * Math.sin(a) };
+  }
+  // clockwise-from-12 angle -> x/y (12 o'clock = 0deg, increases clockwise)
+  function needlePos(cx, cy, r, angleDeg) {
+    const rad = angleDeg * Math.PI / 180;
+    return { x: cx + r * Math.sin(rad), y: cy - r * Math.cos(rad) };
+  }
+
+  function buildKnob(m, isHot) {
+    const wrap = document.createElement('div');
+    if (!m) {
+      wrap.className = 'knob-wrap knob-empty';
+      wrap.innerHTML = '<div class="knob-dial">+</div><div class="knob-label">Assign</div>';
+      return wrap;
+    }
+    wrap.className = 'knob-wrap' + (isHot ? ' hot' : '');
+    const sweepDeg = m.sweep * 300;
+    const angle = 210 + sweepDeg; // absolute angle, matches conic-gradient "from 210deg"
+    const pos = needlePos(32, 32, 22, angle);
+    wrap.innerHTML =
+      '<div class="knob-dial" style="--sweep:' + sweepDeg + 'deg">' +
+        '<div class="ring-track"></div>' +
+        '<div class="ring-value"></div>' +
+        '<div class="needle" style="left:' + pos.x + 'px; top:' + pos.y + 'px"></div>' +
+        '<div class="center">' + m.display + '</div>' +
+      '</div>' +
+      '<div class="knob-label">' + m.id + ' &middot; ' + m.label + '</div>' +
+      (isHot ? '<div class="live-tag">&#9679; live</div>' : '');
+    return wrap;
+  }
+
+  function renderMacros() {
+    const grid = document.getElementById('macrosGrid');
+    grid.innerHTML = '';
+    macros.forEach(m => {
+      const isHot = phase === 'session' && m && m.id === hotId;
+      grid.appendChild(buildKnob(m, isHot));
+    });
+  }
+
+  function renderPatterns() {
+    const row = document.getElementById('patternsRow');
+    row.innerHTML = '';
+    for (let i = 1; i <= 16; i++) {
+      const b = document.createElement('button');
+      b.className = 'pattern-slot';
+      let inner = '<span>' + i + '</span>';
+      if (HAS_CONTENT.has(i)) inner += '<span class="has-dot"></span>';
+
+      if (phase === 'idle') {
+        if (i === BASIS_SLOT) b.classList.add('displayed');
+        if (i === PLAYING_SLOT) b.classList.add('playing');
+      } else if (phase === 'session') {
+        if (i === trackedSlot) b.classList.add('tracked');
+        else if (i === BASIS_SLOT) { b.classList.add('basis'); inner += '<span class="reset-badge">basis</span>'; }
+      } else if (phase === 'exit-fork') {
+        if (i === trackedSlot) b.classList.add('tracked');
+        else if (i === BASIS_SLOT) { b.classList.add('basis'); inner += '<span class="reset-badge">basis</span>'; }
+        else if (i === TARGET_SLOT) { b.classList.add('target'); inner += '<span class="target-badge">+</span>'; }
+      }
+      b.innerHTML = inner;
+      row.appendChild(b);
+    }
+  }
+
+  function renderPerformControls() {
+    const el = document.getElementById('performControls');
+    if (phase === 'idle') {
+      el.innerHTML = '<button class="btn-solid" onclick="setPrototypeState(\'session\')">&#9654; Perform</button>';
+    } else {
+      el.innerHTML =
+        '<span class="badge-pill session"><span class="dot"></span>Session</span>' +
+        '<span class="badge-pill rec"><span class="dot"></span>Rec</span>' +
+        (phase === 'session'
+          ? '<button class="btn-outline" onclick="setPrototypeState(\'exit-fork\')">End Session</button>'
+          : '');
+    }
+  }
+
+  function renderForkBar() {
+    document.getElementById('forkBar').classList.toggle('show', phase === 'exit-fork');
+    document.getElementById('recStrip').style.display = (phase === 'idle') ? 'none' : 'flex';
+  }
+
+  function render() {
+    document.getElementById('surface-mono').classList.toggle('in-session', phase !== 'idle');
+    ['btnIdle', 'btnSession', 'btnFork'].forEach(id => document.getElementById(id).classList.remove('on'));
+    if (phase === 'idle') document.getElementById('btnIdle').classList.add('on');
+    if (phase === 'session') document.getElementById('btnSession').classList.add('on');
+    if (phase === 'exit-fork') document.getElementById('btnFork').classList.add('on');
+    renderPerformControls();
+    renderPatterns();
+    renderMacros();
+    renderForkBar();
+  }
+
+  function randomize() {
+    macros = (macros === MACROS_BASE) ? MACROS_RANDOMIZED : MACROS_BASE;
+    hotId = 'M3';
+    renderMacros();
+  }
+
+  function doReset() {
+    macros = MACROS_BASE;
+    phase = 'idle';
+    render();
+  }
+  function doSave() {
+    macros = MACROS_BASE;
+    phase = 'idle';
+    render();
+  }
+
+  function selectTab(tabName) {
+    document.querySelectorAll('.tabstrip.seg .schip').forEach(el => {
+      el.classList.toggle('active', el.dataset.tab === tabName);
+    });
+    document.querySelectorAll('.well-pane[data-pane]').forEach(el => {
+      el.hidden = el.dataset.pane !== tabName;
+    });
+  }
+  document.querySelectorAll('.tabstrip.seg .schip').forEach(el => {
+    el.addEventListener('click', () => selectTab(el.dataset.tab));
+  });
+
+  function setPrototypeState(state) {
+    if (state === 'idle') { phase = 'idle'; macros = MACROS_BASE; }
+    else if (state === 'session') { phase = 'session'; }
+    else if (state === 'exit-fork') { phase = 'exit-fork'; }
+    render();
+  }
+  window.setPrototypeState = setPrototypeState;
+
+  // init
+  selectTab('macros');
+  render();
+</script>
+</body>
+</html>

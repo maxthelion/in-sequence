@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Unified Tab Well — Variant C (pill tabs + full-accent well border)</title>
+<style>
+  :root {
+    --ground:#0d0d10; --border:#62626c; --text:#e8e8ec; --muted:#9a9aa4;
+    --fill1: rgba(255,255,255,.05);
+    --green:#4ceb85; --cyan:#00ccff; --violet:#a187ff;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:#000; color:var(--text); font:14px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; padding:28px 0 60px; }
+  .page { max-width:1180px; margin:0 auto; padding:0 20px; }
+  .page > h1 { font-size:19px; margin:0 0 3px; }
+  .page > .sub { color:var(--muted); font-size:12px; margin:0 0 22px; }
+
+  .statebar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; padding:10px 14px; border:1px solid #26262c; border-radius:10px; margin-bottom:26px; background:#0a0a0c; }
+  .statebar b { font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); margin-right:4px; }
+  .statebar button { font:inherit; font-size:11px; background:transparent; color:var(--muted); border:1px solid var(--border); border-radius:7px; padding:5px 9px; cursor:pointer; }
+  .statebar a.swap { margin-left:auto; font-size:11px; color:var(--cyan); text-decoration:none; border:1px solid var(--border); border-radius:7px; padding:5px 9px; }
+
+  .surface { background:var(--ground); border:1px solid #232328; border-radius:16px; padding:22px 22px 26px; margin-bottom:30px; }
+  .surface-head { display:flex; align-items:baseline; gap:10px; margin-bottom:16px; }
+  .surface-head .name { font-size:17px; font-weight:800; }
+  .surface-head .kind { font-size:10px; letter-spacing:.1em; text-transform:uppercase; font-weight:800; color:var(--accent); }
+
+  /* underline tab grammar — StudioSlotTabButton (pill look kept; the gap
+     to the well below is intentional in this variant) */
+  .tabstrip { display:flex; gap:6px; margin-bottom:5px; }
+  .tab { flex:1; background:var(--fill1); border:1px solid var(--border); border-radius:8px; padding:0; cursor:pointer; color:var(--muted); font:inherit; overflow:hidden; text-align:left; }
+  .tab .row { display:flex; align-items:center; gap:8px; padding:10px 12px; }
+  .tab .lbl { font-size:11px; letter-spacing:.08em; font-weight:800; text-transform:uppercase; color:var(--muted); }
+  .tab .underline { height:2px; background:transparent; }
+  .tab.active { border-color:var(--accent); border-width:1.5px; }
+  .tab.active .lbl { color:var(--text); }
+  .tab.active .underline { background:var(--accent); }
+  .tab .badge { font-size:10px; font-weight:800; padding:3px 7px; border-radius:8px; background:var(--accent); color:var(--ground); }
+
+  /* well — StudioTabWell: square top, docks flush under tab strip.
+     Variant C: the border is the surface accent at FULL strength (no ghost
+     opacity) so the selected pill and the container read as one system —
+     an outline, never a fill (canon Rule 12). */
+  .well { background:var(--fill1); border:1.5px solid var(--accent); border-radius:0 0 12px 12px; padding:18px; }
+  .well-pane[hidden] { display:none; }
+
+  .stub { border:1.5px dashed var(--border); border-radius:10px; padding:26px; text-align:center; color:var(--muted); font-size:12px; letter-spacing:.02em; }
+
+  /* secondary selectors — StudioSegmentedControl (solid-thumb chips) */
+  .seg-block { margin-bottom:16px; }
+  .seg-block:last-child { margin-bottom:0; }
+  .seg-label { font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); font-weight:700; margin-bottom:7px; }
+  .segcontrol { display:inline-flex; gap:4px; padding:3px; background:var(--fill1); border:1.5px solid rgba(98,98,108,.9); border-radius:12px; }
+  .segcontrol.wide { display:flex; width:100%; }
+  .segchip { border:none; background:transparent; color:rgba(232,232,236,.78); font:inherit; font-size:12px; font-weight:700; padding:7px 14px; border-radius:10px; cursor:pointer; white-space:nowrap; }
+  .segchip.wide { flex:1; text-align:center; padding:7px 4px; }
+  .segchip.active { background:var(--accent); color:var(--ground); }
+
+  .well-grid { display:grid; grid-template-columns:1.15fr 1fr 1fr; gap:16px; align-items:start; }
+  .card { background:rgba(255,255,255,.03); border:1px solid rgba(98,98,108,.6); border-radius:12px; padding:14px; }
+  .card h4 { margin:0 0 12px; font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); font-weight:700; }
+
+  .audio-card { background:var(--accent); color:var(--ground); border-radius:12px; padding:16px; min-height:196px; display:flex; flex-direction:column; }
+  .audio-card .t { font-size:11px; font-weight:800; opacity:.65; letter-spacing:.04em; text-transform:uppercase; }
+  .audio-card .n { font-size:19px; font-weight:800; margin:3px 0 1px; }
+  .audio-card .m { font-size:11px; opacity:.7; }
+  .audio-card .meters { display:flex; gap:12px; align-items:flex-end; height:78px; margin:14px 0 8px; flex:1; }
+  .audio-card .bar { width:16px; background:rgba(13,13,16,.32); border-radius:3px; }
+  .audio-card .lbls { display:flex; gap:12px; font-size:10px; font-weight:800; opacity:.65; }
+  .audio-card .lbls span { width:16px; text-align:center; }
+
+  .btn-solid { background:var(--accent); color:var(--ground); border:none; border-radius:10px; padding:9px 14px; font-weight:800; font-size:12px; cursor:pointer; display:inline-flex; align-items:center; gap:6px; }
+
+  .wt-option { border:1px solid rgba(98,98,108,.7); border-radius:10px; padding:11px 12px; margin-bottom:8px; font-size:12.5px; font-weight:700; color:#c9c9d1; cursor:pointer; }
+  .wt-option:last-child { margin-bottom:0; }
+  .wt-option.selected { border-color:var(--accent); border-width:1.5px; color:var(--text); }
+
+  .clip-hdr { display:flex; align-items:center; gap:10px; margin-bottom:16px; }
+  .clip-hdr .badge-lg { font-size:10px; font-weight:800; padding:4px 8px; border-radius:8px; background:var(--accent); color:var(--ground); }
+  .clip-hdr .t { font-size:14px; font-weight:800; }
+  .clip-hdr .m { font-size:11px; color:var(--muted); margin-left:2px; }
+  .icon-btn { margin-left:auto; width:26px; height:26px; border-radius:8px; border:1px solid rgba(98,98,108,.7); background:transparent; color:var(--muted); display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:12px; }
+
+  .steps { display:grid; grid-template-columns:repeat(16,1fr); gap:4px; }
+  .step { aspect-ratio:1; border:1px solid rgba(98,98,108,.7); border-radius:6px; background:transparent; }
+  .step.on { background:var(--accent); border-color:var(--accent); }
+
+  .waveform { height:96px; border:1px solid rgba(98,98,108,.7); border-radius:10px; margin-bottom:14px; display:flex; align-items:center; padding:0 10px; gap:2px; overflow:hidden; background:rgba(255,255,255,.02); }
+  .waveform .bar { width:3px; background:var(--accent); border-radius:2px; opacity:.85; }
+
+  .sample-card { display:flex; align-items:center; justify-content:space-between; gap:14px; }
+  .sample-card .info .n { font-size:14px; font-weight:800; }
+  .sample-card .info .m { font-size:11px; color:var(--muted); margin-top:3px; }
+  .btn-outline { background:transparent; color:var(--text); border:1px solid rgba(98,98,108,.8); border-radius:9px; padding:8px 12px; font-size:12px; font-weight:700; cursor:pointer; }
+  .btn-outline.accent { border-color:var(--accent); }
+  .btn-row { display:flex; gap:8px; margin-top:10px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>Unified tab-well — Variant C: pill tabs, full-accent well border</h1>
+  <p class="sub">Owner-feedback form (2): the StudioSlotTabButton pill look is kept (gap/seam retained between the selected pill and the well edge), but the well border carries the surface accent at FULL strength — same highlight as the selected pill — so pill + container read as one system. Outline colour only; no accent fill (canon Rule 12 bans fills, not outlines). Compare 08-unified-tab-well-A.html (seamless folder-tab) and 08-unified-tab-well-B.html (segmented row inside the well).</p>
+
+  <div class="statebar">
+    <b>Jump to pane</b>
+    <button onclick="setPrototypeState('audio:fx')">audio:fx</button>
+    <button onclick="setPrototypeState('mono:sound')">mono:sound</button>
+    <button onclick="setPrototypeState('slicer:slice')">slicer:slice</button>
+    <a class="swap" href="08-unified-tab-well-A.html">→ Variant A</a>
+    <a class="swap" style="margin-left:8px" href="08-unified-tab-well-B.html">→ Variant B</a>
+  </div>
+
+  <!-- (a) AUDIO INPUT -->
+  <section class="surface" id="surface-audio" style="--accent:var(--green)">
+    <div class="surface-head"><span class="name">Audio Input 10</span><span class="kind">Audio Input</span></div>
+    <div class="tabstrip">
+      <button class="tab active" data-tab="source" onclick="selectTab('surface-audio','source')"><div class="row"><span class="lbl">Source</span></div><div class="underline"></div></button>
+      <button class="tab" data-tab="fx" onclick="selectTab('surface-audio','fx')"><div class="row"><span class="lbl">FX</span></div><div class="underline"></div></button>
+      <button class="tab" data-tab="macros" onclick="selectTab('surface-audio','macros')"><div class="row"><span class="lbl">Macros</span></div><div class="underline"></div></button>
+      <button class="tab" data-tab="mixer" onclick="selectTab('surface-audio','mixer')"><div class="row"><span class="lbl">Mixer</span></div><div class="underline"></div></button>
+    </div>
+    <div class="well">
+      <div class="well-pane" data-pane="source">
+        <div class="seg-block">
+          <div class="seg-label">Mode</div>
+          <div class="segcontrol">
+            <button class="segchip active">Live</button>
+            <button class="segchip">Playback</button>
+          </div>
+        </div>
+        <div class="well-grid">
+          <div class="audio-card">
+            <div class="t">Audio Channel</div>
+            <div class="n">St 1–2</div>
+            <div class="m">2 channels</div>
+            <div class="meters">
+              <div class="bar" style="height:70%"></div>
+              <div class="bar" style="height:88%"></div>
+            </div>
+            <div class="lbls"><span>L</span><span>R</span></div>
+          </div>
+          <div class="card">
+            <h4>Record</h4>
+            <button class="btn-solid">⏺ Arm 2 bars</button>
+            <div class="seg-block" style="margin-top:14px">
+              <div class="seg-label">Start</div>
+              <div class="segcontrol wide">
+                <button class="segchip wide active">Next Bar</button>
+                <button class="segchip wide">Next Phrase</button>
+              </div>
+            </div>
+            <div class="seg-block">
+              <div class="seg-label">Length</div>
+              <div class="segcontrol wide">
+                <button class="segchip wide">1</button>
+                <button class="segchip wide active">2</button>
+                <button class="segchip wide">4</button>
+                <button class="segchip wide">8</button>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <h4>Write Target</h4>
+            <div class="wt-option selected">Rolling capture</div>
+            <div class="wt-option">Replace saved buffer</div>
+            <div class="wt-option">New saved buffer</div>
+          </div>
+        </div>
+      </div>
+      <div class="well-pane" data-pane="fx" hidden><div class="stub">[ insert chain — off path ]</div></div>
+      <div class="well-pane" data-pane="macros" hidden><div class="stub">[ M1–M8 — off path ]</div></div>
+      <div class="well-pane" data-pane="mixer" hidden><div class="stub">[ bus + sends — off path ]</div></div>
+    </div>
+  </section>
+
+  <!-- (b) MONO -->
+  <section class="surface" id="surface-mono" style="--accent:var(--cyan)">
+    <div class="surface-head"><span class="name">Mono 8</span><span class="kind">Mono Track</span></div>
+    <div class="tabstrip">
+      <button class="tab active" data-tab="steps" onclick="selectTab('surface-mono','steps')"><div class="row"><span class="lbl">Steps / Clip</span><span class="badge">Clip</span></div><div class="underline"></div></button>
+      <button class="tab" data-tab="sound" onclick="selectTab('surface-mono','sound')"><div class="row"><span class="lbl">Sound</span><span class="badge">Empty</span></div><div class="underline"></div></button>
+      <button class="tab" data-tab="fx" onclick="selectTab('surface-mono','fx')"><div class="row"><span class="lbl">FX</span><span class="badge">Insert</span></div><div class="underline"></div></button>
+      <button class="tab" data-tab="macros" onclick="selectTab('surface-mono','macros')"><div class="row"><span class="lbl">Macros</span><span class="badge">Empty</span></div><div class="underline"></div></button>
+      <button class="tab" data-tab="mixer" onclick="selectTab('surface-mono','mixer')"><div class="row"><span class="lbl">Mixer</span><span class="badge">Master</span></div><div class="underline"></div></button>
+    </div>
+    <div class="well">
+      <div class="well-pane" data-pane="steps">
+        <div class="clip-hdr">
+          <span class="badge-lg">Clip</span>
+          <span class="t">Mono 8 · Pattern 4</span>
+          <span class="m">1 bar</span>
+          <button class="icon-btn">✕</button>
+        </div>
+        <div class="seg-block">
+          <div class="seg-label">Lane</div>
+          <div class="segcontrol">
+            <button class="segchip active">Normal</button>
+            <button class="segchip">Fill</button>
+          </div>
+        </div>
+        <div class="seg-block">
+          <div class="seg-label">Layer</div>
+          <div class="segcontrol">
+            <button class="segchip active">Steps</button>
+            <button class="segchip">Velocity</button>
+            <button class="segchip">Chance</button>
+          </div>
+        </div>
+        <div class="seg-block">
+          <div class="seg-label">Length</div>
+          <div class="segcontrol">
+            <button class="segchip active">16</button>
+            <button class="segchip">32</button>
+            <button class="segchip">64</button>
+            <button class="segchip">128</button>
+          </div>
+        </div>
+        <div class="steps">
+          <div class="step on"></div><div class="step"></div><div class="step"></div><div class="step on"></div>
+          <div class="step"></div><div class="step"></div><div class="step on"></div><div class="step"></div>
+          <div class="step"></div><div class="step on"></div><div class="step"></div><div class="step"></div>
+          <div class="step on"></div><div class="step"></div><div class="step"></div><div class="step"></div>
+        </div>
+      </div>
+      <div class="well-pane" data-pane="sound" hidden><div class="stub">[ instrument picker — off path ]</div></div>
+      <div class="well-pane" data-pane="fx" hidden><div class="stub">[ insert chain — off path ]</div></div>
+      <div class="well-pane" data-pane="macros" hidden><div class="stub">[ M1–M8 — off path ]</div></div>
+      <div class="well-pane" data-pane="mixer" hidden><div class="stub">[ bus + sends — off path ]</div></div>
+    </div>
+  </section>
+
+  <!-- (c) SLICER -->
+  <section class="surface" id="surface-slicer" style="--accent:var(--violet)">
+    <div class="surface-head"><span class="name">Slicer 3</span><span class="kind">Slicer Track</span></div>
+
+    <div class="waveform" id="waveform"></div>
+
+    <div class="tabstrip">
+      <button class="tab active" data-tab="source" onclick="selectTab('surface-slicer','source')"><div class="row"><span class="lbl">Source</span></div><div class="underline"></div></button>
+      <button class="tab" data-tab="slice" onclick="selectTab('surface-slicer','slice')"><div class="row"><span class="lbl">Slice</span></div><div class="underline"></div></button>
+      <button class="tab" data-tab="fx" onclick="selectTab('surface-slicer','fx')"><div class="row"><span class="lbl">FX</span></div><div class="underline"></div></button>
+      <button class="tab" data-tab="macros" onclick="selectTab('surface-slicer','macros')"><div class="row"><span class="lbl">Macros</span></div><div class="underline"></div></button>
+      <button class="tab" data-tab="mixer" onclick="selectTab('surface-slicer','mixer')"><div class="row"><span class="lbl">Mixer</span></div><div class="underline"></div></button>
+    </div>
+    <div class="well">
+      <div class="well-pane" data-pane="source">
+        <div class="seg-block">
+          <div class="seg-label">Layer</div>
+          <div class="segcontrol wide" id="slicerLayerRow"></div>
+        </div>
+        <div class="card sample-card">
+          <div class="info">
+            <div class="n">Atlantis Amen</div>
+            <div class="m">8 slices · Grid detection</div>
+            <div class="btn-row">
+              <button class="btn-outline accent">Edit Slices</button>
+              <button class="btn-outline">Re-slice</button>
+            </div>
+          </div>
+          <button class="btn-outline">Remove Sample</button>
+        </div>
+      </div>
+      <div class="well-pane" data-pane="slice" hidden><div class="stub">[ slice index / velocity / direction / gate / chance — off path ]</div></div>
+      <div class="well-pane" data-pane="fx" hidden><div class="stub">[ insert chain — off path ]</div></div>
+      <div class="well-pane" data-pane="macros" hidden><div class="stub">[ M1–M8 — off path ]</div></div>
+      <div class="well-pane" data-pane="mixer" hidden><div class="stub">[ bus + sends — off path ]</div></div>
+    </div>
+  </section>
+</div>
+
+<script>
+  function selectTab(surfaceId, tabName) {
+    const surface = document.getElementById(surfaceId);
+    surface.querySelectorAll(':scope > .tabstrip > .tab, :scope > .segcontrol.wide.primary > .segchip').forEach(el => {
+      el.classList.toggle('active', el.dataset.tab === tabName);
+    });
+    surface.querySelectorAll(':scope .well-pane').forEach(el => {
+      el.hidden = el.dataset.pane !== tabName;
+    });
+  }
+
+  function setPrototypeState(spec) {
+    const [surface, tab] = spec.split(':');
+    const map = { audio:'surface-audio', mono:'surface-mono', slicer:'surface-slicer' };
+    selectTab(map[surface], tab);
+  }
+
+  // build the 16-pad slicer layer row (adversarial fixture: sparse, uneven slice pattern)
+  (function buildSlicerLayer() {
+    const on = new Set([1,3,5,7,9,11,13,15]);
+    const row = document.getElementById('slicerLayerRow');
+    for (let i = 1; i <= 16; i++) {
+      const b = document.createElement('button');
+      b.className = 'segchip wide' + (on.has(i) ? ' active' : '');
+      b.textContent = i;
+      row.appendChild(b);
+    }
+  })();
+
+  // faux waveform (adversarial: uneven transient spacing)
+  (function buildWaveform() {
+    const el = document.getElementById('waveform');
+    const heights = [20,35,55,80,60,40,25,70,90,65,30,45,75,85,50,20,35,60,95,55,40,20,30,50,70,85,60,35,20,45,65,80,55,30];
+    heights.forEach(h => {
+      const bar = document.createElement('div');
+      bar.className = 'bar';
+      bar.style.height = h + '%';
+      el.appendChild(bar);
+    });
+  })();
+</script>
+</body>
+</html>

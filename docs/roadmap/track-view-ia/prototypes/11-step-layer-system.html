@@ -1,0 +1,352 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Step Layer System — Pitch layer + 8x8-matrix quick-switch</title>
+<style>
+  :root {
+    --ground:#0d0d10; --inset:#060608; --border:#62626c; --text:#e8e8ec; --muted:#9a9aa4;
+    --fill1: rgba(255,255,255,.05);
+    --cyan:#00ccff; --violet:#a187ff; --green:#4ceb85; --orange:#ff8738;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:#000; color:var(--text); font:14px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; padding:28px 0 60px; }
+  .page { max-width:1180px; margin:0 auto; padding:0 20px; }
+  .page > h1 { font-size:19px; margin:0 0 3px; }
+  .page > .sub { color:var(--muted); font-size:12px; margin:0 0 22px; }
+
+  .statebar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; padding:10px 14px; border:1px solid #26262c; border-radius:10px; margin-bottom:26px; background:#0a0a0c; }
+  .statebar b { font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); margin-right:4px; }
+  .statebar button { font:inherit; font-size:11px; background:transparent; color:var(--muted); border:1px solid var(--border); border-radius:7px; padding:5px 9px; cursor:pointer; }
+
+  .surface { background:var(--ground); border:1px solid #232328; border-radius:16px; padding:22px 22px 26px; margin-bottom:30px; }
+  .surface-head { display:flex; align-items:baseline; gap:10px; margin-bottom:14px; }
+  .surface-head .name { font-size:17px; font-weight:800; }
+  .surface-head .kind { font-size:10px; letter-spacing:.1em; text-transform:uppercase; font-weight:800; color:var(--accent); }
+
+  /* primary section switcher — D-pill grammar (locked, tab-unification-and-canon-creep.md) */
+  .tabstrip.seg { display:flex; gap:4px; padding:3px; background:var(--fill1); border:1.5px solid rgba(98,98,108,.9); border-radius:12px; margin-bottom:5px; }
+  .tabstrip.seg .schip { flex:1; border:none; background:transparent; color:rgba(232,232,236,.78); font:inherit; font-size:11px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; padding:10px 8px; border-radius:10px; cursor:pointer; white-space:nowrap; }
+  .tabstrip.seg .schip.active { background:var(--accent); color:var(--ground); }
+
+  .well { background:var(--fill1); border:1.5px solid var(--accent); border-radius:12px; padding:18px; }
+
+  .clip-hdr { display:flex; align-items:center; gap:10px; margin-bottom:14px; }
+  .clip-hdr .badge-lg { font-size:10px; font-weight:800; padding:4px 8px; border-radius:8px; background:var(--accent); color:var(--ground); }
+  .clip-hdr .t { font-size:14px; font-weight:800; }
+  .clip-hdr .m { font-size:11px; color:var(--muted); margin-left:2px; }
+
+  /* value/layer selectors — inset-track solid-thumb family (LOCKED: never the pill grammar) */
+  .selrow { display:flex; gap:14px; align-items:center; flex-wrap:wrap; margin-bottom:16px; }
+  .sel-block { display:flex; align-items:center; gap:8px; }
+  .track-label { font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); font-weight:700; }
+  .track { display:inline-flex; gap:3px; padding:3px; background:var(--inset); border:1px solid rgba(98,98,108,.55); border-radius:999px; }
+  .track .chip { border:none; background:transparent; color:rgba(232,232,236,.72); font:inherit; font-size:11px; font-weight:700; padding:6px 12px; border-radius:999px; cursor:pointer; white-space:nowrap; }
+  .track .chip.on { background:var(--accent); color:var(--ground); }
+
+  /* --- THE QUICK-SWITCH -----------------------------------------------
+     Value-selector mechanism (inset-track family), never the section-
+     switcher pill grammar. Closed = a solid value-chip (current layer).
+     Open = a compact square matrix of layer cells (the "8x8 matrix"
+     pattern already used for the phrase Layers grid), sunk in the same
+     darker inset used by every other value selector. */
+  .layer-row { display:flex; align-items:flex-start; gap:16px; margin-bottom:16px; }
+  .quickswitch { position:relative; flex:0 0 auto; }
+  .qs-trigger { width:58px; height:58px; border-radius:14px; background:var(--accent); color:var(--ground); border:none; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; cursor:pointer; font:inherit; }
+  .qs-trigger .lbl { font-size:10px; font-weight:800; letter-spacing:.03em; }
+  .qs-trigger .ico { font-size:13px; opacity:.75; }
+  .qs-panel { position:absolute; top:0; left:68px; z-index:6; background:var(--inset); border:1px solid rgba(98,98,108,.6); border-radius:14px; padding:8px; display:grid; grid-template-columns:repeat(3,54px); gap:6px; }
+  .qs-panel[hidden] { display:none; }
+  .qs-cell { width:54px; height:54px; border-radius:12px; border:1px solid rgba(98,98,108,.6); background:transparent; color:rgba(232,232,236,.8); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; cursor:pointer; position:relative; font:inherit; }
+  .qs-cell .lbl { font-size:9.5px; font-weight:800; letter-spacing:.02em; }
+  .qs-cell .dot { position:absolute; top:5px; right:5px; width:5px; height:5px; border-radius:50%; background:rgba(154,154,164,.35); }
+  .qs-cell.has .dot { background:var(--green); }
+  .qs-cell.active { background:var(--accent); border-color:var(--accent); color:var(--ground); }
+  .qs-cell.active .dot { background:var(--ground); }
+  .qs-cell.stub { border-style:dashed; color:var(--muted); opacity:.4; cursor:default; }
+
+  /* --- ONE GRID GRAMMAR: shared step-cell component --------------------
+     Every layer (binary / magnitude-bar / discrete-glyph / pitch) renders
+     into the same 16-cell grid, same cell size, same beat grouping. */
+  .steps16 { display:grid; grid-template-columns:repeat(16,1fr); gap:6px; }
+  .cell { aspect-ratio:1; border-radius:10px; border:1px solid rgba(98,98,108,.7); display:flex; flex-direction:column; align-items:center; justify-content:center; position:relative; background:transparent; }
+  .cell.off::after { content:""; width:8px; height:8px; border-radius:50%; border:1.5px solid rgba(98,98,108,.7); }
+
+  .cell.simple.on { background:var(--accent); border-color:var(--accent); }
+
+  .cell.bar-cell { align-items:flex-end; padding:5px; }
+  .cell.bar-cell .bar { width:58%; background:var(--accent); border-radius:4px 4px 2px 2px; min-height:3px; }
+
+  .cell.discrete.on { background:var(--accent); border-color:var(--accent); color:var(--ground); }
+  .cell.discrete .glyph { font-size:14px; font-weight:800; }
+
+  /* PITCH cell — encodes scale degree AND octave as two sub-dimensions
+     in one glance: degree glyph (center, dominant) + a 3-dot octave band
+     (bottom edge) showing Low/Mid/High register, with a corner badge for
+     octaves beyond the immediate band. Octave dots are click targets —
+     octave is shiftable directly on the cell. */
+  .cell.pitch.on { background:var(--accent); border-color:var(--accent); color:var(--ground); justify-content:space-between; padding:6px 2px 5px; }
+  .cell.pitch .degree { font-size:14px; font-weight:800; line-height:1; }
+  .cell.pitch .octband { display:flex; gap:4px; cursor:pointer; }
+  .cell.pitch .octband .dot { width:6px; height:6px; border-radius:50%; background:rgba(13,13,16,.32); }
+  .cell.pitch .octband .dot.on { background:var(--ground); width:7px; height:7px; }
+  .cell.pitch .oct-extra { position:absolute; top:3px; right:4px; font-size:8px; font-weight:800; background:var(--ground); color:var(--accent); border-radius:4px; padding:0 3px; line-height:1.4; }
+
+  .legend { border:1.5px dashed var(--border); border-radius:14px; padding:18px 20px; margin-top:8px; }
+  .legend .lg-title { font-size:10px; letter-spacing:.1em; text-transform:uppercase; font-weight:800; color:var(--muted); margin-bottom:10px; }
+  .legend ul { margin:0; padding-left:18px; }
+  .legend li { font-size:12.5px; color:#c9c9d1; margin-bottom:7px; }
+  .legend li:last-child { margin-bottom:0; }
+  .legend b { color:var(--text); }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>Step layer system — Pitch layer + 8x8-matrix quick-switch</h1>
+  <p class="sub">D-well grammar (tab-unification-and-canon-creep.md, Variant D locked): D-pill section switcher outside the well; value/layer selectors as inset-track solid thumbs inside it. The quick-switch replaces the cluttered linear layer row with a compact matrix, closed (current layer as a solid value-chip) and open (matrix of layers), reusing the phrase Layers-grid pattern. Same mechanism proven on mono (Steps·Velocity·Chance·Pitch·Gate) and slicer (Index·Velocity·Direction·Repeat·Gate·Chance).</p>
+
+  <div class="statebar">
+    <b>Jump to state</b>
+    <button onclick="setPrototypeState('mono:steps')">mono:steps</button>
+    <button onclick="setPrototypeState('mono:pitch')">mono:pitch</button>
+    <button onclick="setPrototypeState('mono:switch-open')">mono:switch-open</button>
+    <button onclick="setPrototypeState('slicer:index')">slicer:index</button>
+    <button onclick="setPrototypeState('slicer:direction')">slicer:direction</button>
+    <button onclick="setPrototypeState('slicer:switch-open')">slicer:switch-open</button>
+  </div>
+
+  <!-- (a) + (b) MONO TRACK -->
+  <section class="surface" id="surface-mono" style="--accent:var(--cyan)">
+    <div class="surface-head"><span class="name">Mono 8</span><span class="kind">Mono Track</span></div>
+    <div class="tabstrip seg">
+      <button class="schip active">Steps/Clip</button>
+      <button class="schip">Sound</button>
+      <button class="schip">FX</button>
+      <button class="schip">Macros</button>
+      <button class="schip">Mixer</button>
+    </div>
+    <div class="well">
+      <div class="clip-hdr">
+        <span class="badge-lg">Clip</span>
+        <span class="t">Mono 8 · Pattern 4</span>
+        <span class="m">1 bar</span>
+      </div>
+      <div class="selrow">
+        <div class="sel-block">
+          <span class="track-label">Lane</span>
+          <div class="track"><button class="chip on">Normal</button><button class="chip">Fill</button></div>
+        </div>
+        <div class="sel-block">
+          <span class="track-label">Length</span>
+          <div class="track"><button class="chip on">16</button><button class="chip">32</button><button class="chip">64</button><button class="chip">128</button></div>
+        </div>
+      </div>
+      <div class="layer-row">
+        <div class="quickswitch" id="mono-qs">
+          <button class="qs-trigger" id="mono-qs-trigger" onclick="togglePanel('mono')"></button>
+          <div class="qs-panel" id="mono-qs-panel" hidden></div>
+        </div>
+        <div class="steps16" id="mono-grid" style="flex:1"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- (c) SLICER — same mechanism, different layer set -->
+  <section class="surface" id="surface-slicer" style="--accent:var(--violet)">
+    <div class="surface-head"><span class="name">Slicer 3</span><span class="kind">Slicer Track</span></div>
+    <div class="tabstrip seg">
+      <button class="schip">Source</button>
+      <button class="schip active">Slice</button>
+      <button class="schip">FX</button>
+      <button class="schip">Macros</button>
+      <button class="schip">Mixer</button>
+    </div>
+    <div class="well">
+      <div class="clip-hdr">
+        <span class="badge-lg">Slicer</span>
+        <span class="t">Atlantis Amen · 8 slices</span>
+      </div>
+      <div class="layer-row">
+        <div class="quickswitch" id="slicer-qs">
+          <button class="qs-trigger" id="slicer-qs-trigger" onclick="togglePanel('slicer')"></button>
+          <div class="qs-panel" id="slicer-qs-panel" hidden></div>
+        </div>
+        <div class="steps16" id="slicer-grid" style="flex:1"></div>
+      </div>
+    </div>
+  </section>
+
+  <div class="legend">
+    <div class="lg-title">Reviewer annotations (not part of the surface)</div>
+    <ul>
+      <li><b>Pitch cell:</b> scale degree is the dominant glyph (large, centered — e.g. "1", "5", "♭3" for a chromatic passing tone); octave is a separate 3-dot band along the bottom edge (Low/Mid/High register at a glance), with a small corner badge ("+2"/"−2") only when a step sits outside that immediate band. Dots are click targets so octave is shiftable directly on the cell, no separate control.</li>
+      <li><b>Off steps</b> render identically across every layer (empty ring cell) — Velocity/Chance/Gate/Pitch only carry data where Steps has a note, so switching layers never desyncs which columns are "on".</li>
+      <li><b>Cell grammar by data shape:</b> binary (Steps) = solid fill, no glyph. Continuous magnitude (Velocity, Chance, Gate) = bar rising inside an outlined cell. Discrete value (Pitch degree, Slice Index, Direction, Note Repeat) = solid fill + centered glyph. Same component family reused across both track types — proves one grid grammar.</li>
+      <li><b>Quick-switch closed:</b> a solid accent value-chip showing only the current layer's abbreviation — same "small elements go fully solid" rule as any other value chip (canon Rule 12). No separate label duplicating "Layer" next to it.</li>
+      <li><b>Quick-switch open:</b> a compact square matrix (not a literal 8×8 — sized to the layer count, 3 cols here) sunk in the same darker inset track used by every other value selector, echoing the phrase-view Layers grid the owner referenced. Each cell shows its own layer name plus a small "has content" dot (green = edited, grey = default) — no restated header text. Selecting a cell both switches the layer and closes the panel.</li>
+      <li><b>Unused capacity:</b> mono's 5-layer set leaves one matrix cell as a dashed stub (reserved, non-interactive) rather than resizing the grid — keeps the matrix shape stable as layers are added (e.g. a future Modulation layer) instead of reflowing per track type.</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+  const LAYER_DEFS = {
+    mono: [
+      { id:'steps', label:'STEPS', has:true },
+      { id:'velocity', label:'VEL', has:true },
+      { id:'chance', label:'CHANCE', has:true },
+      { id:'pitch', label:'PITCH', has:true },
+      { id:'gate', label:'GATE', has:false },
+    ],
+    slicer: [
+      { id:'index', label:'IDX', has:true },
+      { id:'velocity', label:'VEL', has:true },
+      { id:'direction', label:'DIR', has:true },
+      { id:'repeat', label:'RPT', has:false },
+      { id:'gate', label:'GATE', has:true },
+      { id:'chance', label:'CHANCE', has:true },
+    ],
+  };
+
+  // adversarial fixtures: sparse syncopated pattern, extreme + quiet values
+  const MONO_ON = [1,4,7,10,13];
+  const MONO_DATA = {
+    // gate left at its default (100 = full length, untouched) on every step —
+    // matches the "has:false" grey dot on the GATE layer in the quick-switch
+    1:  { vel:100, chance:100, degree:'1',  oct:0,  gate:100 },
+    4:  { vel:45,  chance:75,  degree:'♭3', oct:0,  gate:100 },
+    7:  { vel:90,  chance:100, degree:'5',  oct:1,  gate:100 },
+    10: { vel:20,  chance:25,  degree:'7',  oct:-2, gate:100 },
+    13: { vel:70,  chance:50,  degree:'1',  oct:2,  gate:100 },
+  };
+
+  const SLICER_ON = [1,3,5,7,9,11,13,15];
+  const SLICER_DATA = {
+    // note repeat left at its default (x1 = no repeat) on every step —
+    // matches the "has:false" grey dot on the RPT layer in the quick-switch
+    1:  { idx:1, vel:100, dir:'▶', rpt:'x1', gate:100, chance:100 },
+    3:  { idx:5, vel:60,  dir:'▶', rpt:'x1', gate:60,  chance:80 },
+    5:  { idx:3, vel:85,  dir:'◀', rpt:'x1', gate:90,  chance:100 },
+    7:  { idx:8, vel:40,  dir:'▶', rpt:'x1', gate:30,  chance:50 },
+    9:  { idx:2, vel:95,  dir:'▶', rpt:'x1', gate:100, chance:100 },
+    11: { idx:6, vel:55,  dir:'◀', rpt:'x1', gate:75,  chance:65 },
+    13: { idx:4, vel:75,  dir:'▶', rpt:'x1', gate:50,  chance:90 },
+    15: { idx:7, vel:30,  dir:'◀', rpt:'x1', gate:100, chance:20 },
+  };
+
+  const current = { mono:'steps', slicer:'index' };
+  const open = { mono:false, slicer:false };
+
+  function offCell() { return '<div class="cell off"></div>'; }
+  function barCell(v) { return `<div class="cell bar-cell on"><div class="bar" style="height:${v}%"></div></div>`; }
+  function discreteCell(text) { return `<div class="cell discrete on"><div class="glyph">${text}</div></div>`; }
+  function pitchCell(degree, oct) {
+    const clamped = Math.max(-1, Math.min(1, oct));
+    const extra = Math.abs(oct) > 1 ? `<div class="oct-extra">${oct > 0 ? '+' : ''}${oct}</div>` : '';
+    const dots = [-1, 0, 1].map(pos => `<span class="dot${pos === clamped ? ' on' : ''}" data-oct="${pos}"></span>`).join('');
+    return `<div class="cell pitch on"><div class="degree">${degree}</div><div class="octband">${dots}</div>${extra}</div>`;
+  }
+
+  function buildMonoCell(step, layer) {
+    const d = MONO_DATA[step];
+    if (!d) return offCell();
+    switch (layer) {
+      case 'steps': return '<div class="cell simple on"></div>';
+      case 'velocity': return barCell(d.vel);
+      case 'chance': return barCell(d.chance);
+      case 'gate': return barCell(d.gate);
+      case 'pitch': return pitchCell(d.degree, d.oct);
+      default: return offCell();
+    }
+  }
+
+  function buildSlicerCell(step, layer) {
+    const d = SLICER_DATA[step];
+    if (!d) return offCell();
+    switch (layer) {
+      case 'index': return discreteCell(d.idx);
+      case 'velocity': return barCell(d.vel);
+      case 'direction': return discreteCell(d.dir);
+      case 'repeat': return discreteCell(d.rpt);
+      case 'gate': return barCell(d.gate);
+      case 'chance': return barCell(d.chance);
+      default: return offCell();
+    }
+  }
+
+  function renderGrid(surfaceKey) {
+    const grid = document.getElementById(surfaceKey + '-grid');
+    const builder = surfaceKey === 'mono' ? buildMonoCell : buildSlicerCell;
+    let html = '';
+    for (let i = 1; i <= 16; i++) html += builder(i, current[surfaceKey]);
+    grid.innerHTML = html;
+    // octave dots are click targets on the mono/pitch layer — cycle octave in place
+    if (surfaceKey === 'mono' && current.mono === 'pitch') {
+      grid.querySelectorAll('.cell.pitch .octband').forEach((band, idx) => {
+        band.addEventListener('click', () => {
+          const step = MONO_ON[idx];
+          const d = MONO_DATA[step];
+          d.oct = d.oct >= 2 ? -2 : d.oct + 1;
+          renderGrid('mono');
+        });
+      });
+    }
+  }
+
+  function refreshQuickswitch(surfaceKey) {
+    const defs = LAYER_DEFS[surfaceKey];
+    const trigger = document.getElementById(surfaceKey + '-qs-trigger');
+    const activeDef = defs.find(d => d.id === current[surfaceKey]);
+    trigger.innerHTML = `<span class="ico">▦</span><span class="lbl">${activeDef.label}</span>`;
+
+    const panel = document.getElementById(surfaceKey + '-qs-panel');
+    panel.innerHTML = '';
+    defs.forEach(d => {
+      const btn = document.createElement('button');
+      btn.className = 'qs-cell' + (d.has ? ' has' : '') + (current[surfaceKey] === d.id ? ' active' : '');
+      btn.innerHTML = `<span class="lbl">${d.label}</span><span class="dot"></span>`;
+      btn.onclick = () => selectLayer(surfaceKey, d.id);
+      panel.appendChild(btn);
+    });
+    // pad to a stable 3x2 matrix with reserved (stub) cells
+    for (let i = defs.length; i < 6; i++) {
+      const stub = document.createElement('div');
+      stub.className = 'qs-cell stub';
+      stub.innerHTML = '<span class="lbl">—</span>';
+      panel.appendChild(stub);
+    }
+    panel.hidden = !open[surfaceKey];
+  }
+
+  function selectLayer(surfaceKey, layerId) {
+    current[surfaceKey] = layerId;
+    open[surfaceKey] = false;
+    renderGrid(surfaceKey);
+    refreshQuickswitch(surfaceKey);
+  }
+
+  function togglePanel(surfaceKey) {
+    open[surfaceKey] = !open[surfaceKey];
+    refreshQuickswitch(surfaceKey);
+  }
+
+  function setPrototypeState(spec) {
+    const [surface, arg] = spec.split(':');
+    if (arg === 'switch-open') {
+      open[surface] = true;
+      refreshQuickswitch(surface);
+      renderGrid(surface);
+    } else {
+      open[surface] = false;
+      current[surface] = arg;
+      renderGrid(surface);
+      refreshQuickswitch(surface);
+    }
+  }
+
+  renderGrid('mono'); refreshQuickswitch('mono');
+  renderGrid('slicer'); refreshQuickswitch('slicer');
+</script>
+</body>
+</html>

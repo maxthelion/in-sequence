@@ -1,0 +1,611 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pattern-row state model — playing / displayed / tracking / fill</title>
+<style>
+  :root {
+    --ground:#0d0d10; --inset:#060608; --border:#62626c; --text:#e8e8ec; --muted:#9a9aa4;
+    --fill1: rgba(255,255,255,.05);
+    --green:#4ceb85; --cyan:#00ccff; --violet:#a187ff; --amber:#ffb020;
+    --cyan-glow: rgba(0,204,255,.4); --amber-glow: rgba(255,176,32,.4); --muted-glow: rgba(154,154,164,.4);
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:#000; color:var(--text); font:14px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; padding:28px 0 60px; }
+  .page { max-width:1180px; margin:0 auto; padding:0 20px; }
+  .page > h1 { font-size:19px; margin:0 0 3px; }
+  .page > .sub { color:var(--muted); font-size:12px; margin:0 0 22px; max-width:920px; }
+
+  .statebar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; padding:10px 14px; border:1px solid #26262c; border-radius:10px; margin-bottom:22px; background:#0a0a0c; }
+  .statebar b { font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); margin-right:4px; }
+  .statebar button { font:inherit; font-size:11px; background:transparent; color:var(--muted); border:1px solid var(--border); border-radius:7px; padding:5px 9px; cursor:pointer; }
+  .statebar a.swap { margin-left:auto; font-size:11px; color:var(--cyan); text-decoration:none; border:1px solid var(--border); border-radius:7px; padding:5px 9px; }
+
+  .demo-kicker { font-size:11px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin:0 4px 8px; }
+
+  .surface { background:var(--ground); border:1px solid #232328; border-radius:16px; padding:20px 22px 24px; margin-bottom:14px; --accent:var(--cyan); --marker-accent:var(--accent); --marker-glow:var(--cyan-glow); }
+  .surface.focused { border-color:var(--accent); }
+  .surface.lane-fill { --marker-accent:var(--amber); --marker-glow:var(--amber-glow); }
+  .surface + .demo-kicker { margin-top:28px; }
+
+  .track-header-row { display:flex; align-items:center; gap:14px; margin-bottom:12px; }
+  .name-block { display:flex; align-items:baseline; gap:10px; }
+  .name-block .name { font-size:17px; font-weight:800; }
+  .name-block .kind { font-size:10px; letter-spacing:.1em; text-transform:uppercase; font-weight:800; color:var(--accent); }
+  .mode-controls { margin-left:auto; display:flex; gap:8px; }
+
+  .mode-toggle { display:inline-flex; align-items:center; gap:6px; border:1.5px solid rgba(98,98,108,.9); background:transparent; color:rgba(232,232,236,.78); font:inherit; font-size:11px; font-weight:800; letter-spacing:.04em; text-transform:uppercase; padding:8px 12px; border-radius:10px; cursor:pointer; }
+  .mode-toggle.perform-toggle.active { background:var(--accent); color:var(--ground); border-color:var(--accent); }
+  .mode-toggle.fillpreview-toggle.active { background:var(--amber); color:var(--ground); border-color:var(--amber); }
+  .mode-toggle:disabled, .mode-toggle.disabled { opacity:.4; cursor:not-allowed; }
+
+  .pattern-header-row { display:flex; align-items:center; gap:10px; margin-bottom:6px; flex-wrap:wrap; }
+  .pattern-track { display:flex; gap:6px; flex-wrap:wrap; background:var(--inset); border:1px solid rgba(98,98,108,.55); border-radius:14px; padding:8px; flex:1; }
+
+  .pattern-slot { position:relative; width:46px; display:flex; flex-direction:column; align-items:center; gap:3px; padding:8px 2px 9px; border:1.5px solid rgba(98,98,108,.7); border-radius:10px; background:transparent; cursor:pointer; font:inherit; overflow:visible; }
+  .pattern-slot .num { font-size:12px; font-weight:800; color:var(--text); }
+  .pattern-slot .meta { display:flex; align-items:center; gap:4px; height:8px; }
+  .pattern-slot .dot { width:5px; height:5px; border-radius:50%; border:1px solid rgba(98,98,108,.85); background:transparent; }
+  .pattern-slot.occupied .dot { background:rgba(232,232,236,.6); border-color:rgba(232,232,236,.6); }
+  .pattern-slot .play-tick { font-size:7px; line-height:1; color:var(--marker-accent); opacity:0; transform:scale(.85); }
+  .pattern-slot.playing .play-tick { opacity:1; }
+  .pattern-slot.playing:not(.tracking) { box-shadow:0 0 8px 0 var(--marker-glow); }
+  .pattern-slot.displayed { border-color:var(--marker-accent); border-width:2px; }
+  .pattern-slot .badge { position:absolute; top:-9px; left:50%; transform:translateX(-50%); font-size:9px; font-weight:800; padding:1px 5px; border-radius:6px; display:none; white-space:nowrap; }
+  .pattern-slot.tracking .badge { display:inline-block; background:var(--marker-accent); color:var(--ground); }
+  .pattern-slot.pinned .badge { display:inline-block; background:var(--muted); color:var(--ground); }
+  .pattern-slot.tracking { animation:pulseRing 1.6s ease-in-out infinite; }
+  @keyframes pulseRing {
+    0%,100% { box-shadow:0 0 0 2px var(--marker-glow); }
+    50% { box-shadow:0 0 0 5px var(--marker-glow); }
+  }
+  .pattern-slot.pinned { box-shadow:0 0 0 2px var(--muted-glow); }
+  .pattern-slot .playbar { position:absolute; left:1px; right:1px; bottom:1px; height:3px; border-radius:0 0 8px 8px; overflow:hidden; background:rgba(255,255,255,.06); }
+  .pattern-slot .playbar i { display:block; height:100%; width:0; background:var(--marker-accent); }
+  .pattern-slot.playing .playbar i { width:var(--progress,45%); }
+
+  .pin-segcontrol { display:none; }
+  .resync-btn { display:none; align-items:center; justify-content:center; width:30px; height:30px; border-radius:9px; border:1px solid rgba(98,98,108,.8); background:transparent; color:var(--marker-accent); font-size:14px; cursor:pointer; flex:0 0 auto; }
+
+  .tabstrip.seg { display:flex; gap:4px; padding:3px; background:var(--fill1); border:1.5px solid rgba(98,98,108,.9); border-radius:12px; margin:10px 0 5px; }
+  .tabstrip.seg .schip { flex:1; border:none; background:transparent; color:rgba(232,232,236,.78); font:inherit; font-size:11px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; padding:10px 8px; border-radius:10px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; white-space:nowrap; }
+  .tabstrip.seg .schip.active { background:var(--accent); color:var(--ground); }
+  .tabstrip.seg .schip .mini-badge { font-size:9px; font-weight:800; padding:2px 5px; border-radius:6px; background:var(--accent); color:var(--ground); text-transform:none; letter-spacing:0; }
+  .tabstrip.seg .schip.active .mini-badge { background:var(--ground); color:var(--accent); }
+
+  .well { background:var(--fill1); border:1.5px solid var(--accent); border-radius:12px; padding:18px; }
+  .well-pane[hidden] { display:none; }
+  .stub { border:1.5px dashed var(--border); border-radius:10px; padding:26px; text-align:center; color:var(--muted); font-size:12px; letter-spacing:.02em; }
+
+  .seg-block { margin-bottom:14px; }
+  .seg-block:last-child { margin-bottom:0; }
+  .seg-label { font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); font-weight:700; margin-bottom:7px; }
+  .segcontrol { display:inline-flex; gap:4px; padding:3px; background:var(--inset); border:1.5px solid rgba(98,98,108,.9); border-radius:12px; }
+  .segchip { border:none; background:transparent; color:rgba(232,232,236,.78); font:inherit; font-size:12px; font-weight:700; padding:7px 14px; border-radius:10px; cursor:pointer; white-space:nowrap; }
+  .segchip.active { background:var(--accent); color:var(--ground); }
+  .lane-segcontrol .segchip[data-lane="fill"].active { background:var(--amber); color:var(--ground); }
+
+  .clip-hdr { display:flex; align-items:center; gap:10px; margin-bottom:16px; flex-wrap:wrap; }
+  .badge-lg { font-size:10px; font-weight:800; padding:4px 8px; border-radius:8px; background:var(--accent); color:var(--ground); }
+  .badge-lg.amber { background:var(--amber); }
+  .badge-lg.amber-outline { background:transparent; border:1.5px solid var(--amber); color:var(--amber); padding:2.5px 8px; }
+  .clip-hdr .t { font-size:14px; font-weight:800; }
+  .clip-hdr .m { font-size:11px; color:var(--muted); margin-left:2px; }
+  .icon-btn { margin-left:auto; width:26px; height:26px; border-radius:8px; border:1px solid rgba(98,98,108,.7); background:transparent; color:var(--muted); display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:12px; }
+
+  .steps { display:grid; grid-template-columns:repeat(16,1fr); gap:4px; }
+  .step { position:relative; aspect-ratio:1; border:1px solid rgba(98,98,108,.7); border-radius:6px; background:transparent; }
+  .step.on { background:var(--marker-accent); border-color:var(--marker-accent); }
+  .step.preview-ring { border:1.5px dashed var(--amber); }
+  .step.preview-overlap::after { content:""; position:absolute; top:-3px; right:-3px; width:7px; height:7px; border-radius:50%; background:var(--amber); border:1px solid var(--ground); }
+
+  .legend { border:1.5px dashed var(--border); border-radius:14px; padding:18px 20px; margin-top:30px; }
+  .legend-tag { font-size:10px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin-bottom:14px; }
+  .legend-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:14px 22px; }
+  .legend-item { display:flex; align-items:center; gap:10px; }
+  .legend-item .swatch { flex:0 0 auto; }
+  .legend-item .legend-text { font-size:11.5px; color:#c9c9d1; line-height:1.35; }
+  .legend-item .legend-text b { color:var(--text); }
+  .lg-slot { width:40px; height:40px; border-radius:10px; border:1.5px solid rgba(98,98,108,.7); display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:800; position:relative; }
+  .lg-empty .dot-r { width:5px; height:5px; border-radius:50%; border:1px solid rgba(98,98,108,.85); position:absolute; bottom:6px; }
+  .lg-occupied .dot-r { width:5px; height:5px; border-radius:50%; background:rgba(232,232,236,.6); position:absolute; bottom:6px; }
+  .lg-playing { box-shadow:0 0 8px 0 var(--cyan-glow); }
+  .lg-playing::after { content:"▶"; position:absolute; bottom:2px; font-size:6px; color:var(--cyan); }
+  .lg-displayed { border-color:var(--cyan); border-width:2px; }
+  .lg-tracking { border-color:var(--cyan); border-width:2px; animation:pulseRing 1.6s ease-in-out infinite; --marker-glow:var(--cyan-glow); }
+  .lg-tracking::before { content:"»"; position:absolute; top:-9px; font-size:9px; font-weight:800; background:var(--cyan); color:var(--ground); padding:1px 5px; border-radius:6px; }
+  .lg-pinned { box-shadow:0 0 0 2px var(--muted-glow); }
+  .lg-pinned::before { content:"◆"; position:absolute; top:-9px; font-size:9px; font-weight:800; background:var(--muted); color:var(--ground); padding:1px 5px; border-radius:6px; }
+  .lg-fill { border-color:var(--amber); border-width:2px; background:var(--amber); color:var(--ground); }
+  .lg-preview { border:1.5px dashed var(--amber); }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>Pattern-row state model — playing / displayed / perform-tracking / fill</h1>
+  <p class="sub">Resolves intents 20260702-150001 (fill mode should do something) and 20260702-150002 (playing vs. displayed vs. perform-tracking tension) on the D-grammar mono-track surface (08-unified-tab-well-D.html). Six stacked scenarios below are each independently interactive — click pattern slots, Perform, the Tracking/Pinned toggle, Lane, and Fill Preview to explore combinations beyond the six named states.</p>
+
+  <div class="statebar">
+    <b>Jump to state</b>
+    <button onclick="setPrototypeState('a-baseline')">a-baseline</button>
+    <button onclick="setPrototypeState('a-combined')">a-combined</button>
+    <button onclick="setPrototypeState('b-tracking')">b-tracking</button>
+    <button onclick="setPrototypeState('b-pinned')">b-pinned</button>
+    <button onclick="setPrototypeState('c-engaged')">c-engaged</button>
+    <button onclick="setPrototypeState('c-preview')">c-preview</button>
+    <a class="swap" href="08-unified-tab-well-D.html">→ 08 tab well D</a>
+  </div>
+
+  <h2 class="demo-kicker">(a) Playing ≠ displayed — baseline: slot 1 plays, slot 4 is open for editing</h2>
+  <section class="surface" id="a-baseline" data-state="a-baseline">
+    <div class="track-header-row">
+      <div class="name-block"><span class="name">Mono 8</span><span class="kind">Mono Track</span></div>
+      <div class="mode-controls">
+        <button class="mode-toggle fillpreview-toggle" onclick="toggleFillPreview('a-baseline')">Fill Preview</button>
+        <button class="mode-toggle perform-toggle" onclick="togglePerform('a-baseline')">Perform</button>
+      </div>
+    </div>
+    <div class="pattern-header-row">
+      <div class="pattern-track" data-slots></div>
+      <div class="pin-segcontrol segcontrol">
+        <button class="segchip" data-pin="tracking" onclick="setPinMode('a-baseline','tracking')">Tracking</button>
+        <button class="segchip" data-pin="pinned" onclick="setPinMode('a-baseline','pinned')">Pinned</button>
+      </div>
+      <button class="resync-btn" onclick="resync('a-baseline')" title="Resync to live">⟲</button>
+    </div>
+    <div class="tabstrip seg">
+      <button class="schip active" data-tab="steps">Steps / Clip<span class="mini-badge">Clip</span></button>
+      <button class="schip" data-tab="sound">Sound<span class="mini-badge">Empty</span></button>
+      <button class="schip" data-tab="fx">FX<span class="mini-badge">Insert</span></button>
+      <button class="schip" data-tab="macros">Macros<span class="mini-badge">Empty</span></button>
+      <button class="schip" data-tab="mixer">Mixer<span class="mini-badge">Master</span></button>
+    </div>
+    <div class="well">
+      <div class="clip-hdr">
+        <span class="badge-lg">Clip</span>
+        <span class="badge-lg amber fill-badge" style="display:none">Fill</span>
+        <span class="badge-lg amber-outline preview-badge" style="display:none">Preview</span>
+        <span class="t">Mono 8 · Pattern <span class="pattern-num"></span></span>
+        <span class="m">1 bar</span>
+        <button class="icon-btn">✕</button>
+      </div>
+      <div class="seg-block">
+        <div class="seg-label">Lane</div>
+        <div class="segcontrol lane-segcontrol">
+          <button class="segchip" data-lane="normal" onclick="toggleLane('a-baseline','normal')">Normal</button>
+          <button class="segchip" data-lane="fill" onclick="toggleLane('a-baseline','fill')">Fill</button>
+        </div>
+      </div>
+      <div class="seg-block">
+        <div class="seg-label">Layer</div>
+        <div class="segcontrol"><button class="segchip active">Steps</button><button class="segchip">Velocity</button><button class="segchip">Chance</button></div>
+      </div>
+      <div class="steps" data-steps></div>
+    </div>
+  </section>
+
+  <h2 class="demo-kicker">(a) Playing == displayed — combined case: slot 4 is both playing and open for editing</h2>
+  <section class="surface" id="a-combined" data-state="a-combined">
+    <div class="track-header-row">
+      <div class="name-block"><span class="name">Mono 8</span><span class="kind">Mono Track</span></div>
+      <div class="mode-controls">
+        <button class="mode-toggle fillpreview-toggle" onclick="toggleFillPreview('a-combined')">Fill Preview</button>
+        <button class="mode-toggle perform-toggle" onclick="togglePerform('a-combined')">Perform</button>
+      </div>
+    </div>
+    <div class="pattern-header-row">
+      <div class="pattern-track" data-slots></div>
+      <div class="pin-segcontrol segcontrol">
+        <button class="segchip" data-pin="tracking" onclick="setPinMode('a-combined','tracking')">Tracking</button>
+        <button class="segchip" data-pin="pinned" onclick="setPinMode('a-combined','pinned')">Pinned</button>
+      </div>
+      <button class="resync-btn" onclick="resync('a-combined')" title="Resync to live">⟲</button>
+    </div>
+    <div class="tabstrip seg">
+      <button class="schip active" data-tab="steps">Steps / Clip<span class="mini-badge">Clip</span></button>
+      <button class="schip" data-tab="sound">Sound<span class="mini-badge">Empty</span></button>
+      <button class="schip" data-tab="fx">FX<span class="mini-badge">Insert</span></button>
+      <button class="schip" data-tab="macros">Macros<span class="mini-badge">Empty</span></button>
+      <button class="schip" data-tab="mixer">Mixer<span class="mini-badge">Master</span></button>
+    </div>
+    <div class="well">
+      <div class="clip-hdr">
+        <span class="badge-lg">Clip</span>
+        <span class="badge-lg amber fill-badge" style="display:none">Fill</span>
+        <span class="badge-lg amber-outline preview-badge" style="display:none">Preview</span>
+        <span class="t">Mono 8 · Pattern <span class="pattern-num"></span></span>
+        <span class="m">1 bar</span>
+        <button class="icon-btn">✕</button>
+      </div>
+      <div class="seg-block">
+        <div class="seg-label">Lane</div>
+        <div class="segcontrol lane-segcontrol">
+          <button class="segchip" data-lane="normal" onclick="toggleLane('a-combined','normal')">Normal</button>
+          <button class="segchip" data-lane="fill" onclick="toggleLane('a-combined','fill')">Fill</button>
+        </div>
+      </div>
+      <div class="seg-block">
+        <div class="seg-label">Layer</div>
+        <div class="segcontrol"><button class="segchip active">Steps</button><button class="segchip">Velocity</button><button class="segchip">Chance</button></div>
+      </div>
+      <div class="steps" data-steps></div>
+    </div>
+  </section>
+
+  <h2 class="demo-kicker">(b) Perform mode ON, tracking — displayed follows playing as slot 7 plays</h2>
+  <section class="surface" id="b-tracking" data-state="b-tracking">
+    <div class="track-header-row">
+      <div class="name-block"><span class="name">Mono 8</span><span class="kind">Mono Track</span></div>
+      <div class="mode-controls">
+        <button class="mode-toggle fillpreview-toggle" onclick="toggleFillPreview('b-tracking')">Fill Preview</button>
+        <button class="mode-toggle perform-toggle" onclick="togglePerform('b-tracking')">Perform</button>
+      </div>
+    </div>
+    <div class="pattern-header-row">
+      <div class="pattern-track" data-slots></div>
+      <div class="pin-segcontrol segcontrol">
+        <button class="segchip" data-pin="tracking" onclick="setPinMode('b-tracking','tracking')">Tracking</button>
+        <button class="segchip" data-pin="pinned" onclick="setPinMode('b-tracking','pinned')">Pinned</button>
+      </div>
+      <button class="resync-btn" onclick="resync('b-tracking')" title="Resync to live">⟲</button>
+    </div>
+    <div class="tabstrip seg">
+      <button class="schip active" data-tab="steps">Steps / Clip<span class="mini-badge">Clip</span></button>
+      <button class="schip" data-tab="sound">Sound<span class="mini-badge">Empty</span></button>
+      <button class="schip" data-tab="fx">FX<span class="mini-badge">Insert</span></button>
+      <button class="schip" data-tab="macros">Macros<span class="mini-badge">Empty</span></button>
+      <button class="schip" data-tab="mixer">Mixer<span class="mini-badge">Master</span></button>
+    </div>
+    <div class="well">
+      <div class="clip-hdr">
+        <span class="badge-lg">Clip</span>
+        <span class="badge-lg amber fill-badge" style="display:none">Fill</span>
+        <span class="badge-lg amber-outline preview-badge" style="display:none">Preview</span>
+        <span class="t">Mono 8 · Pattern <span class="pattern-num"></span></span>
+        <span class="m">1 bar</span>
+        <button class="icon-btn">✕</button>
+      </div>
+      <div class="seg-block">
+        <div class="seg-label">Lane</div>
+        <div class="segcontrol lane-segcontrol">
+          <button class="segchip" data-lane="normal" onclick="toggleLane('b-tracking','normal')">Normal</button>
+          <button class="segchip" data-lane="fill" onclick="toggleLane('b-tracking','fill')">Fill</button>
+        </div>
+      </div>
+      <div class="seg-block">
+        <div class="seg-label">Layer</div>
+        <div class="segcontrol"><button class="segchip active">Steps</button><button class="segchip">Velocity</button><button class="segchip">Chance</button></div>
+      </div>
+      <div class="steps" data-steps></div>
+    </div>
+  </section>
+
+  <h2 class="demo-kicker">(b) Perform mode ON, pinned — slot 7 keeps playing, slot 12 is pinned open for editing; resync icon returns to tracking</h2>
+  <section class="surface" id="b-pinned" data-state="b-pinned">
+    <div class="track-header-row">
+      <div class="name-block"><span class="name">Mono 8</span><span class="kind">Mono Track</span></div>
+      <div class="mode-controls">
+        <button class="mode-toggle fillpreview-toggle" onclick="toggleFillPreview('b-pinned')">Fill Preview</button>
+        <button class="mode-toggle perform-toggle" onclick="togglePerform('b-pinned')">Perform</button>
+      </div>
+    </div>
+    <div class="pattern-header-row">
+      <div class="pattern-track" data-slots></div>
+      <div class="pin-segcontrol segcontrol">
+        <button class="segchip" data-pin="tracking" onclick="setPinMode('b-pinned','tracking')">Tracking</button>
+        <button class="segchip" data-pin="pinned" onclick="setPinMode('b-pinned','pinned')">Pinned</button>
+      </div>
+      <button class="resync-btn" onclick="resync('b-pinned')" title="Resync to live">⟲</button>
+    </div>
+    <div class="tabstrip seg">
+      <button class="schip active" data-tab="steps">Steps / Clip<span class="mini-badge">Clip</span></button>
+      <button class="schip" data-tab="sound">Sound<span class="mini-badge">Empty</span></button>
+      <button class="schip" data-tab="fx">FX<span class="mini-badge">Insert</span></button>
+      <button class="schip" data-tab="macros">Macros<span class="mini-badge">Empty</span></button>
+      <button class="schip" data-tab="mixer">Mixer<span class="mini-badge">Master</span></button>
+    </div>
+    <div class="well">
+      <div class="clip-hdr">
+        <span class="badge-lg">Clip</span>
+        <span class="badge-lg amber fill-badge" style="display:none">Fill</span>
+        <span class="badge-lg amber-outline preview-badge" style="display:none">Preview</span>
+        <span class="t">Mono 8 · Pattern <span class="pattern-num"></span></span>
+        <span class="m">1 bar</span>
+        <button class="icon-btn">✕</button>
+      </div>
+      <div class="seg-block">
+        <div class="seg-label">Lane</div>
+        <div class="segcontrol lane-segcontrol">
+          <button class="segchip" data-lane="normal" onclick="toggleLane('b-pinned','normal')">Normal</button>
+          <button class="segchip" data-lane="fill" onclick="toggleLane('b-pinned','fill')">Fill</button>
+        </div>
+      </div>
+      <div class="seg-block">
+        <div class="seg-label">Layer</div>
+        <div class="segcontrol"><button class="segchip active">Steps</button><button class="segchip">Velocity</button><button class="segchip">Chance</button></div>
+      </div>
+      <div class="steps" data-steps></div>
+    </div>
+  </section>
+
+  <h2 class="demo-kicker">(c) Fill engaged — Lane = Fill: row markers and step grid switch to the clip's fill items (amber content accent, chrome accent unchanged)</h2>
+  <section class="surface" id="c-engaged" data-state="c-engaged">
+    <div class="track-header-row">
+      <div class="name-block"><span class="name">Mono 8</span><span class="kind">Mono Track</span></div>
+      <div class="mode-controls">
+        <button class="mode-toggle fillpreview-toggle" onclick="toggleFillPreview('c-engaged')">Fill Preview</button>
+        <button class="mode-toggle perform-toggle" onclick="togglePerform('c-engaged')">Perform</button>
+      </div>
+    </div>
+    <div class="pattern-header-row">
+      <div class="pattern-track" data-slots></div>
+      <div class="pin-segcontrol segcontrol">
+        <button class="segchip" data-pin="tracking" onclick="setPinMode('c-engaged','tracking')">Tracking</button>
+        <button class="segchip" data-pin="pinned" onclick="setPinMode('c-engaged','pinned')">Pinned</button>
+      </div>
+      <button class="resync-btn" onclick="resync('c-engaged')" title="Resync to live">⟲</button>
+    </div>
+    <div class="tabstrip seg">
+      <button class="schip active" data-tab="steps">Steps / Clip<span class="mini-badge">Clip</span></button>
+      <button class="schip" data-tab="sound">Sound<span class="mini-badge">Empty</span></button>
+      <button class="schip" data-tab="fx">FX<span class="mini-badge">Insert</span></button>
+      <button class="schip" data-tab="macros">Macros<span class="mini-badge">Empty</span></button>
+      <button class="schip" data-tab="mixer">Mixer<span class="mini-badge">Master</span></button>
+    </div>
+    <div class="well">
+      <div class="clip-hdr">
+        <span class="badge-lg">Clip</span>
+        <span class="badge-lg amber fill-badge" style="display:none">Fill</span>
+        <span class="badge-lg amber-outline preview-badge" style="display:none">Preview</span>
+        <span class="t">Mono 8 · Pattern <span class="pattern-num"></span></span>
+        <span class="m">1 bar</span>
+        <button class="icon-btn">✕</button>
+      </div>
+      <div class="seg-block">
+        <div class="seg-label">Lane</div>
+        <div class="segcontrol lane-segcontrol">
+          <button class="segchip" data-lane="normal" onclick="toggleLane('c-engaged','normal')">Normal</button>
+          <button class="segchip" data-lane="fill" onclick="toggleLane('c-engaged','fill')">Fill</button>
+        </div>
+      </div>
+      <div class="seg-block">
+        <div class="seg-label">Layer</div>
+        <div class="segcontrol"><button class="segchip active">Steps</button><button class="segchip">Velocity</button><button class="segchip">Chance</button></div>
+      </div>
+      <div class="steps" data-steps></div>
+    </div>
+  </section>
+
+  <h2 class="demo-kicker">(c) Fill preview — Lane stays Normal, Fill Preview toggled ON: fill steps overlay (dashed amber ring) on top of the committed normal steps, without switching the lane</h2>
+  <section class="surface" id="c-preview" data-state="c-preview">
+    <div class="track-header-row">
+      <div class="name-block"><span class="name">Mono 8</span><span class="kind">Mono Track</span></div>
+      <div class="mode-controls">
+        <button class="mode-toggle fillpreview-toggle" onclick="toggleFillPreview('c-preview')">Fill Preview</button>
+        <button class="mode-toggle perform-toggle" onclick="togglePerform('c-preview')">Perform</button>
+      </div>
+    </div>
+    <div class="pattern-header-row">
+      <div class="pattern-track" data-slots></div>
+      <div class="pin-segcontrol segcontrol">
+        <button class="segchip" data-pin="tracking" onclick="setPinMode('c-preview','tracking')">Tracking</button>
+        <button class="segchip" data-pin="pinned" onclick="setPinMode('c-preview','pinned')">Pinned</button>
+      </div>
+      <button class="resync-btn" onclick="resync('c-preview')" title="Resync to live">⟲</button>
+    </div>
+    <div class="tabstrip seg">
+      <button class="schip active" data-tab="steps">Steps / Clip<span class="mini-badge">Clip</span></button>
+      <button class="schip" data-tab="sound">Sound<span class="mini-badge">Empty</span></button>
+      <button class="schip" data-tab="fx">FX<span class="mini-badge">Insert</span></button>
+      <button class="schip" data-tab="macros">Macros<span class="mini-badge">Empty</span></button>
+      <button class="schip" data-tab="mixer">Mixer<span class="mini-badge">Master</span></button>
+    </div>
+    <div class="well">
+      <div class="clip-hdr">
+        <span class="badge-lg">Clip</span>
+        <span class="badge-lg amber fill-badge" style="display:none">Fill</span>
+        <span class="badge-lg amber-outline preview-badge" style="display:none">Preview</span>
+        <span class="t">Mono 8 · Pattern <span class="pattern-num"></span></span>
+        <span class="m">1 bar</span>
+        <button class="icon-btn">✕</button>
+      </div>
+      <div class="seg-block">
+        <div class="seg-label">Lane</div>
+        <div class="segcontrol lane-segcontrol">
+          <button class="segchip" data-lane="normal" onclick="toggleLane('c-preview','normal')">Normal</button>
+          <button class="segchip" data-lane="fill" onclick="toggleLane('c-preview','fill')">Fill</button>
+        </div>
+      </div>
+      <div class="seg-block">
+        <div class="seg-label">Layer</div>
+        <div class="segcontrol"><button class="segchip active">Steps</button><button class="segchip">Velocity</button><button class="segchip">Chance</button></div>
+      </div>
+      <div class="steps" data-steps></div>
+    </div>
+  </section>
+
+  <section class="legend">
+    <div class="legend-tag">Reviewer annotation — not app chrome</div>
+    <div class="legend-grid">
+      <div class="legend-item"><div class="lg-slot lg-empty">3<span class="dot-r"></span></div><div class="legend-text"><b>Empty</b> — hollow dot, no content</div></div>
+      <div class="legend-item"><div class="lg-slot lg-occupied">6<span class="dot-r"></span></div><div class="legend-text"><b>Occupied</b> — solid neutral dot, has content</div></div>
+      <div class="legend-item"><div class="lg-slot lg-playing">1</div><div class="legend-text"><b>Playing</b> — play tick + progress bar + soft glow, independent of selection</div></div>
+      <div class="legend-item"><div class="lg-slot lg-displayed">4</div><div class="legend-text"><b>Displayed</b> — accent outline ring, the slot open in the well below</div></div>
+      <div class="legend-item"><div class="lg-slot lg-tracking">7</div><div class="legend-text"><b>Tracking</b> (Perform ON) — pulsing ring + » badge: displayed auto-follows playing</div></div>
+      <div class="legend-item"><div class="lg-slot lg-pinned">12</div><div class="legend-text"><b>Pinned</b> (Perform ON) — ◆ badge: displayed held while a different slot keeps playing; ⟲ resyncs</div></div>
+      <div class="legend-item"><div class="lg-slot lg-fill">4</div><div class="legend-text"><b>Fill engaged</b> — content accent switches to amber on markers, badge, and step grid; well/tab chrome stays the track accent</div></div>
+      <div class="legend-item"><div class="lg-slot lg-preview">4</div><div class="legend-text"><b>Fill preview</b> — dashed amber ring overlays fill-only steps on top of the solid normal steps without switching Lane</div></div>
+    </div>
+  </section>
+</div>
+
+<script>
+  const SURFACES = {};
+  const DEFAULT_OCCUPIED = [0,1,3,5,8,11,15];
+  const DEFAULT_NORMAL = [0,3,6,9];
+  const DEFAULT_FILL = [0,2,5,6,8,11,13,14];
+
+  function buildSlots(surfaceEl) {
+    const row = surfaceEl.querySelector('[data-slots]');
+    row.innerHTML = '';
+    for (let i = 0; i < 16; i++) {
+      const b = document.createElement('button');
+      b.className = 'pattern-slot';
+      b.dataset.slot = i;
+      b.style.setProperty('--progress', (30 + (i * 7) % 55) + '%');
+      b.onclick = () => toggleSlot(surfaceEl.id, i);
+      b.innerHTML =
+        '<span class="num">' + (i + 1) + '</span>' +
+        '<span class="meta"><span class="dot"></span><span class="play-tick">▶</span></span>' +
+        '<span class="badge"></span>' +
+        '<span class="playbar"><i></i></span>';
+      row.appendChild(b);
+    }
+  }
+
+  function buildSteps(surfaceEl) {
+    const row = surfaceEl.querySelector('[data-steps]');
+    row.innerHTML = '';
+    for (let i = 0; i < 16; i++) {
+      const cell = document.createElement('div');
+      cell.className = 'step';
+      cell.dataset.i = i;
+      row.appendChild(cell);
+    }
+  }
+
+  function initSurface(id, init) {
+    const surfaceEl = document.getElementById(id);
+    buildSlots(surfaceEl);
+    buildSteps(surfaceEl);
+    SURFACES[id] = Object.assign({
+      occupied: new Set(DEFAULT_OCCUPIED),
+      normalOn: new Set(DEFAULT_NORMAL),
+      fillOn: new Set(DEFAULT_FILL),
+      playing: 0,
+      displayed: 0,
+      performOn: false,
+      pinMode: 'tracking',
+      lane: 'normal',
+      fillPreview: false,
+    }, init);
+    render(id);
+  }
+
+  function render(id) {
+    const s = SURFACES[id];
+    const root = document.getElementById(id);
+    const laneFill = s.lane === 'fill';
+    root.classList.toggle('lane-fill', laneFill);
+
+    root.querySelectorAll('.pattern-slot').forEach((btn) => {
+      const i = Number(btn.dataset.slot);
+      const occupied = s.occupied.has(i);
+      const playing = i === s.playing;
+      const displayed = i === s.displayed;
+      const tracking = s.performOn && s.pinMode === 'tracking' && displayed && playing;
+      const pinned = s.performOn && s.pinMode === 'pinned' && displayed;
+      btn.classList.toggle('occupied', occupied);
+      btn.classList.toggle('playing', playing);
+      btn.classList.toggle('displayed', displayed);
+      btn.classList.toggle('tracking', tracking);
+      btn.classList.toggle('pinned', pinned);
+      btn.querySelector('.badge').textContent = tracking ? '»' : pinned ? '◆' : '';
+    });
+
+    root.querySelector('.perform-toggle').classList.toggle('active', s.performOn);
+    const pinRow = root.querySelector('.pin-segcontrol');
+    pinRow.style.display = s.performOn ? 'inline-flex' : 'none';
+    pinRow.querySelectorAll('.segchip').forEach((chip) => {
+      chip.classList.toggle('active', chip.dataset.pin === s.pinMode);
+    });
+    root.querySelector('.resync-btn').style.display =
+      s.performOn && s.pinMode === 'pinned' && s.playing !== s.displayed ? 'flex' : 'none';
+
+    root.querySelectorAll('.lane-segcontrol .segchip').forEach((chip) => {
+      chip.classList.toggle('active', chip.dataset.lane === s.lane);
+    });
+    root.querySelector('.fill-badge').style.display = laneFill ? 'inline-flex' : 'none';
+
+    const fpBtn = root.querySelector('.fillpreview-toggle');
+    fpBtn.classList.toggle('active', s.fillPreview);
+    fpBtn.disabled = laneFill;
+    fpBtn.classList.toggle('disabled', laneFill);
+    root.querySelector('.preview-badge').style.display = !laneFill && s.fillPreview ? 'inline-flex' : 'none';
+
+    root.querySelector('.pattern-num').textContent = s.displayed + 1;
+
+    root.querySelectorAll('.step').forEach((cell) => {
+      const i = Number(cell.dataset.i);
+      const on = laneFill ? s.fillOn.has(i) : s.normalOn.has(i);
+      cell.classList.toggle('on', on);
+      const showPreviewRing = !laneFill && s.fillPreview && s.fillOn.has(i);
+      cell.classList.toggle('preview-ring', showPreviewRing);
+      cell.classList.toggle('preview-overlap', showPreviewRing && s.normalOn.has(i));
+    });
+  }
+
+  function toggleSlot(id, i) {
+    const s = SURFACES[id];
+    if (s.performOn && s.pinMode === 'tracking') {
+      s.playing = i;
+      s.displayed = i;
+    } else {
+      s.displayed = i;
+    }
+    render(id);
+  }
+
+  function togglePerform(id) {
+    const s = SURFACES[id];
+    s.performOn = !s.performOn;
+    if (s.performOn && s.pinMode === 'tracking') s.displayed = s.playing;
+    render(id);
+  }
+
+  function setPinMode(id, mode) {
+    const s = SURFACES[id];
+    if (!s.performOn) return;
+    s.pinMode = mode;
+    if (mode === 'tracking') s.displayed = s.playing;
+    render(id);
+  }
+
+  function resync(id) {
+    const s = SURFACES[id];
+    s.displayed = s.playing;
+    s.pinMode = 'tracking';
+    render(id);
+  }
+
+  function toggleLane(id, lane) {
+    const s = SURFACES[id];
+    s.lane = lane;
+    render(id);
+  }
+
+  function toggleFillPreview(id) {
+    const s = SURFACES[id];
+    if (s.lane === 'fill') return;
+    s.fillPreview = !s.fillPreview;
+    render(id);
+  }
+
+  function setPrototypeState(name) {
+    const el = document.querySelector('[data-state="' + name + '"]');
+    if (!el) return;
+    document.querySelectorAll('.surface').forEach((sEl) => sEl.classList.remove('focused'));
+    el.classList.add('focused');
+    el.scrollIntoView({ block: 'start' });
+  }
+
+  initSurface('a-baseline', { playing: 0, displayed: 3 });
+  initSurface('a-combined', { playing: 3, displayed: 3 });
+  initSurface('b-tracking', { playing: 6, displayed: 6, performOn: true, pinMode: 'tracking' });
+  initSurface('b-pinned', { playing: 6, displayed: 11, performOn: true, pinMode: 'pinned' });
+  initSurface('c-engaged', { playing: 3, displayed: 3, lane: 'fill' });
+  initSurface('c-preview', { playing: 3, displayed: 3, fillPreview: true });
+</script>
+</body>
+</html>
