@@ -2361,7 +2361,18 @@ final class EngineController: RouterDispatcher {
             return false
         }
         let pumpMusicalSeconds = audioMasterClock.musicalSeconds(atHostSeconds: pumpHostSeconds)
-        let horizonEnd = pumpMusicalSeconds + lookAheadLeadSeconds
+        // Horizon = lead + clock-skew slack: wake deadlines (systemUptime) and
+        // the musical origin (render host time) are different clock anchors a
+        // render cycle or so apart. Without the slack, a wake that lands
+        // lead-early by design still measures the next step as (lead + skew)
+        // away, misses it, and dispatches it a full wake later — past due, so
+        // every steady-state trigger clamps to immediate (measured 2026-07-02,
+        // capture rig: 272 immediate vs 4 scheduled, constant 12 ms
+        // quantum-boundary flams). Slack widens only the DISPATCH window; the
+        // event stamp stays the musical due time.
+        let horizonEnd = pumpMusicalSeconds
+            + lookAheadLeadSeconds
+            + AudioMasterClock.lookAheadClockSkewSlackSeconds
         return dueMusicalSeconds <= horizonEnd + 0.000_001
     }
 

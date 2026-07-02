@@ -52,6 +52,19 @@ final class AudioMasterClock {
     /// origin offset. Musical second 0 must remain anchored to transport start.
     static let lookAheadLeadSeconds: TimeInterval = 0.100
 
+    /// Clock-domain skew slack added to the pump's dispatch horizon (NOT to any
+    /// sounding stamp). The pump's wake times come from `systemUptime`
+    /// (TickClock / DispatchSource deadlines) while musical time is anchored to
+    /// the render-derived origin host time; the two share the mach timebase but
+    /// the origin lands a render cycle or so away from the tick-0 wake. The
+    /// 2026-07-02 capture-rig run measured ~11-14 ms of skew — with a 1 µs
+    /// horizon epsilon every steady-state wake missed the next step by that
+    /// margin, dispatched it a wake later (~14 ms past due), and every trigger
+    /// clamped to immediate (one-render-quantum flams between coincident
+    /// voices). The slack only lets the pump hand events to sinks slightly
+    /// EARLIER than the nominal lead; stamps remain the true musical due time.
+    static let lookAheadClockSkewSlackSeconds: TimeInterval = 0.025
+
     /// Reads the live audio-render position. Returns nil until the engine has a
     /// valid render time (before first render / live-HAL warmup), in which case
     /// the clock falls back to its musical accumulator with a zero frame origin.
