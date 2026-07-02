@@ -24,7 +24,11 @@ work.
 - Bus strips hold group identity, inserts, level, pan, mute/solo, and fixed
   output to master.
 - Send A/B are fixed return strips. They should sit near master and read like
-  shared wet-return channels.
+  shared wet-return channels. They are NOT scene selectors: do not reuse the
+  per-track `sendA`/`sendB` gains to stand in for "which master scene a track
+  feeds" (that is the deferred `docs/roadmap/selective-scene-inputs/` item and
+  needs its own model — a 2026-06 "Scene Send" selector that conflated the two
+  was reverted, see `docs/plans/2026-06-24-fixed-superset-routing.md` §R4).
 - Master Out is the final strip. It can include the scene crossfader and master
   FX, but it should still align with the mixer system.
 

@@ -115,8 +115,6 @@ struct TrackRoutingTabContent: View {
                 sendKnob(.a, value: summary.sendA)
                 sendKnob(.b, value: summary.sendB)
             }
-
-            sceneSendSelector
         }
         .padding(StudioMetrics.Spacing.standard)
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
@@ -124,70 +122,6 @@ struct TrackRoutingTabContent: View {
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
                 .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
         )
-    }
-
-    // R4 scene-send selector: a quick A / A+B / B shortcut over the two send
-    // gains. `SceneSendMode` is a pure view over `sendA`/`sendB`, so this sits
-    // beside the manual send knobs and rides the same ramped live-mix path
-    // (`setTrackSceneSend`). When the gains don't match a preset the selector
-    // shows no selection ("Custom") and the knobs carry the detail.
-    private var sceneSendSelector: some View {
-        let current = SceneSendMode(sendA: summary.sendA, sendB: summary.sendB)
-        return VStack(alignment: .leading, spacing: 6) {
-            Text("SCENE SEND")
-                .studioText(.micro)
-                .tracking(0.8)
-                .foregroundStyle(StudioTheme.mutedText)
-
-            HStack(spacing: 4) {
-                ForEach(SceneSendMode.allCases, id: \.self) { mode in
-                    sceneSendSegment(mode, isSelected: current == mode)
-                }
-            }
-        }
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("Scene send")
-        .accessibilityValue(current.map(sceneSendLabel) ?? "Custom")
-    }
-
-    private func sceneSendSegment(_ mode: SceneSendMode, isSelected: Bool) -> some View {
-        Button {
-            session.setTrackSceneSend(trackID: track.id, mode: mode)
-        } label: {
-            Text(sceneSendLabel(mode))
-                .studioText(.labelBold)
-                .foregroundStyle(isSelected ? StudioTheme.background : StudioTheme.text)
-                .frame(minWidth: 40, minHeight: 30)
-                .frame(maxWidth: .infinity)
-                .background(
-                    isSelected ? StudioTheme.cyan : Color.white.opacity(StudioOpacity.subtleFill),
-                    in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-                        .stroke(isSelected ? Color.clear : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
-                )
-        }
-        .buttonStyle(.plain)
-        .help(sceneSendHelp(mode))
-        .accessibilityLabel(sceneSendLabel(mode))
-        .accessibilityAddTraits(isSelected ? .isSelected : [])
-    }
-
-    private func sceneSendLabel(_ mode: SceneSendMode) -> String {
-        switch mode {
-        case .a: return "A"
-        case .ab: return "A+B"
-        case .b: return "B"
-        }
-    }
-
-    private func sceneSendHelp(_ mode: SceneSendMode) -> String {
-        switch mode {
-        case .a: return "Feed scene A only"
-        case .ab: return "Feed both scenes (A+B)"
-        case .b: return "Feed scene B only"
-        }
     }
 
     private var outputSelector: some View {

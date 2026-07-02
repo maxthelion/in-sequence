@@ -6,8 +6,10 @@ playback. Make every routing change — scene A/B crossfade, track send levels,
 per-track bus selection, mute/fill, insert enable — a **gain ramp or `bypass`
 toggle on an always-connected graph**. This is guardrail rule 5
 ([architecture-guardrails.md → Audio Engine Hard Rules](/Users/maxwilliams/dev/in-sequence/wiki/pages/architecture-guardrails.md)).
-**Unblocks:** click-free scene transitions, the per-track A / A+B / B scene-send
-selector, and removes the audible gap on track add/route changes.
+**Unblocks:** click-free scene transitions, click-free live send-level changes,
+and removes the audible gap on track add/route changes. (The per-track
+A / A+B / B "scene-send" selector originally listed here was built and then
+REVERTED — see "R4 REVERTED" below.)
 
 ## Why now
 
@@ -287,23 +289,55 @@ engine, model, or session work is needed — only this view + binding.
   (line ~99, accuracy 0.0001) will also need the `waitForSendGains`-style poll the
   other two MainAudioGraphTests now use (the send change ramps).
 
+#### R4 REVERTED (2026-07-02): scene-send selector removed — it conflated two features
+
+R4 as specified above was a category error and has been removed (the selector UI,
+`SceneSendMode`, `setTrackSceneSend`, the `trackSceneSend=` command vocab and
+`track<N>SceneSendMode` status key). What it actually did was preset the two
+per-track **FX-return send gains** (`TrackMixSettings.sendA`/`sendB` → the fixed
+`SendBusID.sendA`/`.sendB` return strips, per
+[mixer-grammar](/Users/maxwilliams/dev/in-sequence/wiki/pages/mixer-grammar.md)) while **labelling** itself a master-scene
+selector. It never touched the real scene model (`MasterBusState.scenes` /
+`abSelection`), and `MasterBusHost` has no per-track scene-membership gain at all
+— every track feeds every scene branch equally. So the control (a) silently
+stomped whatever Send A/B aux levels the user had dialed in, and (b) did not do
+what its own label claimed.
+
+**Do not reuse `sendA`/`sendB` for scene selection again.** "Which master scene
+a track feeds" is the still-**deferred** roadmap item 25,
+[docs/roadmap/selective-scene-inputs/](/Users/maxwilliams/dev/in-sequence/docs/roadmap/selective-scene-inputs/README.md) — it needs its own persisted
+per-track scene-membership model plus `MasterBusHost` render-branch gain wiring
+(Hard Rule 5 review), gated on explicit user reactivation. Send A/B remain plain,
+independent FX-return sends.
+
+**What survives from the R4 build (still in place, still load-bearing):**
+- The engine work: `MainAudioGraph.setTrackSendLevels` steady-state RAMP path +
+  `sendRampCountForTesting` + the `MixerGainRamp.setImmediate` reconnect-race fix.
+  Ordinary Send A/B knob drags and `setTrackSends` ride it.
+- Rig coverage: routing-stress.sh PASS 4 now drives the same on/off send-gain
+  corner set via the plain `trackSend=` vocab (exact applied gains, reconnect
+  count flat, sendRampCount increasing) — the guarantee is kept, the scene
+  framing is gone. `RoutingNoStopNoReconnectTests` likewise keeps the send A/B
+  combination sweep.
+
 ## Enforcement
 
 - **`graph-mutation-conformity` observer** (from the audio adherence set): flags
   `engine.stop()/start()`, `attach`/`detach`/`connect`/`disconnect` tied to
   topology during playback, and any `disconnect` not preceded by a silence ramp.
 - **Test:** during playback, a battery of routing edits (send sweep through 0,
-  bus reassignment, A/A+B/B toggle, insert enable) asserts `engine.stop()` is
-  never called and the relevant `…CountForTesting` reconnect counters stay flat.
+  bus reassignment, send A/B combination sweep, insert enable) asserts
+  `engine.stop()` is never called and the relevant `…CountForTesting` reconnect
+  counters stay flat.
 - Offline-render amplitude-continuity checks for click-freeness on crossfade /
   send-zero crossings.
 
 ## Sequencing
 
 R0 → R1 → R2 → R3, each bounded with its own playback test. R4 (the A/A+B/B
-selector) depends only on **R0** (persistent send nodes) for its audio
-correctness and on the routing-tab UI for its home — it can land as soon as R0
-is in, independent of R2/R3.
+selector) depended only on **R0** (persistent send nodes) for its audio
+correctness — it landed after R0 and was later REVERTED as a feature conflation
+(see "R4 REVERTED" above); its engine-side ramp work remains.
 
 ## Out of scope
 

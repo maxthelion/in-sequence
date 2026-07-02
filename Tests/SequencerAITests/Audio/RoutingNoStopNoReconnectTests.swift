@@ -15,8 +15,8 @@ import XCTest
 ///      (`graph.engine.isRunning` stays true throughout) — a direct,
 ///      behaviour-level proof that no routing edit took an `engine.stop()`
 ///      topology path.
-///   2. The pure-gain edits (send sweep through 0, A/A+B/B scene-send toggle,
-///      bus fader) take the gain path, NOT a topology reconnect: the
+///   2. The pure-gain edits (send sweep through 0, send A/B combination
+///      sweep, bus fader) take the gain path, NOT a topology reconnect: the
 ///      `reconnectTrackOutputCountForTesting` counter — which only bumps on a
 ///      live track-output REWIRE — stays flat across them. (Send-level changes
 ///      ramp gain; `sendRampCountForTesting` may bump, a reconnect must not.)
@@ -27,7 +27,7 @@ import XCTest
 /// Unattended tier: SAMPLE SOURCE ONLY + NATIVE inserts (no AU, no audio
 /// input). This complements the headless routing-stress rig
 /// (`scripts/visual-scenarios/routing-stress.sh`) with a deterministic
-/// in-process assertion so the post-R0-R4 gain/bypass behaviour cannot regress.
+/// in-process assertion so the post-R0 gain/bypass behaviour cannot regress.
 final class RoutingNoStopNoReconnectTests: XCTestCase {
 
     private var libraryRoot: URL!
@@ -81,8 +81,8 @@ final class RoutingNoStopNoReconnectTests: XCTestCase {
         )
         // Send buses A/B always exist on a Project (`sendBusA`/`sendBusB`) and
         // `controller.apply` installs them — so the track routes its dry signal
-        // THROUGH its persistent send fanout, the gain stage the send sweep /
-        // scene toggle ramps (the route shape the routing-stress rig exercises).
+        // THROUGH its persistent send fanout, the gain stage the send sweeps
+        // ramp (the route shape the routing-stress rig exercises).
         var doc = Project(version: 1, tracks: [drum], selectedTrackID: drum.id)
         let busID = doc.addMixerBus(name: "Drum Bus")
         controller.apply(documentModel: doc)
@@ -103,14 +103,15 @@ final class RoutingNoStopNoReconnectTests: XCTestCase {
             XCTAssertTrue(graph.engine.isRunning, "send sweep step (A=\(sendA)) must not stop the engine")
         }
 
-        // --- 2. A / A+B / B scene-send toggle (gain only). ---
-        let sceneSends: [(Double, Double)] = [(1, 0), (1, 1), (0, 1), (0, 0)]
-        for (sendA, sendB) in sceneSends {
+        // --- 2. Send A/B combination sweep (gain only) — covers the full
+        //        on/off corner set of the two independent FX-return sends. ---
+        let sendCombos: [(Double, Double)] = [(1, 0), (1, 1), (0, 1), (0, 0)]
+        for (sendA, sendB) in sendCombos {
             var mix = drum.mix
             mix.sendA = sendA
             mix.sendB = sendB
             controller.setMix(trackID: drum.id, mix: mix)
-            XCTAssertTrue(graph.engine.isRunning, "scene-send toggle (A=\(sendA) B=\(sendB)) must not stop the engine")
+            XCTAssertTrue(graph.engine.isRunning, "send A/B combination (A=\(sendA) B=\(sendB)) must not stop the engine")
         }
 
         // --- 3. Bus fader sweep (bus gain only). ---
@@ -124,7 +125,7 @@ final class RoutingNoStopNoReconnectTests: XCTestCase {
         let reconnectsAfterGainEdits = graph.reconnectTrackOutputCountForTesting
         XCTAssertEqual(
             reconnectsAfterGainEdits, reconnectsBefore,
-            "send sweep + scene toggle + bus fader are pure-gain edits — they must not trigger a track-output reconnect"
+            "send sweep + send A/B combinations + bus fader are pure-gain edits — they must not trigger a track-output reconnect"
         )
 
         // --- 4. Bus reassign: the ONE structural edit (re-wire once). ---
