@@ -65,6 +65,10 @@ final class SceneFXMutationAUBranchTests: XCTestCase {
         defer { MainAudioGraph.useManualRenderingForAutomation = false }
 
         let graph = MainAudioGraph()
+        // Isolation convention (bug 20260702-140500): stop the graph at
+        // teardown so it never deallocates with live taps/engine state that
+        // could leak into the next suite.
+        addTeardownBlock { graph.stop() }
         // Production shape: send buses exist, so the track's dry signal routes
         // THROUGH its persistent fanout gain stage.
         graph.installSendBuses([.sendA, .sendB])
