@@ -49,7 +49,16 @@ extension DrumKitMatrixView {
             }
 
             if let model, !model.rows.isEmpty {
-                headerPatternPalette(model)
+                HStack(alignment: .center, spacing: 10) {
+                    headerPatternPalette(model)
+
+                    Spacer(minLength: 0)
+
+                    headerActionButton(title: "Apply Template…", systemImage: "square.grid.2x2") {
+                        isPresentingTemplateChooser = true
+                    }
+                    .help("Apply a pattern template into pattern slot P\((model.groupSelectedSlotIndex ?? 0) + 1)")
+                }
             }
         }
         .padding(StudioMetrics.Spacing.standard)
@@ -63,6 +72,8 @@ extension DrumKitMatrixView {
     /// The 1–16 kit-level pattern pills, now living inside the header box. The
     /// kit supports only KIT-level patterns, so the former Linked / MIXED /
     /// Re-link controls are gone — selecting a slot applies it across the kit.
+    /// The Apply Template… action sits beside these pills in the header so its
+    /// destination (the selected kit pattern slot) is visually adjacent.
     func headerPatternPalette(_ model: DrumKitMatrixModel) -> some View {
         TrackPatternSlotPalette(
             selectedSlot: groupPatternSlotBinding(model),

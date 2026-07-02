@@ -584,7 +584,9 @@ struct DrumKitMatrixView: View {
     }
 
     /// Matrix tab: the existing matrix content, minus the group pattern row
-    /// (which now lives in the persistent Patterns row above). (AC23)
+    /// (which now lives in the persistent Patterns row above) and minus the
+    /// Apply Template… action (which now sits beside the pattern palette in
+    /// the persistent header, next to the slot it targets). (AC23)
     @ViewBuilder
     func matrixTabBody(_ model: DrumKitMatrixModel) -> some View {
         StudioPanel(title: "Kit Matrix", accent: accent, showsHeader: false) {
@@ -597,11 +599,6 @@ struct DrumKitMatrixView: View {
                     barPager(model)
 
                     Spacer(minLength: 0)
-
-                    headerActionButton(title: "Apply Template…", systemImage: "square.grid.2x2") {
-                        isPresentingTemplateChooser = true
-                    }
-                    .help("Apply a pattern template into the selected group pattern slot")
                 }
 
                 if model.staleMemberCount > 0 {
