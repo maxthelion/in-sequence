@@ -1,0 +1,18 @@
+# ux-canon-lint explainer-prose allowlist.
+#
+# Format: <file-path-substring>|<Text-literal-substring>
+# A `Text("...")` prose finding is allowed when its file path contains the
+# left side AND the literal contains the right side. Blank lines and lines
+# starting with # are ignored.
+#
+# ONLY genuinely legitimate sentence slots belong here: destructive-confirm
+# messages (alert `message:` slots, overwrite-confirm steps) where spelling
+# out the consequence in a full sentence is the point. Working-surface
+# explainer prose is creep (docs/ux-canon.md Rule 3) and must NOT be added —
+# fix the surface instead.
+
+# Delete-track confirmation alert message slot (TrackWorkspaceView `} message: {`).
+Sources/UI/Track/TrackWorkspaceView.swift|This removes the track from the project.
+
+# Pattern-template apply confirm step: states which patterns get overwritten.
+Sources/UI/DrumGroup/DrumKitTemplateChooserSheet.swift|will overwrite existing patterns.
