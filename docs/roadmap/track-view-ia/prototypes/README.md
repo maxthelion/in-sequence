@@ -72,6 +72,12 @@ now cover the three connection forms he asked to compare:
   the well retained) but the well border carries the surface accent at full
   strength so pill + container read as one system. Accent as outline only —
   canon Rule 12 bans accent fills, not outlines.
+- `08-unified-tab-well-D.html` — **Variant D, solid pills over a
+  fully-rounded accent well** (owner hybrid of B + C): Variant B's
+  solid-thumb segmented pills (selected = fully solid accent with dark
+  glyph, unselected = outline) float OUTSIDE the container with the small
+  gap as in C, and the well is a complete full-strength-accent-outlined
+  container with all four corners rounded (12px, no square tops).
 - States: `audio-input`, `mono-track`, `slicer-track` (each scrolls the
   matching surface into view — the page stacks all three, taller than one
   screenshot). Render:
@@ -83,7 +89,7 @@ now cover the three connection forms he asked to compare:
     'mono-track=document.getElementById("surface-mono").scrollIntoView()' \
     'slicer-track=document.getElementById("surface-slicer").scrollIntoView()'
   ```
-  (swap `-A` for `-B` / `-C` for the other files). All files also expose
+  (swap `-A` for `-B` / `-C` / `-D` for the other files). All files also expose
   `setPrototypeState("audio:fx")` / `"mono:sound"` / `"slicer:slice"` etc. to
   jump a given surface to an off-path stub pane, and cross-link to each other
   for direct A/B comparison in a browser.
