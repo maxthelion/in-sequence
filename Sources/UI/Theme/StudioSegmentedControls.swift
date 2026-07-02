@@ -28,6 +28,9 @@ struct StudioSegment<Value: Equatable> {
     let title: String
     let value: Value
     var isEnabled: Bool = true
+    /// Optional CONTENT-state indicator ring (e.g. the playhead page on a bar
+    /// selector) drawn around the chip. Content accent, never surface chrome.
+    var indicatorAccent: Color?
     var accessibilityIdentifier: String?
     var accessibilityLabel: String?
     var help: String?
@@ -159,6 +162,10 @@ struct StudioSegmentedControl<Value: Equatable>: View {
         .background(
             isSelected ? accent : Color.clear,
             in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
+                .stroke(segment.indicatorAccent ?? .clear, lineWidth: 2)
         )
         // An unselected chip has a clear fill; without an explicit hit shape its
         // tap target shrinks to the text glyph. The whole chip should be tappable.

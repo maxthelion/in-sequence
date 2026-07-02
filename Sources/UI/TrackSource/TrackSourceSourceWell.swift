@@ -74,9 +74,12 @@ struct TrackSourceSourceWell: View {
         }
     }
 
+    // One chrome accent per surface (locked Variant D): the Clip badge reads
+    // "Clip" in the track identity colour — never a green state accent (the
+    // 08-D mono-track prototype renders it in the surface accent).
     private var clipSourceWell: some View {
-        slotWell(accent: StudioTheme.success) {
-            sourceBadge(title: displayState.badgeTitle, accent: StudioTheme.success)
+        slotWell(accent: accent) {
+            sourceBadge(title: displayState.badgeTitle, accent: accent)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(currentClip?.name ?? "Unnamed Clip")

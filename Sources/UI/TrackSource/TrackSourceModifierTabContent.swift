@@ -4,6 +4,8 @@ struct TrackSourceModifierTabContent: View {
     let trackType: TrackType
     let selectedGenerator: GeneratorPoolEntry?
     let isBypassed: Bool
+    /// The ONE chrome accent of the surface (track identity colour).
+    let accent: Color
     let compatibleGenerators: [GeneratorPoolEntry]
     let modifierPickerStep: TrackSourceContainedModifierPickerStep?
     let sourceMode: TrackSourceMode
@@ -41,7 +43,7 @@ struct TrackSourceModifierTabContent: View {
                 inputClipChoices: generatedSourceInputClips,
                 harmonicSidechainClipChoices: harmonicSidechainClips,
                 sourceMode: sourceMode,
-                accent: StudioTheme.violet,
+                accent: accent,
                 layout: .modifierContained,
                 onUpdate: onUpdateGeneratorParams
             )
@@ -53,6 +55,7 @@ struct TrackSourceModifierTabContent: View {
             trackType: trackType,
             selectedGenerator: selectedGenerator,
             isBypassed: isBypassed,
+            accent: accent,
             onShowGeneratorPicker: onShowGeneratorPicker,
             onToggleBypassed: onToggleBypassed,
             onRemoveModifier: onRemoveModifier

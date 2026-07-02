@@ -476,6 +476,7 @@ struct TrackSourceEditorView: View {
             trackType: track.trackType,
             selectedGenerator: selectedModifierGenerator,
             isBypassed: selectedPattern.sourceRef.modifierBypassed,
+            accent: accent,
             compatibleGenerators: compatibleModifierGenerators,
             modifierPickerStep: modifierPickerStep,
             sourceMode: selectedSourceMode,
@@ -576,7 +577,7 @@ struct TrackSourceEditorView: View {
         // AU-effect host path used for bus/master/scene inserts — is a follow-up.
         TrackFXChainView(
             inserts: track.fxInserts,
-            accent: StudioTheme.violet,
+            accent: accent,
             onAddFX: { isAddFXPresented = true },
             onRemove: { insertID in
                 session.removeFXInsert(trackID: track.id, insertID: insertID)
@@ -595,7 +596,7 @@ struct TrackSourceEditorView: View {
         let trackID = track.id
         return StudioModal(
             title: "Add FX",
-            accent: StudioTheme.violet,
+            accent: accent,
             minWidth: 360,
             onClose: { isAddFXPresented = false }
         ) {
@@ -638,7 +639,7 @@ struct TrackSourceEditorView: View {
             HStack(spacing: 10) {
                 Image(systemName: systemName)
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(StudioTheme.violet)
+                    .foregroundStyle(accent)
                 Text(title)
                     .studioText(.labelBold)
                     .foregroundStyle(StudioTheme.text)

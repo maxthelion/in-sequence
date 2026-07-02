@@ -181,7 +181,9 @@ struct GeneratorParamsEditorView: View {
 
         case .progressionChords:
             modifierEditorContainer(title: "Pitch Modifier", eyebrow: "Not available for chord sources") {
-                Text("Chord sources emit complete chords")
+                // State, not explanation (canon Rule 3): the "why" lives in
+                // the tooltip.
+                Text("No modifier stage")
                     .studioText(.body)
                     .foregroundStyle(StudioTheme.mutedText)
                     .help("Progression chord generators emit complete chords, so they do not expose a separate modifier stage")

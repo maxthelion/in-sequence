@@ -318,15 +318,14 @@ struct TrackSourceContainedSourcePicker: View {
         primaryAction: @escaping () -> Void,
         secondaryAction: @escaping () -> Void
     ) -> some View {
+        // Canon Rule 3: no explainer prose on the surface — the group
+        // description and the secondary action's instruction live in
+        // tooltips; titles + affordances carry the surface.
         VStack(alignment: .leading, spacing: 10) {
             Text(group.title)
                 .studioText(.labelBold)
                 .foregroundStyle(StudioTheme.text)
-
-            Text(group.description)
-                .studioText(.body)
-                .foregroundStyle(StudioTheme.mutedText)
-                .fixedSize(horizontal: false, vertical: true)
+                .help(group.description)
 
             pickerActionButton(
                 action: group.primary,
@@ -336,7 +335,8 @@ struct TrackSourceContainedSourcePicker: View {
 
             poolEntryButton(
                 title: group.secondary.title,
-                detail: group.secondary.detail,
+                detail: nil,
+                help: group.secondary.detail,
                 accent: StudioTheme.border,
                 action: secondaryAction
             )
@@ -363,17 +363,15 @@ struct TrackSourceContainedSourcePicker: View {
         recoveryAccent: Color,
         recoveryAction: @escaping () -> Void
     ) -> some View {
+        // Canon Rule 3: the empty-pool line is real state; the recovery
+        // instruction is a tooltip on the recovery affordance, not prose.
         VStack(alignment: .leading, spacing: 12) {
             Text(emptyState.title)
                 .studioText(.bodyBold)
                 .foregroundStyle(StudioTheme.text)
 
-            Text(emptyState.detail)
-                .studioText(.body)
-                .foregroundStyle(StudioTheme.mutedText)
-                .fixedSize(horizontal: false, vertical: true)
-
             TrackSourceActionButton(title: emptyState.recoveryAction.title, accent: recoveryAccent, action: recoveryAction)
+                .help(emptyState.detail)
         }
     }
 
@@ -406,15 +404,12 @@ struct TrackSourceContainedSourcePicker: View {
         accent: Color,
         trigger: @escaping () -> Void
     ) -> some View {
+        // Canon Rule 3: the action instruction is a tooltip, not a subtitle.
         Button(action: trigger) {
             VStack(alignment: .leading, spacing: 6) {
                 Text(action.title)
                     .studioText(.bodyBold)
                     .foregroundStyle(StudioTheme.text)
-
-                Text(action.detail)
-                    .studioText(.label)
-                    .foregroundStyle(StudioTheme.mutedText)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(StudioMetrics.Spacing.standard)
@@ -434,6 +429,7 @@ struct TrackSourceContainedSourcePicker: View {
             )
         }
         .buttonStyle(.plain)
+        .help(action.detail)
     }
 
     /// Colour identifies, it never floods (ux-canon rule 12): action tiles
@@ -457,9 +453,12 @@ struct TrackSourceContainedSourcePicker: View {
         }
     }
 
+    /// `detail` is for real metadata only (kind, bar count) — instructional
+    /// sentences go in `help` (canon Rule 3).
     private func poolEntryButton(
         title: String,
-        detail: String,
+        detail: String?,
+        help: String = "",
         accent: Color,
         action: @escaping () -> Void
     ) -> some View {
@@ -469,9 +468,11 @@ struct TrackSourceContainedSourcePicker: View {
                     .studioText(.bodyBold)
                     .foregroundStyle(StudioTheme.text)
 
-                Text(detail)
-                    .studioText(.label)
-                    .foregroundStyle(StudioTheme.mutedText)
+                if let detail {
+                    Text(detail)
+                        .studioText(.label)
+                        .foregroundStyle(StudioTheme.mutedText)
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(StudioMetrics.Spacing.comfortable)
@@ -491,6 +492,7 @@ struct TrackSourceContainedSourcePicker: View {
             )
         }
         .buttonStyle(.plain)
+        .help(help)
     }
 
     private func clipMetadata(for clip: ClipPoolEntry) -> String {

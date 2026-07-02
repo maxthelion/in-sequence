@@ -96,7 +96,9 @@ struct AddDestinationSheet: View {
 
     private func optionButton(title: String, detail: String, action: @escaping () -> Void) -> some View {
         // Neutral pick-list cards: no choice is "current" until committed.
-        StudioOptionButton(title: title, detail: detail, accent: nil, action: action)
+        // Canon Rule 3: the explanatory sentence is a tooltip, not a card
+        // subtitle (same purge 4235c439 applied to CreateTrackFlow).
+        StudioOptionButton(title: title, accent: nil, help: detail, action: action)
     }
 
     private enum SelectionMode {

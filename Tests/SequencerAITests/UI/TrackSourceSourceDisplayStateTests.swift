@@ -679,12 +679,14 @@ final class TrackSourceSourceDisplayStateTests: XCTestCase {
         XCTAssertEqual(state.badgeTitle, "N/A")
     }
 
-    // The unified tab grammar (Variant D) reserves the selected-thumb fill
-    // for the one surface accent, so the presentation maps badge accents only.
-    func test_emptyModifierTabUsesMutedBadgeAccent() {
-        let presentation = TrackSourceSlotWellTabAccentPresentation.modifier(for: .empty)
-
-        XCTAssertEqual(presentation.badge, .border)
+    // The unified tab grammar (Variant D, one chrome accent per surface)
+    // dropped the state→badge-accent mapping entirely: badges carry state as
+    // TEXT in the one surface accent, so only the badge titles are modelled.
+    func test_modifierBadgeStateIsCarriedByTitleOnly() {
+        XCTAssertEqual(TrackSourceModifierDisplayState.empty.badgeTitle, "Empty")
+        XCTAssertEqual(TrackSourceModifierDisplayState.occupied.badgeTitle, "Mod")
+        XCTAssertEqual(TrackSourceModifierDisplayState.bypassed.badgeTitle, "Byp")
+        XCTAssertEqual(TrackSourceModifierDisplayState.unavailable.badgeTitle, "N/A")
     }
 
     func test_containedModifierPickerRootAndEmptyPoolPresentation() {

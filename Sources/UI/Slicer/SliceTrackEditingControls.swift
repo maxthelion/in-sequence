@@ -749,6 +749,10 @@ struct SliceSourceTabContent: View {
     let state: SliceSourceState
     let sampleName: String?
     let sliceCount: Int
+    /// Which detection produced the APPLIED slice set ("Transient detection"/
+    /// "Grid detection"/"Manual markers") — real persisted state, distinct
+    /// from the modal's pending analysis-mode picker.
+    let detectionLabel: String?
     let accent: Color
     let onChooseSample: () -> Void
     let onRemoveSample: () -> Void
@@ -809,11 +813,19 @@ struct SliceSourceTabContent: View {
             VStack(alignment: .leading, spacing: 12) {
                 sampleNameRow
                 HStack(spacing: 8) {
-                    // Slice count is real state; the detection-mode caption was
-                    // purged in the Variant D label purge (canon Rule 3).
+                    // Slice count AND the applied set's detection mode are real
+                    // state (08-D prototype: "8 slices · Grid detection") — the
+                    // modal's Transients/Grid picker only shows the PENDING
+                    // analysis mode, so this is the one readout of what
+                    // produced the current markers.
                     Text("\(sliceCount) slice\(sliceCount == 1 ? "" : "s")")
                         .studioText(.labelBold)
                         .foregroundStyle(StudioTheme.success)
+                    if let detectionLabel {
+                        Text("· \(detectionLabel)")
+                            .studioText(.label)
+                            .foregroundStyle(StudioTheme.mutedText)
+                    }
                     Spacer()
                 }
                 HStack(spacing: 10) {

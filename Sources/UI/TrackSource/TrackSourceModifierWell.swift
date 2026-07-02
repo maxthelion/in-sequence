@@ -41,6 +41,9 @@ struct TrackSourceModifierWell: View {
     let trackType: TrackType
     let selectedGenerator: GeneratorPoolEntry?
     let isBypassed: Bool
+    /// The ONE chrome accent of the surface (track identity colour). State
+    /// (Mod/Byp/Empty) is carried by the badge TITLE, never a second colour.
+    let accent: Color
     let onShowGeneratorPicker: () -> Void
     let onToggleBypassed: () -> Void
     let onRemoveModifier: () -> Void
@@ -67,10 +70,10 @@ struct TrackSourceModifierWell: View {
     @ViewBuilder
     private var occupiedWell: some View {
         if let selectedGenerator {
-            slotWell(accent: isBypassed ? StudioTheme.amber : StudioTheme.violet) {
+            slotWell(accent: accent) {
                 modifierBadge(
                     title: displayState.badgeTitle,
-                    accent: isBypassed ? StudioTheme.amber : StudioTheme.violet
+                    accent: accent
                 )
 
                 VStack(alignment: .leading, spacing: 3) {
@@ -86,10 +89,10 @@ struct TrackSourceModifierWell: View {
 
                 Spacer(minLength: 0)
 
-                TrackSourceActionButton(title: "Choose", accent: StudioTheme.violet, action: onShowGeneratorPicker)
+                TrackSourceActionButton(title: "Choose", accent: accent, action: onShowGeneratorPicker)
                 TrackSourceActionButton(
                     title: isBypassed ? "Enable" : "Bypass",
-                    accent: isBypassed ? StudioTheme.success : StudioTheme.amber,
+                    accent: accent,
                     action: onToggleBypassed
                 )
                 removeButton(action: onRemoveModifier)
@@ -100,8 +103,8 @@ struct TrackSourceModifierWell: View {
     }
 
     private var emptyWell: some View {
-        slotWell(accent: StudioTheme.violet) {
-            modifierBadge(title: displayState.badgeTitle, accent: StudioTheme.violet)
+        slotWell(accent: accent) {
+            modifierBadge(title: displayState.badgeTitle, accent: accent)
 
             Text("No modifier selected")
                 .studioText(.bodyBold)
@@ -109,7 +112,7 @@ struct TrackSourceModifierWell: View {
 
             Spacer(minLength: 0)
 
-            TrackSourceActionButton(title: "[+] Add Modifier", accent: StudioTheme.violet, action: onShowGeneratorPicker)
+            TrackSourceActionButton(title: "[+] Add Modifier", accent: accent, action: onShowGeneratorPicker)
                 .help("Modifiers process the resolved source without creating source material")
         }
     }
@@ -118,7 +121,9 @@ struct TrackSourceModifierWell: View {
         slotWell(accent: StudioTheme.border) {
             modifierBadge(title: displayState.badgeTitle, accent: StudioTheme.border)
 
-            Text("Modifiers are unavailable for this track type")
+            // State, not explanation (canon Rule 3): the "why" lives in the
+            // tooltip; the badge already reads "N/A".
+            Text("No modifier stage")
                 .studioText(.bodyBold)
                 .foregroundStyle(StudioTheme.text)
                 .help("\(trackType.label) tracks cannot host modifier generators")

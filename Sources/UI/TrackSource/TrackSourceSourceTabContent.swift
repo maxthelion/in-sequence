@@ -51,6 +51,7 @@ struct TrackSourceSourceTabContent: View {
                 TrackSourceClipPanel(
                     previewClipContent: previewClipContent,
                     defaultClipNote: defaultClipNote,
+                    accent: accent,
                     clipMacroSlots: clipMacroSlots,
                     macroBindings: macroBindings,
                     macroLanes: macroLanes,

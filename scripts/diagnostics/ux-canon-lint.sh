@@ -16,15 +16,21 @@ set -euo pipefail
 #      12: colour identifies, it never floods — accents are solid thumbs or
 #      outlines, never translucent washes). Fully-opaque
 #      `.opacity(StudioOpacity.accentFill)` is exempt.
-#   2. grey-escape — `.foregroundColor(.secondary)` / `.foregroundStyle(
-#      .secondary)` / `Color.gray` / `.tertiary` in Sources/UI outside Theme/:
-#      system greys bypass the StudioTheme tokens and re-grow the wall of
-#      grey (the bold-flat pass).
+#   2. grey-escape — `.foregroundColor(.secondary|.gray)` / `.foregroundStyle(
+#      .secondary|.gray)` / `Color.gray` / `.tertiary` in Sources/UI outside
+#      Theme/: system greys bypass the StudioTheme tokens and re-grow the
+#      wall of grey (the bold-flat pass).
 #   3. explainer-prose — a `Text("...")` literal that ends with a period and
 #      exceeds 4 words (canon Rule 3: no explainer prose on working
 #      surfaces; any full sentence is a finding). Legitimate sentence slots
 #      (destructive-confirm messages) live in
 #      scripts/diagnostics/ux-canon-prose-allowlist.txt.
+#      KNOWN GAPS (deliberate: reviewers must cover these, the regex cannot
+#      without false positives): period-stripped declarative sentences,
+#      multi-line Text( literals, and variable-fed Text(someString) whose
+#      literal lives in a presentation struct. Do not "fix" a Rule 3 hit by
+#      dropping the trailing period — move the instruction to `.help` or
+#      delete it.
 #
 # Every rule is opt-out via a `ux-canon-allow: <reason>` comment on the
 # offending line or the line above it. A bare annotation with no reason is
@@ -111,7 +117,7 @@ for path in "${files[@]}"; do
         }
 
         # Rule 2: system-grey escapes bypassing StudioTheme tokens.
-        if (line ~ /\.foregroundColor\(\.secondary\)|\.foregroundStyle\(\.secondary\)|Color\.gray|\.tertiary/) {
+        if (line ~ /\.foregroundColor\(\.secondary\)|\.foregroundStyle\(\.secondary\)|\.foregroundColor\(\.gray\)|\.foregroundStyle\(\.gray\)|Color\.gray|\.tertiary/) {
           if (!has_allow(line) && !has_allow(previous)) {
             printf "grey-escape|%s:%d: canon (bold-flat) violated: system grey bypasses StudioTheme tokens — use StudioTheme.mutedText/border or annotate `// ux-canon-allow: <reason>`: %s\n", file, NR, line
           }

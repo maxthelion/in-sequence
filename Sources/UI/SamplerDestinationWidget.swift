@@ -314,12 +314,25 @@ struct SamplerDestinationWidget: View {
             divider
 
             // Canon Rule 3: no explainer prose — the recovery instruction
-            // lives in the tooltip; the button is the affordance.
-            Button("Replace with first available sample") {
+            // lives in the tooltip; the button is the affordance. Neutral
+            // studio chip: the widget renders on several surfaces (kit part
+            // Sound tab, track destination, slicer) whose one chrome accent
+            // is the surface's own — no green escape.
+            Button {
                 replaceWithFirstInCurrentCategory()
+            } label: {
+                Text("Replace with first available sample")
+                    .studioText(.labelBold)
+                    .foregroundStyle(StudioTheme.text)
+                    .padding(.vertical, 8)
+                    .padding(.horizontal, 12)
+                    .background(Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
+                    .overlay(
+                        Capsule()
+                            .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+                    )
             }
-            .buttonStyle(.borderedProminent)
-            .tint(StudioTheme.success)
+            .buttonStyle(.plain)
             .help("Choose another sample or remove the destination")
             .padding(StudioMetrics.Spacing.comfortable)
         }

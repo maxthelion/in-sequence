@@ -1,9 +1,10 @@
 import XCTest
 
 /// Fixture-driven proof of scripts/diagnostics/ux-canon-lint.sh — the same
-/// planted-violation pattern as RealtimePathLintTests. The repo-wide scan is
-/// deliberately NOT asserted clean here: the canon creep pre-dates the lint
-/// and is burned down via the UX_CANON_LINT_BASELINE ratchet.
+/// planted-violation pattern as RealtimePathLintTests. The lint is STRICT
+/// zero-tolerance (the 2026-07-02 migration burned the baseline down to zero
+/// and the UX_CANON_LINT_BASELINE ratchet was deleted): any violation fails,
+/// and the old baseline env var must have no effect.
 final class UxCanonLintTests: XCTestCase {
     private var repoRoot: URL {
         URL(fileURLWithPath: #filePath)
@@ -54,6 +55,21 @@ final class UxCanonLintTests: XCTestCase {
         struct Row: View {
             var body: some View {
                 Text("Meta").foregroundStyle(.secondary)
+            }
+        }
+        """)
+
+        let result = try runLint(arguments: [fixture.path])
+        XCTAssertNotEqual(result.status, 0)
+        XCTAssertTrue(result.output.contains("system grey"), result.output)
+    }
+
+    func test_uxCanonLintFailsOnMemberSyntaxGrayEscape() throws {
+        let fixture = try makeFixture("""
+        import SwiftUI
+        struct Row: View {
+            var body: some View {
+                Text("Meta").foregroundStyle(.gray)
             }
         }
         """)
@@ -124,7 +140,9 @@ final class UxCanonLintTests: XCTestCase {
         XCTAssertTrue(result.output.contains("must include a reason"), result.output)
     }
 
-    func test_uxCanonLintBaselinePassesWithinBudgetAndReportsCounts() throws {
+    /// The baseline ratchet was removed when the lint went strict: the env
+    /// var must be ignored and a planted violation must fail regardless.
+    func test_uxCanonLintIsStrictAndIgnoresRemovedBaselineEnvVar() throws {
         let fixture = try makeFixture("""
         import SwiftUI
         struct Row: View {
@@ -137,13 +155,14 @@ final class UxCanonLintTests: XCTestCase {
         let failing = try runLint(arguments: [fixture.path])
         XCTAssertNotEqual(failing.status, 0)
         XCTAssertTrue(failing.output.contains("grey-escape=1"), failing.output)
+        XCTAssertTrue(failing.output.contains("zero tolerance"), failing.output)
 
-        let baselined = try runLint(
+        let withRemovedEnvVar = try runLint(
             arguments: [fixture.path],
             environment: ["UX_CANON_LINT_BASELINE": "1"]
         )
-        XCTAssertEqual(baselined.status, 0, baselined.output)
-        XCTAssertTrue(baselined.output.contains("baseline=1"), baselined.output)
+        XCTAssertNotEqual(withRemovedEnvVar.status, 0, withRemovedEnvVar.output)
+        XCTAssertFalse(withRemovedEnvVar.output.contains("baseline="), withRemovedEnvVar.output)
     }
 
     private func makeFixture(_ source: String, fileName: String = "InjectedCanonSurface.swift") throws -> URL {

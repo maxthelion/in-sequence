@@ -131,6 +131,10 @@ struct ClipMacroLayerTab: Equatable, Identifiable {
 struct ClipContentPreview: View {
     let content: ClipContent
     let defaultNote: ClipStepNote
+    /// The ONE chrome accent of the surface (track identity colour): thumbs
+    /// of the Lane/Length/bar inset-track selectors carry it. Content accents
+    /// (step cells, playhead ring) stay free.
+    let accent: Color
     let macroSlots: [MacroSlot]
     let macroBindings: [TrackMacroBinding]
     let macroLanes: [UUID: MacroLane]
@@ -147,6 +151,7 @@ struct ClipContentPreview: View {
     init(
         content: ClipContent,
         defaultNote: ClipStepNote = ClipStepNote(pitch: 60, velocity: 100, lengthSteps: 4),
+        accent: Color,
         macroSlots: [MacroSlot] = [],
         macroBindings: [TrackMacroBinding] = [],
         macroLanes: [UUID: MacroLane] = [:],
@@ -158,6 +163,7 @@ struct ClipContentPreview: View {
         let normalizedContent = content.normalized
         self.content = normalizedContent
         self.defaultNote = defaultNote.normalized
+        self.accent = accent
         self.macroSlots = macroSlots.sorted { $0.slotIndex < $1.slotIndex }
         self.macroBindings = macroBindings
         self.macroLanes = macroLanes
@@ -376,7 +382,7 @@ struct ClipContentPreview: View {
                 }
             }
 
-            clipFooter(lengthSteps: lengthSteps, page: page, pageCount: pageCount, playheadPage: playheadPage)
+            clipFooter(lengthSteps: lengthSteps, steps: steps, page: page, pageCount: pageCount, playheadPage: playheadPage)
         }
         .background {
             StepGridEscapeKeyHandler(isEnabled: stepGridCoordinator?.isSelectionActive ?? false) {
@@ -498,67 +504,61 @@ struct ClipContentPreview: View {
         }
     }
 
+    // Unified tab grammar (Variant D): the STEPS/CLIP pill already names this
+    // panel (no "CLIP" header restating, canon Rule 1), and Lane/Length are
+    // VALUE selectors — solid surface-accent thumbs inside darker inset
+    // tracks, never bespoke floating capsules or a second chrome accent.
     private func clipHeaderControls(lengthSteps: Int, steps: [ClipStep]) -> some View {
-        HStack(alignment: .top, spacing: 16) {
-            HStack(alignment: .firstTextBaseline, spacing: 10) {
-                Text("CLIP")
-                    .studioText(.bodyEmphasis)
-                    .tracking(1.1)
-                    .foregroundStyle(StudioTheme.text)
+        HStack(alignment: .top, spacing: StudioMetrics.Spacing.roomy) {
+            StudioSegmentedControl(
+                title: "Lane",
+                selection: $selectedLane,
+                segments: ClipEditorLane.allCases.map { lane in
+                    StudioSegment(title: lane.title, value: lane)
+                },
+                accent: accent,
+                layout: .init(fillsWidth: false, minWidth: 64)
+            )
 
-                Rectangle()
-                    .fill(StudioTheme.violet)
-                    .frame(width: 36, height: 2)
-            }
-
-            HStack(alignment: .top, spacing: 16) {
-                headerControlGroup(title: "Lane") {
-                    HStack(spacing: 8) {
-                        ForEach(ClipEditorLane.allCases) { lane in
-                            chipButton(
-                                title: lane.title,
-                                accent: lane.accent,
-                                isSelected: selectedLane == lane,
-                                action: { selectedLane = lane }
-                            )
+            StudioSegmentedControl(
+                title: "Length",
+                selection: Binding(
+                    get: { lengthSteps },
+                    set: { option in
+                        commit { entry in
+                            guard case let .noteGrid(_, currentSteps) = entry.content.normalized else { return }
+                            entry.content = resizingNoteGrid(to: option, currentSteps: currentSteps)
                         }
                     }
-                }
+                ),
+                segments: [16, 32, 64, 128].map { option in
+                    StudioSegment(title: "\(option)", value: option, isEnabled: isEditable)
+                },
+                accent: accent,
+                layout: .init(fillsWidth: false, minWidth: 44)
+            )
 
-                headerControlGroup(title: "Length") {
-                    HStack(spacing: 8) {
-                        ForEach([16, 32, 64, 128], id: \.self) { option in
-                            chipButton(
-                                title: "\(option)",
-                                accent: StudioTheme.violet,
-                                isSelected: lengthSteps == option,
-                                isEnabled: isEditable,
-                                action: {
-                                    commit { entry in
-                                        guard case let .noteGrid(_, currentSteps) = entry.content.normalized else { return }
-                                        entry.content = resizingNoteGrid(to: option, currentSteps: currentSteps)
-                                    }
-                                }
-                            )
-                        }
-                    }
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .trailing)
+            Spacer(minLength: 0)
         }
     }
 
-    // Canon creep purge (2026-07-02): the "N notes" counter was filler — the
-    // grid already shows its notes — so the footer is the pager alone.
+    // Single-page clips show every note on the grid, so the footer only
+    // exists for multi-page clips: the total note count (real state — pages
+    // off-screen contribute to it) plus the bar-range selector.
     @ViewBuilder
     private func clipFooter(
         lengthSteps: Int,
+        steps: [ClipStep],
         page: Int,
         pageCount: Int,
         playheadPage: Int?
     ) -> some View {
         if pageCount > 1 {
-            HStack(alignment: .bottom, spacing: 12) {
+            HStack(alignment: .center, spacing: 12) {
+                Text("\(noteCount(in: steps)) notes")
+                    .studioText(.labelBold)
+                    .foregroundStyle(StudioTheme.mutedText)
+
                 Spacer(minLength: 12)
 
                 pageSelector(lengthSteps: lengthSteps, page: page, pageCount: pageCount, playheadPage: playheadPage)
@@ -566,20 +566,27 @@ struct ClipContentPreview: View {
         }
     }
 
+    // BAR-range value selector (inset-track grammar): solid surface-accent
+    // thumb; the green ring is the playhead page — content state, not chrome.
     private func pageSelector(lengthSteps: Int, page: Int, pageCount: Int, playheadPage: Int?) -> some View {
-        HStack(spacing: 8) {
-            ForEach(0..<pageCount, id: \.self) { index in
+        StudioSegmentedControl(
+            title: nil,
+            selection: Binding(
+                get: { page },
+                set: { selectedPage = $0 }
+            ),
+            segments: (0..<pageCount).map { index in
                 let start = index * 16 + 1
                 let end = min((index + 1) * 16, lengthSteps)
-                chipButton(
+                return StudioSegment(
                     title: "\(start)-\(end)",
-                    accent: selectedLane.accent,
-                    isSelected: page == index,
-                    isPlaying: playheadPage == index,
-                    action: { selectedPage = index }
+                    value: index,
+                    indicatorAccent: playheadPage == index ? StudioTheme.success : nil
                 )
-            }
-        }
+            },
+            accent: accent,
+            layout: .init(fillsWidth: false, minWidth: 44)
+        )
     }
 
     /// Single-line layer selector: chevrons step through trigger/velocity/
@@ -722,55 +729,6 @@ struct ClipContentPreview: View {
             content: .noteGrid(lengthSteps: lengthSteps, steps: steps),
             macroLanes: macroLanes
         )
-    }
-
-    private func headerControlGroup<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(title.uppercased())
-                .studioText(.eyebrow)
-                .tracking(0.8)
-                .foregroundStyle(StudioTheme.mutedText)
-
-            content()
-        }
-    }
-
-    private func chipButton(
-        title: String,
-        accent: Color,
-        isSelected: Bool,
-        isPlaying: Bool = false,
-        isEnabled: Bool = true,
-        action: @escaping () -> Void
-    ) -> some View {
-        Button(action: action) {
-            // Colour identifies, it never floods (ux-canon rule 12): the
-            // selected segment is a fully solid accent thumb with dark text;
-            // unselected segments are outline only.
-            Text(title)
-                .studioText(.labelBold)
-                .foregroundStyle(isSelected ? StudioTheme.background : StudioTheme.mutedText)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .background(
-                    isSelected ? accent : Color.white.opacity(StudioOpacity.subtleFill),
-                    in: Capsule()
-                )
-                .overlay(
-                    Capsule()
-                        .stroke(
-                            isSelected ? Color.clear : StudioTheme.border.opacity(StudioOpacity.subtleStroke),
-                            lineWidth: StudioMetrics.borderWidth
-                        )
-                )
-                .overlay(
-                    Capsule()
-                        .stroke(isPlaying ? StudioTheme.success.opacity(0.95) : .clear, lineWidth: 2)
-                )
-        }
-        .buttonStyle(.plain)
-        .disabled(!isEnabled)
-        .opacity(isEnabled ? 1 : 0.5)
     }
 
     private func clampPage(lengthSteps: Int) {
