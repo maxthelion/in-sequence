@@ -433,8 +433,11 @@ struct ClipHistoryPianoRollPreview: View {
                         .offset(x: stepWidth * CGFloat(clampedLower))
                 }
 
-                if notes.isEmpty {
-                    Text(isTransportRunning ? "Waiting for live notes" : "Press play to record")
+                // Canon Rule 3: no instruction prose on the surface — the
+                // stopped-transport hint lives in the container tooltip below;
+                // "Waiting for live notes" is real state while playing.
+                if notes.isEmpty, isTransportRunning {
+                    Text("Waiting for live notes")
                         .studioText(.body)
                         .foregroundStyle(StudioTheme.mutedText)
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
@@ -445,6 +448,7 @@ struct ClipHistoryPianoRollPreview: View {
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
                     .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
             )
+            .help("Press play to record live history into the rolling buffer")
         }
     }
 

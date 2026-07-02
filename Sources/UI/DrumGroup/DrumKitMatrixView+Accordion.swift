@@ -398,14 +398,11 @@ extension DrumKitMatrixView {
     @ViewBuilder
     func expandedSoundChooserPanel(memberID: UUID) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("No sound source")
-                    .studioText(.subtitle)
-                    .foregroundStyle(StudioTheme.text)
-                Text("Choose what makes this part's sound.")
-                    .studioText(.label)
-                    .foregroundStyle(StudioTheme.mutedText)
-            }
+            // Canon Rule 3: state title only — the two option rows below are
+            // the affordance; no explainer prose.
+            Text("No sound source")
+                .studioText(.subtitle)
+                .foregroundStyle(StudioTheme.text)
 
             StudioFXOptionRow(title: "Sample", systemImage: "waveform") {
                 guard let first = AudioSampleLibrary.shared.samples.first else { return }
@@ -679,28 +676,26 @@ extension DrumKitMatrixView {
         let memberID = row.memberID
         let slots = memberMacroSlots(memberID)
         let fallbacks = memberMacroFallbackValues(memberID)
-        VStack(alignment: .leading, spacing: 8) {
-            LazyVGrid(columns: Self.macroColumns, alignment: .leading, spacing: 12) {
-                ForEach(slots) { slot in
-                    AUMacroSlotKnob(
-                        slotIndex: slot.slotIndex,
-                        binding: slot.binding,
-                        value: slot.binding.flatMap { fallbacks[$0.id] },
-                        onAssign: { prepareAndPresentMemberMacroPicker(memberID: memberID, slotIndex: slot.slotIndex) },
-                        onChange: { newValue in
-                            guard let binding = slot.binding else { return }
-                            session.setMacroLayerDefault(value: newValue, bindingID: binding.id, trackID: memberID)
-                        },
-                        onRemove: slot.binding.map { binding in
-                            { session.removeAUMacroSlot(bindingID: binding.id, trackID: memberID) }
-                        }
-                    )
-                }
+        // Canon Rule 3: no explainer prose — the assign instruction lives in
+        // the tooltip.
+        LazyVGrid(columns: Self.macroColumns, alignment: .leading, spacing: 12) {
+            ForEach(slots) { slot in
+                AUMacroSlotKnob(
+                    slotIndex: slot.slotIndex,
+                    binding: slot.binding,
+                    value: slot.binding.flatMap { fallbacks[$0.id] },
+                    onAssign: { prepareAndPresentMemberMacroPicker(memberID: memberID, slotIndex: slot.slotIndex) },
+                    onChange: { newValue in
+                        guard let binding = slot.binding else { return }
+                        session.setMacroLayerDefault(value: newValue, bindingID: binding.id, trackID: memberID)
+                    },
+                    onRemove: slot.binding.map { binding in
+                        { session.removeAUMacroSlot(bindingID: binding.id, trackID: memberID) }
+                    }
+                )
             }
-            Text("Drum-part macro defaults. Tap an empty slot to assign an AU parameter.")
-                .studioText(.label)
-                .foregroundStyle(StudioTheme.mutedText)
         }
+        .help("Drum-part macro defaults — tap an empty slot to assign an AU parameter")
     }
 
     /// Whether the member's resolved destination is an AU instrument (only AU

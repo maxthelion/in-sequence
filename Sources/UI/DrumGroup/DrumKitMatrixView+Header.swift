@@ -49,16 +49,7 @@ extension DrumKitMatrixView {
             }
 
             if let model, !model.rows.isEmpty {
-                HStack(alignment: .center, spacing: 10) {
-                    headerPatternPalette(model)
-
-                    Spacer(minLength: 0)
-
-                    headerActionButton(title: "Apply Template…", systemImage: "square.grid.2x2") {
-                        isPresentingTemplateChooser = true
-                    }
-                    .help("Apply a pattern template into pattern slot P\((model.groupSelectedSlotIndex ?? 0) + 1)")
-                }
+                headerPatternPalette(model)
             }
         }
         .padding(StudioMetrics.Spacing.standard)
@@ -72,8 +63,8 @@ extension DrumKitMatrixView {
     /// The 1–16 kit-level pattern pills, now living inside the header box. The
     /// kit supports only KIT-level patterns, so the former Linked / MIXED /
     /// Re-link controls are gone — selecting a slot applies it across the kit.
-    /// The Apply Template… action sits beside these pills in the header so its
-    /// destination (the selected kit pattern slot) is visually adjacent.
+    /// The Apply Template… action lives in the matrix well's selector row
+    /// (prototype 09 kit-matrix render).
     func headerPatternPalette(_ model: DrumKitMatrixModel) -> some View {
         TrackPatternSlotPalette(
             selectedSlot: groupPatternSlotBinding(model),
@@ -173,9 +164,11 @@ extension DrumKitMatrixView {
         .accessibilityLabel("Perform kit")
     }
 
-    /// Bar pager: one button per 16-step bar (1–16, 17–32, …), shown only when
+    /// Bar pager: one chip per 16-step bar (1–16, 17–32, …), shown only when
     /// the kit's longest row spans more than one bar. Selecting a page moves the
-    /// visible 16-step window for every part row in lockstep.
+    /// visible 16-step window for every part row in lockstep. Locked grammar:
+    /// a VALUE selector — the shared inset-track solid-thumb control INSIDE
+    /// the well, with the BAR eyebrow beside the track (prototype 09).
     @ViewBuilder
     func barPager(_ model: DrumKitMatrixModel) -> some View {
         // Scan the rows for the longest length ONCE, then reuse it for both the
@@ -190,47 +183,31 @@ extension DrumKitMatrixView {
                     .tracking(0.8)
                     .foregroundStyle(StudioTheme.mutedText)
 
-                HStack(spacing: 4) {
-                    ForEach(0..<pageCount, id: \.self) { page in
-                        barPageButton(page, isSelected: page == current)
-                    }
-                }
-                .padding(3)
-                .background(
-                    Color.white.opacity(StudioOpacity.subtleFill),
-                    in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-                        .stroke(StudioTheme.border.opacity(0.9), lineWidth: StudioMetrics.borderWidth)
+                StudioSegmentedControl(
+                    title: nil,
+                    selection: Binding(
+                        get: { current },
+                        set: { barPage = $0 }
+                    ),
+                    segments: (0..<pageCount).map { page in
+                        let title = Self.barPageTitle(page)
+                        return StudioSegment(
+                            title: title,
+                            value: page,
+                            accessibilityLabel: "Bar \(title)",
+                            help: "Show steps \(title)"
+                        )
+                    },
+                    accent: accent,
+                    layout: Self.matrixSelectorLayout(minWidth: 56)
                 )
             }
         }
     }
 
-    func barPageButton(_ page: Int, isSelected: Bool) -> some View {
-        let lower = page * Self.stepsPerBar + 1
-        let upper = (page + 1) * Self.stepsPerBar
-        let title = "\(lower)–\(upper)"
-
-        return Button {
-            barPage = page
-        } label: {
-            Text(title)
-                .studioText(.labelBold)
-                .foregroundStyle(isSelected ? StudioTheme.background : StudioTheme.text.opacity(0.78))
-                .lineLimit(1)
-                .frame(minWidth: 56, minHeight: 28)
-                .padding(.horizontal, 8)
-                .background(
-                    isSelected ? accent : Color.clear,
-                    in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
-                )
-                .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
-        }
-        .buttonStyle(.plain)
-        .help("Show steps \(title)")
-        .accessibilityLabel("Bar \(title)")
-        .accessibilityValue(isSelected ? "Selected" : "Not selected")
+    static func barPageTitle(_ page: Int) -> String {
+        let lower = page * stepsPerBar + 1
+        let upper = (page + 1) * stepsPerBar
+        return "\(lower)–\(upper)"
     }
 }

@@ -21,20 +21,21 @@ extension DrumKitMatrixView {
 
     /// Matrix-wide layer selector: the same layer set the single-track step
     /// editor offers (steps, velocity, chance), applied to every part row.
+    /// Locked grammar: a VALUE selector — the shared inset-track solid-thumb
+    /// control INSIDE the well, never the pill-row grammar.
     var layerSelector: some View {
-        HStack(spacing: 4) {
-            ForEach(DrumKitMatrixLayer.allCases) { layer in
-                layerButton(layer)
-            }
-        }
-        .padding(3)
-        .background(
-            Color.white.opacity(StudioOpacity.subtleFill),
-            in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-                .stroke(StudioTheme.border.opacity(0.9), lineWidth: StudioMetrics.borderWidth)
+        StudioSegmentedControl(
+            title: nil,
+            selection: $selectedLayer,
+            segments: DrumKitMatrixLayer.allCases.map { layer in
+                StudioSegment(
+                    title: layer.title,
+                    value: layer,
+                    accessibilityLabel: "Step layer \(layer.title)"
+                )
+            },
+            accent: accent,
+            layout: Self.matrixSelectorLayout(minWidth: 64)
         )
     }
 
@@ -47,22 +48,20 @@ extension DrumKitMatrixView {
         let memberID = fillPreviewMemberID(model)
         let isActive = memberID.map { session.isTrackFillPreviewActive(trackID: $0) } ?? false
         let isAvailable = memberID.map { session.isTrackFillPreviewAvailable(trackID: $0) } ?? false
-        return HStack(spacing: 4) {
-            fillModeButton(title: "Normal", isSelected: !isActive, isEnabled: true) {
-                if let memberID { session.setTrackFillPreview(trackID: memberID, active: false) }
-            }
-            fillModeButton(title: "Fill", isSelected: isActive, isEnabled: isAvailable) {
-                if let memberID { session.setTrackFillPreview(trackID: memberID, active: true) }
-            }
-        }
-        .padding(3)
-        .background(
-            Color.white.opacity(StudioOpacity.subtleFill),
-            in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-                .stroke(StudioTheme.border.opacity(0.9), lineWidth: StudioMetrics.borderWidth)
+        return StudioSegmentedControl(
+            title: nil,
+            selection: Binding(
+                get: { isActive },
+                set: { newValue in
+                    if let memberID { session.setTrackFillPreview(trackID: memberID, active: newValue) }
+                }
+            ),
+            segments: [
+                StudioSegment(title: "Normal", value: false, accessibilityLabel: "Normal playback"),
+                StudioSegment(title: "Fill", value: true, isEnabled: isAvailable, accessibilityLabel: "Fill playback"),
+            ],
+            accent: accent,
+            layout: Self.matrixSelectorLayout(minWidth: 56)
         )
         .help(isAvailable
             ? "Switch all rows between NORMAL playback and the FILL lane preview"
@@ -70,59 +69,26 @@ extension DrumKitMatrixView {
         .accessibilityIdentifier("kit-fill-mode")
     }
 
+    /// Shared chip geometry for the matrix top-bar value selectors (layer,
+    /// fill, bar pager): hug-width chips matching the pre-migration bespoke
+    /// buttons pixel-for-pixel.
+    static func matrixSelectorLayout<Value: Equatable>(
+        minWidth: CGFloat
+    ) -> StudioSegmentedControl<Value>.Layout {
+        StudioSegmentedControl<Value>.Layout(
+            fillsWidth: false,
+            minWidth: minWidth,
+            minHeight: 28,
+            horizontalPadding: 8,
+            minimumScaleFactor: nil
+        )
+    }
+
     private func fillPreviewMemberID(_ model: DrumKitMatrixModel) -> UUID? {
         if model.rows.contains(where: { $0.memberID == navigationState.originatingPartID }) {
             return navigationState.originatingPartID
         }
         return model.rows.first?.memberID
-    }
-
-    func fillModeButton(
-        title: String,
-        isSelected: Bool,
-        isEnabled: Bool,
-        action: @escaping () -> Void
-    ) -> some View {
-        Button(action: action) {
-            Text(title)
-                .studioText(.labelBold)
-                .foregroundStyle(isSelected ? StudioTheme.background : StudioTheme.text.opacity(0.78))
-                .lineLimit(1)
-                .frame(minWidth: 56, minHeight: 28)
-                .padding(.horizontal, 8)
-                .background(
-                    isSelected ? accent : Color.clear,
-                    in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
-                )
-                .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
-        }
-        .buttonStyle(.plain)
-        .disabled(!isEnabled)
-        .accessibilityLabel("\(title) playback")
-        .accessibilityValue(isSelected ? "Selected" : "Not selected")
-    }
-
-    func layerButton(_ layer: DrumKitMatrixLayer) -> some View {
-        let isSelected = selectedLayer == layer
-
-        return Button {
-            selectedLayer = layer
-        } label: {
-            Text(layer.title)
-                .studioText(.labelBold)
-                .foregroundStyle(isSelected ? StudioTheme.background : StudioTheme.text.opacity(0.78))
-                .lineLimit(1)
-                .frame(minWidth: 64, minHeight: 28)
-                .padding(.horizontal, 8)
-                .background(
-                    isSelected ? accent : Color.clear,
-                    in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
-                )
-                .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("Step layer \(layer.title)")
-        .accessibilityValue(isSelected ? "Selected" : "Not selected")
     }
 
     func staleMemberBanner(count: Int) -> some View {
@@ -135,21 +101,18 @@ extension DrumKitMatrixView {
     }
 
     var emptyRowsState: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("No resolved parts")
-                .studioText(.bodyEmphasis)
-                .foregroundStyle(StudioTheme.text)
-            Text("This kit has no current member tracks to display.")
-                .studioText(.body)
-                .foregroundStyle(StudioTheme.mutedText)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(StudioMetrics.Spacing.loose)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
-        )
+        // Canon Rule 3: state title only — the explanation lives in the tooltip.
+        Text("No resolved parts")
+            .studioText(.bodyEmphasis)
+            .foregroundStyle(StudioTheme.text)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(StudioMetrics.Spacing.loose)
+            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
+                    .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+            )
+            .help("This kit has no current member tracks to display")
     }
 
     func matrixRows(_ model: DrumKitMatrixModel) -> some View {

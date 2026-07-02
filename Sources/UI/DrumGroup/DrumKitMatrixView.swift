@@ -526,47 +526,45 @@ struct DrumKitMatrixView: View {
     }
 
     /// Kit page layout (AC12/AC13/AC14): persistent Patterns row, then either
-    /// the Capture history surface (replaces the tabs) or the kit tab bar +
-    /// selected tab body. The Patterns row is ALWAYS above and stays visible
+    /// the Capture history surface (replaces the tabs) or the kit section
+    /// pills + tab well. The Patterns row is ALWAYS above and stays visible
     /// across every tab and during Capture.
     @ViewBuilder
     func kitBody(_ model: DrumKitMatrixModel) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
-            if isCaptureOpen {
-                captureHistoryBody(model)
-            } else {
-                kitTabBar
-                selectedKitTabBody(model)
+        if isCaptureOpen {
+            captureHistoryBody(model)
+        } else {
+            // Unified tab grammar (Variant D, owner-locked 2026-07-02): the
+            // kit section pills float a small gap above the kit-accent-
+            // outlined well; the selected tab body lives inside it.
+            VStack(alignment: .leading, spacing: StudioTabWellGrammar.pillRowToWellGap) {
+                kitSectionPills
+
+                StudioTabWell(accent: accent) {
+                    selectedKitTabBody(model)
+                }
             }
         }
     }
 
     /// Matrix · FX · Macros · Mixer (AC13). Hidden while Capture is open.
-    /// Styled to match the normal-track segmented tab bar
-    /// (`TrackSourceSlotWellTabBar`): each tab is a neutral-filled pill with an
-    /// uppercase eyebrow label and an accent underline + ghost-stroke when
-    /// selected, so the kit surface reads with the same grammar as a track.
-    var kitTabBar: some View {
-        HStack(spacing: 4) {
-            ForEach(DrumKitTab.allCases) { tab in
-                kitTabButton(tab)
-            }
-        }
-    }
-
-    func kitTabButton(_ tab: DrumKitTab) -> some View {
-        let isSelected = kitTab == tab
-        // Underline-tab grammar shared with TrackSourceSlotWellTabBar; the kit
-        // tabs are label-only (no per-tab state badge).
-        return StudioSlotTabButton(
-            title: tab.title,
-            isSelected: isSelected,
-            selectedAccent: accent,
-            action: { kitTab = tab }
+    /// D-pill section switcher (StudioSectionPills): the selected pill is the
+    /// one solid kit-accent thumb with a dark glyph; unselected pills stay
+    /// neutral, so the kit surface reads with the same grammar as a track.
+    var kitSectionPills: some View {
+        StudioSectionPills(
+            pills: DrumKitTab.allCases.map { tab in
+                StudioSectionPill(
+                    section: tab,
+                    title: tab.title,
+                    accessibilityIdentifier: "kit-tab-\(tab.rawValue)"
+                )
+            },
+            selection: kitTab,
+            accent: accent,
+            accessibilityIdentifier: "kit-tabs",
+            onSelect: { kitTab = $0 }
         )
-        .accessibilityIdentifier("kit-tab-\(tab.rawValue)")
-        .accessibilityLabel("Kit tab \(tab.title)")
-        .accessibilityValue(isSelected ? "Selected" : "Not selected")
     }
 
     @ViewBuilder
@@ -584,32 +582,37 @@ struct DrumKitMatrixView: View {
     }
 
     /// Matrix tab: the existing matrix content, minus the group pattern row
-    /// (which now lives in the persistent Patterns row above) and minus the
-    /// Apply Template… action (which now sits beside the pattern palette in
-    /// the persistent header, next to the slot it targets). (AC23)
+    /// (which now lives in the persistent Patterns row above). The layer/fill/
+    /// bar value selectors render as inset tracks INSIDE the well (locked
+    /// grammar), with the Apply Template… action button at the row's trailing
+    /// edge (per prototype 09 kit-matrix render) — accent-filled so it stays
+    /// visually distinct from the selectors. (AC23)
     @ViewBuilder
     func matrixTabBody(_ model: DrumKitMatrixModel) -> some View {
-        StudioPanel(title: "Kit Matrix", accent: accent, showsHeader: false) {
-            VStack(alignment: .leading, spacing: 12) {
-                HStack(spacing: 10) {
-                    layerSelector
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 10) {
+                layerSelector
 
-                    fillModeControl(model)
+                fillModeControl(model)
 
-                    barPager(model)
+                barPager(model)
 
-                    Spacer(minLength: 0)
+                Spacer(minLength: 0)
+
+                headerActionButton(title: "Apply Template…", systemImage: "square.grid.2x2") {
+                    isPresentingTemplateChooser = true
                 }
+                .help("Apply a pattern template into pattern slot P\((model.groupSelectedSlotIndex ?? 0) + 1)")
+            }
 
-                if model.staleMemberCount > 0 {
-                    staleMemberBanner(count: model.staleMemberCount)
-                }
+            if model.staleMemberCount > 0 {
+                staleMemberBanner(count: model.staleMemberCount)
+            }
 
-                if model.rows.isEmpty {
-                    emptyRowsState
-                } else {
-                    matrixRows(model)
-                }
+            if model.rows.isEmpty {
+                emptyRowsState
+            } else {
+                matrixRows(model)
             }
         }
     }
@@ -657,11 +660,9 @@ struct DrumKitMatrixView: View {
     }
 
     var unavailableState: some View {
-        StudioPanel(title: "Kit Matrix", eyebrow: "Group unavailable", accent: StudioTheme.amber) {
-            Text("The selected kit no longer resolves.")
-                .studioText(.body)
-                .foregroundStyle(StudioTheme.mutedText)
-        }
+        // Canon Rule 3: state title only — the explanation lives in the tooltip.
+        StudioPlaceholderTile(title: "Group unavailable", accent: StudioTheme.amber)
+            .help("The selected kit no longer resolves to a track group")
     }
 }
 

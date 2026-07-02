@@ -13,28 +13,26 @@ extension DrumKitMatrixView {
     /// (`MixerBusInsert`) + session mutations (`addMixerBusInsert` etc.).
     @ViewBuilder
     func kitFXTabBody(_ model: DrumKitMatrixModel) -> some View {
-        StudioPanel(title: "Kit FX", accent: accent, showsHeader: false) {
-            if let bus = kitBus(model) {
-                KitBusFXChainView(
-                    busID: bus.id,
-                    inserts: bus.inserts,
-                    accent: accent,
-                    onAddFX: { isPresentingKitFX = true },
-                    onRemove: { insertID in
-                        session.removeMixerBusInsert(insertID, busID: bus.id)
-                    },
-                    onMove: { source, destination in
-                        moveKitBusInserts(bus: bus, from: source, to: destination)
-                    },
-                    onSetBypassed: { insertID, bypassed in
-                        session.updateMixerBusInsert(insertID, busID: bus.id) { insert in
-                            insert.isEnabled = !bypassed
-                        }
+        if let bus = kitBus(model) {
+            KitBusFXChainView(
+                busID: bus.id,
+                inserts: bus.inserts,
+                accent: accent,
+                onAddFX: { isPresentingKitFX = true },
+                onRemove: { insertID in
+                    session.removeMixerBusInsert(insertID, busID: bus.id)
+                },
+                onMove: { source, destination in
+                    moveKitBusInserts(bus: bus, from: source, to: destination)
+                },
+                onSetBypassed: { insertID, bypassed in
+                    session.updateMixerBusInsert(insertID, busID: bus.id) { insert in
+                        insert.isEnabled = !bypassed
                     }
-                )
-            } else {
-                kitBusUnavailableState
-            }
+                }
+            )
+        } else {
+            kitBusUnavailableState
         }
     }
 
@@ -47,16 +45,13 @@ extension DrumKitMatrixView {
     }
 
     var kitBusUnavailableState: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("This kit is not on a dedicated bus")
-                .studioText(.bodyEmphasis)
-                .foregroundStyle(StudioTheme.text)
-            Text("Route the kit to its own bus (Routing) to add kit-wide FX.")
-                .studioText(.body)
-                .foregroundStyle(StudioTheme.mutedText)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(StudioMetrics.Spacing.loose)
+        // Canon Rule 3: state title only — the instruction lives in the tooltip.
+        Text("This kit is not on a dedicated bus")
+            .studioText(.bodyEmphasis)
+            .foregroundStyle(StudioTheme.text)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(StudioMetrics.Spacing.loose)
+            .help("Route the kit to its own bus (Routing) to add kit-wide FX")
     }
 
     /// "+ FX" picker for the kit bus, mirroring the per-track Add FX sheet but
@@ -137,26 +132,24 @@ extension DrumKitMatrixView {
     /// default mappings but do not yet drive every part — see report.
     @ViewBuilder
     func kitMacrosTabBody(_ model: DrumKitMatrixModel) -> some View {
-        StudioPanel(title: "Kit Macros", accent: accent, showsHeader: false) {
-            VStack(alignment: .leading, spacing: 12) {
-                kitNotYetFunctionalBadge("Kit-wide macro sweeps coming soon")
+        VStack(alignment: .leading, spacing: 12) {
+            kitNotYetFunctionalBadge("Kit-wide macro sweeps coming soon")
 
-                let slots = kitMacroSlots(model)
-                LazyVGrid(columns: Self.macroColumns, alignment: .leading, spacing: 14) {
-                    ForEach(slots) { slot in
-                        AUMacroSlotKnob(
-                            slotIndex: slot.slotIndex,
-                            binding: slot.binding,
-                            value: nil,
-                            onAssign: {},
-                            onChange: { _ in }
-                        )
-                    }
+            let slots = kitMacroSlots(model)
+            LazyVGrid(columns: Self.macroColumns, alignment: .leading, spacing: 14) {
+                ForEach(slots) { slot in
+                    AUMacroSlotKnob(
+                        slotIndex: slot.slotIndex,
+                        binding: slot.binding,
+                        value: nil,
+                        onAssign: {},
+                        onChange: { _ in }
+                    )
                 }
-                .padding(.vertical, 4)
-                .opacity(0.55)
-                .allowsHitTesting(false)
             }
+            .padding(.vertical, 4)
+            .opacity(0.55)
+            .allowsHitTesting(false)
         }
     }
 
@@ -205,11 +198,7 @@ extension DrumKitMatrixView {
     /// Full bus-strip editing is reachable from the global Mixer.
     @ViewBuilder
     func kitMixerTabBody(_ model: DrumKitMatrixModel) -> some View {
-        StudioPanel(title: "Kit Mixer", accent: accent, showsHeader: false) {
-            VStack(alignment: .leading, spacing: 14) {
-                kitBusOutputRow(model)
-            }
-        }
+        kitBusOutputRow(model)
     }
 
     func kitBusOutputRow(_ model: DrumKitMatrixModel) -> some View {
@@ -221,12 +210,15 @@ extension DrumKitMatrixView {
                 .tracking(0.8)
                 .foregroundStyle(StudioTheme.mutedText)
 
+            // Colour identifies, it never floods (ux-canon rule 12): the bus
+            // route is real state, carried by a SOLID accent badge with a dark
+            // glyph — never a translucent accent wash.
             Text(outputTitle)
                 .studioText(.labelBold)
-                .foregroundStyle(StudioTheme.text)
+                .foregroundStyle(StudioTheme.background)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
-                .background(accent.opacity(StudioOpacity.hoverFill), in: Capsule())
+                .background(accent, in: Capsule())
 
             Spacer(minLength: 0)
 

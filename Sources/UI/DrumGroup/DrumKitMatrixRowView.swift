@@ -39,18 +39,16 @@ struct DrumKitMatrixRowView<DetailPanel: View>: View {
             }
         }
         .padding(StudioMetrics.Spacing.compact)
+        // Locked grammar (DECISION 2026-07-02): a part row — expanded or not —
+        // is a NEUTRAL-outlined sub-card inside the kit well: grey border, one
+        // neutral fill step, no second accent outline fighting the kit's.
         .background(
-            (isExpanded ? accent.opacity(0.06) : Color.white.opacity(StudioOpacity.subtleFill)),
+            Color.white.opacity(StudioOpacity.subtleFill),
             in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
         )
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                .stroke(
-                    isExpanded
-                        ? accent.opacity(StudioOpacity.mediumStroke)
-                        : StudioTheme.border,
-                    lineWidth: StudioMetrics.borderWidth
-                )
+                .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
         )
     }
 

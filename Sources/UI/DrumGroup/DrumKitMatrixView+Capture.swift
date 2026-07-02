@@ -255,15 +255,13 @@ extension DrumKitMatrixView {
         let targetSlot = historyTargetSlotIndex(model)
         let lengthLabel = ClipHistoryTransferViewModel.lengthLabel(for: historyLengthSteps)
         return VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
-                Text("SELECTION → P\(targetSlot + 1)")
-                    .studioText(.eyebrow)
-                    .tracking(0.8)
-                    .foregroundStyle(StudioTheme.mutedText)
-                Text("\(lengthLabel) that saves into the pattern")
-                    .studioText(.micro)
-                    .foregroundStyle(StudioTheme.mutedText)
-            }
+            // Canon Rule 3: real state only — the window length and target
+            // slot ARE the state; the explanation lives in the tooltip.
+            Text("SELECTION · \(lengthLabel.uppercased()) → P\(targetSlot + 1)")
+                .studioText(.eyebrow)
+                .tracking(0.8)
+                .foregroundStyle(StudioTheme.mutedText)
+                .help("The \(lengthLabel) window Save writes into pattern slot P\(targetSlot + 1)")
 
             ScrollView(.vertical) {
                 VStack(alignment: .leading, spacing: 8) {
@@ -348,12 +346,11 @@ extension DrumKitMatrixView {
     func captureSaveSlotPicker(_ model: DrumKitMatrixModel) -> some View {
         let occupied = model.occupiedSlotIndexes
         return VStack(alignment: .leading, spacing: 10) {
+            // Canon Rule 3: no explainer prose — the Save button's tooltip
+            // already explains the coordinated clip-set save.
             Text("Save capture to slot")
                 .studioText(.labelBold)
                 .foregroundStyle(StudioTheme.text)
-            Text("Each part's selection saves into the chosen slot as one clip set.")
-                .studioText(.micro)
-                .foregroundStyle(StudioTheme.mutedText)
 
             LazyVGrid(columns: captureSaveSlotColumns, spacing: 6) {
                 ForEach(0..<TrackPatternBank.slotCount, id: \.self) { slotIndex in
