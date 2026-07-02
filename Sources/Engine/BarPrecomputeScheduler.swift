@@ -86,6 +86,19 @@ final class BarPrecomputeScheduler {
     /// of the former live per-(track, step) fresh-RNG on the tick path, only now
     /// off-thread. Callers on the tick-path files never construct an RNG (that is
     /// what the round-2 Rule-2 lint forbids there); the RNG lives here.
+    /// Phase D (cross-bar generator-state continuity): each bar's compute is
+    /// seeded with per-track initial `GeneratedSourceEvaluationState`s. At
+    /// compute time (on the serial `queue`, after any predecessor has
+    /// published) the seed is resolved as:
+    ///
+    /// 1. the PREVIOUS consecutive bar's `endStatesByTrackID` when it chains
+    ///    cleanly — same phrase, same `revision`, `startStep - stepCount` —
+    ///    so Markov/last-pitch generators continue across bar boundaries
+    ///    exactly like the live tick path;
+    /// 2. otherwise `fallbackStatesByTrackID` — the caller's tick-state
+    ///    generated states (empty at transport start). A revision bump or a
+    ///    gap therefore reseeds from the tick-state, mirroring the live
+    ///    path's behavior on a generation-input/structural change.
     func request(
         snapshot: PlaybackSnapshot,
         phraseID: UUID,
@@ -94,6 +107,7 @@ final class BarPrecomputeScheduler {
         startStep: Int,
         stepCount: Int,
         chordContext: Chord?,
+        fallbackStatesByTrackID: [UUID: GeneratedSourceEvaluationState] = [:],
         revision: UInt64
     ) {
         let key = BarKey(phraseID: phraseID, startStep: startStep, stepCount: stepCount, revision: revision)
@@ -116,6 +130,18 @@ final class BarPrecomputeScheduler {
             for step in startStep..<(startStep + stepCount) {
                 seedByStep[step] = rng.next()
             }
+            // Phase D: resolve the initial generator states HERE, at compute
+            // time on the serial queue — the predecessor bar (requested first)
+            // has already computed AND published by now, so a chainable
+            // predecessor is visible under `lock`. Resolving at request time
+            // would race the predecessor's publish.
+            let initialStates = self.chainedInitialStates(
+                phraseID: phraseID,
+                startStep: startStep,
+                stepCount: stepCount,
+                revision: revision,
+                fallback: fallbackStatesByTrackID
+            )
             let bar = BarPrecomputeEvaluator.precompute(
                 snapshot: snapshot,
                 phraseID: phraseID,
@@ -124,6 +150,7 @@ final class BarPrecomputeScheduler {
                 startStep: startStep,
                 stepCount: stepCount,
                 chordContext: chordContext,
+                initialStatesByTrackID: initialStates,
                 seedForStep: { seedByStep[$0] ?? 0 }
             )
             self.backgroundEvaluationsAtomic.increment()
@@ -140,6 +167,36 @@ final class BarPrecomputeScheduler {
             self.ready.broadcast()
             self.ready.unlock()
         }
+    }
+
+    /// Phase D: the initial generator states for a bar's precompute. The
+    /// previous CONSECUTIVE bar's published end states when they chain cleanly
+    /// (same phrase, same generation-input revision, `startStep - stepCount`);
+    /// otherwise the caller-provided fallback (the tick-state's generated
+    /// states, or empty at transport start). A revision bump changes the
+    /// predecessor key, so the chain resets through the fallback — mirroring
+    /// the live path's generated-state reset on a structural change.
+    private func chainedInitialStates(
+        phraseID: UUID,
+        startStep: Int,
+        stepCount: Int,
+        revision: UInt64,
+        fallback: [UUID: GeneratedSourceEvaluationState]
+    ) -> [UUID: GeneratedSourceEvaluationState] {
+        guard stepCount > 0, startStep >= stepCount else {
+            // First bar (or malformed range): no chainable predecessor.
+            return fallback
+        }
+        let predecessorKey = BarKey(
+            phraseID: phraseID,
+            startStep: startStep - stepCount,
+            stepCount: stepCount,
+            revision: revision
+        )
+        lock.lock()
+        let predecessor = publishedByKey[predecessorKey]
+        lock.unlock()
+        return predecessor?.endStatesByTrackID ?? fallback
     }
 
     /// Consume the precomputed bar for the given key.

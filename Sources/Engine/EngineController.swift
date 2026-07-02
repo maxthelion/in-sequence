@@ -1265,6 +1265,7 @@ final class EngineController: RouterDispatcher {
         startStep: Int,
         stepCount: Int,
         chordContext: Chord?,
+        fallbackStatesByTrackID: [UUID: GeneratedSourceEvaluationState],
         revision: UInt64
     ) {
         barPrecomputeScheduler.request(
@@ -1275,6 +1276,7 @@ final class EngineController: RouterDispatcher {
             startStep: startStep,
             stepCount: stepCount,
             chordContext: chordContext,
+            fallbackStatesByTrackID: fallbackStatesByTrackID,
             revision: revision
         )
     }
@@ -2538,6 +2540,14 @@ final class EngineController: RouterDispatcher {
         // pre-mutation bar (same phrase + bar-start, older revision) is never
         // consumed at the boundary.
         let generationInputRevision = tickState.currentGenerationInputRevision()
+        // Phase D: hand the scheduler the tick-state's generated states as the
+        // chain-seed FALLBACK. In the steady state each bar chains from its
+        // predecessor's published end states; the fallback is only used when no
+        // chainable predecessor exists (transport start, revision bump, gap).
+        // Because the tick path adopts a consumed bar's end states at the bar's
+        // final step (below), `generatedStates` equals the CURRENT bar-start
+        // states — exactly the right seed for a mid-bar revision-bump recompute
+        // of the current bar (which re-evaluates from the bar start).
         requestBarPrecompute(
             snapshot: playbackSnapshot,
             phraseID: activePhraseID,
@@ -2545,6 +2555,7 @@ final class EngineController: RouterDispatcher {
             startStep: currentBarStart,
             stepCount: barStepCount,
             chordContext: harmonicSidechainChord,
+            fallbackStatesByTrackID: generatedStates,
             revision: generationInputRevision
         )
         requestBarPrecompute(
@@ -2554,6 +2565,7 @@ final class EngineController: RouterDispatcher {
             startStep: currentBarStart + barStepCount,
             stepCount: barStepCount,
             chordContext: harmonicSidechainChord,
+            fallbackStatesByTrackID: generatedStates,
             revision: generationInputRevision
         )
         let precomputedBar = barPrecomputeScheduler.consume(
@@ -2608,6 +2620,19 @@ final class EngineController: RouterDispatcher {
                         stepIndex: Int(upcomingStep),
                         notes: noteEvents.map(Self.generatedNote(from:))
                     )
+                }
+                // Phase D: adopt the consumed bar's END state into the
+                // tick-state at the bar's FINAL step — a pure dictionary read
+                // (no RNG, no generator evaluation, no new waits on the tick
+                // path). This keeps the tick-state's generated states in sync
+                // with the precomputed stream, so a later cold-boundary
+                // fallback (`resolveStepFallback`) and the next revision-bump
+                // reseed both evaluate from the bar-boundary state instead of
+                // a stale one. Mid-bar the tick-state intentionally holds the
+                // CURRENT bar-start states (see the request fallback above).
+                if stepInPhrase == currentBarStart + barStepCount - 1,
+                   let endState = precomputedBar?.endStatesByTrackID[track.id] {
+                    nextGeneratedStates[track.id] = endState
                 }
             } else {
                 // GRACEFUL FALLBACK (round-2 spec, "inline fallback to today's

@@ -258,7 +258,9 @@ final class PrecomputeStateContinuityTests: XCTestCase {
             "fixture must actually walk (Markov draws should vary across the bars)"
         )
 
-        // Bar 0, then bar 1, precomputed per bar exactly as the scheduler does.
+        // Bar 0, then bar 1, precomputed per bar exactly as the scheduler
+        // does: bar 1 is SEEDED from bar 0's published end states (the Phase D
+        // chain `BarPrecomputeScheduler.request` performs at compute time).
         let bar0 = BarPrecomputeEvaluator.precompute(
             snapshot: snapshot,
             phraseID: phraseID,
@@ -277,6 +279,7 @@ final class PrecomputeStateContinuityTests: XCTestCase {
             startStep: stepsPerBar,
             stepCount: stepsPerBar,
             chordContext: nil,
+            initialStatesByTrackID: bar0.endStatesByTrackID,
             seedForStep: { self.seed(forStep: $0) }
         )
 
@@ -301,6 +304,192 @@ final class PrecomputeStateContinuityTests: XCTestCase {
                 "the bar boundary.)"
             )
         }
+    }
+
+    // MARK: - Adversarial: an UNCHAINED second bar must diverge
+
+    /// Proves the continuity gate above is load-bearing for this fixture and
+    /// seed: a second bar precomputed WITHOUT the previous bar's end states
+    /// (the pre-fix per-bar reset behavior) must NOT reproduce the continuous
+    /// live stream. If this ever passed, the fixture would be insensitive to
+    /// chaining and the gate ceremonial.
+    func test_adversarial_unchainedSecondBar_divergesFromContinuousReference() {
+        let (project, trackID, blockID) = makeMarkovGeneratorProject()
+        let snapshot = SequencerSnapshotCompiler.compile(project: project)
+        let phraseID = snapshot.selectedPhraseID
+
+        let live = liveContinuousReference(
+            snapshot: snapshot,
+            phraseID: phraseID,
+            trackID: trackID,
+            blockID: blockID,
+            startStep: 0,
+            stepCount: 2 * stepsPerBar
+        )
+        // Bar 1 with EMPTY initial states — the per-bar reset this rail exists
+        // to forbid on the chained path.
+        let unchainedBar1 = BarPrecomputeEvaluator.precompute(
+            snapshot: snapshot,
+            phraseID: phraseID,
+            trackIDs: [trackID],
+            blockIDForTrack: { EngineController.generatorBlockID(for: $0) },
+            startStep: stepsPerBar,
+            stepCount: stepsPerBar,
+            chordContext: nil,
+            seedForStep: { self.seed(forStep: $0) }
+        )
+        let liveSeq = (stepsPerBar..<(2 * stepsPerBar)).map { live[$0]?[blockID] ?? [] }
+        let unchainedSeq = (stepsPerBar..<(2 * stepsPerBar)).map {
+            unchainedBar1.preparedNotesByBlockID(forStep: $0)[blockID] ?? []
+        }
+        XCTAssertNotEqual(
+            unchainedSeq, liveSeq,
+            "a second bar precomputed from EMPTY state must diverge from the continuous live " +
+            "stream for this fixture/seed — otherwise the continuity gate would be ceremonial"
+        )
+    }
+
+    // MARK: - Scheduler chaining (end-to-end through request/publish/consume)
+
+    /// A sparse-trigger fixture (fires ONLY at source step 0 of a 32-step
+    /// trigger cycle, deterministic euclidean, sequential pitch) makes the
+    /// scheduler's chain seed directly observable with NO RNG dependence:
+    /// bar 0 realizes exactly one note (pitch 60) and ends with lane-0 last
+    /// pitch 60; bar 1 fires NO step, so its end states are exactly its
+    /// INITIAL states — which must have been chained from bar 0's end states.
+    private func makeSparseTriggerProject() -> (Project, UUID) {
+        let trackID = UUID(uuidString: "BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB")!
+        let generatorID = UUID(uuidString: "CCCCCCCC-CCCC-CCCC-CCCC-CCCCCCCCCCCC")!
+
+        let generator = GeneratorPoolEntry(
+            id: generatorID,
+            name: "Sparse Lead",
+            trackType: .monoMelodic,
+            kind: .monoGenerator,
+            params: .mono(
+                // ONE pulse in a 32-step cycle: fires at source step 0 only —
+                // bar 0 (steps 0..<16) fires once, bar 1 (steps 16..<32) never.
+                trigger: .native(.euclidean(pulses: 1, steps: 32, offset: 0)),
+                pitch: .native(.manual(pitches: sequentialPitches, pickMode: .sequential)),
+                shape: NoteShape(velocity: 100, gateLength: 4, accent: false)
+            )
+        )
+        let track = StepSequenceTrack(
+            id: trackID,
+            name: "Lead",
+            pitches: [60],
+            stepPattern: Array(repeating: true, count: 16),
+            destination: .auInstrument(
+                componentID: AudioInstrumentChoice.builtInSynth.audioComponentID,
+                stateBlob: nil
+            ),
+            velocity: 100,
+            gateLength: 4
+        )
+        let layers = PhraseLayerDefinition.defaultSet(for: [track])
+        let phrase = PhraseModel.default(tracks: [track], layers: layers)
+        let patternBank = TrackPatternBank(
+            trackID: track.id,
+            slots: (0..<stepsPerBar).map {
+                TrackPatternSlot(slotIndex: $0, sourceRef: .generator(generator.id))
+            }
+        )
+        let project = Project(
+            version: 1,
+            tracks: [track],
+            generatorPool: [generator],
+            layers: layers,
+            patternBanks: [patternBank],
+            selectedTrackID: track.id,
+            phrases: [phrase],
+            selectedPhraseID: phrase.id
+        )
+        return (project, trackID)
+    }
+
+    /// End-to-end through the REAL scheduler (request → serial-queue compute →
+    /// publish → consume): the next consecutive bar's precompute is seeded from
+    /// the previous bar's published end states; a revision bump or a gap
+    /// resets the chain to the caller-provided fallback states.
+    func test_scheduler_seedsNextBarFromPreviousBarEndStates_andResetsOnRevisionBumpOrGap() {
+        let (project, trackID) = makeSparseTriggerProject()
+        let snapshot = SequencerSnapshotCompiler.compile(project: project)
+        let phraseID = snapshot.selectedPhraseID
+        let scheduler = BarPrecomputeScheduler()
+        let waitSeconds: TimeInterval = 5
+
+        func request(
+            startStep: Int,
+            revision: UInt64,
+            fallback: [UUID: GeneratedSourceEvaluationState] = [:]
+        ) {
+            scheduler.request(
+                snapshot: snapshot,
+                phraseID: phraseID,
+                trackIDs: [trackID],
+                blockIDForTrack: { EngineController.generatorBlockID(for: $0) },
+                startStep: startStep,
+                stepCount: stepsPerBar,
+                chordContext: nil,
+                fallbackStatesByTrackID: fallback,
+                revision: revision
+            )
+        }
+        func consume(startStep: Int, revision: UInt64) -> PrecomputedBar? {
+            scheduler.consume(
+                phraseID: phraseID,
+                startStep: startStep,
+                stepCount: stepsPerBar,
+                revision: revision,
+                boundaryWaitSeconds: waitSeconds
+            )
+        }
+        func lanePitch(_ bar: PrecomputedBar?) -> Int? {
+            bar?.endStatesByTrackID[trackID]?.lastPitchesByLane.first ?? nil
+        }
+
+        // Bar 0: fires once at step 0 → end state lane-0 last pitch is 60.
+        request(startStep: 0, revision: 7)
+        let bar0 = consume(startStep: 0, revision: 7)
+        XCTAssertNotNil(bar0, "bar 0 must publish within the bounded wait")
+        XCTAssertEqual(
+            lanePitch(bar0), sequentialPitches[0],
+            "bar 0's end state must carry the realized pitch of its only fired step"
+        )
+
+        // Bar 1 (consecutive, same revision): fires NO step, so its end states
+        // ARE its initial states — which must be bar 0's end states (chained).
+        request(startStep: stepsPerBar, revision: 7)
+        let bar1 = consume(startStep: stepsPerBar, revision: 7)
+        XCTAssertNotNil(bar1, "bar 1 must publish within the bounded wait")
+        XCTAssertEqual(
+            lanePitch(bar1), sequentialPitches[0],
+            "the scheduler must seed a consecutive bar's precompute from the previous bar's " +
+            "published end states (cross-bar generator-state continuity)"
+        )
+
+        // Revision bump: the predecessor key no longer matches, so the chain
+        // resets to the fallback (empty here) — no inherited last pitch.
+        request(startStep: stepsPerBar, revision: 8)
+        let bar1Bumped = consume(startStep: stepsPerBar, revision: 8)
+        XCTAssertNotNil(bar1Bumped, "revision-8 bar must publish within the bounded wait")
+        XCTAssertNil(
+            lanePitch(bar1Bumped),
+            "a generation-input revision bump must RESET the cross-bar chain (mirrors the live " +
+            "path's generated-state reset on a structural change)"
+        )
+
+        // Gap: startStep 48 has no published predecessor (bar at 32 was never
+        // requested), so the seed is the caller-provided fallback tick states.
+        let fallbackState = GeneratedSourceEvaluationState(lastPitchesByLane: [99])
+        request(startStep: 3 * stepsPerBar, revision: 7, fallback: [trackID: fallbackState])
+        let bar3 = consume(startStep: 3 * stepsPerBar, revision: 7)
+        XCTAssertNotNil(bar3, "gap bar must publish within the bounded wait")
+        XCTAssertEqual(
+            lanePitch(bar3), 99,
+            "with no chainable predecessor, the precompute must seed from the caller-provided " +
+            "tick-state generated states"
+        )
     }
 
     // MARK: - Consume-side adoption (RED on pre-fix code)

@@ -50,14 +50,30 @@ struct PrecomputedBar: Equatable, Sendable {
     /// by generator block id (`EngineController.generatorBlockID(for:)`).
     private let notesByStep: [Int: [BlockID: [NoteEvent]]]
 
+    /// Phase D (cross-bar generator-state continuity): the per-track
+    /// `GeneratedSourceEvaluationState` reached AFTER evaluating this bar's
+    /// final step. Two consumers:
+    ///
+    /// 1. `BarPrecomputeScheduler` seeds the NEXT consecutive bar's precompute
+    ///    from these states (same generation-input revision, consecutive bar),
+    ///    so Markov/last-pitch generators keep continuity across bar
+    ///    boundaries exactly like the live tick path.
+    /// 2. `EngineController.prepareTick` adopts these states into the
+    ///    tick-state when it consumes this bar's final step, so a later
+    ///    cold-boundary fallback never evaluates from stale state. Adoption is
+    ///    a pure dictionary read on the tick path (no RNG, no generation).
+    let endStatesByTrackID: [UUID: GeneratedSourceEvaluationState]
+
     init(
         startStep: Int,
         stepCount: Int,
-        notesByStep: [Int: [BlockID: [NoteEvent]]]
+        notesByStep: [Int: [BlockID: [NoteEvent]]],
+        endStatesByTrackID: [UUID: GeneratedSourceEvaluationState] = [:]
     ) {
         self.startStep = startStep
         self.stepCount = stepCount
         self.notesByStep = notesByStep
+        self.endStatesByTrackID = endStatesByTrackID
     }
 
     /// An empty precomputed bar (covers no steps). This is what a no-op /
@@ -113,6 +129,11 @@ enum BarPrecomputeEvaluator {
     ///   - startStep: first output step of the bar (inclusive).
     ///   - stepCount: number of output steps in the bar (the prepare horizon).
     ///   - chordContext: the harmonic-sidechain chord for the bar, if any.
+    ///   - initialStatesByTrackID: Phase D — the per-track evaluation states to
+    ///     START this bar from (the previous consecutive bar's
+    ///     `endStatesByTrackID`, or the tick-state's generated states at a cold
+    ///     boundary). Defaults to empty (transport start / no predecessor), which
+    ///     preserves the frozen rails' single-bar contract unchanged.
     ///   - seedForStep: a deterministic per-step RNG seed. The live tick path
     ///     uses a fresh RNG per (track, step); the precompute MUST reproduce the
     ///     SAME stream, so the test injects a deterministic seed per step and
@@ -126,6 +147,7 @@ enum BarPrecomputeEvaluator {
         startStep: Int,
         stepCount: Int,
         chordContext: Chord?,
+        initialStatesByTrackID: [UUID: GeneratedSourceEvaluationState] = [:],
         seedForStep: (Int) -> UInt64
     ) -> PrecomputedBar {
         // Evaluate the whole bar OFF the realtime tick path, exactly mirroring the
@@ -140,10 +162,14 @@ enum BarPrecomputeEvaluator {
         // The result is consumed by the tick path with a pure dictionary read (no RNG,
         // no generator evaluation, no generative allocation on the realtime path).
 
-        // Per-track evaluation state, threaded across the whole bar in step order.
+        // Per-track evaluation state, threaded across the whole bar in step
+        // order. Phase D: seeded from the caller's initial states (the previous
+        // consecutive bar's end states, or the tick-state's generated states at
+        // a cold boundary) so stateful generators keep continuity ACROSS bars,
+        // not just within one.
         var stateByTrack: [UUID: GeneratedSourceEvaluationState] = [:]
         for trackID in trackIDs {
-            stateByTrack[trackID] = GeneratedSourceEvaluationState()
+            stateByTrack[trackID] = initialStatesByTrackID[trackID] ?? GeneratedSourceEvaluationState()
         }
 
         var notesByStep: [Int: [BlockID: [NoteEvent]]] = [:]
@@ -177,7 +203,8 @@ enum BarPrecomputeEvaluator {
         return PrecomputedBar(
             startStep: startStep,
             stepCount: stepCount,
-            notesByStep: notesByStep
+            notesByStep: notesByStep,
+            endStatesByTrackID: stateByTrack
         )
     }
 
