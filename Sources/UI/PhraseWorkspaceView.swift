@@ -11,6 +11,7 @@ struct PhraseWorkspaceView: View {
     @State private var trackPage = 0
     @State private var phraseTab: PhraseWorkspaceTab = .layers
     @State private var phraseLayerEditMode: PhraseLayerEditMode = .byTrack
+    @State private var phraseSceneViewMode: PhraseSceneViewMode = .macros
     @State private var performanceLayerSelection = PerformanceLayerSelectionState()
     @State private var isPresentingPerformanceLayerSelection = false
     @State private var phraseCellTool: PhraseCellTool = .value
@@ -265,6 +266,10 @@ struct PhraseWorkspaceView: View {
             HStack(alignment: .center, spacing: 10) {
                 if phraseTab == .layers {
                     phraseLayerModeControl
+                }
+
+                if phraseTab == .scenes {
+                    phraseSceneViewModeControl
                 }
 
                 if phraseTab == .layers {
@@ -524,6 +529,43 @@ struct PhraseWorkspaceView: View {
         .accessibilityIdentifier("phrase-layer-edit-mode-control")
     }
 
+    // Macros | Slots switch for the SCENES tab, mirroring the layer-mode
+    // segmented pill so every phrase-workspace mode switch shares one idiom.
+    // Amber accent matches the scenes surface.
+    private var phraseSceneViewModeControl: some View {
+        HStack(spacing: 0) {
+            ForEach(PhraseSceneViewMode.allCases) { mode in
+                Button {
+                    phraseSceneViewMode = mode
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: mode.symbolName)
+                            .font(.system(size: 11, weight: .bold))
+                        Text(mode.label.uppercased())
+                            .studioText(.microEmphasis)
+                            .tracking(0.8)
+                    }
+                    .foregroundStyle(phraseSceneViewMode == mode ? StudioTheme.background : StudioTheme.mutedText)
+                    .frame(width: 96, height: 32)
+                    .background(
+                        phraseSceneViewMode == mode ? StudioTheme.amber : Color.white.opacity(StudioOpacity.subtleFill),
+                        in: Capsule()
+                    )
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("phrase-scene-view-mode-\(mode.rawValue)")
+                .help(mode.help)
+            }
+        }
+        .padding(2)
+        .background(Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
+        .overlay(
+            Capsule()
+                .stroke(StudioTheme.amber.opacity(StudioOpacity.mediumStroke), lineWidth: StudioMetrics.borderWidth)
+        )
+        .accessibilityIdentifier("phrase-scene-view-mode-control")
+    }
+
     // Single toggle for the phrase layer track scope. Its label is the live
     // selection count; tapping it opens the selector and tapping it again closes
     // it. Bug 20260622-181714: it now lives in the perform bar, not the top menu.
@@ -608,29 +650,33 @@ struct PhraseWorkspaceView: View {
 
                 Spacer(minLength: 8)
 
-                Button {
-                    phraseSceneSlotPickerRequest = ScenePerformSlotPickerRequest(slot: slot)
-                } label: {
-                    HStack(spacing: 5) {
-                        Text("Choose")
-                            .studioText(.micro)
-                        Image(systemName: "chevron.down")
-                            .font(.system(size: 9, weight: .bold))
+                // In Slots mode the inline scene matrix supersedes the modal
+                // picker, so Choose only appears alongside the macro grid.
+                if phraseSceneViewMode == .macros {
+                    Button {
+                        phraseSceneSlotPickerRequest = ScenePerformSlotPickerRequest(slot: slot)
+                    } label: {
+                        HStack(spacing: 5) {
+                            Text("Choose")
+                                .studioText(.micro)
+                            Image(systemName: "chevron.down")
+                                .font(.system(size: 9, weight: .bold))
+                        }
+                        .foregroundStyle(StudioTheme.mutedText)
+                        .padding(.horizontal, 9)
+                        .frame(height: 26)
+                        .background(
+                            Color.white.opacity(StudioOpacity.subtleFill),
+                            in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                                .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+                        )
                     }
-                    .foregroundStyle(StudioTheme.mutedText)
-                    .padding(.horizontal, 9)
-                    .frame(height: 26)
-                    .background(
-                        Color.white.opacity(StudioOpacity.subtleFill),
-                        in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                            .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
-                    )
+                    .buttonStyle(.plain)
+                    .help("Choose scene")
                 }
-                .buttonStyle(.plain)
-                .help("Choose scene")
             }
             .padding(StudioMetrics.Spacing.comfortable)
             .background(
@@ -646,7 +692,12 @@ struct PhraseWorkspaceView: View {
                 setPhraseSceneCrossfader(slot == .a ? 0 : 1)
             }
 
-            phraseSceneMacroGrid(scene)
+            switch phraseSceneViewMode {
+            case .macros:
+                phraseSceneMacroGrid(scene)
+            case .slots:
+                phraseSceneSlotMatrix(slot: slot)
+            }
         }
         .padding(StudioMetrics.Spacing.standard)
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
@@ -733,6 +784,33 @@ struct PhraseWorkspaceView: View {
         .accessibilityIdentifier("phrase-scene-crossfader")
     }
 
+    // Slots mode: every scene inline under the slot header, so a performer
+    // taps a card straight into slot A or B without opening the Choose modal.
+    // Unlike the modal (which scrolls inside StudioModal), the inline matrix
+    // owns its own ScrollView so a large scene library cannot overflow the
+    // slot column.
+    private func phraseSceneSlotMatrix(slot: ScenePerformSlotPickerRequest.Slot) -> some View {
+        ScrollView {
+            LazyVGrid(columns: sceneSlotMatrixColumns, spacing: 10) {
+                ForEach(session.store.masterBus.scenes) { scene in
+                    phraseScenePickerCard(scene, slot: slot)
+                }
+            }
+            .padding(StudioMetrics.Spacing.comfortable)
+        }
+        .frame(maxHeight: 320)
+        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
+                .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+        )
+        .accessibilityIdentifier("phrase-scene-slot-matrix-\(slot.rawValue)")
+    }
+
+    private var sceneSlotMatrixColumns: [GridItem] {
+        [GridItem(.adaptive(minimum: 104, maximum: 160), spacing: 10)]
+    }
+
     private func phraseSceneSlotPickerSheet(_ request: ScenePerformSlotPickerRequest) -> some View {
         StudioModal(
             title: request.slot.title,
@@ -743,7 +821,7 @@ struct PhraseWorkspaceView: View {
             ScrollView {
                 LazyVGrid(columns: scenePickerColumns, spacing: 12) {
                     ForEach(session.store.masterBus.scenes) { scene in
-                        phraseScenePickerCard(scene, request: request)
+                        phraseScenePickerCard(scene, slot: request.slot)
                     }
                 }
                 .padding(.bottom, 2)
@@ -759,10 +837,11 @@ struct PhraseWorkspaceView: View {
         )
     }
 
-    private func phraseScenePickerCard(_ scene: MasterBusScene, request: ScenePerformSlotPickerRequest) -> some View {
-        let selected = selectedPhraseSceneID(for: request.slot) == scene.id
+    // Shared scene card: used by the Choose modal and the inline Slots matrix.
+    private func phraseScenePickerCard(_ scene: MasterBusScene, slot: ScenePerformSlotPickerRequest.Slot) -> some View {
+        let selected = selectedPhraseSceneID(for: slot) == scene.id
         return Button {
-            setPhraseScene(scene.id, for: request.slot)
+            setPhraseScene(scene.id, for: slot)
         } label: {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
@@ -2164,6 +2243,40 @@ enum PhraseLayerEditMode: String, CaseIterable, Identifiable {
             return "Choose a layer and edit different values per track"
         case .byValue:
             return "Choose a value and apply it to the selected track scope"
+        }
+    }
+}
+
+enum PhraseSceneViewMode: String, CaseIterable, Identifiable {
+    case macros
+    case slots
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .macros:
+            return "Macros"
+        case .slots:
+            return "Slots"
+        }
+    }
+
+    var symbolName: String {
+        switch self {
+        case .macros:
+            return "dial.max"
+        case .slots:
+            return "square.grid.2x2"
+        }
+    }
+
+    var help: String {
+        switch self {
+        case .macros:
+            return "Show slot macro knobs for hands-on tweaking"
+        case .slots:
+            return "Show every scene so a tap assigns it to the slot"
         }
     }
 }

@@ -26,6 +26,12 @@ final class PhrasePerformOverlaySessionTests: XCTestCase {
         XCTAssertEqual(PhraseLayerEditMode.allCases, [.byTrack, .byValue])
     }
 
+    func test_phraseSceneViewModesOfferMacrosAndSlots() {
+        XCTAssertEqual(PhraseSceneViewMode.allCases, [.macros, .slots])
+        XCTAssertEqual(PhraseSceneViewMode.macros.label, "Macros")
+        XCTAssertEqual(PhraseSceneViewMode.slots.label, "Slots")
+    }
+
     func test_stagePhrasePerformCell_readsFromOverlayWithoutChangingCanonicalPhrase() throws {
         let fixture = makeSession()
         defer { fixture.unregister() }
@@ -323,6 +329,31 @@ final class PhrasePerformOverlaySessionTests: XCTestCase {
             fixture.session.phraseWithPerformOverlay(fixture.session.store.phrases[0]).sceneState,
             state
         )
+    }
+
+    // Slots-matrix tap semantics: a scene assignment while perform is on is
+    // staged into the overlay only, and lands on a phrase only when captured.
+    func test_performModeSceneSlotAssignmentStaysStagedUntilCaptured() {
+        let fixture = makeSession()
+        defer { fixture.unregister() }
+
+        fixture.session.workspaceMode = .perform
+        let state = PhraseSceneState(
+            sceneAID: fixture.sceneBID,
+            sceneBID: fixture.sceneAID,
+            crossfader: 0.25
+        )
+        fixture.session.setPhraseSceneState(state, phraseID: fixture.phrases[0].id)
+
+        XCTAssertTrue(fixture.session.phrasePerformOverlay.isDirty)
+        XCTAssertNil(fixture.session.store.phrases[0].sceneState)
+        XCTAssertNil(fixture.session.store.phrases[1].sceneState)
+
+        XCTAssertTrue(fixture.session.capturePhrasePerformOverlay(to: fixture.phrases[1].id))
+
+        XCTAssertFalse(fixture.session.phrasePerformOverlay.isDirty)
+        XCTAssertNil(fixture.session.store.phrases[0].sceneState)
+        XCTAssertEqual(fixture.session.store.phrases[1].sceneState, state)
     }
 
     func test_savePhrasePerformOverlayBack_appliesStagedSceneStateAndClearsOverlay() {
