@@ -1381,6 +1381,14 @@ final class EngineController: RouterDispatcher {
         // meter (master + channels + buses) to zero so they don't freeze on
         // their last value.
         mainAudioGraph.resetMetersToSilence()
+        // Hygiene, not correctness: dispatchTick already gates every drain on
+        // the current transport generation (advanceTransportGeneration()
+        // above), so a stale-generation event left in the queue is already
+        // inert. But it would otherwise linger until some later drain cycled
+        // past it. clock.stop() has already joined the tick queue, so no
+        // in-flight prepareTick/dispatchTick can still be enqueuing here —
+        // safe to clear alongside the rest of this transport-state reset.
+        eventQueue.clear()
         tickState.resetRuntimeState()
         clearNoteRepeatCaptureCaches()
         clearAllNoteRepeats(now: now)

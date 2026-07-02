@@ -56,6 +56,38 @@ final class EventQueueInvalidationTests: XCTestCase {
         )
     }
 
+    // MARK: - Transport stop clears the queue (hygiene, not correctness)
+
+    /// `dispatchTick` already gates every drain on the current transport
+    /// generation, so a stale-generation event left in the queue after
+    /// `stop()` is already inert. This proves `stop()` also explicitly empties
+    /// the queue rather than relying solely on generation-gating to make it
+    /// harmless — the queue itself should hold zero events once stopped.
+    func test_stop_clearsEventQueueEvenWhenEventsWereEnqueuedBeforeStop() {
+        let sink = CountingAudioSink()
+        let controller = EngineController(client: nil, endpoint: nil, audioOutput: sink)
+        let (project, _, _) = makeLiveStoreProject(clipPitch: 60, stepPattern: [false, true])
+
+        controller.apply(documentModel: project)
+        controller.start()
+        controller.clock.stop()
+
+        // processTick(0): dispatches tick 0 (silent, step 0 is off) then
+        // prepares tick 1, which enqueues the pitch-60 event for step 1.
+        controller.processTick(tickIndex: 0, now: 0)
+        XCTAssertFalse(
+            controller.eventQueueIsEmpty,
+            "prepareTick(1) should have staged an event before stop() runs"
+        )
+
+        controller.stop()
+
+        XCTAssertTrue(
+            controller.eventQueueIsEmpty,
+            "stop() must explicitly empty the event queue, not just gate it by generation"
+        )
+    }
+
     // MARK: - Control case: without invalidation the note would have leaked
 
     /// Confirms that tick 1's note IS played when no snapshot swap occurs between
