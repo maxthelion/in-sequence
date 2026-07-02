@@ -24,7 +24,7 @@ struct TrackSourceGeneratorSelectionSheet: View {
                     ScrollView {
                         VStack(alignment: .leading, spacing: 10) {
                             ForEach(generators) { generator in
-                                StudioOptionButton(title: generator.name, detail: generator.kind.label) {
+                                StudioOptionButton(title: generator.name, detail: generator.kind.label, accent: nil) {
                                     onSelect(generator)
                                     dismiss()
                                 }

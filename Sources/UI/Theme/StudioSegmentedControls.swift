@@ -1,16 +1,15 @@
 import SwiftUI
 
-// Shared studio control grammars consolidated in W2 (UI component consolidation).
+// Shared studio VALUE/LAYER selector grammars (W2 consolidation; Variant D
+// tab unification 2026-07-02).
 //
-// Two distinct grammars live here:
-//
-//   • StudioSlotTabButton — the UNDERLINE tab: a neutral-filled pill with an
-//     uppercase eyebrow label, an optional solid state badge, and a 2px accent
-//     underline + ghost-stroke outline when selected. Used by the normal/slicer/
-//     audio track tab bars (TrackSourceSlotWellTabBar) and the drum-kit tab bar
-//     (DrumKitMatrixView). "Colour identifies, it never floods" (ux-canon rule
-//     12): the selected tab keeps the neutral fill; its accent lives in the
-//     outline, underline, and solid state badge only.
+// Everything in this file is the inset-track solid-thumb family: solid accent
+// thumbs inside a darker capsule/rounded track, used INSIDE a well for
+// value/layer selection (Steps/Velocity/Chance, Normal/Fill, BAR ranges,
+// routing modes, mode toggles). Section switchers are NOT here — they are
+// `StudioSectionPills` (the D-pill row floating above `StudioTabWell`). The
+// underline `StudioSlotTabButton` grammar this file used to host was deleted
+// when the last tab bar migrated onto the unified tab well.
 //
 //   • StudioSegmentedControl / StudioSegment — the SOLID-thumb segmented chips:
 //     a pill container holding chips where the selected chip is a fully solid
@@ -19,82 +18,9 @@ import SwiftUI
 //     capture history-length control. Layout dimensions vary per call site, so
 //     the geometry is supplied via StudioSegmentedControl.Layout to keep every
 //     surface pixel-identical to its hand-rolled predecessor.
-
-// MARK: - Underline tab button
-
-/// The neutral-fill + accent-underline tab button shared by the track tab bars
-/// and the drum-kit tab bar. Label-only when `badgeTitle` is nil.
-struct StudioSlotTabButton: View {
-    let title: String
-    let isSelected: Bool
-    /// The accent used for the underline + ghost outline when selected.
-    let selectedAccent: Color
-    /// Optional solid state badge shown to the right of the title.
-    var badgeTitle: String?
-    /// The accent used to fill the badge (ignored when `badgeTitle` is nil).
-    var badgeAccent: Color = StudioTheme.border
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            VStack(spacing: 0) {
-                HStack(alignment: .center, spacing: 8) {
-                    Text(title.uppercased())
-                        .studioText(.eyebrowBold)
-                        .foregroundStyle(isSelected ? StudioTheme.text : StudioTheme.mutedText)
-                        .tracking(0.8)
-
-                    if let badgeTitle {
-                        StudioSlotTabBadge(title: badgeTitle, accent: badgeAccent)
-                    }
-
-                    Spacer(minLength: 0)
-                }
-                .padding(.vertical, 10)
-                .padding(.horizontal, 12)
-
-                Rectangle()
-                    .fill(isSelected ? selectedAccent : Color.clear)
-                    .frame(height: 2)
-            }
-            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-            // Colour identifies, it never floods (ux-canon rule 12): the
-            // selected tab keeps the neutral fill; its accent lives in the
-            // outline, underline, and solid state badge.
-            .background(
-                Color.white.opacity(StudioOpacity.subtleFill),
-                in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                    .stroke(
-                        isSelected ? selectedAccent.opacity(StudioOpacity.ghostStroke) : StudioTheme.border,
-                        lineWidth: isSelected ? 1.5 : 1
-                    )
-            )
-            .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
-        }
-        .buttonStyle(.plain)
-    }
-}
-
-/// The solid state badge rendered inside `StudioSlotTabButton`.
-struct StudioSlotTabBadge: View {
-    let title: String
-    let accent: Color
-
-    var body: some View {
-        Text(title)
-            .font(.system(size: 10, weight: .black, design: .rounded))
-            .foregroundStyle(StudioTheme.background)
-            .padding(.vertical, 3)
-            .padding(.horizontal, 7)
-            .background(
-                accent,
-                in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-            )
-    }
-}
+//
+//   • StudioModeSegmentedPill — the capsule MODE pill variant of the same
+//     grammar (glyph + label segments on a capsule track).
 
 // MARK: - Solid-thumb segmented control
 
@@ -157,6 +83,8 @@ struct StudioSegmentedControl<Value: Equatable>: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text(title.uppercased())
                     .studioText(.eyebrow)
+                    // ux-canon-allow: eyebrow captions are structural labels,
+                    // not stateful chrome — mutedText is the caption token.
                     .foregroundStyle(StudioTheme.mutedText)
 
                 container
@@ -241,6 +169,10 @@ struct StudioSegmentedControl<Value: Equatable>: View {
         guard isEnabled else {
             return StudioTheme.mutedText.opacity(0.4)
         }
+        // ux-canon-allow: unselected chips are DELIBERATELY neutral — the
+        // value-selector grammar (locked Variant D) puts the one accent on the
+        // solid selected thumb only; the accent is required at init, so a grey
+        // chip here is never a silently-missing accent.
         return isSelected ? StudioTheme.background : StudioTheme.text.opacity(0.78)
     }
 }

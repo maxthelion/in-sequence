@@ -726,7 +726,7 @@ struct SliceTrackWorkspaceView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 10) {
                         ForEach(loops) { sample in
-                            StudioOptionButton(title: sample.name) {
+                            StudioOptionButton(title: sample.name, accent: nil) {
                                 attachLoop(sample)
                             }
                         }

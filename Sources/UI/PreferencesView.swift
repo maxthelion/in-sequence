@@ -42,7 +42,7 @@ private struct MIDIPreferences: View {
             Section("Inputs") {
                 if sources.isEmpty {
                     Text("No MIDI input endpoints found.")
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(StudioTheme.mutedText)
                 } else {
                     ForEach(sources) { endpoint in
                         Text(endpoint.displayName)
@@ -52,7 +52,7 @@ private struct MIDIPreferences: View {
             Section("Outputs") {
                 if destinations.isEmpty {
                     Text("No MIDI output endpoints found.")
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(StudioTheme.mutedText)
                 } else {
                     ForEach(destinations) { endpoint in
                         Text(endpoint.displayName)
@@ -68,7 +68,7 @@ private struct MIDIPreferences: View {
                 }
                 if appInput == nil && appOutput == nil {
                     Text("Virtual endpoints unavailable.")
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(StudioTheme.mutedText)
                 }
             }
             HStack {

@@ -79,13 +79,15 @@ struct AddSliceTrackContent: View {
                         .lineLimit(1)
                         .minimumScaleFactor(0.8)
 
+                    // Solid status badge (ux-canon rule 12): accent fill with
+                    // a dark glyph, never a translucent accent wash.
                     Text(isRecording ? "BUFFER" : "FACTORY")
                         .studioText(.microEmphasis)
                         .tracking(0.6)
-                        .foregroundStyle(rowAccent)
+                        .foregroundStyle(StudioTheme.background)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
-                        .background(rowAccent.opacity(0.18), in: Capsule())
+                        .background(rowAccent, in: Capsule())
 
                     if pooledSampleIDs.contains(sample.id) {
                         Text("IN PROJECT")

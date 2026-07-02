@@ -7,10 +7,17 @@ import SwiftUI
 struct StudioOptionButton: View {
     let title: String
     var detail: String = ""
-    var accent: Color? = nil
+    /// The card's outline accent. REQUIRED so a missing surface accent can
+    /// never silently fall back to grey: pass the surface accent when the
+    /// card carries state (e.g. the currently-selected choice), or an
+    /// explicit `nil` for a deliberately neutral action card in a pick list.
+    let accent: Color?
     var minHeight: CGFloat? = nil
     var isEnabled: Bool = true
     var disabledHelp: String = ""
+    /// Tooltip while enabled (`disabledHelp` covers the disabled state). Use
+    /// this for any instruction that would otherwise become a detail line.
+    var help: String = ""
     let action: () -> Void
 
     var body: some View {
@@ -39,7 +46,7 @@ struct StudioOptionButton: View {
         .buttonStyle(.plain)
         .disabled(!isEnabled)
         .opacity(isEnabled ? 1 : 0.55)
-        .help(isEnabled ? "" : disabledHelp)
+        .help(isEnabled ? help : disabledHelp)
     }
 
     /// Bold-flat pass: option cards are outline-only on the ground; an
@@ -50,6 +57,9 @@ struct StudioOptionButton: View {
     }
 
     private var stroke: Color {
+        // ux-canon-allow: the neutral border only appears when a call site
+        // passed an EXPLICIT nil accent (accent has no default) — a
+        // deliberately plain action card, never a silently-missing accent.
         accent.map { $0.opacity(StudioOpacity.mediumStroke) } ?? StudioTheme.border
     }
 }
@@ -70,6 +80,10 @@ struct StudioFXOptionRow: View {
     var cornerRadius: CGFloat = StudioMetrics.CornerRadius.tile
     /// Stroke color for the tile border. Defaults to the mixer/master grammar
     /// (`border` at 0.8); the kit sheet uses the full-opacity border.
+    // ux-canon-allow: the neutral tile border is structural — these are
+    // action rows in an add-FX pick list, not stateful chrome; the accent
+    // slot on these rows is `iconColor` (the kit sheet passes its kit
+    // accent there).
     var borderColor: Color = StudioTheme.border.opacity(0.8)
     let action: () -> Void
 

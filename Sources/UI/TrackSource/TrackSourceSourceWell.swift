@@ -159,6 +159,9 @@ struct TrackSourceSourceWell: View {
         .padding(.horizontal, 14)
         .overlay(
             Rectangle()
+                // A 1px divider STROKE drawn via fill (SwiftUI has no
+                // bottom-border); softStroke is the stroke opacity token.
+                // ux-canon-allow: hairline divider stroke, not a translucent accent wash
                 .fill(accent.opacity(StudioOpacity.softStroke))
                 .frame(height: 1),
             alignment: .bottom

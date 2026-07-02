@@ -71,7 +71,7 @@ struct AddDestinationSheet: View {
                         // The modal subtitle already says these are Audio Units
                         // to host; rows carry only their own name.
                         ForEach(sanitizedAudioInstrumentChoices, id: \.id) { choice in
-                            StudioOptionButton(title: choice.displayName) {
+                            StudioOptionButton(title: choice.displayName, accent: nil) {
                                 commit(.auInstrument(componentID: choice.audioComponentID, stateBlob: nil))
                             }
                         }
@@ -95,7 +95,8 @@ struct AddDestinationSheet: View {
     }
 
     private func optionButton(title: String, detail: String, action: @escaping () -> Void) -> some View {
-        StudioOptionButton(title: title, detail: detail, action: action)
+        // Neutral pick-list cards: no choice is "current" until committed.
+        StudioOptionButton(title: title, detail: detail, accent: nil, action: action)
     }
 
     private enum SelectionMode {

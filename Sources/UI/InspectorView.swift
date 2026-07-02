@@ -84,7 +84,7 @@ struct InspectorView: View {
                     .textFieldStyle(.roundedBorder)
                 Text("Comma-separated MIDI notes")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(StudioTheme.mutedText)
             }
 
             Section("Mixer") {
@@ -100,7 +100,7 @@ struct InspectorView: View {
                     )
                     Text("\(Int((levelControl.rendered(committed: track.mix.clampedLevel) * 100).rounded()))%")
                         .font(.caption.monospacedDigit())
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(StudioTheme.mutedText)
                 }
 
                 HStack {
@@ -115,7 +115,7 @@ struct InspectorView: View {
                     )
                     Text(panLabel)
                         .font(.caption.monospacedDigit())
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(StudioTheme.mutedText)
                 }
 
                 Toggle("Mute", isOn: muteBinding)
@@ -128,7 +128,7 @@ struct InspectorView: View {
                         Spacer()
                         Text("\(track.velocity)")
                             .monospacedDigit()
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(StudioTheme.mutedText)
                     }
                 }
 
@@ -138,7 +138,7 @@ struct InspectorView: View {
                         Spacer()
                         Text("\(track.gateLength) ticks")
                             .monospacedDigit()
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(StudioTheme.mutedText)
                     }
                 }
             }

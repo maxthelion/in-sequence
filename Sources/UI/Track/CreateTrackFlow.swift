@@ -267,7 +267,8 @@ struct CreateTrackFlow: View {
         VStack(alignment: .leading, spacing: 10) {
             StudioOptionButton(
                 title: "Blank",
-                detail: "No sound source yet — add one later from the Sound tab."
+                detail: "No sound source yet — add one later from the Sound tab.",
+                accent: nil
             ) {
                 session.appendTrack(trackType: trackType)
                 finish()
@@ -283,6 +284,7 @@ struct CreateTrackFlow: View {
                 detail: defaultSampleDestination == nil
                     ? "No library samples yet — add one from the Library page first."
                     : "Use the sample engine with a library sample.",
+                accent: nil,
                 isEnabled: defaultSampleDestination != nil,
                 disabledHelp: "The sample library is empty"
             ) {
@@ -307,7 +309,7 @@ struct CreateTrackFlow: View {
                         // Rows commit on a single click (bug 20260610-100343):
                         // create the track, attach the AU, open the track.
                         ForEach(audioInstrumentChoices, id: \.id) { choice in
-                            StudioOptionButton(title: choice.displayName) {
+                            StudioOptionButton(title: choice.displayName, accent: nil) {
                                 createTrackWithAUInstrument(choice, trackType: trackType)
                             }
                         }

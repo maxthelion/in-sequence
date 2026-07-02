@@ -102,7 +102,7 @@ private struct SidebarRow: View {
             if let trailingText {
                 Text(trailingText)
                     .font(.caption.monospacedDigit())
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(StudioTheme.mutedText)
             }
         }
         .padding(.horizontal, 8)

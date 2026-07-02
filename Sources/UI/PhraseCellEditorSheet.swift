@@ -78,13 +78,16 @@ struct PhraseCellEditorSheet: View {
                             .studioText(.labelBold)
                             .padding(.horizontal, 12)
                             .padding(.vertical, 8)
+                            // Colour identifies, it never floods (ux-canon rule
+                            // 12): the selected mode is a fully solid accent
+                            // thumb with a dark glyph, never a translucent wash.
                             .background(
-                                cell.editMode == mode ? accent.opacity(StudioOpacity.softStroke) : Color.white.opacity(StudioOpacity.subtleFill),
+                                cell.editMode == mode ? accent : Color.white.opacity(StudioOpacity.subtleFill),
                                 in: Capsule()
                             )
                     }
                     .buttonStyle(.plain)
-                    .foregroundStyle(cell.editMode == mode ? StudioTheme.text : StudioTheme.mutedText)
+                    .foregroundStyle(cell.editMode == mode ? StudioTheme.background : StudioTheme.mutedText)
                 }
 
                 Spacer(minLength: 10)

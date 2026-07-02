@@ -53,6 +53,10 @@ struct StudioCircleIconButton: View {
         guard isEnabled else {
             return StudioTheme.border.opacity(0.45)
         }
+        // ux-canon-allow: nil accent is the deliberate PLAIN utility button
+        // (close/back/stepper affordances) — outline-only structure on the
+        // ground, not stateful chrome. Accented call sites opt in explicitly;
+        // do not use the plain form for anything that carries surface state.
         return accent ?? StudioTheme.border
     }
 }
