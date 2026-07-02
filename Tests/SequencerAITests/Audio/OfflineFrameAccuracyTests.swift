@@ -518,6 +518,114 @@ final class OfflineFrameAccuracyTests: XCTestCase {
         }
     }
 
+    // MARK: - 0-frame gate: global transport swing
+
+    /// Swung analogue of `targetFrame(forStep:bpmForStep:)`: accumulates the
+    /// swung per-step intervals exactly the way
+    /// `AudioMasterClock.advance(toStep:bpm:swing:)` does (same expressions,
+    /// same order), so target and production agree bit-for-bit and the gate
+    /// can assert 0 frames. `swingForStep` returns the swing in effect for the
+    /// interval LEAVING that step (the post-drain value at the step it was
+    /// prepared), mirroring `bpmForStep`.
+    private func swungTargetFrame(
+        forStep step: Int,
+        harness: OfflineFrameAccuracyHarness,
+        bpm: Double,
+        swingForStep: (Int) -> Double
+    ) -> AVAudioFramePosition {
+        let perStep = AudioMasterClock.secondsPerStep(bpm: bpm, stepsPerBar: harness.stepsPerBar)
+        var seconds = 0.0
+        var cursor = 0
+        while cursor < step {
+            cursor += 1
+            let swingOffset = min(max(swingForStep(cursor - 1), 0), 1)
+                * perStep * AudioMasterClock.swingMaxStepFraction
+            seconds += cursor % 2 == 1 ? perStep + swingOffset : perStep - swingOffset
+        }
+        return AVAudioFramePosition((seconds * harness.clockSampleRate).rounded())
+    }
+
+    /// THE SWING GATE (transport-swing): with a constant global swing, every
+    /// stamp lands on the SWUNG musical grid at 0 frames — off-beat
+    /// (odd-index) steps delayed by `swing * perStep / 3`, down-beats exactly
+    /// on the unswung grid — even under a jittered pump, because the swung
+    /// stamp derives from `AudioMasterClock.advance(toStep:bpm:swing:)`
+    /// (musical position), never from the wake `now`. Exercises the full
+    /// production path: `setSwing` → CommandQueue → Executor drain → advance →
+    /// captured sink stamp.
+    func test_jitteredPump_constantSwing_stampsSwungTargetFrames_GATE() throws {
+        let bpm = 120.0
+        let swing = 0.5
+        let harness = try makeSampleHarness(bpm: bpm)
+        harness.controller.setSwing(swing)
+        let stepDuration = harness.secondsPerStep(bpm: bpm)
+        let jitter: [Double] = [0, +0.004, -0.003, +0.005, -0.004, +0.002, -0.005, +0.003]
+
+        for step in 0..<jitter.count {
+            harness.drive(step: step, now: Double(step) * stepDuration + jitter[step])
+        }
+
+        XCTAssertEqual(harness.capturedFrameByStep.count, jitter.count)
+        for step in 0..<jitter.count {
+            let target = swungTargetFrame(
+                forStep: step, harness: harness, bpm: bpm, swingForStep: { _ in swing }
+            )
+            let actual = try XCTUnwrap(harness.capturedFrame(forStep: step))
+            XCTAssertEqual(
+                actual, target,
+                "step \(step): swung stamp must land on the swung musical grid regardless of pump " +
+                "jitter (off by \(actual - target) frames)"
+            )
+            // Meaningfulness: on off-beats the swung target genuinely differs
+            // from the straight grid, so a swing value that never reached the
+            // engine could not pass this gate vacuously.
+            let straight = harness.targetFrame(forStep: step, bpmForStep: { _ in bpm })
+            if step % 2 == 1 {
+                XCTAssertNotEqual(target, straight, "step \(step): off-beat must be displaced")
+            } else {
+                XCTAssertEqual(target, straight, "step \(step): down-beat must never drift")
+            }
+        }
+    }
+
+    /// Mid-stream swing change gate: `setSwing` shares BPM's drain semantics
+    /// (immediate, in effect for the step being prepared, no one-tick lag), so
+    /// the mapping stays exact at 0 frames across the change — already-stamped
+    /// steps keep their grid (advance is idempotent per step) and subsequent
+    /// intervals swing by the new amount.
+    func test_idealTimeline_midStreamSwingChange_GATE() throws {
+        let bpm = 120.0
+        let firstSwing = 0.3
+        let secondSwing = 0.6
+        let harness = try makeSampleHarness(bpm: bpm)
+        harness.controller.setSwing(firstSwing)
+        let stepDuration = harness.secondsPerStep(bpm: bpm)
+
+        let steps = 8
+        let swingChangeStep = 4
+        func swingForStep(_ step: Int) -> Double { step < swingChangeStep ? firstSwing : secondSwing }
+
+        for step in 0..<steps {
+            if step == swingChangeStep {
+                harness.controller.setSwing(secondSwing)
+            }
+            harness.drive(step: step, now: Double(step) * stepDuration)
+        }
+
+        XCTAssertEqual(harness.capturedFrameByStep.count, steps)
+        for step in 0..<steps {
+            let target = swungTargetFrame(
+                forStep: step, harness: harness, bpm: bpm, swingForStep: swingForStep
+            )
+            let actual = try XCTUnwrap(harness.capturedFrame(forStep: step))
+            XCTAssertEqual(
+                actual, target,
+                "step \(step) (swing \(swingForStep(step))): mapping must stay exact across the " +
+                "mid-stream swing change (off by \(actual - target) frames)"
+            )
+        }
+    }
+
     // MARK: - Phase 1 zero-flam: AU sampleTime stamp == PRODUCTION slice frame
 
     /// THE PHASE 1 STAMP-LEVEL ZERO-FLAM GATE (mandate #36), DEFECT-3 REWORK.

@@ -18,6 +18,11 @@ final class Executor {
     private var tickCounter: UInt64 = 0
 
     private(set) var currentBPM: Double = 120
+    /// Global transport swing amount (0…1), drained from `.setSwing` with the
+    /// same "in effect for this step, no one-tick lag" semantics as
+    /// `currentBPM` (both are read post-drain by `resolveNow` and the
+    /// engine's per-step `AudioMasterClock.advance`).
+    private(set) var currentSwing: Double = 0
 
     init(
         blocks: [BlockID: Block],
@@ -38,17 +43,18 @@ final class Executor {
     /// `TickContext.now`. Only `MidiOut` reads it (to build its `MIDITimeStamp`).
     /// Since Phase 3 the engine supplies a unified-clock-derived host time via
     /// `resolveNow`, which is evaluated AFTER `drainCommands()` so it sees the
-    /// post-drain `currentBPM` (a mid-step `setBPM` applies to this step with no
-    /// one-tick lag) — matching how the routed-audio/MIDI path stamps. When
-    /// `resolveNow` is nil the static `now` is used (test/back-compat seam).
+    /// post-drain `currentBPM` and `currentSwing` (a mid-step `setBPM`/`setSwing`
+    /// applies to this step with no one-tick lag) — matching how the
+    /// routed-audio/MIDI path stamps. When `resolveNow` is nil the static `now`
+    /// is used (test/back-compat seam).
     func tick(
         now: TimeInterval,
         preparedNotesByBlockID: [BlockID: [NoteEvent]] = [:],
-        resolveNow: ((_ bpm: Double) -> TimeInterval)? = nil
+        resolveNow: ((_ bpm: Double, _ swing: Double) -> TimeInterval)? = nil
     ) -> [BlockID: [PortID: Stream]] {
         drainCommands()
 
-        let effectiveNow = resolveNow?(currentBPM) ?? now
+        let effectiveNow = resolveNow?(currentBPM, currentSwing) ?? now
 
         var allOutputs: [BlockID: [PortID: Stream]] = [:]
 
@@ -99,6 +105,9 @@ final class Executor {
 
             case let .setBPM(bpm):
                 currentBPM = bpm
+
+            case let .setSwing(swing):
+                currentSwing = min(max(swing, 0), 1)
             }
         }
     }

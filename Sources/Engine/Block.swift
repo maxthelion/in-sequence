@@ -34,6 +34,10 @@ enum ParamValue: Equatable, Sendable {
 enum Command: Equatable, Sendable {
     case setParam(blockID: BlockID, paramKey: String, value: ParamValue)
     case setBPM(Double)
+    /// Global transport swing amount (0…1). Drained by the executor exactly
+    /// like `setBPM`, so a change is in effect for the step being prepared
+    /// with no one-tick lag (see `AudioMasterClock.advance(toStep:bpm:swing:)`).
+    case setSwing(Double)
 }
 
 struct TickContext: Equatable, Sendable {

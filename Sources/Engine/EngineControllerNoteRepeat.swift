@@ -90,6 +90,7 @@ extension EngineController {
             anchorTickIndex: tickIndex,
             anchorHostTime: now,
             bpm: executor.currentBPM,
+            swing: executor.currentSwing,
             snapshot: snapshot,
             layerSnapshot: layerSnapshot,
             effectiveMutedTrackIDs: effectiveMutedTrackIDs
@@ -100,6 +101,7 @@ extension EngineController {
         anchorTickIndex: UInt64,
         anchorHostTime: TimeInterval,
         bpm: Double,
+        swing: Double,
         snapshot: PlaybackSnapshot,
         layerSnapshot: LayerSnapshot,
         effectiveMutedTrackIDs: Set<UUID>
@@ -117,7 +119,7 @@ extension EngineController {
         // in `dispatchNoteRepeatOutput`. `anchorHostTime` (wall clock) now only
         // anchors the control-path note-off flush fallback and note-activity UI.
         let anchorMusicalSeconds = audioMasterClock.musicalSeconds(forStep: anchorTickIndex)
-            ?? audioMasterClock.advance(toStep: anchorTickIndex, bpm: bpm)
+            ?? audioMasterClock.advance(toStep: anchorTickIndex, bpm: bpm, swing: swing)
         var noteActivityCount = 0
         var latestNoteActivityHostTime = anchorHostTime
         for activeRepeat in activeRepeats {

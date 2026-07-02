@@ -239,6 +239,32 @@ struct TransportBar: View {
             .accessibilityIdentifier("transport-bpm")
             .layoutPriority(2)
 
+            HStack(spacing: 6) {
+                // Compact swing readout, same treatment as the BPM group (no
+                // grey label — the "%" suffix distinguishes it from tempo).
+                // 0% = straight, 100% = triplet feel (off-beat 16ths delayed
+                // by 1/3 step); see AudioMasterClock.swingMaxStepFraction.
+                Text(String(format: "%.0f%%", engineController.currentSwing * 100))
+                    .studioText(.metricValue)
+                    .monospacedDigit()
+                    .foregroundStyle(engineController.currentSwing > 0 ? StudioTheme.violet : StudioTheme.mutedText)
+                    .lineLimit(1)
+                    .fixedSize()
+
+                StudioStepperButtons(
+                    upHelp: "Increase swing",
+                    downHelp: "Decrease swing",
+                    onUp: { stepSwing(by: 0.05) },
+                    onDown: { stepSwing(by: -0.05) }
+                )
+            }
+            .help("Swing — delays every off-beat 16th step (100% = triplet feel)")
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel("Swing")
+            .accessibilityValue("\(Int((engineController.currentSwing * 100).rounded())) percent")
+            .accessibilityIdentifier("transport-swing")
+            .layoutPriority(2)
+
             TransportModePicker(selection: transportModeBinding)
                 .layoutPriority(2)
 
@@ -289,6 +315,12 @@ struct TransportBar: View {
     private func stepBPM(by delta: Double) {
         let next = (engineController.currentBPM + delta).rounded()
         engineController.setBPM(min(300, max(40, next)))
+    }
+
+    private func stepSwing(by delta: Double) {
+        // Round to the 5% grid so repeated stepping never accumulates drift.
+        let next = ((engineController.currentSwing + delta) * 20).rounded() / 20
+        engineController.setSwing(min(1, max(0, next)))
     }
 
     private var phraseNavigationControl: some View {

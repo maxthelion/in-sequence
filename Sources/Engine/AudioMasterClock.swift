@@ -216,22 +216,40 @@ final class AudioMasterClock {
 
     // MARK: - Tempo map
 
+    /// Maximum swing displacement as a fraction of one step: at `swing == 1`
+    /// every off-beat (odd-index) step is delayed by 1/3 of a step, i.e. each
+    /// even/odd pair splits 4/3 : 2/3 — the classic 2:1 "triplet" feel.
+    /// Product decision recorded 2026-07-02 (transport-swing): linear 0…1 UI
+    /// range mapped onto this cap, not the MPC-style 50–75% convention.
+    static let swingMaxStepFraction: Double = 1.0 / 3.0
+
     /// Advance the musical accumulator to `step`, charging each newly-crossed
     /// step the musical duration at `bpm`. Idempotent for an already-recorded
     /// step. `bpm` is the tempo *in effect for the interval leaving the prior
     /// step*, matching how the executor consumes a `setBPM` command at the step
-    /// it is prepared.
+    /// it is prepared. `swing` (0…1, same drain semantics via `setSwing`)
+    /// delays every off-beat (odd-index) step: the interval ARRIVING at an odd
+    /// step is lengthened by `swing * perStep * swingMaxStepFraction` and the
+    /// interval arriving at the following even (down-beat) step is shortened by
+    /// the same amount, so every 2-step pair sums to exactly `2 * perStep` —
+    /// down-beats and bar boundaries never drift, and `swing == 0` is
+    /// byte-identical to the unswung accumulator.
     @discardableResult
-    func advance(toStep step: UInt64, bpm: Double) -> TimeInterval {
+    func advance(toStep step: UInt64, bpm: Double, swing: Double = 0) -> TimeInterval {
         if let existing = cumulativeMusicalSecondsByStep[step] {
             return existing
         }
         let perStep = Self.secondsPerStep(bpm: bpm, stepsPerBar: stepsPerBar)
+        let swingOffset = min(max(swing, 0), 1) * perStep * Self.swingMaxStepFraction
         var seconds = cumulativeMusicalSecondsByStep[lastAdvancedStep] ?? 0
         var cursor = lastAdvancedStep
         while cursor < step {
             cursor &+= 1
-            seconds += perStep
+            // Parity is the ABSOLUTE step index (odd = off-beat 16th), so the
+            // swung grid is stable across bars and across mid-stream swing
+            // changes — an interval is swung by the parity of the step it
+            // arrives at, never by how many steps this call happened to cross.
+            seconds += cursor % 2 == 1 ? perStep + swingOffset : perStep - swingOffset
             cumulativeMusicalSecondsByStep[cursor] = seconds
         }
         lastAdvancedStep = max(lastAdvancedStep, step)

@@ -385,6 +385,12 @@ final class EngineController: RouterDispatcher {
     @ObservationIgnored
     private var deferredTransportStartAttempt = 0
     private(set) var currentBPM: Double
+    /// Global transport swing amount (0…1) — delays off-beat (odd-index) 16th
+    /// steps by up to `AudioMasterClock.swingMaxStepFraction` of a step.
+    /// Same lifecycle as `currentBPM`: transient runtime state (not persisted
+    /// on the document), threaded to the executor via `.setSwing`, mirrored
+    /// back from the post-drain executor value at prepare time.
+    private(set) var currentSwing: Double = 0
     /// Main-published mirror of the transport tick for UI observation.
     /// Engine-internal code must read `currentTransportTick` instead: this
     /// property is written via publishToMain, so tick-queue readers would see
@@ -1537,6 +1543,19 @@ final class EngineController: RouterDispatcher {
         _ = commandQueue.enqueue(.setBPM(clamped))
     }
 
+    /// Set the global transport swing amount (0…1). Reuses the BPM plumbing
+    /// verbatim: the command is drained by the executor before the step's
+    /// `AudioMasterClock.advance`, so a change is in effect for the step being
+    /// prepared with no one-tick lag (immediate, like a mid-stream tempo
+    /// change — not quantised to a bar boundary). Swing never changes the
+    /// AVERAGE step rate (2-step pairs stay `2 * perStep`), so `clock.bpm`
+    /// pacing is untouched.
+    func setSwing(_ swing: Double) {
+        let clamped = min(max(swing, 0), 1)
+        currentSwing = clamped
+        _ = commandQueue.enqueue(.setSwing(clamped))
+    }
+
     func setTransportMode(_ mode: TransportMode) {
         transportMode = mode
     }
@@ -2367,6 +2386,10 @@ final class EngineController: RouterDispatcher {
         guard !transportStoppedSuppressingTicks else { return 0 }
 
         var totalEvents = 0
+        // Swing makes step spacing non-uniform (an off-beat delay compresses
+        // the interval into the next down-beat by up to 1/3 step), but 2-step
+        // pairs still sum to 2 * stepDuration, so the uniform estimate below is
+        // at most one step short over the horizon — covered by the +2 margin.
         let maxStepsPerWake = max(1, Int(ceil(lookAheadLeadSeconds / max(0.001, stepDurationSeconds(bpm: max(1, currentBPM))))) + 2)
         var processedSteps = 0
         while processedSteps < maxStepsPerWake,
@@ -2745,14 +2768,20 @@ final class EngineController: RouterDispatcher {
         // step's musical offset) instead of the pump wall-clock `now`, so a
         // direct-MIDI track shares the audio sinks' timeline (origin-anchored,
         // jitter-free). `resolveNow` is evaluated AFTER the executor drains
-        // `setBPM`, so the step's musical offset uses the post-drain BPM with no
-        // one-tick lag; `advance` is idempotent, so the later
-        // `eventScheduledHostTime` advance for the same step returns this value.
+        // `setBPM`/`setSwing`, so the step's musical offset uses the post-drain
+        // BPM and swing with no one-tick lag; `advance` is idempotent, so the
+        // later `eventScheduledHostTime` advance for the same step returns this
+        // value. HAZARD (shared with BPM): this call and the post-tick
+        // `advance` below MUST observe the same (bpm, swing) for a step — both
+        // read the post-drain executor values on the tick queue with no drain
+        // in between; only `executor.tick` drains commands. If a refactor ever
+        // lets a drain intervene, the MIDI-out stamp and the audio-sink stamp
+        // for one step could disagree.
         let outputs = executor.tick(
             now: now,
             preparedNotesByBlockID: preparedNotesByBlockID,
-            resolveNow: { [audioMasterClock] bpm in
-                let musicalSeconds = audioMasterClock.advance(toStep: upcomingStep, bpm: bpm)
+            resolveNow: { [audioMasterClock] bpm, swing in
+                let musicalSeconds = audioMasterClock.advance(toStep: upcomingStep, bpm: bpm, swing: swing)
                 return audioMasterClock.hostSeconds(atMusicalSeconds: musicalSeconds)
             }
         )
@@ -2762,15 +2791,19 @@ final class EngineController: RouterDispatcher {
             preparedNotesByBlockID: capturableNotesByBlockID
         )
         let newCurrentBPM = executor.currentBPM
+        let newCurrentSwing = executor.currentSwing
         // The event stamp is the upcoming step's MUSICAL position (cumulative
         // seconds) from the unified audio clock's tempo map — computed AFTER
-        // executor.tick has drained any setBPM command, so a mid-stream tempo
-        // change applies to this step's interval with no one-tick lag, and the
-        // value is independent of the pump's wake `now` (Rule 1). The
-        // `scheduledAudioTime(for:)` seam maps it onto the render sampleTime.
+        // executor.tick has drained any setBPM/setSwing command, so a
+        // mid-stream tempo or swing change applies to this step's interval
+        // with no one-tick lag, and the value is independent of the pump's
+        // wake `now` (Rule 1). The `scheduledAudioTime(for:)` seam maps it
+        // onto the render sampleTime. Idempotent with the `resolveNow` advance
+        // above (same post-drain bpm+swing, same cached entry).
         let eventScheduledHostTime = audioMasterClock.advance(
             toStep: upcomingStep,
-            bpm: newCurrentBPM
+            bpm: newCurrentBPM,
+            swing: newCurrentSwing
         )
         // Phase 3: the SOUNDING MIDI-out stamp now derives from the unified
         // AudioMasterClock — the render-origin host time plus this step's
@@ -2816,6 +2849,9 @@ final class EngineController: RouterDispatcher {
             guard let self else { return }
             if self.currentBPM != newCurrentBPM {
                 self.currentBPM = newCurrentBPM
+            }
+            if self.currentSwing != newCurrentSwing {
+                self.currentSwing = newCurrentSwing
             }
             self.transportTickIndex = completedStep
             self.transportPosition = newTransportPosition
