@@ -110,9 +110,12 @@ struct TracksMatrixView: View {
     @Environment(SequencerDocumentSession.self) private var session
     let onOpenTrack: () -> Void
 
-    @State private var isPresentingCreateTrack = false
-    @State private var isPresentingAddSliceTrack = false
-    @State private var isPresentingAddDrumGroup = false
+    /// The consolidated creation flow: non-nil presents the ONE Create Track
+    /// sheet at the given step (type picker, drum-group builder, slice loop
+    /// picker, or the mono/poly sound step). Replaces the old trio of
+    /// independent sheet booleans whose handoff dismissed one sheet and
+    /// re-presented another.
+    @State private var createTrackStep: CreateTrackFlowStep?
     /// Drives the delete confirmation for the selection-action bar.
     @State private var isConfirmingSelectionDelete = false
     /// AC18: a linked drum kit collapses to ONE cell; an unlinked kit expands
@@ -168,52 +171,11 @@ struct TracksMatrixView: View {
                 }
             }
         }
-        .sheet(isPresented: $isPresentingCreateTrack) {
-            CreateTrackSheet(
-                document: $document,
+        .sheet(item: $createTrackStep) { step in
+            CreateTrackFlow(
+                initialStep: step,
                 onOpenTrack: onOpenTrack,
-                onPickSliceTrack: {
-                    isPresentingCreateTrack = false
-                    isPresentingAddSliceTrack = true
-                },
-                onPickDrumGroup: {
-                    isPresentingCreateTrack = false
-                    isPresentingAddDrumGroup = true
-                }
-            )
-        }
-        .sheet(isPresented: $isPresentingAddSliceTrack) {
-            AddSliceTrackSheet(
-                library: .shared,
-                sampleEngine: engineController.sampleEngineSink,
-                pooledSampleIDs: Set(
-                    session.store.assetPool.filter { $0.kind == .sample }.map(\.assetID)
-                ),
-                onCreate: { sample in
-                    _ = session.appendSliceTrack(sample: sample)
-                    isPresentingAddSliceTrack = false
-                    onOpenTrack()
-                },
-                onCancel: {
-                    isPresentingAddSliceTrack = false
-                }
-            )
-            .presentationBackground(.clear)
-        }
-        .sheet(isPresented: $isPresentingAddDrumGroup) {
-            AddDrumGroupSheet(
-                auInstruments: engineController.availableAudioInstruments,
-                pooledKitIDs: Set(
-                    session.store.assetPool.filter { $0.kind == .drumKit }.map(\.assetID)
-                ),
-                onCreate: { plan in
-                    _ = session.addDrumGroup(plan: plan)
-                    isPresentingAddDrumGroup = false
-                    onOpenTrack()
-                },
-                onCancel: {
-                    isPresentingAddDrumGroup = false
-                }
+                onDismiss: { createTrackStep = nil }
             )
             .presentationBackground(.clear)
         }
@@ -233,30 +195,17 @@ struct TracksMatrixView: View {
         }
     }
 
-    /// Capture-harness hook: open/close the creation modals on command. The
-    /// runner owns the reported `tracks*ModalVisible` status (set when the
-    /// command is applied); this just flips the @State so the sheet renders.
+    /// Capture-harness hook: drive the ONE creation flow to a target step (or
+    /// close it) on command. The runner owns the reported `tracks*ModalVisible`
+    /// status (set when the command is applied); this just sets the @State so
+    /// the sheet renders at the requested step.
     private func applyModalVisualCommand(_ command: String) {
-        switch command {
-        case "create-track-modal:open":
-            isPresentingAddDrumGroup = false
-            isPresentingAddSliceTrack = false
-            isPresentingCreateTrack = true
-        case "create-track-modal:close":
-            isPresentingCreateTrack = false
-        case "add-drum-group-modal:open":
-            isPresentingCreateTrack = false
-            isPresentingAddSliceTrack = false
-            isPresentingAddDrumGroup = true
-        case "add-drum-group-modal:close":
-            isPresentingAddDrumGroup = false
-        case "add-slice-track-modal:open":
-            isPresentingCreateTrack = false
-            isPresentingAddDrumGroup = false
-            isPresentingAddSliceTrack = true
-        case "add-slice-track-modal:close":
-            isPresentingAddSliceTrack = false
-        default:
+        switch CreateTrackFlowStep.action(forVisualCommand: command) {
+        case .present(let step):
+            createTrackStep = step
+        case .close:
+            createTrackStep = nil
+        case nil:
             break
         }
     }
@@ -568,7 +517,7 @@ struct TracksMatrixView: View {
     // carries the affordance, with the action named in help/accessibility.
     private var addTrackCard: some View {
         StudioAddCard(label: "", minHeight: 132, help: "Add a track") {
-            isPresentingCreateTrack = true
+            createTrackStep = .pickType
         }
     }
 
@@ -1271,259 +1220,6 @@ private struct TrackTypeBadge: View {
             .frame(width: 30, height: 30)
             .background(accent, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
     }
-}
-
-private struct CreateTrackSheet: View {
-    @Environment(\.dismiss) private var dismiss
-    @Environment(SequencerDocumentSession.self) private var session
-    @Binding var document: SeqAIDocument
-    let onOpenTrack: () -> Void
-    let onPickSliceTrack: () -> Void
-    let onPickDrumGroup: () -> Void
-
-    private var columns: [GridItem] {
-        Array(repeating: GridItem(.flexible(), spacing: 12), count: 3)
-    }
-
-    var body: some View {
-        StudioModal(
-            title: "Create Track",
-            minWidth: 560,
-            onClose: { dismiss() }
-        ) {
-            LazyVGrid(columns: columns, spacing: 12) {
-                createButton(title: "Mono", detail: "Single melodic lane", accent: StudioTheme.cyan) {
-                    appendAndOpen(.monoMelodic)
-                }
-                createButton(title: "Poly", detail: "Chord-capable lane", accent: StudioTheme.amber) {
-                    appendAndOpen(.polyMelodic)
-                }
-                createButton(title: "Slice", detail: "Sample/slice trigger lane", accent: StudioTheme.violet) {
-                    onPickSliceTrack()
-                }
-                createButton(
-                    title: "Input",
-                    detail: session.canAppendAudioInputTrack ? "Audio input lane" : "Already in project",
-                    accent: StudioTheme.success,
-                    isEnabled: session.canAppendAudioInputTrack,
-                    disabledHelp: "One audio input track is available in this version"
-                ) {
-                    appendAndOpen(.audioInput)
-                }
-                createButton(title: "Drum Group", detail: "Grouped drum part tracks", accent: StudioTheme.amber) {
-                    onPickDrumGroup()
-                }
-            }
-        }
-    }
-
-    private func appendAndOpen(_ type: TrackType) {
-        session.appendTrack(trackType: type)
-        dismiss()
-        onOpenTrack()
-    }
-
-    private func createButton(
-        title: String,
-        detail: String,
-        accent: Color,
-        isEnabled: Bool = true,
-        disabledHelp: String = "",
-        action: @escaping () -> Void
-    ) -> some View {
-        StudioOptionButton(
-            title: title,
-            detail: detail,
-            accent: accent,
-            minHeight: 120,
-            isEnabled: isEnabled,
-            disabledHelp: disabledHelp,
-            action: action
-        )
-    }
-}
-
-private struct AddSliceTrackSheet: View {
-    let library: AudioSampleLibrary
-    let sampleEngine: SamplePlaybackSink
-    /// Project-pool sample IDs — pooled loops list first.
-    var pooledSampleIDs: Set<UUID> = []
-    let onCreate: (AudioSample) -> Void
-    let onCancel: () -> Void
-
-    @State private var previewingSampleID: UUID?
-
-    /// Breaks and recordings both feed the slicer; pooled loops on top,
-    /// then global, each name-sorted.
-    private var samples: [AudioSample] {
-        let loops = library.samples(in: .breaks) + library.samples(in: .recordings)
-        return loops.sorted { lhs, rhs in
-            let lhsPooled = pooledSampleIDs.contains(lhs.id)
-            let rhsPooled = pooledSampleIDs.contains(rhs.id)
-            if lhsPooled != rhsPooled {
-                return lhsPooled
-            }
-            return lhs.name.localizedStandardCompare(rhs.name) == .orderedAscending
-        }
-    }
-
-    private var breaksFolderPath: String {
-        library.libraryRoot.appendingPathComponent("breaks", isDirectory: true).path
-    }
-
-    var body: some View {
-        ZStack(alignment: .topTrailing) {
-            StudioTheme.stageFill
-                .ignoresSafeArea()
-
-            StudioPanel(title: "New Slice Track", eyebrow: "Choose a loop. Slices are detected after the track opens.", accent: StudioTheme.violet) {
-                VStack(alignment: .leading, spacing: 16) {
-                    if samples.isEmpty {
-                        StudioPlaceholderTile(
-                            title: "No Break Loops Found",
-                            detail: "Add WAV loops to \(breaksFolderPath).",
-                            accent: StudioTheme.violet
-                        )
-                    } else {
-                        ScrollView {
-                            LazyVStack(alignment: .leading, spacing: 8) {
-                                ForEach(samples) { sample in
-                                    sampleRow(sample)
-                                }
-                            }
-                        }
-                        .frame(maxHeight: 440)
-                    }
-                }
-            }
-            .padding(StudioMetrics.Spacing.page)
-            .frame(minWidth: 760, minHeight: 520)
-
-            Button {
-                sampleEngine.stopAudition()
-                onCancel()
-            } label: {
-                Image(systemName: "xmark")
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundStyle(StudioTheme.text)
-                    .frame(width: 30, height: 30)
-                    .background(Color.white.opacity(StudioOpacity.subtleFill), in: Circle())
-                    .overlay(Circle().stroke(StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth))
-            }
-            .buttonStyle(.plain)
-            .padding(30)
-        }
-        .onDisappear {
-            sampleEngine.stopAudition()
-        }
-        .onAppear {
-            library.reload()
-        }
-    }
-
-    /// Recording buffers get the amber accent; factory breaks keep violet.
-    private func accent(for sample: AudioSample) -> Color {
-        sample.category == .recordings ? StudioTheme.amber : StudioTheme.violet
-    }
-
-    private func sampleRow(_ sample: AudioSample) -> some View {
-        let rowAccent = accent(for: sample)
-        let isRecording = sample.category == .recordings
-        return HStack(alignment: .center, spacing: 12) {
-            // Accent rail distinguishes recordings from factory breaks at a glance.
-            RoundedRectangle(cornerRadius: 2, style: .continuous)
-                .fill(rowAccent)
-                .frame(width: 4, height: 36)
-
-            VStack(alignment: .leading, spacing: 3) {
-                HStack(spacing: 8) {
-                    Text(sample.name)
-                        .studioText(.bodyBold)
-                        .foregroundStyle(StudioTheme.text)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
-
-                    Text(isRecording ? "BUFFER" : "FACTORY")
-                        .studioText(.microEmphasis)
-                        .tracking(0.6)
-                        .foregroundStyle(rowAccent)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(rowAccent.opacity(0.18), in: Capsule())
-
-                    if pooledSampleIDs.contains(sample.id) {
-                        Text("IN PROJECT")
-                            .studioText(.microEmphasis)
-                            .tracking(0.6)
-                            .foregroundStyle(StudioTheme.success)
-                    }
-                }
-
-                Text(sampleDetail(sample))
-                    .studioText(.label)
-                    .foregroundStyle(StudioTheme.mutedText)
-                    .lineLimit(1)
-            }
-
-            Spacer(minLength: 12)
-
-            Button {
-                togglePreview(sample)
-            } label: {
-                Image(systemName: previewingSampleID == sample.id ? "stop.fill" : "play.fill")
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundStyle(StudioTheme.background)
-                    .frame(width: 28, height: 28)
-                    .background(rowAccent, in: Circle())
-            }
-            .buttonStyle(.plain)
-            .help(previewingSampleID == sample.id ? "Stop preview" : "Preview loop")
-
-            Button {
-                sampleEngine.stopAudition()
-                onCreate(sample)
-            } label: {
-                Text("Use Loop")
-                    .studioText(.labelBold)
-                    .foregroundStyle(StudioTheme.background)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
-                    .background(rowAccent, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(.horizontal, StudioMetrics.Spacing.comfortable)
-        .padding(.vertical, 10)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                .stroke(StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
-        )
-    }
-
-    private func togglePreview(_ sample: AudioSample) {
-        if previewingSampleID == sample.id {
-            sampleEngine.stopAudition()
-            previewingSampleID = nil
-            return
-        }
-
-        guard let url = try? sample.fileRef.resolve(libraryRoot: library.libraryRoot) else {
-            return
-        }
-
-        sampleEngine.stopAudition()
-        sampleEngine.audition(sampleURL: url)
-        previewingSampleID = sample.id
-    }
-
-    private func sampleDetail(_ sample: AudioSample) -> String {
-        let length = sample.lengthSeconds.map { String(format: "%.2fs", $0) } ?? "--"
-        let rate = sample.sampleRate.map { String(format: "%.1fk", $0 / 1_000) } ?? "--"
-        return "\(sample.category.displayName) • \(length) • \(rate)"
-    }
-
 }
 
 private extension Color {

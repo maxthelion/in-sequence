@@ -74,7 +74,10 @@ The authoritative list is the `command["..."]` keys in
 - **Navigation:** `workspace=song|phrase|tracks|track|mixer|scenes|library`;
   `workspaceMode=`.
 - **Tracks:** `addTrack=slice|...`, `tracksCreateTrackModal=open`,
-  `tracksAddDrumGroupModal=open`, `tracksSelect=`, etc.
+  `tracksAddDrumGroupModal=open`, `tracksTrackSoundModal=open` (the mono/poly
+  at-creation sound step), `tracksSelect=`, etc. The creation surfaces are
+  steps of ONE flow sheet (`CreateTrackFlow`), so opening one closes the
+  others.
 - **Drum kit:** `drumPartHeaderFixture=kit`, `drumPartHeaderOpenKitView=true`,
   `drumKitMatrixFixture=`, `drumKitMatrixCommand(s)=`, `drumKitMatrixLayer=`,
   `drumKitMatrixDisplayStepCount=`, routing editor commands.

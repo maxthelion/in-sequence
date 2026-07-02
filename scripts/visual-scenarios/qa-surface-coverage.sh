@@ -65,6 +65,7 @@ CAPTURES=$(cat <<'TABLE'
 02c-create-track-modal|workspace=tracks,tracksCreateTrackModalVisible=true|workspace=tracks;tracksCreateTrackModal=open;transport=stop
 02d-add-drum-group-modal|workspace=tracks,tracksAddDrumGroupModalVisible=true|workspace=tracks;tracksAddDrumGroupModal=open;transport=stop
 02e-add-slice-track-loop-picker|workspace=tracks,tracksAddSliceTrackModalVisible=true|workspace=tracks;tracksAddSliceTrackModal=open;transport=stop
+02f-create-track-sound-step|workspace=tracks,tracksTrackSoundModalVisible=true|workspace=tracks;tracksTrackSoundModal=open;transport=stop
 # 03/03a RETIRED: the tracks view is now a plain NAVIGATOR (track tiles +
 # add tile), not a perform surface. There is no Edit/Perform split, no
 # BASIS PHRASE banner, no EDIT SET selection bar, no Perform launcher, and

@@ -50,6 +50,7 @@ enum VisualScenarioCommandRunner {
     private static var tracksCreateTrackModalVisible = false
     private static var tracksAddDrumGroupModalVisible = false
     private static var tracksAddSliceTrackModalVisible = false
+    private static var tracksTrackSoundModalVisible = false
     private static var stepOrderFixtureState = "none"
     private static var trackSourceTabState = "none"
     private static var sceneEditorFixtureState = "none"
@@ -1057,6 +1058,7 @@ enum VisualScenarioCommandRunner {
         tracksCreateTrackModalVisible=\(tracksCreateTrackModalVisible)
         tracksAddDrumGroupModalVisible=\(tracksAddDrumGroupModalVisible)
         tracksAddSliceTrackModalVisible=\(tracksAddSliceTrackModalVisible)
+        tracksTrackSoundModalVisible=\(tracksTrackSoundModalVisible)
         masterGain=\(session.store.masterBus.masterOutputGain)
         firstTrackSendA=\(session.store.tracks.first?.mix.sendA ?? 0)
         firstTrackSendB=\(session.store.tracks.first?.mix.sendB ?? 0)
@@ -1470,10 +1472,10 @@ enum VisualScenarioCommandRunner {
         return pending
     }
 
-    /// Drives the tracks-navigator creation modals (`isPresentingCreateTrack`
-    /// and `isPresentingAddDrumGroup`) from the capture harness. Mirrors the
+    /// Drives the tracks-navigator creation flow (`TracksMatrixView`'s single
+    /// `createTrackStep` sheet) from the capture harness. Mirrors the
     /// phrase-matrix command shape: navigate to the tracks page, then post a
-    /// notification TracksMatrixView observes to flip the sheet @State. The
+    /// notification TracksMatrixView observes to set the flow step. The
     /// rendered visibility is reported back via .tracksMatrixRenderedVisualState.
     private static func applyTracksMatrixModalCommand(
         command: [String: String],
@@ -1481,22 +1483,24 @@ enum VisualScenarioCommandRunner {
     ) {
         guard command["tracksCreateTrackModal"] != nil ||
               command["tracksAddDrumGroupModal"] != nil ||
-              command["tracksAddSliceTrackModal"] != nil
+              command["tracksAddSliceTrackModal"] != nil ||
+              command["tracksTrackSoundModal"] != nil
         else { return }
 
         section.wrappedValue = .tracks
 
         var posts: [String] = []
 
-        // Opening one creation modal closes the other (they share the tracks
-        // navigator's sheet slots), so the status reflects the mutually
-        // exclusive state the command drives. These vars are set authoritatively
+        // The creation surfaces are STEPS of one flow sheet now, so opening
+        // one closes the others by construction; the status mirrors that
+        // mutually exclusive state. These vars are set authoritatively
         // here — the render round-trip then confirms the sheet actually mounted.
         switch command["tracksCreateTrackModal"] {
         case "open", "visible", "true":
             tracksCreateTrackModalVisible = true
             tracksAddDrumGroupModalVisible = false
             tracksAddSliceTrackModalVisible = false
+            tracksTrackSoundModalVisible = false
             posts.append("create-track-modal:open")
         case "close", "hidden", "false":
             tracksCreateTrackModalVisible = false
@@ -1510,6 +1514,7 @@ enum VisualScenarioCommandRunner {
             tracksAddDrumGroupModalVisible = true
             tracksCreateTrackModalVisible = false
             tracksAddSliceTrackModalVisible = false
+            tracksTrackSoundModalVisible = false
             posts.append("add-drum-group-modal:open")
         case "close", "hidden", "false":
             tracksAddDrumGroupModalVisible = false
@@ -1523,10 +1528,26 @@ enum VisualScenarioCommandRunner {
             tracksAddSliceTrackModalVisible = true
             tracksCreateTrackModalVisible = false
             tracksAddDrumGroupModalVisible = false
+            tracksTrackSoundModalVisible = false
             posts.append("add-slice-track-modal:open")
         case "close", "hidden", "false":
             tracksAddSliceTrackModalVisible = false
             posts.append("add-slice-track-modal:close")
+        default:
+            break
+        }
+
+        // The mono/poly at-creation sound step (Blank / Sampler / AU list).
+        switch command["tracksTrackSoundModal"] {
+        case "open", "visible", "true":
+            tracksTrackSoundModalVisible = true
+            tracksCreateTrackModalVisible = false
+            tracksAddDrumGroupModalVisible = false
+            tracksAddSliceTrackModalVisible = false
+            posts.append("track-sound-modal:open")
+        case "close", "hidden", "false":
+            tracksTrackSoundModalVisible = false
+            posts.append("track-sound-modal:close")
         default:
             break
         }

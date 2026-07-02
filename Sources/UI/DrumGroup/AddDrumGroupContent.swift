@@ -1,6 +1,9 @@
 import SwiftUI
 
-/// Drum-group creation modal, ordered sounds first, patterns second:
+/// Drum-group creation content, ordered sounds first, patterns second. Hosted
+/// as a STEP inside `CreateTrackFlow`'s single `StudioModal` (title/subtitle
+/// come from the flow's chrome — this view renders no modal wrapper of its
+/// own; closing is the flow's ✕):
 ///
 /// 1. **Sounds** — pick a kit from the global pool (factory + user kits), which
 ///    populates the parts list. Parts stay editable after kit selection:
@@ -12,12 +15,11 @@ import SwiftUI
 ///    path as the kit matrix's Apply Template action.
 /// 3. **Routing** — unchanged: optional shared destination, per-member
 ///    routes-to-shared.
-struct AddDrumGroupSheet: View {
+struct AddDrumGroupContent: View {
     let auInstruments: [AudioInstrumentChoice]
     /// Project-pool kit IDs — pooled kits list before global ones.
     var pooledKitIDs: Set<UUID> = []
     let onCreate: (DrumGroupPlan) -> Void
-    let onCancel: () -> Void
 
     @State private var selectedKitID: UUID?
     @State private var plan = DrumGroupPlan(name: "Drum Group", color: "#8AA", members: [])
@@ -41,13 +43,7 @@ struct AddDrumGroupSheet: View {
     }
 
     var body: some View {
-        StudioModal(
-            title: "Add Drum Group",
-            subtitle: "Pick sounds from a kit, optionally seed patterns from a template, then route the group.",
-            minWidth: 700,
-            minHeight: 600,
-            onClose: onCancel
-        ) {
+        VStack(alignment: .leading, spacing: StudioMetrics.Spacing.standard) {
             ScrollView {
                 VStack(alignment: .leading, spacing: StudioMetrics.Spacing.roomy) {
                     soundsSection

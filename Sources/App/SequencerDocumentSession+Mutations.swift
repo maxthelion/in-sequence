@@ -1590,6 +1590,36 @@ extension SequencerDocumentSession {
         return createdTrackID
     }
 
+    /// Append a new track and give it a sound destination in one user gesture
+    /// (Create Track flow's mono/poly sound step, Library "create track from AU
+    /// instrument"). Composition of the two existing mutations — `appendTrack`
+    /// then `setEditedDestination` — so the destination change keeps its
+    /// `.fullEngineApply` AU host teardown/build path. Returns the new track's
+    /// id, or nil when the append was refused.
+    @discardableResult
+    func appendTrack(trackType: TrackType, soundDestination: Destination) -> UUID? {
+        let idsBefore = Set(store.tracks.map(\.id))
+        appendTrack(trackType: trackType)
+        let newTrackID = store.selectedTrackID
+        guard !idsBefore.contains(newTrackID) else { return nil }
+        setEditedDestination(soundDestination, for: newTrackID)
+        return newTrackID
+    }
+
+    /// Append a new track of the generator's track type and assign the
+    /// generator as its slot-0 source (Library "create track from generator").
+    /// Reuses `appendTrack` + `assignGeneratorSource` verbatim. Returns the new
+    /// track's id, or nil when the append was refused.
+    @discardableResult
+    func appendTrack(generator: GeneratorPoolEntry) -> UUID? {
+        let idsBefore = Set(store.tracks.map(\.id))
+        appendTrack(trackType: generator.trackType)
+        let newTrackID = store.selectedTrackID
+        guard !idsBefore.contains(newTrackID) else { return nil }
+        assignGeneratorSource(generator.id, to: newTrackID, slotIndex: 0)
+        return newTrackID
+    }
+
     /// Remove the currently selected track (guard: must have >1 track).
     ///
     /// Uses a project round-trip for the same reasons as `appendTrack`.
