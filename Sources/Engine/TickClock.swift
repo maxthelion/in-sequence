@@ -9,6 +9,7 @@ final class TickClock {
     // realtime-allow-pump-pacing: TickClock is the lookahead pump's wake timer — it paces *when* the engine prepares/commits the next step, NEVER the frame an event sounds on (that is anchored by AudioMasterClock from the tempo map, Rule 1). Pump jitter does not move the sounding frame. Test: OfflineFrameAccuracyTests.
     private var timer: DispatchSourceTimer?
     private var storedBPM: Double
+    private var storedLookAheadLeadSeconds: TimeInterval = 0
     private var nextTickIndex: UInt64 = 0
     private var nextExpectedUptime: TimeInterval?
 
@@ -39,12 +40,24 @@ final class TickClock {
         syncOnQueue { timer != nil }
     }
 
-    func start(onTick: @escaping (UInt64, TimeInterval) -> Void) {
+    func start(lookAheadLeadSeconds: TimeInterval = 0, onTick: @escaping (UInt64, TimeInterval) -> Void) {
         syncOnQueue {
             guard timer == nil else {
+                // A second start on a running clock is IGNORED by design (the
+                // first clock keeps its wake phase and callback). The engine
+                // must never reach this — `EngineController.start` guards on
+                // `!isRunning` and every stop joins `clock.stop()` before a
+                // new start. If this ever fires, a stale clock with the OLD
+                // wake phase would keep pumping against a NEW transport
+                // origin — grid disagreement — so leave loud evidence.
+                DevActivity.trace(
+                    DevActivity.clock,
+                    "TickClock.start ignored — timer already running (stale wake phase would fight a new origin)"
+                )
                 return
             }
 
+            storedLookAheadLeadSeconds = max(0, lookAheadLeadSeconds)
             nextTickIndex = 0
             // realtime-allow-pump-pacing: seeds the pump's wake-jitter probe baseline (next expected wake), not a sounding time. Test: OfflineFrameAccuracyTests.
             nextExpectedUptime = ProcessInfo.processInfo.systemUptime
@@ -66,7 +79,17 @@ final class TickClock {
                 let interval = self.intervalSecondsForCurrentBPM()
                 let expected = self.nextExpectedUptime ?? actual
                 self.nextTickIndex += 1
-                self.nextExpectedUptime = expected + interval
+                if tickIndex == 0, self.storedLookAheadLeadSeconds > 0 {
+                    let firstLeadInterval = max(0, interval - self.storedLookAheadLeadSeconds)
+                    timer.schedule(
+                        deadline: .now() + firstLeadInterval,
+                        repeating: self.intervalForCurrentBPM(),
+                        leeway: .milliseconds(1)
+                    )
+                    self.nextExpectedUptime = actual + firstLeadInterval
+                } else {
+                    self.nextExpectedUptime = expected + interval
+                }
                 SequencerTimingProbe.tickClock(
                     tickIndex: tickIndex,
                     expected: expected,

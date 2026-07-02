@@ -86,6 +86,29 @@ final class TickClockTests: XCTestCase {
 
         XCTAssertEqual(indexes.values, [0, 1, 2, 3, 4])
     }
+
+    func test_lookAheadLead_bringsSecondTickEarlierWithoutMovingFirstTick() {
+        let clock = TickClock(stepsPerBar: 16)
+        clock.bpm = 120
+
+        let ticks = expectation(description: "lookahead ticks")
+        ticks.expectedFulfillmentCount = 4
+
+        let timestamps = LockedTimestamps()
+        clock.start(lookAheadLeadSeconds: 0.100) { _, now in
+            timestamps.append(now)
+            ticks.fulfill()
+        }
+
+        wait(for: [ticks], timeout: 1.0)
+        clock.stop()
+
+        let deltas = timestamps.deltas()
+        XCTAssertGreaterThanOrEqual(deltas.count, 3)
+        XCTAssertEqual(deltas[0], 0.025, accuracy: 0.012)
+        XCTAssertEqual(deltas[1], 0.125, accuracy: 0.012)
+        XCTAssertEqual(deltas[2], 0.125, accuracy: 0.012)
+    }
 }
 
 private final class LockedTimestamps: @unchecked Sendable {

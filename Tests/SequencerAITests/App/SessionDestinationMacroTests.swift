@@ -32,6 +32,19 @@ final class SessionDestinationMacroTests: XCTestCase {
         return (session, box)
     }
 
+    private func makeSessionWithEngine(project: Project) -> (SequencerDocumentSession, EngineController, DocumentBox) {
+        let box = DocumentBox(document: SeqAIDocument(project: project))
+        let engine = EngineController(client: nil, endpoint: nil)
+        let session = SequencerDocumentSession(
+            document: Binding(
+                get: { box.document },
+                set: { box.document = $0 }
+            ),
+            engineController: engine
+        )
+        return (session, engine, box)
+    }
+
     private func makeAUComponentID() -> AudioComponentID {
         AudioComponentID(type: "aumu", subtype: "test", manufacturer: "test", version: 1)
     }
@@ -232,5 +245,110 @@ final class SessionDestinationMacroTests: XCTestCase {
             "Clip macro lane for binding B must be removed on sampler transition (CR2-2 cascade)")
 
         SequencerDocumentSessionRegistry.unregister(session)
+    }
+
+    // MARK: - Macro layer default drags (scoped runtime — no snapshot install)
+
+    /// A macro-knob drag is dispatch-time only (sampler/filter/AU params) — it
+    /// must NOT bump the generation-input revision (which would bust the
+    /// precompute cache and clear the event queue at mouse-move rate, the
+    /// latency class already fixed for `setTrackMix`), and the dragged value
+    /// must reach the engine through the scoped-runtime override so the knob
+    /// still works without a snapshot install.
+    func test_setMacroLayerDefault_dragSkipsSnapshotInstall_butReachesEngine() throws {
+        let library = try makeTempLibrary()
+        var project = Project.empty
+        guard let groupID = project.addDrumGroup(plan: .blankDefault, library: library),
+              let memberID = project.trackGroups.first(where: { $0.id == groupID })?.memberIDs.first
+        else {
+            return XCTFail("expected a populated drum group with at least one member")
+        }
+
+        let (session, engine, _) = makeSessionWithEngine(project: project)
+        defer { SequencerDocumentSessionRegistry.unregister(session) }
+
+        let liveProject = session.store.exportToProject()
+        guard let binding = liveProject.tracks.first(where: { $0.id == memberID })?.macros.first else {
+            return XCTFail("expected the sample member to carry builtin macro bindings")
+        }
+
+        let revisionBefore = engine.tickState.readPrepareInputs().generationInputRevision
+        let storeRevisionBefore = session.store.revision
+
+        session.setMacroLayerDefault(value: 0.42, bindingID: binding.id, trackID: memberID)
+
+        XCTAssertEqual(
+            engine.tickState.readPrepareInputs().generationInputRevision, revisionBefore,
+            "a macro-default drag must not install a snapshot / bump the generation revision"
+        )
+        XCTAssertEqual(
+            engine.macroLayerDefaultOverridesForTesting[memberID]?[binding.id], 0.42,
+            "the dragged value must reach the engine via the scoped-runtime override (knob must still work)"
+        )
+        XCTAssertGreaterThan(
+            session.store.revision, storeRevisionBefore,
+            "the drag must still persist into the store for flush/undo/export and the next compile"
+        )
+    }
+
+    /// The engine-side override is a bridge until the next real snapshot
+    /// install; the install compiles the store value the drag already wrote,
+    /// so the override must clear there (no stale per-drag values leaking
+    /// across snapshot generations).
+    func test_macroDefaultOverride_clearsOnSnapshotInstall() throws {
+        let library = try makeTempLibrary()
+        var project = Project.empty
+        guard let groupID = project.addDrumGroup(plan: .blankDefault, library: library),
+              let memberID = project.trackGroups.first(where: { $0.id == groupID })?.memberIDs.first
+        else {
+            return XCTFail("expected a populated drum group with at least one member")
+        }
+
+        let (session, engine, _) = makeSessionWithEngine(project: project)
+        defer { SequencerDocumentSessionRegistry.unregister(session) }
+
+        guard let binding = session.store.exportToProject()
+            .tracks.first(where: { $0.id == memberID })?.macros.first
+        else {
+            return XCTFail("expected builtin macro bindings")
+        }
+
+        session.setMacroLayerDefault(value: 0.42, bindingID: binding.id, trackID: memberID)
+        XCTAssertNotNil(engine.macroLayerDefaultOverridesForTesting[memberID]?[binding.id])
+
+        engine.apply(documentModel: session.store.exportToProject())
+
+        XCTAssertTrue(
+            engine.macroLayerDefaultOverridesForTesting.isEmpty,
+            "a snapshot install compiles the persisted default — the override must clear"
+        )
+    }
+
+    /// Structural layer edits (arrangement-level phrase-layer defaults) are NOT
+    /// the live-drag path and must keep installing snapshots (revision bumps).
+    func test_setPhraseLayerDefault_stillInstallsSnapshot() throws {
+        let library = try makeTempLibrary()
+        var project = Project.empty
+        guard let groupID = project.addDrumGroup(plan: .blankDefault, library: library),
+              let memberID = project.trackGroups.first(where: { $0.id == groupID })?.memberIDs.first
+        else {
+            return XCTFail("expected a populated drum group with at least one member")
+        }
+
+        let (session, engine, _) = makeSessionWithEngine(project: project)
+        defer { SequencerDocumentSessionRegistry.unregister(session) }
+
+        guard let layer = session.store.exportToProject().layers.first else {
+            return XCTFail("expected at least one layer")
+        }
+
+        let revisionBefore = engine.tickState.readPrepareInputs().generationInputRevision
+
+        session.setPhraseLayerDefault(.scalar(0.7), layerID: layer.id, trackID: memberID)
+
+        XCTAssertGreaterThan(
+            engine.tickState.readPrepareInputs().generationInputRevision, revisionBefore,
+            "structural layer edits must keep installing snapshots"
+        )
     }
 }

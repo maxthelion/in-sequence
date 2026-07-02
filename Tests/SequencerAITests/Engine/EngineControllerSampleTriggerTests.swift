@@ -149,6 +149,115 @@ final class EngineControllerSampleTriggerTests: XCTestCase {
         XCTAssertEqual(spy.playCalls.count, 4, "manual processTick driving should dispatch one sample trigger per fired step")
     }
 
+    func test_liveLookAheadPump_dispatchesAllStepsInsideHorizonWithoutDuplicates() throws {
+        let library = AudioSampleLibrary(libraryRoot: libraryRoot)
+        let kick = try XCTUnwrap(library.firstSample(in: .kick))
+        let spy = SpySamplePlaybackSink()
+
+        let track = StepSequenceTrack(
+            name: "K",
+            pitches: [DrumKitNoteMap.baselineNote],
+            stepPattern: [true],
+            destination: .sample(sampleID: kick.id, settings: .default),
+            velocity: 100,
+            gateLength: 4
+        )
+        let generator = makeAlwaysOnGenerator(id: UUID(), trackType: track.trackType)
+        let layers = PhraseLayerDefinition.defaultSet(for: [track])
+        let phrase = PhraseModel.default(tracks: [track], layers: layers)
+        let project = makeProject(track: track, generator: generator, phrase: phrase, layers: layers)
+
+        let controller = EngineController(
+            client: nil,
+            endpoint: nil,
+            sampleEngine: spy,
+            sampleLibrary: library
+        )
+        controller.apply(documentModel: project)
+        controller.setBPM(300)
+
+        let origin = 1_000.0
+        controller.startTransportWithoutClockForTesting(now: origin)
+        defer { controller.stop() }
+        let pumpOrigin = controller.audioMasterClock.capturedOriginCorrelation().hostSeconds
+
+        let firstPumpCount = controller.processLookAheadPumpForTesting(now: pumpOrigin)
+        XCTAssertEqual(firstPumpCount, 3)
+        XCTAssertEqual(
+            spy.playCalls.count,
+            3,
+            "At 300 BPM, 16 steps/bar yields 50 ms per step. A 100 ms horizon should dispatch steps 0, 1, and 2 on the first pump wake."
+        )
+
+        let duplicatePumpCount = controller.processLookAheadPumpForTesting(now: pumpOrigin)
+        XCTAssertEqual(duplicatePumpCount, 0)
+        XCTAssertEqual(spy.playCalls.count, 3, "Repeating the same pump wake must not dispatch already-handed-off steps again.")
+
+        let nextPumpCount = controller.processLookAheadPumpForTesting(now: pumpOrigin + 0.050)
+        XCTAssertEqual(nextPumpCount, 1)
+        XCTAssertEqual(spy.playCalls.count, 4, "The next pump wake should dispatch only the next newly eligible step.")
+    }
+
+    /// Regression for the 2026-07-02 capture-rig finding: the pump's wake
+    /// deadlines come from `systemUptime` while the musical origin is the
+    /// render-derived host time — different anchors in the same timebase,
+    /// typically a render cycle (~11-14 ms) apart. TickClock fires wake k at
+    /// `origin_wake + k*step - lead`, but measured against the RENDER origin
+    /// that wake sits at `due(k) - lead - skew`. With a 1 µs horizon epsilon
+    /// the next step was (lead + skew) away, missed every wake, and dispatched
+    /// one wake later — ~14 ms past due, so EVERY steady-state trigger clamped
+    /// to immediate (272 immediate vs 4 scheduled in the rig run, constant
+    /// 12 ms render-quantum flams between coincident voices). The horizon must
+    /// absorb cross-clock skew via `lookAheadClockSkewSlackSeconds`.
+    func test_liveLookAheadPump_toleratesOriginVsWakeClockSkew() throws {
+        let library = AudioSampleLibrary(libraryRoot: libraryRoot)
+        let kick = try XCTUnwrap(library.firstSample(in: .kick))
+        let spy = SpySamplePlaybackSink()
+
+        let track = StepSequenceTrack(
+            name: "K",
+            pitches: [DrumKitNoteMap.baselineNote],
+            stepPattern: [true],
+            destination: .sample(sampleID: kick.id, settings: .default),
+            velocity: 100,
+            gateLength: 4
+        )
+        let generator = makeAlwaysOnGenerator(id: UUID(), trackType: track.trackType)
+        let layers = PhraseLayerDefinition.defaultSet(for: [track])
+        let phrase = PhraseModel.default(tracks: [track], layers: layers)
+        let project = makeProject(track: track, generator: generator, phrase: phrase, layers: layers)
+
+        let controller = EngineController(
+            client: nil,
+            endpoint: nil,
+            sampleEngine: spy,
+            sampleLibrary: library
+        )
+        controller.apply(documentModel: project)
+        // Default 120 BPM: 125 ms per 16th step, 100 ms lead.
+
+        controller.startTransportWithoutClockForTesting(now: 1_000.0)
+        defer { controller.stop() }
+        let pumpOrigin = controller.audioMasterClock.capturedOriginCorrelation().hostSeconds
+
+        // Tick-0 wake, then the production wake for step 1: TickClock fires it
+        // at due(1) - lead against its OWN anchor, which is due(1) - lead - skew
+        // against the render origin. Step 1 must be handed to the sink no later
+        // than this wake; without skew slack it measured (lead + skew) away,
+        // slipped a full wake, and dispatched past due (the immediate-clamp
+        // flam). With the slack it dispatches at this wake or the one before.
+        _ = controller.processLookAheadPumpForTesting(now: pumpOrigin)
+        let measuredSkew = 0.014
+        let wakeForStepOne = pumpOrigin + 0.125 - 0.100 - measuredSkew
+        _ = controller.processLookAheadPumpForTesting(now: wakeForStepOne)
+        XCTAssertGreaterThanOrEqual(
+            spy.playCalls.count, 2,
+            "steps 0 and 1 must both be handed off by step 1's lead-phased wake despite " +
+            "origin-vs-wake clock skew; slipping past this wake dispatches past due and " +
+            "clamps to immediate"
+        )
+    }
+
     func test_sampleDestination_opensSampleOnceDuringWarmupNotPerDispatch() throws {
         let library = AudioSampleLibrary(libraryRoot: libraryRoot)
         let kick = try XCTUnwrap(library.firstSample(in: .kick))

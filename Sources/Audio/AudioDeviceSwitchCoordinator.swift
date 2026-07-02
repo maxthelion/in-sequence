@@ -7,6 +7,12 @@ struct AudioDeviceApplyResult: Equatable, Sendable {
     var appliedOutputDeviceUID: String?
     var wasRunningBeforeApply: Bool
     var restartedEngine: Bool
+    /// Input selection that was RECORDED but not applied to the HAL because no
+    /// audio-input routing was armed at apply time (lazy input arming: creating
+    /// the input-direction AUHAL is a mic-TCC trigger, so it is deferred until
+    /// an input routing actually arms). Preference persistence must treat this
+    /// as the user's selection.
+    var deferredInputDeviceUID: String? = nil
 }
 
 struct AudioDeviceOwnerApplyResult: Equatable, Sendable {
@@ -101,10 +107,23 @@ final class CoreAudioHALDeviceOwner: AudioDeviceOwning {
         }
     }
 
+    /// True once the input-direction AUHAL exists. Creating that unit is a
+    /// mic-TCC trigger; tests pin that sample-only paths never create it.
+    var hasCreatedInputUnitForTesting: Bool {
+        inputUnit != nil
+    }
+
     private func targetDeviceID(preferredUID: String?, direction: AudioDeviceDirection) throws -> AudioDeviceID? {
         if let preferredUID {
             return try catalog.deviceID(for: preferredUID, direction: direction)
         }
+        // Never create (or re-point) the INPUT-direction AUHAL without an
+        // explicit selection: it is an input-ENABLED IO unit, and
+        // creating/initializing one raises the microphone TCC prompt. With no
+        // explicit choice the input follows the system-default device, which
+        // needs no unit at all — so a nil input UID leaves the input side
+        // completely untouched instead of pinning it to the current default.
+        if direction == .input { return nil }
         return try? catalog.defaultDeviceID(direction: direction)
     }
 
@@ -328,7 +347,10 @@ final class AudioDeviceSwitchCoordinator {
         let result = try applyHandler(inputUID, outputUID)
         try store.save(
             AudioDevicePreference(
-                preferredInputDeviceUID: result.appliedInputDeviceUID,
+                // A deferred input selection (no armed input routing yet, so
+                // the HAL apply was skipped to avoid the mic-TCC trigger) is
+                // still the user's choice — persist it.
+                preferredInputDeviceUID: result.appliedInputDeviceUID ?? result.deferredInputDeviceUID,
                 preferredOutputDeviceUID: result.appliedOutputDeviceUID
             )
         )

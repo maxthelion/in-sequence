@@ -23,8 +23,10 @@ import Foundation
 ///    seconds value onto an absolute render frame using the render position read
 ///    from the engine (`MainAudioGraph.renderPosition`). The origin is captured
 ///    once at transport start (`captureOrigin`) so that musical second 0 maps to
-///    the render frame that was current when playback began; subsequent stamps
-///    are `originFrame + musicalSeconds * sampleRate`.
+///    the render frame that was current when playback began plus the fixed
+///    `startupAnchorLeadSeconds` (live transport; harnesses may pass zero), so
+///    even step 0's stamp is a schedulable FUTURE frame; subsequent stamps are
+///    `originFrame + musicalSeconds * sampleRate`.
 ///
 /// # Offline determinism
 ///
@@ -46,6 +48,83 @@ import Foundation
 /// is a pure read of engine state (no alloc/locks). No render-thread work is
 /// added — the engine's render `sampleTime` is merely *read*.
 final class AudioMasterClock {
+    /// Phase 3 look-ahead lead (seconds). Gate-1 LOCKED at 100 ms
+    /// (`docs/plans/2026-06-30-precompute-lookahead-recording.md`: "Look-ahead
+    /// lead: 100 ms."). This is a pump/dispatch horizon, not a master-clock
+    /// origin offset. Musical second 0 must remain anchored to transport start.
+    static let lookAheadLeadSeconds: TimeInterval = 0.100
+
+    /// Startup anchor lead (seconds) — G2 gate amendment, OWNER-APPROVED
+    /// 2026-07-02 (locked thresholds: anchor = 50 ms, rail cap = 60 ms).
+    ///
+    /// At LIVE transport start the transport grid (musical second 0) is
+    /// anchored this far AFTER the render position captured at start — BOTH the
+    /// sample-frame origin and the host-seconds origin advance together, so
+    /// every converter view of the origin stays one correlation.
+    ///
+    /// Why (2026-07-02 rig physics): step 0's due time IS the origin, so with a
+    /// zero anchor its stamp is knife-edge — inside the engine's
+    /// schedule-visibility horizon (~2 render quanta ≈ 23 ms @ 512/44.1 kHz)
+    /// plus the ~20 ms of cold first-tick dispatch work — and the first hit
+    /// landed "as soon as possible" (+41 ms ± 1 quantum via the old 30 ms
+    /// stamp-lift floor), non-deterministically. With a 50 ms anchor the step-0
+    /// stamp is born 50 ms ahead of the render position (visibility ~23 ms +
+    /// cold dispatch ~20 ms < 50 ms), so it is schedulable sample-accurately
+    /// and lands ON the grid like every other step. Verified dead ends before
+    /// this mechanism: a larger stamp-lift floor (45 ms → landing +55.8 ms) and
+    /// pre-starting player nodes (no change).
+    ///
+    /// This is NOT the legacy `captureOrigin(leadSeconds:)` parameter (kept
+    /// only for old isolated-verifier coverage; production passes zero there)
+    /// and it must NEVER be `lookAheadLeadSeconds` (0.100): the look-ahead lead
+    /// is a pump/dispatch horizon and paying it as an origin shift is the
+    /// rejected round-1 first-play-latency defect. The amended first-play rails
+    /// (`LookAheadEarlyDispatchTests` / `LookAheadStartCallSiteGuardTests`) pin
+    /// this constant ≤ 0.060 (the owner-locked cap) and
+    /// `lookAheadLeadSeconds > 0.060`, so the lead can never masquerade as the
+    /// anchor.
+    static let startupAnchorLeadSeconds: TimeInterval = 0.050
+
+    /// Clock-domain skew slack added to the pump's dispatch horizon (NOT to any
+    /// sounding stamp). The pump's wake times come from `systemUptime`
+    /// (TickClock / DispatchSource deadlines) while musical time is anchored to
+    /// the render-derived origin host time; the two share the mach timebase but
+    /// the origin lands a render cycle or so away from the tick-0 wake. The
+    /// 2026-07-02 capture-rig run measured ~11-14 ms of skew — with a 1 µs
+    /// horizon epsilon every steady-state wake missed the next step by that
+    /// margin, dispatched it a wake later (~14 ms past due), and every trigger
+    /// clamped to immediate (one-render-quantum flams between coincident
+    /// voices). The slack only lets the pump hand events to sinks slightly
+    /// EARLIER than the nominal lead; stamps remain the true musical due time.
+    static let lookAheadClockSkewSlackSeconds: TimeInterval = 0.025
+
+    /// LAST-RESORT scheduling floor (seconds past the CURRENT render position)
+    /// for the LIVE dispatch path — the earliest stamp a sink can still honour
+    /// sample-accurately. It lifts an already-past-due EVENT STAMP up to
+    /// `renderPositionAtDispatch + floor` (`max(due, floor)`); it never moves
+    /// the master-clock origin and it is NOT the primary first-hit mechanism.
+    ///
+    /// Since the G2-approved `startupAnchorLeadSeconds` (50 ms) anchor, step
+    /// 0's due stamp is born 50 ms ahead of the start render position, so on a
+    /// NORMAL start this floor must NOT fire — firing would lift step 0 a
+    /// couple of ms off the grid. The floor fires only when the cold dispatch
+    /// delay (render-position advance between origin capture and dispatch)
+    /// exceeds `startupAnchorLeadSeconds - floor`.
+    ///
+    /// Value tradeoff (2026-07-02 rig measurements): schedule visibility is
+    /// ~2 render quanta (23.2 ms @ 512/44.1 kHz, 21.3 ms @ 48 kHz) and the
+    /// measured cold first-tick dispatch delay is ~20 ms (1–2 quanta, i.e. up
+    /// to ~23 ms observed). At the previous 30 ms the rescue threshold was
+    /// "delay > 20 ms" — INSIDE the measured normal range, so a routine slow
+    /// cold start would trip the floor and lift step 0 off-grid by up to
+    /// ~3 ms. At 25 ms the threshold is "delay > 25 ms", clearing the measured
+    /// normal range (max ~23 ms) while a rescued stamp still sits at/just past
+    /// the schedule-visibility horizon (25 ms ≥ 23.2 ms) — a genuine pathology
+    /// is rescued slightly late but sounding, instead of clamped to immediate.
+    /// That is the accepted tradeoff: deterministic on-grid normal starts,
+    /// rare best-effort (possibly ~a-quantum-late) rescues.
+    static let liveDispatchSchedulingFloorSeconds: TimeInterval = 0.025
+
     /// Reads the live audio-render position. Returns nil until the engine has a
     /// valid render time (before first render / live-HAL warmup), in which case
     /// the clock falls back to its musical accumulator with a zero frame origin.
@@ -91,6 +170,22 @@ final class AudioMasterClock {
     /// is provisional, the render origin is the real one.
     private var originIsRenderDerived = false
 
+    /// Legacy isolated-verifier offset. Production transport start must pass zero:
+    /// the look-ahead lead is realized by dispatching before the event's due time,
+    /// not by moving the master-clock origin.
+    private var originLeadSeconds: TimeInterval = 0
+
+    /// The startup anchor lead captured with the origin (see
+    /// `startupAnchorLeadSeconds`). Stored so the fallback→render-derived
+    /// upgrade (`refreshOriginIfAvailable`) applies the SAME anchor the
+    /// transport start requested — production can never run unanchored just
+    /// because the engine had not rendered at `captureOrigin` time. Stays 0
+    /// when no `captureOrigin` ran at all (the offline frame-accuracy harness
+    /// establishes its origin purely through `refreshOriginIfAvailable`), so
+    /// the deterministic 0-frame gate's stamps remain exactly
+    /// `musicalSeconds * sampleRate`.
+    private var originStartupAnchorLeadSeconds: TimeInterval = 0
+
     /// Cumulative musical seconds at the most recently advanced step, and the
     /// step index it corresponds to. The tempo map is expressed incrementally:
     /// each `advance(toStep:bpm:)` adds the duration of the steps between the
@@ -120,20 +215,39 @@ final class AudioMasterClock {
     /// position is available yet (engine not yet rendering at transport start) —
     /// pass `ProcessInfo.processInfo.systemUptime`, which shares the mach
     /// timebase with `AVAudioTime` host time.
-    func captureOrigin(fallbackHostSeconds: TimeInterval) {
+    /// `leadSeconds` is retained only for old isolated verifier coverage; live
+    /// transport must use the default zero. Do not use it to implement look-ahead.
+    /// `startupAnchorLeadSeconds` is the G2-approved transport-start anchor (see
+    /// the static constant): live transport start passes
+    /// `AudioMasterClock.startupAnchorLeadSeconds` so musical second 0 lands the
+    /// anchor lead AFTER the captured render position (frame and host origins
+    /// advance together); harnesses that need an unanchored origin pass the
+    /// default zero. It must never carry `lookAheadLeadSeconds`.
+    func captureOrigin(
+        fallbackHostSeconds: TimeInterval,
+        leadSeconds: TimeInterval = 0,
+        startupAnchorLeadSeconds: TimeInterval = 0
+    ) {
         reset()
+        let lead = max(0, leadSeconds)
+        let anchor = max(0, startupAnchorLeadSeconds)
+        originLeadSeconds = lead
+        originStartupAnchorLeadSeconds = anchor
+        let offset = lead + anchor
         if let position = renderPositionProvider() {
             sampleRate = position.sampleRate
-            originSampleTime = position.sampleTime
-            originHostSeconds = AVAudioTime.seconds(forHostTime: position.hostTime)
+            originSampleTime = position.sampleTime + AVAudioFramePosition((offset * position.sampleRate).rounded())
+            originHostSeconds = AVAudioTime.seconds(forHostTime: position.hostTime) + offset
             originIsRenderDerived = true
         } else {
             // No render position yet (engine not rendering at transport start):
             // anchor provisionally on the supplied fallback host time. This is
             // NOT the authoritative origin — `refreshOriginIfAvailable` upgrades
-            // it to the render-derived host time on the first render.
+            // it to the render-derived host time on the first render (carrying
+            // the same anchor/lead). The sample-frame origin has no valid render
+            // base yet, so it stays 0 until the upgrade.
             originSampleTime = 0
-            originHostSeconds = fallbackHostSeconds
+            originHostSeconds = fallbackHostSeconds + offset
             originIsRenderDerived = false
         }
         hasOrigin = true
@@ -145,6 +259,8 @@ final class AudioMasterClock {
         originHostSeconds = 0
         hasOrigin = false
         originIsRenderDerived = false
+        originLeadSeconds = 0
+        originStartupAnchorLeadSeconds = 0
         lastAdvancedStep = 0
         cumulativeMusicalSecondsByStep = [0: 0]
     }
@@ -224,15 +340,41 @@ final class AudioMasterClock {
         AVAudioTime(hostTime: AVAudioTime.hostTime(forSeconds: max(0, hostSeconds(atMusicalSeconds: musicalSeconds))))
     }
 
-    // NOTE: No `now()` / lookahead-pump read is exposed here. Phase 0's stamping
-    // goal is met by the retained 1-tick prepare horizon (events for the upcoming
-    // step are stamped one tick ahead from the tempo map). The wider
-    // ~100–200 ms lookahead pump described in the plan is a later step; this
-    // object deliberately does not carry a dead pump API claiming a window that
-    // is not built. (Task #39 — the realtime-path-lint extension that forbids
-    // systemUptime/Date/DispatchTime as musical-timing sources — can carve out
-    // this file cleanly: the only host-time/systemUptime touch points are the
-    // documented origin capture/upgrade and the AVAudioTime host-time stamp.)
+    /// The earliest musical position (cumulative seconds) a LIVE dispatch can
+    /// still hand a sink as a sample-accurately schedulable stamp: the CURRENT
+    /// render position plus `liveDispatchSchedulingFloorSeconds`, expressed on
+    /// the musical timeline. Returns nil while no render-derived origin exists
+    /// (cold fallback — the dispatch path keeps its aligned immediate
+    /// behaviour there).
+    ///
+    /// This is a DISPATCH-floor read, not a stamping source: the caller lifts
+    /// an already-past-due event's stamp UP to this value (`max(due, floor)`),
+    /// so on-time events (dispatched ~lead ahead) are never moved. Like the
+    /// other converters this is a pure read of the render position plus the
+    /// captured origin (Rule 1) — no wall clock is consulted.
+    func liveDispatchSchedulingFloorMusicalSeconds() -> TimeInterval? {
+        refreshOriginIfAvailable()
+        guard originIsRenderDerived, hasOrigin,
+              let position = renderPositionProvider()
+        else {
+            return nil
+        }
+        let renderHostSeconds = AVAudioTime.seconds(forHostTime: position.hostTime)
+        return musicalSeconds(
+            atHostSeconds: renderHostSeconds + Self.liveDispatchSchedulingFloorSeconds
+        )
+    }
+
+    /// Convert a pump wake host-time into the musical position it corresponds to.
+    /// This is for look-ahead WINDOW SELECTION only: it decides which already-
+    /// due-soon steps the pump should prepare/hand to sinks. It never stamps an
+    /// event; stamping still goes through `audioTime(atMusicalSeconds:)` /
+    /// `sampleTime(atMusicalSeconds:)` using the event's due musical position.
+    func musicalSeconds(atHostSeconds hostSeconds: TimeInterval) -> TimeInterval {
+        refreshOriginIfAvailable()
+        let origin = hasOrigin ? originHostSeconds : 0
+        return max(0, hostSeconds - origin)
+    }
 
     // MARK: - Helpers
 
@@ -249,8 +391,16 @@ final class AudioMasterClock {
         guard let position = renderPositionProvider() else { return }
         sampleRate = position.sampleRate
         guard !originIsRenderDerived else { return }
-        originSampleTime = position.sampleTime
-        originHostSeconds = AVAudioTime.seconds(forHostTime: position.hostTime)
+        // Upgrade preserves the captured startup anchor (production transport
+        // start anchors by `startupAnchorLeadSeconds`; the anchor must survive
+        // the fallback→render upgrade or a cold start would run unanchored) and
+        // any legacy isolated-verifier lead offset. When no `captureOrigin` ran
+        // (offline frame-accuracy harness), both stored offsets are 0 and the
+        // origin is exactly the render position — the 0-frame gate's stamps
+        // stay `musicalSeconds * sampleRate`.
+        let offset = originLeadSeconds + originStartupAnchorLeadSeconds
+        originSampleTime = position.sampleTime + AVAudioFramePosition((offset * position.sampleRate).rounded())
+        originHostSeconds = AVAudioTime.seconds(forHostTime: position.hostTime) + offset
         hasOrigin = true
         originIsRenderDerived = true
     }

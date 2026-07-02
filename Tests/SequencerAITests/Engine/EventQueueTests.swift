@@ -39,6 +39,30 @@ final class EventQueueTests: XCTestCase {
         XCTAssertEqual(queue.count, 0)
     }
 
+    func test_drainMatchingTransportGeneration_dropsStaleAndUntaggedEvents() {
+        let queue = EventQueue()
+        let chord = Chord(root: 60, chordType: "majorTriad", scale: "major")
+        let stale = ScheduledEvent(
+            scheduledHostTime: 0,
+            payload: .chordContextBroadcast(lane: "stale", chord: chord),
+            transportGeneration: 1
+        )
+        let current = ScheduledEvent(
+            scheduledHostTime: 1,
+            payload: .chordContextBroadcast(lane: "current", chord: chord),
+            transportGeneration: 2
+        )
+        let untagged = ScheduledEvent(
+            scheduledHostTime: 2,
+            payload: .chordContextBroadcast(lane: "untagged", chord: chord)
+        )
+
+        queue.enqueue([stale, current, untagged])
+
+        XCTAssertEqual(queue.drain(matching: 2), [current])
+        XCTAssertTrue(queue.isEmpty)
+    }
+
     func test_concurrentEnqueueAndDrain_doesNotCorruptState() {
         let queue = EventQueue()
         let chord = Chord(root: 60, chordType: "majorTriad", scale: "major")

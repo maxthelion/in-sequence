@@ -1275,7 +1275,19 @@ extension SequencerDocumentSession {
         store.setLayers(p.layers)
         guard store.revision > revision else { return }
         guard !isInBatch else { return }
-        dispatchImpact(.snapshotOnly, changed: .layers)
+        // Deliberately NOT `.snapshotOnly`/`.layers`: track macros are
+        // dispatch-time only (sampler/filter/AU params — never compiled note
+        // data), and a snapshot install per drag tick bumps the generation
+        // revision, busts the precompute cache, and clears the event queue at
+        // mouse-move rate (the same latency class fixed for `setTrackMix`).
+        // The engine hears the drag through the scoped-runtime override; the
+        // store write above keeps persistence/undo/export correct, and the
+        // next structural snapshot install compiles it and clears the
+        // override.
+        dispatchImpact(
+            .scopedRuntime(update: .macroLayerDefault(trackID: trackID, bindingID: bindingID, value: value)),
+            changed: .none
+        )
     }
 
     /// Write a phrase-layer default value for one track. Phrases whose cell is

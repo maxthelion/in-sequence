@@ -513,9 +513,46 @@ final class MainAudioGraph {
             && !engine.outputConnectionPoints(for: node, outputBus: 0).isEmpty
     }
 
+    /// Count of `engine.inputNode` accesses made through this graph. Accessing
+    /// the input node is never free: AVAudioEngine shares ONE HAL IO unit
+    /// between input and output, and the first `inputNode` access permanently
+    /// arms `EnableIO` on the unit's input scope — every later `engine.start()`
+    /// then opens a microphone stream and becomes a mic-TCC trigger. On ad-hoc
+    /// signed debug builds the prompt re-fires after every rebuild even while
+    /// `AVCaptureDevice.authorizationStatus` still reports `.authorized`
+    /// (stale TCC record), and since the warm-graph change the session start
+    /// happens at document open — so a stray access here turns into a
+    /// launch-blocking mic prompt. Sample-only sessions must keep this at 0.
+    private(set) var inputNodeAccessCountForTesting = 0
+
+    /// The ONLY sanctioned door to `engine.inputNode`. Callers must already be
+    /// on an armed audio-input path (a routing whose requested source is
+    /// `.input`), so the mic-TCC prompt can only fire at the moment of user
+    /// intent — never at sample-only graph construction/start.
+    @MainActor
+    private func armedEngineInputNode() -> AVAudioInputNode {
+        inputNodeAccessCountForTesting += 1
+        return engine.inputNode
+    }
+
+    /// Test seam for the HAL default-input-device channel-count read.
+    static var hardwareInputChannelCountOverrideForTesting: Int?
+
+    /// Device input channel count for UI affordances (input selector,
+    /// arm-availability messaging). Read from the HAL default input device's
+    /// stream configuration — a plain CoreAudio property read with no TCC side
+    /// effects. This must NEVER go through `engine.inputNode`: documents that
+    /// merely CONTAIN an audio-input track compute route state through here at
+    /// document apply, and an `inputNode` read would arm the shared IO unit's
+    /// input scope (see `inputNodeAccessCountForTesting`) — on a rebuilt
+    /// ad-hoc binary the TCC status is stale-`.authorized`, so that single
+    /// read turned the warm session start into a launch-blocking mic prompt.
     var availableInputChannelCount: Int {
         guard Self.liveAudioInputAuthorized else { return 0 }
-        return Int(engine.inputNode.inputFormat(forBus: 0).channelCount)
+        if let override = Self.hardwareInputChannelCountOverrideForTesting {
+            return max(0, override)
+        }
+        return CoreAudioDeviceCatalog().defaultInputDeviceChannelCount()
     }
 
     func syncAudioInputRoutings(_ requests: [AudioInputRoutingRequest]) {
@@ -1238,7 +1275,27 @@ final class MainAudioGraph {
     ) throws -> AudioDeviceApplyResult {
         try performOnMainThrowingReturning {
             let deviceOwner = deviceOwner ?? self.audioDeviceOwner
-            let previousInputUID = deviceOwner.activeDeviceUID(direction: .input)
+            // Lazy input arming: the device owner's input-direction unit is an
+            // input-ENABLED AUHAL, and creating/initializing one is a mic-TCC
+            // trigger. Re-applying a stored device preference at document open
+            // therefore raised the microphone prompt at launch with zero user
+            // intent (launch-blocking on ad-hoc rebuilds, where the stale TCC
+            // grant re-prompts). Until an audio-input routing is actually armed
+            // (requested source `.input`), the input selection is only RECORDED
+            // (`deferredInputDeviceUID` in the result, so preference persistence
+            // keeps it) and never applied to the HAL. Nothing audible is lost:
+            // the engine's live input follows the system-default input device
+            // regardless (see the NOTE below about engine.inputNode).
+            // `audioInputRoutingHosts` mutates on main only, and this closure
+            // runs on main, so the read needs no graphLock.
+            let inputSideArmed = self.audioInputRoutingHosts.values.contains {
+                $0.requestedSource == .input
+            }
+            let effectiveInputUID = inputSideArmed ? inputUID : nil
+            let deferredInputUID = inputSideArmed ? nil : inputUID
+            let previousInputUID = inputSideArmed
+                ? deviceOwner.activeDeviceUID(direction: .input)
+                : nil
             let previousOutputUID = deviceOwner.activeDeviceUID(direction: .output)
             let wasRunning = self.engine.isRunning || self.isStarted
 
@@ -1249,7 +1306,7 @@ final class MainAudioGraph {
             }
 
             do {
-                let deviceResult = try deviceOwner.apply(inputUID: inputUID, outputUID: outputUID)
+                let deviceResult = try deviceOwner.apply(inputUID: effectiveInputUID, outputUID: outputUID)
                 // NOTE deliberately NOT setting the input device on
                 // engine.inputNode: on macOS the engine can share one HAL
                 // unit between input and output, and forcing the input
@@ -1263,7 +1320,8 @@ final class MainAudioGraph {
                     appliedInputDeviceUID: deviceResult.appliedInputDeviceUID,
                     appliedOutputDeviceUID: deviceResult.appliedOutputDeviceUID,
                     wasRunningBeforeApply: wasRunning,
-                    restartedEngine: wasRunning && self.engine.isRunning
+                    restartedEngine: wasRunning && self.engine.isRunning,
+                    deferredInputDeviceUID: deferredInputUID
                 )
             } catch {
                 let rollbackError = self.rollbackAudioDevicesWithOwner(
@@ -2365,7 +2423,9 @@ final class MainAudioGraph {
     ) {
         removeAudioInputCaptureTapOnMain(host: host)
         if host.connectedSource == .input, !Self.simulateAudioInputConnectionForTesting {
-            engine.disconnectNodeOutput(engine.inputNode)
+            // Already-armed path: a live `.input` connection exists, so the
+            // input node was necessarily accessed before.
+            engine.disconnectNodeOutput(armedEngineInputNode())
         }
         if host.connectedSource == .loop {
             host.loopPlayer.stop()
@@ -2389,7 +2449,12 @@ final class MainAudioGraph {
                 MixerGainRamp.shared.setImmediate(host.outputMixer, to: 0)
                 return
             }
-            let inputFormat = engine.inputNode.inputFormat(forBus: 0)
+            // Arming moment (user intent): this is where the shared IO unit's
+            // input scope gets enabled for the first time, and — on a fresh
+            // grant or a stale-authorized rebuilt binary — where the mic-TCC
+            // prompt is allowed to fire.
+            let inputNode = armedEngineInputNode()
+            let inputFormat = inputNode.inputFormat(forBus: 0)
             guard inputFormat.channelCount > 0 else {
                 host.connectedSource = .silent
                 MixerGainRamp.shared.setImmediate(host.outputMixer, to: 0)
@@ -2399,7 +2464,7 @@ final class MainAudioGraph {
                 for: host.selectedChannel,
                 deviceChannelCount: Int(inputFormat.channelCount)
             )
-            engine.connect(engine.inputNode, to: host.outputMixer, format: engine.inputNode.inputFormat(forBus: 0))
+            engine.connect(inputNode, to: host.outputMixer, format: inputNode.inputFormat(forBus: 0))
             host.connectedSource = .input
 
         case .loop:
@@ -2434,7 +2499,7 @@ final class MainAudioGraph {
                 map = [NSNumber(value: first), NSNumber(value: first + 1)]
             }
         }
-        engine.inputNode.auAudioUnit.channelMap = map
+        armedEngineInputNode().auAudioUnit.channelMap = map
     }
 
     @MainActor
@@ -2457,7 +2522,8 @@ final class MainAudioGraph {
     @MainActor
     private func teardownAudioInputRoutingNodesOnMain(host: AudioInputRoutingHost) {
         if host.connectedSource == .input, !Self.simulateAudioInputConnectionForTesting {
-            engine.disconnectNodeOutput(engine.inputNode)
+            // Already-armed path (live `.input` connection being torn down).
+            engine.disconnectNodeOutput(armedEngineInputNode())
         }
         removeAudioInputCaptureTapOnMain(host: host)
         host.loopPlayer.stop()

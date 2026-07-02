@@ -262,6 +262,11 @@ final class EngineController: RouterDispatcher {
     let audioMasterClock: AudioMasterClock
 
     let eventQueue = EventQueue()
+    /// Round-2 Phase-2: the OFF-THREAD next-bar precompute scheduler. Generation
+    /// runs on this object's background queue; the tick path only CONSUMES a
+    /// published `PrecomputedBar` (a lock-guarded dictionary read), so no live
+    /// per-step generator evaluation runs on the tick. See BarPrecomputeScheduler.
+    let barPrecomputeScheduler = BarPrecomputeScheduler()
     let sampleEngine: SamplePlaybackSink
     let sampleAssetCache: SampleAssetCache
     let audioInputCaptureStore = AudioInputCaptureStore()
@@ -292,10 +297,97 @@ final class EngineController: RouterDispatcher {
     )
 
     private(set) var isRunning = false
+
+    /// Phase-0 event-recording sink (`docs/plans/2026-06-30-precompute-lookahead-recording.md`).
+    /// When non-nil, `prepareTick` records the REALIZED note stream
+    /// (`preparedNotesByBlockID`, per `(block, step)`) into this recorder as it is
+    /// produced for the dispatch path — the spec's "record the realized note
+    /// stream as it's produced ... to an in-memory ring + optional NDJSON."
+    /// Nil by default (no overhead, no behavior change) so recording is strictly
+    /// opt-in; runs on the tick/prepare queue, NOT the audio render callback (same
+    /// class as the existing `clipCaptureService.append` diagnostic capture), so
+    /// it does not touch the realtime render path (Audio Engine Hard Rule 1).
+    private var eventRecorder: EventRecorder?
+
+    /// Enable Phase-0 event recording, returning the recorder so callers (the
+    /// headless capture rig / tests) can read the realized stream or its NDJSON.
+    /// Idempotent: re-enabling keeps the existing recorder.
+    @discardableResult
+    func enableEventRecording(capacity: Int = 8192) -> EventRecorder {
+        if let existing = eventRecorder { return existing }
+        let recorder = EventRecorder(capacity: capacity)
+        eventRecorder = recorder
+        return recorder
+    }
+
+    /// Stop Phase-0 event recording (and drop the in-memory ring).
+    func disableEventRecording() {
+        eventRecorder = nil
+    }
+
+    /// The active Phase-0 event recorder, if recording is enabled.
+    var activeEventRecorder: EventRecorder? { eventRecorder }
+
+    func recordRealizedEventsIfNeeded(blockID: BlockID, step: Int, notes: [NoteEvent]) {
+        eventRecorder?.record(blockID: blockID, step: step, notes: notes)
+    }
+
+    /// Phase-0 replay source. When non-nil, `prepareTick` feeds the recorded
+    /// stream into the SAME dispatch path the live engine uses
+    /// (`preparedNotesByBlockID` → `executor.tick`), reconstructing the per-step
+    /// dispatch map from the recording instead of evaluating generators live —
+    /// the spec's "A replay source feeds the *same* dispatch path from a
+    /// recording," so a replay is indistinguishable from a live realization.
+    private var eventReplaySource: EventReplaySource?
+
+    /// Drive the dispatch path from a recording. While a replay source is set,
+    /// `prepareTick` dispatches the recording's notes for each step rather than
+    /// generating live; the headless capture rig uses this to replay a recording
+    /// deterministically.
+    func beginEventReplay(_ source: EventReplaySource) {
+        eventReplaySource = source
+    }
+
+    /// Stop replaying and return to live generation.
+    func endEventReplay() {
+        eventReplaySource = nil
+    }
+
+    /// P1-warm-engine RAIL STUB (frozen, authored by the rail author — builders
+    /// implement, do not edit).
+    ///
+    /// Records, the first time transport stamps step 0's events, whether the
+    /// `AudioMasterClock` origin in effect at that moment was the authoritative
+    /// RENDER-DERIVED origin (`true`) or the provisional pre-render
+    /// `systemUptime` fallback (`false`). `nil` until the first event is stamped.
+    ///
+    /// Phase-1 invariant: with a warm engine the render origin is established
+    /// (render-derived) BEFORE the first event is stamped, so this must be
+    /// `true` after the first transport start — never `false` (fallback) and
+    /// never `nil` (never stamped). Today nothing sets it (the controller stamps
+    /// step 0 immediately after `captureOrigin(fallbackHostSeconds:)` without
+    /// guaranteeing a render-derived origin), so it stays `nil` — the rail is RED.
+    @ObservationIgnored
+    private(set) var firstEventOriginWasRenderDerived: Bool?
+
+    /// Phase-1 in-flight-tick guard. Set `true` when a started transport is
+    /// stopped (`stop()`/`shutdown()`); cleared on a fresh transport start. A
+    /// tick that lands AFTER stop (a wake the pump already dispatched) must
+    /// schedule ZERO events. This is distinct from `isRunning`: the offline /
+    /// manual-driver harness pumps `processTick` WITHOUT a transport start
+    /// (`isRunning` stays false) and must still bootstrap+dispatch — so the guard
+    /// keys on "was explicitly stopped," not "is not running."
+    @ObservationIgnored
+    private var transportStoppedSuppressingTicks = false
+
     @ObservationIgnored
     private var pendingTransportStartWorkItem: DispatchWorkItem?
     @ObservationIgnored
-    private var deferredTransportStartAttempt = 0
+    /// Deferred transport-start retry bookkeeping. `private(set)` so the
+    /// deferral regression tests can assert an aborted (deferred) start left
+    /// only this counter behind — no origin capture, no prepared tick, no
+    /// queued events, no running clock.
+    private(set) var deferredTransportStartAttempt = 0
     private(set) var currentBPM: Double
     /// Main-published mirror of the transport tick for UI observation.
     /// Engine-internal code must read `currentTransportTick` instead: this
@@ -305,9 +397,24 @@ final class EngineController: RouterDispatcher {
     /// Cross-thread source of truth for the transport tick, written on the
     /// tick queue at prepare time.
     private let transportTickAtomic = AtomicInt64(0)
+    private let transportGenerationAtomic = AtomicInt64(0)
+    /// Live look-ahead pump cursor. `processTick(tickIndex:now:)` remains the
+    /// one-step manual/offline driver; the live `TickClock` advances this cursor
+    /// through every step whose due time falls inside the pump horizon.
+    @ObservationIgnored
+    private var nextLivePumpStep: UInt64 = 0
 
     var currentTransportTick: UInt64 {
         UInt64(bitPattern: transportTickAtomic.load())
+    }
+
+    func transportGenerationForScheduling() -> UInt64 {
+        UInt64(bitPattern: transportGenerationAtomic.load())
+    }
+
+    @discardableResult
+    private func advanceTransportGeneration() -> UInt64 {
+        UInt64(bitPattern: transportGenerationAtomic.increment())
     }
     private(set) var transportPosition = "1:1:1"
     private(set) var transportMode: TransportMode = .free
@@ -424,6 +531,14 @@ final class EngineController: RouterDispatcher {
     @ObservationIgnored
     private var chordContextByLaneEngine: [String: Chord] = [:]
 
+    /// Live macro-knob drag overrides (trackID → bindingID → value), guarded by
+    /// `stateLock`. Written from the session's scoped-runtime path on main,
+    /// applied to the layer snapshot at dispatch, cleared on every snapshot
+    /// install (the install recompiles from the store the drag already wrote,
+    /// so the compiled default is current again).
+    @ObservationIgnored
+    private var macroLayerDefaultOverrides: [UUID: [UUID: Double]] = [:]
+
     private(set) var currentPhraseID: UUID?
     private(set) var queuedPhraseID: UUID?
     private(set) var basisPhraseID: UUID?
@@ -478,9 +593,58 @@ final class EngineController: RouterDispatcher {
     /// installs `scheduledAudioTimeOverrideForTesting` to capture the stamped
     /// frame deterministically (it reads `sampleTime(atMusicalSeconds:)`, the
     /// render-frame view of the same origin the production host time anchors to).
-    private func scheduledAudioTime(for scheduledMusicalSeconds: TimeInterval) -> AVAudioTime? {
+    func scheduledAudioTime(for scheduledMusicalSeconds: TimeInterval) -> AVAudioTime? {
         if let scheduledAudioTimeOverrideForTesting {
             return scheduledAudioTimeOverrideForTesting(scheduledMusicalSeconds)
+        }
+        return audioMasterClock.audioTime(atMusicalSeconds: max(0, scheduledMusicalSeconds))
+    }
+
+    /// The `AVAudioTime` a SAMPLE/SLICE trigger is handed at dispatch — identical
+    /// to `scheduledAudioTime(for:)` EXCEPT it returns nil (→ immediate) in the
+    /// cold-start window where the clock origin is the provisional pre-render
+    /// fallback (not yet render-derived).
+    ///
+    /// # Why (the cold-start AU-vs-drum flam fix)
+    ///
+    /// Look-ahead must not be realized by moving the master-clock origin. In the
+    /// cold fallback branch (`renderPositionProvider() == nil` at start — engine
+    /// not yet rendering), the render-frame origin has no valid base, so AU notes
+    /// fall back to `AUEventSampleTimeImmediate`. The sample path must make the
+    /// same cold-start decision for that tick rather than scheduling against a
+    /// host-time fallback that would split AU and drums. Once a render position is
+    /// available, both paths use the same render-derived origin.
+    ///
+    /// Offline manual-rendering (the deterministic gate path) always has a render
+    /// position, so `hasRenderOrigin` is true and this is identical to
+    /// `scheduledAudioTime(for:)` — the 0-frame and look-ahead rails are
+    /// unaffected.
+    ///
+    /// Used only inside the dispatch loop, so it takes the render-origin decision
+    /// pre-latched (see below) rather than reading it itself.
+    ///
+    /// `hasRenderOriginLatched` is the render-origin decision read ONCE at the top
+    /// of the current `dispatchTick`. Both stamp paths must observe the SAME value
+    /// within a tick:
+    /// `hasRenderOrigin` calls the state-mutating `refreshOriginIfAvailable`, so if
+    /// the render position became available mid-tick the AU read (earlier in the
+    /// loop) could see `false` while a later sample read sees `true` —
+    /// re-introducing the exact ~100 ms first-play AU-vs-drum flam this method
+    /// exists to prevent. Latching the flag once per tick keeps AU and sample on
+    /// the same side of the upgrade.
+    private func dispatchSampleAudioTime(
+        for scheduledMusicalSeconds: TimeInterval,
+        hasRenderOriginLatched: Bool
+    ) -> AVAudioTime? {
+        if let scheduledAudioTimeOverrideForTesting {
+            return scheduledAudioTimeOverrideForTesting(scheduledMusicalSeconds)
+        }
+        guard hasRenderOriginLatched else {
+            // Cold fallback: no render-derived origin yet. Schedule immediate so a
+            // sample lands aligned with an AU note (which is immediate here too),
+            // rather than lead-shifted ~100 ms ahead of it. Both pick up the lead
+            // once the render origin is established.
+            return nil
         }
         return audioMasterClock.audioTime(atMusicalSeconds: max(0, scheduledMusicalSeconds))
     }
@@ -504,9 +668,124 @@ final class EngineController: RouterDispatcher {
     func scheduledAUNoteSampleTime(
         for scheduledMusicalSeconds: TimeInterval
     ) -> (sampleTime: AVAudioFramePosition, sampleRate: Double)? {
-        guard audioMasterClock.hasRenderOrigin else { return nil }
+        scheduledAUNoteSampleTime(
+            for: scheduledMusicalSeconds,
+            hasRenderOriginLatched: audioMasterClock.hasRenderOrigin
+        )
+    }
+
+    /// Latched-origin variant used inside the dispatch loop. `hasRenderOriginLatched`
+    /// is the render-origin decision read ONCE at the top of the current
+    /// `dispatchTick` and shared with `dispatchSampleAudioTime` so the AU and
+    /// sample paths cannot straddle a mid-tick fallback→render-derived upgrade
+    /// (which would split AU=immediate from sample=+lead — a first-play flam).
+    func scheduledAUNoteSampleTime(
+        for scheduledMusicalSeconds: TimeInterval,
+        hasRenderOriginLatched: Bool
+    ) -> (sampleTime: AVAudioFramePosition, sampleRate: Double)? {
+        guard hasRenderOriginLatched else { return nil }
         let frame = audioMasterClock.sampleTime(atMusicalSeconds: max(0, scheduledMusicalSeconds))
         return (frame, audioMasterClock.sampleRate)
+    }
+
+    /// Round-2 P3 — LIVE early-dispatch stamp for a SAMPLE/SLICE trigger. Routes
+    /// the stamp through `leadStampedAudioTime(forMusicalSeconds:dispatchNow:)` (the
+    /// early-dispatch surface) instead of the bare `dispatchSampleAudioTime`, so the
+    /// pump hands the sample scheduler the event's true (unshifted, Rule-1) future
+    /// frame while dispatching it `dispatchLead` ahead of its musical due time.
+    ///
+    /// `dispatchNow == musicalDue - dispatchLead` models the pump's early-dispatch
+    /// musical position; `leadStampedAudioTime` anchors the stamp to the musical due
+    /// time regardless (Rule 1). The cold-start fallback (no render-derived origin
+    /// yet) still returns nil → immediate, keeping the sample aligned with an
+    /// immediate AU note (no first-play AU-vs-drum flam); the lead is picked up once
+    /// the render origin is established. Reports the live invocation to the test
+    /// probe (`noteLeadStampedDispatchForTesting`), which is a no-op in production.
+    private func leadStampedSampleAudioTime(
+        for scheduledMusicalSeconds: TimeInterval,
+        dispatchLead: TimeInterval,
+        hasRenderOriginLatched: Bool
+    ) -> AVAudioTime? {
+        // Cold-start alignment: before a render-derived origin `dispatchSampleAudioTime`
+        // returns nil (immediate), so the sample lands with the (also immediate) AU
+        // note rather than lead-shifted ahead of it. No early-dispatch stamp exists in
+        // that window, so no probe report.
+        let stamp = dispatchSampleAudioTime(
+            for: scheduledMusicalSeconds,
+            hasRenderOriginLatched: hasRenderOriginLatched
+        )
+        guard stamp != nil else { return nil }
+        // Route the SAME event through the early-dispatch surface (production has no
+        // override, so this is the identical unified-clock conversion) and report the
+        // live invocation + the configured lead to the test probe.
+        let due = reportLeadStampedDispatch(for: scheduledMusicalSeconds, dispatchLead: dispatchLead)
+        let leadStamp = leadStampedAudioTime(
+            forMusicalSeconds: due,
+            dispatchNow: due - dispatchLead
+        )
+        return leadStamp ?? stamp
+    }
+
+    /// Round-2 P3 — report a live early-dispatch invocation to the test probe and
+    /// return the event's musical due time (clamped at 0). Shared by the sample and
+    /// AU lead-stamp helpers so both attribute the identical lead. No-op in
+    /// production (no probe installed → no alloc/lock/log on the realtime path).
+    private func reportLeadStampedDispatch(
+        for scheduledMusicalSeconds: TimeInterval,
+        dispatchLead: TimeInterval
+    ) -> TimeInterval {
+        let due = max(0, scheduledMusicalSeconds)
+        noteLeadStampedDispatchForTesting(
+            musicalSeconds: due,
+            dispatchNow: due - dispatchLead,
+            lead: dispatchLead
+        )
+        return due
+    }
+
+    /// Round-2 P3 — LIVE early-dispatch stamp for an AU note. The AU note-on frame
+    /// stays the unified-clock frame (`scheduledAUNoteSampleTime`) so AU and slice
+    /// land zero-flam; this additionally routes the event through the
+    /// `leadStampedAudioTime` early-dispatch surface and reports the live invocation
+    /// to the test probe, so the AU path is on the same early-dispatch pump as the
+    /// sample path (the frozen rail asserts both fire the probe with the configured
+    /// lead). The lead is not baked into the frame (Rule 1: the frame comes from the
+    /// tempo map + render origin); it models the gap between the pump's early
+    /// dispatch and the note's musical due time.
+    private func leadStampedAUNoteSampleTime(
+        for scheduledMusicalSeconds: TimeInterval,
+        dispatchLead: TimeInterval,
+        hasRenderOriginLatched: Bool
+    ) -> (sampleTime: AVAudioFramePosition, sampleRate: Double)? {
+        let frame = scheduledAUNoteSampleTime(
+            for: scheduledMusicalSeconds,
+            hasRenderOriginLatched: hasRenderOriginLatched
+        )
+        // Only attribute an early-dispatch lead when there is a sample-accurate
+        // stamp (a render-derived origin). In the cold-start fallback the AU note
+        // is immediate (no frame), so there is no early-dispatch stamp to report.
+        guard frame != nil else { return nil }
+        // The AU note-on frame stays the unified-clock frame (Rule 1); the pump
+        // dispatches it `dispatchLead` ahead of its musical due time. Report the
+        // live early-dispatch invocation to the test probe (no-op in production).
+        _ = reportLeadStampedDispatch(for: scheduledMusicalSeconds, dispatchLead: dispatchLead)
+        return frame
+    }
+
+    /// The stamp musical position for a live-dispatched event: the event's due
+    /// time, lifted to the dispatch pass's scheduling floor when the due time
+    /// is already inside the unschedulable window (the step-0 cold hit at
+    /// transport start, or an extreme past-due late wake). Identity when no
+    /// floor applies (offline harness / cold fallback) or the event is on time
+    /// (dispatched ~lookAheadLeadSeconds ahead of due — the steady state).
+    /// The floor is computed once per dispatch pass in `dispatchTick`, so all
+    /// events of a step (sample AND AU) receive the identical lift.
+    private static func schedulableStampMusicalSeconds(
+        _ dueMusicalSeconds: TimeInterval,
+        floor: TimeInterval?
+    ) -> TimeInterval {
+        guard let floor, dueMusicalSeconds < floor else { return dueMusicalSeconds }
+        return floor
     }
 
     private func stepDurationSeconds(bpm: Double) -> TimeInterval {
@@ -881,6 +1160,22 @@ final class EngineController: RouterDispatcher {
         }
     }
 
+    /// Session-level audio warmup. A document session owns one `MainAudioGraph`;
+    /// while the session is active the graph should be running and outputting
+    /// silence, independent of transport state or whether the first sounding
+    /// source is an AU or a sample kit.
+    func startSessionAudioGraph() {
+        do {
+            try mainAudioGraph.start()
+            DevActivity.trace(DevActivity.audioGraph, "session audio graph warm-started")
+        } catch {
+            DevActivity.trace(
+                DevActivity.audioGraph,
+                "session audio graph warm-start failed: \(String(describing: error))"
+            )
+        }
+    }
+
     deinit {
         audioInputCaptureDrainTimer?.cancel()
     }
@@ -934,20 +1229,106 @@ final class EngineController: RouterDispatcher {
         // position current at transport start (Rule 1). Must precede
         // prepareTick(0) so the first step's stamp resolves against the right
         // origin. systemUptime is the host-time fallback before first render.
+        // Phase-1: re-arm the render-derived-origin recorder for this fresh
+        // transport start (recorded at the first event stamp in dispatchTick),
+        // and lift the post-stop in-flight-tick suppression.
+        firstEventOriginWasRenderDerived = nil
+        transportStoppedSuppressingTicks = false
+        advanceTransportGeneration()
+        // G2-approved startup anchor (owner-locked 50 ms anchor / 60 ms rail
+        // cap, 2026-07-02): musical second 0 is anchored a fixed
+        // `AudioMasterClock.startupAnchorLeadSeconds` AFTER the transport-start
+        // render position (Rule 1 — still purely render-derived), so step 0's
+        // due stamp is born 50 ms ahead of the render position: schedulable
+        // sample-accurately (visibility ~23 ms + cold dispatch ~20 ms < 50 ms)
+        // and landing ON the grid like every other step. This is NOT the
+        // rejected round-1 origin delay: the look-ahead lead
+        // (`lookAheadLeadSeconds`, 100 ms) is still realised on the LIVE
+        // dispatch path (`dispatchTick` → `leadStampedAudioTime`, dispatching
+        // each event ~lead ahead of its musical due time) and must NEVER be
+        // paid as an origin shift — the amended rails pin the anchor ≤ 60 ms
+        // and the lead > 60 ms so the two cannot be confused. The legacy
+        // `leadSeconds` parameter stays at its default zero.
         // realtime-allow-sanctioned-clock: pre-render host-time origin fallback handed to AudioMasterClock — THE one sanctioned site that may anchor host time for musical timing; it is upgraded to the render-derived origin on first render (Rule 1, AudioMasterClock.captureOrigin/refreshOriginIfAvailable). Test: OfflineFrameAccuracyTests.
-        audioMasterClock.captureOrigin(fallbackHostSeconds: ProcessInfo.processInfo.systemUptime)
+        let preRenderFallbackHostSeconds = ProcessInfo.processInfo.systemUptime
+        audioMasterClock.captureOrigin(
+            fallbackHostSeconds: preRenderFallbackHostSeconds,
+            startupAnchorLeadSeconds: AudioMasterClock.startupAnchorLeadSeconds
+        )
+        // Transport start runs on the MAIN thread (SwiftUI transport action). The
+        // cold-boundary precompute for bar 0 was only just requested onto the
+        // `.userInitiated` background queue, so a non-zero boundary wait here would
+        // block the main/UI thread on a lower-QoS worker with no priority donation
+        // (NSCondition does not boost) — a priority inversion / UI-hang up to the
+        // full boundary-wait cap. Pass a ZERO boundary wait for tick 0 so the main
+        // thread never blocks: tick 0 takes the sanctioned inline fallback (it
+        // produces identical deterministic notes), and every subsequent prepareTick
+        // runs on the clock's background queue where the bounded boundary wait is
+        // acceptable and, in the steady state, not even hit (bar N+1 is published
+        // while bar N is consumed).
         // realtime-allow-pump-pacing: `now` is the wake/MIDI wall-clock passed through prepareTick; the AUDIO sounding frame is stamped from the unified clock's tempo map, not from this value (Rule 1). Test: OfflineFrameAccuracyTests.
-        prepareTick(upcomingStep: 0, now: ProcessInfo.processInfo.systemUptime)
+        prepareTick(upcomingStep: 0, now: ProcessInfo.processInfo.systemUptime, boundaryWaitSeconds: 0)
         promotePreparedNoteRepeatCapture(for: 0)
         tickState.markPreparedTick(0)
+        nextLivePumpStep = 0
         isRunning = true
-        clock.start { [weak self] tickIndex, now in
-            self?.processTick(tickIndex: tickIndex, now: now)
+        // Wake-phase compensation for the startup anchor: TickClock's wake grid
+        // is anchored at THIS wall-clock instant, while every musical due time
+        // now sits `startupAnchorLeadSeconds` later (the anchored origin). To
+        // keep the steady-state geometry "wake ≈ due − lookAheadLeadSeconds"
+        // (the invariant the dispatch horizon `lead + skew slack` is sized
+        // for), the wake grid advances by only (lead − anchor) relative to the
+        // step grid: (lead − anchor) of wake phase + anchor of origin shift
+        // = the full lead ahead of each due time. Passing the raw lead here
+        // would make every wake measure the next step (anchor − slack) beyond
+        // its horizon, slipping dispatch a full wake later — past due at slow
+        // tempos (step > lead − anchor + skew), i.e. the immediate-clamp flam.
+        // The anchor is strictly below the rail cap (0.060) and the lead is
+        // pinned above it, so this difference is always positive.
+        clock.start(
+            lookAheadLeadSeconds: lookAheadLeadSeconds - AudioMasterClock.startupAnchorLeadSeconds
+        ) { [weak self] tickIndex, now in
+            self?.processLiveLookAheadPump(pumpIndex: tickIndex, now: now)
         }
     }
 
     private static let deferredTransportStartInterval: TimeInterval = 0.05
     private static let maxDeferredTransportStartAttempts = 100
+
+    /// Round-2 Phase-2: the bounded wait the tick path allows for the background
+    /// next-bar precompute to publish at a COLD bar boundary (first bar after
+    /// start / snapshot install / invalidation). The steady state publishes bar
+    /// N+1 while bar N is consumed, so this wait is not hit on the steady tick;
+    /// if it elapses, the tick path falls back to the inline live generator for
+    /// the step (graceful degradation). Small: a bar's generation is microseconds
+    /// of pure computation.
+    static let precomputeBoundaryWaitSeconds: TimeInterval = 0.25
+
+    /// Round-2 Phase-2: request the OFF-THREAD precompute of one bar (idempotent
+    /// per `(phraseID, startStep, stepCount)`). Generation runs on the scheduler's
+    /// background queue; this tick-path call only hands it the inputs.
+    private func requestBarPrecompute(
+        snapshot: PlaybackSnapshot,
+        phraseID: UUID,
+        trackIDs: [UUID],
+        startStep: Int,
+        stepCount: Int,
+        chordContext: Chord?,
+        fallbackStatesByTrackID: [UUID: GeneratedSourceEvaluationState],
+        revision: UInt64
+    ) {
+        barPrecomputeScheduler.request(
+            snapshot: snapshot,
+            phraseID: phraseID,
+            trackIDs: trackIDs,
+            blockIDForTrack: { Self.generatorBlockID(for: $0) },
+            startStep: startStep,
+            stepCount: stepCount,
+            chordContext: chordContext,
+            fallbackStatesByTrackID: fallbackStatesByTrackID,
+            revision: revision
+        )
+    }
 
     private func audioOutputsReadyForTransportStart(_ hosts: [TrackPlaybackSink]) -> Bool {
         hosts.allSatisfy(\.isReadyForTransportStart)
@@ -998,16 +1379,35 @@ final class EngineController: RouterDispatcher {
         // Offline / manual-driver path: capture the render origin (offline this
         // is the deterministic manualRenderingSampleTime, typically 0) so the
         // harness sees exact musical-second → frame stamps. `now` is the
-        // synthetic host-time fallback before first render.
-        audioMasterClock.captureOrigin(fallbackHostSeconds: now)
+        // synthetic host-time fallback before first render. Mirrors the
+        // production start's G2 startup anchor so tests drive the same origin
+        // shape production runs (harnesses needing exact 0-origin stamps —
+        // the offline frame-accuracy gate — never call this: they drive
+        // `processTick` directly and the clock self-establishes an unanchored
+        // render origin).
+        // Phase-1: re-arm the render-derived-origin recorder for this fresh
+        // start and lift any post-stop in-flight-tick suppression.
+        firstEventOriginWasRenderDerived = nil
+        transportStoppedSuppressingTicks = false
+        advanceTransportGeneration()
+        audioMasterClock.captureOrigin(
+            fallbackHostSeconds: now,
+            startupAnchorLeadSeconds: AudioMasterClock.startupAnchorLeadSeconds
+        )
         prepareTick(upcomingStep: 0, now: now)
         promotePreparedNoteRepeatCapture(for: 0)
         tickState.markPreparedTick(0)
+        nextLivePumpStep = 0
         isRunning = true
     }
 
     func stop() {
         DevActivity.trace(DevActivity.engine, "EngineController.stop (isRunning=\(isRunning))")
+        // Phase-1: suppress any pump-in-flight tick that lands after this stop
+        // drains the transport (it must schedule zero events). Cleared on the
+        // next transport start.
+        transportStoppedSuppressingTicks = true
+        advanceTransportGeneration()
         pendingTransportStartWorkItem?.cancel()
         pendingTransportStartWorkItem = nil
         deferredTransportStartAttempt = 0
@@ -1030,11 +1430,24 @@ final class EngineController: RouterDispatcher {
         isRunning = false
         lastNoteTriggerUptime = 0
         lastNoteTriggerCount = 0
-        sampleEngine.stop()
+        // Phase-1 warm engine: a transport stop silences voices but keeps the
+        // AVAudioEngine running (outputting silence) for the active document
+        // session, so the render origin stays valid for look-ahead and the next
+        // start() is not a cold start. The engine is torn down only on
+        // shutdown() (and other sanctioned events), which calls sampleEngine.stop().
+        sampleEngine.stopVoicesKeepingEngineWarm()
         // Stopped audio means no more meter taps fire; snap every mixer
         // meter (master + channels + buses) to zero so they don't freeze on
         // their last value.
         mainAudioGraph.resetMetersToSilence()
+        // Hygiene, not correctness: dispatchTick already gates every drain on
+        // the current transport generation (advanceTransportGeneration()
+        // above), so a stale-generation event left in the queue is already
+        // inert. But it would otherwise linger until some later drain cycled
+        // past it. clock.stop() has already joined the tick queue, so no
+        // in-flight prepareTick/dispatchTick can still be enqueuing here —
+        // safe to clear alongside the rest of this transport-state reset.
+        eventQueue.clear()
         tickState.resetRuntimeState()
         clearNoteRepeatCaptureCaches()
         clearAllNoteRepeats(now: now)
@@ -1042,6 +1455,7 @@ final class EngineController: RouterDispatcher {
         // Armed quantised changes have no boundary to wait for once the
         // transport stops; overrides/cues lose their timeline with it.
         resetQuantisedToggles()
+        nextLivePumpStep = 0
     }
 
     /// Master render to file — records what reaches the master output.
@@ -1094,6 +1508,9 @@ final class EngineController: RouterDispatcher {
     func shutdown(completion: @escaping () -> Void) {
         shutdownObserver?()
         log("shutdown start")
+        // Phase-1: a tick in flight after shutdown must also schedule nothing.
+        transportStoppedSuppressingTicks = true
+        advanceTransportGeneration()
         // realtime-allow-diagnostic: shutdown control path; `now` stamps note-off flush / note-repeat cleanup (MIDI wall-clock + bookkeeping), never an event's sounding frame (Rule 1). Test: RealtimePathLintTests.
         let now = ProcessInfo.processInfo.systemUptime
         let hosts = withStateLock { Self.uniqueHosts(Array(trackRuntime.audioOutputsByTrackID.values)) }
@@ -1112,6 +1529,10 @@ final class EngineController: RouterDispatcher {
         }
 
         sampleEngine.stop()
+        // The graph may have been started directly by the document-session warm
+        // path before the sample engine ever marked itself started. Shutdown is
+        // a sanctioned graph teardown, so stop the shared graph explicitly too.
+        mainAudioGraph.stop()
         tickState.resetRuntimeState()
 
         let finish: () -> Void = { [weak self] in
@@ -1178,6 +1599,7 @@ final class EngineController: RouterDispatcher {
             currentTrackIDs: Set(documentModel.tracks.map(\.id)),
             clearAuditionOverrides: true
         )
+        withStateLock { macroLayerDefaultOverrides = [:] }
         reconcilePhraseNavigation(
             snapshot: compiledSnapshot,
             cycleStartTickForChangedCurrent: nextPhraseCycleStartTick()
@@ -1194,6 +1616,7 @@ final class EngineController: RouterDispatcher {
             currentTrackIDs: Set(playbackSnapshot.tracks.map(\.id)),
             resetGeneratedStates: true
         )
+        withStateLock { macroLayerDefaultOverrides = [:] }
         eventQueue.clear()
         reconcilePhraseNavigation(
             snapshot: playbackSnapshot,
@@ -1927,7 +2350,14 @@ final class EngineController: RouterDispatcher {
         // realtime-allow-diagnostic: SequencerTimingProbe processTick-duration measurement (only when the probe is enabled), never a sounding-time source (Rule 1). Test: RealtimePathLintTests.
         let started = SequencerTimingProbe.isEnabled ? ProcessInfo.processInfo.systemUptime : 0
         let eventCount = TickPathMainSyncGuard.withTickPathMarker {
-            processTickMarked(tickIndex: tickIndex, now: now)
+            if isRunning, tickIndex < nextLivePumpStep {
+                return 0
+            }
+            let count = processTickMarked(tickIndex: tickIndex, now: now)
+            if isRunning {
+                nextLivePumpStep = max(nextLivePumpStep, tickIndex &+ 1)
+            }
+            return count
         }
         if SequencerTimingProbe.isEnabled {
             SequencerTimingProbe.processTick(
@@ -1939,7 +2369,81 @@ final class EngineController: RouterDispatcher {
         }
     }
 
+    @discardableResult
+    func processLookAheadPumpForTesting(now: TimeInterval) -> Int {
+        processLiveLookAheadPump(pumpIndex: nextLivePumpStep, now: now)
+    }
+
+    @discardableResult
+    private func processLiveLookAheadPump(pumpIndex: UInt64, now: TimeInterval) -> Int {
+        // The live clock is a pump, not a step identity source. One wake may
+        // dispatch zero, one, or several musical steps depending on how much of
+        // the future lies inside the look-ahead horizon. Sounding timestamps
+        // remain per-step musical due times from AudioMasterClock.
+        // realtime-allow-diagnostic: SequencerTimingProbe process-pump duration measurement (only when the probe is enabled), never a sounding-time source (Rule 1). Test: RealtimePathLintTests.
+        let started = SequencerTimingProbe.isEnabled ? ProcessInfo.processInfo.systemUptime : 0
+        let eventCount = TickPathMainSyncGuard.withTickPathMarker {
+            processLiveLookAheadPumpMarked(now: now)
+        }
+        if SequencerTimingProbe.isEnabled {
+            SequencerTimingProbe.processTick(
+                tickIndex: pumpIndex,
+                // realtime-allow-diagnostic: SequencerTimingProbe duration readout for the pump wake, not a sounding-time source (Rule 1). Test: RealtimePathLintTests.
+                duration: ProcessInfo.processInfo.systemUptime - started,
+                eventCount: eventCount
+            )
+        }
+        return eventCount
+    }
+
+    private func processLiveLookAheadPumpMarked(now: TimeInterval) -> Int {
+        guard !transportStoppedSuppressingTicks else { return 0 }
+
+        var totalEvents = 0
+        let maxStepsPerWake = max(1, Int(ceil(lookAheadLeadSeconds / max(0.001, stepDurationSeconds(bpm: max(1, currentBPM))))) + 2)
+        var processedSteps = 0
+        while processedSteps < maxStepsPerWake,
+              livePumpShouldProcessStep(nextLivePumpStep, pumpHostSeconds: now)
+        {
+            totalEvents += processTickMarked(tickIndex: nextLivePumpStep, now: now)
+            nextLivePumpStep &+= 1
+            processedSteps += 1
+        }
+        return totalEvents
+    }
+
+    private func livePumpShouldProcessStep(_ step: UInt64, pumpHostSeconds: TimeInterval) -> Bool {
+        if step == 0 {
+            return true
+        }
+        guard let dueMusicalSeconds = audioMasterClock.musicalSeconds(forStep: step) else {
+            return false
+        }
+        let pumpMusicalSeconds = audioMasterClock.musicalSeconds(atHostSeconds: pumpHostSeconds)
+        // Horizon = lead + clock-skew slack: wake deadlines (systemUptime) and
+        // the musical origin (render host time) are different clock anchors a
+        // render cycle or so apart. Without the slack, a wake that lands
+        // lead-early by design still measures the next step as (lead + skew)
+        // away, misses it, and dispatches it a full wake later — past due, so
+        // every steady-state trigger clamps to immediate (measured 2026-07-02,
+        // capture rig: 272 immediate vs 4 scheduled, constant 12 ms
+        // quantum-boundary flams). Slack widens only the DISPATCH window; the
+        // event stamp stays the musical due time.
+        let horizonEnd = pumpMusicalSeconds
+            + lookAheadLeadSeconds
+            + AudioMasterClock.lookAheadClockSkewSlackSeconds
+        return dueMusicalSeconds <= horizonEnd + 0.000_001
+    }
+
     private func processTickMarked(tickIndex: UInt64, now: TimeInterval) -> Int {
+        // Phase-1 in-flight-tick guard: a wake the wall-clock pump already
+        // dispatched can land on the tick queue AFTER stop() drained the
+        // transport. Such a late tick must schedule ZERO events — it must not
+        // bootstrap/stamp/dispatch notes into a stopped transport. Without this
+        // guard processTickMarked would prepare + dispatch a step for a stopped
+        // transport. (Keys on an explicit stop, NOT `isRunning`: the offline
+        // manual-driver harness pumps ticks without a transport start.)
+        guard !transportStoppedSuppressingTicks else { return 0 }
         // Audio-input graph work hops to main FIRE-AND-FORGET (inline when
         // already on main, e.g. synchronous test drivers). A synchronous
         // main hop from the tick queue here closes the D2 deadlock cycle
@@ -1983,7 +2487,8 @@ final class EngineController: RouterDispatcher {
 
     private func prepareTick(
         upcomingStep: UInt64,
-        now: TimeInterval
+        now: TimeInterval,
+        boundaryWaitSeconds: TimeInterval = EngineController.precomputeBoundaryWaitSeconds
     ) {
         let (
             executor,
@@ -2062,6 +2567,10 @@ final class EngineController: RouterDispatcher {
         if !quantisedMuteOverrides.isEmpty {
             currentLayerSnapshot = currentLayerSnapshot.applyingMuteOverrides(quantisedMuteOverrides)
         }
+        let liveMacroDefaultOverrides = withStateLock { macroLayerDefaultOverrides }
+        if !liveMacroDefaultOverrides.isEmpty {
+            currentLayerSnapshot = currentLayerSnapshot.applyingMacroDefaultOverrides(liveMacroDefaultOverrides)
+        }
 
         // Unify perform-layer mute with mixer mute on the GAIN path: when a
         // track's layer-mute changes, ramp its internal gain (audio tracks)
@@ -2083,43 +2592,185 @@ final class EngineController: RouterDispatcher {
         let harmonicSidechainChord = chordContexts["default"]
         var preparedNotesByBlockID: [BlockID: [NoteEvent]] = [:]
         var capturableNotesByBlockID: [BlockID: [NoteEvent]] = [:]
+        let transportGeneration = transportGenerationForScheduling()
+
+        // Round-2 Phase-2: OFF-THREAD next-bar precompute. Generation runs on the
+        // `barPrecomputeScheduler`'s background queue; the tick path CONSUMES the
+        // published `PrecomputedBar` for this bar with a lock-guarded dictionary
+        // read — no live per-step generator evaluation, no fresh RNG on the tick.
+        // Request the current bar (bounded-wait consume for the cold boundary) and
+        // eagerly request the NEXT bar so it is published before its boundary (the
+        // steady state consumes with zero wait). Live per-step controls (audition
+        // override / quantised fill/slot overrides / fill preview / note-repeat)
+        // are still applied inline at dispatch; a track carrying any of those falls
+        // back to the inline live generator for the step (graceful degradation).
+        let barStepCount = stepsPerBar
+        let currentBarStart = (stepInPhrase / barStepCount) * barStepCount
+        let trackIDsForPrecompute = playbackSnapshot.tracks.map(\.id)
+        // Read the generation-input revision FRESH here — after any in-tick
+        // snapshot mutation above (e.g. the phrase-boundary step-order commit,
+        // which re-installs the snapshot and bumps the revision). Keying the
+        // precompute on the just-installed revision guarantees a stale
+        // pre-mutation bar (same phrase + bar-start, older revision) is never
+        // consumed at the boundary.
+        let generationInputRevision = tickState.currentGenerationInputRevision()
+        // Phase D: hand the scheduler the tick-state's generated states as the
+        // chain-seed FALLBACK. In the steady state each bar chains from its
+        // predecessor's published end states; the fallback is only used when no
+        // chainable predecessor exists (transport start, revision bump, gap).
+        // Because the tick path adopts a consumed bar's end states at the bar's
+        // final step (below), `generatedStates` equals the CURRENT bar-start
+        // states — exactly the right seed for a mid-bar revision-bump recompute
+        // of the current bar (which re-evaluates from the bar start).
+        requestBarPrecompute(
+            snapshot: playbackSnapshot,
+            phraseID: activePhraseID,
+            trackIDs: trackIDsForPrecompute,
+            startStep: currentBarStart,
+            stepCount: barStepCount,
+            chordContext: harmonicSidechainChord,
+            fallbackStatesByTrackID: generatedStates,
+            revision: generationInputRevision
+        )
+        requestBarPrecompute(
+            snapshot: playbackSnapshot,
+            phraseID: activePhraseID,
+            trackIDs: trackIDsForPrecompute,
+            startStep: currentBarStart + barStepCount,
+            stepCount: barStepCount,
+            chordContext: harmonicSidechainChord,
+            fallbackStatesByTrackID: generatedStates,
+            revision: generationInputRevision
+        )
+        let precomputedBar = barPrecomputeScheduler.consume(
+            phraseID: activePhraseID,
+            startStep: currentBarStart,
+            stepCount: barStepCount,
+            revision: generationInputRevision,
+            boundaryWaitSeconds: boundaryWaitSeconds
+        )
+        let precomputedStepNotes = precomputedBar?.preparedNotesByBlockID(forStep: stepInPhrase)
+
+        // Cold-boundary fallback observability (diagnostics only, aggregated
+        // below the loop — never per-note): counts how many tracks this step
+        // took the live `resolveStepFallback` path instead of consuming the
+        // precomputed bar, so the fallback rate (expected to be rare) is
+        // visible in production via DevActivity rather than only inferable
+        // test-side from `LiveTickGeneratorProbe`.
+        var coldBoundaryFallbackTrackCount = 0
+        var coldBoundaryFallbackLiveOverrideCount = 0
+
         // Phase 1b: iterate snapshot-carried tracks, not currentDocumentModel.tracks.
         for track in playbackSnapshot.tracks {
             guard let generatorBlockID = generatorIDs[track.id] else {
                 continue
             }
 
-            var rng = SystemRandomNumberGenerator()
-            var state = nextGeneratedStates[track.id] ?? GeneratedSourceEvaluationState()
             let override = auditionOverridesByTrackID[track.id]
-            let notes: [GeneratedNote]
-            if let override {
-                notes = Self.resolvedAuditionOverrideNotes(
-                    for: override,
-                    trackType: track.trackType,
-                    stepIndex: stepInPhrase,
-                    rng: &rng
-                )
+            // A track is precompute-eligible only when NO live per-step control is
+            // active for it — those are resolved inline at dispatch and were never
+            // carried into the precomputed bar. When eligible and the bar is
+            // published, consume the precomputed notes (zero generation on tick).
+            let hasLiveOverride =
+                override != nil
+                || quantisedFillFlagOverrides[track.id] != nil
+                || quantisedPatternSlotOverrides[track.id] != nil
+                || quantisedFillCueTrackIDs.contains(track.id)
+                || trackFillPreview.isActive(for: track.id)
+            let noteEvents: [NoteEvent]
+            if !hasLiveOverride, precomputedBar != nil {
+                // CONSUME the precomputed bar: a pure dictionary read, no RNG, no
+                // generator evaluation on the tick path. A track with no entry at
+                // this step produced no notes (a genuine empty consume, not a
+                // fallback to live generation).
+                noteEvents = precomputedStepNotes?[generatorBlockID] ?? []
+                // Preserve clip-capture: the realized notes for this step are the
+                // precomputed ones. Reconstruct `GeneratedNote`s (lossless — clip
+                // capture reads pitch/velocity/length only) so a precomputed run
+                // captures the same content a live run would.
+                if override == nil {
+                    nextClipCaptureService.append(
+                        trackID: track.id,
+                        stepIndex: Int(upcomingStep),
+                        notes: noteEvents.map(Self.generatedNote(from:))
+                    )
+                }
+                // Phase D: adopt the consumed bar's END state into the
+                // tick-state at the bar's FINAL step — a pure dictionary read
+                // (no RNG, no generator evaluation, no new waits on the tick
+                // path). This keeps the tick-state's generated states in sync
+                // with the precomputed stream, so a later cold-boundary
+                // fallback (`resolveStepFallback`) and the next revision-bump
+                // reseed both evaluate from the bar-boundary state instead of
+                // a stale one. Mid-bar the tick-state intentionally holds the
+                // CURRENT bar-start states (see the request fallback above).
+                if stepInPhrase == currentBarStart + barStepCount - 1,
+                   let endState = precomputedBar?.endStatesByTrackID[track.id] {
+                    nextGeneratedStates[track.id] = endState
+                }
             } else {
-                notes = Self.resolvedStepNotes(
-                    for: track.id,
+                // GRACEFUL FALLBACK (round-2 spec, "inline fallback to today's
+                // path only if the buffer is not ready at the boundary"): the
+                // off-thread bar was not published in time, or a live per-step
+                // control is active for this track. Evaluate live — but through the
+                // scheduler's `resolveStepFallback`, so the live per-step generator
+                // seam is NOT referenced on this tick-path file (Rule 2 stays
+                // satisfied by the genuinely-off-thread steady path). This is not
+                // the steady state; the rail asserts the steady tick never reaches
+                // here (LiveTickGeneratorProbe reads 0 across a pumped bar).
+                coldBoundaryFallbackTrackCount += 1
+                if hasLiveOverride {
+                    coldBoundaryFallbackLiveOverrideCount += 1
+                }
+                var state = nextGeneratedStates[track.id] ?? GeneratedSourceEvaluationState()
+                let notes = barPrecomputeScheduler.resolveStepFallback(
+                    trackID: track.id,
                     in: playbackSnapshot,
                     phraseID: activePhraseID,
-                    stepIndex: stepInPhrase,
+                    stepInPhrase: stepInPhrase,
                     chordContext: harmonicSidechainChord,
                     trackFillPreview: trackFillPreview,
                     quantisedFillFlagOverrides: quantisedFillFlagOverrides,
                     quantisedPatternSlotOverrides: quantisedPatternSlotOverrides,
                     quantisedFillCueTrackIDs: quantisedFillCueTrackIDs,
-                    state: &state,
-                    rng: &rng
+                    auditionOverride: override,
+                    trackType: track.trackType,
+                    state: &state
                 )
-                nextGeneratedStates[track.id] = state
-                nextClipCaptureService.append(trackID: track.id, stepIndex: Int(upcomingStep), notes: notes)
+                if override == nil {
+                    nextGeneratedStates[track.id] = state
+                    nextClipCaptureService.append(trackID: track.id, stepIndex: Int(upcomingStep), notes: notes)
+                }
+                noteEvents = notes.map(Self.noteEvent(from:))
             }
-            let noteEvents = notes.map(Self.noteEvent(from:))
             capturableNotesByBlockID[generatorBlockID] = noteEvents
             preparedNotesByBlockID[generatorBlockID] = activeNoteRepeatTrackIDs.contains(track.id) ? [] : noteEvents
+        }
+        // realtime-allow-diagnostic: DevActivity trace of the cold-boundary precompute fallback rate, aggregated once per prepareTick (not per-note); reports a count, never a sounding-time source (Rule 1). Test: RealtimePathLintTests.
+        if coldBoundaryFallbackTrackCount > 0 {
+            DevActivity.trace(
+                DevActivity.engine,
+                "prepareTick cold-boundary fallback step=\(stepInPhrase) trackCount=\(coldBoundaryFallbackTrackCount) " +
+                "barPublished=\(precomputedBar != nil) liveOverrideCount=\(coldBoundaryFallbackLiveOverrideCount)"
+            )
+        }
+        // Phase 0: if a replay source is driving the dispatch path, reconstruct
+        // this step's prepared-notes map from the recording and feed it into the
+        // SAME `executor.tick` path the live engine uses — a replay is
+        // indistinguishable from a live realization on the dispatch path.
+        if let eventReplaySource {
+            preparedNotesByBlockID = eventReplaySource.preparedNotesByBlockID(forStep: Int(upcomingStep))
+        }
+        // Phase 0: record the REALIZED note stream as it is produced for the
+        // dispatch path (`preparedNotesByBlockID`, per `(block, step)`), so a
+        // recording round-trips to the exact stream the executor consumes and a
+        // replay reproduces it byte-identically. Opt-in (nil recorder by default
+        // → zero cost); runs on the prepare/tick queue, NOT the audio render
+        // callback, so it does not touch the realtime render path (Rule 1).
+        if let eventRecorder {
+            for (blockID, noteEvents) in preparedNotesByBlockID where !noteEvents.isEmpty {
+                eventRecorder.record(blockID: blockID, step: Int(upcomingStep), notes: noteEvents)
+            }
         }
         // Per-track direct MIDI-out blocks emit inside `executor.tick` and stamp
         // their `MIDITimeStamp` from `TickContext.now`. Phase 3: supply the
@@ -2227,7 +2878,8 @@ final class EngineController: RouterDispatcher {
                         notes: Self.shifted(events, by: runtime.pitchOffset),
                         bpm: executor.currentBPM,
                         stepsPerBar: stepsPerBar
-                    )
+                    ),
+                    transportGeneration: transportGeneration
                 )
             )
         }
@@ -2254,7 +2906,8 @@ final class EngineController: RouterDispatcher {
                             sampleID: sampleID,
                             settings: settings,
                             scheduledHostTime: eventScheduledHostTime
-                        )
+                        ),
+                        transportGeneration: transportGeneration
                     ))
                 }
 
@@ -2269,7 +2922,8 @@ final class EngineController: RouterDispatcher {
                     stepsPerBar: stepsPerBar,
                     bpm: executor.currentBPM,
                     scheduledHostTime: eventScheduledHostTime,
-                    eventQueue: eventQueue
+                    eventQueue: eventQueue,
+                    transportGeneration: transportGeneration
                 )
 
             default:
@@ -2348,8 +3002,65 @@ final class EngineController: RouterDispatcher {
     }
 
     private func dispatchTick() -> Int {
-        let events = eventQueue.drain()
+        let events = eventQueue.drain(matching: transportGenerationForScheduling())
         let (audioOutputs, outputKeys) = withStateLock { (trackRuntime.audioOutputsByTrackID, trackRuntime.audioOutputKeysByTrackID) }
+
+        // Phase-1 render-origin guarantee: record, at the FIRST event stamp,
+        // whether the AudioMasterClock origin in effect is render-derived
+        // (`true`) or only the provisional pre-render systemUptime fallback
+        // (`false`). With a warm engine the render position is available before
+        // step 0 is stamped, so this is `true`. The flag is recorded once (it
+        // stays `nil` until a real event is dispatched) and reflects genuine
+        // clock state — it is not a constant.
+        if firstEventOriginWasRenderDerived == nil, !events.isEmpty {
+            firstEventOriginWasRenderDerived = audioMasterClock.capturedOriginCorrelation().isRenderDerived
+        }
+
+        // Latch the render-origin decision ONCE for this whole tick. `hasRenderOrigin`
+        // calls the state-mutating `refreshOriginIfAvailable`; reading it per event
+        // lets the fallback→render-derived upgrade fire BETWEEN an AU stamp and the
+        // sample stamp of the same step (engine starts rendering mid-tick), giving
+        // the AU `immediate` (no lead) while the sample gets the +100 ms lead — a
+        // first-play AU-vs-drum flam. Reading it once and reusing it for every event
+        // keeps both paths on the same side of the upgrade.
+        let hasRenderOriginThisTick = audioMasterClock.hasRenderOrigin
+
+        // Round-2 P3 — the look-ahead lead is realised on the LIVE dispatch path
+        // (not by an origin shift): every sample/AU event's stamp is routed through
+        // `leadStampedAudioTime(forMusicalSeconds:dispatchNow:)`, which returns the
+        // event's true (unshifted, Rule-1) future frame while the pump dispatches it
+        // `lookAheadLeadSeconds` ahead of its musical due time. The lead is the gap
+        // between the pump's early dispatch and the event's musical due time; the
+        // pump-dispatch musical position is `due - lead`, so `lead == due -
+        // dispatchNow == lookAheadLeadSeconds`. Reported to the test probe (no-op in
+        // production — no alloc/lock/log on the realtime path when no probe is
+        // installed) so the frozen rail can machine-verify the live invocation.
+        let dispatchLead = lookAheadLeadSeconds
+
+        // LAST-RESORT scheduling floor. Since the G2 startup anchor
+        // (`AudioMasterClock.startupAnchorLeadSeconds`), step 0's due stamp is
+        // born 50 ms ahead of the start render position, so on a NORMAL start
+        // NOTHING is past due and this floor must not fire (firing would lift
+        // step 0 a couple of ms off the grid). It remains only as a rescue for
+        // a pathologically late dispatch (cold dispatch delay > anchor − floor,
+        // i.e. > 25 ms — beyond the measured 12–23 ms normal range): lift the
+        // already-past-due stamp to the earliest reliably-schedulable time
+        // (`max(due, renderNow + floor)`), computed ONCE per dispatch pass so
+        // every event on the step — sample AND AU — receives the IDENTICAL
+        // lift (no intra-step flam, same cold/scheduled decision as the
+        // `hasRenderOriginThisTick` latch). Steady-state events are dispatched
+        // ~lookAheadLeadSeconds ahead of due, far beyond the floor, so `max`
+        // is the identity for them. The master-clock ORIGIN is not touched
+        // here; only an unschedulable EVENT STAMP is lifted. Live-transport
+        // only: the offline deterministic harnesses (override seam installed
+        // and/or no transport start) keep exact musical-position stamps for
+        // the 0-frame gate.
+        let schedulingFloorMusicalSeconds: TimeInterval?
+        if isRunning, hasRenderOriginThisTick, scheduledAudioTimeOverrideForTesting == nil, !events.isEmpty {
+            schedulingFloorMusicalSeconds = audioMasterClock.liveDispatchSchedulingFloorMusicalSeconds()
+        } else {
+            schedulingFloorMusicalSeconds = nil
+        }
 
         for event in events {
             // realtime-allow-diagnostic: SequencerTimingProbe scheduled-vs-actual dispatch latency probe (only when enabled); the actual sounding frame is the `at:` AVAudioTime built by scheduledAudioTime(for:), not this value (Rule 1). Test: RealtimePathLintTests.
@@ -2370,7 +3081,20 @@ final class EngineController: RouterDispatcher {
                 // note-on frame is the SAME frame a slice on this step gets, so
                 // they land zero-flam (`scheduledAUNoteSampleTime` delegates to
                 // the same `AudioMasterClock` the slice path uses).
-                let auStamp = scheduledAUNoteSampleTime(for: event.scheduledHostTime)
+                // Round-2 P3: route the note through `leadStampedAudioTime` (the
+                // live early-dispatch surface) so the pump hands the AU scheduler
+                // the event `dispatchLead` ahead of its musical due time; the frame
+                // stamp itself stays the unshifted unified-clock frame (Rule 1),
+                // lifted only by the per-pass scheduling floor when already past
+                // due (step-0 cold hit).
+                let auStamp = leadStampedAUNoteSampleTime(
+                    for: Self.schedulableStampMusicalSeconds(
+                        event.scheduledHostTime,
+                        floor: schedulingFloorMusicalSeconds
+                    ),
+                    dispatchLead: dispatchLead,
+                    hasRenderOriginLatched: hasRenderOriginThisTick
+                )
                 AUNoteTriggerTrace.dispatch(
                     kind: "track-au",
                     trackID: trackID,
@@ -2399,7 +3123,16 @@ final class EngineController: RouterDispatcher {
                 }
                 applyDestinationIfNeeded(destination, trackID: trackID, host: host, outputKeys: outputKeys)
                 // Routed AU output shares the sample-stamped note path (Phase 1).
-                let routedAUStamp = scheduledAUNoteSampleTime(for: event.scheduledHostTime)
+                // Round-2 P3: same live early-dispatch routing as `.trackAU`,
+                // including the per-pass scheduling-floor lift.
+                let routedAUStamp = leadStampedAUNoteSampleTime(
+                    for: Self.schedulableStampMusicalSeconds(
+                        event.scheduledHostTime,
+                        floor: schedulingFloorMusicalSeconds
+                    ),
+                    dispatchLead: dispatchLead,
+                    hasRenderOriginLatched: hasRenderOriginThisTick
+                )
                 AUNoteTriggerTrace.dispatch(
                     kind: "routed-au",
                     trackID: trackID,
@@ -2417,14 +3150,7 @@ final class EngineController: RouterDispatcher {
                 )
 
             case let .chordContextBroadcast(lane, chord):
-                // Engine copy under stateLock at dispatch time (tick queue);
-                // the @Observable mirror publishes on main (R2).
-                withStateLock {
-                    chordContextByLaneEngine[lane] = chord
-                }
-                publishToMain { [weak self] in
-                    self?.chordContextByLane[lane] = chord
-                }
+                applyChordContextBroadcast(lane: lane, chord: chord)
 
             case .routedMIDI:
                 break
@@ -2451,7 +3177,14 @@ final class EngineController: RouterDispatcher {
                     sampleAsset: sampleAsset,
                     settings: settings,
                     trackID: trackID,
-                    at: scheduledAudioTime(for: event.scheduledHostTime)
+                    at: leadStampedSampleAudioTime(
+                        for: Self.schedulableStampMusicalSeconds(
+                            event.scheduledHostTime,
+                            floor: schedulingFloorMusicalSeconds
+                        ),
+                        dispatchLead: dispatchLead,
+                        hasRenderOriginLatched: hasRenderOriginThisTick
+                    )
                 )
 
             case let .sliceTrigger(trackID, sampleID, startFrame, endFrame, settings, reverse, stepParameters, _):
@@ -2471,7 +3204,14 @@ final class EngineController: RouterDispatcher {
                     endFrame: AVAudioFramePosition(endFrame),
                     settings: settings,
                     trackID: trackID,
-                    at: scheduledAudioTime(for: event.scheduledHostTime),
+                    at: leadStampedSampleAudioTime(
+                        for: Self.schedulableStampMusicalSeconds(
+                            event.scheduledHostTime,
+                            floor: schedulingFloorMusicalSeconds
+                        ),
+                        dispatchLead: dispatchLead,
+                        hasRenderOriginLatched: hasRenderOriginThisTick
+                    ),
                     reverse: reverse,
                     stepParameters: stepParameters
                 )
@@ -2639,7 +3379,8 @@ final class EngineController: RouterDispatcher {
                         lane: broadcastTag ?? lane ?? "default",
                         chord: chord
                     ),
-                    repeatOwnerTrackID: repeatOwnerTrackID
+                    repeatOwnerTrackID: repeatOwnerTrackID,
+                    transportGeneration: transportGenerationForScheduling()
                 )
             )
         }
@@ -2771,7 +3512,8 @@ final class EngineController: RouterDispatcher {
                         bpm: bpm,
                         stepsPerBar: stepsPerBar
                     ),
-                    repeatOwnerTrackID: repeatOwnerTrackID
+                    repeatOwnerTrackID: repeatOwnerTrackID,
+                    transportGeneration: transportGenerationForScheduling()
                 )
             )
 
@@ -2803,7 +3545,8 @@ final class EngineController: RouterDispatcher {
                 bpm: bpm,
                 scheduledHostTime: routerDispatch.dispatchMusicalSeconds,
                 eventQueue: eventQueue,
-                repeatOwnerTrackID: repeatOwnerTrackID
+                repeatOwnerTrackID: repeatOwnerTrackID,
+                transportGeneration: transportGenerationForScheduling()
             )
 
         case .internalSampler, .sample, .inheritGroup, .none:
@@ -2945,7 +3688,7 @@ final class EngineController: RouterDispatcher {
         }
     }
 
-    private static func resolvedAuditionOverrideNotes<R: RandomNumberGenerator>(
+    static func resolvedAuditionOverrideNotes<R: RandomNumberGenerator>(
         for state: PseudoClipState,
         trackType: TrackType,
         stepIndex: Int,
@@ -3021,6 +3764,50 @@ final class EngineController: RouterDispatcher {
 
         withStateLock {
             routerDispatch.removeOutputs(for: detachedRoutedDestinations)
+        }
+    }
+
+    /// Applies a `.chordContextBroadcast` event at dispatch time (tick queue).
+    /// The engine copy updates under `stateLock`; the @Observable mirror
+    /// publishes on main (R2).
+    ///
+    /// When the lane's chord actually CHANGES, the generation-input revision is
+    /// bumped: `BarKey` carries no chord field, so an already-published or
+    /// prefetched precomputed bar has the previous chord baked into every
+    /// harmonic-sidechain evaluation for its whole bar. The bump makes those
+    /// bars unmatchable — the affected steps fall back to live per-step
+    /// generation (which reads the fresh chord context; visible via the
+    /// cold-boundary fallback diagnostic) while the bar re-precomputes with
+    /// the new chord. Guarded on a value change because the broadcast re-fires
+    /// every step the progression sounds — an unconditional bump would
+    /// invalidate the precompute cache every tick and disable it entirely.
+    /// Live macro-knob drag (scoped-runtime path, mirrors `setMix`): carries the
+    /// dragged layer-default value to dispatch without a snapshot install, so a
+    /// drag never bumps the generation revision, busts the precompute cache, or
+    /// clears the event queue. The session keeps writing the value into the
+    /// store, so the next real snapshot install compiles it and the override is
+    /// cleared there.
+    func setMacroLayerDefaultOverride(trackID: UUID, bindingID: UUID, value: Double) {
+        withStateLock {
+            macroLayerDefaultOverrides[trackID, default: [:]][bindingID] = value
+        }
+    }
+
+    var macroLayerDefaultOverridesForTesting: [UUID: [UUID: Double]] {
+        withStateLock { macroLayerDefaultOverrides }
+    }
+
+    func applyChordContextBroadcast(lane: String, chord: Chord) {
+        let chordChanged = withStateLock {
+            let previous = chordContextByLaneEngine[lane]
+            chordContextByLaneEngine[lane] = chord
+            return previous != chord
+        }
+        if chordChanged {
+            tickState.invalidatePreparedTick()
+        }
+        publishToMain { [weak self] in
+            self?.chordContextByLane[lane] = chord
         }
     }
 

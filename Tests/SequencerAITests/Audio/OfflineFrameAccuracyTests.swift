@@ -734,7 +734,8 @@ final class OfflineFrameAccuracyTests: XCTestCase {
         let expectedGateFrames = AVAudioFramePosition((secondsPerStep * 4 * sampleRate).rounded())
         XCTAssertEqual(stamps.noteOff, AUEventSampleTime(inputFrame + expectedGateFrames))
 
-        // Nil note-on time → immediate (fallback) for both stamps.
+        // Nil note-on time → immediate note-on, with a gate-length note-off so
+        // cold AU fallback does not cancel itself in the same render cycle.
         let immediate = AudioInstrumentHost.noteStamps(
             noteOnSampleTime: nil,
             length: 4,
@@ -743,7 +744,21 @@ final class OfflineFrameAccuracyTests: XCTestCase {
             sampleRate: sampleRate
         )
         XCTAssertEqual(immediate.noteOn, AUEventSampleTime(AUEventSampleTimeImmediate))
-        XCTAssertEqual(immediate.noteOff, AUEventSampleTime(AUEventSampleTimeImmediate))
+        XCTAssertEqual(immediate.noteOff, AUEventSampleTime(expectedGateFrames))
+
+        // Cold AU fallback with a render frame: the note-on is immediate, but
+        // the note-off still lands gate-length frames after the AU's live render
+        // frame instead of cancelling the note in the same cycle.
+        let coldWithRenderFrame = AudioInstrumentHost.noteStamps(
+            noteOnSampleTime: nil,
+            length: 4,
+            bpm: bpm,
+            stepsPerBar: stepsPerBar,
+            sampleRate: sampleRate,
+            currentRenderFrame: 10_000
+        )
+        XCTAssertEqual(coldWithRenderFrame.noteOn, AUEventSampleTime(AUEventSampleTimeImmediate))
+        XCTAssertEqual(coldWithRenderFrame.noteOff, AUEventSampleTime(10_000 + expectedGateFrames))
     }
 
     /// DEFECT 4 past-frame guard: a note-on frame BEHIND the AU's current render

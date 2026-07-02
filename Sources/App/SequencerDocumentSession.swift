@@ -186,6 +186,7 @@ final class SequencerDocumentSession {
             publishesAudioInputCapture: true,
             recordingLibrary: .shared
         )
+        self.engineController.startSessionAudioGraph()
         let initialStore = LiveSequencerStore(project: document.wrappedValue.project)
         self.store = initialStore
         self.snapshotPublisher = SessionSnapshotPublisher(
@@ -405,6 +406,12 @@ final class SequencerDocumentSession {
             engineController.apply(sendBus: sendBus)
         case let .masterBus(masterBus):
             engineController.apply(masterBus: masterBus)
+        case let .macroLayerDefault(trackID, bindingID, value):
+            engineController.setMacroLayerDefaultOverride(
+                trackID: trackID,
+                bindingID: bindingID,
+                value: value
+            )
         }
     }
 

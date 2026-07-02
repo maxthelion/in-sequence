@@ -17,6 +17,12 @@ enum TrackMuteSource: Equatable {
 protocol SamplePlaybackSink: AnyObject {
     func start() throws
     func stop()
+    /// Phase-1 warm engine: stop all sounding voices for a transport STOP without
+    /// tearing the underlying audio engine down. The engine keeps running
+    /// (outputting silence) so the next transport start is not a cold start and
+    /// the render origin stays valid for look-ahead. Only `stop()` (driven by
+    /// shutdown / device change / explicit rebuild) stops the engine.
+    func stopVoicesKeepingEngineWarm()
     /// Ensures `trackID` has a ready mixer, filter, and voice pool attached to
     /// the engine graph. This is safe to call repeatedly and should happen from
     /// the document apply path before transport ticks can dispatch sample events.
@@ -81,6 +87,13 @@ protocol SamplePlaybackSink: AnyObject {
 }
 
 extension SamplePlaybackSink {
+    /// Default: a sink with no separate warm-stop path falls back to a full
+    /// `stop()`. Sinks that own a real audio engine (`SamplePlaybackEngine`)
+    /// override this to stop voices while leaving the engine running.
+    func stopVoicesKeepingEngineWarm() {
+        stop()
+    }
+
     func prepareTrack(trackID: UUID) {}
 
     func setTrackOutputBus(trackID: UUID, busID: UUID?) {}
@@ -303,7 +316,6 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
     func start() throws {
         guard withLifecycleLock({ !isStarted }) else { return }
         validatePreparedTrackGraphs()
-        try audioGraph.start()
         withLifecycleLock {
             isStarted = true
         }
@@ -327,7 +339,29 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
             }
         }
         previewNode.stop()
-        audioGraph.stop()
+    }
+
+    /// Phase-1 warm engine: silence all voices for a transport stop but leave the
+    /// underlying `AVAudioEngine` running. `isStarted` stays true so the engine
+    /// is treated as warm and the next transport start reuses the live graph (no
+    /// cold-start render-origin gap). The engine is only torn down by `stop()`
+    /// (shutdown / device change / explicit rebuild).
+    func stopVoicesKeepingEngineWarm() {
+        let (pools, busPools) = withLifecycleLock { () -> ([TrackVoicePool], [BusVoicePool]) in
+            guard isStarted else { return ([], []) }
+            return (Array(trackVoicePools.values), Array(busVoicePools.values))
+        }
+        for pool in pools {
+            for voice in pool.voices {
+                voice.stop()
+            }
+        }
+        for pool in busPools {
+            for voice in pool.voices {
+                voice.stop()
+            }
+        }
+        previewNode.stop()
     }
 
     func prepareTrack(trackID: UUID) {

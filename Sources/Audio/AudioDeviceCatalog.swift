@@ -118,6 +118,17 @@ final class CoreAudioDeviceCatalog: AudioHardwareDeviceResolving {
         return deviceID
     }
 
+    /// Channel count of the system-default input device via plain HAL property
+    /// reads (`kAudioDevicePropertyStreamConfiguration`). This neither creates
+    /// nor arms any IO unit, so — unlike `AVAudioEngine.inputNode`, whose first
+    /// access permanently enables the shared IO unit's input scope — it can be
+    /// used for UI affordances without ever becoming a microphone-TCC trigger.
+    /// Returns 0 when no default input device exists.
+    func defaultInputDeviceChannelCount() -> Int {
+        guard let deviceID = try? defaultDeviceID(direction: .input) else { return 0 }
+        return channelCount(for: deviceID, direction: .input)
+    }
+
     func deviceUID(for deviceID: AudioDeviceID) -> String? {
         stringProperty(
             kAudioDevicePropertyDeviceUID,
