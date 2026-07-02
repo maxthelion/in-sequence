@@ -52,7 +52,7 @@ extension DrumKitMatrixView {
     /// faces one giant view-builder expression.
     @ViewBuilder
     func expandedRowDetail(_ row: DrumKitMatrixModel.Row) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: StudioTabWellGrammar.pillRowToWellGap) {
             expandedRowTabBar
             expandedRowTabBody(row)
         }
@@ -94,31 +94,30 @@ extension DrumKitMatrixView {
         }
     }
 
+    /// Part-level section switcher — the D-pill grammar (locked 2026-07-02
+    /// amendment: function-based, not nesting-based). The SAME
+    /// StudioSectionPills shape/size grammar as the kit-level pills, hugging
+    /// its content left-aligned flush to the sub-card edge (`fillsWidth:
+    /// false`), carrying the ONE kit chrome accent (group colour) — never the
+    /// inset-track value-selector style, "otherwise they look like the step
+    /// layer, fill etc". The row sub-card around it stays neutral-outlined.
     var expandedRowTabBar: some View {
-        StudioSegmentedControl(
-            title: nil,
-            selection: Binding(
-                get: { expandedRowTab },
-                set: { newValue in
-                    expandedRowTab = newValue
-                    postRenderedVisualState(isVisible: true)
-                }
-            ),
-            segments: DrumKitRowTab.allCases.map { tab in
-                StudioSegment(
+        StudioSectionPills(
+            pills: DrumKitRowTab.allCases.map { tab in
+                StudioSectionPill(
+                    section: tab,
                     title: tab.title,
-                    value: tab,
-                    accessibilityIdentifier: "kit-row-tab-\(tab.rawValue)",
-                    accessibilityLabel: "Row tab \(tab.title)"
+                    accessibilityIdentifier: "kit-row-tab-\(tab.rawValue)"
                 )
             },
+            selection: expandedRowTab,
             accent: accent,
-            layout: StudioSegmentedControl.Layout(
-                fillsWidth: false,
-                minWidth: 64,
-                minHeight: 28,
-                minimumScaleFactor: nil
-            )
+            fillsWidth: false,
+            accessibilityIdentifier: "kit-row-tabs",
+            onSelect: { tab in
+                expandedRowTab = tab
+                postRenderedVisualState(isVisible: true)
+            }
         )
     }
 
@@ -475,7 +474,9 @@ extension DrumKitMatrixView {
             }
             .buttonStyle(.bordered)
             .controlSize(.small)
-            .tint(StudioTheme.cyan)
+            // One chrome accent per surface (locked grammar): the kit group
+            // colour, not a second cyan chrome accent on the part row.
+            .tint(accent)
             .accessibilityIdentifier("kit-row-load-au")
         }
     }

@@ -313,17 +313,14 @@ struct SamplerDestinationWidget: View {
 
             divider
 
-            VStack(alignment: .leading, spacing: 10) {
-                Text("Choose another sample or remove the destination.")
-                    .studioText(.body)
-                    .foregroundStyle(StudioTheme.mutedText)
-
-                Button("Replace with first available sample") {
-                    replaceWithFirstInCurrentCategory()
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(StudioTheme.success)
+            // Canon Rule 3: no explainer prose — the recovery instruction
+            // lives in the tooltip; the button is the affordance.
+            Button("Replace with first available sample") {
+                replaceWithFirstInCurrentCategory()
             }
+            .buttonStyle(.borderedProminent)
+            .tint(StudioTheme.success)
+            .help("Choose another sample or remove the destination")
             .padding(StudioMetrics.Spacing.comfortable)
         }
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
