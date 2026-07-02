@@ -193,6 +193,30 @@ scripts/bug-status.sh --all    # + every bug dir with its status
 When you fix or reject a bug, append a `Status: RESOLVED <commit>` (or
 `Status: WONTFIX <reason>`) line to its note/report so the count stays accurate.
 
+### Where evidence goes (the bug-reporter app + branch handling)
+
+The local bug-reporter app is `~/dev/bug-reporter` (`node server.js`, port 4747),
+configured by `~/dev/bug-reporter/config.json`. It has two distinct sinks with
+different branch/worktree behaviour — **do not conflate them**:
+
+- **Bug reports** → `outputDir` = **`/Users/maxwilliams/dev/in-sequence/docs/bugs`**,
+  the PRIMARY checkout — a literal path, branch-agnostic. A report written in a
+  *worktree's* `docs/bugs` is INVISIBLE to the app. So file reports into the primary
+  checkout's `docs/bugs/<YYYYMMDD-HHMMSS-slug>/` (a `note.md`: first line = title,
+  images under a `Screenshots:` list) even when you are working in a worktree.
+- **Screenshots** (what "captures" usually refers to) → the gallery scans
+  `galleryDir` = `.meta/multipass/visual-review/<branch>/` and UNIONS it across every
+  open git worktree (`git worktree list`), partitioned by branch subdir (the worktree
+  copy wins over a merged main copy). A branch's UI screenshots go in *that branch's
+  worktree* under `.meta/multipass/visual-review/<name>/` and appear automatically.
+  This is a UI-screenshot mechanism — NOT for audio/waveform renders.
+
+Never leave evidence in `/tmp` (the app never sees it). The app is sandboxed; the
+drum-timing rig (`capture_8bar.sh` + `render_8bar.py`) must write its WAV under
+`~/Library/Containers/ai.sequencer.SequencerAI/Data/tmp/...` (it cannot write
+`/tmp`). An audio/waveform render is bug-report *evidence* — it goes in the primary
+checkout's `docs/bugs/<slug>/`, not the screenshot gallery.
+
 ## How To Orient
 
 Run:
