@@ -206,7 +206,7 @@ private struct StepLayerRotaryDial: View {
                     .stroke(StudioTheme.border.opacity(0.55), lineWidth: 3)
                     .frame(width: dialSize, height: dialSize)
 
-                StepLayerRotaryArc(progress: control.normalizedValue)
+                StudioRotaryArc(progress: control.normalizedValue)
                     .stroke(accent.opacity(0.94), style: StrokeStyle(lineWidth: 4, lineCap: .round))
                     .frame(width: dialSize, height: dialSize)
 
@@ -254,25 +254,6 @@ private struct StepLayerRotaryDial: View {
 
     private static func clampedUnit(_ value: Double) -> Double {
         min(max(value, 0), 1)
-    }
-}
-
-private struct StepLayerRotaryArc: Shape {
-    let progress: Double
-
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        let clampedProgress = min(max(progress, 0), 1)
-        let center = CGPoint(x: rect.midX, y: rect.midY)
-        let radius = min(rect.width, rect.height) / 2
-        path.addArc(
-            center: center,
-            radius: radius,
-            startAngle: .degrees(135),
-            endAngle: .degrees(135 + (270 * clampedProgress)),
-            clockwise: false
-        )
-        return path
     }
 }
 

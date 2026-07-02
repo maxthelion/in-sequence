@@ -98,6 +98,17 @@ enum StudioDrag {
     /// pixels of travel for a full-range sweep.
     static let fullRangeTravel: Double = 200
 
+    /// Points of travel one line of a non-precise (classic mouse wheel)
+    /// scroll delta is worth. Precise devices (trackpads) already report
+    /// point deltas; wheels report lines, which would otherwise crawl.
+    static let wheelLinePoints: Double = 8
+
+    /// Normalizes a scroll-wheel delta to drag-equivalent points so wheel
+    /// and drag share the single `fullRangeTravel` feel constant.
+    static func scrollTravel(deltaY: Double, hasPreciseDeltas: Bool) -> Double {
+        hasPreciseDeltas ? deltaY : deltaY * wheelLinePoints
+    }
+
     /// The one vertical drag-to-value gesture all knobs share: dragging the
     /// full `fullRangeTravel` height sweeps the full range; the value clamps
     /// to the range; release commits via `onCommit`.

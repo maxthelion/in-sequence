@@ -62,5 +62,10 @@ enum StudioMetrics {
         static let medium: CGFloat = 30
         static let large: CGFloat = 34
         static let knob: CGFloat = 40
+
+        /// Minimum effective hit-target diameter for small controls (Apple's
+        /// 44pt floor). Knobs drawn smaller than this still hit-test at this
+        /// size via an invisible inset-out content shape.
+        static let minimumHitTarget: CGFloat = 44
     }
 }
