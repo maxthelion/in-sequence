@@ -38,11 +38,17 @@
   .pattern-slot { min-width:42px; padding:6px 0; text-align:center; font-size:12px; font-weight:800; border:1px solid rgba(98,98,108,.7); border-radius:9px; background:transparent; color:var(--muted); cursor:pointer; }
   .pattern-slot.on { background:var(--green); border-color:var(--green); color:var(--ground); }
 
-  /* primary switcher — Variant D pills: solid kit-accent thumb, floating
-     OUTSIDE the well with the small gap */
+  /* section switchers — Variant D pills (LOCKED, function-based rule):
+     ALL section switchers (kit-level, track-level, part-level) use this
+     grammar: solid accent thumb in a bordered pill row. Only value/layer
+     selectors use the inset-track style below. */
   .tabstrip.seg { display:flex; gap:4px; padding:3px; background:var(--fill1); border:1.5px solid rgba(98,98,108,.9); border-radius:12px; margin-bottom:5px; }
   .tabstrip.seg .schip { flex:1; border:none; background:transparent; color:rgba(232,232,236,.78); font:inherit; font-size:11px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; padding:10px 8px; border-radius:10px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; white-space:nowrap; }
   .tabstrip.seg .schip.active { background:var(--kit); color:var(--ground); }
+  /* part-level section switcher: same D-pill grammar, sized to content and
+     flush to the sub-card's left edge */
+  .tabstrip.seg.part { display:inline-flex; margin:0 0 12px; }
+  .tabstrip.seg.part .schip { flex:0 0 auto; padding:10px 14px; }
 
   /* the well — full-strength kit-accent outline, ALL corners 12px,
      containing everything below (layer selector rows AND part rows) */
@@ -50,9 +56,10 @@
   .well-pane[hidden] { display:none; }
   .stub { border:1.5px dashed var(--border); border-radius:10px; padding:26px; text-align:center; color:var(--muted); font-size:12px; letter-spacing:.02em; }
 
-  /* subordinate selectors — solid thumbs INSIDE a visible darker inset
-     track/capsule; containment + smaller scale carries the hierarchy since
-     the shape now matches the primary */
+  /* value/layer selectors — solid thumbs INSIDE a visible darker inset
+     track/capsule. Function-based rule: this style is ONLY for value/layer
+     selection (Steps/Velocity/Chance, Normal/Fill, BAR range), never for
+     section switching. */
   .selrow { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:14px; }
   .track { display:inline-flex; gap:3px; padding:3px; background:var(--inset); border:1px solid rgba(98,98,108,.55); border-radius:999px; }
   .track .chip { border:none; background:transparent; color:rgba(232,232,236,.72); font:inherit; font-size:11px; font-weight:700; padding:6px 12px; border-radius:999px; cursor:pointer; white-space:nowrap; }
@@ -79,8 +86,6 @@
   .part-card { border:1.5px solid var(--border); border-radius:12px; padding:14px; margin-bottom:10px; }
   .part-card .part-hdr { display:flex; align-items:center; gap:12px; margin-bottom:12px; }
   .part-card .part-hdr .part-name { font-size:14px; }
-  /* the part mini-switcher shares the subordinate segmented-track style */
-  .part-card .track { margin-left:auto; }
 
   .sound-editor { border:1px solid rgba(98,98,108,.5); border-radius:10px; padding:14px; }
   .sound-hdr { display:flex; align-items:center; gap:10px; margin-bottom:12px; }
@@ -221,18 +226,19 @@
           <button class="btn-solid apply">▦ Apply Template…</button>
         </div>
 
-        <!-- expanded Kick: neutral-outlined sub-card, mini-switcher in the
-             subordinate segmented-track style -->
+        <!-- expanded Kick: neutral-outlined sub-card; the part section
+             switcher uses the SAME D-pill grammar as the kit-level pills
+             (function-based rule), left-aligned to the sub-card edge -->
         <div class="part-card">
           <div class="part-hdr">
             <div><div class="part-name">Kick <span class="chev">▾</span></div><div class="part-meta">2 bars · 32 steps</div></div>
-            <div class="track">
-              <button class="chip">Steps/Clip</button>
-              <button class="chip on">Sound</button>
-              <button class="chip">FX</button>
-              <button class="chip">Macros</button>
-              <button class="chip">Mixer</button>
-            </div>
+          </div>
+          <div class="tabstrip seg part">
+            <button class="schip">Steps/Clip</button>
+            <button class="schip active">Sound</button>
+            <button class="schip">FX</button>
+            <button class="schip">Macros</button>
+            <button class="schip">Mixer</button>
           </div>
           <div class="sound-editor">
             <div class="sound-hdr">

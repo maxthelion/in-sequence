@@ -94,30 +94,27 @@ now cover the three connection forms he asked to compare:
   jump a given surface to an off-path stub pane, and cross-link to each other
   for direct A/B comparison in a browser.
 
-**Owner picked Variant D.** Proof on the drum-kit surfaces:
-- `09-kit-and-part-D.html` — Variant D grammar + the nesting rules on the
-  kit view, two stacked sections: collapsed matrix and expanded part.
-  Primary switcher (MATRIX/FX/MACROS/MIXER) as D-pills with a solid
-  kit-accent (orange) thumb floating outside the well; the well is a
-  complete full-strength kit-accent outline (12px all corners) containing
-  the layer selector rows AND the part rows. Subordinate selectors
-  (Steps/Velocity/Chance, Normal/Fill, BAR range) are solid thumbs inside a
-  darker inset capsule track — containment + smaller scale carries the
-  hierarchy since the shape now matches the primary. Apply Template stays a
-  standalone solid action button. The expanded Kick row is a
-  NEUTRAL-outlined sub-card (border grey, never a second accent outline
-  fighting the kit's); its mini-switcher (Steps/Clip·Sound·FX·Macros·Mixer)
-  reuses the subordinate segmented-track style.
-  - Part-row accent judgment from the render: the cyan/green content
-    accents (green kick waveform, cyan Cutoff ring + filter curve + solid
-    LP chip) read fine inside the neutral sub-card — they sit on inset
-    panels one step darker, so they register as content state, not chrome,
-    and don't compete with the kit orange which stays confined to
-    thumbs/well outline. One watch-item: the part mini-switcher's solid
-    thumb is also kit-orange, same as the primary pills; scale + the inset
-    track keep it clearly subordinate in the mock, but if it proves
-    ambiguous in the built app, giving the mini-switcher thumb the part's
-    own accent is the escape hatch.
+**Owner picked Variant D; kit/part proof approved — grammar LOCKED
+(function-based rule, owner-approved 2026-07-02):**
+- `09-kit-and-part-D.html` — Variant D grammar on the kit view, two stacked
+  sections: collapsed matrix and expanded part. ALL section switchers use
+  the D-pill grammar: the kit-level MATRIX/FX/MACROS/MIXER pills (solid
+  kit-orange thumb) floating outside the well, AND the part-level
+  Steps/Clip·Sound·FX·Macros·Mixer switcher inside the expanded sub-card —
+  left-aligned flush to the sub-card edge, same shape/size grammar as the
+  kit pills. ONLY value/layer selectors (Steps/Velocity/Chance, Normal/Fill,
+  BAR range) use the inset-track solid-thumb style — solid thumbs inside a
+  darker inset capsule. The well is a complete full-strength kit-accent
+  outline (12px all corners) containing the layer selector rows AND the
+  part rows; Apply Template stays a standalone solid action button; the
+  expanded Kick row is a NEUTRAL-outlined sub-card (border grey, never a
+  second accent outline fighting the kit's).
+  - Part pill accent choice: kit orange, not a per-part colour — one chrome
+    accent per surface; the render confirms the cyan/green content accents
+    (green kick waveform, cyan Cutoff ring + filter curve + solid LP chip)
+    sit on inset panels one step darker and read as content state, with no
+    section-switcher ambiguity now that pill shape separates switchers from
+    the inset-track value selectors.
   - States: `kit-matrix`, `part-expanded` (scrollIntoView per section);
     `setPrototypeState("kit:fx")` / `"part:macros"` etc. jump to stub panes.
     Render with the same command shape as the 08 files, output

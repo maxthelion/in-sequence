@@ -92,27 +92,31 @@ scripts; the UX canon got nothing. This is the third grey-text purge.
    `subtitle:` explainer params on tab components. Wired next to the audio
    lints so creep pass #4 never ships.
 
-## DECISION — 2026-07-02: Variant D locked
+## DECISION — 2026-07-02: Variant D grammar LOCKED (owner-approved)
 
 Owner selected **Variant D** (prototype `08-unified-tab-well-D.html`, commit
 `56e278be`): solid-thumb pills as the primary section switcher (selected =
 fully solid accent fill with dark glyph, unselected = outline pill), floating
 with a small gap above a complete well outlined at full-strength surface
-accent, **all four corners rounded** (12 px).
+accent, **all four corners rounded** (12 px). Kit + expanded-part proof
+approved as `09-kit-and-part-D.html` with one amendment, which locks the
+rule as **function-based, not nesting-based**:
 
-Constraint added by the owner: the grammar must work on the KIT view
-(MATRIX/FX/MACROS/MIXER over the matrix + layer selectors + part rows) and
-the EXPANDED DRUM PART row (whose mini-switcher currently uses the same
-solid-thumb look D now claims for the primary). Open nesting problem —
-prototyped next as `09-…`:
-- primary D-pills float OUTSIDE the accent well; subordinate selectors keep
-  solid thumbs but sit INSIDE a visible segmented track/capsule container
-  within the well (containment + scale carries the hierarchy, not shape);
-- the expanded part row is a neutral-outlined sub-card inside the kit well
-  (no second accent outline fighting the kit's), with its mini-segments in
-  the segmented-track style;
-- kit accent stays the group colour; part-level accent usage to be judged in
-  the prototype.
+- **ALL section switchers use the D-pill grammar** — kit-level
+  (MATRIX/FX/MACROS/MIXER), track-level (Source/FX/Macros/Mixer etc.), and
+  part-level (Steps/Clip·Sound·FX·Macros·Mixer). The part switcher is
+  left-aligned flush to its sub-card edge, same shape/size grammar as the
+  kit pills — never the inset-track style ("otherwise they look like the
+  step layer, fill etc").
+- **ONLY value/layer selectors use the inset-track solid-thumb style** —
+  Steps/Velocity/Chance, Normal/Fill, BAR range, the slicer layer row: solid
+  thumbs inside a visible darker inset capsule track within the well.
+- The expanded part row stays a neutral-outlined sub-card inside the kit
+  well (border grey — no second accent outline fighting the kit's); the
+  kit's D-pills, well outline, and part-level pill thumbs all carry the one
+  kit accent (group colour). Part pills keep the kit accent rather than a
+  per-part colour: one chrome accent per surface, leaving cyan/green free as
+  content accents (steps, waveform, filter).
 
 ## Superseded: open choice (both prototyped, D chosen)
 
