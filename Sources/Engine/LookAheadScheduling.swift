@@ -20,16 +20,22 @@ import Foundation
 //
 // The lead is NOT a master-clock origin shift. `TickClock` fires tick 0
 // immediately and then reschedules its repeating timer so every subsequent
-// wake runs `lookAheadLeadSeconds` ahead of the step grid (`TickClock.swift`,
-// the `tickIndex == 0` reschedule in the timer's event handler). Each wake
-// drives `EngineController.processLiveLookAheadPumpMarked`, which dispatches
+// wake runs ahead of the step grid (`TickClock.swift`, the `tickIndex == 0`
+// reschedule in the timer's event handler; the wake phase passed by
+// `EngineController.start` is `lookAheadLeadSeconds −
+// AudioMasterClock.startupAnchorLeadSeconds`, which combined with the
+// anchored origin keeps every wake ~lookAheadLeadSeconds before its step's
+// due time). Each wake drives
+// `EngineController.processLiveLookAheadPumpMarked`, which dispatches
 // every step whose musical due time falls within `pumpMusicalSeconds +
 // lookAheadLeadSeconds`, with the `nextLivePumpStep` cursor preventing
 // duplicate dispatch — so sinks receive events up to `lookAheadLeadSeconds`
 // before they are musically due. `AudioMasterClock.captureOrigin` is called
 // with the default `leadSeconds: 0` on the live transport-start path
-// (`EngineController.start`); the origin itself never moves, only the
-// dispatch wake does.
+// (`EngineController.start`); the origin carries only the small G2
+// `startupAnchorLeadSeconds` transport-start anchor (≤ the 0.060 rail cap,
+// never the lead) — the look-ahead lead itself never moves the origin, only
+// the dispatch wake.
 //
 // FROZEN-RAIL DISCIPLINE: `Tests/SequencerAITests/Audio/LookAheadSchedulingTests.swift`
 // asserts against the public surface below (member names, signatures, the

@@ -77,6 +77,44 @@ enum VisualScenarioCommandRunner {
     private static var drumKitMatrixDisplayStepCount = 16
     private static var isObservingRenderedMatrixState = false
 
+    // MARK: - Command-channel ownership (single-driver protocol)
+
+    /// The visual-command channel is a SINGLE-DRIVER protocol: exactly one
+    /// process-wide watcher loop may own the command file.
+    ///
+    /// Why: macOS window restoration after a `kill -9`'d harness run
+    /// resurrects extra document windows, and every `ContentView.onAppear`
+    /// spawns its own runner loop bound to its own session +
+    /// `EngineController`. In the 2026-07-02 12:40 drum-timing rig run TWO
+    /// restored-window loops each applied every command: two 808 kits, two
+    /// transport starts 9 ms apart on two controllers (two independent —
+    /// each internally perfect — grids, origins 10.7 ms apart), and two
+    /// master-render writers opened on ONE WAV path, poisoning the timing
+    /// capture with a phantom "step 0 lands 26.4 ms early". First claim
+    /// wins; duplicates are suppressed with a trace. Ownership is released
+    /// when the owning loop exits (window closed / task cancelled) so a
+    /// genuine handoff still works.
+    private static let commandChannelOwnershipLock = NSLock()
+    private static var commandChannelOwned = false
+
+    /// Claim process-wide ownership of the command channel. Returns false when
+    /// another runner loop already owns it (the caller must NOT attach).
+    static func claimCommandChannelOwnership() -> Bool {
+        commandChannelOwnershipLock.lock()
+        defer { commandChannelOwnershipLock.unlock() }
+        guard !commandChannelOwned else { return false }
+        commandChannelOwned = true
+        return true
+    }
+
+    /// Release ownership when the owning loop exits. Safe to call when not
+    /// owned (idempotent).
+    static func releaseCommandChannelOwnership() {
+        commandChannelOwnershipLock.lock()
+        defer { commandChannelOwnershipLock.unlock() }
+        commandChannelOwned = false
+    }
+
     /// True when a command file is configured — i.e. the app is being driven
     /// by the deterministic capture harness. UI must not trigger system
     /// permission dialogs in this mode.
@@ -104,6 +142,19 @@ enum VisualScenarioCommandRunner {
         guard let rawPath = configuredPath,
               !rawPath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         else { return }
+        // Single-driver protocol: only the FIRST runner loop attaches. Extra
+        // document windows (macOS state restoration after a killed harness
+        // run) must not each drive the channel — a duplicate driver
+        // double-applies every command (two kits, two transports, two
+        // master-render writers on one WAV; see the ownership doc above).
+        guard claimCommandChannelOwnership() else {
+            DevActivity.trace(
+                DevActivity.harness,
+                "duplicate visual-command runner suppressed — channel already owned (restored window?)"
+            )
+            return
+        }
+        defer { releaseCommandChannelOwnership() }
         NSLog("[VisualScenarioCommandRunner] watching command file %@", rawPath)
 
         let commandURL = URL(fileURLWithPath: (rawPath as NSString).expandingTildeInPath)

@@ -28,12 +28,15 @@ protocol TrackPlaybackSink: AnyObject {
     func play(noteEvents: [NoteEvent], bpm: Double, stepsPerBar: Int)
     /// Sample-accurate AU note trigger (Audio Engine Hard Rule 3, Phase 1).
     ///
-    /// `noteOnSampleTime` is the absolute render frame the note-on should sound
-    /// on — the SAME unified-clock frame a slice on this step receives
-    /// (`AudioMasterClock.sampleTime(atMusicalSeconds:)`). `sampleRate` is the
-    /// render sample rate, used to convert the per-note gate length into a
-    /// note-off frame. When `noteOnSampleTime` is nil (no render origin /
-    /// pre-render), the sink falls back to its immediate (non-stamped) path.
+    /// `noteOnSampleTime` is the absolute OUTPUT-node render frame the note-on
+    /// should sound on — the SAME unified-clock frame a slice on this step
+    /// receives (`AudioMasterClock.sampleTime(atMusicalSeconds:)`). Sinks whose
+    /// event clock is NOT the output timeline translate it themselves (the AU
+    /// host maps it onto the AU's own render timeline — see
+    /// `AudioInstrumentHost.auTimelineNoteOnFrame`). `sampleRate` is the OUTPUT
+    /// render sample rate the frame is expressed in. When `noteOnSampleTime` is
+    /// nil (no render origin / pre-render), the sink falls back to its
+    /// immediate (non-stamped) path.
     ///
     /// Default-forwards to the legacy `play(noteEvents:bpm:stepsPerBar:)` so
     /// non-AU sinks (and test doubles) need not implement it.
@@ -610,14 +613,18 @@ final class AudioInstrumentHost: TrackPlaybackSink {
     /// timeline via `scheduleMIDIEventBlock`, so an AU note and a slice on the
     /// same step land on the SAME frame. No main-thread hop on the note path.
     ///
-    /// `noteOnSampleTime` is the absolute render frame the note-on sounds on —
-    /// the unified-clock frame (`AudioMasterClock.sampleTime(atMusicalSeconds:)`)
-    /// that a slice on this step also receives. The AU's `scheduleMIDIEventBlock`
-    /// takes an `AUEventSampleTime` on the AU's own render timeline; for an AU
-    /// hosted in AVAudioEngine that timeline is the engine render `sampleTime`
-    /// (one render clock drives every attached node), so the absolute render
-    /// frame the unified clock computes IS a valid `AUEventSampleTime` and
-    /// matches the slice exactly.
+    /// `noteOnSampleTime` is the absolute OUTPUT-node render frame the note-on
+    /// sounds on — the unified-clock frame
+    /// (`AudioMasterClock.sampleTime(atMusicalSeconds:)`) that a slice on this
+    /// step also receives. The AU's `scheduleMIDIEventBlock` takes an
+    /// `AUEventSampleTime` on the AU's OWN render timeline, which does NOT in
+    /// general share a base or rate with the output node (bug 20260630-143852:
+    /// an AU with a 44.1 kHz native format in a 48 kHz engine counts its own
+    /// frames at 44.1 k — the raw output frame sat ~10 s in the AU's future
+    /// after a warm session, silencing the whole first transport run). The host
+    /// translates the stamp onto the AU timeline at dispatch via
+    /// `auTimelineNoteOnFrame` (see its doc), so the note still lands on the
+    /// same INSTANT as the matching slice.
     ///
     /// When `noteOnSampleTime` is nil (no render origin yet, or sample-time
     /// scheduling unavailable on the AU), falls back to immediate scheduling
@@ -696,43 +703,76 @@ final class AudioInstrumentHost: TrackPlaybackSink {
                 return
             }
 
-            // Past-frame floor (defect D4): the unified-clock note-on frame is an
-            // absolute OUTPUT-node render frame; the AU honours an
-            // `AUEventSampleTime` on its OWN render timeline. For an AU hosted in
-            // AVAudioEngine one render clock drives every attached node, so the
-            // output frame and the AU render frame share a base — BUT origin/now
-            // skew (a stamp computed against an origin captured slightly before
-            // the AU's live render position, or a late pump wake) can yield a
-            // frame already in the AU's past. Handing the AU a past frame is
-            // undefined/dropped, so we clamp the note-on to immediate while
-            // keeping a real future note-off. The AU's current render frame is
-            // read from its `lastRenderTime` (nil before the first render → no
-            // floor).
+            // AU-TIMELINE TRANSLATION (bug 20260630-143852 — first-run AU
+            // silence, resolved 2026-07-02): the unified-clock note-on frame is
+            // an absolute OUTPUT-node render frame, but the AU honours an
+            // `AUEventSampleTime` on its OWN render timeline — and the two are
+            // NOT the same timebase. The former "HUMAN ACOUSTIC RISK" comment
+            // here assumed render-clock base equality; the 2026-07-02 user
+            // session disproved it: the AU node (Arturia Jun-6 V, native
+            // 44.1 kHz output format behind a converter) advanced its render
+            // counter at 44,100 f/s while the output node ran at 48,000 f/s, so
+            // after ~112 s of warm session the output-frame stamp sat ~441,000
+            // frames (~10 s) in the AU's FUTURE. Every first-run note was
+            // scheduled but inaudible until the AU's own counter caught up —
+            // right around the user's transport Stop. The fix: translate the
+            // stamp through the two "now" values read at dispatch:
+            //   auFrame = auNow + (stampOutputFrame − outputNow) · auRate/outRate
+            // When the two timelines genuinely coincide (same rate, same base)
+            // the translation is the identity, so the offline zero-flam gate's
+            // number-equality is preserved; in general the invariant is "same
+            // INSTANT", which this translation is what realizes.
             //
-            // HUMAN ACOUSTIC RISK (not machine-verifiable here): that the
-            // output-node render frame and the AU's internal render frame are the
-            // SAME absolute frame (render-clock base equality) is an Apple
-            // AVAudioEngine property we rely on but cannot assert offline — it is
-            // the documented human acoustic check (a real AU on the device).
-            let currentRenderFrame = instrument.lastRenderTime?.sampleTime
+            // Past-frame floor (defect D4) is unchanged and now genuinely
+            // well-founded: after translation both the stamp and the floor are
+            // AU-timeline frames. A stamp already in the AU's past (origin/now
+            // skew, late pump wake) is clamped to immediate with a real future
+            // note-off. `lastRenderTime` is nil / not-yet-valid before the AU's
+            // first render → no floor and no translation base → immediate
+            // fallback (same cold behaviour as before).
+            let auRenderTime = instrument.lastRenderTime
+            let currentRenderFrame: AVAudioFramePosition? =
+                (auRenderTime?.isSampleTimeValid == true) ? auRenderTime?.sampleTime : nil
+            let auSampleRate: Double = {
+                if let auRenderTime, auRenderTime.sampleRate > 0 {
+                    return auRenderTime.sampleRate
+                }
+                let formatRate = instrument.outputFormat(forBus: 0).sampleRate
+                return formatRate > 0 ? formatRate : sampleRate
+            }()
+            // Both "now" values are read here, at dispatch, as close together as
+            // the API allows; residual sub-quantum skew between the two last
+            // render stamps is caught by the D4 floor.
+            let auTimelineNoteOn: AVAudioFramePosition?
+            if let noteOnSampleTime,
+               let currentRenderFrame,
+               let outputNow = self.audioGraph.renderPosition,
+               outputNow.sampleRate > 0
+            {
+                auTimelineNoteOn = Self.auTimelineNoteOnFrame(
+                    outputFrame: noteOnSampleTime,
+                    outputNowFrame: outputNow.sampleTime,
+                    outputSampleRate: outputNow.sampleRate,
+                    auNowFrame: currentRenderFrame,
+                    auSampleRate: auSampleRate
+                )
+            } else {
+                // No stamp, no AU render base, or no output render position yet:
+                // fall back to immediate scheduling (still off-main via the MIDI
+                // block), exactly as the pre-translation cold path did.
+                auTimelineNoteOn = nil
+            }
             var firstScheduledPitch: UInt8?
             var firstScheduledOn: AUEventSampleTime?
             var firstScheduledOff: AUEventSampleTime?
             var gateCount = 0
             for event in noteEvents where event.gate {
-                // A render-frame stamp is only meaningful once this AU has
-                // produced a render frame. On a cold first transport start the
-                // engine can compute frame 0/12000/etc before the AU's
-                // `lastRenderTime` exists; handing those absolute frames to the
-                // AU is interpreted as a stale timeline and can be dropped. Use
-                // the immediate fallback until the AU render timeline is live.
-                let effectiveNoteOnSampleTime = currentRenderFrame == nil ? nil : noteOnSampleTime
                 let stamps = Self.noteStamps(
-                    noteOnSampleTime: effectiveNoteOnSampleTime,
+                    noteOnSampleTime: auTimelineNoteOn,
                     length: event.length,
                     bpm: bpm,
                     stepsPerBar: stepsPerBar,
-                    sampleRate: sampleRate,
+                    sampleRate: auSampleRate,
                     currentRenderFrame: currentRenderFrame
                 )
                 gateCount += 1
@@ -1183,17 +1223,60 @@ final class AudioInstrumentHost: TrackPlaybackSink {
         let noteOff: AUEventSampleTime
     }
 
+    /// PURE timeline translation (bug 20260630-143852). Maps an absolute
+    /// OUTPUT-node render frame onto THIS AU node's OWN render timeline.
+    ///
+    /// `scheduleMIDIEventBlock` interprets an `AUEventSampleTime` on the AU's
+    /// internal render timeline, which is NOT guaranteed to share a base or a
+    /// rate with the output node's timeline: an AU whose output format differs
+    /// from the engine rate renders behind a converter and counts frames at its
+    /// OWN sample rate (measured 2026-07-02: AU at 44,100 f/s vs output at
+    /// 48,000 f/s — stamps drifted ~3,900 frames/s into the AU's future, ~10 s
+    /// after a ~112 s warm session; first transport run silent, notes fired
+    /// after Stop when the AU counter caught up).
+    ///
+    /// The translation anchors on the two "now" values read at dispatch (the
+    /// output node's render position and the AU's `lastRenderTime`), which
+    /// describe the same wall-clock instant on the two timelines:
+    ///
+    ///     auFrame = auNow + (outputFrame − outputNow) × auRate / outputRate
+    ///
+    /// Identity property: when the two timelines truly coincide (equal rates
+    /// AND equal counters — the assumption the old code baked in), this returns
+    /// `outputFrame` unchanged, so environments where the old behaviour was
+    /// correct are bit-identical. The zero-flam invariant is therefore "same
+    /// INSTANT as the matching sample stamp", realized by this translation; it
+    /// is numeric equality only in the coinciding-timeline special case.
+    static func auTimelineNoteOnFrame(
+        outputFrame: AVAudioFramePosition,
+        outputNowFrame: AVAudioFramePosition,
+        outputSampleRate: Double,
+        auNowFrame: AVAudioFramePosition,
+        auSampleRate: Double
+    ) -> AVAudioFramePosition {
+        guard outputSampleRate > 0, auSampleRate > 0 else {
+            return outputFrame
+        }
+        let deltaSeconds = Double(outputFrame - outputNowFrame) / outputSampleRate
+        return auNowFrame + AVAudioFramePosition((deltaSeconds * auSampleRate).rounded())
+    }
+
     /// PURE stamp math (Audio Engine Hard Rule 3 / Phase 1 zero-flam gate). No
     /// AU instance, no engine, no clock — fully unit-testable.
     ///
-    /// Given the note-on absolute render frame (`noteOnSampleTime`, the SAME
-    /// unified-clock frame `AudioMasterClock.sampleTime(atMusicalSeconds:)`
-    /// hands a slice on this step) and the per-note gate length, returns the
+    /// Given the note-on absolute render frame (`noteOnSampleTime`, expressed
+    /// ON THE AU'S OWN RENDER TIMELINE — the live path derives it from the
+    /// unified-clock frame `AudioMasterClock.sampleTime(atMusicalSeconds:)` via
+    /// `auTimelineNoteOnFrame`; when the AU and output timelines coincide the
+    /// two are numerically equal) and the per-note gate length, returns the
     /// note-on and note-off `AUEventSampleTime`s on the AU render timeline.
+    /// `sampleRate` must likewise be the AU render timeline's rate so the gate
+    /// length spans the intended wall-clock duration.
     ///
     /// Zero-flam invariant: `noteStamps(noteOnSampleTime: F, ...).noteOn == F`.
-    /// So the AU note-on lands on the EXACT frame the matching slice does — the
-    /// stamp-level zero-flam assertion (the acoustic level is the human's).
+    /// So the AU note-on lands on the EXACT frame requested — the same INSTANT
+    /// as the matching slice (the stamp-level zero-flam assertion; the acoustic
+    /// level is the human's).
     ///
     /// Gate length in frames = `length` steps × frames-per-step, where
     /// frames-per-step = `secondsPerStep(bpm,stepsPerBar) × sampleRate`. The

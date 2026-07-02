@@ -383,7 +383,11 @@ final class EngineController: RouterDispatcher {
     @ObservationIgnored
     private var pendingTransportStartWorkItem: DispatchWorkItem?
     @ObservationIgnored
-    private var deferredTransportStartAttempt = 0
+    /// Deferred transport-start retry bookkeeping. `private(set)` so the
+    /// deferral regression tests can assert an aborted (deferred) start left
+    /// only this counter behind — no origin capture, no prepared tick, no
+    /// queued events, no running clock.
+    private(set) var deferredTransportStartAttempt = 0
     private(set) var currentBPM: Double
     /// Global transport swing amount (0…1) — delays off-beat (odd-index) 16th
     /// steps by up to `AudioMasterClock.swingMaxStepFraction` of a step.
@@ -1237,20 +1241,26 @@ final class EngineController: RouterDispatcher {
         firstEventOriginWasRenderDerived = nil
         transportStoppedSuppressingTicks = false
         advanceTransportGeneration()
-        // Round-2 P3 — REAL early dispatch, NOT an origin delay. The captured
-        // origin anchors musical second 0 to the transport-start render position
-        // (Rule 1) with NO lead added, so first-play absolute latency stays at the
-        // grid (Gate-1 ≤ 10 ms). Round-1 shifted this origin forward by
-        // `lookAheadLeadSeconds`, which paid the lead as ~100 ms of absolute
-        // first-play latency and defeated the Gate-1 criterion. The look-ahead lead
-        // is instead realised on the LIVE dispatch path: `dispatchTick` routes each
-        // sample/AU event's stamp through `leadStampedAudioTime(forMusicalSeconds:
-        // dispatchNow:)`, which hands the scheduler the event's true (unshifted)
-        // future frame while the pump dispatches it `lookAheadLeadSeconds` ahead of
-        // its musical due time — so `effectivePlaybackTime` never sees a past-due
-        // `when` (no origin move required).
+        // G2-approved startup anchor (owner-locked 50 ms anchor / 60 ms rail
+        // cap, 2026-07-02): musical second 0 is anchored a fixed
+        // `AudioMasterClock.startupAnchorLeadSeconds` AFTER the transport-start
+        // render position (Rule 1 — still purely render-derived), so step 0's
+        // due stamp is born 50 ms ahead of the render position: schedulable
+        // sample-accurately (visibility ~23 ms + cold dispatch ~20 ms < 50 ms)
+        // and landing ON the grid like every other step. This is NOT the
+        // rejected round-1 origin delay: the look-ahead lead
+        // (`lookAheadLeadSeconds`, 100 ms) is still realised on the LIVE
+        // dispatch path (`dispatchTick` → `leadStampedAudioTime`, dispatching
+        // each event ~lead ahead of its musical due time) and must NEVER be
+        // paid as an origin shift — the amended rails pin the anchor ≤ 60 ms
+        // and the lead > 60 ms so the two cannot be confused. The legacy
+        // `leadSeconds` parameter stays at its default zero.
         // realtime-allow-sanctioned-clock: pre-render host-time origin fallback handed to AudioMasterClock — THE one sanctioned site that may anchor host time for musical timing; it is upgraded to the render-derived origin on first render (Rule 1, AudioMasterClock.captureOrigin/refreshOriginIfAvailable). Test: OfflineFrameAccuracyTests.
-        audioMasterClock.captureOrigin(fallbackHostSeconds: ProcessInfo.processInfo.systemUptime)
+        let preRenderFallbackHostSeconds = ProcessInfo.processInfo.systemUptime
+        audioMasterClock.captureOrigin(
+            fallbackHostSeconds: preRenderFallbackHostSeconds,
+            startupAnchorLeadSeconds: AudioMasterClock.startupAnchorLeadSeconds
+        )
         // Transport start runs on the MAIN thread (SwiftUI transport action). The
         // cold-boundary precompute for bar 0 was only just requested onto the
         // `.userInitiated` background queue, so a non-zero boundary wait here would
@@ -1268,7 +1278,22 @@ final class EngineController: RouterDispatcher {
         tickState.markPreparedTick(0)
         nextLivePumpStep = 0
         isRunning = true
-        clock.start(lookAheadLeadSeconds: lookAheadLeadSeconds) { [weak self] tickIndex, now in
+        // Wake-phase compensation for the startup anchor: TickClock's wake grid
+        // is anchored at THIS wall-clock instant, while every musical due time
+        // now sits `startupAnchorLeadSeconds` later (the anchored origin). To
+        // keep the steady-state geometry "wake ≈ due − lookAheadLeadSeconds"
+        // (the invariant the dispatch horizon `lead + skew slack` is sized
+        // for), the wake grid advances by only (lead − anchor) relative to the
+        // step grid: (lead − anchor) of wake phase + anchor of origin shift
+        // = the full lead ahead of each due time. Passing the raw lead here
+        // would make every wake measure the next step (anchor − slack) beyond
+        // its horizon, slipping dispatch a full wake later — past due at slow
+        // tempos (step > lead − anchor + skew), i.e. the immediate-clamp flam.
+        // The anchor is strictly below the rail cap (0.060) and the lead is
+        // pinned above it, so this difference is always positive.
+        clock.start(
+            lookAheadLeadSeconds: lookAheadLeadSeconds - AudioMasterClock.startupAnchorLeadSeconds
+        ) { [weak self] tickIndex, now in
             self?.processLiveLookAheadPump(pumpIndex: tickIndex, now: now)
         }
     }
@@ -1360,13 +1385,21 @@ final class EngineController: RouterDispatcher {
         // Offline / manual-driver path: capture the render origin (offline this
         // is the deterministic manualRenderingSampleTime, typically 0) so the
         // harness sees exact musical-second → frame stamps. `now` is the
-        // synthetic host-time fallback before first render.
+        // synthetic host-time fallback before first render. Mirrors the
+        // production start's G2 startup anchor so tests drive the same origin
+        // shape production runs (harnesses needing exact 0-origin stamps —
+        // the offline frame-accuracy gate — never call this: they drive
+        // `processTick` directly and the clock self-establishes an unanchored
+        // render origin).
         // Phase-1: re-arm the render-derived-origin recorder for this fresh
         // start and lift any post-stop in-flight-tick suppression.
         firstEventOriginWasRenderDerived = nil
         transportStoppedSuppressingTicks = false
         advanceTransportGeneration()
-        audioMasterClock.captureOrigin(fallbackHostSeconds: now)
+        audioMasterClock.captureOrigin(
+            fallbackHostSeconds: now,
+            startupAnchorLeadSeconds: AudioMasterClock.startupAnchorLeadSeconds
+        )
         prepareTick(upcomingStep: 0, now: now)
         promotePreparedNoteRepeatCapture(for: 0)
         tickState.markPreparedTick(0)
@@ -3040,22 +3073,24 @@ final class EngineController: RouterDispatcher {
         // installed) so the frozen rail can machine-verify the live invocation.
         let dispatchLead = lookAheadLeadSeconds
 
-        // Step-0 first-hit scheduling floor (2026-07-02 rig outlier, +34.6 ms):
-        // step 0's due time IS the transport-start origin, so its stamp is
-        // knife-edge — inside the schedule-visibility horizon — and the player
-        // joins a later render cycle "as soon as possible" (~3 quanta late,
-        // non-deterministic). Lift any already-past-due stamp to the earliest
-        // reliably-schedulable time (`max(due, renderNow + floor)`), computed
-        // ONCE per dispatch pass so every event on the step — sample AND AU —
-        // receives the IDENTICAL lift (no intra-step flam, same cold/scheduled
-        // decision as the `hasRenderOriginThisTick` latch). Steady-state events
-        // are dispatched ~lookAheadLeadSeconds ahead of due, far beyond the
-        // floor, so `max` is the identity for them. The master-clock ORIGIN is
-        // NOT moved (musical second 0 stays at the transport-start render
-        // position — the frozen origin rails measure exactly that); only an
-        // unschedulable EVENT STAMP is lifted. Live-transport only: the offline
-        // deterministic harnesses (override seam installed and/or no transport
-        // start) keep exact musical-position stamps for the 0-frame gate.
+        // LAST-RESORT scheduling floor. Since the G2 startup anchor
+        // (`AudioMasterClock.startupAnchorLeadSeconds`), step 0's due stamp is
+        // born 50 ms ahead of the start render position, so on a NORMAL start
+        // NOTHING is past due and this floor must not fire (firing would lift
+        // step 0 a couple of ms off the grid). It remains only as a rescue for
+        // a pathologically late dispatch (cold dispatch delay > anchor − floor,
+        // i.e. > 25 ms — beyond the measured 12–23 ms normal range): lift the
+        // already-past-due stamp to the earliest reliably-schedulable time
+        // (`max(due, renderNow + floor)`), computed ONCE per dispatch pass so
+        // every event on the step — sample AND AU — receives the IDENTICAL
+        // lift (no intra-step flam, same cold/scheduled decision as the
+        // `hasRenderOriginThisTick` latch). Steady-state events are dispatched
+        // ~lookAheadLeadSeconds ahead of due, far beyond the floor, so `max`
+        // is the identity for them. The master-clock ORIGIN is not touched
+        // here; only an unschedulable EVENT STAMP is lifted. Live-transport
+        // only: the offline deterministic harnesses (override seam installed
+        // and/or no transport start) keep exact musical-position stamps for
+        // the 0-frame gate.
         let schedulingFloorMusicalSeconds: TimeInterval?
         if isRunning, hasRenderOriginThisTick, scheduledAudioTimeOverrideForTesting == nil, !events.isEmpty {
             schedulingFloorMusicalSeconds = audioMasterClock.liveDispatchSchedulingFloorMusicalSeconds()
