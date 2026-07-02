@@ -84,6 +84,11 @@ struct StudioRotaryKnob: View {
 
     /// The effective hit circle never drops below the platform minimum even
     /// when the drawn knob is smaller (mixer send knobs run down to 26pt).
+    /// Spec decision: 44pt absolute floor. In dense rows the inflated circles
+    /// of neighbouring knobs can overlap; clicks resolve deterministically to
+    /// the topmost sibling (SwiftUI hit-testing), and scroll-wheel input is
+    /// arbitrated to the NEAREST knob center by `StudioKnobScrollRouter`, so
+    /// the overlap never silently edits a farther knob.
     private var hitDiameter: CGFloat {
         max(size, StudioMetrics.ControlSize.minimumHitTarget)
     }
@@ -180,95 +185,142 @@ struct StudioRotaryKnob: View {
 
 /// Invisible AppKit shim that feeds scroll-wheel events to a knob. SwiftUI
 /// has no scroll-event gesture for arbitrary views at this deployment target,
-/// so — like `StepGridMouseDownProbe` — it installs a local NSEvent monitor
-/// and hit-tests the pointer against its own (circular) bounds. Unlike the
-/// diagnostic probes it CONSUMES the event when the pointer is over the knob,
-/// so turning a knob never also scrolls an enclosing ScrollView.
+/// so each mounted knob registers its (circular) hit region with the single
+/// shared `StudioKnobScrollRouter`, which owns the ONE app-wide local NSEvent
+/// monitor. Unlike the diagnostic probes (`StepGridMouseDownProbe`) the router
+/// CONSUMES the event when the pointer is over a knob, so turning a knob never
+/// also scrolls an enclosing ScrollView.
 private struct StudioKnobScrollCatcher: NSViewRepresentable {
     let onScrollTravel: (Double) -> Void
 
-    func makeCoordinator() -> Coordinator {
-        Coordinator(onScrollTravel: onScrollTravel)
-    }
-
     func makeNSView(context: Context) -> ProbeView {
         let view = ProbeView()
-        context.coordinator.view = view
-        context.coordinator.onScrollTravel = onScrollTravel
-        context.coordinator.installMonitor()
+        StudioKnobScrollRouter.shared.register(view, onScrollTravel: onScrollTravel)
         return view
     }
 
     func updateNSView(_ nsView: ProbeView, context: Context) {
-        context.coordinator.view = nsView
-        context.coordinator.onScrollTravel = onScrollTravel
-        context.coordinator.installMonitor()
+        // Re-register so the router holds the freshest callback for this view.
+        StudioKnobScrollRouter.shared.register(nsView, onScrollTravel: onScrollTravel)
     }
 
-    static func dismantleNSView(_ nsView: ProbeView, coordinator: Coordinator) {
-        _ = nsView
-        coordinator.removeMonitor()
+    static func dismantleNSView(_ nsView: ProbeView, coordinator: ()) {
+        StudioKnobScrollRouter.shared.unregister(nsView)
     }
 
     final class ProbeView: NSView {
         override func hitTest(_ point: NSPoint) -> NSView? {
-            _ = point
-            return nil
+            nil
+        }
+    }
+}
+
+/// The single shared scroll-wheel router behind every `StudioRotaryKnob`:
+/// one local NSEvent monitor total (installed while any knob is mounted, torn
+/// down when the last unmounts), with all mounted knobs registered as hit
+/// regions. Compared with the earlier per-knob monitors this fixes three
+/// defects at once:
+///
+/// - **Visibility/clipping**: a knob whose hit circle is hidden
+///   (`isHiddenOrHasHiddenAncestor`) or scrolled outside its enclosing
+///   NSScrollView viewport (`visibleRect` no longer contains the pointer)
+///   does not own wheel input, so scrolling over whatever is visibly there
+///   can never silently edit an off-screen knob.
+/// - **Overlap arbitration**: dense rows (mixer send clusters) draw knobs
+///   whose ≥44pt inflated hit circles overlap; the router resolves a scroll
+///   in the overlap to the knob whose center is NEAREST the pointer, instead
+///   of whichever monitor happened to be installed first.
+/// - **Scale**: one hit-test pass per scroll event regardless of how many
+///   knobs are visible, instead of chaining one monitor per knob.
+///
+/// Known limit (shared with the previous shape): a knob covered by a
+/// same-window SwiftUI overlay draws into the same NSHostingView, so AppKit
+/// offers no occlusion query for it; sheets/popovers are separate windows and
+/// are excluded by the window identity check.
+private final class StudioKnobScrollRouter {
+    static let shared = StudioKnobScrollRouter()
+
+    private struct Registration {
+        weak var view: NSView?
+        let onScrollTravel: (Double) -> Void
+    }
+
+    private var registrations: [ObjectIdentifier: Registration] = [:]
+    private var monitor: Any?
+
+    func register(_ view: NSView, onScrollTravel: @escaping (Double) -> Void) {
+        registrations[ObjectIdentifier(view)] = Registration(view: view, onScrollTravel: onScrollTravel)
+        installMonitorIfNeeded()
+    }
+
+    func unregister(_ view: NSView) {
+        registrations.removeValue(forKey: ObjectIdentifier(view))
+        if registrations.isEmpty {
+            removeMonitor()
         }
     }
 
-    final class Coordinator {
-        var onScrollTravel: (Double) -> Void
-        weak var view: ProbeView?
-        private var monitor: Any?
-
-        init(onScrollTravel: @escaping (Double) -> Void) {
-            self.onScrollTravel = onScrollTravel
+    private func installMonitorIfNeeded() {
+        guard monitor == nil else { return }
+        monitor = NSEvent.addLocalMonitorForEvents(matching: [.scrollWheel]) { [weak self] event in
+            guard let self else { return event }
+            return self.route(event)
         }
+    }
 
-        deinit {
-            removeMonitor()
+    private func removeMonitor() {
+        if let monitor {
+            NSEvent.removeMonitor(monitor)
+            self.monitor = nil
         }
+    }
 
-        func installMonitor() {
-            guard monitor == nil else { return }
-            monitor = NSEvent.addLocalMonitorForEvents(matching: [.scrollWheel]) { [weak self] event in
-                guard let self,
-                      let view,
-                      view.window != nil,
-                      event.window === view.window
-                else {
-                    return event
-                }
+    /// Returns nil (consuming the event) when a visible knob owns the pointer,
+    /// or the event unchanged so it scrolls the page as normal.
+    private func route(_ event: NSEvent) -> NSEvent? {
+        guard let eventWindow = event.window else { return event }
 
-                let point = view.convert(event.locationInWindow, from: nil)
-                let center = CGPoint(x: view.bounds.midX, y: view.bounds.midY)
-                let radius = min(view.bounds.width, view.bounds.height) / 2
-                guard hypot(point.x - center.x, point.y - center.y) <= radius else {
-                    return event
-                }
+        var best: (onScrollTravel: (Double) -> Void, distance: CGFloat)?
+        for (key, registration) in registrations {
+            guard let view = registration.view else {
+                // A dismantle can be skipped when a whole hierarchy is torn
+                // down at once; prune dead entries opportunistically.
+                registrations.removeValue(forKey: key)
+                continue
+            }
+            guard let window = view.window, window === eventWindow else { continue }
+            guard !view.isHiddenOrHasHiddenAncestor else { continue }
 
-                // Momentum tail after a trackpad flick is consumed (so the
-                // page doesn't lurch) but doesn't keep turning the knob.
-                if event.momentumPhase == [] {
-                    let travel = StudioDrag.scrollTravel(
-                        deltaY: event.scrollingDeltaY,
-                        hasPreciseDeltas: event.hasPreciseScrollingDeltas
-                    )
-                    if travel != 0 {
-                        onScrollTravel(travel)
-                    }
-                }
+            let point = view.convert(event.locationInWindow, from: nil)
+            // A knob scrolled outside its ScrollView viewport keeps its window
+            // geometry but loses its visibleRect — it must not eat the wheel
+            // input of whatever is visibly at that position.
+            guard view.visibleRect.contains(point) else { continue }
 
-                return nil
+            let center = CGPoint(x: view.bounds.midX, y: view.bounds.midY)
+            let radius = min(view.bounds.width, view.bounds.height) / 2
+            let distance = hypot(point.x - center.x, point.y - center.y)
+            guard distance <= radius else { continue }
+
+            if best == nil || distance < best!.distance {
+                best = (registration.onScrollTravel, distance)
             }
         }
 
-        func removeMonitor() {
-            if let monitor {
-                NSEvent.removeMonitor(monitor)
-                self.monitor = nil
+        guard let best else { return event }
+
+        // Momentum tail after a trackpad flick is consumed (so the page
+        // doesn't lurch) but doesn't keep turning the knob.
+        if event.momentumPhase == [] {
+            let travel = StudioDrag.scrollTravel(
+                deltaY: event.scrollingDeltaY,
+                hasPreciseDeltas: event.hasPreciseScrollingDeltas
+            )
+            if travel != 0 {
+                best.onScrollTravel(travel)
             }
         }
+
+        return nil
     }
 }
