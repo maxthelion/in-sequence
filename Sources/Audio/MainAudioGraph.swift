@@ -351,8 +351,43 @@ final class MainAudioGraph {
 
     deinit {
         channelMeterBank.stopPublishing()
-        performOnMain {
-            self.removeMasterMeterTapIfNeeded()
+        // TEARDOWN MUST NEVER BLOCK (bug 20260702-140500). Deinit runs on
+        // whatever thread drops the last strong reference — sampled in the
+        // wild on CoreAudio's `RealtimeMessenger.mServiceQueue` itself, when
+        // the master meter tap callback's `guard let self` upgrade turned out
+        // to be the final reference. That thread performs pending tap messages
+        // while HOLDING the messenger's recursive mutex, so the old
+        // `performOnMain { removeMasterMeterTapIfNeeded() }` (a synchronous
+        // main hop) deadlocked against any OTHER graph deinit already on main
+        // inside `removeTapOnBus` → `_PerformPendingMessages()` waiting for
+        // that same mutex — a cross-graph ABBA deadlock that wedged the whole
+        // process (the long-standing ~990 s test-host stalls).
+        //
+        // So: silence the tap callbacks immediately (the closures check the
+        // generation before touching the publishers), then hand the actual
+        // `removeTap` calls to main ASYNCHRONOUSLY. The closure captures keep
+        // the engine and tapped nodes alive until the removal has run, and
+        // the deallocating thread never waits on anyone.
+        masterMeterTapGeneration.increment()
+        channelMeterTapGeneration.increment()
+        let engine = self.engine
+        let masterTapNode = isMasterMeterTapInstalled ? finalOutputMixer : nil
+        let channelTapNodes = Array(channelMeterTappedNodes.values)
+        guard masterTapNode != nil || !channelTapNodes.isEmpty else { return }
+        // realtime-allow-main-async: graph deinit teardown control path (never tick dispatch); a SYNC hop here deadlocked against the RealtimeMessenger service queue. Test: MainAudioGraphTests.
+        DispatchQueue.main.async {
+            if let masterTapNode {
+                masterTapNode.removeTap(onBus: 0)
+            }
+            for node in channelTapNodes {
+                _ = SEQRunCatchingObjCException {
+                    node.removeTap(onBus: 0)
+                }
+            }
+            // Keep the engine alive until its taps are gone: removing a tap
+            // from a node whose engine already deallocated is the other half
+            // of this hang class.
+            _ = engine
         }
     }
 

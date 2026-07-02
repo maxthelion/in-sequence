@@ -505,6 +505,43 @@ final class MainAudioGraphTests: XCTestCase {
         XCTAssertEqual(publisher.displayState.leftPeakDBFS, MasterMeterPublisher.dbFS(amplitude: 1.4), accuracy: 0.0001)
         XCTAssertEqual(publisher.displayState.rightPeakDBFS, MasterMeterPublisher.dbFS(amplitude: 0.25), accuracy: 0.0001)
     }
+
+    // MARK: - Deinit teardown liveness (bug 20260702-140500)
+
+    private final class GraphBox: @unchecked Sendable {
+        var graph: MainAudioGraph?
+        init(_ graph: MainAudioGraph) { self.graph = graph }
+    }
+
+    /// Bug 20260702-140500: `MainAudioGraph.deinit` used to remove the master
+    /// meter tap through `performOnMain` — a SYNCHRONOUS main hop. Deinit runs
+    /// on whatever thread drops the last strong reference; sampled in the wild
+    /// that thread was CoreAudio's `RealtimeMessenger.mServiceQueue` (the tap
+    /// callback's `guard let self` upgrade was the final reference), which was
+    /// holding the messenger's recursive mutex mid-perform. The sync hop to
+    /// main deadlocked against ANOTHER graph's deinit already on main inside
+    /// `removeTapOnBus` → `_PerformPendingMessages()` waiting for that same
+    /// mutex — wedging the whole test host (the ~990 s full-suite stalls).
+    ///
+    /// This pins the invariant deterministically: dropping the last reference
+    /// off-main must complete WITHOUT the main thread servicing its queue.
+    func test_deinit_offMainThread_completesWithoutSynchronousMainHop() {
+        let box = GraphBox(MainAudioGraph(engine: AVAudioEngine()))
+        let released = DispatchSemaphore(value: 0)
+        DispatchQueue(label: "test.mainaudiograph.deinit.offmain").async {
+            box.graph = nil
+            released.signal()
+        }
+        // Deliberately block the test's main thread WITHOUT running the run
+        // loop: if deinit needs a synchronous main-queue hop, this times out.
+        XCTAssertEqual(
+            released.wait(timeout: .now() + 5), .success,
+            "MainAudioGraph.deinit must never synchronously wait on the main thread"
+        )
+        // Drain the deferred (async-to-main) tap teardown so it cannot leak
+        // into the next test.
+        RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+    }
 }
 
 final class MasterMeterPublisherTests: XCTestCase {
