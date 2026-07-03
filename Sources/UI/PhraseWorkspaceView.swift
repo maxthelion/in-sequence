@@ -330,7 +330,12 @@ struct PhraseWorkspaceView: View {
         Button {
             session.workspaceMode = session.workspaceMode == .perform ? .setup : .perform
         } label: {
+            // fixedSize: the shell HStack squeezed this control into a sliver
+            // at the well's right edge, deforming the label into a vertical
+            // letter stack (Rule 7, design review 08–11). The pill keeps its
+            // natural width; flexible siblings compress instead.
             Text(session.workspaceMode == .perform ? "Perform On" : "Perform Off")
+                .fixedSize()
                 .studioText(.labelBold)
                 .foregroundStyle(session.workspaceMode == .perform ? StudioTheme.background : StudioTheme.text)
                 .padding(.horizontal, 12)
@@ -431,6 +436,7 @@ struct PhraseWorkspaceView: View {
                 isPresentingPhraseCapture = true
             } label: {
                 Text("Capture")
+                    .fixedSize()
                     .studioText(.labelBold)
                     .foregroundStyle(availability.canCapture ? StudioTheme.background : StudioTheme.mutedText)
                     .padding(.horizontal, 12)
@@ -450,6 +456,7 @@ struct PhraseWorkspaceView: View {
                 // small SOLID state elements (the Capture pill), never
                 // outlines (State-colour fence, design review 12/13/13a/13c).
                 Text("Discard")
+                    .fixedSize()
                     .studioText(.labelBold)
                     .foregroundStyle(availability.canDiscard ? StudioTheme.text : StudioTheme.mutedText)
                     .padding(.horizontal, 12)
