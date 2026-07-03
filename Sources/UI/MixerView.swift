@@ -61,8 +61,9 @@ struct MixerView<TrailingContent: View>: View {
 
         // Solo state never injects a banner above the strips — that shifts
         // every column down. The solo affordance lives in the master column
-        // header (fixed slot, no layout shift).
-        ScrollView(.horizontal, showsIndicators: true) {
+        // header (fixed slot, no layout shift). Stock scrollbar tracks are
+        // banned chrome (canon Rule 6, design review 04) — indicators hidden.
+        ScrollView(.horizontal, showsIndicators: false) {
             HStack(alignment: .top, spacing: MixerWorkspaceLayout.laneSpacing) {
                 ForEach(tracks, id: \.id) { track in
                     MixerChannelStrip(
@@ -637,6 +638,7 @@ struct MixerInsertChainView: View {
                 ScrollView {
                     insertRows
                 }
+                .scrollIndicators(.never)
                 .frame(maxHeight: 138)
             } else {
                 insertRows

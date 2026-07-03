@@ -18,6 +18,9 @@ struct WorkspaceDetailView: View {
                     .frame(height: 1)
                     .id("workspace-bottom")
             }
+            // Stock scrollbar tracks are banned chrome (canon Rule 6, design
+            // review 04/22d) — the workspace scroll hides its indicator.
+            .scrollIndicators(.never)
             .onReceive(NotificationCenter.default.publisher(for: .workspaceDetailVisualCommand)) { notification in
                 guard let command = notification.object as? String else { return }
                 switch command {

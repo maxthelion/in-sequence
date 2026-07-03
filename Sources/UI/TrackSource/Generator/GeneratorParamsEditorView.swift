@@ -142,18 +142,20 @@ struct GeneratorParamsEditorView: View {
 
     private var generatorHeader: some View {
         HStack(spacing: 10) {
-            Picker("Mode", selection: Binding(
-                get: { generator.kind },
-                set: { onSwitchKind?($0) }
-            )) {
-                ForEach(GeneratorKind.allCases.filter { $0.compatibleWith.contains(generator.trackType) }, id: \.self) { kind in
-                    Text(kind.label).tag(kind)
-                }
-            }
-            .labelsHidden()
-            .pickerStyle(.menu)
+            // Themed generator picker — the stock white native pop-up was a
+            // Rule 6 finding (design review 22e).
+            StudioMenuPicker(
+                title: nil,
+                selection: Binding(
+                    get: { generator.kind },
+                    set: { onSwitchKind?($0) }
+                ),
+                options: GeneratorKind.allCases
+                    .filter { $0.compatibleWith.contains(generator.trackType) }
+                    .map { StudioMenuPickerOption(label: $0.label, value: $0) },
+                help: "Switch generator mode without replacing this pattern source"
+            )
             .disabled(onSwitchKind == nil)
-            .help("Switch generator mode without replacing this pattern source")
 
             GeneratorHeaderChip(title: "FOLLOWING", value: followingChipValue, accent: StudioTheme.violet)
 
@@ -259,7 +261,8 @@ struct GeneratorParamsEditorView: View {
                 PitchAlgoEditor(
                     stage: pitch.pitchStage,
                     inputClipChoices: inputClipChoices,
-                    harmonicSidechainClipChoices: harmonicSidechainClipChoices
+                    harmonicSidechainClipChoices: harmonicSidechainClipChoices,
+                    accent: accent
                 ) { nextStage in
                     onUpdate(.mono(trigger: monoTriggerNode, pitch: .native(nextStage), shape: monoShape))
                 }
@@ -293,7 +296,8 @@ struct GeneratorParamsEditorView: View {
                     PitchAlgoEditor(
                         stage: pitches[laneIndex].pitchStage,
                         inputClipChoices: inputClipChoices,
-                        harmonicSidechainClipChoices: harmonicSidechainClipChoices
+                        harmonicSidechainClipChoices: harmonicSidechainClipChoices,
+                        accent: accent
                     ) { nextStage in
                         var nextPitches = pitches
                         nextPitches[laneIndex] = .native(nextStage)

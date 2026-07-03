@@ -1164,73 +1164,91 @@ private struct ClipRandomizeSettingsSheet: View {
         }
     }
 
+    // Continuous values are rotary knobs and value lists are themed menus —
+    // the naked system sliders, native pop-ups, and stock steppers here were
+    // Rule 6 findings (design review 20b/20c, prototype 12 grammar). One
+    // chrome accent (the track accent) across every ring.
     private var controls: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            SourceParameterSliderRow(
-                title: "Density",
-                value: settings.density * 100,
-                range: 0...100,
-                accent: accent
-            ) { value in
-                update { $0.density = value / 100 }
-            }
-
-            HStack(spacing: 12) {
-                Picker("Root", selection: Binding(
-                    get: { settings.rootPitchClass },
-                    set: { value in update { $0.rootPitchClass = value } }
-                )) {
-                    ForEach(0..<12, id: \.self) { pitchClass in
-                        Text(rootLabel(pitchClass)).tag(pitchClass)
-                    }
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(alignment: .top, spacing: 22) {
+                StudioRotaryKnob(
+                    title: "Density",
+                    value: settings.density * 100,
+                    range: 0...100,
+                    accent: accent,
+                    size: 56,
+                    format: { "\(Int($0.rounded()))%" }
+                ) { value in
+                    update { $0.density = value / 100 }
                 }
-                .pickerStyle(.menu)
 
-                Picker("Scale", selection: Binding(
-                    get: { settings.scaleID },
-                    set: { value in update { $0.scaleID = value } }
-                )) {
-                    ForEach(ScaleID.allCases, id: \.self) { scale in
-                        Text(scale.rawValue).tag(scale)
-                    }
+                StudioRotaryKnob(
+                    title: "Velocity",
+                    value: settings.velocityVariance * 100,
+                    range: 0...100,
+                    accent: accent,
+                    size: 56,
+                    format: { "\(Int($0.rounded()))%" }
+                ) { value in
+                    update { $0.velocityVariance = value / 100 }
                 }
-                .pickerStyle(.menu)
-            }
 
-            HStack(spacing: 14) {
-                SourceParameterStepperRow(
+                StudioRotaryKnob(
+                    title: "Gate",
+                    value: settings.gateVariance * 100,
+                    range: 0...100,
+                    accent: accent,
+                    size: 56,
+                    format: { "\(Int($0.rounded()))%" }
+                ) { value in
+                    update { $0.gateVariance = value / 100 }
+                }
+
+                StudioRotaryKnob(
                     title: "Octave",
-                    value: settings.octaveCenter,
-                    range: 0...9
+                    value: Double(settings.octaveCenter),
+                    range: 0...9,
+                    accent: accent,
+                    size: 56
                 ) { value in
-                    update { $0.octaveCenter = value }
+                    update { $0.octaveCenter = Int(value.rounded()) }
                 }
 
-                SourceParameterStepperRow(
+                StudioRotaryKnob(
                     title: "Span",
-                    value: settings.octaveSpan,
-                    range: 0...4
+                    value: Double(settings.octaveSpan),
+                    range: 0...4,
+                    accent: accent,
+                    size: 56
                 ) { value in
-                    update { $0.octaveSpan = value }
+                    update { $0.octaveSpan = Int(value.rounded()) }
                 }
+
+                Spacer(minLength: 0)
             }
 
-            SourceParameterSliderRow(
-                title: "Velocity",
-                value: settings.velocityVariance * 100,
-                range: 0...100,
-                accent: StudioTheme.amber
-            ) { value in
-                update { $0.velocityVariance = value / 100 }
-            }
+            HStack(alignment: .top, spacing: 14) {
+                StudioMenuPicker(
+                    title: "Root",
+                    selection: Binding(
+                        get: { settings.rootPitchClass },
+                        set: { value in update { $0.rootPitchClass = value } }
+                    ),
+                    options: (0..<12).map { StudioMenuPickerOption(label: rootLabel($0), value: $0) },
+                    help: "Root note"
+                )
 
-            SourceParameterSliderRow(
-                title: "Gate",
-                value: settings.gateVariance * 100,
-                range: 0...100,
-                accent: StudioTheme.violet
-            ) { value in
-                update { $0.gateVariance = value / 100 }
+                StudioMenuPicker(
+                    title: "Scale",
+                    selection: Binding(
+                        get: { settings.scaleID },
+                        set: { value in update { $0.scaleID = value } }
+                    ),
+                    options: ScaleID.allCases.map { StudioMenuPickerOption(label: $0.displayName, value: $0) },
+                    help: "Scale"
+                )
+
+                Spacer(minLength: 0)
             }
         }
     }
@@ -1297,13 +1315,15 @@ private struct ClipRandomizeSettingsSheet: View {
                 .studioText(.labelBold)
                 .foregroundStyle(StudioTheme.mutedText)
 
+            // Accent, not success-green: green is a fenced STATE colour
+            // (capturing/live) and never an action fill (design review 20b).
             Button(action: onBake) {
                 Text("Bake")
                     .studioText(.labelBold)
                     .foregroundStyle(StudioTheme.background)
                     .padding(.vertical, 9)
                     .padding(.horizontal, 14)
-                    .background(StudioTheme.success, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
+                    .background(accent, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
             }
             .buttonStyle(.plain)
         }

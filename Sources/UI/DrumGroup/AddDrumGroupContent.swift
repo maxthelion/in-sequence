@@ -96,12 +96,25 @@ struct AddDrumGroupContent: View {
                             .help("Pick a kit or add parts one by one")
                     }
 
+                    // Themed outline chip — the stock white-filled bordered
+                    // button was a Rule 6 finding (design review 02d).
                     Button {
                         appendBlankPart()
                     } label: {
-                        Label("Add part", systemImage: "plus")
+                        HStack(spacing: 6) {
+                            Image(systemName: "plus")
+                                .font(.system(size: 11, weight: .bold))
+                            Text("Add part")
+                                .studioText(.labelBold)
+                        }
+                        .foregroundStyle(StudioTheme.text)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 7)
+                        .background(Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
+                        .overlay(Capsule().stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth))
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(.plain)
+                    .help("Add a blank part")
                     .padding(.top, 4)
                 }
             }

@@ -4,6 +4,8 @@ struct PitchAlgoEditor: View {
     let stage: PitchStage
     let inputClipChoices: [ClipPoolEntry]
     let harmonicSidechainClipChoices: [ClipPoolEntry]
+    /// The one chrome accent of the hosting surface (track identity colour).
+    var accent: Color = StudioTheme.cyan
     let onChange: (PitchStage) -> Void
     @State private var manualPitchDraft = ""
 
@@ -11,40 +13,49 @@ struct PitchAlgoEditor: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Picker(
-                "Pitch Expander",
+            // Value selectors render through the studio grammar, never native
+            // white pop-ups/segments (canon Rule 6, design review 22e/22f).
+            StudioSegmentedControl(
+                title: "Pitch Expander",
                 selection: Binding(
                     get: { kind },
                     set: { onChange(PitchStage(algo: $0.defaultAlgo(clipChoices: inputClipChoices, current: stage.algo), harmonicSidechain: stage.harmonicSidechain)) }
-                )
-            ) {
-                ForEach(PitchAlgoKind.allCases) { kind in
-                    Text(kind.title).tag(kind)
-                }
-            }
-            .pickerStyle(.segmented)
+                ),
+                segments: PitchAlgoKind.allCases.map { kind in
+                    StudioSegment(title: kind.title, value: kind)
+                },
+                accent: accent,
+                layout: .init(fillsWidth: false, minWidth: 52)
+            )
 
-            Picker("Harmonic Sidechain", selection: Binding(
-                get: { HarmonicSidechainPickerChoice(stage.harmonicSidechain, clipChoices: harmonicSidechainClipChoices) },
-                set: { onChange(PitchStage(algo: stage.algo, harmonicSidechain: $0.value)) }
-            )) {
-                ForEach(HarmonicSidechainPickerChoice.choices(from: harmonicSidechainClipChoices)) { choice in
-                    Text(choice.title).tag(choice)
-                }
-            }
-            .pickerStyle(.menu)
+            StudioMenuPicker(
+                title: "Harmonic Sidechain",
+                selection: Binding(
+                    get: { HarmonicSidechainPickerChoice(stage.harmonicSidechain, clipChoices: harmonicSidechainClipChoices) },
+                    set: { onChange(PitchStage(algo: stage.algo, harmonicSidechain: $0.value)) }
+                ),
+                options: HarmonicSidechainPickerChoice.choices(from: harmonicSidechainClipChoices).map {
+                    StudioMenuPickerOption(label: $0.title, value: $0)
+                },
+                help: "Harmonic source the pitch stage follows"
+            )
 
             switch stage.algo {
             case let .manual(pitches, pickMode):
                 VStack(alignment: .leading, spacing: 12) {
-                    Picker("Pick Mode", selection: Binding(
-                        get: { pickMode },
-                        set: { onChange(PitchStage(algo: .manual(pitches: pitches, pickMode: $0), harmonicSidechain: stage.harmonicSidechain)) }
-                    )) {
-                        Text("Sequential").tag(PickMode.sequential)
-                        Text("Random").tag(PickMode.random)
-                    }
-                    .pickerStyle(.segmented)
+                    StudioSegmentedControl(
+                        title: "Pick Mode",
+                        selection: Binding(
+                            get: { pickMode },
+                            set: { onChange(PitchStage(algo: .manual(pitches: pitches, pickMode: $0), harmonicSidechain: stage.harmonicSidechain)) }
+                        ),
+                        segments: [
+                            StudioSegment(title: "Sequential", value: PickMode.sequential),
+                            StudioSegment(title: "Random", value: PickMode.random),
+                        ],
+                        accent: accent,
+                        layout: .init(fillsWidth: false, minWidth: 84)
+                    )
 
                     TextField("Comma-separated MIDI notes", text: Binding(
                         get: {
@@ -79,20 +90,12 @@ struct PitchAlgoEditor: View {
                             harmonicSidechain: stage.harmonicSidechain
                         ))
                     }
-                    Picker("Scale", selection: Binding(
-                        get: { scale },
-                        set: {
-                            onChange(PitchStage(
-                                algo: .pool(root: root, scale: $0, spread: spread, selection: normalizedSelection, deviation: normalizedDeviation),
-                                harmonicSidechain: stage.harmonicSidechain
-                            ))
-                        }
-                    )) {
-                        ForEach(ScaleID.allCases, id: \.self) { scale in
-                            Text(scale.rawValue).tag(scale)
-                        }
+                    scaleMenu(scale) {
+                        onChange(PitchStage(
+                            algo: .pool(root: root, scale: $0, spread: spread, selection: normalizedSelection, deviation: normalizedDeviation),
+                            harmonicSidechain: stage.harmonicSidechain
+                        ))
                     }
-                    .pickerStyle(.menu)
                     SourceParameterStepperRow(title: "Spread", value: spread, range: 0...36) {
                         onChange(PitchStage(
                             algo: .pool(root: root, scale: scale, spread: $0, selection: normalizedSelection, deviation: normalizedDeviation),
@@ -189,15 +192,9 @@ struct PitchAlgoEditor: View {
                     SourceParameterStepperRow(title: "Root", value: root, range: 0...127) {
                         onChange(PitchStage(algo: .randomInScale(root: $0, scale: scale, spread: spread), harmonicSidechain: stage.harmonicSidechain))
                     }
-                    Picker("Scale", selection: Binding(
-                        get: { scale },
-                        set: { onChange(PitchStage(algo: .randomInScale(root: root, scale: $0, spread: spread), harmonicSidechain: stage.harmonicSidechain)) }
-                    )) {
-                        ForEach(ScaleID.allCases, id: \.self) { scale in
-                            Text(scale.rawValue).tag(scale)
-                        }
+                    scaleMenu(scale) {
+                        onChange(PitchStage(algo: .randomInScale(root: root, scale: $0, spread: spread), harmonicSidechain: stage.harmonicSidechain))
                     }
-                    .pickerStyle(.menu)
                     SourceParameterStepperRow(title: "Spread", value: spread, range: 0...36) {
                         onChange(PitchStage(algo: .randomInScale(root: root, scale: scale, spread: $0), harmonicSidechain: stage.harmonicSidechain))
                     }
@@ -207,15 +204,15 @@ struct PitchAlgoEditor: View {
                     SourceParameterStepperRow(title: "Root", value: root, range: 0...127) {
                         onChange(PitchStage(algo: .randomInChord(root: $0, chord: chord, inverted: inverted, spread: spread), harmonicSidechain: stage.harmonicSidechain))
                     }
-                    Picker("Chord", selection: Binding(
-                        get: { chord },
-                        set: { onChange(PitchStage(algo: .randomInChord(root: root, chord: $0, inverted: inverted, spread: spread), harmonicSidechain: stage.harmonicSidechain)) }
-                    )) {
-                        ForEach(ChordID.allCases, id: \.self) { chord in
-                            Text(chord.rawValue).tag(chord)
-                        }
-                    }
-                    .pickerStyle(.menu)
+                    StudioMenuPicker(
+                        title: "Chord",
+                        selection: Binding(
+                            get: { chord },
+                            set: { onChange(PitchStage(algo: .randomInChord(root: root, chord: $0, inverted: inverted, spread: spread), harmonicSidechain: stage.harmonicSidechain)) }
+                        ),
+                        options: ChordID.allCases.map { StudioMenuPickerOption(label: $0.displayName, value: $0) },
+                        help: "Chord"
+                    )
                     Toggle("Inverted", isOn: Binding(
                         get: { inverted },
                         set: { onChange(PitchStage(algo: .randomInChord(root: root, chord: chord, inverted: $0, spread: spread), harmonicSidechain: stage.harmonicSidechain)) }
@@ -230,15 +227,9 @@ struct PitchAlgoEditor: View {
                     SourceParameterStepperRow(title: "Root", value: root, range: 0...127) {
                         onChange(PitchStage(algo: .intervalProb(root: $0, scale: scale, degreeWeights: degreeWeights), harmonicSidechain: stage.harmonicSidechain))
                     }
-                    Picker("Scale", selection: Binding(
-                        get: { scale },
-                        set: { onChange(PitchStage(algo: .intervalProb(root: root, scale: $0, degreeWeights: degreeWeights), harmonicSidechain: stage.harmonicSidechain)) }
-                    )) {
-                        ForEach(ScaleID.allCases, id: \.self) { scale in
-                            Text(scale.rawValue).tag(scale)
-                        }
+                    scaleMenu(scale) {
+                        onChange(PitchStage(algo: .intervalProb(root: root, scale: $0, degreeWeights: degreeWeights), harmonicSidechain: stage.harmonicSidechain))
                     }
-                    .pickerStyle(.menu)
                     GridEditor(values: degreeWeights, allowedValues: [0.0, 0.25, 0.5, 0.75, 1.0], accent: StudioTheme.violet) { next in
                         onChange(PitchStage(algo: .intervalProb(root: root, scale: scale, degreeWeights: next), harmonicSidechain: stage.harmonicSidechain))
                     }
@@ -248,24 +239,18 @@ struct PitchAlgoEditor: View {
                     SourceParameterStepperRow(title: "Root", value: root, range: 0...127) {
                         onChange(PitchStage(algo: .markov(root: $0, scale: scale, styleID: styleID, leap: leap, color: color), harmonicSidechain: stage.harmonicSidechain))
                     }
-                    Picker("Scale", selection: Binding(
-                        get: { scale },
-                        set: { onChange(PitchStage(algo: .markov(root: root, scale: $0, styleID: styleID, leap: leap, color: color), harmonicSidechain: stage.harmonicSidechain)) }
-                    )) {
-                        ForEach(ScaleID.allCases, id: \.self) { scale in
-                            Text(scale.rawValue).tag(scale)
-                        }
+                    scaleMenu(scale) {
+                        onChange(PitchStage(algo: .markov(root: root, scale: $0, styleID: styleID, leap: leap, color: color), harmonicSidechain: stage.harmonicSidechain))
                     }
-                    .pickerStyle(.menu)
-                    Picker("Style", selection: Binding(
-                        get: { styleID },
-                        set: { onChange(PitchStage(algo: .markov(root: root, scale: scale, styleID: $0, leap: leap, color: color), harmonicSidechain: stage.harmonicSidechain)) }
-                    )) {
-                        ForEach(StyleProfileID.allCases, id: \.self) { styleID in
-                            Text(styleID.rawValue).tag(styleID)
-                        }
-                    }
-                    .pickerStyle(.menu)
+                    StudioMenuPicker(
+                        title: "Style",
+                        selection: Binding(
+                            get: { styleID },
+                            set: { onChange(PitchStage(algo: .markov(root: root, scale: scale, styleID: $0, leap: leap, color: color), harmonicSidechain: stage.harmonicSidechain)) }
+                        ),
+                        options: StyleProfileID.allCases.map { StudioMenuPickerOption(label: $0.displayName, value: $0) },
+                        help: "Style profile"
+                    )
                     SourceParameterSliderRow(title: "Leap", value: leap * 100, range: 0...100, accent: StudioTheme.amber) {
                         onChange(PitchStage(algo: .markov(root: root, scale: scale, styleID: styleID, leap: $0 / 100, color: color), harmonicSidechain: stage.harmonicSidechain))
                     }
@@ -275,27 +260,32 @@ struct PitchAlgoEditor: View {
                 }
             case let .fromClipPitches(clipID, pickMode):
                 VStack(alignment: .leading, spacing: 12) {
-                    Picker("Clip", selection: Binding(
-                        get: { Optional(clipID) },
-                        set: { newValue in
-                            guard let newValue else { return }
-                            onChange(PitchStage(algo: .fromClipPitches(clipID: newValue, pickMode: pickMode), harmonicSidechain: stage.harmonicSidechain))
-                        }
-                    )) {
-                        ForEach(inputClipChoices) { clip in
-                            Text(clip.name).tag(Optional(clip.id))
-                        }
-                    }
-                    .pickerStyle(.menu)
+                    StudioMenuPicker(
+                        title: "Clip",
+                        selection: Binding(
+                            get: { Optional(clipID) },
+                            set: { newValue in
+                                guard let newValue else { return }
+                                onChange(PitchStage(algo: .fromClipPitches(clipID: newValue, pickMode: pickMode), harmonicSidechain: stage.harmonicSidechain))
+                            }
+                        ),
+                        options: inputClipChoices.map { StudioMenuPickerOption(label: $0.name, value: Optional($0.id)) },
+                        help: "Source clip for pitches"
+                    )
 
-                    Picker("Pick Mode", selection: Binding(
-                        get: { pickMode },
-                        set: { onChange(PitchStage(algo: .fromClipPitches(clipID: clipID, pickMode: $0), harmonicSidechain: stage.harmonicSidechain)) }
-                    )) {
-                        Text("Sequential").tag(PickMode.sequential)
-                        Text("Random").tag(PickMode.random)
-                    }
-                    .pickerStyle(.segmented)
+                    StudioSegmentedControl(
+                        title: "Pick Mode",
+                        selection: Binding(
+                            get: { pickMode },
+                            set: { onChange(PitchStage(algo: .fromClipPitches(clipID: clipID, pickMode: $0), harmonicSidechain: stage.harmonicSidechain)) }
+                        ),
+                        segments: [
+                            StudioSegment(title: "Sequential", value: PickMode.sequential),
+                            StudioSegment(title: "Random", value: PickMode.random),
+                        ],
+                        accent: accent,
+                        layout: .init(fillsWidth: false, minWidth: 84)
+                    )
                 }
             case let .external(port, channel, holdMode):
                 VStack(alignment: .leading, spacing: 12) {
@@ -309,16 +299,93 @@ struct PitchAlgoEditor: View {
                         onChange(PitchStage(algo: .external(port: port, channel: $0 - 1, holdMode: holdMode), harmonicSidechain: stage.harmonicSidechain))
                     }
 
-                    Picker("Hold Mode", selection: Binding(
-                        get: { holdMode },
-                        set: { onChange(PitchStage(algo: .external(port: port, channel: channel, holdMode: $0), harmonicSidechain: stage.harmonicSidechain)) }
-                    )) {
-                        Text("Pool").tag(HoldMode.pool)
-                        Text("Latest").tag(HoldMode.latest)
-                    }
-                    .pickerStyle(.segmented)
+                    StudioSegmentedControl(
+                        title: "Hold Mode",
+                        selection: Binding(
+                            get: { holdMode },
+                            set: { onChange(PitchStage(algo: .external(port: port, channel: channel, holdMode: $0), harmonicSidechain: stage.harmonicSidechain)) }
+                        ),
+                        segments: [
+                            StudioSegment(title: "Pool", value: HoldMode.pool),
+                            StudioSegment(title: "Latest", value: HoldMode.latest),
+                        ],
+                        accent: accent,
+                        layout: .init(fillsWidth: false, minWidth: 64)
+                    )
                 }
             }
+        }
+    }
+
+    /// Shared themed Scale menu (four algo cases carry one).
+    private func scaleMenu(_ scale: ScaleID, onSelect: @escaping (ScaleID) -> Void) -> some View {
+        StudioMenuPicker(
+            title: "Scale",
+            selection: Binding(get: { scale }, set: onSelect),
+            options: ScaleID.allCases.map { StudioMenuPickerOption(label: $0.displayName, value: $0) },
+            help: "Scale"
+        )
+    }
+}
+
+// MARK: - Display names (canon Rule 3 corollary: raw model/enum names never
+// appear on screen — "minorPentatonic" reads as "Minor Pentatonic").
+
+extension ScaleID {
+    var displayName: String {
+        switch self {
+        case .chromatic: return "Chromatic"
+        case .major: return "Major"
+        case .naturalMinor: return "Natural Minor"
+        case .harmonicMinor: return "Harmonic Minor"
+        case .melodicMinor: return "Melodic Minor"
+        case .majorPentatonic: return "Major Pentatonic"
+        case .minorPentatonic: return "Minor Pentatonic"
+        case .blues: return "Blues"
+        case .dorian: return "Dorian"
+        case .phrygian: return "Phrygian"
+        case .lydian: return "Lydian"
+        case .mixolydian: return "Mixolydian"
+        case .locrian: return "Locrian"
+        case .wholeTone: return "Whole Tone"
+        case .diminished: return "Diminished"
+        case .augmented: return "Augmented"
+        case .gypsy: return "Gypsy"
+        case .hungarianMinor: return "Hungarian Minor"
+        case .akebono: return "Akebono"
+        }
+    }
+}
+
+extension ChordID {
+    var displayName: String {
+        switch self {
+        case .majorTriad: return "Major"
+        case .minorTriad: return "Minor"
+        case .augmentedTriad: return "Augmented"
+        case .diminishedTriad: return "Diminished"
+        case .major7th: return "Major 7th"
+        case .minor7th: return "Minor 7th"
+        case .dominant7th: return "Dominant 7th"
+        case .diminished7th: return "Diminished 7th"
+        case .augmented7th: return "Augmented 7th"
+        case .halfDiminished7th: return "Half-Diminished 7th"
+        case .major6th: return "Major 6th"
+        case .minor6th: return "Minor 6th"
+        case .major9th: return "Major 9th"
+        case .minor9th: return "Minor 9th"
+        case .major11th: return "Major 11th"
+        case .minor11th: return "Minor 11th"
+        }
+    }
+}
+
+extension StyleProfileID {
+    var displayName: String {
+        switch self {
+        case .vocal: return "Vocal"
+        case .balanced: return "Balanced"
+        case .jazz: return "Jazz"
         }
     }
 }

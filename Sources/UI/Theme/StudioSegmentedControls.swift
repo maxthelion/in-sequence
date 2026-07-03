@@ -193,6 +193,84 @@ private extension View {
     }
 }
 
+// MARK: - Themed menu picker
+
+/// One option of `StudioMenuPicker`.
+struct StudioMenuPickerOption<Value: Hashable> {
+    let label: String
+    let value: Value
+}
+
+/// Themed replacement for the native white pop-up `Picker` (canon Rule 6 —
+/// no stock chrome): a `Menu` whose label is the studio chip — selected value
+/// text + chevron on a subtleFill rounded chip with a border stroke, with the
+/// same optional eyebrow title grammar as `StudioSegmentedControl`. Use this
+/// wherever a value list is too long for the inset-track segmented control.
+struct StudioMenuPicker<Value: Hashable>: View {
+    /// Optional eyebrow label rendered above the chip.
+    let title: String?
+    @Binding var selection: Value
+    let options: [StudioMenuPickerOption<Value>]
+    var help: String = ""
+
+    private var selectedLabel: String {
+        options.first { $0.value == selection }?.label ?? "—"
+    }
+
+    var body: some View {
+        if let title {
+            VStack(alignment: .leading, spacing: 6) {
+                Text(title.uppercased())
+                    .studioText(.eyebrow)
+                    // ux-canon-allow: eyebrow captions are structural labels,
+                    // not stateful chrome — mutedText is the caption token.
+                    .foregroundStyle(StudioTheme.mutedText)
+
+                menu
+            }
+        } else {
+            menu
+        }
+    }
+
+    private var menu: some View {
+        Menu {
+            ForEach(options, id: \.value) { option in
+                Button(option.label) { selection = option.value }
+            }
+        } label: {
+            HStack(spacing: 6) {
+                Text(selectedLabel)
+                    .studioText(.labelBold)
+                    .foregroundStyle(StudioTheme.text)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 8, weight: .bold))
+                    // ux-canon-allow: chevron affordance glyph — mutedText is
+                    // the caption token, not stateful chrome.
+                    .foregroundStyle(StudioTheme.mutedText)
+            }
+            .padding(.horizontal, 10)
+            .frame(minHeight: 28)
+            .background(
+                Color.white.opacity(StudioOpacity.subtleFill),
+                in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
+                    .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+            )
+            .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .help(help)
+        .accessibilityLabel("\(title ?? help) \(selectedLabel)")
+    }
+}
+
 // MARK: - Capsule mode pill
 
 /// One segment of `StudioModeSegmentedPill`: SF Symbol + uppercased label.

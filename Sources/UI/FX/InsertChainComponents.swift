@@ -121,14 +121,14 @@ struct InsertChainRow: View {
                 .controlSize(.mini)
                 .tint(StudioTheme.success)
 
-            Button(action: onRemove) {
-                Image(systemName: "xmark")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(StudioTheme.mutedText)
-            }
-            .buttonStyle(.plain)
-            .help("Remove insert")
-            .accessibilityLabel("Remove \(title)")
+            // The circled-✕ is the standard remove component (canon Rule 6 —
+            // a bare ✕ where the circled form exists is a finding, 05b/05d).
+            StudioCircleIconButton(
+                systemName: "xmark",
+                size: StudioMetrics.ControlSize.small,
+                help: "Remove \(title)",
+                action: onRemove
+            )
         }
         .padding(.vertical, 8)
         .padding(.horizontal, 10)
@@ -283,62 +283,54 @@ enum NativeInsertParameterEditor {
 
     // MARK: Bitcrusher
 
-    /// Bitcrusher editor: bit-depth stepper + rate/drive sliders. Emits raw
-    /// new values; the call site applies them through its model.
+    /// Bitcrusher editor: Bits/Rate/Drive as themed rotary knobs — continuous
+    /// values are rotaries, never system slider thumbs or stock steppers
+    /// (canon Rule 6, design review 05d). All rings carry the one surface
+    /// accent. Emits raw new values; the call site applies them through its
+    /// model.
     struct Bitcrusher: View {
         let settings: MasterBitcrusherSettings
-        /// Slider tint accent.
+        /// The one chrome accent of the hosting surface.
         let accent: Color
         let onBitDepthChange: (Int) -> Void
         let onRateChange: (Double) -> Void
         let onDriveChange: (Double) -> Void
 
         var body: some View {
-            // Note: this body is a fragment placed inside the call site's
-            // editor VStack(spacing: 14), matching the prior inline layout.
-            Group {
-                Stepper("Bits: \(settings.bitDepth)", value: bitDepthBinding, in: 4...16)
-                    .foregroundStyle(StudioTheme.text)
-                sliderRow(
+            HStack(alignment: .top, spacing: 28) {
+                StudioRotaryKnob(
+                    title: "Bits",
+                    value: Double(settings.bitDepth),
+                    range: 4...16,
+                    accent: accent,
+                    size: 58
+                ) { value in
+                    onBitDepthChange(Int(value.rounded()))
+                }
+
+                StudioRotaryKnob(
                     title: "Rate",
-                    value: rateBinding,
+                    value: settings.sampleRateScale,
                     range: 0.05...1,
-                    label: "\(Int((settings.sampleRateScale * 100).rounded()))%"
+                    accent: accent,
+                    size: 58,
+                    format: { "\(Int(($0 * 100).rounded()))%" },
+                    onChange: onRateChange,
+                    onLiveChange: onRateChange
                 )
-                sliderRow(
+
+                StudioRotaryKnob(
                     title: "Drive",
-                    value: driveBinding,
+                    value: settings.drive,
                     range: 0...1,
-                    label: "\(Int((settings.drive * 100).rounded()))%"
+                    accent: accent,
+                    size: 58,
+                    format: { "\(Int(($0 * 100).rounded()))%" },
+                    onChange: onDriveChange,
+                    onLiveChange: onDriveChange
                 )
-            }
-        }
 
-        private var bitDepthBinding: Binding<Int> {
-            Binding(get: { settings.bitDepth }, set: onBitDepthChange)
-        }
-
-        private var rateBinding: Binding<Double> {
-            Binding(get: { settings.sampleRateScale }, set: onRateChange)
-        }
-
-        private var driveBinding: Binding<Double> {
-            Binding(get: { settings.drive }, set: onDriveChange)
-        }
-
-        private func sliderRow(title: String, value: Binding<Double>, range: ClosedRange<Double>, label: String) -> some View {
-            HStack(spacing: 10) {
-                Text(title)
-                    .studioText(.label)
-                    .foregroundStyle(StudioTheme.mutedText)
-                    .frame(width: 82, alignment: .leading)
-                Slider(value: value, in: range)
-                    .tint(accent)
-                Text(label)
-                    .studioText(.eyebrow)
-                    .monospacedDigit()
-                    .foregroundStyle(StudioTheme.text)
-                    .frame(width: 74, alignment: .trailing)
+                Spacer(minLength: 0)
             }
         }
     }
