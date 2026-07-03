@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pattern-row state model v2 — pulsing bullet / launch override / ghost phrase</title>
+<style>
+  :root {
+    --ground:#0d0d10; --inset:#060608; --border:#62626c; --text:#e8e8ec; --muted:#9a9aa4;
+    --fill1: rgba(255,255,255,.05);
+    --green:#4ceb85; --cyan:#00ccff; --violet:#a187ff; --amber:#ffb020;
+    --cyan-glow: rgba(0,204,255,.45); --amber-glow: rgba(255,176,32,.45);
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:#000; color:var(--text); font:14px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; padding:28px 0 60px; }
+  .page { max-width:1180px; margin:0 auto; padding:0 20px; }
+  .page > h1 { font-size:19px; margin:0 0 3px; }
+  .page > .sub { color:var(--muted); font-size:12px; margin:0 0 22px; max-width:920px; }
+
+  .statebar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; padding:10px 14px; border:1px solid #26262c; border-radius:10px; margin-bottom:22px; background:#0a0a0c; }
+  .statebar b { font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); margin-right:4px; }
+  .statebar button { font:inherit; font-size:11px; background:transparent; color:var(--muted); border:1px solid var(--border); border-radius:7px; padding:5px 9px; cursor:pointer; }
+  .statebar a.swap { margin-left:auto; font-size:11px; color:var(--cyan); text-decoration:none; border:1px solid var(--border); border-radius:7px; padding:5px 9px; }
+
+  .demo-kicker { font-size:11px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin:0 4px 8px; }
+  .surface + .demo-kicker { margin-top:28px; }
+
+  .surface { background:var(--ground); border:1px solid #232328; border-radius:16px; padding:20px 22px 24px; margin-bottom:14px; --accent:var(--cyan); }
+  .surface.focused { border-color:var(--accent); }
+
+  /* ── transport strip (phrase indicator area) ─────────────────────────── */
+  .transport { display:flex; align-items:center; gap:10px; background:var(--inset); border:1px solid rgba(98,98,108,.5); border-radius:12px; padding:8px 12px; margin-bottom:16px; position:relative; }
+  .t-btn { width:30px; height:30px; border-radius:50%; border:1.5px solid rgba(98,98,108,.8); background:transparent; color:var(--text); display:flex; align-items:center; justify-content:center; font-size:11px; cursor:pointer; }
+  .t-btn.play { border-color:var(--cyan); color:var(--cyan); }
+  .t-btn.rec { border-color:var(--amber); color:var(--amber); }
+  .t-bpm { font-size:14px; font-weight:800; color:var(--cyan); }
+  .t-pos { font-size:13px; font-weight:800; color:var(--cyan); letter-spacing:.04em; }
+  .t-sep { width:1px; height:20px; background:rgba(98,98,108,.5); }
+  .t-label { font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); font-weight:700; }
+  .phrase-chips { display:flex; align-items:center; gap:5px; margin-left:auto; }
+  .phrase-chip { min-width:34px; padding:5px 9px; text-align:center; font-size:12px; font-weight:800; border:1.5px solid rgba(98,98,108,.7); border-radius:9px; background:transparent; color:var(--muted); cursor:pointer; position:relative; }
+  .phrase-chip.active { background:var(--violet); border-color:var(--violet); color:var(--ground); }
+  /* basis phrase dimmed while a ghost diverges from it */
+  .phrase-chip.basis-dim { background:transparent; border-color:rgba(98,98,108,.55); color:var(--muted); }
+  .phrase-chip.basis-dim::after { content:""; position:absolute; left:6px; right:6px; bottom:-4px; height:2px; border-bottom:2px dotted var(--amber); }
+  /* the ghost: a runtime variant OUTSIDE the defined phrases */
+  .phrase-chip.ghost { border:1.5px dashed var(--amber); color:var(--amber); background:transparent; animation:ghostBreathe 1.6s ease-in-out infinite; }
+  @keyframes ghostBreathe { 0%,100% { box-shadow:0 0 0 0 rgba(255,176,32,0); } 50% { box-shadow:0 0 7px 0 var(--amber-glow); } }
+
+  /* ghost fork popover */
+  .fork-pop { position:absolute; top:calc(100% + 6px); right:0; z-index:5; background:var(--ground); border:1.5px solid var(--amber); border-radius:12px; padding:10px; display:none; flex-direction:column; gap:6px; min-width:190px; }
+  .fork-pop.open { display:flex; }
+  .fork-pop::before { content:""; position:absolute; top:-6px; right:22px; width:10px; height:10px; background:var(--ground); border-left:1.5px solid var(--amber); border-top:1.5px solid var(--amber); transform:rotate(45deg); }
+  .fork-act { font:inherit; font-size:12px; font-weight:800; padding:8px 12px; border-radius:9px; cursor:pointer; text-align:left; }
+  .fork-act.save { background:var(--green); border:none; color:var(--ground); }
+  .fork-act.apply { background:transparent; border:1.5px solid var(--amber); color:var(--amber); }
+  .fork-act.discard { background:transparent; border:1.5px solid rgba(98,98,108,.8); color:var(--muted); }
+
+  /* ── track header ─────────────────────────────────────────────────────── */
+  .track-header-row { display:flex; align-items:center; gap:14px; margin-bottom:12px; }
+  .name-block { display:flex; align-items:baseline; gap:10px; }
+  .name-block .name { font-size:17px; font-weight:800; }
+  .name-block .kind { font-size:10px; letter-spacing:.1em; text-transform:uppercase; font-weight:800; color:var(--accent); }
+
+  /* ── pattern row ──────────────────────────────────────────────────────── */
+  .pattern-track { display:flex; gap:6px; flex-wrap:wrap; background:var(--inset); border:1px solid rgba(98,98,108,.55); border-radius:14px; padding:8px; margin-bottom:6px; }
+  .pattern-slot { position:relative; width:46px; display:flex; flex-direction:column; align-items:center; gap:4px; padding:9px 2px 10px; border:1.5px solid rgba(98,98,108,.7); border-radius:10px; background:transparent; cursor:pointer; font:inherit; overflow:visible; }
+  .pattern-slot .num { font-size:12px; font-weight:800; color:var(--text); }
+  .pattern-slot .dot { width:6px; height:6px; border-radius:50%; border:1px solid rgba(98,98,108,.85); background:transparent; }
+  .pattern-slot.occupied .dot { background:rgba(232,232,236,.6); border-color:rgba(232,232,236,.6); }
+
+  /* PLAYING = the slot's dot pulses in the surface accent (no tick, no bar).
+     The glow is persistent (survives a static frame); the pulse animates
+     scale only. */
+  .pattern-slot.playing .dot { width:8px; height:8px; background:var(--accent); border-color:var(--accent); box-shadow:0 0 7px 1.5px var(--cyan-glow); animation:pulseDot 1s ease-in-out infinite; }
+  @keyframes pulseDot {
+    0%,100% { transform:scale(1); }
+    50% { transform:scale(1.45); }
+  }
+
+  /* DISPLAYED = accent outline ring; stacks cleanly with the pulsing dot */
+  .pattern-slot.displayed { border-color:var(--accent); border-width:2px; }
+
+  /* PENDING LAUNCH (right-click, quantized to next bar) — the app's
+     armed-but-not-committed treatment: dashed amber outline + blinking
+     hollow amber dot */
+  .pattern-slot.pending { border:1.5px dashed var(--amber); }
+  .pattern-slot.pending .dot { background:transparent; border-color:var(--amber); animation:blinkDot .8s steps(2,start) infinite; }
+  @keyframes blinkDot { 0% { opacity:1; } 50% { opacity:.25; } 100% { opacity:1; } }
+
+  /* BASIS MARKER (13's anchor folded in): what the phrase originally
+     defined while a runtime override plays elsewhere */
+  .pattern-slot.basis { border-style:dashed; border-color:var(--border); }
+  .pattern-slot.basis .basis-badge { display:inline-block; }
+  .basis-badge { display:none; position:absolute; bottom:-8px; left:50%; transform:translateX(-50%); font-size:8px; font-weight:800; background:var(--ground); border:1px dashed var(--border); color:var(--muted); border-radius:5px; padding:1px 4px; }
+
+  /* ── D-grammar section switcher + well ───────────────────────────────── */
+  .tabstrip.seg { display:flex; gap:4px; padding:3px; background:var(--fill1); border:1.5px solid rgba(98,98,108,.9); border-radius:12px; margin:10px 0 5px; }
+  .tabstrip.seg .schip { flex:1; border:none; background:transparent; color:rgba(232,232,236,.78); font:inherit; font-size:11px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; padding:10px 8px; border-radius:10px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; white-space:nowrap; }
+  .tabstrip.seg .schip.active { background:var(--accent); color:var(--ground); }
+  .tabstrip.seg .schip .mini-badge { font-size:9px; font-weight:800; padding:2px 5px; border-radius:6px; background:var(--accent); color:var(--ground); text-transform:none; letter-spacing:0; }
+  .tabstrip.seg .schip.active .mini-badge { background:var(--ground); color:var(--accent); }
+
+  .well { background:var(--fill1); border:1.5px solid var(--accent); border-radius:12px; padding:18px; }
+  .clip-hdr { display:flex; align-items:center; gap:10px; margin-bottom:14px; }
+  .badge-lg { font-size:10px; font-weight:800; padding:4px 8px; border-radius:8px; background:var(--accent); color:var(--ground); }
+  .clip-hdr .t { font-size:14px; font-weight:800; }
+  .clip-hdr .m { font-size:11px; color:var(--muted); margin-left:2px; }
+  .steps { display:grid; grid-template-columns:repeat(16,1fr); gap:4px; }
+  .step { aspect-ratio:1; border:1px solid rgba(98,98,108,.7); border-radius:6px; background:transparent; }
+  .step.on { background:var(--accent); border-color:var(--accent); }
+
+  /* ── legend ───────────────────────────────────────────────────────────── */
+  .legend { border:1.5px dashed var(--border); border-radius:14px; padding:18px 20px; margin-top:30px; }
+  .legend-tag { font-size:10px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin-bottom:14px; }
+  .legend-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:14px 22px; }
+  .legend-item { display:flex; align-items:center; gap:10px; }
+  .legend-item .swatch { flex:0 0 auto; }
+  .legend-item .legend-text { font-size:11.5px; color:#c9c9d1; line-height:1.35; }
+  .legend-item .legend-text b { color:var(--text); }
+  .lg-slot { width:40px; height:40px; border-radius:10px; border:1.5px solid rgba(98,98,108,.7); display:flex; flex-direction:column; gap:4px; align-items:center; justify-content:center; font-size:11px; font-weight:800; position:relative; }
+  .lg-dot { width:6px; height:6px; border-radius:50%; }
+  .lg-playing .lg-dot { background:var(--cyan); box-shadow:0 0 7px 1px var(--cyan-glow); }
+  .lg-displayed { border-color:var(--cyan); border-width:2px; }
+  .lg-displayed .lg-dot { background:rgba(232,232,236,.6); }
+  .lg-both { border-color:var(--cyan); border-width:2px; }
+  .lg-both .lg-dot { background:var(--cyan); box-shadow:0 0 7px 1px var(--cyan-glow); }
+  .lg-pending { border:1.5px dashed var(--amber); }
+  .lg-pending .lg-dot { background:transparent; border:1px solid var(--amber); }
+  .lg-basis { border-style:dashed; border-color:var(--border); }
+  .lg-basis .lg-dot { background:rgba(232,232,236,.6); }
+  .lg-ghost { width:auto; min-width:40px; height:28px; border:1.5px dashed var(--amber); border-radius:9px; color:var(--amber); font-size:12px; flex-direction:row; padding:0 8px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>Pattern-row state model v2 — pulsing bullet · launch override · ghost phrase</h1>
+  <p class="sub">Owner iteration on 10-pattern-row-fill-states.html: the progress bar and Tracking/Pinned sub-modes are gone. Playing = the slot's dot pulsing in the surface accent; click = view/edit only; RIGHT-CLICK = launch override quantized to the next bar (single-value, never mutates the phrase). When overrides make playback diverge from the defined phrase, the transport grows a GHOST phrase (A′) carrying the Save / Apply / Discard fork, and the slot the phrase originally defined keeps a dashed basis marker (13's anchor). Right-click any slot in section (a)/(b) to arm a launch; click the A′ pill in (c)/(d) to toggle the fork.</p>
+
+  <div class="statebar">
+    <b>Jump to state</b>
+    <button onclick="setPrototypeState('a-split')">a-split</button>
+    <button onclick="setPrototypeState('b-pending')">b-pending</button>
+    <button onclick="setPrototypeState('c-ghost')">c-ghost</button>
+    <button onclick="setPrototypeState('d-fork')">d-fork</button>
+    <a class="swap" href="10-pattern-row-fill-states.html">→ 10 (superseded)</a>
+  </div>
+
+  <h2 class="demo-kicker">(a) Playing ≠ displayed — slot 1's dot pulses (playing), slot 4 has the outline ring (displayed / open in the well)</h2>
+  <section class="surface" id="a-split" data-state="a-split"></section>
+
+  <h2 class="demo-kicker">(b) Right-click launch, pending — slot 8 armed at 1:3:4, commits at the next bar; playing and displayed unchanged until then</h2>
+  <section class="surface" id="b-pending" data-state="b-pending"></section>
+
+  <h2 class="demo-kicker">(c) Override active — slot 8 now plays as a runtime override; the transport shows ghost A′ beside the dimmed basis A; slot 1 keeps the dashed basis marker</h2>
+  <section class="surface" id="c-ghost" data-state="c-ghost"></section>
+
+  <h2 class="demo-kicker">(d) The ghost's fork open — Save as new phrase · Apply to A · Discard</h2>
+  <section class="surface" id="d-fork" data-state="d-fork"></section>
+
+  <section class="legend">
+    <div class="legend-tag">Reviewer annotation — not app chrome</div>
+    <div class="legend-grid">
+      <div class="legend-item"><div class="swatch lg-slot lg-playing">1<span class="lg-dot"></span></div><div class="legend-text"><b>Playing</b> — the slot's dot pulses in the surface accent (replaces 10's tick + progress bar)</div></div>
+      <div class="legend-item"><div class="swatch lg-slot lg-displayed">4<span class="lg-dot"></span></div><div class="legend-text"><b>Displayed</b> — accent outline ring; click = view/edit, playing untouched</div></div>
+      <div class="legend-item"><div class="swatch lg-slot lg-both">4<span class="lg-dot"></span></div><div class="legend-text"><b>Playing + displayed</b> — ring and pulsing dot stack on one slot</div></div>
+      <div class="legend-item"><div class="swatch lg-slot lg-pending">8<span class="lg-dot"></span></div><div class="legend-text"><b>Pending launch</b> — right-click arms; dashed amber + blinking hollow dot until the next bar commits it</div></div>
+      <div class="legend-item"><div class="swatch lg-slot lg-basis">1<span class="lg-dot"></span></div><div class="legend-text"><b>Basis marker</b> — dashed neutral: what the phrase defines while an override plays elsewhere; Reset target</div></div>
+      <div class="legend-item"><div class="swatch lg-ghost">A′</div><div class="legend-text"><b>Ghost phrase</b> — runtime variant outside the defined phrases; dimmed A is its basis; carries Save · Apply · Discard</div></div>
+    </div>
+  </section>
+</div>
+
+<script>
+  const SURFACES = {};
+  const OCCUPIED = [0,1,3,5,7,8,11,15];
+  const STEPS_ON = [0,3,6,9];
+
+  function buildSurface(id, cfg) {
+    SURFACES[id] = Object.assign({
+      occupied: new Set(OCCUPIED),
+      playing: 0,
+      displayed: 3,
+      pending: null,   // slot armed by right-click
+      override: null,  // committed runtime override slot
+      basis: null,     // slot the phrase originally defined
+      ghost: false,    // ghost phrase pill visible
+      forkOpen: false, // ghost fork popover open
+      pos: '1:1:1',
+    }, cfg);
+
+    const root = document.getElementById(id);
+    root.innerHTML =
+      '<div class="transport">' +
+        '<button class="t-btn play">▶</button>' +
+        '<button class="t-btn rec">⏺</button>' +
+        '<span class="t-bpm">120</span>' +
+        '<span class="t-sep"></span>' +
+        '<span class="t-pos" data-pos></span>' +
+        '<div class="phrase-chips" data-chips></div>' +
+        '<div class="fork-pop" data-fork>' +
+          '<button class="fork-act save">Save as new phrase</button>' +
+          '<button class="fork-act apply">Apply to A</button>' +
+          '<button class="fork-act discard">Discard</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="track-header-row"><div class="name-block"><span class="name">Mono 8</span><span class="kind">Mono Track</span></div></div>' +
+      '<div class="pattern-track" data-slots></div>' +
+      '<div class="tabstrip seg">' +
+        '<button class="schip active">Steps / Clip<span class="mini-badge">Clip</span></button>' +
+        '<button class="schip">Sound<span class="mini-badge">Empty</span></button>' +
+        '<button class="schip">FX<span class="mini-badge">Insert</span></button>' +
+        '<button class="schip">Macros<span class="mini-badge">Empty</span></button>' +
+        '<button class="schip">Mixer<span class="mini-badge">Master</span></button>' +
+      '</div>' +
+      '<div class="well">' +
+        '<div class="clip-hdr"><span class="badge-lg">Clip</span><span class="t">Mono 8 · Pattern <span data-patnum></span></span><span class="m">1 bar</span></div>' +
+        '<div class="steps" data-steps></div>' +
+      '</div>';
+
+    const slotRow = root.querySelector('[data-slots]');
+    for (let i = 0; i < 16; i++) {
+      const b = document.createElement('button');
+      b.className = 'pattern-slot';
+      b.dataset.slot = i;
+      b.innerHTML = '<span class="num">' + (i + 1) + '</span><span class="dot"></span><span class="basis-badge">basis</span>';
+      b.onclick = () => { SURFACES[id].displayed = i; render(id); };
+      b.oncontextmenu = (e) => { e.preventDefault(); SURFACES[id].pending = i; render(id); };
+      slotRow.appendChild(b);
+    }
+    const stepRow = root.querySelector('[data-steps]');
+    for (let i = 0; i < 16; i++) {
+      const cell = document.createElement('div');
+      cell.className = 'step' + (STEPS_ON.includes(i) ? ' on' : '');
+      stepRow.appendChild(cell);
+    }
+    render(id);
+  }
+
+  function render(id) {
+    const s = SURFACES[id];
+    const root = document.getElementById(id);
+
+    root.querySelector('[data-pos]').textContent = s.pos;
+
+    // phrase chips: A B C D (+ ghost A′ when diverged)
+    const chips = root.querySelector('[data-chips]');
+    chips.innerHTML = '';
+    ['A','B','C','D'].forEach((name, idx) => {
+      const c = document.createElement('button');
+      c.className = 'phrase-chip' + (idx === 0 ? (s.ghost ? ' basis-dim' : ' active') : '');
+      c.textContent = name;
+      chips.appendChild(c);
+    });
+    if (s.ghost) {
+      const g = document.createElement('button');
+      g.className = 'phrase-chip ghost';
+      g.textContent = 'A′';
+      g.onclick = () => { s.forkOpen = !s.forkOpen; render(id); };
+      chips.insertBefore(g, chips.children[1]);
+    }
+    root.querySelector('[data-fork]').classList.toggle('open', s.forkOpen);
+
+    const playingSlot = s.override !== null ? s.override : s.playing;
+    root.querySelectorAll('.pattern-slot').forEach((btn) => {
+      const i = Number(btn.dataset.slot);
+      btn.classList.toggle('occupied', s.occupied.has(i));
+      btn.classList.toggle('playing', i === playingSlot);
+      btn.classList.toggle('displayed', i === s.displayed);
+      btn.classList.toggle('pending', i === s.pending);
+      btn.classList.toggle('basis', i === s.basis);
+    });
+
+    root.querySelector('[data-patnum]').textContent = s.displayed + 1;
+  }
+
+  function setPrototypeState(name) {
+    const el = document.querySelector('[data-state="' + name + '"]');
+    if (!el) return;
+    document.querySelectorAll('.surface').forEach((sEl) => sEl.classList.remove('focused'));
+    el.classList.add('focused');
+    el.scrollIntoView({ block: 'start' });
+  }
+
+  buildSurface('a-split',   { playing: 0, displayed: 3 });
+  buildSurface('b-pending', { playing: 0, displayed: 3, pending: 7, pos: '1:3:4' });
+  buildSurface('c-ghost',   { playing: 0, displayed: 3, override: 7, basis: 0, ghost: true, pos: '2:1:1' });
+  buildSurface('d-fork',    { playing: 0, displayed: 3, override: 7, basis: 0, ghost: true, forkOpen: true, pos: '2:4:2' });
+</script>
+</body>
+</html>

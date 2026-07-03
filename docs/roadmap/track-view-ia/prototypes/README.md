@@ -164,7 +164,11 @@ Copies of all rendered PNGs (08-A/B/C/D + 09 + 14) also live at
 bug-reporter app picks them up; `prototypes/rendered/` stays canonical.
 
 ### Pattern-row state model: playing / displayed / perform-tracking / fill
-- `10-pattern-row-fill-states.html` — the pattern-slot row STATE MODEL on a
+- `10-pattern-row-fill-states.html` — **superseded by `15-pattern-row-v2.html`
+  for the playing/displayed/tracking model** (owner review 2026-07-03: keep
+  the playing-indicator idea but "the progress bar doesn't work"; "10 is a
+  bit complicated" re Tracking/Pinned). The fill-lane scenarios (`c-engaged`,
+  `c-preview`) remain current. Original entry: the pattern-slot row STATE MODEL on a
   D-grammar mono-track surface, resolving intents
   `20260702-150001-fill-mode-should-actually-work.md` (fill mode is currently
   inert) and `20260702-150002-pattern-row-state-model-tension.md` (playing vs.
@@ -232,6 +236,56 @@ bug-reporter app picks them up; `prototypes/rendered/` stays canonical.
     uses a different tracking visual (solid fill vs. this file's pulsing
     outline ring + `»` badge) — flagged there for reconciliation against this
     file; not yet reconciled here.
+
+### Pattern-row state model v2 (owner iteration on 10 vs 13)
+- `15-pattern-row-v2.html` — the owner's decisions after reviewing 10 and 13,
+  on the D-grammar mono-track surface:
+  - **Playing = pulsing bullet**: the slot's existing small dot pulses in the
+    surface accent (persistent glow so static captures read it too) —
+    replaces 10's play-tick + progress bar entirely.
+  - **Displayed = outline ring** (unchanged); ring + pulsing dot stack
+    cleanly when playing == displayed.
+  - **No Tracking/Pinned sub-mode.** Default click = view/edit (displayed
+    moves, playing untouched). **Right-click = launch override**: quantized
+    to the next bar, single-value (holds until changed/cleared), never
+    mutates the phrase. Pending-until-bar uses the app's armed-not-committed
+    idiom: dashed amber outline + blinking hollow amber dot.
+  - **Dirty/ghost phrase — the keystone**: when overrides make playback
+    diverge from the defined phrase, the transport's phrase-chip row grows a
+    ghost pill `A′` (dashed amber outline, breathing glow) inserted beside
+    the basis `A`, which dims to a muted outline with a dotted amber
+    underline. Clicking the ghost opens the fork: **Save as new phrase**
+    (solid green) · **Apply to A** (amber outline) · **Discard** (neutral
+    outline). 13's dashed basis-anchor folds into the pattern row: while an
+    override plays, the slot the phrase originally defined keeps a dashed
+    neutral border + tiny `basis` badge (the Reset target).
+  - States via `setPrototypeState(name)`: `a-split` (playing ≠ displayed),
+    `b-pending` (right-click launch armed at 1:3:4), `c-ghost` (override
+    active, ghost A′ + basis markers), `d-fork` (ghost fork open). Sections
+    are independently interactive: right-click any slot to arm a launch,
+    click A′ to toggle the fork. Render:
+    ```sh
+    node scripts/render-html-prototype-screenshots.mjs \
+      docs/roadmap/track-view-ia/prototypes/15-pattern-row-v2.html \
+      docs/roadmap/track-view-ia/prototypes/rendered/15-pattern-row-v2 \
+      'a-split=setPrototypeState("a-split")' \
+      'b-pending=setPrototypeState("b-pending")' \
+      'c-ghost=setPrototypeState("c-ghost")' \
+      'd-fork=setPrototypeState("d-fork")'
+    ```
+  - Copies at `.meta/multipass/visual-review/feature-track-view-tab-unification/`
+    as `proto-15-a-split.png` / `proto-15-b-pending.png` /
+    `proto-15-c-ghost.png` / `proto-15-d-fork.png`.
+  - Scale judgment from the renders: the ghost pill DOES read at
+    transport-bar scale — dashed amber against the solid violet defined
+    phrases is unambiguous, and inserting A′ directly after A keeps the
+    lineage legible; but the dimmed-A dotted underline is near the legibility
+    floor at chip size, so if the built app's chips are smaller than the
+    mock's (34px min-width), prefer dropping the underline and letting the
+    dimmed fill + adjacent ghost carry the "basis" relationship. The fork
+    popover anchors under the ghost without colliding with the pattern row.
+  - Off-path stubs: Sound/FX/Macros/Mixer panes are static; phrase chips
+    B–D are decorative.
 
 ### Layer system: Pitch layer + quick-switch
 - `11-step-layer-system.html` — the unified step-layer system, addressing
