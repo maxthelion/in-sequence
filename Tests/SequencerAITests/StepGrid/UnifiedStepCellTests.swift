@@ -239,6 +239,67 @@ final class UnifiedStepCellTests: XCTestCase {
         XCTAssertEqual(hiddenFrame.height, visibleFrame.height, accuracy: 0.5)
     }
 
+    // MARK: - WS3 layer system
+
+    func test_pitchCellContentEncodesDegreeOctaveBandAndCornerBadge() {
+        // Centre register (octave 4-5 in the /12 convention): mid dot, no badge.
+        XCTAssertEqual(
+            ClipNoteGridStepEditing.pitchContent(for: 60),
+            .pitchLabel(degree: "1", octaveBand: 1, badge: nil)
+        )
+        // Low register.
+        XCTAssertEqual(
+            ClipNoteGridStepEditing.pitchContent(for: 39),
+            .pitchLabel(degree: "b3", octaveBand: 0, badge: nil)
+        )
+        // Past +/-2 from centre the corner badge appears (spec: badge past +/-2).
+        XCTAssertEqual(
+            ClipNoteGridStepEditing.pitchContent(for: 84),
+            .pitchLabel(degree: "1", octaveBand: 2, badge: "+3")
+        )
+        XCTAssertEqual(
+            ClipNoteGridStepEditing.pitchContent(for: 12),
+            .pitchLabel(degree: "1", octaveBand: 0, badge: "-3")
+        )
+    }
+
+    /// AC2 (WS3): ONE quick-switch component serves the mono and slicer
+    /// layer sets. Proven by generic instantiation of the single
+    /// `StepLayerQuickSwitch` over both surfaces' layer value types, and by
+    /// hosting each closed-chip state to a non-empty layout.
+    @MainActor
+    func test_oneQuickSwitchComponentServesMonoAndSlicerLayerSets() {
+        let mono = StepLayerQuickSwitch(
+            title: "Layer",
+            selection: .constant(ClipEditorLayer.mode(.pitch)),
+            isOpen: .constant(false),
+            options: ClipEditorMode.allCases.map {
+                StepLayerQuickSwitchOption(id: $0.rawValue, title: $0.title, value: ClipEditorLayer.mode($0))
+            },
+            accent: StudioTheme.cyan
+        )
+        let slicer = StepLayerQuickSwitch(
+            title: "Layer",
+            selection: .constant(SliceTrackClipLayer.steps),
+            isOpen: .constant(false),
+            options: SliceTrackClipLayer.allCases.map {
+                StepLayerQuickSwitchOption(id: $0.rawValue, title: $0.title, value: $0)
+            },
+            accent: StudioTheme.cyan
+        )
+
+        // Same generic component, two layer vocabularies.
+        XCTAssertEqual(
+            String(describing: type(of: mono)).split(separator: "<").first,
+            String(describing: type(of: slicer)).split(separator: "<").first
+        )
+
+        let monoHost = NSHostingView(rootView: mono)
+        let slicerHost = NSHostingView(rootView: slicer)
+        XCTAssertGreaterThan(monoHost.fittingSize.height, 0)
+        XCTAssertGreaterThan(slicerHost.fittingSize.height, 0)
+    }
+
     @MainActor
     private static func measuredStepStripFrame(batchActionBarVisible: Bool) -> CGRect {
         let recorder = StepStripFrameRecorder()

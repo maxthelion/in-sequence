@@ -470,6 +470,49 @@ final class StepGridEditParityTests: XCTestCase {
         XCTAssertEqual(mutator.clip.content.normalized, expected.normalized)
     }
 
+    // MARK: - Pitch layer: octave-band tap (WS3, prototype 11)
+
+    func test_octaveBandTap_cyclesOctaveInPlaceAndWrapsPastHigh() {
+        var entry = Self.makeNoteClip(id: UUID(), activeIndexes: [2])
+
+        // Seed: pitch 60 (C, octave 5 in the /12 convention → centre offset 1).
+        // Cycle: +1 per tap, wrapping past +2 back to -2, pitch class fixed.
+        let expectedPitches = [72, 24, 36, 48, 60, 72]
+        for expected in expectedPitches {
+            ClipNoteGridStepEditing.applyOctaveTap(
+                tappedIndex: 2,
+                indexes: [2],
+                entry: &entry,
+                noteLane: .main,
+                defaultNote: defaultNote
+            )
+            XCTAssertEqual(
+                ClipNoteGridStepEditing.pitchValue(at: 2, in: entry.content),
+                expected,
+                "octave cycles in place, preserving pitch class C"
+            )
+        }
+    }
+
+    func test_octaveBandTap_appliesTappedTargetOctaveAcrossSelectionPreservingPitchClass() {
+        var entry = Self.makeNoteClip(id: UUID(), activeIndexes: [0, 5])
+        ClipNoteGridStepEditing.setPitch(62, at: 5, entry: &entry, noteLane: .main, defaultNote: defaultNote)
+
+        // Tapped step 0 sits at offset 1 (pitch 60) → target offset 2
+        // (octave 6). The whole selection lands on the target octave with
+        // each step's own pitch class preserved (option-cycle rule §4c).
+        ClipNoteGridStepEditing.applyOctaveTap(
+            tappedIndex: 0,
+            indexes: [0, 5],
+            entry: &entry,
+            noteLane: .main,
+            defaultNote: defaultNote
+        )
+
+        XCTAssertEqual(ClipNoteGridStepEditing.pitchValue(at: 0, in: entry.content), 72)
+        XCTAssertEqual(ClipNoteGridStepEditing.pitchValue(at: 5, in: entry.content), 74)
+    }
+
     // MARK: - Fixtures
 
     private static func makeNoteClip(id: UUID, activeIndexes: Set<Int> = []) -> ClipPoolEntry {

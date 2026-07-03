@@ -434,9 +434,29 @@ final class StepGridCoordinatorTests: XCTestCase {
 
         XCTAssertEqual(coordinator.cellContent(for: 0, in: mutator.clip, layer: .trigger), .toggle)
         XCTAssertEqual(coordinator.cellContent(for: 0, in: mutator.clip, layer: .velocity), .valueBar(fraction: 100.0 / 127.0))
+        XCTAssertEqual(coordinator.cellContent(for: 0, in: mutator.clip, layer: .pitch), .pitchLabel(degree: "1", octaveBand: 1, badge: nil))
         XCTAssertEqual(coordinator.cellContent(for: 0, in: mutator.clip, layer: .chance), .valueBar(fraction: 0.5))
         XCTAssertEqual(coordinator.cellContent(for: 0, in: mutator.clip, layer: .macro(index: 0), track: track), .valueBar(fraction: 0.5))
         XCTAssertEqual(coordinator.cellContent(for: 1, in: mutator.clip, layer: .chord), .chordLabel(name: "\u{2014}"))
+    }
+
+    func test_pitchLayerTapAndAbsoluteWriteMutateNotePitchesThroughCoordinator() {
+        let clipID = UUID()
+        var clip = Self.makeNoteClip(id: clipID, activeIndexes: [0, 2])
+        Self.setNoteStep(in: &clip, at: 0, velocity: 96, chance: 1, pitch: 60)
+        Self.setNoteStep(in: &clip, at: 2, velocity: 96, chance: 1, pitch: 60)
+        let mutator = RecordingClipMutator(clip: clip)
+        let coordinator = StepGridCoordinator(clipID: clipID, clipMutator: mutator)
+
+        coordinator.toggleSelection(at: 0)
+        coordinator.toggleSelection(at: 2)
+
+        coordinator.onTap(stepIndex: 0, layer: .pitch)
+        XCTAssertEqual(Self.pitches(in: mutator.clip, at: [0, 2]), [62, 62])
+
+        coordinator.writeAbsoluteValue(72.0 / 127.0, stepIndex: 0, layer: .pitch)
+        XCTAssertEqual(Self.pitches(in: mutator.clip, at: [0, 2]), [72, 72])
+        XCTAssertEqual(mutator.mutationCount, 2)
     }
 
     func test_chordGeneratorTriggerLayerReturnsPitchClassChordLabel() {
@@ -686,6 +706,11 @@ final class StepGridCoordinatorTests: XCTestCase {
     private static func chances(in clip: ClipPoolEntry, at indexes: [Int]) -> [Double] {
         guard case let .noteGrid(_, steps) = clip.content.normalized else { return [] }
         return indexes.compactMap { steps[$0].main?.chance }
+    }
+
+    private static func pitches(in clip: ClipPoolEntry, at indexes: [Int]) -> [Int] {
+        guard case let .noteGrid(_, steps) = clip.content.normalized else { return [] }
+        return indexes.compactMap { steps[$0].main?.notes.first?.pitch }
     }
 
     private static func setNoteStep(

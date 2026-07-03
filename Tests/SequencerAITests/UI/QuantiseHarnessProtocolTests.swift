@@ -179,4 +179,40 @@ final class QuantiseHarnessProtocolTests: XCTestCase {
                 .contains("randomize-sheet:open")
         )
     }
+
+    func test_trackClipLayerCommandsAreViewStateOnlyAndReportStatus() throws {
+        let fixture = makeFixture()
+        apply(["trackFillSource": "clip"], fixture: fixture)
+        let revisionBefore = fixture.session.store.revision
+        let generationRevisionBefore = fixture.engine.tickState.readPrepareInputs().generationInputRevision
+
+        apply(
+            [
+                "trackClipLayer": "pitch",
+                "trackClipLayerSwitcher": "open",
+            ],
+            fixture: fixture
+        )
+
+        let status = try statusDictionary(fixture: fixture)
+        XCTAssertEqual(status["trackClipLayer"], "pitch")
+        XCTAssertEqual(status["trackClipLayerSwitcher"], "open")
+        XCTAssertEqual(fixture.session.store.revision, revisionBefore)
+        XCTAssertEqual(fixture.engine.tickState.readPrepareInputs().generationInputRevision, generationRevisionBefore)
+    }
+
+    func test_slicerLayerSwitcherCommandIsViewStateOnlyAndReportsStatus() throws {
+        let fixture = makeFixture()
+        let generationRevisionBefore = fixture.engine.tickState.readPrepareInputs().generationInputRevision
+
+        apply(["slicerLayerSwitcher": "open"], fixture: fixture)
+
+        let status = try statusDictionary(fixture: fixture)
+        XCTAssertEqual(status["slicerLayerSwitcher"], "open")
+        XCTAssertEqual(fixture.engine.tickState.readPrepareInputs().generationInputRevision, generationRevisionBefore)
+
+        apply(["slicerLayerSwitcher": "close"], fixture: fixture)
+        let closedStatus = try statusDictionary(fixture: fixture)
+        XCTAssertEqual(closedStatus["slicerLayerSwitcher"], "closed")
+    }
 }
