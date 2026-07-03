@@ -169,13 +169,23 @@ struct ClipPoolEntry: Equatable, Identifiable, Sendable {
     /// A missing key means no lane exists for that binding (defer to phrase layer / default).
     /// Legacy docs without this field decode as empty -- no migration needed.
     var macroLanes: [UUID: MacroLane]
+    /// Persisted clip-randomize rules and last seed. Legacy docs decode as nil.
+    var randomizeSettings: ClipRandomizeSettings?
 
-    init(id: UUID, name: String, trackType: TrackType, content: ClipContent, macroLanes: [UUID: MacroLane] = [:]) {
+    init(
+        id: UUID,
+        name: String,
+        trackType: TrackType,
+        content: ClipContent,
+        macroLanes: [UUID: MacroLane] = [:],
+        randomizeSettings: ClipRandomizeSettings? = nil
+    ) {
         self.id = id
         self.name = name
         self.trackType = trackType
         self.content = content
         self.macroLanes = macroLanes
+        self.randomizeSettings = randomizeSettings
     }
 
     /// Drop lanes for removed bindings and resize remaining lanes to match step count.
@@ -184,7 +194,14 @@ struct ClipPoolEntry: Equatable, Identifiable, Sendable {
         let syncedLanes = macroLanes
             .filter { validIDs.contains($0.key) }
             .mapValues { $0.synced(stepCount: stepCount) }
-        return ClipPoolEntry(id: id, name: name, trackType: trackType, content: content, macroLanes: syncedLanes)
+        return ClipPoolEntry(
+            id: id,
+            name: name,
+            trackType: trackType,
+            content: content,
+            macroLanes: syncedLanes,
+            randomizeSettings: randomizeSettings
+        )
     }
 
     /// Remove a single macro lane (used on binding cascade removal).
@@ -257,6 +274,7 @@ extension ClipPoolEntry: Codable {
         case trackType
         case content
         case macroLanes
+        case randomizeSettings
     }
 
     init(from decoder: Decoder) throws {
@@ -267,6 +285,7 @@ extension ClipPoolEntry: Codable {
         content = try container.decode(ClipContent.self, forKey: .content)
         // Legacy docs without macroLanes decode as empty -- no migration needed.
         macroLanes = try container.decodeIfPresent([UUID: MacroLane].self, forKey: .macroLanes) ?? [:]
+        randomizeSettings = try container.decodeIfPresent(ClipRandomizeSettings.self, forKey: .randomizeSettings)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -276,6 +295,7 @@ extension ClipPoolEntry: Codable {
         try container.encode(trackType, forKey: .trackType)
         try container.encode(content, forKey: .content)
         try container.encode(macroLanes, forKey: .macroLanes)
+        try container.encodeIfPresent(randomizeSettings, forKey: .randomizeSettings)
     }
 }
 

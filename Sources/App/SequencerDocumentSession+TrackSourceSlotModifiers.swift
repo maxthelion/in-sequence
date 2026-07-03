@@ -133,4 +133,83 @@ extension SequencerDocumentSession {
         }
         return nil
     }
+
+    @discardableResult
+    func bakeRandomizedClip(
+        at address: PatternSlotAddress,
+        settings: ClipRandomizeSettings,
+        seed: UInt64,
+        impact: LiveMutationImpact = .snapshotOnly
+    ) -> UUID? {
+        var bakedClipID: UUID?
+        _ = ensureClipAndMutate(at: address, impact: impact) { clipID, entry in
+            var persistedSettings = settings.normalized
+            persistedSettings.lastSeed = seed
+            entry.content = ClipRandomizeBaker.bake(
+                source: entry.content,
+                settings: persistedSettings,
+                seed: seed
+            )
+            entry.randomizeSettings = persistedSettings
+            bakedClipID = clipID
+        }
+        return bakedClipID
+    }
+
+    @discardableResult
+    func bakeRandomizedSelectedClip(
+        trackID: UUID,
+        settings: ClipRandomizeSettings,
+        seed: UInt64,
+        impact: LiveMutationImpact = .snapshotOnly
+    ) -> UUID? {
+        bakeRandomizedClip(
+            at: PatternSlotAddress(trackID: trackID, slotIndex: store.selectedPatternIndex(for: trackID)),
+            settings: settings,
+            seed: seed,
+            impact: impact
+        )
+    }
+
+    @discardableResult
+    func auditionRandomizedClip(
+        at address: PatternSlotAddress,
+        settings: ClipRandomizeSettings,
+        seed: UInt64
+    ) -> PseudoClipState? {
+        let slot = store.patternBank(for: address.trackID).slot(at: address.slotIndex)
+        guard let clip = store.clipEntry(id: slot.sourceRef.clipID) else {
+            return nil
+        }
+        let bakedContent = ClipRandomizeBaker.bake(
+            source: clip.content,
+            settings: settings,
+            seed: seed
+        )
+        let state = PseudoClipState(
+            sourceTrackID: address.trackID,
+            startStep: 0,
+            lengthSteps: bakedContent.cycleLength,
+            noteGrid: bakedContent
+        )
+        engineController.setAuditionOverride(state, for: address.trackID)
+        return state
+    }
+
+    @discardableResult
+    func auditionRandomizedSelectedClip(
+        trackID: UUID,
+        settings: ClipRandomizeSettings,
+        seed: UInt64
+    ) -> PseudoClipState? {
+        auditionRandomizedClip(
+            at: PatternSlotAddress(trackID: trackID, slotIndex: store.selectedPatternIndex(for: trackID)),
+            settings: settings,
+            seed: seed
+        )
+    }
+
+    func clearRandomizeAudition(trackID: UUID) {
+        engineController.setAuditionOverride(nil, for: trackID)
+    }
 }

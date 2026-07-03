@@ -60,6 +60,144 @@ struct ClipStep: Codable, Equatable, Hashable, Sendable {
     }
 }
 
+struct ClipRandomizeSettings: Codable, Equatable, Hashable, Sendable {
+    var density: Double
+    var scaleID: ScaleID
+    var rootPitchClass: Int
+    var octaveCenter: Int
+    var octaveSpan: Int
+    var velocityVariance: Double
+    var gateVariance: Double
+    var lastSeed: UInt64?
+
+    init(
+        density: Double = 0.45,
+        scaleID: ScaleID = .minorPentatonic,
+        rootPitchClass: Int = 0,
+        octaveCenter: Int = 4,
+        octaveSpan: Int = 1,
+        velocityVariance: Double = 0.2,
+        gateVariance: Double = 0.2,
+        lastSeed: UInt64? = nil
+    ) {
+        self.density = min(max(density, 0), 1)
+        self.scaleID = scaleID
+        self.rootPitchClass = ((rootPitchClass % 12) + 12) % 12
+        self.octaveCenter = min(max(octaveCenter, 0), 9)
+        self.octaveSpan = min(max(octaveSpan, 0), 4)
+        self.velocityVariance = min(max(velocityVariance, 0), 1)
+        self.gateVariance = min(max(gateVariance, 0), 1)
+        self.lastSeed = lastSeed
+    }
+
+    var normalized: ClipRandomizeSettings {
+        ClipRandomizeSettings(
+            density: density,
+            scaleID: scaleID,
+            rootPitchClass: rootPitchClass,
+            octaveCenter: octaveCenter,
+            octaveSpan: octaveSpan,
+            velocityVariance: velocityVariance,
+            gateVariance: gateVariance,
+            lastSeed: lastSeed
+        )
+    }
+}
+
+enum ClipRandomizeBaker {
+    static func bake(source: ClipContent, settings: ClipRandomizeSettings, seed: UInt64) -> ClipContent {
+        let resolved = settings.normalized
+        switch source.normalized {
+        case let .noteGrid(lengthSteps, _):
+            return .noteGrid(
+                lengthSteps: lengthSteps,
+                steps: (0..<lengthSteps).map { stepIndex in
+                    guard fraction(seed: seed, step: stepIndex, salt: 0) < resolved.density else {
+                        return .empty
+                    }
+                    let note = ClipStepNote(
+                        pitch: pitch(settings: resolved, seed: seed, step: stepIndex),
+                        velocity: velocity(settings: resolved, seed: seed, step: stepIndex),
+                        lengthSteps: gateLength(settings: resolved, seed: seed, step: stepIndex)
+                    )
+                    return ClipStep(main: ClipLane(chance: 1, notes: [note]), fill: nil)
+                }
+            )
+            .normalized
+        case let .sliceTriggers(stepPattern, sliceIndexes, _, _):
+            let stepCount = max(1, stepPattern.count)
+            let sourceIndexes = sliceIndexes.isEmpty ? [0] : sliceIndexes.map { max(0, $0) }
+            let bakedPattern = (0..<stepCount).map { stepIndex in
+                fraction(seed: seed, step: stepIndex, salt: 0) < resolved.density
+            }
+            let bakedIndexes = (0..<stepCount).map { stepIndex in
+                sourceIndexes[index(seed: seed, step: stepIndex, salt: 1, upperBound: sourceIndexes.count)]
+            }
+            return .sliceTriggers(
+                stepPattern: bakedPattern,
+                sliceIndexes: bakedIndexes,
+                stepModes: Array(repeating: .single, count: stepCount),
+                stepParameters: Array(repeating: .default, count: stepCount)
+            )
+            .normalized
+        }
+    }
+
+    private static func pitch(settings: ClipRandomizeSettings, seed: UInt64, step: Int) -> Int {
+        let scale = Scales.table[settings.scaleID] ?? Scales.table[.minorPentatonic]
+        let intervals = {
+            guard let scale, !scale.intervals.isEmpty else { return [0] }
+            return scale.intervals
+        }()
+        var pool: [Int] = []
+        let lowOctave = max(0, settings.octaveCenter - settings.octaveSpan)
+        let highOctave = min(9, settings.octaveCenter + settings.octaveSpan)
+        for octave in lowOctave...highOctave {
+            let octaveBase = (octave + 1) * 12
+            for interval in intervals {
+                let midiNote = octaveBase + settings.rootPitchClass + interval
+                if (0...127).contains(midiNote) {
+                    pool.append(midiNote)
+                }
+            }
+        }
+        guard !pool.isEmpty else { return 60 }
+        return pool[index(seed: seed, step: step, salt: 2, upperBound: pool.count)]
+    }
+
+    private static func velocity(settings: ClipRandomizeSettings, seed: UInt64, step: Int) -> Int {
+        let variance = Int((settings.velocityVariance * 32).rounded())
+        guard variance > 0 else { return 96 }
+        let offset = index(seed: seed, step: step, salt: 3, upperBound: variance * 2 + 1) - variance
+        return min(max(96 + offset, 1), 127)
+    }
+
+    private static func gateLength(settings: ClipRandomizeSettings, seed: UInt64, step: Int) -> Int {
+        let maxExtra = Int((settings.gateVariance * 7).rounded())
+        guard maxExtra > 0 else { return 1 }
+        return 1 + index(seed: seed, step: step, salt: 4, upperBound: maxExtra + 1)
+    }
+
+    private static func fraction(seed: UInt64, step: Int, salt: UInt64) -> Double {
+        let value = hash(seed: seed, step: step, salt: salt)
+        return Double(value >> 11) / Double(1 << 53)
+    }
+
+    private static func index(seed: UInt64, step: Int, salt: UInt64, upperBound: Int) -> Int {
+        guard upperBound > 1 else { return 0 }
+        return Int(hash(seed: seed, step: step, salt: salt) % UInt64(upperBound))
+    }
+
+    private static func hash(seed: UInt64, step: Int, salt: UInt64) -> UInt64 {
+        var value = seed
+        value &+= UInt64(truncatingIfNeeded: step) &* 0x9E3779B97F4A7C15
+        value &+= salt &* 0xBF58476D1CE4E5B9
+        value = (value ^ (value >> 30)) &* 0xBF58476D1CE4E5B9
+        value = (value ^ (value >> 27)) &* 0x94D049BB133111EB
+        return value ^ (value >> 31)
+    }
+}
+
 enum SliceTriggerStepMode: String, Codable, Equatable, Hashable, Sendable, CaseIterable {
     case single
     case runFromHere
