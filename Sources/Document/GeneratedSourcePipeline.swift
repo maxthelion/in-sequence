@@ -166,6 +166,25 @@ struct GeneratedSourceEvaluationState: Equatable, Sendable {
 }
 
 extension GeneratorParams {
+    /// The generator's CLUSTER character for the density transform (synthesis
+    /// §4: "a phrase-level density sweep densifies in the generator's own
+    /// character"). Only the WS4 weighted trigger carries the bipolar cluster
+    /// factor; every other trigger kind is neutral.
+    var densityCluster: Double {
+        switch self {
+        case let .mono(trigger, _, _),
+             let .poly(trigger, _, _),
+             let .slice(trigger, _):
+            return trigger.stepStage.algo.densityCluster
+        case let .drum(triggers, _):
+            let clusters = triggers.values.map { $0.stepStage.algo.densityCluster }
+            guard !clusters.isEmpty else { return 0 }
+            return clusters.reduce(0, +) / Double(clusters.count)
+        case .progressionChords, .template:
+            return 0
+        }
+    }
+
     var generatedSourcePipeline: GeneratedSourcePipeline {
         switch self {
         case let .mono(trigger, pitch, shape):
@@ -180,6 +199,17 @@ extension GeneratorParams {
             return .slice(trigger: trigger, sliceIndexes: sliceIndexes)
         case let .template(templateID):
             return .template(templateID)
+        }
+    }
+}
+
+private extension StepAlgo {
+    var densityCluster: Double {
+        switch self {
+        case let .weighted(_, _, cluster):
+            return min(max(cluster, -1), 1)
+        case .euclidean, .manual:
+            return 0
         }
     }
 }
