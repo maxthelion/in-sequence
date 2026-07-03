@@ -69,6 +69,121 @@ struct PitchAlgoEditor: View {
 
                     WrapRow(items: pitches.map(String.init))
                 }
+            case let .pool(root, scale, spread, selection, deviation):
+                let normalizedSelection = selection.normalized
+                let normalizedDeviation = deviation.normalized
+                VStack(alignment: .leading, spacing: 12) {
+                    SourceParameterStepperRow(title: "Root", value: root, range: 0...127) {
+                        onChange(PitchStage(
+                            algo: .pool(root: $0, scale: scale, spread: spread, selection: normalizedSelection, deviation: normalizedDeviation),
+                            harmonicSidechain: stage.harmonicSidechain
+                        ))
+                    }
+                    Picker("Scale", selection: Binding(
+                        get: { scale },
+                        set: {
+                            onChange(PitchStage(
+                                algo: .pool(root: root, scale: $0, spread: spread, selection: normalizedSelection, deviation: normalizedDeviation),
+                                harmonicSidechain: stage.harmonicSidechain
+                            ))
+                        }
+                    )) {
+                        ForEach(ScaleID.allCases, id: \.self) { scale in
+                            Text(scale.rawValue).tag(scale)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    SourceParameterStepperRow(title: "Spread", value: spread, range: 0...36) {
+                        onChange(PitchStage(
+                            algo: .pool(root: root, scale: scale, spread: $0, selection: normalizedSelection, deviation: normalizedDeviation),
+                            harmonicSidechain: stage.harmonicSidechain
+                        ))
+                    }
+
+                    SourceParameterSliderRow(title: "Selection", value: (normalizedSelection.memory + 1) * 50, range: 0...100, accent: StudioTheme.violet) {
+                        onChange(PitchStage(
+                            algo: .pool(
+                                root: root,
+                                scale: scale,
+                                spread: spread,
+                                selection: PitchSelectionSettings(memory: ($0 / 50) - 1).normalized,
+                                deviation: normalizedDeviation
+                            ),
+                            harmonicSidechain: stage.harmonicSidechain
+                        ))
+                    }
+
+                    HStack(alignment: .top, spacing: 18) {
+                        StudioRotaryKnob(
+                            title: "Accidentals",
+                            value: normalizedDeviation.accidentalChance * 100,
+                            range: 0...100,
+                            accent: StudioTheme.amber,
+                            size: 56
+                        ) {
+                            onChange(PitchStage(
+                                algo: .pool(
+                                    root: root,
+                                    scale: scale,
+                                    spread: spread,
+                                    selection: normalizedSelection,
+                                    deviation: PitchDeviationSettings(
+                                        accidentalChance: $0 / 100,
+                                        octaveSpan: normalizedDeviation.octaveSpan,
+                                        leadingChance: normalizedDeviation.leadingChance
+                                    ).normalized
+                                ),
+                                harmonicSidechain: stage.harmonicSidechain
+                            ))
+                        }
+
+                        StudioRotaryKnob(
+                            title: "Octaves",
+                            value: Double(normalizedDeviation.octaveSpan),
+                            range: 0...3,
+                            accent: StudioTheme.cyan,
+                            size: 56
+                        ) {
+                            onChange(PitchStage(
+                                algo: .pool(
+                                    root: root,
+                                    scale: scale,
+                                    spread: spread,
+                                    selection: normalizedSelection,
+                                    deviation: PitchDeviationSettings(
+                                        accidentalChance: normalizedDeviation.accidentalChance,
+                                        octaveSpan: Int($0.rounded()),
+                                        leadingChance: normalizedDeviation.leadingChance
+                                    ).normalized
+                                ),
+                                harmonicSidechain: stage.harmonicSidechain
+                            ))
+                        }
+
+                        StudioRotaryKnob(
+                            title: "Leading",
+                            value: normalizedDeviation.leadingChance * 100,
+                            range: 0...100,
+                            accent: StudioTheme.violet,
+                            size: 56
+                        ) {
+                            onChange(PitchStage(
+                                algo: .pool(
+                                    root: root,
+                                    scale: scale,
+                                    spread: spread,
+                                    selection: normalizedSelection,
+                                    deviation: PitchDeviationSettings(
+                                        accidentalChance: normalizedDeviation.accidentalChance,
+                                        octaveSpan: normalizedDeviation.octaveSpan,
+                                        leadingChance: $0 / 100
+                                    ).normalized
+                                ),
+                                harmonicSidechain: stage.harmonicSidechain
+                            ))
+                        }
+                    }
+                }
             case let .randomInScale(root, scale, spread):
                 VStack(alignment: .leading, spacing: 12) {
                     SourceParameterStepperRow(title: "Root", value: root, range: 0...127) {

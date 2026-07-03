@@ -30,6 +30,8 @@ struct TrackSourceSourceTabContent: View {
     let onAssignClipSource: (ClipPoolEntry) -> Void
     let onRemoveSource: () -> Void
     let onUpdateGeneratorParams: (GeneratorParams) -> Void
+    let onSwitchGeneratorKind: (GeneratorPoolEntry, GeneratorKind) -> Void
+    let onBakeGeneratorToClip: () -> Void
 
     private var displayState: TrackSourceSourceDisplayState {
         TrackSourceSourceDisplayState.resolve(
@@ -67,14 +69,11 @@ struct TrackSourceSourceTabContent: View {
             sourceSection
 
             if sourcePickerStep == nil, let selectedGenerator {
-                // WS3 AC1 decision (pattern-generator-foundations spec):
-                // generated tracks are READ-ONLY on the step-layer surface.
-                // The clip step grid (and its pitch layer write path) only
-                // attaches to clip sources; a generator source shows its
-                // editor with this visible generated-state badge. The
-                // bake-prompt alternative is deferred to WS4's result strip.
-                generatedReadOnlyBadge
-
+                // WS4 supersedes the WS3 interim GENERATED/READ-ONLY badge:
+                // the always-visible RESULT STRIP + Bake dice in the editor
+                // header (prototype 14b) now carry the generated-state signal
+                // the badge stood in for (the WS3 changelog's documented
+                // deferral to WS4's result strip).
                 GeneratorParamsEditorView(
                     generator: selectedGenerator,
                     inputClipChoices: generatedSourceInputClips,
@@ -82,37 +81,15 @@ struct TrackSourceSourceTabContent: View {
                     sourceMode: .generator,
                     accent: accent,
                     layout: .sourceContained,
-                    onUpdate: onUpdateGeneratorParams
+                    onUpdate: onUpdateGeneratorParams,
+                    onSwitchKind: { onSwitchGeneratorKind(selectedGenerator, $0) },
+                    onBakeToClip: onBakeGeneratorToClip
                 )
             }
 
         case .empty:
             sourceSection
         }
-    }
-
-    private var generatedReadOnlyBadge: some View {
-        HStack(spacing: 8) {
-            Text("GENERATED")
-                .studioText(.eyebrow)
-                .tracking(0.8)
-                .foregroundStyle(accent)
-
-            Text("STEP LAYERS READ-ONLY")
-                .studioText(.micro)
-                .foregroundStyle(StudioTheme.mutedText)
-        }
-        .padding(.horizontal, 8)
-        .frame(height: 24)
-        .background(
-            Color.white.opacity(StudioOpacity.subtleFill),
-            in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
-        )
-        .accessibilityIdentifier("track-source-generated-readonly")
     }
 
     @ViewBuilder

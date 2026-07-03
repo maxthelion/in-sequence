@@ -114,6 +114,10 @@ CAPTURES=$(cat <<'TABLE'
 22b-track-detail-mixer|workspace=track,trackSourceTab=mixer|trackFillSource=clip;trackSourceTab=mixer;workspaceMode=setup;transport=stop
 22c-track-pitch-layer|workspace=track,trackSourceTab=steps-clip,trackClipLayer=pitch|trackFillSource=clip;trackSourceTab=steps-clip;trackClipLayer=pitch;transport=stop
 22d-track-layer-quick-switch|workspace=track,trackClipLayerSwitcher=open|trackFillSource=clip;trackSourceTab=steps-clip;trackClipLayerSwitcher=open;transport=stop
+22e-track-generator-trigger-tab|workspace=track,trackSourceTab=source,trackGeneratorStage=trigger|trackFillSource=generator;trackSourceTab=source;trackGeneratorStage=trigger;transport=stop
+22f-track-generator-pitch-tab|workspace=track,trackSourceTab=source,trackGeneratorStage=pitch|trackFillSource=generator;trackSourceTab=source;trackGeneratorStage=pitch;transport=stop
+22g-track-generator-chord-instrument|workspace=track,trackSourceTab=source,trackGeneratorKind=progressionChordGenerator|trackFillSource=generator;trackSourceTab=source;trackGeneratorKind=progressionChordGenerator;transport=stop
+22h-track-generator-chord-consumer|workspace=track,trackSourceTab=source,trackGeneratorStage=pitch|trackFillSource=generator;trackSourceTab=source;trackGeneratorKind=polyGenerator;trackGeneratorFollowing=chord;trackGeneratorStage=pitch;transport=stop
 23-track-slicer|workspace=track,selectedTrackType=slice|addTrack=slice;transport=stop
 23a-track-slicer-populated|workspace=track,selectedTrackType=slice,slicerFixture=populated,slicerSliceCount=8,slicerClipStepCount=16,slicerClipActiveStepCount=8,slicerLayer=steps|slicerFixture=populated;slicerLayer=steps;workspaceScroll=top;transport=stop
 23b-track-slicer-velocity-layer|workspace=track,selectedTrackType=slice,slicerFixture=populated,slicerSliceCount=8,slicerLayer=velocity|slicerFixture=populated;slicerLayer=velocity;workspaceScroll=bottom;transport=stop

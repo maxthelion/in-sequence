@@ -56,6 +56,8 @@ enum VisualScenarioCommandRunner {
     private static var trackSourceTabState = "none"
     private static var trackClipLayerState = "trigger"
     private static var trackClipLayerSwitcherState = "closed"
+    private static var trackGeneratorStageState = "trigger"
+    private static var trackGeneratorKindState = "none"
     private static var sceneEditorFixtureState = "none"
     private static var scenesAddFXModalState = "closed"
     private static var scenesSelectedInsertIndex = "none"
@@ -465,7 +467,7 @@ enum VisualScenarioCommandRunner {
         applyDrumPartHeaderFixture(command: command, section: section, session: session)
         applyDrumKitMatrixCommand(command: command, session: session)
         applyTrackSoundSourceCommand(command: command, section: section, session: session)
-        applyTrackSourceTabCommand(command: command, section: section)
+        applyTrackSourceTabCommand(command: command, section: section, session: session)
         applySlicerFixture(command: command, section: section, session: session)
         applyScenesModeCommand(command: command, section: section, session: session)
         applyLibraryCommand(command: command, section: section, session: session)
@@ -1075,6 +1077,8 @@ enum VisualScenarioCommandRunner {
         trackSourceTab=\(trackSourceTabState)
         trackClipLayer=\(trackClipLayerState)
         trackClipLayerSwitcher=\(trackClipLayerSwitcherState)
+        trackGeneratorStage=\(trackGeneratorStageState)
+        trackGeneratorKind=\(trackGeneratorKindState)
         selectedTrackSoundDestinationKind=\(selectedTrackSoundDestinationKind(session: session))
         slicerFixture=\(slicerFixtureState)
         slicerLayer=\(slicerLayerState)
@@ -1690,6 +1694,13 @@ enum VisualScenarioCommandRunner {
         return pending
     }
 
+    /// Append a pending editor command once, preserving arrival order for the
+    /// onAppear drain (select-tab first, then stage selection).
+    private static func queuePendingTrackSourceEditorCommand(_ command: String) {
+        guard !pendingTrackSourceEditorCommands.contains(command) else { return }
+        pendingTrackSourceEditorCommands.append(command)
+    }
+
     private static func currentDrumKitMatrixModel(session: SequencerDocumentSession) -> DrumKitMatrixModel? {
         guard drumKitMatrixVisualState,
               let groupID = drumKitMatrixGroupID,
@@ -2087,7 +2098,8 @@ enum VisualScenarioCommandRunner {
 
     private static func applyTrackSourceTabCommand(
         command: [String: String],
-        section: Binding<WorkspaceSection>
+        section: Binding<WorkspaceSection>,
+        session: SequencerDocumentSession
     ) {
         // QA: select a step in the Steps/Clip grid so the step-edit rotary
         // cluster (StepLayerRotaryRow / StepLayerRotaryDial) renders in
@@ -2118,6 +2130,51 @@ enum VisualScenarioCommandRunner {
             postRepeatedVisualCommand(name: .trackSourceEditorVisualCommand, object: "clip-layer-switcher:close")
         default:
             break
+        }
+
+        // WS4 generator-editor vocabulary: drive the TRIGGER|PITCH stage tab,
+        // the header mode switch (stable-identity switchGeneratorKind), and
+        // the FOLLOWING chord sidechain from capture rows 22e-22h.
+        if let rawStage = command["trackGeneratorStage"],
+           ["trigger", "pitch"].contains(rawStage) {
+            section.wrappedValue = .track
+            trackSourceTabState = "source"
+            trackGeneratorStageState = rawStage
+            queuePendingTrackSourceEditorCommand("select-tab:source")
+            postRepeatedVisualCommand(name: .trackSourceEditorVisualCommand, object: "select-tab:source")
+            // The stage view mounts inside the source tab; the repeated posts
+            // (now / +250ms / +600ms) cover the late mount like 22c's
+            // clip-layer command does.
+            postRepeatedVisualCommand(name: .trackSourceEditorVisualCommand, object: "generator-stage:\(rawStage)")
+        }
+
+        if let rawKind = command["trackGeneratorKind"],
+           let kind = GeneratorKind(rawValue: rawKind),
+           let generatorID = session.store.selectedPattern(for: session.store.selectedTrackID).sourceRef.generatorID {
+            section.wrappedValue = .track
+            trackSourceTabState = "source"
+            trackGeneratorKindState = rawKind
+            _ = session.switchGeneratorKind(id: generatorID, to: kind)
+            queuePendingTrackSourceEditorCommand("select-tab:source")
+            postRepeatedVisualCommand(name: .trackSourceEditorVisualCommand, object: "select-tab:source")
+        }
+
+        if let rawFollowing = command["trackGeneratorFollowing"],
+           let generatorID = session.store.selectedPattern(for: session.store.selectedTrackID).sourceRef.generatorID {
+            let sidechain: HarmonicSidechainSource
+            switch rawFollowing {
+            case "chord", "project", "projectChordContext":
+                sidechain = .projectChordContext
+            default:
+                sidechain = .none
+            }
+            section.wrappedValue = .track
+            trackSourceTabState = "source"
+            _ = session.mutateGenerator(id: generatorID) { entry in
+                entry.params = entry.params.withFirstPitchSidechain(sidechain)
+            }
+            queuePendingTrackSourceEditorCommand("select-tab:source")
+            postRepeatedVisualCommand(name: .trackSourceEditorVisualCommand, object: "select-tab:source")
         }
 
         guard let rawTab = command["trackSourceTab"],
@@ -3419,6 +3476,31 @@ enum VisualScenarioCommandRunner {
             let contour = 0.18 + (sin(phase * .pi * 5.0) + 1.0) * 0.32
             let transient = index.isMultiple(of: 9) ? 0.24 : 0
             return Float(min(0.94, contour + transient))
+        }
+    }
+}
+
+private extension GeneratorParams {
+    /// QA vocabulary helper (row 22h): set the FIRST pitch lane's harmonic
+    /// sidechain in place — the chord sidechain is a pitch-pool filter only,
+    /// so this never touches the trigger stage.
+    func withFirstPitchSidechain(_ sidechain: HarmonicSidechainSource) -> GeneratorParams {
+        switch self {
+        case let .mono(trigger, pitch, shape):
+            return .mono(
+                trigger: trigger,
+                pitch: .native(PitchStage(algo: pitch.pitchStage.algo, harmonicSidechain: sidechain)),
+                shape: shape
+            )
+        case let .poly(trigger, pitches, shape):
+            guard !pitches.isEmpty else {
+                return self
+            }
+            var nextPitches = pitches
+            nextPitches[0] = .native(PitchStage(algo: nextPitches[0].pitchStage.algo, harmonicSidechain: sidechain))
+            return .poly(trigger: trigger, pitches: nextPitches, shape: shape)
+        default:
+            return self
         }
     }
 }

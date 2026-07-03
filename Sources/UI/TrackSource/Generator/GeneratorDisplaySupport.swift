@@ -8,6 +8,10 @@ func stepDisplayLabel(_ step: StepAlgo) -> String {
     switch step {
     case .euclidean:
         return "Euclidean"
+    case .manual:
+        return "Manual"
+    case .weighted:
+        return "Weighted"
     }
 }
 
@@ -19,6 +23,8 @@ func pitchDisplayLabel(_ pitch: PitchAlgo) -> String {
     switch pitch {
     case .manual:
         return "Manual"
+    case .pool:
+        return "Pool"
     case .randomInScale:
         return "Random In Scale"
     case .randomInChord:
@@ -36,7 +42,13 @@ func pitchDisplayLabel(_ pitch: PitchAlgo) -> String {
 
 func stepAlgoAccentColor(for kind: StepAlgoKind) -> Color {
     switch kind {
-        case .euclidean:
+    case .euclidean:
         return StudioTheme.success
+    case .manual:
+        return StudioTheme.cyan
+    case .weighted:
+        // Violet, not amber: amber is fenced to the PENDING state vocabulary
+        // (tab-unification-and-canon-creep.md) and a kind accent is chrome.
+        return StudioTheme.violet
     }
 }

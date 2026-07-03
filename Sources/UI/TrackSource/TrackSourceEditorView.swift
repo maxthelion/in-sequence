@@ -600,7 +600,9 @@ struct TrackSourceEditorView: View {
             onCreateBlankClipSource: createBlankClipSource,
             onAssignClipSource: assignClipSource,
             onRemoveSource: removeSource,
-            onUpdateGeneratorParams: updateSourceGeneratorParams
+            onUpdateGeneratorParams: updateSourceGeneratorParams,
+            onSwitchGeneratorKind: switchGeneratorKind,
+            onBakeGeneratorToClip: bakeGeneratorToClip
         )
     }
 
@@ -941,6 +943,22 @@ struct TrackSourceEditorView: View {
         session.mutateGenerator(id: generatorID) { entry in
             entry.params = updated
         }
+    }
+
+    /// WS4 AC1 (stable generator identity): mode switching mutates the pool
+    /// entry IN PLACE via `switchingKind` — same UUID, slot bindings and
+    /// shared params survive. Never delete+readd.
+    private func switchGeneratorKind(_ generator: GeneratorPoolEntry, to kind: GeneratorKind) {
+        guard generator.kind != kind else {
+            return
+        }
+        _ = session.switchGeneratorKind(id: generator.id, to: kind)
+    }
+
+    /// WS4 header dice: freeze the generator's realized bar into a new clip
+    /// on the selected slot (bake(source, seed) -> clip content).
+    private func bakeGeneratorToClip() {
+        _ = session.bakeGeneratorToClip(trackID: track.id, slotIndex: selectedPatternIndex)
     }
 
     private func updateModifierGeneratorParams(_ updated: GeneratorParams) {

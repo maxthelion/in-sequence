@@ -9,6 +9,22 @@ struct GeneratorParamsEditorView: View {
         case modifierContained
     }
 
+    private enum StageTab: String, CaseIterable, Identifiable {
+        case trigger
+        case pitch
+
+        var id: String { rawValue }
+
+        var title: String {
+            switch self {
+            case .trigger:
+                return "Trigger"
+            case .pitch:
+                return "Pitch"
+            }
+        }
+    }
+
     let generator: GeneratorPoolEntry
     let inputClipChoices: [ClipPoolEntry]
     let harmonicSidechainClipChoices: [ClipPoolEntry]
@@ -16,8 +32,11 @@ struct GeneratorParamsEditorView: View {
     let accent: Color
     let layout: LayoutMode
     let onUpdate: (GeneratorParams) -> Void
+    let onSwitchKind: ((GeneratorKind) -> Void)?
+    let onBakeToClip: (() -> Void)?
 
     @State private var selectedPolyLane = 0
+    @State private var selectedStageTab: StageTab = .trigger
 
     init(
         generator: GeneratorPoolEntry,
@@ -26,7 +45,9 @@ struct GeneratorParamsEditorView: View {
         sourceMode: TrackSourceMode,
         accent: Color,
         layout: LayoutMode = .stacked,
-        onUpdate: @escaping (GeneratorParams) -> Void
+        onUpdate: @escaping (GeneratorParams) -> Void,
+        onSwitchKind: ((GeneratorKind) -> Void)? = nil,
+        onBakeToClip: (() -> Void)? = nil
     ) {
         self.generator = generator
         self.inputClipChoices = inputClipChoices
@@ -35,25 +56,127 @@ struct GeneratorParamsEditorView: View {
         self.accent = accent
         self.layout = layout
         self.onUpdate = onUpdate
+        self.onSwitchKind = onSwitchKind
+        self.onBakeToClip = onBakeToClip
     }
 
     var body: some View {
-        Group {
-            switch layout {
-            case .stacked:
-                VStack(alignment: .leading, spacing: 18) {
+        if usesFoundationEditorShell {
+            foundationEditorShell
+        } else {
+            Group {
+                switch layout {
+                case .stacked:
+                    VStack(alignment: .leading, spacing: 18) {
+                        sourceSection
+                        modifierSection
+                    }
+                case .sourceOnly:
                     sourceSection
+                case .modifierOnly:
+                    modifierSection
+                case .sourceContained:
+                    sourceSection
+                case .modifierContained:
                     modifierSection
                 }
-            case .sourceOnly:
-                sourceSection
-            case .modifierOnly:
-                modifierSection
-            case .sourceContained:
-                sourceSection
-            case .modifierContained:
-                modifierSection
             }
+        }
+    }
+
+    private var usesFoundationEditorShell: Bool {
+        sourceMode == .generator && layout != .modifierOnly && layout != .modifierContained
+    }
+
+    private var foundationEditorShell: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            generatorHeader
+            GeneratorResultStrip(
+                notesByStep: GeneratorResultStrip.barContent(
+                    for: generator.params,
+                    clipChoices: inputClipChoices
+                ),
+                accent: accent
+            )
+
+            if generator.kind == .progressionChordGenerator {
+                sourceSection
+            } else {
+                // TRIGGER | PITCH stage tabs (prototype 14b) in the inset-track
+                // solid-thumb family — never a native segmented picker.
+                StudioSegmentedControl(
+                    title: nil,
+                    selection: $selectedStageTab,
+                    segments: StageTab.allCases.map { tab in
+                        StudioSegment(
+                            title: tab.title,
+                            value: tab,
+                            accessibilityIdentifier: "generator-stage-\(tab.rawValue)"
+                        )
+                    },
+                    accent: accent
+                )
+
+                switch selectedStageTab {
+                case .trigger:
+                    sourceSection
+                case .pitch:
+                    modifierSection
+                }
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .trackSourceEditorVisualCommand)) { notification in
+            guard let command = notification.object as? String,
+                  command.hasPrefix("generator-stage:")
+            else { return }
+            switch command.dropFirst("generator-stage:".count) {
+            case "trigger":
+                selectedStageTab = .trigger
+            case "pitch":
+                selectedStageTab = .pitch
+            default:
+                break
+            }
+        }
+    }
+
+    private var generatorHeader: some View {
+        HStack(spacing: 10) {
+            Picker("Mode", selection: Binding(
+                get: { generator.kind },
+                set: { onSwitchKind?($0) }
+            )) {
+                ForEach(GeneratorKind.allCases.filter { $0.compatibleWith.contains(generator.trackType) }, id: \.self) { kind in
+                    Text(kind.label).tag(kind)
+                }
+            }
+            .labelsHidden()
+            .pickerStyle(.menu)
+            .disabled(onSwitchKind == nil)
+            .help("Switch generator mode without replacing this pattern source")
+
+            GeneratorHeaderChip(title: "FOLLOWING", value: followingChipValue, accent: StudioTheme.violet)
+
+            Spacer(minLength: 0)
+
+            StudioCircleIconButton(
+                systemName: "die.face.5",
+                accent: accent,
+                isEnabled: onBakeToClip != nil,
+                help: "Bake generator result to clip",
+                action: { onBakeToClip?() }
+            )
+        }
+    }
+
+    private var followingChipValue: String {
+        switch firstPitchStage?.harmonicSidechain {
+        case .some(.projectChordContext):
+            return "Chord"
+        case .some(.clip):
+            return "Clip"
+        case .some(.none), nil:
+            return "None"
         }
     }
 
@@ -317,5 +440,112 @@ struct GeneratorParamsEditorView: View {
             return .default
         }
         return shape
+    }
+
+    private var firstPitchStage: PitchStage? {
+        switch generator.params {
+        case let .mono(_, pitch, _):
+            return pitch.pitchStage
+        case let .poly(_, pitches, _):
+            return pitches.first?.pitchStage
+        default:
+            return nil
+        }
+    }
+}
+
+private struct GeneratorHeaderChip: View {
+    let title: String
+    let value: String
+    let accent: Color
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Text(title)
+                .studioText(.label)
+                .foregroundStyle(accent)
+            Text(value)
+                .studioText(.label)
+                .foregroundStyle(StudioTheme.text)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 5)
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+        )
+    }
+}
+
+/// The always-visible combined RESULT strip (prototype 14b): one bar of
+/// resolved triggers with pitch labels, readable from either stage tab.
+/// Hit cells are accent-outlined with a solid dot + pitch label; rests are
+/// border-dim — the prototype's cell grammar.
+struct GeneratorResultStrip: View {
+    let notesByStep: [[GeneratedNote]]
+    let accent: Color
+
+    /// AC5 seam: the strip renders EXACTLY this function's output — the same
+    /// `GeneratedSourceEvaluator` preview evaluation the bake path freezes,
+    /// and (for deterministic generators) the same realized bar the
+    /// `BarPrecomputeEvaluator` precompute publishes. Exposed so the
+    /// acceptance test can pin strip content == precomputed bar with no
+    /// separate simulation in between.
+    static func barContent(
+        for params: GeneratorParams,
+        clipChoices: [ClipPoolEntry],
+        stepCount: Int = 16
+    ) -> [[GeneratedNote]] {
+        GeneratedSourceEvaluator.previewNotes(
+            for: params,
+            clipChoices: clipChoices,
+            count: stepCount
+        )
+    }
+
+    var body: some View {
+        HStack(spacing: 3) {
+            ForEach(Array(notesByStep.enumerated()), id: \.offset) { _, notes in
+                resultCell(notes: notes)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityLabel("Generator result strip")
+        .accessibilityIdentifier("generator-result-strip")
+    }
+
+    @ViewBuilder
+    private func resultCell(notes: [GeneratedNote]) -> some View {
+        VStack(spacing: 3) {
+            Circle()
+                .fill(notes.isEmpty ? StudioTheme.border : accent)
+                .frame(width: 5, height: 5)
+
+            if let first = notes.first {
+                Text(Self.pitchLabel(first.pitch) + (notes.count > 1 ? "+" : ""))
+                    .font(.system(size: 8, weight: .bold, design: .rounded))
+                    .foregroundStyle(accent)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+            } else {
+                Text("·")
+                    .font(.system(size: 8, weight: .bold, design: .rounded))
+                    // ux-canon-allow: rest-cell placeholder glyph — muted
+                    // caption token, not stateful chrome.
+                    .foregroundStyle(StudioTheme.mutedText)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: 40)
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                .stroke(notes.isEmpty ? StudioTheme.border : accent, lineWidth: StudioMetrics.borderWidth)
+        )
+    }
+
+    static func pitchLabel(_ pitch: Int) -> String {
+        let clamped = min(max(pitch, 0), 127)
+        let names = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
+        return "\(names[clamped % 12])\(clamped / 12 - 1)"
     }
 }
