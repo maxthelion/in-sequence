@@ -439,6 +439,7 @@ enum VisualScenarioCommandRunner {
         applySendEffects(command: command, session: session)
         applyRoutingStressCommands(command: command, session: session)
         applyTrackFillPreviewFixture(command: command, section: section, session: session)
+        applyTrackRandomizeFixture(command: command, section: section, session: session)
         applyAudioInputFixture(
             command: command,
             section: section,
@@ -1189,6 +1190,9 @@ enum VisualScenarioCommandRunner {
         selectedTrackFillPreviewAvailable=\(session.isTrackFillPreviewAvailable(trackID: session.store.selectedTrackID))
         selectedTrackFillPreviewActive=\(session.trackFillPreviewState.isActive(for: session.store.selectedTrackID))
         selectedTrackFillEngaged=\(selectedTrackFillEngagedStatus(session: session))
+        trackRandomizeSheet=\(trackRandomizeSheetState)
+        selectedTrackRandomizePersisted=\(selectedTrackRandomizePersistedStatus(session: session))
+        selectedTrackRandomizeLastSeed=\(selectedTrackRandomizeLastSeedStatus(session: session))
         fillPreviewActiveTrackName=\(activeFillPreviewTrack?.name ?? "none")
         fillPreviewActiveTrackIsSelected=\(session.trackFillPreviewState.activeTrackID == session.store.selectedTrackID)
         selectedPhraseID=\(session.store.selectedPhraseID.uuidString)
@@ -1672,6 +1676,7 @@ enum VisualScenarioCommandRunner {
     /// the sound tab post racing the dive-in part-editor mount. Drained in
     /// onAppear; live views still react via the notification.
     static var pendingTrackSourceEditorCommands: [String] = []
+    static var trackRandomizeSheetState = "closed"
 
     static func drainPendingTrackSourceEditorCommands() -> [String] {
         let pending = pendingTrackSourceEditorCommands
@@ -2096,7 +2101,10 @@ enum VisualScenarioCommandRunner {
         trackSourceTabState = rawTab
         // Stash for the onAppear drain: the source editor may mount AFTER a
         // drum-part dive-in, so a live post can be lost (28a/29g race).
-        pendingTrackSourceEditorCommands = ["select-tab:\(rawTab)"]
+        let tabCommand = "select-tab:\(rawTab)"
+        if !pendingTrackSourceEditorCommands.contains(tabCommand) {
+            pendingTrackSourceEditorCommands.insert(tabCommand, at: 0)
+        }
         postRepeatedVisualCommand(name: .trackSourceEditorVisualCommand, object: "select-tab:\(rawTab)")
     }
 
@@ -2971,6 +2979,49 @@ enum VisualScenarioCommandRunner {
         }
     }
 
+    private static func applyTrackRandomizeFixture(
+        command: [String: String],
+        section: Binding<WorkspaceSection>,
+        session: SequencerDocumentSession
+    ) {
+        guard command["trackRandomizeSheet"] != nil ||
+              command["trackRandomizeRoll"] != nil
+        else { return }
+
+        section.wrappedValue = .track
+        applyTrackFillSource("clip", session: session)
+        trackSourceTabState = "source"
+        pendingTrackSourceEditorCommands = ["select-tab:source"]
+        postRepeatedVisualCommand(name: .trackSourceEditorVisualCommand, object: "select-tab:source")
+
+        switch command["trackRandomizeSheet"] {
+        case "open", "true", "on":
+            trackRandomizeSheetState = "open"
+            pendingTrackSourceEditorCommands.append("randomize-sheet:open")
+            postRepeatedVisualCommand(name: .trackSourceEditorVisualCommand, object: "randomize-sheet:open")
+        case "close", "closed", "false", "off":
+            trackRandomizeSheetState = "closed"
+            pendingTrackSourceEditorCommands.append("randomize-sheet:close")
+            postRepeatedVisualCommand(name: .trackSourceEditorVisualCommand, object: "randomize-sheet:close")
+        default:
+            break
+        }
+
+        switch command["trackRandomizeRoll"] {
+        case "on", "roll", "true":
+            let settings = selectedTrackRandomizeSettings(session: session)
+            let seed = deterministicTrackRandomizeSeed(session: session)
+            _ = session.bakeRandomizedSelectedClip(
+                trackID: session.store.selectedTrackID,
+                settings: settings,
+                seed: seed
+            )
+            trackRandomizeSheetState = "closed"
+        default:
+            break
+        }
+    }
+
     private static func setSelectedTrackFillEngaged(_ engaged: Bool, session: SequencerDocumentSession) {
         guard let fillLayer = session.store.layers.first(where: {
             if case .macroRow("fill-flag") = $0.target {
@@ -3004,6 +3055,37 @@ enum VisualScenarioCommandRunner {
             return engaged
         }
         return false
+    }
+
+    private static func selectedTrackRandomizeSettings(session: SequencerDocumentSession) -> ClipRandomizeSettings {
+        let pattern = session.store.selectedPattern(for: session.store.selectedTrackID)
+        guard let clipID = pattern.sourceRef.clipID,
+              let settings = session.store.clipEntry(id: clipID)?.randomizeSettings
+        else {
+            return ClipRandomizeSettings()
+        }
+        return settings
+    }
+
+    private static func selectedTrackRandomizePersistedStatus(session: SequencerDocumentSession) -> Bool {
+        let pattern = session.store.selectedPattern(for: session.store.selectedTrackID)
+        guard let clipID = pattern.sourceRef.clipID else { return false }
+        return session.store.clipEntry(id: clipID)?.randomizeSettings != nil
+    }
+
+    private static func selectedTrackRandomizeLastSeedStatus(session: SequencerDocumentSession) -> String {
+        let pattern = session.store.selectedPattern(for: session.store.selectedTrackID)
+        guard let clipID = pattern.sourceRef.clipID,
+              let lastSeed = session.store.clipEntry(id: clipID)?.randomizeSettings?.lastSeed
+        else {
+            return "none"
+        }
+        return "\(lastSeed)"
+    }
+
+    private static func deterministicTrackRandomizeSeed(session: SequencerDocumentSession) -> UInt64 {
+        let slotIndex = session.store.selectedPatternIndex(for: session.store.selectedTrackID)
+        return 0x5EED_0000 ^ session.revision ^ UInt64(slotIndex &+ 1)
     }
 
     private static func ensureTrackCount(_ count: Int, session: SequencerDocumentSession) {

@@ -1,3 +1,4 @@
+import Foundation
 import SwiftUI
 
 enum TrackSourceEditorTab: String, CaseIterable, Identifiable {
@@ -87,6 +88,10 @@ struct TrackFillPreviewHeaderPresentation: Equatable {
     }
 }
 
+private struct ClipRandomizeSheetRequest: Identifiable {
+    let id = UUID()
+}
+
 struct TrackSourceEditorView: View {
     @Binding var document: SeqAIDocument
     @Environment(EngineController.self) private var engineController
@@ -100,6 +105,9 @@ struct TrackSourceEditorView: View {
     @State private var macroSlotPickerRequest: MacroSlotPickerRequest?
     @State private var clipHistoryModel: ClipHistoryTransferViewModel?
     @State private var clipHistoryToast: String?
+    @State private var randomizeSheetRequest: ClipRandomizeSheetRequest?
+    @State private var randomizeDraft = ClipRandomizeSettings()
+    @State private var randomizeAuditionSeed: UInt64?
     @State private var isAddFXPresented = false
 
     private var clipHistoryDestinationMode: Bool {
@@ -132,6 +140,16 @@ struct TrackSourceEditorView: View {
             return slot.slotIndex
         })
     }
+    private var randomizedPatternSlots: Set<Int> {
+        Set(bank.slots.compactMap { slot in
+            guard let clipID = slot.sourceRef.clipID,
+                  session.store.clipEntry(id: clipID)?.randomizeSettings != nil
+            else {
+                return nil
+            }
+            return slot.slotIndex
+        })
+    }
     private var selectedSourceMode: TrackSourceMode { selectedPattern.sourceRef.mode }
     private var compatibleClips: [ClipPoolEntry] { session.store.compatibleClips(for: track) }
     private var compatibleSourceGenerators: [GeneratorPoolEntry] { session.store.compatibleGenerators(for: track) }
@@ -139,6 +157,9 @@ struct TrackSourceEditorView: View {
     private var generatedSourceInputClips: [ClipPoolEntry] { session.store.generatedSourceInputClips() }
     private var harmonicSidechainClips: [ClipPoolEntry] { session.store.harmonicSidechainClips() }
     private var currentClip: ClipPoolEntry? { session.store.clipEntry(id: selectedPattern.sourceRef.clipID) }
+    private var canRandomizeSelectedClip: Bool {
+        selectedSourceMode == .clip && currentClip != nil
+    }
     private var selectedSourceGenerator: GeneratorPoolEntry? {
         session.store.generatorEntry(id: selectedPattern.sourceRef.generatorID)
     }
@@ -266,9 +287,13 @@ struct TrackSourceEditorView: View {
                 showsHeader: false,
                 content: {
                     VStack(alignment: .leading, spacing: 10) {
+                        randomizeActionRow
+
                         TrackPatternSlotPalette(
                             selectedSlot: selectedPatternIndexBinding,
                             occupiedSlots: occupiedPatternSlots,
+                            randomizedSlots: randomizedPatternSlots,
+                            randomizedBadgeAccent: accent,
                             bypassState: .notApplicable,
                             onBypassToggle: { _ in },
                             destinationMode: clipHistoryDestinationMode
@@ -319,6 +344,19 @@ struct TrackSourceEditorView: View {
             }
             .presentationBackground(.clear)
         }
+        .sheet(item: $randomizeSheetRequest) { _ in
+            ClipRandomizeSettingsSheet(
+                settings: $randomizeDraft,
+                accent: accent,
+                isAuditioning: randomizeAuditionSeed != nil,
+                previewContent: randomizePreviewContent,
+                onReRoll: auditionRandomizeDraft,
+                onBake: bakeRandomizeDraft,
+                onCancel: closeRandomizeSheet
+            )
+            .presentationBackground(.clear)
+            .environment(\.colorScheme, .dark)
+        }
         .sheet(isPresented: $isAddFXPresented) {
             addFXSheet
         }
@@ -337,6 +375,7 @@ struct TrackSourceEditorView: View {
             sourcePickerStep = nil
             modifierPickerStep = nil
             resetClipHistoryDestinationMode()
+            closeRandomizeSheet()
         }
         .onChange(of: selectedTab) { _, newValue in
             if newValue != .stepsClip {
@@ -349,6 +388,7 @@ struct TrackSourceEditorView: View {
         }
         .onChange(of: track.id) { _, _ in
             session.clearTrackFillPreview(reason: .selectedTrackChanged)
+            closeRandomizeSheet()
         }
         .onAppear {
             syncStepGridCoordinator()
@@ -357,11 +397,8 @@ struct TrackSourceEditorView: View {
             // select-tab:sound post races the mount and is lost (28a/29g). The
             // drain replays it on mount for deterministic standalone captures.
             for command in VisualScenarioCommandRunner.drainPendingTrackSourceEditorCommands()
-            where command.hasPrefix("select-tab:") {
-                if let tab = TrackSourceEditorTab.tab(forVisualCommand: String(command.dropFirst("select-tab:".count))),
-                   tab.isAvailable(in: session.workspaceMode) {
-                    selectedTab = tab
-                }
+            {
+                handleTrackSourceEditorVisualCommand(command)
             }
         }
         .onChange(of: currentClip?.id) { _, _ in
@@ -369,6 +406,7 @@ struct TrackSourceEditorView: View {
         }
         .onDisappear {
             session.clearTrackFillPreview(reason: .editorClosed)
+            closeRandomizeSheet()
         }
         .onChange(of: session.workspaceMode) { _, newMode in
             if !selectedTab.isAvailable(in: newMode) {
@@ -377,27 +415,145 @@ struct TrackSourceEditorView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .trackSourceEditorVisualCommand)) { notification in
             guard let command = notification.object as? String else { return }
-
-            if command.hasPrefix("select-tab:") {
-                guard let tab = TrackSourceEditorTab.tab(forVisualCommand: String(command.dropFirst("select-tab:".count))),
-                      tab.isAvailable(in: session.workspaceMode)
-                else { return }
-                selectedTab = tab
-                return
-            }
-
-            // QA: select a step in the Steps/Clip grid so the shared step-edit
-            // rotary cluster (StepLayerRotaryRow / StepLayerRotaryDial) renders
-            // in ClipContentPreview. Mirrors tapping a step.
-            if command.hasPrefix("select-step:"),
-               let stepIndex = Int(command.dropFirst("select-step:".count)) {
-                selectedTab = .stepsClip
-                syncStepGridCoordinator()
-                stepGridWorkspaceModel.coordinator?.clearSelection()
-                stepGridWorkspaceModel.coordinator?.toggleSelection(at: max(0, stepIndex))
-                return
-            }
+            handleTrackSourceEditorVisualCommand(command)
         }
+    }
+
+    @ViewBuilder
+    private var randomizeActionRow: some View {
+        HStack(spacing: 8) {
+            Button(action: randomizeSelectedClipNow) {
+                Label("Randomize", systemImage: "die.face.5")
+                    .studioText(.labelBold)
+                    .foregroundStyle(canRandomizeSelectedClip ? StudioTheme.background : StudioTheme.mutedText)
+                    .padding(.vertical, 9)
+                    .padding(.horizontal, 12)
+                    .background(
+                        canRandomizeSelectedClip ? accent : StudioTheme.border,
+                        in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                    )
+            }
+            .buttonStyle(.plain)
+            .disabled(!canRandomizeSelectedClip)
+            .accessibilityLabel("Randomize current clip")
+
+            Button(action: presentRandomizeSheet) {
+                Image(systemName: "slider.horizontal.3")
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(canRandomizeSelectedClip ? StudioTheme.text : StudioTheme.mutedText)
+                    .frame(width: 34, height: 34)
+                    .background(
+                        Color.white.opacity(StudioOpacity.subtleFill),
+                        in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                            .stroke(randomizeSettingsStroke, lineWidth: StudioMetrics.borderWidth)
+                    )
+            }
+            .buttonStyle(.plain)
+            .disabled(!canRandomizeSelectedClip)
+            .accessibilityLabel("Randomize settings")
+
+            if currentClip?.randomizeSettings != nil {
+                Circle()
+                    .fill(accent)
+                    .frame(width: 7, height: 7)
+                    .accessibilityLabel("Randomize settings saved")
+            }
+
+            Spacer(minLength: 0)
+        }
+    }
+
+    private var randomizeSettingsStroke: Color {
+        guard canRandomizeSelectedClip else { return StudioTheme.border }
+        return currentClip?.randomizeSettings == nil ? StudioTheme.border : accent
+    }
+
+    private var randomizePreviewContent: ClipContent? {
+        guard let currentClip else { return nil }
+        let seed = randomizeAuditionSeed ?? currentClip.randomizeSettings?.lastSeed ?? 0
+        return ClipRandomizeBaker.bake(source: currentClip.content, settings: randomizeDraft, seed: seed)
+    }
+
+    private func handleTrackSourceEditorVisualCommand(_ command: String) {
+        if command.hasPrefix("select-tab:") {
+            guard let tab = TrackSourceEditorTab.tab(forVisualCommand: String(command.dropFirst("select-tab:".count))),
+                  tab.isAvailable(in: session.workspaceMode)
+            else { return }
+            selectedTab = tab
+            return
+        }
+
+        if command == "randomize-sheet:open" {
+            selectedTab = .stepsClip
+            presentRandomizeSheet()
+            return
+        }
+
+        if command == "randomize-sheet:close" {
+            closeRandomizeSheet()
+            return
+        }
+
+        // QA: select a step in the Steps/Clip grid so the shared step-edit
+        // rotary cluster (StepLayerRotaryRow / StepLayerRotaryDial) renders
+        // in ClipContentPreview. Mirrors tapping a step.
+        if command.hasPrefix("select-step:"),
+           let stepIndex = Int(command.dropFirst("select-step:".count)) {
+            selectedTab = .stepsClip
+            syncStepGridCoordinator()
+            stepGridWorkspaceModel.coordinator?.clearSelection()
+            stepGridWorkspaceModel.coordinator?.toggleSelection(at: max(0, stepIndex))
+            return
+        }
+    }
+
+    private func randomizeSelectedClipNow() {
+        guard canRandomizeSelectedClip else { return }
+        let settings = currentClip?.randomizeSettings ?? ClipRandomizeSettings()
+        let seed = nextRandomizeSeed()
+        _ = session.bakeRandomizedSelectedClip(trackID: track.id, settings: settings, seed: seed)
+    }
+
+    private func presentRandomizeSheet() {
+        guard canRandomizeSelectedClip else { return }
+        randomizeDraft = currentClip?.randomizeSettings ?? ClipRandomizeSettings()
+        randomizeAuditionSeed = nil
+        randomizeSheetRequest = ClipRandomizeSheetRequest()
+    }
+
+    private func auditionRandomizeDraft() {
+        guard canRandomizeSelectedClip else { return }
+        let seed = nextRandomizeSeed()
+        randomizeAuditionSeed = seed
+        var persisted = randomizeDraft.normalized
+        persisted.lastSeed = seed
+        randomizeDraft = persisted
+        _ = session.auditionRandomizedSelectedClip(trackID: track.id, settings: persisted, seed: seed)
+    }
+
+    private func bakeRandomizeDraft() {
+        guard canRandomizeSelectedClip else { return }
+        let seed = randomizeAuditionSeed ?? nextRandomizeSeed()
+        var persisted = randomizeDraft.normalized
+        persisted.lastSeed = seed
+        _ = session.bakeRandomizedSelectedClip(trackID: track.id, settings: persisted, seed: seed)
+        session.clearRandomizeAudition(trackID: track.id)
+        randomizeAuditionSeed = nil
+        randomizeSheetRequest = nil
+    }
+
+    private func closeRandomizeSheet() {
+        session.clearRandomizeAudition(trackID: track.id)
+        randomizeAuditionSeed = nil
+        randomizeSheetRequest = nil
+    }
+
+    private func nextRandomizeSeed() -> UInt64 {
+        let timeBits = Date().timeIntervalSinceReferenceDate.bitPattern
+        return timeBits ^ session.revision ^ UInt64(selectedPatternIndex &+ 1)
     }
 
     private var sectionPills: some View {
@@ -963,6 +1119,196 @@ struct TrackSourceEditorView: View {
                 session.setSelectedPatternIndex(newValue, for: trackID)
             }
         )
+    }
+}
+
+private struct ClipRandomizeSettingsSheet: View {
+    @Binding var settings: ClipRandomizeSettings
+    let accent: Color
+    let isAuditioning: Bool
+    let previewContent: ClipContent?
+    let onReRoll: () -> Void
+    let onBake: () -> Void
+    let onCancel: () -> Void
+
+    var body: some View {
+        StudioModal(
+            title: "Randomize Clip",
+            accent: accent,
+            minWidth: 620,
+            onClose: onCancel
+        ) {
+            VStack(alignment: .leading, spacing: 16) {
+                controls
+                previewStrip
+                actionRow
+            }
+        }
+    }
+
+    private var controls: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            SourceParameterSliderRow(
+                title: "Density",
+                value: settings.density * 100,
+                range: 0...100,
+                accent: accent
+            ) { value in
+                update { $0.density = value / 100 }
+            }
+
+            HStack(spacing: 12) {
+                Picker("Root", selection: Binding(
+                    get: { settings.rootPitchClass },
+                    set: { value in update { $0.rootPitchClass = value } }
+                )) {
+                    ForEach(0..<12, id: \.self) { pitchClass in
+                        Text(rootLabel(pitchClass)).tag(pitchClass)
+                    }
+                }
+                .pickerStyle(.menu)
+
+                Picker("Scale", selection: Binding(
+                    get: { settings.scaleID },
+                    set: { value in update { $0.scaleID = value } }
+                )) {
+                    ForEach(ScaleID.allCases, id: \.self) { scale in
+                        Text(scale.rawValue).tag(scale)
+                    }
+                }
+                .pickerStyle(.menu)
+            }
+
+            HStack(spacing: 14) {
+                SourceParameterStepperRow(
+                    title: "Octave",
+                    value: settings.octaveCenter,
+                    range: 0...9
+                ) { value in
+                    update { $0.octaveCenter = value }
+                }
+
+                SourceParameterStepperRow(
+                    title: "Span",
+                    value: settings.octaveSpan,
+                    range: 0...4
+                ) { value in
+                    update { $0.octaveSpan = value }
+                }
+            }
+
+            SourceParameterSliderRow(
+                title: "Velocity",
+                value: settings.velocityVariance * 100,
+                range: 0...100,
+                accent: StudioTheme.amber
+            ) { value in
+                update { $0.velocityVariance = value / 100 }
+            }
+
+            SourceParameterSliderRow(
+                title: "Gate",
+                value: settings.gateVariance * 100,
+                range: 0...100,
+                accent: StudioTheme.violet
+            ) { value in
+                update { $0.gateVariance = value / 100 }
+            }
+        }
+    }
+
+    private var previewStrip: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Text("AUDITION")
+                    .studioText(.eyebrow)
+                    .tracking(0.8)
+                    .foregroundStyle(StudioTheme.mutedText)
+
+                if isAuditioning {
+                    Text("Playing")
+                        .studioText(.micro)
+                        .foregroundStyle(StudioTheme.background)
+                        .padding(.vertical, 3)
+                        .padding(.horizontal, 7)
+                        .background(StudioTheme.success, in: Capsule())
+                }
+            }
+
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: 16), spacing: 4) {
+                ForEach(0..<16, id: \.self) { index in
+                    previewCell(at: index)
+                }
+            }
+        }
+    }
+
+    private func previewCell(at index: Int) -> some View {
+        let note = previewStep(at: index)?.main?.notes.first
+        return Text(note.map { "\($0.pitch)" } ?? "")
+            .font(.system(size: 9, weight: .bold, design: .rounded))
+            .foregroundStyle(note == nil ? StudioTheme.mutedText : StudioTheme.background)
+            .frame(height: 24)
+            .frame(maxWidth: .infinity)
+            .background(
+                note == nil ? Color.white.opacity(StudioOpacity.subtleFill) : accent,
+                in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous)
+                    .stroke(note == nil ? StudioTheme.border : Color.clear, lineWidth: StudioMetrics.borderWidth)
+            )
+    }
+
+    private var actionRow: some View {
+        HStack(spacing: 10) {
+            Button(action: onReRoll) {
+                Text("Re-Roll")
+                    .studioText(.labelBold)
+                    .foregroundStyle(StudioTheme.background)
+                    .padding(.vertical, 9)
+                    .padding(.horizontal, 12)
+                    .background(accent, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
+            }
+            .buttonStyle(.plain)
+
+            Spacer(minLength: 0)
+
+            Button("Cancel", action: onCancel)
+                .buttonStyle(.plain)
+                .studioText(.labelBold)
+                .foregroundStyle(StudioTheme.mutedText)
+
+            Button(action: onBake) {
+                Text("Bake")
+                    .studioText(.labelBold)
+                    .foregroundStyle(StudioTheme.background)
+                    .padding(.vertical, 9)
+                    .padding(.horizontal, 14)
+                    .background(StudioTheme.success, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private func update(_ mutate: (inout ClipRandomizeSettings) -> Void) {
+        var copy = settings
+        mutate(&copy)
+        settings = copy.normalized
+    }
+
+    private func previewStep(at index: Int) -> ClipStep? {
+        guard case let .noteGrid(_, steps) = previewContent?.normalized,
+              !steps.isEmpty
+        else {
+            return nil
+        }
+        return steps[index % steps.count]
+    }
+
+    private func rootLabel(_ pitchClass: Int) -> String {
+        let names = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
+        return names[((pitchClass % names.count) + names.count) % names.count]
     }
 }
 
