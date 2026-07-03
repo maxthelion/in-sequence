@@ -112,7 +112,7 @@ CAPTURES=$(cat <<'TABLE'
 20a-track-fill-engaged|workspace=track,selectedTrackFillEngaged=true|trackFillSource=clip;trackFillPreview=off;trackFillEngaged=on;transport=stop
 20b-track-randomize-settings|workspace=track,trackRandomizeSheet=open|trackFillSource=clip;trackSourceTab=source;trackRandomizeSheet=open;transport=stop
 20c-track-randomize-rolled|workspace=track,selectedTrackRandomizePersisted=true|trackFillSource=clip;trackSourceTab=source;trackRandomizeRoll=on;transport=stop
-21-track-macros-tab|workspace=track,trackSourceTab=macros|trackFillSource=clip;trackFillPreview=off;trackSourceTab=macros;transport=stop
+21-track-macros-tab|workspace=track,trackSourceTab=macros|trackRandomizeSheet=closed;trackFillSource=clip;trackFillPreview=off;trackSourceTab=macros;transport=stop
 22-track-detail-fx|workspace=track,trackSourceTab=fx|trackFillSource=generator;trackSourceTab=fx;transport=stop
 22b-track-detail-mixer|workspace=track,trackSourceTab=mixer|trackFillSource=clip;trackSourceTab=mixer;workspaceMode=setup;transport=stop
 22ba-track-routing-scene-selector|workspace=track,trackSourceTab=mixer,selectedTrackSceneMembership=sceneA|trackFillSource=clip;trackSourceTab=mixer;trackSceneMembership=sceneA;workspaceMode=setup;transport=stop
