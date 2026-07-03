@@ -316,8 +316,14 @@ struct PhraseWorkspaceView: View {
         .accessibilityIdentifier("phrase-performance-shell")
     }
 
+    // Well strokes / container chrome carry ONLY the surface accent (tab
+    // unification DECISION + State-colour fence, 2026-07-03): perform-on is a
+    // STATE and lives in small solid elements (the amber Perform On pill,
+    // MOM/LATCH thumbs), never in the shell outline. The old perform-mode
+    // amber substitution here recoloured the whole well and fought the
+    // section accent on every LAYERS capture (design review 08/09/10/13).
     private var phraseShellAccent: Color {
-        session.workspaceMode == .perform ? StudioTheme.amber : StudioTheme.violet
+        phraseTab.accent
     }
 
     private var phrasePerformToggle: some View {
@@ -332,7 +338,10 @@ struct PhraseWorkspaceView: View {
                 .background(session.workspaceMode == .perform ? StudioTheme.amber : Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
                 .overlay(
                     Capsule()
-                        .stroke(phraseShellAccent, lineWidth: StudioMetrics.borderWidth)
+                        .stroke(
+                            session.workspaceMode == .perform ? Color.clear : StudioTheme.border,
+                            lineWidth: StudioMetrics.borderWidth
+                        )
                 )
         }
         .buttonStyle(.plain)
@@ -437,13 +446,16 @@ struct PhraseWorkspaceView: View {
             Button {
                 session.revertPhrasePerformOverlay()
             } label: {
+                // Neutral chrome for the secondary action: green is fenced to
+                // small SOLID state elements (the Capture pill), never
+                // outlines (State-colour fence, design review 12/13/13a/13c).
                 Text("Discard")
                     .studioText(.labelBold)
-                    .foregroundStyle(availability.canDiscard ? StudioTheme.success : StudioTheme.mutedText)
+                    .foregroundStyle(availability.canDiscard ? StudioTheme.text : StudioTheme.mutedText)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
                     .background(Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
-                    .overlay(Capsule().stroke(availability.canDiscard ? StudioTheme.success : StudioTheme.border, lineWidth: StudioMetrics.borderWidth))
+                    .overlay(Capsule().stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth))
             }
             .buttonStyle(.plain)
             .disabled(!availability.canDiscard)
@@ -1886,8 +1898,10 @@ struct PhraseWorkspaceView: View {
     // it reads as an extension of the PATTERN/layer button it drops down from.
     private var performanceLayerSelectionGrid: some View {
         VStack(alignment: .leading, spacing: 10) {
+            // Divider chrome tracks the surface accent, never the perform
+            // state colour (State-colour fence).
             Divider()
-                .overlay(StudioTheme.amber.opacity(StudioOpacity.mediumStroke))
+                .overlay(phraseShellAccent.opacity(StudioOpacity.mediumStroke))
 
             LazyVGrid(columns: performanceLayerSelectionColumns, alignment: .leading, spacing: 10) {
                 ForEach(phraseLocalPerformanceLayerOptions) { option in
@@ -2554,10 +2568,12 @@ private struct PhraseMatrixPhraseCell: View {
         .accessibilityIdentifier("phrase-button-controls-\(phrase.id.uuidString)")
     }
 
-    /// Colour identifies, it never floods (ux-canon rule 12): row state lives
-    /// in a solid drawn outline (success = playing, amber = queued/looping,
-    /// violet = selected, border grey otherwise) plus the solid badges; the
-    /// fill stays on the neutral step.
+    /// Colour identifies, it never floods (ux-canon rule 12 + the State-colour
+    /// fence): green/amber are fenced to SMALL SOLID elements, so the
+    /// playing/queued states live ONLY in the solid Play/Queue badges — never
+    /// the card outline. The outline carries selection (surface accent) or
+    /// the neutral border; the fill stays on the neutral step. The unlimited
+    /// repeat is already stated once by the repeat field ("Unlimited").
     private var rowFill: Color {
         if phrase.loopEnabled || isSelected {
             return Color.white.opacity(StudioOpacity.subtleFill)
@@ -2566,13 +2582,7 @@ private struct PhraseMatrixPhraseCell: View {
     }
 
     private var rowStroke: Color {
-        if isPlaying {
-            return StudioTheme.success
-        }
-        if isQueued || phrase.loopEnabled {
-            return StudioTheme.amber
-        }
-        return isSelected ? StudioTheme.violet : StudioTheme.border
+        isSelected ? StudioTheme.violet : StudioTheme.border
     }
 
     // Bold-flat pass: badges are solid accent blocks with dark text.

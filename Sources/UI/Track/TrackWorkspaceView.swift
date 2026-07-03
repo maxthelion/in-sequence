@@ -210,14 +210,18 @@ struct TrackWorkspaceView: View {
         Button {
             isConfirmingTrackDelete = true
         } label: {
+            // Neutral utility chrome: an amber outline here was a second
+            // chrome accent on the track surface (State-colour fence — amber
+            // never appears as an outline; the destructive intent is carried
+            // by the confirm dialog).
             Image(systemName: "trash")
                 .font(.system(size: 13, weight: .bold))
-                .foregroundStyle(StudioTheme.amber)
+                .foregroundStyle(StudioTheme.text)
                 .frame(width: 34, height: 34)
                 .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                        .stroke(StudioTheme.amber.opacity(StudioOpacity.accentStroke), lineWidth: StudioMetrics.borderWidth)
+                        .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
                 )
                 .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
         }
