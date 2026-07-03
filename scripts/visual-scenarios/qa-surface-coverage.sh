@@ -112,6 +112,8 @@ CAPTURES=$(cat <<'TABLE'
 21-track-macros-tab|workspace=track,trackSourceTab=macros|trackFillSource=clip;trackFillPreview=off;trackSourceTab=macros;transport=stop
 22-track-detail-fx|workspace=track,trackSourceTab=fx|trackFillSource=generator;trackSourceTab=fx;transport=stop
 22b-track-detail-mixer|workspace=track,trackSourceTab=mixer|trackFillSource=clip;trackSourceTab=mixer;workspaceMode=setup;transport=stop
+22c-track-pitch-layer|workspace=track,trackSourceTab=steps-clip,trackClipLayer=pitch|trackFillSource=clip;trackSourceTab=steps-clip;trackClipLayer=pitch;transport=stop
+22d-track-layer-quick-switch|workspace=track,trackClipLayerSwitcher=open|trackFillSource=clip;trackSourceTab=steps-clip;trackClipLayerSwitcher=open;transport=stop
 23-track-slicer|workspace=track,selectedTrackType=slice|addTrack=slice;transport=stop
 23a-track-slicer-populated|workspace=track,selectedTrackType=slice,slicerFixture=populated,slicerSliceCount=8,slicerClipStepCount=16,slicerClipActiveStepCount=8,slicerLayer=steps|slicerFixture=populated;slicerLayer=steps;workspaceScroll=top;transport=stop
 23b-track-slicer-velocity-layer|workspace=track,selectedTrackType=slice,slicerFixture=populated,slicerSliceCount=8,slicerLayer=velocity|slicerFixture=populated;slicerLayer=velocity;workspaceScroll=bottom;transport=stop
@@ -119,6 +121,7 @@ CAPTURES=$(cat <<'TABLE'
 23d-track-slicer-source-tab|workspace=track,selectedTrackType=slice,slicerFixture=populated,slicerTab=source|slicerFixture=populated;slicerLayer=steps;slicerTab=source;workspaceScroll=bottom;transport=stop
 23e-track-slicer-slice-tab|workspace=track,selectedTrackType=slice,slicerFixture=populated,slicerTab=slice|slicerFixture=populated;slicerLayer=steps;slicerTab=slice;workspaceScroll=bottom;transport=stop
 23f-slice-source-modal|workspace=track,selectedTrackType=slice,slicerFixture=populated,sliceSourceModal=open|slicerFixture=populated;slicerLayer=steps;slicerTab=source;sliceSourceModal=open;transport=stop
+23fa-slice-layer-quick-switch|workspace=track,selectedTrackType=slice,slicerFixture=populated,slicerLayerSwitcher=open|slicerFixture=populated;slicerLayer=steps;slicerLayerSwitcher=open;workspaceScroll=bottom;transport=stop
 # 23g step-edit rotaries: the StepLayerRotaryRow / StepLayerRotaryDial cluster
 # lives in ClipContentPreview (the melodic Steps/Clip tab), shared code gated on
 # a step selection — it is NOT rendered by the slicer's own SliceStepStrip. So

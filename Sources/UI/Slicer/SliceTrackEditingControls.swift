@@ -61,6 +61,94 @@ enum SliceTrackClipLayer: String, CaseIterable, Identifiable {
 // Variant D migration (docs/roadmap/track-view-ia/
 // tab-unification-and-canon-creep.md → DECISION).
 
+struct StepLayerQuickSwitchOption<Value: Hashable>: Identifiable {
+    let id: String
+    let title: String
+    let value: Value
+}
+
+struct StepLayerQuickSwitch<Value: Hashable>: View {
+    let title: String
+    @Binding var selection: Value
+    @Binding var isOpen: Bool
+    let options: [StepLayerQuickSwitchOption<Value>]
+    let accent: Color
+
+    private var selectedTitle: String {
+        options.first { $0.value == selection }?.title ?? "Layer"
+    }
+
+    private var columns: [GridItem] {
+        Array(repeating: GridItem(.flexible(minimum: 86), spacing: 6), count: 3)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Button {
+                isOpen.toggle()
+            } label: {
+                HStack(spacing: 8) {
+                    Text(title.uppercased())
+                        .studioText(.eyebrow)
+                        .tracking(0.8)
+                        .foregroundStyle(isOpen ? StudioTheme.mutedText : StudioTheme.background.opacity(0.72))
+
+                    Text(selectedTitle)
+                        .studioText(.labelBold)
+                        .foregroundStyle(isOpen ? StudioTheme.text : StudioTheme.background)
+                        .lineLimit(1)
+
+                    Spacer(minLength: 0)
+
+                    Image(systemName: isOpen ? "chevron.up" : "chevron.down")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(isOpen ? StudioTheme.mutedText : StudioTheme.background)
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 7)
+                .background(
+                    isOpen ? Color.white.opacity(StudioOpacity.subtleFill) : accent,
+                    in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
+                        .stroke(isOpen ? StudioTheme.border : Color.clear, lineWidth: StudioMetrics.borderWidth)
+                )
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("\(title) \(selectedTitle)")
+
+            if isOpen {
+                LazyVGrid(columns: columns, spacing: 6) {
+                    ForEach(options) { option in
+                        Button {
+                            selection = option.value
+                            isOpen = false
+                        } label: {
+                            Text(option.title)
+                                .studioText(.micro)
+                                .foregroundStyle(option.value == selection ? StudioTheme.background : StudioTheme.text)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.7)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 7)
+                                .background(
+                                    option.value == selection ? accent : Color.white.opacity(StudioOpacity.subtleFill),
+                                    in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
+                                )
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
+                                        .stroke(option.value == selection ? Color.clear : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+                                )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+        }
+    }
+}
+
 struct StepLayerRotaryRow: View {
     let controls: [StepGridRotaryControl]
     let activeLayer: StepGridLayer

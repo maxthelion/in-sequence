@@ -243,6 +243,21 @@ appended to this spec's CHANGELOG section below.
   Selection meta-text column). Result-strip accidental/octave flags are
   legible but subtle — check at real app zoom.
 
+- 2026-07-03: WS3 delivered on `feat/ws3-layer-system` (salvage peel from the
+  wip/ws-batch-snapshot batch, rebased onto post-WS2 main). Pitch layer
+  (degree glyph + 3-dot octave band + corner badge past +/-2) in the shared
+  step-cell grammar; octave band is a per-step click target cycling the
+  register in place (prototype 11); one generic `StepLayerQuickSwitch`
+  serves mono + slicer (AC2 assertion in UnifiedStepCellTests). AC1
+  DECISION: generated tracks are READ-ONLY on the step-layer surface — the
+  clip grid (and its write path) only attaches to clip sources, and the
+  generator branch shows a visible GENERATED / STEP LAYERS READ-ONLY badge;
+  the bake-prompt alternative is deferred to WS4's result strip. AC3: layer
+  selection stays view state (harness test pins generationInputRevision +
+  store revision unchanged across layer/switcher commands). AC4: capture
+  rows 22c/22d/23fa; capture pass pending an attended visual-automation
+  session (unattended TCC gate).
+
 - 2026-07-03: WS2 delivered on `feat/ws2-randomize` (salvage peel from the
   wip/ws-batch-snapshot batch, rebased onto post-WS1 main). AC1-AC6 covered
   (ClipContentMacroLaneTests / SessionBatchHelperTests /

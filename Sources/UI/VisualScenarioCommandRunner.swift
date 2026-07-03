@@ -54,6 +54,8 @@ enum VisualScenarioCommandRunner {
     private static var tracksTrackSoundModalVisible = false
     private static var stepOrderFixtureState = "none"
     private static var trackSourceTabState = "none"
+    private static var trackClipLayerState = "trigger"
+    private static var trackClipLayerSwitcherState = "closed"
     private static var sceneEditorFixtureState = "none"
     private static var scenesAddFXModalState = "closed"
     private static var scenesSelectedInsertIndex = "none"
@@ -61,6 +63,7 @@ enum VisualScenarioCommandRunner {
     private static var libraryFixtureState = "none"
     private static var slicerFixtureState = "none"
     private static var slicerLayerState = SliceTrackClipLayer.steps.rawValue
+    private static var slicerLayerSwitcherState = "closed"
     private static var slicerTabState = "steps"
     private static var sliceSourceModalState = "closed"
     private static var audioInputTabState = "source"
@@ -1070,9 +1073,12 @@ enum VisualScenarioCommandRunner {
         stepOrderPendingToggle=\(stepOrderStatus.pendingToggle)
         stepOrderFixtureState=\(stepOrderFixtureState)
         trackSourceTab=\(trackSourceTabState)
+        trackClipLayer=\(trackClipLayerState)
+        trackClipLayerSwitcher=\(trackClipLayerSwitcherState)
         selectedTrackSoundDestinationKind=\(selectedTrackSoundDestinationKind(session: session))
         slicerFixture=\(slicerFixtureState)
         slicerLayer=\(slicerLayerState)
+        slicerLayerSwitcher=\(slicerLayerSwitcherState)
         slicerTab=\(slicerTabState)
         sliceSourceModal=\(sliceSourceModalState)
         slicerSampleName=\(selectedSlicer.sampleName)
@@ -2093,6 +2099,27 @@ enum VisualScenarioCommandRunner {
             postRepeatedVisualCommand(name: .trackSourceEditorVisualCommand, object: "select-step:\(step)")
         }
 
+        if let rawLayer = command["trackClipLayer"],
+           ClipEditorLayer(rawValue: rawLayer) != nil {
+            section.wrappedValue = .track
+            trackSourceTabState = "steps-clip"
+            trackClipLayerState = rawLayer
+            postRepeatedVisualCommand(name: .trackSourceEditorVisualCommand, object: "clip-layer:\(rawLayer)")
+        }
+
+        switch command["trackClipLayerSwitcher"] {
+        case "open", "true", "on":
+            section.wrappedValue = .track
+            trackSourceTabState = "steps-clip"
+            trackClipLayerSwitcherState = "open"
+            postRepeatedVisualCommand(name: .trackSourceEditorVisualCommand, object: "clip-layer-switcher:open")
+        case "close", "closed", "false", "off":
+            trackClipLayerSwitcherState = "closed"
+            postRepeatedVisualCommand(name: .trackSourceEditorVisualCommand, object: "clip-layer-switcher:close")
+        default:
+            break
+        }
+
         guard let rawTab = command["trackSourceTab"],
               TrackSourceEditorTab.tab(forVisualCommand: rawTab) != nil
         else { return }
@@ -2118,6 +2145,7 @@ enum VisualScenarioCommandRunner {
     ) {
         guard command["slicerFixture"] != nil ||
               command["slicerLayer"] != nil ||
+              command["slicerLayerSwitcher"] != nil ||
               command["slicerSelectStep"] != nil ||
               command["sliceSourceModal"] != nil
         else { return }
@@ -2146,6 +2174,17 @@ enum VisualScenarioCommandRunner {
            SliceTrackClipLayer(rawValue: rawLayer) != nil {
             slicerLayerState = rawLayer
             postRepeatedVisualCommand(name: .sliceTrackWorkspaceVisualCommand, object: "layer:\(rawLayer)")
+        }
+
+        switch command["slicerLayerSwitcher"] {
+        case "open", "true", "on":
+            slicerLayerSwitcherState = "open"
+            postRepeatedVisualCommand(name: .sliceTrackWorkspaceVisualCommand, object: "layer-switcher:open")
+        case "close", "closed", "false", "off":
+            slicerLayerSwitcherState = "closed"
+            postRepeatedVisualCommand(name: .sliceTrackWorkspaceVisualCommand, object: "layer-switcher:close")
+        default:
+            break
         }
 
         // QA: select a slicer step so the step-edit rotary cluster renders.

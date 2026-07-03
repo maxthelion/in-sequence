@@ -67,6 +67,14 @@ struct TrackSourceSourceTabContent: View {
             sourceSection
 
             if sourcePickerStep == nil, let selectedGenerator {
+                // WS3 AC1 decision (pattern-generator-foundations spec):
+                // generated tracks are READ-ONLY on the step-layer surface.
+                // The clip step grid (and its pitch layer write path) only
+                // attaches to clip sources; a generator source shows its
+                // editor with this visible generated-state badge. The
+                // bake-prompt alternative is deferred to WS4's result strip.
+                generatedReadOnlyBadge
+
                 GeneratorParamsEditorView(
                     generator: selectedGenerator,
                     inputClipChoices: generatedSourceInputClips,
@@ -81,6 +89,30 @@ struct TrackSourceSourceTabContent: View {
         case .empty:
             sourceSection
         }
+    }
+
+    private var generatedReadOnlyBadge: some View {
+        HStack(spacing: 8) {
+            Text("GENERATED")
+                .studioText(.eyebrow)
+                .tracking(0.8)
+                .foregroundStyle(accent)
+
+            Text("STEP LAYERS READ-ONLY")
+                .studioText(.micro)
+                .foregroundStyle(StudioTheme.mutedText)
+        }
+        .padding(.horizontal, 8)
+        .frame(height: 24)
+        .background(
+            Color.white.opacity(StudioOpacity.subtleFill),
+            in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+        )
+        .accessibilityIdentifier("track-source-generated-readonly")
     }
 
     @ViewBuilder

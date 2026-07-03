@@ -50,6 +50,7 @@ private enum ClipEditorLane: String, CaseIterable, Identifiable {
 
 enum ClipEditorMode: String, CaseIterable, Identifiable {
     case trigger
+    case pitch
     case velocity
     case probability
 
@@ -59,6 +60,8 @@ enum ClipEditorMode: String, CaseIterable, Identifiable {
         switch self {
         case .trigger:
             return "Steps"
+        case .pitch:
+            return "Pitch"
         case .velocity:
             return "Velocity"
         case .probability:
@@ -67,9 +70,31 @@ enum ClipEditorMode: String, CaseIterable, Identifiable {
     }
 }
 
-enum ClipEditorLayer: Equatable {
+enum ClipEditorLayer: Equatable, Hashable {
     case mode(ClipEditorMode)
     case macro(index: Int)
+
+    var id: String {
+        switch self {
+        case let .mode(mode):
+            return mode.rawValue
+        case let .macro(index):
+            return "macro-\(index)"
+        }
+    }
+
+    init?(rawValue: String) {
+        if let mode = ClipEditorMode(rawValue: rawValue) {
+            self = .mode(mode)
+            return
+        }
+        if rawValue.hasPrefix("macro-"),
+           let index = Int(rawValue.dropFirst("macro-".count)) {
+            self = .macro(index: index)
+            return
+        }
+        return nil
+    }
 
     /// The shared step-grid layer this editor layer maps onto. Macro indexes
     /// are `TrackMacroBinding` array indexes (never visual slot positions).
@@ -77,6 +102,8 @@ enum ClipEditorLayer: Equatable {
         switch self {
         case .mode(.trigger):
             return .trigger
+        case .mode(.pitch):
+            return .pitch
         case .mode(.velocity):
             return .velocity
         case .mode(.probability):
@@ -90,6 +117,8 @@ enum ClipEditorLayer: Equatable {
         switch stepGridLayer {
         case .trigger:
             self = .mode(.trigger)
+        case .pitch:
+            self = .mode(.pitch)
         case .velocity:
             self = .mode(.velocity)
         case .chance:
@@ -146,6 +175,7 @@ struct ClipContentPreview: View {
     @State private var displayedContent: ClipContent
     @State private var selectedLane: ClipEditorLane = .main
     @State private var selectedLayer: ClipEditorLayer = .mode(.trigger)
+    @State private var isLayerSwitcherOpen = false
     @State private var selectedPage = 0
 
     init(
@@ -247,6 +277,28 @@ struct ClipContentPreview: View {
             #endif
             displayedContent = newContent.normalized
         }
+        .onReceive(NotificationCenter.default.publisher(for: .trackSourceEditorVisualCommand)) { notification in
+            guard let command = notification.object as? String else { return }
+            applyVisualCommand(command)
+        }
+    }
+
+    private func applyVisualCommand(_ command: String) {
+        let layerPrefix = "clip-layer:"
+        if command.hasPrefix(layerPrefix),
+           let layer = ClipEditorLayer(rawValue: String(command.dropFirst(layerPrefix.count))) {
+            selectedLayer = layer
+            return
+        }
+
+        switch command {
+        case "clip-layer-switcher:open":
+            isLayerSwitcherOpen = true
+        case "clip-layer-switcher:close":
+            isLayerSwitcherOpen = false
+        default:
+            break
+        }
     }
 
     @ViewBuilder
@@ -317,6 +369,53 @@ struct ClipContentPreview: View {
                                 tappedIndex: index,
                                 indexes: indexes,
                                 layer: .trigger,
+                                entry: &entry,
+                                macroBindings: nil,
+                                noteLane: selectedLane.noteLane,
+                                defaultNote: defaultNote
+                            )
+                        }
+                    }
+                    .allowsHitTesting(isEditable)
+
+                case .pitch:
+                    StepGridView(
+                        stepStates: visibleSteps.map { stepVisualState(for: $0, lane: selectedLane) },
+                        indexOffset: pageStart,
+                        playingStepIndex: playingStepIndex,
+                        selectedStepIndexes: selectedStepIndexes,
+                        contentProvider: { index, _ in
+                            StepGridCoordinator.cellContent(
+                                for: index,
+                                in: macroPreviewClip(lengthSteps: lengthSteps, steps: steps),
+                                layer: .pitch,
+                                noteLane: selectedLane.noteLane
+                            )
+                        },
+                        onValueDrag: { index, fraction in
+                            writeValueLayer(fraction, layer: .pitch, tappedIndex: index)
+                        },
+                        onSelectStep: selectStepAction,
+                        onBackgroundTap: clearSelectionAction,
+                        onOctaveTap: { index in
+                            let indexes = affectedStepIndexes(for: index)
+                            commit { entry in
+                                ClipNoteGridStepEditing.applyOctaveTap(
+                                    tappedIndex: index,
+                                    indexes: indexes,
+                                    entry: &entry,
+                                    noteLane: selectedLane.noteLane,
+                                    defaultNote: defaultNote
+                                )
+                            }
+                        }
+                    ) { index in
+                        let indexes = affectedStepIndexes(for: index)
+                        commit { entry in
+                            ClipNoteGridStepEditing.applyTap(
+                                tappedIndex: index,
+                                indexes: indexes,
+                                layer: .pitch,
                                 entry: &entry,
                                 macroBindings: nil,
                                 noteLane: selectedLane.noteLane,
@@ -491,7 +590,7 @@ struct ClipContentPreview: View {
     private func syncCoordinatorLayers() {
         guard let stepGridCoordinator else { return }
         stepGridCoordinator.updateEditableLayers(
-            [.velocity, .chance] + macroLayerTabs.map { StepGridLayer.macro(index: $0.macroIndex) }
+            [.pitch, .velocity, .chance] + macroLayerTabs.map { StepGridLayer.macro(index: $0.macroIndex) }
         )
         stepGridCoordinator.updateActiveLayer(selectedLayer.stepGridLayer)
     }
@@ -593,25 +692,13 @@ struct ClipContentPreview: View {
     /// chance and any assigned macro lanes without spending grid rows.
     private var layerLineControl: some View {
         HStack(spacing: 10) {
-            StudioStepperButtons(
-                symbols: (up: "chevron.up", down: "chevron.down"),
-                upHelp: "Previous layer",
-                downHelp: "Next layer",
-                onUp: { cycleEditorLayer(by: -1) },
-                onDown: { cycleEditorLayer(by: 1) }
+            StepLayerQuickSwitch(
+                title: "Layer",
+                selection: $selectedLayer,
+                isOpen: $isLayerSwitcherOpen,
+                options: layerQuickSwitchOptions,
+                accent: accent
             )
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text("LAYER")
-                    .studioText(.eyebrow)
-                    .tracking(0.8)
-                    .foregroundStyle(StudioTheme.mutedText)
-
-                Text(currentLayerTitle)
-                    .studioText(.labelBold)
-                    .foregroundStyle(StudioTheme.text)
-                    .lineLimit(1)
-            }
 
             Spacer(minLength: 0)
 
@@ -637,9 +724,29 @@ struct ClipContentPreview: View {
         )
     }
 
+    private var layerQuickSwitchOptions: [StepLayerQuickSwitchOption<ClipEditorLayer>] {
+        orderedEditorLayers.map { layer in
+            StepLayerQuickSwitchOption(
+                id: layer.id,
+                title: title(for: layer),
+                value: layer
+            )
+        }
+    }
+
     private var orderedEditorLayers: [ClipEditorLayer] {
         ClipEditorMode.allCases.map { ClipEditorLayer.mode($0) }
             + macroLayerTabs.map { ClipEditorLayer.macro(index: $0.macroIndex) }
+    }
+
+    private func title(for layer: ClipEditorLayer) -> String {
+        switch layer {
+        case let .mode(mode):
+            return mode.title
+        case let .macro(index):
+            let tab = macroLayerTabs.first { $0.macroIndex == index }
+            return tab.map { "M\($0.slotIndex + 1)" } ?? "Macro"
+        }
     }
 
     private var currentLayerTitle: String {
@@ -878,4 +985,3 @@ struct ClipContentPreview: View {
         }
     }
 }
-

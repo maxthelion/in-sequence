@@ -12,6 +12,7 @@ struct SliceTrackWorkspaceView: View {
     @State private var selectedPage = 0
     @State private var selectedStepIndex = 0
     @State private var selectedLayer: SliceTrackClipLayer = .steps
+    @State private var isLayerSwitcherOpen = false
     @State private var selectedLane: SliceTrackLane = .normal
     @State private var selectedLowerTab: SliceTrackLowerTab = .steps
     // Zoom/scroll only live inside the slicing modal now — the default
@@ -287,18 +288,14 @@ struct SliceTrackWorkspaceView: View {
     // Direction / Note Repeat / Gate are real selectable layers shown read-only
     // until per-step engine params land (see NOTE in the strip).
     private var sliceLayerSelector: some View {
-        StudioSegmentedControl(
+        StepLayerQuickSwitch(
             title: "Layer",
             selection: $selectedLayer,
-            segments: SliceTrackClipLayer.allCases.map { layer in
-                StudioSegment(
-                    title: layer.title,
-                    value: layer,
-                    accessibilityIdentifier: "slice-layer-\(layer.rawValue)"
-                )
+            isOpen: $isLayerSwitcherOpen,
+            options: SliceTrackClipLayer.allCases.map { layer in
+                StepLayerQuickSwitchOption(id: layer.rawValue, title: layer.title, value: layer)
             },
-            accent: accent,
-            layout: .init(fillsWidth: false, minWidth: 0)
+            accent: accent
         )
     }
 
@@ -755,6 +752,17 @@ struct SliceTrackWorkspaceView: View {
            let layer = SliceTrackClipLayer(rawValue: String(command.dropFirst(layerPrefix.count))) {
             selectedLayer = layer
             return
+        }
+
+        switch command {
+        case "layer-switcher:open":
+            isLayerSwitcherOpen = true
+            return
+        case "layer-switcher:close":
+            isLayerSwitcherOpen = false
+            return
+        default:
+            break
         }
 
         let tabPrefix = "tab:"
@@ -1453,7 +1461,7 @@ private extension SliceTrackClipLayer {
             self = .velocity
         case .chance:
             self = .chance
-        case .macro, .sliceIndex, .sliceMode, .chord:
+        case .pitch, .macro, .sliceIndex, .sliceMode, .chord:
             return nil
         }
     }
