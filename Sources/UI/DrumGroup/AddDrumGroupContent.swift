@@ -74,6 +74,12 @@ struct AddDrumGroupContent: View {
 
     // MARK: - Step 1: Sounds
 
+    /// The ONE chrome accent of this modal (drum-group identity — matches its
+    /// type card in the create flow). The old cyan/violet/green per-section
+    /// roulette broke one-accent-per-surface, and green additionally misused
+    /// a fenced state colour as a selection fill (design review 02d).
+    private static let surfaceAccent = StudioTheme.amber
+
     // Label purge (canon Rules 1/3, design review 02d): the step-descriptor
     // eyebrows and the "No parts yet" filler are gone — the section titles
     // carry the flow order, the parts list shows the real count, and the
@@ -81,7 +87,7 @@ struct AddDrumGroupContent: View {
     private var soundsSection: some View {
         StudioPanel(
             title: "Sounds",
-            accent: StudioTheme.cyan
+            accent: Self.surfaceAccent
         ) {
             VStack(alignment: .leading, spacing: StudioMetrics.Spacing.comfortable) {
                 kitPickerRow
@@ -145,7 +151,7 @@ struct AddDrumGroupContent: View {
                 .padding(.horizontal, 12)
                 .padding(.vertical, 7)
                 .background(
-                    isSelected ? StudioTheme.cyan : Color.white.opacity(StudioOpacity.subtleFill),
+                    isSelected ? Self.surfaceAccent : Color.white.opacity(StudioOpacity.subtleFill),
                     in: Capsule()
                 )
                 .overlay(
@@ -296,7 +302,7 @@ struct AddDrumGroupContent: View {
     private var patternsSection: some View {
         StudioPanel(
             title: "Patterns",
-            accent: StudioTheme.violet
+            accent: Self.surfaceAccent
         ) {
             VStack(alignment: .leading, spacing: StudioMetrics.Spacing.snug) {
                 HStack(spacing: StudioMetrics.Spacing.snug) {
@@ -341,7 +347,7 @@ struct AddDrumGroupContent: View {
                 .padding(.horizontal, 12)
                 .padding(.vertical, 7)
                 .background(
-                    isSelected ? StudioTheme.violet : Color.white.opacity(StudioOpacity.subtleFill),
+                    isSelected ? Self.surfaceAccent : Color.white.opacity(StudioOpacity.subtleFill),
                     in: Capsule()
                 )
                 .overlay(
@@ -378,7 +384,7 @@ struct AddDrumGroupContent: View {
     private var routingSection: some View {
         StudioPanel(
             title: "Routing",
-            accent: StudioTheme.success
+            accent: Self.surfaceAccent
         ) {
             VStack(alignment: .leading, spacing: 12) {
                 busRoutingPicker
@@ -463,7 +469,7 @@ struct AddDrumGroupContent: View {
                 .padding(.horizontal, 12)
                 .padding(.vertical, 7)
                 .background(
-                    isSelected ? StudioTheme.success : Color.white.opacity(StudioOpacity.subtleFill),
+                    isSelected ? Self.surfaceAccent : Color.white.opacity(StudioOpacity.subtleFill),
                     in: Capsule()
                 )
                 .overlay(
@@ -519,11 +525,13 @@ struct AddDrumGroupContent: View {
         HStack {
             Spacer()
 
+            // Primary action carries the surface accent — success-green is a
+            // fenced state colour, not an action fill.
             Button("Create Group") {
                 onCreate(plan)
             }
             .buttonStyle(.borderedProminent)
-            .tint(StudioTheme.success)
+            .tint(Self.surfaceAccent)
             .disabled(plan.members.isEmpty)
         }
     }

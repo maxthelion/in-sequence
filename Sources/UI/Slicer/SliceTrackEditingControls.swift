@@ -84,39 +84,47 @@ struct StepLayerQuickSwitch<Value: Hashable>: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Button {
-                isOpen.toggle()
-            } label: {
-                HStack(spacing: 8) {
-                    Text(title.uppercased())
-                        .studioText(.eyebrow)
-                        .tracking(0.8)
-                        .foregroundStyle(isOpen ? StudioTheme.mutedText : StudioTheme.background.opacity(0.72))
+            // Closed = a COMPACT solid value chip (eyebrow label outside the
+            // chip, chip hugs its content) — never a full-width solid accent
+            // bar, which floods a container-sized element (Rule 12, design
+            // review 18/23a; prototype 11 quick-switch grammar). Matches the
+            // adjacent LANE/LENGTH inset selectors' title treatment.
+            HStack(spacing: 8) {
+                Text(title.uppercased())
+                    .studioText(.eyebrow)
+                    .tracking(0.8)
+                    // ux-canon-allow: eyebrow captions are structural labels,
+                    // not stateful chrome — mutedText is the caption token.
+                    .foregroundStyle(StudioTheme.mutedText)
 
-                    Text(selectedTitle)
-                        .studioText(.labelBold)
-                        .foregroundStyle(isOpen ? StudioTheme.text : StudioTheme.background)
-                        .lineLimit(1)
+                Button {
+                    isOpen.toggle()
+                } label: {
+                    HStack(spacing: 6) {
+                        Text(selectedTitle)
+                            .studioText(.labelBold)
+                            .foregroundStyle(isOpen ? StudioTheme.text : StudioTheme.background)
+                            .lineLimit(1)
 
-                    Spacer(minLength: 0)
-
-                    Image(systemName: isOpen ? "chevron.up" : "chevron.down")
-                        .font(.system(size: 11, weight: .bold))
-                        .foregroundStyle(isOpen ? StudioTheme.mutedText : StudioTheme.background)
+                        Image(systemName: isOpen ? "chevron.up" : "chevron.down")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(isOpen ? StudioTheme.mutedText : StudioTheme.background)
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 7)
+                    .fixedSize()
+                    .background(
+                        isOpen ? Color.white.opacity(StudioOpacity.subtleFill) : accent,
+                        in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
+                            .stroke(isOpen ? StudioTheme.border : Color.clear, lineWidth: StudioMetrics.borderWidth)
+                    )
                 }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 7)
-                .background(
-                    isOpen ? Color.white.opacity(StudioOpacity.subtleFill) : accent,
-                    in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
-                        .stroke(isOpen ? StudioTheme.border : Color.clear, lineWidth: StudioMetrics.borderWidth)
-                )
+                .buttonStyle(.plain)
+                .accessibilityLabel("\(title) \(selectedTitle)")
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel("\(title) \(selectedTitle)")
 
             if isOpen {
                 LazyVGrid(columns: columns, spacing: 6) {

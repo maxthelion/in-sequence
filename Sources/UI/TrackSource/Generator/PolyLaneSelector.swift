@@ -3,6 +3,9 @@ import SwiftUI
 struct PolyLaneSelector: View {
     let laneCount: Int
     @Binding var selectedLane: Int
+    /// The one chrome accent of the hosting surface — lane chips must not
+    /// introduce a second accent (design review 22f/22h).
+    var accent: Color = StudioTheme.cyan
     let onAddLane: () -> Void
     let onRemoveLane: (() -> Void)?
 
@@ -17,7 +20,7 @@ struct PolyLaneSelector: View {
                         .foregroundStyle(selectedLane == laneIndex ? StudioTheme.background : StudioTheme.mutedText)
                         .padding(.vertical, 6)
                         .padding(.horizontal, 10)
-                        .background(selectedLane == laneIndex ? StudioTheme.violet : Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
+                        .background(selectedLane == laneIndex ? accent : Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
                         .overlay(
                             Capsule()
                                 .stroke(selectedLane == laneIndex ? Color.clear : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)

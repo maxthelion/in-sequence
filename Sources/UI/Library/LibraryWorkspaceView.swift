@@ -235,7 +235,7 @@ struct LibraryWorkspaceView: View {
             StudioCircleIconButton(
                 systemName: "plus",
                 size: StudioMetrics.ControlSize.small,
-                accent: StudioTheme.cyan,
+                accent: StudioTheme.violet,
                 help: createHelp,
                 action: onCreate
             )
@@ -307,7 +307,7 @@ struct LibraryWorkspaceView: View {
                 StudioCircleIconButton(
                     systemName: "plus",
                     size: StudioMetrics.ControlSize.small,
-                    accent: StudioTheme.cyan,
+                    accent: StudioTheme.violet,
                     help: createHelp
                 ) {
                     createTrack(from: entry)
@@ -345,7 +345,9 @@ struct LibraryWorkspaceView: View {
             return entries.isEmpty ? nil : (kind, entries)
         }
 
-        return StudioPanel(title: "Project Pool", accent: StudioTheme.cyan) {
+        // One accent per surface (violet, the Library accent) — the old cyan
+        // header here made two accent systems on one page (design review 07).
+        return StudioPanel(title: "Project Pool", accent: StudioTheme.violet) {
             ScrollView {
                 VStack(alignment: .leading, spacing: StudioMetrics.Spacing.comfortable) {
                     if grouped.isEmpty {

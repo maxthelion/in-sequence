@@ -227,11 +227,13 @@ enum NativeInsertParameterEditor {
                         onChange: onCutoffChange,
                         onLiveChange: onCutoffChange
                     )
+                    // Same accent as Cutoff — mixed ring accents on one
+                    // surface were a finding (design review 05b).
                     StudioRotaryKnob(
                         title: "Resonance",
                         value: settings.resonance,
                         range: 0...1,
-                        accent: StudioTheme.amber,
+                        accent: accent,
                         size: 58,
                         format: { String(format: "%.2f", $0) },
                         onChange: onResonanceChange,
@@ -271,7 +273,7 @@ enum NativeInsertParameterEditor {
                     .frame(maxWidth: .infinity, minHeight: 30)
                     .padding(.horizontal, 10)
                     .background(
-                        isSelected ? StudioTheme.cyan : Color.clear,
+                        isSelected ? accent : Color.clear,
                         in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
                     )
             }

@@ -157,7 +157,7 @@ struct GeneratorParamsEditorView: View {
             )
             .disabled(onSwitchKind == nil)
 
-            GeneratorHeaderChip(title: "FOLLOWING", value: followingChipValue, accent: StudioTheme.violet)
+            GeneratorHeaderChip(title: "FOLLOWING", value: followingChipValue, accent: accent)
 
             Spacer(minLength: 0)
 
@@ -280,6 +280,7 @@ struct GeneratorParamsEditorView: View {
                     PolyLaneSelector(
                         laneCount: pitches.count,
                         selectedLane: $selectedPolyLane,
+                        accent: accent,
                         onAddLane: {
                             var nextPitches = pitches
                             nextPitches.append(.native(.defaultMono))

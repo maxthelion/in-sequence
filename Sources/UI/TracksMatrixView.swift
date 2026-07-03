@@ -250,9 +250,12 @@ struct TracksMatrixView: View {
                 Divider()
                     .frame(height: 22)
 
+                // Peer toggles share the ONE surface accent (cyan, the tracks
+                // navigator accent) — purple-vs-cyan here was accent roulette
+                // (design review 02a).
                 selectionActionButton(
                     title: "By Track",
-                    accent: StudioTheme.violet,
+                    accent: StudioTheme.cyan,
                     identifier: "tracks-action-by-track"
                 ) { requestPhrasePerform(mode: .byTrack) }
 
@@ -621,9 +624,12 @@ private struct KitMatrixCard: View {
         }
         .frame(maxWidth: .infinity, minHeight: 132, alignment: .topLeading)
         .padding(StudioMetrics.Spacing.comfortable)
+        // Rule 12.1: containers are never tinted — selection reads from the
+        // accent OUTLINE + the solid check badge, never a solid card flood
+        // (design review 02a).
         .background(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                .fill(isSelected ? accent.opacity(StudioOpacity.accentFill) : Color.white.opacity(StudioOpacity.subtleFill))
+                .fill(Color.white.opacity(StudioOpacity.subtleFill))
         )
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
@@ -881,9 +887,12 @@ private struct TrackMatrixCard: View {
         }
         .frame(maxWidth: .infinity, minHeight: 132, alignment: .topLeading)
         .padding(StudioMetrics.Spacing.comfortable)
+        // Rule 12.1: containers are never tinted — selection reads from the
+        // accent OUTLINE + the solid check badge, never a solid card flood
+        // (design review 02a).
         .background(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                .fill(isSelected ? accent.opacity(StudioOpacity.accentFill) : Color.white.opacity(StudioOpacity.subtleFill))
+                .fill(Color.white.opacity(StudioOpacity.subtleFill))
         )
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
