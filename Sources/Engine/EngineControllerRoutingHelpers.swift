@@ -172,12 +172,17 @@ extension EngineController {
         }
     }
 
-    static func effectiveMix(for mix: TrackMixSettings, isMuted: Bool) -> TrackMixSettings {
+    static func effectiveMix(
+        for mix: TrackMixSettings,
+        isMuted: Bool,
+        sceneGain: Double = 1
+    ) -> TrackMixSettings {
         TrackMixSettings(
-            level: mix.level,
+            level: mix.level * min(max(sceneGain, 0), 1),
             pan: mix.pan,
             isMuted: isMuted,
             isSoloed: mix.isSoloed,
+            sceneMembership: mix.sceneMembership,
             sendA: mix.sendA,
             sendB: mix.sendB
         )

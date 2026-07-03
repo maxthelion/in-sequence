@@ -338,12 +338,15 @@ extension EngineController {
 
     private func audioInputRoutingRequests(for documentModel: Project) -> [MainAudioGraph.AudioInputRoutingRequest] {
         let effectiveMuteState = Self.effectiveMixerMuteState(for: documentModel)
+        let crossfader = masterBusPerformanceOverlay.crossfaderOverride
+            ?? documentModel.masterBus.abSelection?.crossfader
         let runtimes = withStateLock { trackRuntime.audioInputRuntimes }
         return documentModel.tracks.compactMap { track -> MainAudioGraph.AudioInputRoutingRequest? in
             guard let runtime = runtimes[track.id] else { return nil }
             let mix = Self.effectiveMix(
                 for: track.mix,
-                isMuted: effectiveMuteState.mutedTrackIDs.contains(track.id)
+                isMuted: effectiveMuteState.mutedTrackIDs.contains(track.id),
+                sceneGain: track.mix.sceneMembership.gain(crossfader: crossfader)
             )
             return MainAudioGraph.AudioInputRoutingRequest(
                 trackID: track.id,

@@ -60,6 +60,11 @@ protocol SamplePlaybackSink: AnyObject {
     /// mechanism, but they are tracked as SEPARATE sources and OR-combined so
     /// one cannot clobber the other. Safe off-main (only writes `outputVolume`).
     func setTrackMuteGain(trackID: UUID, muted: Bool, source: TrackMuteSource)
+    /// Apply the track's scene-membership crossfade gain (selective scene
+    /// inputs, roadmap 25) as a ramped GAIN change on the same per-track gain
+    /// stage mute rides — never a hard-cut (Hard Rule 5). Multiplies with the
+    /// fader level; the configured Send A/B levels are untouched.
+    func setTrackSceneGain(trackID: UUID, gain: Double)
     /// Apply the track's post-fader send tap gains. This is a parameter update,
     /// not a topology rebuild.
     func setTrackSends(trackID: UUID, sendA: Double, sendB: Double)
@@ -101,6 +106,8 @@ extension SamplePlaybackSink {
     func setTrackSends(trackID: UUID, sendA: Double, sendB: Double) {}
 
     func setTrackMuteGain(trackID: UUID, muted: Bool, source: TrackMuteSource) {}
+
+    func setTrackSceneGain(trackID: UUID, gain: Double) {}
 
     /// Convenience for callers (e.g. tests) that exercise a single mute source.
     func setTrackMuteGain(trackID: UUID, muted: Bool) {
@@ -248,6 +255,11 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
     /// mixer-mute then layer-mute+unmute would un-silence a mixer-muted track.
     private var mixerMutedTrackIDs: Set<UUID> = []
     private var layerMutedTrackIDs: Set<UUID> = []
+    /// Per-track scene-membership crossfade gain (selective scene inputs,
+    /// roadmap 25), multiplied with the fader level on the same gain stage
+    /// mute rides. Absent = 1 (member of both scenes / no A/B crossfade).
+    /// Effective volume = muted ? 0 : level * sceneGain.
+    private var trackSceneGains: [UUID: Float] = [:]
     private var trackOutputBusIDs: [UUID: UUID] = [:]
     private var trackSendLevels: [UUID: MainAudioGraph.TrackSendLevels] = [:]
     private var fastPathReadyTrackIDs: Set<UUID> = []
@@ -960,6 +972,12 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         mixerMutedTrackIDs.contains(trackID) || layerMutedTrackIDs.contains(trackID)
     }
 
+    /// The track's scene-membership gain (1 when never set). Caller MUST hold
+    /// `lifecycleLock`.
+    private func sceneGainLocked(_ trackID: UUID) -> Float {
+        trackSceneGains[trackID] ?? 1
+    }
+
     /// Set the per-track fader level/pan. `level` is the user's fader value
     /// (NOT pre-zeroed for mute) — mute is applied separately as a ramped gain
     /// via `setTrackMuteGain`, so unmute restores this level. The effective
@@ -972,15 +990,16 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
             // Publish the new mix value and read the target node + mute under
             // the lock; the mixer parameter writes below are node-parameter
             // updates (not graph mutations) and run without the lock.
-            let (busPool, mixer, muted): (BusVoicePool?, AVAudioMixerNode?, Bool) = withLifecycleLock {
+            let (busPool, mixer, muted, sceneGain): (BusVoicePool?, AVAudioMixerNode?, Bool, Float) = withLifecycleLock {
                 trackMixValues[trackID] = (level: clampedLevel, pan: clampedPan)
                 let muted = effectiveMuteLocked(trackID)
+                let sceneGain = sceneGainLocked(trackID)
                 if let pool = busVoicePools[trackID] {
-                    return (pool, nil, muted)
+                    return (pool, nil, muted, sceneGain)
                 }
-                return (nil, trackMixers[trackID], muted)
+                return (nil, trackMixers[trackID], muted, sceneGain)
             }
-            let effectiveLevel = muted ? 0 : clampedLevel
+            let effectiveLevel = muted ? 0 : clampedLevel * sceneGain
             if let busPool {
                 applyBusVoiceMix(trackID: trackID, pool: busPool)
                 return
@@ -1016,7 +1035,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
                 if muted { layerMutedTrackIDs.insert(trackID) } else { layerMutedTrackIDs.remove(trackID) }
             }
             let effective = effectiveMuteLocked(trackID)
-            let level = trackMixValues[trackID]?.level ?? 1
+            let level = (trackMixValues[trackID]?.level ?? 1) * sceneGainLocked(trackID)
             let configuredSends = trackSendLevels[trackID] ?? .zero
             if let pool = busVoicePools[trackID] {
                 return (pool, nil, nil, configuredSends, level, effective)
@@ -1049,6 +1068,41 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
                 sendB: effective.sendB
             )
         }
+    }
+
+    /// Apply the track's scene-membership crossfade gain as a ramped GAIN
+    /// change on the same per-track gain stage mute rides (selective scene
+    /// inputs, roadmap 25). Membership flips while the track is sounding are
+    /// full-scale jumps (e.g. 1 -> 0 at a crossfader extreme), so they must
+    /// ramp — never ride the snapping fader path (Hard Rule 5). Mirrors the
+    /// `setTrackMuteGain` shape: publish under the lock, ramp without it.
+    /// Send A/B configured levels are deliberately untouched (the Send A/B
+    /// contract is byte-identical with scenes — 353829be).
+    func setTrackSceneGain(trackID: UUID, gain: Double) {
+        let clamped: Float = gain.isFinite ? Float(min(max(gain, 0), 1)) : 1
+        let (busPool, mixer, level, effectiveMuted, changed): (
+            BusVoicePool?, AVAudioMixerNode?, Float, Bool, Bool
+        ) = withLifecycleLock {
+            let previous = sceneGainLocked(trackID)
+            trackSceneGains[trackID] = clamped
+            let changed = previous != clamped
+            let level = trackMixValues[trackID]?.level ?? 1
+            let muted = effectiveMuteLocked(trackID)
+            if let pool = busVoicePools[trackID] {
+                return (pool, nil, level, muted, changed)
+            }
+            return (nil, trackMixers[trackID], level, muted, changed)
+        }
+        guard changed else { return }
+        let target: Float = effectiveMuted ? 0 : level * clamped
+        if let busPool {
+            // Same node the fader/mute own for bus-routed tracks: the per-track
+            // sum mixer (the track's output into the bus).
+            MixerGainRamp.shared.ramp(busPool.trackSumMixer, to: target)
+            return
+        }
+        guard let mixer else { return }
+        MixerGainRamp.shared.ramp(mixer, to: target)
     }
 
     func setTrackOutputBus(trackID: UUID, busID: UUID?) {
@@ -1126,7 +1180,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
                     // stays silent.
                     let (mixer, target): (AVAudioMixerNode?, Float) = withLifecycleLock {
                         let muted = effectiveMuteLocked(trackID)
-                        let level = trackMixValues[trackID]?.level ?? 1
+                        let level = (trackMixValues[trackID]?.level ?? 1) * sceneGainLocked(trackID)
                         return (trackMixers[trackID], muted ? 0 : level)
                     }
                     if let mixer {
@@ -1194,6 +1248,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
                 trackMixValues.removeValue(forKey: trackID)
                 mixerMutedTrackIDs.remove(trackID)
                 layerMutedTrackIDs.remove(trackID)
+                trackSceneGains.removeValue(forKey: trackID)
                 trackFilterFanouts.removeValue(forKey: trackID)
                 _ = fastPathReadyTrackIDs.remove(trackID)
                 _ = deferredPreparedTrackRepairIDs.remove(trackID)
@@ -1531,7 +1586,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
             applyBusVoiceMix(trackID: trackID, pool: pool)
             let target: Float = withLifecycleLock {
                 let mix = trackMixValues[trackID] ?? (level: 1, pan: 0)
-                return effectiveMuteLocked(trackID) ? 0 : mix.level
+                return effectiveMuteLocked(trackID) ? 0 : mix.level * sceneGainLocked(trackID)
             }
             rampIncomingChokepointUp(trackSumMixer, to: target)
             // realtime-allow-graph-mutation: prepared bus voice setup occurs during document apply/setup, not tick dispatch. Test: RealtimePathLintTests.
@@ -1587,10 +1642,10 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
     /// `trackMixValues` under the lock, then applies the mixer params (a
     /// node-parameter write, not a graph mutation) without it.
     private func applyBusVoiceMix(trackID: UUID, pool: BusVoicePool) {
-        let (mix, muted) = withLifecycleLock {
-            (trackMixValues[trackID] ?? (level: 1, pan: 0), effectiveMuteLocked(trackID))
+        let (mix, muted, sceneGain) = withLifecycleLock {
+            (trackMixValues[trackID] ?? (level: 1, pan: 0), effectiveMuteLocked(trackID), sceneGainLocked(trackID))
         }
-        let effectiveLevel = muted ? 0 : mix.level
+        let effectiveLevel = muted ? 0 : mix.level * sceneGain
         // Apply the track fader/pan on the per-track sum node (the track's own
         // output); voice mixers stay at unity. This keeps the meter source (the
         // sum node) reading the post-fader track level.

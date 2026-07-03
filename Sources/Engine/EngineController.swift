@@ -2003,11 +2003,13 @@ final class EngineController: RouterDispatcher {
         masterBusPerformanceOverlay.crossfaderOverride = value.clamped(to: 0...1)
         masterBusPerformanceOverlay = masterBusPerformanceOverlay.normalized(for: currentDocumentModel.masterBus)
         masterBusHost.setLiveCrossfaderOverride(value)
+        refreshSceneMembershipGainsForCurrentDocument()
     }
 
     func clearLiveMasterCrossfader() {
         masterBusPerformanceOverlay.crossfaderOverride = nil
         masterBusHost.setLiveCrossfaderOverride(nil)
+        refreshSceneMembershipGainsForCurrentDocument()
     }
 
     func setLiveMasterOutputGain(_ value: Double) {
@@ -4021,6 +4023,7 @@ final class EngineController: RouterDispatcher {
             return
         }
         masterBusHost.apply(normalized)
+        refreshSceneMembershipGains(for: normalized)
     }
 }
 

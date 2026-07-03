@@ -21,6 +21,22 @@ extension EngineController {
         refreshEffectiveMixerState(for: currentDocumentModel)
     }
 
+    /// Re-derive every track's scene-membership gain from the live crossfader
+    /// (selective scene inputs, roadmap 25). Called from the live crossfader
+    /// override path so an A/B morph tracks member gains without a document
+    /// apply. Parameter-path only: gain + ramp writes, no graph mutation.
+    func refreshSceneMembershipGainsForCurrentDocument() {
+        refreshEffectiveMixerState(for: currentDocumentModel)
+    }
+
+    /// Same refresh keyed off a just-applied master-bus state (the crossfader
+    /// may have moved with the document apply itself).
+    func refreshSceneMembershipGains(for masterBus: MasterBusState) {
+        var documentModel = currentDocumentModel
+        documentModel.masterBus = masterBus.normalized()
+        refreshEffectiveMixerState(for: documentModel)
+    }
+
     /// Scoped bus mix update for performance-time bus controls. This stays on the
     /// parameter path: bus fader, pan, mute, solo, and bypass-style insert changes
     /// avoid broad document re-application and do not rebuild the engine pipeline.
@@ -158,6 +174,7 @@ extension EngineController {
 
     private func refreshEffectiveMixerState(for documentModel: Project) {
         let effectiveMuteState = Self.effectiveMixerMuteState(for: documentModel)
+        let crossfader = sceneMembershipCrossfader(for: documentModel)
         let audioOutputs = withStateLock { self.trackRuntime.audioOutputsByTrackID }
         withStateLock {
             trackRuntime.installMuteState(effectiveMuteState)
@@ -166,7 +183,11 @@ extension EngineController {
                 trackRuntime.audioTrackRuntimes[trackID] = AudioTrackRuntime(
                     trackID: runtime.trackID,
                     generatorBlockID: runtime.generatorBlockID,
-                    mix: Self.effectiveMix(for: track.mix, isMuted: effectiveMuteState.mutedTrackIDs.contains(trackID)),
+                    mix: Self.effectiveMix(
+                        for: track.mix,
+                        isMuted: effectiveMuteState.mutedTrackIDs.contains(trackID),
+                        sceneGain: track.mix.sceneMembership.gain(crossfader: crossfader)
+                    ),
                     destination: runtime.destination,
                     pitchOffset: runtime.pitchOffset
                 )
@@ -176,7 +197,8 @@ extension EngineController {
         for track in documentModel.tracks {
             let effectiveMix = Self.effectiveMix(
                 for: track.mix,
-                isMuted: effectiveMuteState.mutedTrackIDs.contains(track.id)
+                isMuted: effectiveMuteState.mutedTrackIDs.contains(track.id),
+                sceneGain: track.mix.sceneMembership.gain(crossfader: crossfader)
             )
             let mixerMuted = effectiveMuteState.mutedTrackIDs.contains(track.id)
             audioOutputs[track.id]?.setMix(effectiveMix)
@@ -184,12 +206,19 @@ extension EngineController {
             case .sample, .slicer:
                 // Fader level is the raw user value; mute is applied as a
                 // ramped gain via setTrackMuteGain so unmute restores it.
+                // Scene-membership gain is its OWN ramped stage on the same
+                // node (setTrackSceneGain) — it must never hard-cut through
+                // the snapping fader path.
                 sampleEngine.setTrackMix(
                     trackID: track.id,
                     level: track.mix.clampedLevel,
                     pan: effectiveMix.clampedPan
                 )
                 sampleEngine.setTrackMuteGain(trackID: track.id, muted: mixerMuted, source: .mixer)
+                sampleEngine.setTrackSceneGain(
+                    trackID: track.id,
+                    gain: track.mix.sceneMembership.gain(crossfader: crossfader)
+                )
                 sampleEngine.setTrackSends(trackID: track.id, sendA: effectiveMix.sendA, sendB: effectiveMix.sendB)
             default:
                 continue
@@ -209,6 +238,7 @@ extension EngineController {
 
     func syncAudioOutputs(for documentModel: Project) {
         let effectiveMuteState = Self.effectiveMixerMuteState(for: documentModel)
+        let crossfader = sceneMembershipCrossfader(for: documentModel)
         let desiredAudioTracks = documentModel.tracks.compactMap { track -> (StepSequenceTrack, Destination, Int, AudioOutputKey)? in
             let (destination, pitchOffset) = Self.effectiveDestination(for: track.id, in: documentModel)
             guard case .auInstrument = destination,
@@ -255,7 +285,11 @@ extension EngineController {
             }
             nextDestinations[key] = destination
             host.setOutputBusID(track.outputBusID)
-            host.setMix(Self.effectiveMix(for: track.mix, isMuted: effectiveMuteState.mutedTrackIDs.contains(track.id)))
+            host.setMix(Self.effectiveMix(
+                for: track.mix,
+                isMuted: effectiveMuteState.mutedTrackIDs.contains(track.id),
+                sceneGain: track.mix.sceneMembership.gain(crossfader: crossfader)
+            ))
             host.prepareIfNeeded()
             if isRunning {
                 host.startIfNeeded()
@@ -292,7 +326,8 @@ extension EngineController {
                             generatorBlockID: trackRuntime.generatorIDsByTrackID[$0.0.id] ?? Self.generatorBlockID(for: $0.0.id),
                             mix: Self.effectiveMix(
                                 for: $0.0.mix,
-                                isMuted: effectiveMuteState.mutedTrackIDs.contains($0.0.id)
+                                isMuted: effectiveMuteState.mutedTrackIDs.contains($0.0.id),
+                                sceneGain: $0.0.mix.sceneMembership.gain(crossfader: crossfader)
                             ),
                             destination: $0.1,
                             pitchOffset: $0.2
@@ -314,6 +349,7 @@ extension EngineController {
     /// tick-time sample dispatch never mutates the AVAudioEngine graph.
     private func syncSampleMixers(for documentModel: Project) {
         let effectiveMuteState = Self.effectiveMixerMuteState(for: documentModel)
+        let crossfader = sceneMembershipCrossfader(for: documentModel)
         var sampleTrackIDs: Set<UUID> = []
         var sampleIDsToWarm: Set<UUID> = []
         for track in documentModel.tracks {
@@ -332,12 +368,17 @@ extension EngineController {
             sampleEngine.prepareTrack(trackID: track.id)
             let mixerMuted = effectiveMuteState.mutedTrackIDs.contains(track.id)
             // Fader level stays raw; mute is a ramped gain via setTrackMuteGain.
+            // Scene-membership gain is its own ramped stage (setTrackSceneGain).
             sampleEngine.setTrackMix(
                 trackID: track.id,
                 level: track.mix.clampedLevel,
                 pan: track.mix.clampedPan
             )
             sampleEngine.setTrackMuteGain(trackID: track.id, muted: mixerMuted, source: .mixer)
+            sampleEngine.setTrackSceneGain(
+                trackID: track.id,
+                gain: track.mix.sceneMembership.gain(crossfader: crossfader)
+            )
             sampleEngine.setTrackSends(trackID: track.id, sendA: track.mix.sendA, sendB: track.mix.sendB)
         }
 
@@ -349,6 +390,14 @@ extension EngineController {
         }
 
         withStateLock { trackRuntime.liveSampleTrackIDs = sampleTrackIDs }
+    }
+
+    /// The crossfader value scene-membership gains derive from: the live
+    /// perform-overlay override wins over the persisted A/B selection. `nil`
+    /// (no A/B selection resolvable) means every membership plays at unity.
+    private func sceneMembershipCrossfader(for documentModel: Project) -> Double? {
+        masterBusPerformanceOverlay.crossfaderOverride
+            ?? documentModel.masterBus.abSelection?.crossfader
     }
 
     private func warmSampleAssets(sampleIDs: Set<UUID>) {
