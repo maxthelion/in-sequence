@@ -265,4 +265,118 @@ final class GeneratedSourceEvaluatorTests: XCTestCase {
         XCTAssertEqual(second.first?.sliceParameters?.startTrim, 0.15)
         XCTAssertEqual(second.first?.sliceParameters?.reverse, true)
     }
+
+    // MARK: - WS4 generator vocabulary (weighted/cluster trigger, pool pitch)
+
+    func test_weightedClusterTrigger_isDeterministicWithFixedSeed() {
+        let params = GeneratorParams.mono(
+            trigger: .native(.weighted(weights: [1, 0.2, 0, 0.7, 0.4, 0, 0.9, 0.1], steps: 8, cluster: 0.65)),
+            pitch: .native(.manual(pitches: [60], pickMode: .sequential)),
+            shape: .default
+        )
+
+        let first = previewPitches(for: params, count: 32)
+        let second = previewPitches(for: params, count: 32)
+
+        XCTAssertFalse(first.isEmpty)
+        XCTAssertEqual(first, second)
+    }
+
+    /// WS4 AC2 (evaluator level): the chord sidechain is a PITCH-POOL FILTER
+    /// only — attaching it must leave the trigger stream untouched while the
+    /// realized pitches move. The full mid-run chord-change stream fixture
+    /// lives in `GeneratorVocabAcceptanceTests`.
+    func test_chordSidechainChangesPitchButNotTriggerStream() {
+        let trigger = TriggerStageNode.native(.weighted(weights: [1, 0.35, 0, 0.8], steps: 4, cluster: 0.4))
+        let plain = GeneratorParams.mono(
+            trigger: trigger,
+            pitch: .native(.pool(root: 60, scale: .major, spread: 12, selection: .uniform, deviation: .none)),
+            shape: .default
+        )
+        let following = GeneratorParams.mono(
+            trigger: trigger,
+            pitch: .native(
+                .pool(root: 60, scale: .major, spread: 12, selection: .uniform, deviation: .none),
+                harmonicSidechain: .projectChordContext
+            ),
+            shape: .default
+        )
+        let chord = Chord(root: 65, chordType: ChordID.minorTriad.rawValue, scale: ScaleID.dorian.rawValue)
+
+        XCTAssertEqual(sourceFirePattern(for: plain), sourceFirePattern(for: following))
+        XCTAssertNotEqual(previewPitches(for: plain, count: 32), previewPitches(for: following, count: 32, chord: chord))
+    }
+
+    /// WS4 AC4: deviation controls. Accidentals only leave the pool when the
+    /// factor is > 0; the octave span bounds the register jumps; chromatic
+    /// leading emits approach tones that RESOLVE STEPWISE into a pool note on
+    /// the following fire (synthesis taxonomy).
+    func test_pitchPoolDeviationControlsBoundOutOfPoolAndRegisterBehavior() {
+        let noDeviation = poolParams(deviation: .none)
+        let accidental = poolParams(
+            deviation: PitchDeviationSettings(accidentalChance: 1, octaveSpan: 0, leadingChance: 0)
+        )
+        let octaves = poolParams(
+            spread: 0,
+            deviation: PitchDeviationSettings(accidentalChance: 0, octaveSpan: 1, leadingChance: 0)
+        )
+        let leading = poolParams(
+            deviation: PitchDeviationSettings(accidentalChance: 0, octaveSpan: 0, leadingChance: 1)
+        )
+
+        let pool = majorPool(root: 60, spread: 12)
+
+        // Accidentals gate: zero factor never leaves the pool; full factor does.
+        XCTAssertTrue(previewPitches(for: noDeviation, count: 48).allSatisfy { pool.contains($0) })
+        XCTAssertTrue(previewPitches(for: accidental, count: 48).contains { !pool.contains($0) })
+
+        // Octave span bounds: a one-note pool (spread 0) with span 1 may only
+        // visit the root and its +/-1 octave registers.
+        XCTAssertTrue(previewPitches(for: octaves, count: 48).allSatisfy { [48, 60, 72].contains($0) })
+
+        // Chromatic leading resolves stepwise: every out-of-pool approach tone
+        // is followed by an in-pool note exactly one semitone away.
+        let leadingPitches = previewPitches(for: leading, count: 48)
+        XCTAssertTrue(leadingPitches.contains { !pool.contains($0) }, "leading=1 must emit approach tones")
+        for (index, pitch) in leadingPitches.enumerated() where !pool.contains(pitch) {
+            guard index + 1 < leadingPitches.count else { continue }
+            let next = leadingPitches[index + 1]
+            XCTAssertTrue(
+                pool.contains(next) && abs(next - pitch) == 1,
+                "approach tone \(pitch) at \(index) must resolve stepwise into a pool note, got \(next)"
+            )
+        }
+    }
+
+    private func poolParams(spread: Int = 12, deviation: PitchDeviationSettings) -> GeneratorParams {
+        .mono(
+            trigger: .native(.euclidean(pulses: 1, steps: 1, offset: 0)),
+            pitch: .native(.pool(root: 60, scale: .major, spread: spread, selection: .uniform, deviation: deviation)),
+            shape: .default
+        )
+    }
+
+    private func previewPitches(for params: GeneratorParams, count: Int, chord: Chord? = nil) -> [Int] {
+        GeneratedSourceEvaluator.previewNotes(for: params, clipChoices: [], count: count, chordContext: chord)
+            .flatMap { $0.map(\.pitch) }
+    }
+
+    private func sourceFirePattern(for params: GeneratorParams) -> [Bool] {
+        var rng = PreviewRNG()
+        return (0..<32).map { step in
+            !GeneratedSourceEvaluator.evaluateSourceStep(
+                for: params,
+                stepIndex: step,
+                clipChoices: [],
+                rng: &rng
+            ).isEmpty
+        }
+    }
+
+    private func majorPool(root: Int, spread: Int) -> Set<Int> {
+        let intervals = Set(Scale.for(id: .major)?.intervals ?? [])
+        return Set((max(0, root - spread)...min(127, root + spread)).filter {
+            intervals.contains((($0 - root) % 12 + 12) % 12)
+        })
+    }
 }

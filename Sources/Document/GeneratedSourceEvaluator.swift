@@ -522,6 +522,28 @@ enum GeneratedSourceEvaluator {
                 return [pitches.randomElement(using: &rng) ?? seed.pitch]
             }
 
+        case let .pool(root, scale, spread, selection, deviation):
+            // Chord sidechain = PITCH-POOL FILTER ONLY (synthesis semantics
+            // correction): it re-roots/re-scales the pool the picker draws
+            // from and never touches the trigger stage.
+            let effectiveRoot = sidechain.chord.map { Int($0.root) } ?? transposedRoot(seedPitch: seed.pitch, configuredRoot: root)
+            let effectiveScale = sidechain.scaleID ?? scale
+            return [pickPitch(
+                using: .pool(
+                    root: effectiveRoot,
+                    scale: effectiveScale,
+                    spread: spread,
+                    selection: selection,
+                    deviation: deviation
+                ),
+                lastPitch: lastPitch,
+                scaleRoot: effectiveRoot,
+                scaleID: effectiveScale,
+                chord: sidechain.chord,
+                stepIndex: stepIndex,
+                rng: &rng
+            )]
+
         case let .randomInScale(root, scale, spread):
             let effectiveRoot = transposedRoot(seedPitch: seed.pitch, configuredRoot: root)
             let effectiveScale = sidechain.scaleID ?? scale
@@ -673,6 +695,10 @@ enum GeneratedSourceEvaluator {
         switch trigger.stepStage.algo {
         case let .euclidean(_, steps, _):
             return max(steps, 1)
+        case let .manual(pattern):
+            return max(pattern.count, 1)
+        case let .weighted(weights, steps, _):
+            return max(steps, weights.count, 1)
         }
     }
 

@@ -10,8 +10,38 @@ enum HoldMode: String, Codable, Equatable, Hashable, Sendable {
     case latest
 }
 
+struct PitchSelectionSettings: Codable, Equatable, Hashable, Sendable {
+    /// -1 is uniform, 0 is balanced, 1 is closest-to-last memory.
+    var memory: Double
+
+    static let uniform = PitchSelectionSettings(memory: -1)
+    static let balanced = PitchSelectionSettings(memory: 0)
+    static let lastNote = PitchSelectionSettings(memory: 1)
+
+    var normalized: PitchSelectionSettings {
+        PitchSelectionSettings(memory: min(max(memory, -1), 1))
+    }
+}
+
+struct PitchDeviationSettings: Codable, Equatable, Hashable, Sendable {
+    var accidentalChance: Double
+    var octaveSpan: Int
+    var leadingChance: Double
+
+    static let none = PitchDeviationSettings(accidentalChance: 0, octaveSpan: 0, leadingChance: 0)
+
+    var normalized: PitchDeviationSettings {
+        PitchDeviationSettings(
+            accidentalChance: min(max(accidentalChance, 0), 1),
+            octaveSpan: min(max(octaveSpan, 0), 3),
+            leadingChance: min(max(leadingChance, 0), 1)
+        )
+    }
+}
+
 enum PitchAlgo: Codable, Equatable, Hashable, Sendable {
     case manual(pitches: [Int], pickMode: PickMode)
+    case pool(root: Int, scale: ScaleID, spread: Int, selection: PitchSelectionSettings, deviation: PitchDeviationSettings)
     case randomInScale(root: Int, scale: ScaleID, spread: Int)
     case randomInChord(root: Int, chord: ChordID, inverted: Bool, spread: Int)
     case intervalProb(root: Int, scale: ScaleID, degreeWeights: [Double])
@@ -36,6 +66,17 @@ enum PitchAlgo: Codable, Equatable, Hashable, Sendable {
             case .random:
                 return pitches.randomElement(using: &rng) ?? context.scaleRoot
             }
+
+        case let .pool(root, scale, spread, selection, deviation):
+            return pickFromPool(
+                root: root,
+                scaleID: scale,
+                spread: spread,
+                selection: selection.normalized,
+                deviation: deviation.normalized,
+                context: context,
+                rng: &rng
+            )
 
         case let .randomInScale(root, scale, spread):
             let pool = scalePool(root: root, scaleID: scale, spread: spread)
@@ -101,6 +142,119 @@ enum PitchAlgo: Codable, Equatable, Hashable, Sendable {
             return context.scaleRoot
         }
     }
+}
+
+private func pickFromPool<R: RandomNumberGenerator>(
+    root: Int,
+    scaleID: ScaleID,
+    spread: Int,
+    selection: PitchSelectionSettings,
+    deviation: PitchDeviationSettings,
+    context: PitchContext,
+    rng: inout R
+) -> Int {
+    // POOL = scale INTERSECT chord filter (synthesis vocabulary): a chord
+    // sidechain narrows the available notes to chord tones; it never adds
+    // notes and never touches triggers. When the intersection would be empty
+    // the scale pool stands (a filter cannot silence the pitch stage).
+    var pool = scalePool(root: root, scaleID: scaleID, spread: spread)
+    if let chord = context.currentChord,
+       let chordID = ChordID(rawValue: chord.chordType),
+       let definition = ChordDefinition.for(id: chordID)
+    {
+        let chordClasses = Set(definition.intervals.map { positiveModulo(Int(chord.root) + $0, 12) })
+        let filtered = pool.filter { chordClasses.contains(positiveModulo($0, 12)) }
+        if !filtered.isEmpty {
+            pool = filtered
+        }
+    }
+    guard !pool.isEmpty else {
+        return context.scaleRoot
+    }
+
+    // Sequence-aware chromatic leading (synthesis vocabulary: approach tones
+    // RESOLVE stepwise into a pool note): when the previous emitted pitch was
+    // an out-of-pool approach tone, this step resolves into the adjacent pool
+    // note instead of making a fresh pick.
+    if deviation.leadingChance > 0,
+       let last = context.lastPitch,
+       !pool.contains(last),
+       let resolution = nearestPoolPitch(to: last, in: pool),
+       abs(resolution - last) == 1
+    {
+        return resolution
+    }
+
+    var picked = poolWeightedByMemory(pool: pool, lastPitch: context.lastPitch, memory: selection.memory, rng: &rng)
+
+    if deviation.octaveSpan > 0 {
+        let octaveOffsets = (-deviation.octaveSpan...deviation.octaveSpan).map { $0 * 12 }
+        let candidates = octaveOffsets
+            .map { picked + $0 }
+            .filter { (0...127).contains($0) }
+        if let candidate = candidates.randomElement(using: &rng) {
+            picked = candidate
+        }
+    }
+
+    if deviation.leadingChance > 0,
+       Double.random(in: 0..<1, using: &rng) < deviation.leadingChance,
+       let leading = leadingTone(around: picked, pool: pool, rng: &rng)
+    {
+        picked = leading
+    }
+
+    if deviation.accidentalChance > 0,
+       Double.random(in: 0..<1, using: &rng) < deviation.accidentalChance
+    {
+        let direction = Bool.random(using: &rng) ? 1 : -1
+        let accidental = min(max(picked + direction, 0), 127)
+        if !pool.contains(accidental) {
+            picked = accidental
+        }
+    }
+
+    return min(max(picked, 0), 127)
+}
+
+private func poolWeightedByMemory<R: RandomNumberGenerator>(
+    pool: [Int],
+    lastPitch: Int?,
+    memory: Double,
+    rng: inout R
+) -> Int {
+    guard let lastPitch, memory > 0 else {
+        return pool.randomElement(using: &rng) ?? 60
+    }
+
+    let weights = pool.map { candidate -> Double in
+        let distance = abs(candidate - lastPitch)
+        let closeness = 1 / Double(distance + 1)
+        return 1 + closeness * memory * 12
+    }
+    guard let index = weightedIndex(from: weights, rng: &rng) else {
+        return pool.randomElement(using: &rng) ?? 60
+    }
+    return pool[index]
+}
+
+private func nearestPoolPitch(to pitch: Int, in pool: [Int]) -> Int? {
+    pool.min { lhs, rhs in
+        abs(lhs - pitch) < abs(rhs - pitch)
+    }
+}
+
+private func leadingTone<R: RandomNumberGenerator>(around target: Int, pool: [Int], rng: inout R) -> Int? {
+    var candidates: [Int] = []
+    let lower = target - 1
+    let upper = target + 1
+    if lower >= 0, !pool.contains(lower) {
+        candidates.append(lower)
+    }
+    if upper <= 127, !pool.contains(upper) {
+        candidates.append(upper)
+    }
+    return candidates.randomElement(using: &rng)
 }
 
 private func positiveModulo(_ value: Int, _ modulus: Int) -> Int {

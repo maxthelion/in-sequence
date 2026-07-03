@@ -8,6 +8,7 @@ final class PitchAlgoKindTests: XCTestCase {
         XCTAssertEqual(PitchAlgo.randomInChord(root: 60, chord: .majorTriad, inverted: false, spread: 12).kind, .randomInChord)
         XCTAssertEqual(PitchAlgo.intervalProb(root: 60, scale: .major, degreeWeights: [1, 0, 0, 0, 0, 0, 0]).kind, .intervalProb)
         XCTAssertEqual(PitchAlgo.markov(root: 60, scale: .major, styleID: .balanced, leap: 0.2, color: 0.4).kind, .markov)
+        XCTAssertEqual(PitchAlgo.pool(root: 60, scale: .major, spread: 12, selection: .balanced, deviation: .none).kind, .pool)
         XCTAssertEqual(PitchAlgo.fromClipPitches(clipID: UUID(), pickMode: .random).kind, .fromClipPitches)
         XCTAssertEqual(PitchAlgo.external(port: "Port", channel: 0, holdMode: .pool).kind, .external)
     }

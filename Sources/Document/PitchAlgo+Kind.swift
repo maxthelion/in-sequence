@@ -2,6 +2,7 @@ import Foundation
 
 enum PitchAlgoKind: String, CaseIterable, Identifiable, Sendable {
     case manual
+    case pool
     case randomInScale
     case randomInChord
     case intervalProb
@@ -15,6 +16,8 @@ enum PitchAlgoKind: String, CaseIterable, Identifiable, Sendable {
         switch self {
         case .manual:
             return "Manual"
+        case .pool:
+            return "Pool"
         case .randomInScale:
             return "Scale"
         case .randomInChord:
@@ -37,6 +40,11 @@ enum PitchAlgoKind: String, CaseIterable, Identifiable, Sendable {
                 return .manual(pitches: pitches, pickMode: pickMode)
             }
             return .manual(pitches: [60, 64, 67], pickMode: .sequential)
+        case .pool:
+            if case let .pool(root, scale, spread, selection, deviation) = current {
+                return .pool(root: root, scale: scale, spread: spread, selection: selection, deviation: deviation)
+            }
+            return .pool(root: 60, scale: .major, spread: 12, selection: .balanced, deviation: .none)
         case .randomInScale:
             return .randomInScale(root: 60, scale: .major, spread: 12)
         case .randomInChord:
@@ -61,6 +69,8 @@ extension PitchAlgo {
         switch self {
         case .manual:
             return .manual
+        case .pool:
+            return .pool
         case .randomInScale:
             return .randomInScale
         case .randomInChord:
