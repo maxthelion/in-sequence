@@ -438,6 +438,20 @@ final class MainAudioGraph {
     func disconnectOutput(_ node: AVAudioNode) {
         TickPathMainSyncGuard.assertNotHoldingLifecycleLockForGraphMutation("MainAudioGraph.disconnectOutput")
         performOnMain {
+            // A node's channel-meter tap MUST come off before its topology is
+            // mutated. `disconnectNodeOutput` reconfigures the affected subgraph
+            // (`AVAudioEngineGraph::UpdateGraphAfterReconfig`); doing so while a
+            // tap is still live on the node faults inside AVFAudio (the
+            // QA-fixture EXC_BAD_ACCESS at UpdateGraphAfterReconfig,
+            // 20260703-0907-setTrackOutputBus-disconnect-segfault). `detach`
+            // already follows this discipline (it calls the same remove before
+            // its disconnect); the prepared-track repair and track-teardown
+            // paths route the track's registered METER-SOURCE node through here,
+            // so mirror it. Re-registration (`setTrackMeterSources`, run on the
+            // next prepare/apply) re-taps a surviving track after the rebuild;
+            // bus/send meter taps do not flow through here (they disconnect via
+            // `reconnectMixerBusTerminalsOnMain` → `engine.disconnectNodeOutput`).
+            self.removeChannelMeterTapIfInstalled(on: node)
             self.removeTrackSendNodes(for: node)
             self.engine.disconnectNodeOutput(node)
         }
@@ -449,6 +463,11 @@ final class MainAudioGraph {
     func disconnectInput(_ node: AVAudioNode) {
         TickPathMainSyncGuard.assertNotHoldingLifecycleLockForGraphMutation("MainAudioGraph.disconnectInput")
         performOnMain {
+            // See `disconnectOutput`: never reconfigure a node whose meter tap is
+            // still live (UpdateGraphAfterReconfig fault). The prepared-track
+            // repair disconnects voice-filter / mixer INPUTS through here; drop
+            // any tap first — re-registered after the rebuild.
+            self.removeChannelMeterTapIfInstalled(on: node)
             self.engine.disconnectNodeInput(node)
         }
     }
