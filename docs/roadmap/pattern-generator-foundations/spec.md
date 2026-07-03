@@ -266,3 +266,37 @@ appended to this spec's CHANGELOG section below.
   surface accent (snapshot used StudioTheme.success; green is fenced to
   capturing). Capture pass for 20b/20c pending an attended visual-automation
   session (unattended TCC gate).
+
+- 2026-07-03: WS4 delivered on `feat/ws4-generators` (salvage peel from the
+  wip/ws-batch-snapshot batch, rebased onto post-WS3 main; WS5 density and
+  WS6 scene-membership hunks left in the snapshot). Vocabulary: StepAlgo
+  gains `weighted(weights:steps:cluster:)` (bipolar cluster) + `manual`;
+  PitchAlgo gains `pool(root:scale:spread:selection:deviation:)` with the
+  SELECTION memory axis and the DEVIATION family (accidentals / octave span
+  / chromatic leading). Pool semantics: scale INTERSECT chord filter — the
+  sidechain re-pools pitch selection and never touches triggers
+  (GeneratorVocabAcceptanceTests mid-run chord-change fixture pins
+  trigger-stream byte-invariance). Chromatic leading is sequence-aware: an
+  approach tone RESOLVES stepwise into a pool note on the next fire. AC1
+  stable identity: `GeneratorPoolEntry.switchingKind` +
+  `session.switchGeneratorKind` mutate in place (same UUID, slot refs +
+  shared root/scale/velocity carry; GeneratorPoolEntryTests +
+  SessionBatchHelperTests). AC3/AC5: the frozen PrecomputeBarEquivalence
+  rail is extended (not edited) by GeneratorVocabAcceptanceTests — new algo
+  kinds precompute == live under fixed seeds, and the editor's result strip
+  renders `GeneratorResultStrip.barContent` (the shared evaluator), pinned
+  == the precomputed bar for a deterministic fixture. Editor per 14b:
+  header mode chip (in-place switch) + FOLLOWING chip + Bake dice (wired to
+  `session.bakeGeneratorToClip` — realized bar frozen into a new clip on
+  the slot), always-visible result strip, TRIGGER|PITCH stage tabs in the
+  inset-track StudioSegmentedControl family (snapshot's native segmented
+  pickers replaced; pre-existing native pickers inside PitchAlgoEditor kind
+  rows left as prior art). WS3's interim GENERATED/READ-ONLY badge removed
+  per its documented deferral — the result strip + Bake dice carry the
+  signal. AC6: the editor lives in WorkspaceDetailView's ScrollView
+  (internal scroll, canon Rule 8) AND the pitch stage takes the tighten
+  option (deviation trio in one knob row, no meta-text column). Canon:
+  weighted kind accent is violet, not the snapshot's amber (amber fenced to
+  pending). AC7: rows 22e-22h wired (trackGeneratorStage/Kind/Following
+  runner vocab); capture pass pending an attended visual-automation session
+  (unattended TCC gate).
