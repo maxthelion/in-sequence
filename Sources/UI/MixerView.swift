@@ -615,6 +615,11 @@ private struct MixerAddBusTile: View {
 }
 
 struct MixerInsertChainView: View {
+    /// Sheet-presentation token for the one insert being edited.
+    private struct EditingInsert: Identifiable {
+        let id: UUID
+    }
+
     let inserts: [MasterBusInsert]
     let accent: Color
     let emptySlotCount: Int
@@ -624,7 +629,7 @@ struct MixerInsertChainView: View {
     let updateInsert: (UUID, (inout MasterBusInsert) -> Void) -> Void
     let removeInsert: (UUID) -> Void
     let reorderInserts: ([UUID]) -> Void
-    @State private var editingInsertID: UUID?
+    @State private var editingInsert: EditingInsert?
 
     var body: some View {
         VStack(spacing: 6) {
@@ -644,6 +649,11 @@ struct MixerInsertChainView: View {
                 }
             }
         }
+        // The standard StudioModal FX editor sheet (bug 20260703-093500) —
+        // never a floating mini-panel.
+        .sheet(item: $editingInsert) { editing in
+            insertEditorSheet(insertID: editing.id)
+        }
     }
 
     private var insertRows: some View {
@@ -656,11 +666,11 @@ struct MixerInsertChainView: View {
 
     // Name-only FX row, uniform with the send strips (bug 20260629-140925):
     // no icon badge, no kind subtitle, no dot, no chevron — just the name in
-    // the slim strip width. Tapping opens an editor popover that holds the
-    // enable/bypass toggle, reorder, and remove (moved off the row).
+    // the slim strip width. Tapping opens the standard StudioModal FX editor
+    // sheet holding the parameter editor, enable/bypass, reorder, and remove.
     private func insertRow(_ insert: MasterBusInsert) -> some View {
         Button {
-            editingInsertID = insert.id
+            editingInsert = EditingInsert(id: insert.id)
         } label: {
             Text(insert.name)
                 .studioText(.label)
@@ -679,67 +689,32 @@ struct MixerInsertChainView: View {
         }
         .buttonStyle(.plain)
         .help(insert.name)
-        .popover(isPresented: editingBinding(for: insert.id), arrowEdge: Edge.trailing) {
-            insertEditor(insert)
-                .padding(StudioMetrics.Spacing.standard)
-                .frame(width: 280)
-                .background(StudioTheme.stageFill)
-        }
     }
 
-    private func editingBinding(for id: UUID) -> Binding<Bool> {
-        Binding(
-            get: { editingInsertID == id },
-            set: { editingInsertID = $0 ? id : nil }
-        )
-    }
-
-    private func insertEditor(_ insert: MasterBusInsert) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 8) {
-                Image(systemName: iconName(for: insert.kind))
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(StudioTheme.background)
-                    .frame(width: 22, height: 22)
-                    .background(accent, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(insert.name)
-                        .studioText(.labelBold)
-                        .foregroundStyle(StudioTheme.text)
-                        .lineLimit(1)
-                    Text(insert.kind.summary)
-                        .studioText(.micro)
-                        .foregroundStyle(StudioTheme.mutedText)
-                        .lineLimit(1)
-                }
-                Spacer(minLength: 4)
-                Toggle("Enabled", isOn: insertEnabledBinding(insert))
-                    .labelsHidden()
-                    .toggleStyle(.switch)
-                    .controlSize(.mini)
-                    .tint(StudioTheme.success)
-                    .help(insert.isEnabled ? "Bypass insert" : "Enable insert")
-            }
-
-            Divider()
-                .overlay(StudioTheme.border)
-
-            HStack(spacing: 6) {
-                insertMoveButton(insert, systemName: "arrow.up", delta: -1)
-                insertMoveButton(insert, systemName: "arrow.down", delta: 1)
-                Spacer(minLength: 8)
-                Button(role: .destructive) {
+    @ViewBuilder
+    private func insertEditorSheet(insertID: UUID) -> some View {
+        // Resolve the LIVE insert on every render so the sheet tracks edits;
+        // a concurrently removed insert renders nothing (Remove closes it).
+        if let insert = inserts.first(where: { $0.id == insertID }) {
+            FXInsertEditorSheet(
+                name: insert.name,
+                kind: insert.kind,
+                accent: accent,
+                isEnabled: insertEnabledBinding(insert),
+                canMoveUp: moveTargetIndex(for: insert, by: -1) != nil,
+                canMoveDown: moveTargetIndex(for: insert, by: 1) != nil,
+                onMove: { delta in move(insert, by: delta) },
+                onRemove: {
                     removeInsert(insert.id)
-                    editingInsertID = nil
-                } label: {
-                    Label("Remove", systemImage: "trash")
-                        .studioText(.label)
+                    editingInsert = nil
+                },
+                onClose: { editingInsert = nil },
+                mutateKind: { mutation in
+                    updateInsert(insert.id) { editing in
+                        mutation(&editing.kind)
+                    }
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-                .tint(StudioTheme.danger)
-                .help("Remove insert")
-            }
+            )
         }
     }
 
@@ -783,18 +758,6 @@ struct MixerInsertChainView: View {
         )
     }
 
-    private func insertMoveButton(_ insert: MasterBusInsert, systemName: String, delta: Int) -> some View {
-        Button {
-            move(insert, by: delta)
-        } label: {
-            Image(systemName: systemName)
-                .font(.system(size: 10, weight: .semibold))
-        }
-        .buttonStyle(.bordered)
-        .controlSize(.mini)
-        .disabled(moveTargetIndex(for: insert, by: delta) == nil)
-    }
-
     private func move(_ insert: MasterBusInsert, by delta: Int) {
         guard let next = moveTargetIndex(for: insert, by: delta),
               let current = inserts.firstIndex(where: { $0.id == insert.id })
@@ -812,16 +775,6 @@ struct MixerInsertChainView: View {
         return next
     }
 
-    private func iconName(for kind: MasterBusInsertKind) -> String {
-        switch kind {
-        case .nativeFilter:
-            return "line.3.horizontal.decrease.circle"
-        case .nativeBitcrusher:
-            return "waveform.path.ecg"
-        case .auEffect:
-            return "slider.horizontal.3"
-        }
-    }
 }
 
 /// Fader and live meter in one lane, the channel-strip miniature of the

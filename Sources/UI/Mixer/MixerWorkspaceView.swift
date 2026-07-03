@@ -7,7 +7,7 @@ struct MixerWorkspaceView: View {
     @Environment(EngineController.self) private var engineController
     @State private var isMasterOverlayPresented = false
     @State private var selectedSendInsertIDs: [SendBusID: UUID] = [:]
-    @State private var editingSendBusID: SendBusID?
+    @State private var sendInsertEditorRequest: SendInsertEditorRequest?
     @State private var addSendFXRequest: SendBusAddFXRequest?
 
     var body: some View {
@@ -31,6 +31,11 @@ struct MixerWorkspaceView: View {
         .frame(minHeight: 920)
         .sheet(item: $addSendFXRequest) { request in
             addSendFXSheet(for: request.busID)
+        }
+        // The standard StudioModal FX editor sheet (bug 20260703-093500) —
+        // never a floating mini-panel.
+        .sheet(item: $sendInsertEditorRequest) { request in
+            sendInsertEditorSheet(request)
         }
     }
 
@@ -112,7 +117,7 @@ struct MixerWorkspaceView: View {
             // the slot's height so actions/footers align across strips.
             Color.clear
         } actions: {
-            // Each insert opens its own editor popover on tap (see
+            // Each insert opens the standard FX editor sheet on tap (see
             // sendInsertRow); the only strip-level action is Add.
             if !sendBus.inserts.isEmpty {
                 addSendFXButton(sendBus.id, accent: accent)
@@ -131,17 +136,6 @@ struct MixerWorkspaceView: View {
 
     private func sendBus(_ busID: SendBusID) -> SendBusState {
         session.store.sendBus(id: busID)
-    }
-
-    /// Presents the editor popover for the one insert that is BOTH selected and
-    /// has its bus marked for editing — set together by a row tap.
-    private func rowEditingBinding(busID: SendBusID, insertID: UUID) -> Binding<Bool> {
-        Binding(
-            get: { editingSendBusID == busID && selectedSendInsertIDs[busID] == insertID },
-            set: { isPresented in
-                editingSendBusID = isPresented ? busID : nil
-            }
-        )
     }
 
     private func sendInsertList(_ sendBus: SendBusState, accent: Color) -> some View {
@@ -187,15 +181,15 @@ struct MixerWorkspaceView: View {
     }
 
     /// Name-only clickable row: the slim strip lists each insert as just its
-    /// name (with a tiny enabled-state dot); tapping opens the editor popover
-    /// that holds enable/bypass, params, reorder and remove. No inline controls
-    /// crammed into the ~96pt strip (bug 20260629-095947).
+    /// name; tapping opens the standard StudioModal FX editor sheet that holds
+    /// enable/bypass, params, reorder and remove. No inline controls crammed
+    /// into the ~96pt strip (bug 20260629-095947).
     private func sendInsertRow(_ insert: SendBusInsert, bus: SendBusState, accent: Color) -> some View {
         let isSelected = selectedSendInsertIDs[bus.id] == insert.id
         return Button {
             // One tap selects AND opens the editor (no separate "Edit FX" step).
             selectedSendInsertIDs[bus.id] = insert.id
-            editingSendBusID = bus.id
+            sendInsertEditorRequest = SendInsertEditorRequest(busID: bus.id, insertID: insert.id)
         } label: {
             // Name only — dot + chevron removed so the name gets the full strip
             // width (bug 20260629-140925); enabled state reads via text colour.
@@ -218,155 +212,42 @@ struct MixerWorkspaceView: View {
         }
         .buttonStyle(.plain)
         .help(insert.name)
-        .popover(isPresented: rowEditingBinding(busID: bus.id, insertID: insert.id), arrowEdge: Edge.trailing) {
-            sendInsertEditor(insert, bus: bus, accent: accent)
-                .padding(StudioMetrics.Spacing.standard)
-                .frame(width: 320)
-                .background(StudioTheme.stageFill)
-        }
     }
 
+    /// The standard FX editor sheet for a send-return insert. Resolves the
+    /// LIVE insert on every render so the sheet tracks edits; a concurrently
+    /// removed insert renders nothing (Remove closes the sheet).
     @ViewBuilder
-    private func sendInsertEditor(_ insert: SendBusInsert?, bus: SendBusState, accent: Color) -> some View {
-        if let insert {
-            VStack(alignment: .leading, spacing: 9) {
-                HStack(spacing: 8) {
-                    Image(systemName: insertIconName(for: insert.kind))
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(StudioTheme.background)
-                        .frame(width: 24, height: 24)
-                        .background(accent, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(insert.name)
-                            .studioText(.labelBold)
-                            .foregroundStyle(StudioTheme.text)
-                            .lineLimit(1)
-                        Text(insert.kind.summary)
-                            .studioText(.micro)
-                            .foregroundStyle(StudioTheme.mutedText)
-                            .lineLimit(1)
+    private func sendInsertEditorSheet(_ request: SendInsertEditorRequest) -> some View {
+        let bus = sendBus(request.busID)
+        if let insert = bus.inserts.first(where: { $0.id == request.insertID }) {
+            FXInsertEditorSheet(
+                name: insert.name,
+                kind: insert.kind,
+                accent: sendAccent(for: request.busID),
+                isEnabled: sendInsertBinding(insert.id, busID: bus.id, keyPath: \.isEnabled, fallback: insert.isEnabled),
+                wet: sendInsertBinding(insert.id, busID: bus.id, keyPath: \.wetDry, fallback: insert.wetDry),
+                canMoveUp: moveTargetIndex(for: insert, in: bus, by: -1) != nil,
+                canMoveDown: moveTargetIndex(for: insert, in: bus, by: 1) != nil,
+                onMove: { delta in move(insert, in: sendBus(request.busID), by: delta) },
+                onRemove: {
+                    session.removeSendBusInsert(insert.id, from: bus.id)
+                    selectedSendInsertIDs[bus.id] = bus.inserts.first(where: { $0.id != insert.id })?.id
+                    sendInsertEditorRequest = nil
+                },
+                onClose: { sendInsertEditorRequest = nil },
+                mutateKind: { mutation in
+                    session.updateSendBusInsert(insert.id, in: bus.id) { editing in
+                        mutation(&editing.kind)
                     }
-                    Spacer(minLength: 4)
-                    // Enable/bypass moved off the strip row into the editor.
-                    Toggle("Enabled", isOn: sendInsertBinding(insert.id, busID: bus.id, keyPath: \.isEnabled, fallback: insert.isEnabled))
-                        .labelsHidden()
-                        .toggleStyle(.switch)
-                        .controlSize(.mini)
-                        .tint(StudioTheme.success)
-                        .help(insert.isEnabled ? "Bypass insert" : "Enable insert")
                 }
-
-                sendSliderRow(
-                    title: "Wet",
-                    value: sendInsertBinding(insert.id, busID: bus.id, keyPath: \.wetDry, fallback: insert.wetDry),
-                    range: 0...1,
-                    label: "\(Int((insert.wetDry * 100).rounded()))%",
-                    accent: accent
-                )
-
-                sendKindEditor(insert, busID: bus.id, accent: accent)
-
-                Divider()
-                    .overlay(StudioTheme.border)
-
-                // Reorder + remove moved off the strip row into the editor.
-                HStack(spacing: 6) {
-                    insertMoveButton(insert, bus: bus, systemName: "arrow.up", delta: -1)
-                    insertMoveButton(insert, bus: bus, systemName: "arrow.down", delta: 1)
-                    Spacer(minLength: 8)
-                    Button(role: .destructive) {
-                        session.removeSendBusInsert(insert.id, from: bus.id)
-                        selectedSendInsertIDs[bus.id] = bus.inserts.first(where: { $0.id != insert.id })?.id
-                        editingSendBusID = nil
-                    } label: {
-                        Label("Remove", systemImage: "trash")
-                            .studioText(.label)
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                    .tint(StudioTheme.danger)
-                    .help("Remove insert")
-                }
-            }
-            .padding(StudioMetrics.Spacing.snug)
-            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
-                    .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
             )
-        } else {
-            StudioPlaceholderTile(title: "No Insert Selected", accent: accent)
-                .help("Add FX to shape the wet return")
         }
     }
 
-    @ViewBuilder
-    private func sendKindEditor(_ insert: SendBusInsert, busID: SendBusID, accent: Color) -> some View {
-        switch insert.kind {
-        case let .nativeFilter(settings):
-            Picker("Mode", selection: sendFilterModeBinding(insertID: insert.id, busID: busID, settings: settings)) {
-                Text("Low Pass").tag(MasterFilterSettings.Mode.lowPass)
-                Text("High Pass").tag(MasterFilterSettings.Mode.highPass)
-            }
-            .pickerStyle(.segmented)
-            .controlSize(.small)
-
-            sendSliderRow(
-                title: "Cutoff",
-                value: sendFilterCutoffBinding(insertID: insert.id, busID: busID, settings: settings),
-                range: 20...20_000,
-                label: "\(Int(settings.cutoffHz.rounded())) Hz",
-                accent: accent
-            )
-            sendSliderRow(
-                title: "Res",
-                value: sendFilterResonanceBinding(insertID: insert.id, busID: busID, settings: settings),
-                range: 0...1,
-                label: String(format: "%.2f", settings.resonance),
-                accent: accent
-            )
-
-        case let .nativeBitcrusher(settings):
-            Stepper("Bits: \(settings.bitDepth)", value: sendBitDepthBinding(insertID: insert.id, busID: busID, settings: settings), in: 4...16)
-                .studioText(.label)
-                .foregroundStyle(StudioTheme.text)
-                .controlSize(.small)
-            sendSliderRow(
-                title: "Rate",
-                value: sendBitRateBinding(insertID: insert.id, busID: busID, settings: settings),
-                range: 0.05...1,
-                label: "\(Int((settings.sampleRateScale * 100).rounded()))%",
-                accent: accent
-            )
-            sendSliderRow(
-                title: "Drive",
-                value: sendBitDriveBinding(insertID: insert.id, busID: busID, settings: settings),
-                range: 0...1,
-                label: "\(Int((settings.drive * 100).rounded()))%",
-                accent: accent
-            )
-
-        case .auEffect:
-            Label("AU Effect", systemImage: "slider.horizontal.3")
-                .studioText(.label)
-                .foregroundStyle(StudioTheme.mutedText)
-        }
-    }
-
-    private func sendSliderRow(title: String, value: Binding<Double>, range: ClosedRange<Double>, label: String, accent: Color) -> some View {
-        HStack(spacing: 6) {
-            Text(title)
-                .studioText(.label)
-                .foregroundStyle(StudioTheme.mutedText)
-                .frame(width: 48, alignment: .leading)
-            Slider(value: value, in: range)
-                .tint(accent)
-            Text(label)
-                .studioText(.eyebrow)
-                .monospacedDigit()
-                .foregroundStyle(StudioTheme.text)
-                .frame(width: 62, alignment: .trailing)
-        }
+    /// The one chrome accent of each send strip (matches `sendReturnStrips`).
+    private func sendAccent(for busID: SendBusID) -> Color {
+        busID == .sendA ? StudioTheme.cyan : StudioTheme.violet
     }
 
     private func addSendFXButton(_ busID: SendBusID, accent: Color) -> some View {
@@ -462,116 +343,6 @@ struct MixerWorkspaceView: View {
         )
     }
 
-    private func sendFilterModeBinding(insertID: UUID, busID: SendBusID, settings: MasterFilterSettings) -> Binding<MasterFilterSettings.Mode> {
-        Binding(
-            get: { sendFilterSettings(insertID, busID: busID)?.mode ?? settings.mode },
-            set: { mode in
-                session.updateSendBusInsert(insertID, in: busID) { insert in
-                    if case var .nativeFilter(settings) = insert.kind {
-                        settings.mode = mode
-                        insert.kind = .nativeFilter(settings)
-                    }
-                }
-            }
-        )
-    }
-
-    private func sendFilterCutoffBinding(insertID: UUID, busID: SendBusID, settings: MasterFilterSettings) -> Binding<Double> {
-        Binding(
-            get: { sendFilterSettings(insertID, busID: busID)?.cutoffHz ?? settings.cutoffHz },
-            set: { cutoff in
-                session.updateSendBusInsert(insertID, in: busID) { insert in
-                    if case var .nativeFilter(settings) = insert.kind {
-                        settings.cutoffHz = cutoff
-                        insert.kind = .nativeFilter(settings)
-                    }
-                }
-            }
-        )
-    }
-
-    private func sendFilterResonanceBinding(insertID: UUID, busID: SendBusID, settings: MasterFilterSettings) -> Binding<Double> {
-        Binding(
-            get: { sendFilterSettings(insertID, busID: busID)?.resonance ?? settings.resonance },
-            set: { resonance in
-                session.updateSendBusInsert(insertID, in: busID) { insert in
-                    if case var .nativeFilter(settings) = insert.kind {
-                        settings.resonance = resonance
-                        insert.kind = .nativeFilter(settings)
-                    }
-                }
-            }
-        )
-    }
-
-    private func sendBitDepthBinding(insertID: UUID, busID: SendBusID, settings: MasterBitcrusherSettings) -> Binding<Int> {
-        Binding(
-            get: { sendBitcrusherSettings(insertID, busID: busID)?.bitDepth ?? settings.bitDepth },
-            set: { bitDepth in
-                session.updateSendBusInsert(insertID, in: busID) { insert in
-                    if case var .nativeBitcrusher(settings) = insert.kind {
-                        settings.bitDepth = bitDepth
-                        insert.kind = .nativeBitcrusher(settings)
-                    }
-                }
-            }
-        )
-    }
-
-    private func sendBitRateBinding(insertID: UUID, busID: SendBusID, settings: MasterBitcrusherSettings) -> Binding<Double> {
-        Binding(
-            get: { sendBitcrusherSettings(insertID, busID: busID)?.sampleRateScale ?? settings.sampleRateScale },
-            set: { value in
-                session.updateSendBusInsert(insertID, in: busID) { insert in
-                    if case var .nativeBitcrusher(settings) = insert.kind {
-                        settings.sampleRateScale = value
-                        insert.kind = .nativeBitcrusher(settings)
-                    }
-                }
-            }
-        )
-    }
-
-    private func sendBitDriveBinding(insertID: UUID, busID: SendBusID, settings: MasterBitcrusherSettings) -> Binding<Double> {
-        Binding(
-            get: { sendBitcrusherSettings(insertID, busID: busID)?.drive ?? settings.drive },
-            set: { value in
-                session.updateSendBusInsert(insertID, in: busID) { insert in
-                    if case var .nativeBitcrusher(settings) = insert.kind {
-                        settings.drive = value
-                        insert.kind = .nativeBitcrusher(settings)
-                    }
-                }
-            }
-        )
-    }
-
-    private func sendFilterSettings(_ insertID: UUID, busID: SendBusID) -> MasterFilterSettings? {
-        guard let insert = sendBus(busID).inserts.first(where: { $0.id == insertID }),
-              case let .nativeFilter(settings) = insert.kind
-        else { return nil }
-        return settings
-    }
-
-    private func sendBitcrusherSettings(_ insertID: UUID, busID: SendBusID) -> MasterBitcrusherSettings? {
-        guard let insert = sendBus(busID).inserts.first(where: { $0.id == insertID }),
-              case let .nativeBitcrusher(settings) = insert.kind
-        else { return nil }
-        return settings
-    }
-
-    private func insertMoveButton(_ insert: SendBusInsert, bus: SendBusState, systemName: String, delta: Int) -> some View {
-        Button {
-            move(insert, in: bus, by: delta)
-        } label: {
-            Image(systemName: systemName)
-                .font(.system(size: 10, weight: .semibold))
-        }
-        .buttonStyle(.bordered)
-        .controlSize(.mini)
-        .disabled(moveTargetIndex(for: insert, in: bus, by: delta) == nil)
-    }
-
     private func move(_ insert: SendBusInsert, in bus: SendBusState, by delta: Int) {
         guard let next = moveTargetIndex(for: insert, in: bus, by: delta),
               let current = bus.inserts.firstIndex(where: { $0.id == insert.id })
@@ -589,16 +360,6 @@ struct MixerWorkspaceView: View {
         return next
     }
 
-    private func insertIconName(for kind: MasterBusInsertKind) -> String {
-        switch kind {
-        case .nativeFilter:
-            return "line.3.horizontal.decrease.circle"
-        case .nativeBitcrusher:
-            return "waveform.path.ecg"
-        case .auEffect:
-            return "slider.horizontal.3"
-        }
-    }
 }
 
 enum MixerWorkspaceLayout {
@@ -697,6 +458,13 @@ private struct MasterOutputCompactStrip: View {
 private struct SendBusAddFXRequest: Identifiable {
     let busID: SendBusID
     var id: SendBusID { busID }
+}
+
+/// Sheet-presentation token for the one send-return insert being edited.
+private struct SendInsertEditorRequest: Identifiable {
+    let busID: SendBusID
+    let insertID: UUID
+    var id: UUID { insertID }
 }
 
 private struct CompactMasterMeter: View {
