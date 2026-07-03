@@ -1188,6 +1188,7 @@ enum VisualScenarioCommandRunner {
         noteRepeatActiveTrackNames=\(activeNoteRepeatTrackNames.isEmpty ? "none" : activeNoteRepeatTrackNames.joined(separator: "|"))
         selectedTrackFillPreviewAvailable=\(session.isTrackFillPreviewAvailable(trackID: session.store.selectedTrackID))
         selectedTrackFillPreviewActive=\(session.trackFillPreviewState.isActive(for: session.store.selectedTrackID))
+        selectedTrackFillEngaged=\(selectedTrackFillEngagedStatus(session: session))
         fillPreviewActiveTrackName=\(activeFillPreviewTrack?.name ?? "none")
         fillPreviewActiveTrackIsSelected=\(session.trackFillPreviewState.activeTrackID == session.store.selectedTrackID)
         selectedPhraseID=\(session.store.selectedPhraseID.uuidString)
@@ -2930,6 +2931,7 @@ enum VisualScenarioCommandRunner {
         guard command["trackFillPreview"] != nil ||
               command["trackFillSource"] != nil ||
               command["trackFillSelectedTrackIndex"] != nil ||
+              command["trackFillEngaged"] != nil ||
               command["trackFillEnsureSecondClipTrack"] == "true"
         else { return }
 
@@ -2958,6 +2960,50 @@ enum VisualScenarioCommandRunner {
         default:
             break
         }
+
+        switch command["trackFillEngaged"] {
+        case "on", "active", "true":
+            setSelectedTrackFillEngaged(true, session: session)
+        case "off", "clear", "inactive", "false":
+            setSelectedTrackFillEngaged(false, session: session)
+        default:
+            break
+        }
+    }
+
+    private static func setSelectedTrackFillEngaged(_ engaged: Bool, session: SequencerDocumentSession) {
+        guard let fillLayer = session.store.layers.first(where: {
+            if case .macroRow("fill-flag") = $0.target {
+                return true
+            }
+            return false
+        }) else { return }
+
+        session.setPhraseCell(
+            .single(.bool(engaged)),
+            layerID: fillLayer.id,
+            trackIDs: [session.store.selectedTrackID],
+            phraseID: session.store.selectedPhraseID
+        )
+    }
+
+    private static func selectedTrackFillEngagedStatus(session: SequencerDocumentSession) -> Bool {
+        guard let fillLayer = session.store.layers.first(where: {
+            if case .macroRow("fill-flag") = $0.target {
+                return true
+            }
+            return false
+        }) else { return false }
+
+        let value = session.store.selectedPhrase.resolvedValue(
+            for: fillLayer,
+            trackID: session.store.selectedTrackID,
+            stepIndex: 0
+        )
+        if case let .bool(engaged) = value {
+            return engaged
+        }
+        return false
     }
 
     private static func ensureTrackCount(_ count: Int, session: SequencerDocumentSession) {
