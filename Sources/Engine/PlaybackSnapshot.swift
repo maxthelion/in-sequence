@@ -5,6 +5,9 @@ struct ResolvedTrackPlaybackStep: Equatable, Sendable {
     let slotIndex: Int
     let mute: Bool
     let fillEnabled: Bool
+    /// Phrase-layer DENSITY macro value (0..1, WS5) — generation-affecting,
+    /// consumed at note resolution (never a dispatch-time macro).
+    let density: Double
     let macroValues: [UUID: Double]
 }
 
@@ -115,8 +118,15 @@ struct PlaybackSnapshot: Equatable, Sendable {
             slotIndex: slotIndex,
             mute: trackState.mute[outputStepIndex],
             fillEnabled: trackState.fillEnabled[outputStepIndex],
+            density: trackState.density.indices.contains(outputStepIndex) ? trackState.density[outputStepIndex] : 0,
             macroValues: resolvedMacros
         )
+    }
+
+    /// Fallback ghost pitch for the density transform when a source carries
+    /// no representative hits.
+    func fallbackPitch(for trackID: UUID) -> Int {
+        tracks.first(where: { $0.id == trackID })?.pitches.first ?? 60
     }
 
     func layerSnapshot(phraseID: UUID, stepInPhrase: Int) -> LayerSnapshot {

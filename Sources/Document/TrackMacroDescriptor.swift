@@ -49,6 +49,13 @@ struct TrackMacroDescriptor: Codable, Equatable, Hashable, Sendable, Identifiabl
     /// Reuses the existing enum — scalar / boolean / patternIndex.
     var valueType: PhraseLayerValueType
     var source: TrackMacroSource
+    /// WS5: a generation-affecting macro changes compiled note data, so its
+    /// value edits must bypass the scoped-runtime macro fast path (426c0771 —
+    /// dispatch-time values only) and ride the snapshot-install/revision-bump
+    /// route instead (`SequencerDocumentSession.setMacroLayerDefault`).
+    /// Every current built-in and AU macro is dispatch-time only (the
+    /// 2026-07-02 audit), so this defaults to false everywhere.
+    var generationAffecting: Bool = false
 
     /// Stable, deterministic id for a built-in macro on a specific track.
     ///
@@ -182,6 +189,49 @@ struct TrackMacroDescriptor: Codable, Equatable, Hashable, Sendable, Identifiabl
         let b15 = UInt8((h2 >> 8) & 0xFF)
         let b16 = UInt8(h2 & 0xFF)
         return UUID(uuid: (b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12, b13, b14, b15, b16))
+    }
+}
+
+// Codable implemented by hand (in an extension, preserving the memberwise
+// init) so that (a) documents saved before the WS5 flag decode with
+// `generationAffecting == false`, and (b) descriptors with the default false
+// flag encode byte-identically to pre-WS5 saves.
+extension TrackMacroDescriptor {
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case displayName
+        case minValue
+        case maxValue
+        case defaultValue
+        case valueType
+        case source
+        case generationAffecting
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        displayName = try container.decode(String.self, forKey: .displayName)
+        minValue = try container.decode(Double.self, forKey: .minValue)
+        maxValue = try container.decode(Double.self, forKey: .maxValue)
+        defaultValue = try container.decode(Double.self, forKey: .defaultValue)
+        valueType = try container.decode(PhraseLayerValueType.self, forKey: .valueType)
+        source = try container.decode(TrackMacroSource.self, forKey: .source)
+        generationAffecting = try container.decodeIfPresent(Bool.self, forKey: .generationAffecting) ?? false
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(displayName, forKey: .displayName)
+        try container.encode(minValue, forKey: .minValue)
+        try container.encode(maxValue, forKey: .maxValue)
+        try container.encode(defaultValue, forKey: .defaultValue)
+        try container.encode(valueType, forKey: .valueType)
+        try container.encode(source, forKey: .source)
+        if generationAffecting {
+            try container.encode(generationAffecting, forKey: .generationAffecting)
+        }
     }
 }
 

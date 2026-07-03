@@ -4,7 +4,25 @@ struct TrackPhrasePlaybackBuffer: Equatable, Sendable {
     let patternSlotIndex: [UInt8]
     let mute: [Bool]
     let fillEnabled: [Bool]
+    /// Per-step phrase DENSITY macro value (0..1, WS5). Generation-affecting:
+    /// consumed by `EngineController.resolvedStepNotes`, never by the
+    /// dispatch-time macro path.
+    let density: [Double]
     let macroValues: [[Double]]
+
+    init(
+        patternSlotIndex: [UInt8],
+        mute: [Bool],
+        fillEnabled: [Bool],
+        density: [Double]? = nil,
+        macroValues: [[Double]]
+    ) {
+        self.patternSlotIndex = patternSlotIndex
+        self.mute = mute
+        self.fillEnabled = fillEnabled
+        self.density = density ?? [Double](repeating: 0, count: max(patternSlotIndex.count, 1))
+        self.macroValues = macroValues
+    }
 }
 
 struct PhrasePlaybackBuffer: Equatable, Sendable {

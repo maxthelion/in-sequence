@@ -3687,10 +3687,17 @@ final class EngineController: RouterDispatcher {
             guard !modifierBypassed,
                   let processor = playbackSnapshot.generatorEntry(id: modifierGeneratorID)
             else {
-                return sourceNotes
+                return applyingGeneratorDensity(
+                    to: sourceNotes,
+                    generatorID: generatorID,
+                    generatorParams: generator.params,
+                    resolved: resolved,
+                    trackID: trackID,
+                    playbackSnapshot: playbackSnapshot
+                )
             }
 
-            return GeneratedSourceEvaluator.processSourceNotes(
+            let processedNotes = GeneratedSourceEvaluator.processSourceNotes(
                 sourceNotes,
                 through: processor.params,
                 stepIndex: resolved.sourceStepIndex,
@@ -3698,6 +3705,14 @@ final class EngineController: RouterDispatcher {
                 chordContext: chordContext,
                 state: &state,
                 rng: &rng
+            )
+            return applyingGeneratorDensity(
+                to: processedNotes,
+                generatorID: generatorID,
+                generatorParams: generator.params,
+                resolved: resolved,
+                trackID: trackID,
+                playbackSnapshot: playbackSnapshot
             )
 
         case let .clip(clipID, modifierGeneratorID, modifierBypassed):
@@ -3719,10 +3734,17 @@ final class EngineController: RouterDispatcher {
             guard !modifierBypassed,
                   let processor = playbackSnapshot.generatorEntry(id: modifierGeneratorID)
             else {
-                return sourceNotes
+                return applyingClipDensity(
+                    to: sourceNotes,
+                    clip: clip,
+                    cluster: 0,
+                    resolved: resolved,
+                    trackID: trackID,
+                    playbackSnapshot: playbackSnapshot
+                )
             }
 
-            return GeneratedSourceEvaluator.processSourceNotes(
+            let processedNotes = GeneratedSourceEvaluator.processSourceNotes(
                 sourceNotes,
                 through: processor.params,
                 stepIndex: resolved.sourceStepIndex,
@@ -3731,9 +3753,78 @@ final class EngineController: RouterDispatcher {
                 state: &state,
                 rng: &rng
             )
+            return applyingClipDensity(
+                to: processedNotes,
+                clip: clip,
+                cluster: processor.params.densityCluster,
+                resolved: resolved,
+                trackID: trackID,
+                playbackSnapshot: playbackSnapshot
+            )
         case .empty:
             return []
         }
+    }
+
+    /// WS5 density transform over a generator source. Runs in prepare/
+    /// precompute only (this is `resolvedStepNotes`), deterministic hashing —
+    /// no RNG, and a zero density (the default) is a straight pass-through so
+    /// the pre-WS5 note stream is byte-identical.
+    private static func applyingGeneratorDensity(
+        to notes: [GeneratedNote],
+        generatorID: UUID,
+        generatorParams: GeneratorParams,
+        resolved: ResolvedTrackPlaybackStep,
+        trackID: UUID,
+        playbackSnapshot: PlaybackSnapshot
+    ) -> [GeneratedNote] {
+        guard resolved.density > 0 else {
+            return notes
+        }
+        let stepCount = 16
+        return GeneratedSourceEvaluator.applyingDensityTransform(
+            to: notes,
+            stepIndex: resolved.sourceStepIndex,
+            stepCount: stepCount,
+            patternID: generatorID,
+            density: resolved.density,
+            cluster: generatorParams.densityCluster,
+            sourceHits: GeneratedSourceEvaluator.densitySourceHits(
+                for: generatorParams,
+                stepCount: stepCount,
+                clipChoices: playbackSnapshot.clipPool
+            ),
+            fallbackPitch: playbackSnapshot.fallbackPitch(for: trackID)
+        )
+    }
+
+    /// WS5 density transform over a clip source (repeat-last ghost pitch via
+    /// the clip's own hit profile). Same pass-through guarantee at density 0.
+    private static func applyingClipDensity(
+        to notes: [GeneratedNote],
+        clip: ClipPoolEntry,
+        cluster: Double,
+        resolved: ResolvedTrackPlaybackStep,
+        trackID: UUID,
+        playbackSnapshot: PlaybackSnapshot
+    ) -> [GeneratedNote] {
+        guard resolved.density > 0 else {
+            return notes
+        }
+        let stepCount = max(clip.content.stepCount, 1)
+        return GeneratedSourceEvaluator.applyingDensityTransform(
+            to: notes,
+            stepIndex: resolved.sourceStepIndex,
+            stepCount: stepCount,
+            patternID: clip.id,
+            density: resolved.density,
+            cluster: cluster,
+            sourceHits: GeneratedSourceEvaluator.densitySourceHits(
+                for: clip,
+                stepCount: stepCount
+            ),
+            fallbackPitch: clip.pitchPool.first ?? playbackSnapshot.fallbackPitch(for: trackID)
+        )
     }
 
     static func resolvedAuditionOverrideNotes<R: RandomNumberGenerator>(

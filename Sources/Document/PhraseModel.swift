@@ -482,6 +482,15 @@ struct PhraseLayerDefinition: Codable, Equatable, Sendable, Identifiable {
         minValue...maxValue
     }
 
+    /// WS5 engine routing: a generation-affecting layer changes compiled note
+    /// data, so its edits must ride the snapshot-install/revision-bump route
+    /// (installPlaybackSnapshot → generationInputRevision, chord-context
+    /// precedent 4e0ba807) and must NEVER take the scoped-runtime macro fast
+    /// path (426c0771), which is reserved for dispatch-time values.
+    var generationAffecting: Bool {
+        target == .macroRow("density")
+    }
+
     func defaultValue(for trackID: UUID) -> PhraseCellValue {
         defaults[trackID]?.normalized(for: self) ?? valueType.fallbackValue(in: scalarRange)
     }

@@ -1410,6 +1410,7 @@ enum VisualScenarioCommandRunner {
               command["phrasePerformLayerVariant"] != nil ||
               command["phraseWorkspaceTab"] != nil ||
               command["phraseCellTool"] != nil ||
+              command["phraseDensityValue"] != nil ||
               command["phraseGlobalApplyTrackSelector"] != nil ||
               command["phraseGlobalApplySelect"] != nil ||
               command["phraseSceneSelect"] != nil ||
@@ -1492,6 +1493,24 @@ enum VisualScenarioCommandRunner {
 
         if let rawTool = command["phraseCellTool"] {
             posts.append("cell-tool:\(rawTool)")
+        }
+
+        // WS5 capture vocabulary (rows 10a/10b): write a density value into
+        // every track's phrase cell on the selected phrase, through the
+        // normal setPhraseCell path (snapshot install → revision bump — the
+        // generation-affecting route).
+        if let rawDensity = command["phraseDensityValue"],
+           let density = Double(rawDensity),
+           let densityLayer = session.store.layers.first(where: { $0.target == .macroRow("density") }) {
+            let trackIDs = session.store.tracks.map(\.id)
+            if !trackIDs.isEmpty {
+                session.setPhraseCell(
+                    .single(.scalar(min(max(density, densityLayer.minValue), densityLayer.maxValue))),
+                    layerID: densityLayer.id,
+                    trackIDs: trackIDs,
+                    phraseID: session.store.selectedPhraseID
+                )
+            }
         }
 
         switch command["phraseGlobalApplyTrackSelector"] {

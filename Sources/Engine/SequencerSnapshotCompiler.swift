@@ -400,6 +400,7 @@ enum SequencerSnapshotCompiler {
         let patternLayer = layers.first(where: { $0.target == .patternIndex })
         let muteLayer = layers.first(where: { $0.target == .mute })
         let fillLayer = layers.first(where: { $0.target == .macroRow("fill-flag") })
+        let densityLayer = layers.first(where: { $0.target == .macroRow("density") })
 
         let trackStates: [UUID: TrackPhrasePlaybackBuffer] = Dictionary(uniqueKeysWithValues: tracks.map { track in
             let macroBindings = trackPrograms[track.id]?.macroBindingIDs ?? []
@@ -451,6 +452,19 @@ enum SequencerSnapshotCompiler {
                 return isEnabled
             }
 
+            // WS5: density is generation-affecting, so it compiles into its
+            // own typed buffer (consumed at note resolution) instead of the
+            // dispatch-time macroValues rows.
+            let density = (0..<stepCount).map { stepIndex -> Double in
+                guard let densityLayer else {
+                    return 0
+                }
+                return scalarDouble(
+                    from: phrase.resolvedValue(for: densityLayer, trackID: track.id, stepIndex: stepIndex, inherited: inherited),
+                    layer: densityLayer
+                )
+            }
+
             let macroValues = (0..<stepCount).map { stepIndex in
                 macroBindings.map { bindingID in
                     guard let layer = macroLayers[bindingID] else {
@@ -469,6 +483,7 @@ enum SequencerSnapshotCompiler {
                     patternSlotIndex: patternSlotIndex,
                     mute: mute,
                     fillEnabled: fillEnabled,
+                    density: density,
                     macroValues: macroValues
                 )
             )

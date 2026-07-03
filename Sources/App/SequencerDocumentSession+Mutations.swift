@@ -1275,6 +1275,19 @@ extension SequencerDocumentSession {
         store.setLayers(p.layers)
         guard store.revision > revision else { return }
         guard !isInBatch else { return }
+        // WS5 routing: a GENERATION-AFFECTING macro changes compiled note
+        // data, so its edits must install a snapshot (generation-revision
+        // bump → precompute invalidation, the chord-context precedent
+        // 4e0ba807). The scoped-runtime fast path below is ONLY for
+        // dispatch-time values.
+        let bindingIsGenerationAffecting = store.tracks
+            .first(where: { $0.id == trackID })?
+            .macros.first(where: { $0.id == bindingID })?
+            .descriptor.generationAffecting ?? false
+        if bindingIsGenerationAffecting {
+            dispatchImpact(.snapshotOnly, changed: .layers)
+            return
+        }
         // Deliberately NOT `.snapshotOnly`/`.layers`: track macros are
         // dispatch-time only (sampler/filter/AU params — never compiled note
         // data), and a snapshot install per drag tick bumps the generation
