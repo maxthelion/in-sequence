@@ -710,9 +710,14 @@ enum SliceBoundaryEditing {
     }
 }
 
-// MARK: - Lower tab bar (Source · Slice · FX · Macros · Mixer)
+// MARK: - Lower tab bar (Steps · Source · Slice · FX · Macros · Mixer)
 
+// STEPS is the first section (owner amendment, 2026-07-03 — see
+// docs/roadmap/track-view-ia/tab-unification-and-canon-creep.md → Post-
+// migration amendments): the lane/length/layer selectors + step grid + pager
+// live INSIDE the section well, matching the melodic STEPS/CLIP precedent.
 enum SliceTrackLowerTab: String, CaseIterable, Identifiable {
+    case steps
     case source
     case slice
     case fx
@@ -723,6 +728,7 @@ enum SliceTrackLowerTab: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
+        case .steps: return "Steps"
         case .source: return "Source"
         case .slice: return "Slice"
         case .fx: return "FX"

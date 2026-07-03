@@ -137,3 +137,14 @@ rule as **function-based, not nesting-based**:
   migration must not collide; coordinate at rebase.
 - The rotary-template item in ux-batch shares the "one primitive, migrate
   all" shape; land order decided at rebase time.
+
+## Post-migration amendments (owner, 2026-07-03 morning review)
+
+1. SLICER STEPS: owner resolved the deferred "second accent well" question —
+   "let's put steps for slicer in the tab ui shape". The slicer gains a STEPS
+   first section pill (STEPS - SOURCE - SLICE - FX - MACROS - MIXER); the
+   lane/length/layer selectors + step grid + pager move inside its well
+   (matching the melodic STEPS/CLIP precedent). Consequence accepted: steps
+   and slice params become alternate views.
+2. MIXER FX: clicking an FX on a mixer strip opens the standard StudioModal
+   FX editor, not the floating mini-panel (docs/bugs/20260703-093500).

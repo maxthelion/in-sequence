@@ -13,7 +13,7 @@ struct SliceTrackWorkspaceView: View {
     @State private var selectedStepIndex = 0
     @State private var selectedLayer: SliceTrackClipLayer = .steps
     @State private var selectedLane: SliceTrackLane = .normal
-    @State private var selectedLowerTab: SliceTrackLowerTab = .source
+    @State private var selectedLowerTab: SliceTrackLowerTab = .steps
     // Zoom/scroll only live inside the slicing modal now — the default
     // playback waveform is always full-frame (zoom 1, scroll 0).
     @State private var waveformZoom = 1.0
@@ -113,8 +113,6 @@ struct SliceTrackWorkspaceView: View {
             topControlsPanel
 
             waveformPanel
-
-            stepSequencePanel
 
             lowerTabs
         }
@@ -236,24 +234,24 @@ struct SliceTrackWorkspaceView: View {
         }
     }
 
-    // MARK: - Step sequence (beneath the waveform, above the lower tabs)
+    // MARK: - Steps tab (lane/length/layer selectors + step grid + pager)
 
+    // Owner amendment 2026-07-03: step editing is the STEPS section of the one
+    // tab well (no second floating container above the pills). The Lane/Layer/
+    // Length value selectors keep the inset-track solid-thumb grammar INSIDE
+    // the well — never the pill-row (section switcher) grammar.
     @ViewBuilder
-    private var stepSequencePanel: some View {
+    private var stepsTabBody: some View {
         if currentSample != nil {
-            // Variant D grammar: the step editor lives inside an accent-outlined
-            // well, and its Lane/Layer/Length value selectors are solid thumbs
-            // inside darker inset tracks INSIDE that well — never the pill-row
-            // (section switcher) grammar.
-            StudioTabWell(accent: accent) {
-                HStack(alignment: .top, spacing: StudioMetrics.Spacing.roomy) {
-                    laneSelector
-                    lengthSelector
-                    Spacer(minLength: 0)
-                }
-                sliceLayerSelector
-                sliceStepEditor
+            HStack(alignment: .top, spacing: StudioMetrics.Spacing.roomy) {
+                laneSelector
+                lengthSelector
+                Spacer(minLength: 0)
             }
+            sliceLayerSelector
+            sliceStepEditor
+        } else {
+            sliceTabPlaceholder("No sample", "Choose a sample in the Source tab first.")
         }
     }
 
@@ -381,7 +379,7 @@ struct SliceTrackWorkspaceView: View {
         }
     }
 
-    // MARK: - Lower tabs (Source · Slice · FX · Macros · Mixer)
+    // MARK: - Lower tabs (Steps · Source · Slice · FX · Macros · Mixer)
 
     private var lowerTabs: some View {
         // Unified tab grammar (Variant D): the section pills float a small gap
@@ -391,6 +389,8 @@ struct SliceTrackWorkspaceView: View {
 
             StudioTabWell(accent: accent) {
                 switch selectedLowerTab {
+                case .steps:
+                    stepsTabBody
                 case .source:
                     sourceTabBody
                 case .slice:
@@ -1291,9 +1291,13 @@ private extension SliceTrackWorkspaceView {
         let clamped = min(max(sliceIndex, 1), sliceSet.userSliceCount)
         assignSliceIndex(clamped, steps: steps)
         // Surface the step-layer view so the freshly written slice number is
-        // visible on the step, matching the marker-click behaviour.
+        // visible on the step, matching the marker-click behaviour. The step
+        // grid lives in the STEPS section now, so surface that tab too.
         if selectedLayer != .steps {
             selectedLayer = .steps
+        }
+        if selectedLowerTab != .steps {
+            selectedLowerTab = .steps
         }
     }
 
