@@ -212,4 +212,55 @@ extension SequencerDocumentSession {
     func clearRandomizeAudition(trackID: UUID) {
         engineController.setAuditionOverride(nil, for: trackID)
     }
+
+    @discardableResult
+    func switchGeneratorKind(id generatorID: UUID, to kind: GeneratorKind) -> Bool {
+        mutateGenerator(id: generatorID) { entry in
+            entry = entry.switchingKind(to: kind)
+        }
+    }
+
+    /// WS4 header dice: bake the slot's generator into a NEW clip and point
+    /// the slot at it — the synthesis doc's one-way conversion primitive
+    /// `bake(source, seed) -> clip content` applied to a generator source.
+    /// The realized bar is the SAME preview evaluation the result strip
+    /// renders, so what the user saw is what gets frozen.
+    @discardableResult
+    func bakeGeneratorToClip(trackID: UUID, slotIndex: Int) -> UUID? {
+        let slot = store.patternBank(for: trackID).slot(at: slotIndex)
+        guard let generator = store.generatorEntry(id: slot.sourceRef.generatorID) else {
+            return nil
+        }
+
+        let notesByStep = GeneratedSourceEvaluator.previewNotes(
+            for: generator.params,
+            clipChoices: store.generatedSourceInputClips(),
+            count: 16
+        )
+        let steps = notesByStep.map { notes -> ClipStep in
+            guard !notes.isEmpty else { return .empty }
+            return ClipStep(
+                main: ClipLane(
+                    chance: 1,
+                    notes: notes.map { note in
+                        ClipStepNote(
+                            pitch: note.pitch,
+                            velocity: note.velocity,
+                            lengthSteps: note.length
+                        ).normalized
+                    }
+                ),
+                fill: nil
+            )
+        }
+
+        guard let clipID = createBlankClipSource(trackID: trackID, slotIndex: slotIndex) else {
+            return nil
+        }
+        _ = mutateClip(id: clipID) { entry in
+            entry.name = "\(generator.name) Bake"
+            entry.content = ClipContent.noteGrid(lengthSteps: steps.count, steps: steps).normalized
+        }
+        return clipID
+    }
 }

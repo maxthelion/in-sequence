@@ -160,6 +160,167 @@ struct GeneratorPoolEntry: Codable, Equatable, Hashable, Identifiable, Sendable 
     ]
 }
 
+extension GeneratorPoolEntry {
+    func switchingKind(to targetKind: GeneratorKind) -> GeneratorPoolEntry {
+        var copy = self
+        copy.kind = targetKind
+        copy.trackType = targetKind.compatibleWith.contains(trackType) ? trackType : targetKind.defaultTrackType
+        copy.params = params.converted(to: targetKind)
+        return copy
+    }
+}
+
+extension GeneratorKind {
+    var defaultTrackType: TrackType {
+        switch self {
+        case .monoGenerator:
+            return .monoMelodic
+        case .polyGenerator, .progressionChordGenerator:
+            return .polyMelodic
+        case .sliceGenerator:
+            return .slice
+        }
+    }
+}
+
+extension GeneratorParams {
+    func converted(to targetKind: GeneratorKind) -> GeneratorParams {
+        let defaults = targetKind.defaultParams
+        let trigger = sharedTrigger ?? defaults.sharedTrigger ?? .native(.defaultMono)
+        let pitch = sharedPitch ?? defaults.sharedPitch ?? .native(.defaultMono)
+        let shape = sharedShape ?? defaults.sharedShape ?? .default
+
+        switch targetKind {
+        case .monoGenerator:
+            return .mono(trigger: trigger, pitch: pitch, shape: shape)
+        case .polyGenerator:
+            return .poly(trigger: trigger, pitches: sharedPitches(defaultingTo: pitch), shape: shape)
+        case .progressionChordGenerator:
+            var params = sharedProgressionParams ?? {
+                var seeded = ProgressionChordGeneratorParams.default
+                let pitchBasis = pitch.pitchStage.algo.rootScaleBasis
+                seeded.rootMIDI = pitchBasis.root
+                seeded.mode = pitchBasis.scale.progressionMode
+                seeded.velocity = shape.velocity
+                return seeded.normalized
+            }()
+            params.velocity = shape.velocity
+            return .progressionChords(params.normalized)
+        case .sliceGenerator:
+            let indexes = sharedSliceIndexes ?? {
+                if case let .slice(_, indexes) = defaults {
+                    return indexes
+                }
+                return []
+            }()
+            return .slice(trigger: trigger, sliceIndexes: indexes)
+        }
+    }
+
+    private var sharedTrigger: TriggerStageNode? {
+        switch self {
+        case let .mono(trigger, _, _), let .poly(trigger, _, _), let .slice(trigger, _):
+            return trigger
+        case .progressionChords, .drum, .template:
+            return nil
+        }
+    }
+
+    private var sharedPitch: PitchStageNode? {
+        switch self {
+        case let .mono(_, pitch, _):
+            return pitch
+        case let .poly(_, pitches, _):
+            return pitches.first
+        case let .progressionChords(params):
+            let normalized = params.normalized
+            return .native(.randomInScale(
+                root: normalized.rootMIDI,
+                scale: normalized.mode.scaleID,
+                spread: 12
+            ))
+        case .drum, .template, .slice:
+            return nil
+        }
+    }
+
+    private func sharedPitches(defaultingTo pitch: PitchStageNode) -> [PitchStageNode] {
+        switch self {
+        case let .poly(_, pitches, _):
+            return pitches.isEmpty ? [pitch] : pitches
+        default:
+            return [pitch]
+        }
+    }
+
+    private var sharedShape: NoteShape? {
+        switch self {
+        case let .mono(_, _, shape), let .poly(_, _, shape), let .drum(_, shape):
+            return shape
+        case let .progressionChords(params):
+            return NoteShape(velocity: params.normalized.velocity, gateLength: 4, accent: false)
+        case .template, .slice:
+            return nil
+        }
+    }
+
+    private var sharedProgressionParams: ProgressionChordGeneratorParams? {
+        if case let .progressionChords(params) = self {
+            return params.normalized
+        }
+        return nil
+    }
+
+    private var sharedSliceIndexes: [Int]? {
+        if case let .slice(_, indexes) = self {
+            return indexes
+        }
+        return nil
+    }
+}
+
+private extension PitchAlgo {
+    var rootScaleBasis: (root: Int, scale: ScaleID) {
+        switch self {
+        case let .manual(pitches, _):
+            return (pitches.first ?? 60, .major)
+        case let .pool(root, scale, _, _, _):
+            return (root, scale)
+        case let .randomInScale(root, scale, _),
+             let .intervalProb(root, scale, _),
+             let .markov(root, scale, _, _, _):
+            return (root, scale)
+        case let .randomInChord(root, _, _, _):
+            return (root, .major)
+        case .fromClipPitches, .external:
+            return (60, .major)
+        }
+    }
+}
+
+private extension ScaleID {
+    var progressionMode: ProgressionChordMode {
+        switch self {
+        case .naturalMinor, .harmonicMinor, .melodicMinor, .minorPentatonic, .dorian,
+             .phrygian, .locrian, .hungarianMinor:
+            return .minor
+        default:
+            return .major
+        }
+    }
+}
+
+private extension ProgressionChordMode {
+    var scaleID: ScaleID {
+        switch self {
+        case .major:
+            return .major
+        case .minor:
+            return .naturalMinor
+        }
+    }
+}
+
 struct ClipPoolEntry: Equatable, Identifiable, Sendable {
     var id: UUID
     var name: String

@@ -74,4 +74,45 @@ final class GeneratorPoolEntryTests: XCTestCase {
             .slice(trigger: .native(.euclidean(pulses: 4, steps: 16, offset: 0)), sliceIndexes: [])
         )
     }
+
+    func test_switching_kind_preserves_identity_and_shared_settings() throws {
+        let entryID = UUID(uuidString: "99999999-9999-9999-9999-999999999999")!
+        let trigger = TriggerStageNode.native(.euclidean(pulses: 5, steps: 16, offset: 3))
+        let entry = GeneratorPoolEntry(
+            id: entryID,
+            name: "Shared Generator",
+            trackType: .polyMelodic,
+            kind: .polyGenerator,
+            params: .poly(
+                trigger: trigger,
+                pitches: [.native(.randomInScale(root: 65, scale: .dorian, spread: 17))],
+                shape: NoteShape(velocity: 88, gateLength: 6, accent: true)
+            )
+        )
+
+        let progression = entry.switchingKind(to: .progressionChordGenerator)
+
+        XCTAssertEqual(progression.id, entryID)
+        XCTAssertEqual(progression.name, "Shared Generator")
+        XCTAssertEqual(progression.kind, .progressionChordGenerator)
+        XCTAssertEqual(progression.trackType, .polyMelodic)
+        guard case let .progressionChords(params) = progression.params else {
+            return XCTFail("expected progression params")
+        }
+        XCTAssertEqual(params.rootMIDI, 65)
+        XCTAssertEqual(params.mode, .minor)
+        XCTAssertEqual(params.velocity, 88)
+
+        let poly = progression.switchingKind(to: .polyGenerator)
+        XCTAssertEqual(poly.id, entryID)
+        XCTAssertEqual(poly.name, "Shared Generator")
+        XCTAssertEqual(poly.kind, .polyGenerator)
+        XCTAssertEqual(poly.trackType, .polyMelodic)
+        guard case let .poly(roundTripTrigger, pitches, shape) = poly.params else {
+            return XCTFail("expected poly params")
+        }
+        XCTAssertEqual(roundTripTrigger, .native(.defaultMono))
+        XCTAssertEqual(pitches, [.native(.randomInScale(root: 65, scale: .naturalMinor, spread: 12))])
+        XCTAssertEqual(shape.velocity, 88)
+    }
 }

@@ -262,6 +262,59 @@ final class SessionBatchHelperTests: XCTestCase {
         return (first.main?.notes ?? []).map(\.pitch)
     }
 
+    // MARK: - Generator kind switching (WS4 AC1: stable identity)
+
+    /// Switching a generator's mode mutates the pool entry IN PLACE: same
+    /// UUID, the pattern-bank slot reference survives untouched, and shared
+    /// params (root/scale basis, velocity) carry across modes — the
+    /// delete+readd shape is gone.
+    func test_switchGeneratorKind_preservesPatternSlotReferenceAndFlushesDocument() throws {
+        var project = makeLiveStoreProject().0
+        project.appendTrack(trackType: .polyMelodic)
+        let trackID = project.selectedTrackID
+        let generatorID = UUID(uuidString: "22222222-3333-4444-5555-666666666666")!
+        let generator = GeneratorPoolEntry(
+            id: generatorID,
+            name: "Mutable Generator",
+            trackType: .polyMelodic,
+            kind: .polyGenerator,
+            params: .poly(
+                trigger: .native(.euclidean(pulses: 3, steps: 16, offset: 1)),
+                pitches: [.native(.randomInScale(root: 57, scale: .naturalMinor, spread: 12))],
+                shape: NoteShape(velocity: 77, gateLength: 5, accent: false)
+            )
+        )
+        project.generatorPool.append(generator)
+        project.assignGeneratorSource(generatorID, to: trackID, slotIndex: 0)
+        let beforeRef = project.patternBank(for: trackID).slot(at: 0).sourceRef
+
+        let (session, _, box) = makeSession(project: project)
+
+        XCTAssertTrue(session.switchGeneratorKind(id: generatorID, to: .progressionChordGenerator))
+        let updated = try XCTUnwrap(session.store.generatorEntry(id: generatorID))
+        XCTAssertEqual(updated.id, generatorID)
+        XCTAssertEqual(updated.name, "Mutable Generator")
+        XCTAssertEqual(updated.kind, .progressionChordGenerator)
+        XCTAssertEqual(updated.trackType, .polyMelodic)
+        XCTAssertEqual(session.store.patternBank(for: trackID).slot(at: 0).sourceRef.generatorID, generatorID)
+        XCTAssertEqual(session.store.patternBank(for: trackID).slot(at: 0).sourceRef.mode, beforeRef.mode)
+        guard case let .progressionChords(params) = updated.params else {
+            return XCTFail("expected progression params")
+        }
+        XCTAssertEqual(params.rootMIDI, 57)
+        XCTAssertEqual(params.mode, .minor)
+        XCTAssertEqual(params.velocity, 77)
+
+        session.flushToDocumentSync()
+
+        let flushed = try XCTUnwrap(box.document.project.generatorEntry(id: generatorID))
+        XCTAssertEqual(flushed.kind, .progressionChordGenerator)
+        XCTAssertEqual(flushed.id, generatorID)
+        XCTAssertEqual(box.document.project.patternBank(for: trackID).slot(at: 0).sourceRef.generatorID, generatorID)
+
+        SequencerDocumentSessionRegistry.unregister(session)
+    }
+
     // MARK: - fullEngineApply dispatches apply(documentModel:) once
 
     func test_batch_fullEngineApply_callsApplyDocumentModelOnce() throws {
