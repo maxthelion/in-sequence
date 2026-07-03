@@ -74,10 +74,13 @@ struct AddDrumGroupContent: View {
 
     // MARK: - Step 1: Sounds
 
+    // Label purge (canon Rules 1/3, design review 02d): the step-descriptor
+    // eyebrows and the "No parts yet" filler are gone — the section titles
+    // carry the flow order, the parts list shows the real count, and the
+    // instructional sentences live in .help tooltips.
     private var soundsSection: some View {
         StudioPanel(
             title: "Sounds",
-            eyebrow: soundsEyebrow,
             accent: StudioTheme.cyan
         ) {
             VStack(alignment: .leading, spacing: StudioMetrics.Spacing.comfortable) {
@@ -86,14 +89,6 @@ struct AddDrumGroupContent: View {
                 VStack(alignment: .leading, spacing: StudioMetrics.Spacing.snug) {
                     ForEach(plan.members.indices, id: \.self) { index in
                         partRow(at: index)
-                    }
-
-                    if plan.members.isEmpty {
-                        Text("No parts yet")
-                            .studioText(.label)
-                            .foregroundStyle(StudioTheme.mutedText)
-                            .padding(.vertical, 4)
-                            .help("Pick a kit or add parts one by one")
                     }
 
                     // Themed outline chip — the stock white-filled bordered
@@ -119,10 +114,6 @@ struct AddDrumGroupContent: View {
                 }
             }
         }
-    }
-
-    private var soundsEyebrow: String {
-        "Step 1 — \(plan.members.count) part\(plan.members.count == 1 ? "" : "s"), editable after kit pick"
     }
 
     private var kitPickerRow: some View {
@@ -305,7 +296,6 @@ struct AddDrumGroupContent: View {
     private var patternsSection: some View {
         StudioPanel(
             title: "Patterns",
-            eyebrow: "Step 2 — optional template, applied into pattern slot 1",
             accent: StudioTheme.violet
         ) {
             VStack(alignment: .leading, spacing: StudioMetrics.Spacing.snug) {
@@ -314,6 +304,7 @@ struct AddDrumGroupContent: View {
                         .studioText(.eyebrow)
                         .tracking(0.8)
                         .foregroundStyle(StudioTheme.mutedText)
+                        .help("Optional template, applied into pattern slot 1")
 
                     templateChip(title: "None", isSelected: plan.templateID == nil) {
                         plan.templateID = nil
@@ -328,10 +319,16 @@ struct AddDrumGroupContent: View {
                     Spacer(minLength: 0)
                 }
 
-                Text(templatePreviewText)
-                    .studioText(.label)
-                    .foregroundStyle(StudioTheme.mutedText)
-                    .fixedSize(horizontal: false, vertical: true)
+                // Only REAL state renders here: the tag-intersection preview
+                // for a chosen template. The "No template — …" and "Add parts
+                // to see…" explainer sentences were Rule 3 findings (02d);
+                // None speaks for itself.
+                if let preview = templatePreviewSummary {
+                    Text(preview)
+                        .studioText(.label)
+                        .foregroundStyle(StudioTheme.mutedText)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
         }
     }
@@ -360,14 +357,14 @@ struct AddDrumGroupContent: View {
         .accessibilityValue(isSelected ? "Selected" : "Not selected")
     }
 
-    private var templatePreviewText: String {
+    /// The tag-intersection preview for the chosen template — nil when there
+    /// is nothing real to preview (no template picked, or no parts yet).
+    private var templatePreviewSummary: String? {
         guard let templateID = plan.templateID,
-              let template = assetLibrary.template(id: templateID)
+              let template = assetLibrary.template(id: templateID),
+              !plan.members.isEmpty
         else {
-            return "No template — parts start with blank patterns."
-        }
-        guard !plan.members.isEmpty else {
-            return "Add parts to see which the template fills."
+            return nil
         }
         let preview = PatternTemplateApplicationPreview(
             template: template,
@@ -381,7 +378,6 @@ struct AddDrumGroupContent: View {
     private var routingSection: some View {
         StudioPanel(
             title: "Routing",
-            eyebrow: "Step 3 — output bus and optional shared destination",
             accent: StudioTheme.success
         ) {
             VStack(alignment: .leading, spacing: 12) {
@@ -421,29 +417,33 @@ struct AddDrumGroupContent: View {
         let isDedicated = plan.busRouting == .dedicatedBus
 
         return VStack(alignment: .leading, spacing: StudioMetrics.Spacing.snug) {
+            // The chip titles already state the routing ("New bus: …" /
+            // "Master"); the recommendation sentences were Rule 3 findings
+            // (02d) and now live in the chips' hover help.
             HStack(spacing: StudioMetrics.Spacing.snug) {
                 Text("OUTPUT")
                     .studioText(.eyebrow)
                     .tracking(0.8)
                     .foregroundStyle(StudioTheme.mutedText)
 
-                busRoutingChip(title: newBusTitle, isSelected: isDedicated) {
+                busRoutingChip(
+                    title: newBusTitle,
+                    isSelected: isDedicated,
+                    help: "The kit gets its own mixer bus you can process as one unit"
+                ) {
                     plan.busRouting = .dedicatedBus
                 }
 
-                busRoutingChip(title: "Master", isSelected: !isDedicated) {
+                busRoutingChip(
+                    title: "Master",
+                    isSelected: !isDedicated,
+                    help: "Parts route straight to Master"
+                ) {
                     plan.busRouting = .master
                 }
 
                 Spacer(minLength: 0)
             }
-
-            Text(isDedicated
-                ? "Recommended — the kit gets its own mixer bus you can process as one unit."
-                : "Parts route straight to Master.")
-                .studioText(.label)
-                .foregroundStyle(StudioTheme.mutedText)
-                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -454,7 +454,7 @@ struct AddDrumGroupContent: View {
         return trimmed.isEmpty ? "Drum Group" : trimmed
     }
 
-    private func busRoutingChip(title: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
+    private func busRoutingChip(title: String, isSelected: Bool, help: String = "", action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(title)
                 .studioText(.labelBold)
@@ -475,6 +475,7 @@ struct AddDrumGroupContent: View {
                 )
         }
         .buttonStyle(.plain)
+        .help(help)
         .accessibilityLabel("Output \(title)")
         .accessibilityValue(isSelected ? "Selected" : "Not selected")
     }

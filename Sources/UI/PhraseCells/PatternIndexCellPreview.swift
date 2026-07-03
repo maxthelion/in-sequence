@@ -19,32 +19,42 @@ struct PatternIndexCellPreview: View {
     )
 
     var body: some View {
-        VStack(alignment: .leading, spacing: StudioMetrics.Spacing.tight) {
-            LazyVGrid(columns: columns, spacing: StudioMetrics.Spacing.hairline) {
-                ForEach(0..<slotCount, id: \.self) { index in
-                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous)
-                        .fill(slotFill(for: index))
-                        .frame(height: pillHeight)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous)
-                                .stroke(slotStroke(for: index), lineWidth: StudioMetrics.borderWidth)
-                        )
-                }
-            }
-
+        Group {
             if isMixed {
-                Text("Mixed")
-                    .studioText(.micro)
-                    .foregroundStyle(StudioTheme.text.opacity(0.85))
-                    .lineLimit(1)
-            }
+                // Mixed reads the same full-cell way as the boolean cells —
+                // one big value word filling the cell, never an empty grid
+                // with a foot label (canon Rules 2/5, design review 13).
+                ZStack {
+                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
+                        .stroke(accent, lineWidth: StudioMetrics.borderWidth)
 
-            Spacer(minLength: 0)
+                    Text("Mixed")
+                        .font(.system(size: 20, weight: .bold, design: .rounded))
+                        .foregroundStyle(StudioTheme.text)
+                }
+                .frame(height: metrics.valueHeight)
+            } else {
+                VStack(alignment: .leading, spacing: StudioMetrics.Spacing.tight) {
+                    LazyVGrid(columns: columns, spacing: StudioMetrics.Spacing.hairline) {
+                        ForEach(0..<slotCount, id: \.self) { index in
+                            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous)
+                                .fill(slotFill(for: index))
+                                .frame(height: pillHeight)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous)
+                                        .stroke(slotStroke(for: index), lineWidth: StudioMetrics.borderWidth)
+                                )
+                        }
+                    }
+
+                    Spacer(minLength: 0)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(StudioMetrics.Spacing.compact)
+                .frame(height: metrics.valueHeight)
+                .background(cellFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
+            }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(StudioMetrics.Spacing.compact)
-        .frame(height: metrics.valueHeight)
-        .background(cellFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
         .accessibilityElement()
         .accessibilityLabel(isMixed ? "Mixed pattern slots" : "Pattern \(summary)")
     }

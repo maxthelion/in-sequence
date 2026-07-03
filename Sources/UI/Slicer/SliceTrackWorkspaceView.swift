@@ -252,7 +252,13 @@ struct SliceTrackWorkspaceView: View {
             sliceLayerSelector
             sliceStepEditor
         } else {
-            sliceTabPlaceholder("No sample", "Choose a sample in the Source tab first.")
+            sliceTabPlaceholder(
+                "No sample",
+                help: "Choose a break loop to slice",
+                actionLabel: "Add Loop"
+            ) {
+                isPresentingAddLoop = true
+            }
         }
     }
 
@@ -445,9 +451,21 @@ struct SliceTrackWorkspaceView: View {
     @ViewBuilder
     private var sliceTabBody: some View {
         if currentSample == nil {
-            sliceTabPlaceholder("No sample", "Choose a sample in the Source tab first.")
+            sliceTabPlaceholder(
+                "No sample",
+                help: "Choose a break loop to slice",
+                actionLabel: "Add Loop"
+            ) {
+                isPresentingAddLoop = true
+            }
         } else if (currentSliceSet?.userSliceCount ?? 0) == 0 {
-            sliceTabPlaceholder("No slices yet", "Open the slicing modal from Source to create slices.")
+            sliceTabPlaceholder(
+                "No slices yet",
+                help: "Slice the sample to create slices",
+                actionLabel: "Slice Sample"
+            ) {
+                isPresentingSliceModal = true
+            }
         } else if let assigned = selectedAssignedMarker,
                   let markerIndex = currentSliceSet?.markers.firstIndex(where: { $0.id == assigned.id }) {
             SliceSamplerCard(
@@ -465,21 +483,37 @@ struct SliceTrackWorkspaceView: View {
         } else {
             sliceTabPlaceholder(
                 "No assigned slice",
-                "Select a step with a slice, or tap a marker in the waveform."
+                help: "Select a step with a slice, or tap a marker in the waveform"
             )
         }
     }
 
-    private func sliceTabPlaceholder(_ title: String, _ help: String) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
+    // Empty states carry a quiet status word + an affordance, never an
+    // instructional sentence (canon Rule 3, design review 23) — the how-to
+    // lives in the hover help.
+    private func sliceTabPlaceholder(
+        _ title: String,
+        help: String,
+        actionLabel: String? = nil,
+        action: (() -> Void)? = nil
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
             Text(title)
                 .studioText(.bodyBold)
-                .foregroundStyle(StudioTheme.text)
-            Text(help)
-                .studioText(.body)
                 .foregroundStyle(StudioTheme.mutedText)
+
+            if let actionLabel, let action {
+                StudioAddCard(
+                    label: actionLabel,
+                    accent: accent,
+                    minHeight: 72,
+                    help: help,
+                    action: action
+                )
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .help(help)
     }
 
     // MARK: FX / Macros / Mixer (reuse the broader track-detail surfaces)

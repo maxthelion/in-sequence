@@ -94,7 +94,11 @@ struct MacroSlotKnob: View {
         descriptor: MacroSlotKnobDescriptor?,
         value: Double?,
         accent: Color,
-        emptyLabel: String = "Assign",
+        // Default is NO caption: the dashed "+" knob alone is the assign
+        // affordance (canon Rules 1/2 — "Assign" ×8 was the exact "No default
+        // destination ×8" symptom, design review 21/05a). The action stays
+        // named in .help/accessibility.
+        emptyLabel: String = "",
         knobSize: CGFloat = StudioMetrics.ControlSize.knob,
         showSlotLabel: Bool = true,
         onAssign: (() -> Void)?,

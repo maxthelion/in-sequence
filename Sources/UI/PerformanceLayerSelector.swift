@@ -35,11 +35,17 @@ struct PerformanceLayerOptionCell: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.62)
 
-                Text(option.variantLabel == nil ? option.mode.subtitle : option.mode.label)
-                    .studioText(.micro)
-                    .foregroundStyle(StudioTheme.mutedText)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.72)
+                // Variant cells carry the mode name (their title is the
+                // variant, e.g. "1/8"). Plain cells carry NO subtitle — the
+                // old "track mute"/"pattern slot"/"runtime fill" lines merely
+                // restated the label (canon Rules 1/3, design review 11).
+                if option.variantLabel != nil {
+                    Text(option.mode.label)
+                        .studioText(.micro)
+                        .foregroundStyle(StudioTheme.mutedText)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.72)
+                }
             }
             .padding(StudioMetrics.Spacing.compact)
             .frame(maxWidth: .infinity, minHeight: 78, alignment: .topLeading)

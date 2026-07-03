@@ -257,7 +257,10 @@ struct GeneratorParamsEditorView: View {
     private var modifierSection: some View {
         switch generator.params {
         case let .mono(_, pitch, _):
-            modifierEditorContainer(title: "Pitch Modifier", eyebrow: "Runs after the selected source") {
+            // No explainer eyebrow: "Runs after the selected source" was a
+            // Rule 3 sentence (design review 22f/22h) — the ordering is shape
+            // knowledge and lives in the container's hover help.
+            modifierEditorContainer(title: "Pitch Modifier", eyebrow: nil) {
                 PitchAlgoEditor(
                     stage: pitch.pitchStage,
                     inputClipChoices: inputClipChoices,
@@ -269,12 +272,11 @@ struct GeneratorParamsEditorView: View {
             }
 
         case let .poly(_, pitches, _):
-            modifierEditorContainer(title: "Pitch Modifier", eyebrow: "Runs after the selected source") {
+            // The eyebrow carries the one real fact (lane count) — the old
+            // "N lanes over the selected source" line was a Rule 3 sentence
+            // with a plural bug ("1 lanes"), design review 22h.
+            modifierEditorContainer(title: "Pitch Modifier", eyebrow: "\(pitches.count) lane\(pitches.count == 1 ? "" : "s")") {
                 VStack(alignment: .leading, spacing: 16) {
-                    Text("\(pitches.count) lanes over the selected source")
-                        .studioText(.label)
-                        .foregroundStyle(StudioTheme.mutedText)
-
                     PolyLaneSelector(
                         laneCount: pitches.count,
                         selectedLane: $selectedPolyLane,
@@ -318,7 +320,7 @@ struct GeneratorParamsEditorView: View {
 
         case .slice:
             if sourceMode == .clip {
-                modifierEditorContainer(title: "Generator Modifier", eyebrow: "Runs after the selected source") {
+                modifierEditorContainer(title: "Generator Modifier", eyebrow: nil) {
                     Text("No modifier stage in clip mode")
                         .studioText(.body)
                         .foregroundStyle(StudioTheme.mutedText)
@@ -336,7 +338,7 @@ struct GeneratorParamsEditorView: View {
 
     private func sourceEditorContainer<Content: View>(
         title: String,
-        eyebrow: String,
+        eyebrow: String?,
         @ViewBuilder content: () -> Content
     ) -> some View {
         editorContainer(
@@ -350,22 +352,23 @@ struct GeneratorParamsEditorView: View {
 
     private func modifierEditorContainer<Content: View>(
         title: String,
-        eyebrow: String,
+        eyebrow: String?,
         @ViewBuilder content: () -> Content
     ) -> some View {
         editorContainer(
             title: title,
             eyebrow: eyebrow,
-            accent: StudioTheme.violet,
+            accent: accent,
             isContained: layout == .modifierContained,
             content: content
         )
+        .help("Runs after the selected source")
     }
 
     @ViewBuilder
     private func editorContainer<Content: View>(
         title: String,
-        eyebrow: String,
+        eyebrow: String?,
         accent: Color,
         isContained: Bool,
         @ViewBuilder content: () -> Content
@@ -379,9 +382,11 @@ struct GeneratorParamsEditorView: View {
                         .tracking(1.1)
                         .foregroundStyle(StudioTheme.text)
 
-                    Text(eyebrow)
-                        .studioText(.label)
-                        .foregroundStyle(StudioTheme.mutedText)
+                    if let eyebrow {
+                        Text(eyebrow)
+                            .studioText(.label)
+                            .foregroundStyle(StudioTheme.mutedText)
+                    }
                 }
 
                 content()
