@@ -2891,15 +2891,24 @@ final class EngineController: RouterDispatcher {
         }
         publishNoteActivity(uptime: now, count: triggeredNoteCount)
 
-        // AU is an audio destination: mute is a ramped GAIN (applied via the
-        // mixer-mute path + applyLayerMuteGainTransitions above), NOT a
-        // trigger-gate. So we keep triggering the voices and let the gain cut
-        // them — a ringing note is silenced instantly and unmute returns
-        // without waiting for the next trigger.
+        // AU is an audio destination: STEADY-STATE mute is a ramped GAIN
+        // (applied via the mixer-mute path + applyLayerMuteGainTransitions
+        // above), NOT a trigger-gate. So we keep triggering the voices and let
+        // the gain cut them — a ringing note is silenced instantly and unmute
+        // returns without waiting for the next trigger.
+        // EXCEPTION — the transient ARMED-mute override: a quantised mute that
+        // just group-committed at the bar boundary must be boundary-EXACT, and
+        // only the trigger stream guarantees that (the gain ramp fires at
+        // prepare time, ahead of the audible boundary under the lookahead
+        // pump). While the override is live (boundary commit → snapshot
+        // confirmation) the new bar's notes are not dispatched at all; once
+        // main confirms the document record, the equivalent steady layer mute
+        // owns the value and gain-mute resumes voice-continuous triggering.
         for runtime in audioRuntimes.values
             where !activeNoteRepeatTrackIDs.contains(runtime.trackID)
         {
-            guard case let .notes(events)? = outputs[runtime.generatorBlockID]?["notes"],
+            guard quantisedMuteOverrides[runtime.trackID] != true,
+                  case let .notes(events)? = outputs[runtime.generatorBlockID]?["notes"],
                   audioOutputs[runtime.trackID] != nil
             else {
                 continue
@@ -2922,12 +2931,15 @@ final class EngineController: RouterDispatcher {
 
         // Sample/slicer dispatch → queue (drum tracks and any other track with sample-like destinations).
         // Phase 1b: iterate snapshot-carried tracks, not currentDocumentModel.tracks.
-        // Sample/slicer are audio destinations: mute is a ramped GAIN (mixer
-        // mute via syncSampleMixers, layer mute via
+        // Sample/slicer are audio destinations: steady-state mute is a ramped
+        // GAIN (mixer mute via syncSampleMixers, layer mute via
         // applyLayerMuteGainTransitions), NOT a trigger-gate. Keep triggering;
-        // the per-track mixer gain cuts/restores instantly.
+        // the per-track mixer gain cuts/restores instantly. The transient
+        // ARMED-mute override is the exception (see the AU loop above): it
+        // gates triggers so the quantised commit is boundary-exact.
         for track in playbackSnapshot.tracks {
-            guard !activeNoteRepeatTrackIDs.contains(track.id),
+            guard quantisedMuteOverrides[track.id] != true,
+                  !activeNoteRepeatTrackIDs.contains(track.id),
                   let generatorID = generatorIDs[track.id],
                   case let .notes(events)? = outputs[generatorID]?["notes"],
                   !events.isEmpty
