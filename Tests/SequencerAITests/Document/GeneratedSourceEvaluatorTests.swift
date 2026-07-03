@@ -348,6 +348,133 @@ final class GeneratedSourceEvaluatorTests: XCTestCase {
         }
     }
 
+    // MARK: - WS5 density transform
+
+    /// WS5 AC1: same (pattern, density) → identical ghosts, and the ghost set
+    /// is loop-stable — evaluating step indexes a full loop apart lands on the
+    /// same normalized positions.
+    func test_densityTransform_isDeterministicForSamePatternAndDensity() {
+        let patternID = UUID(uuidString: "12121212-3434-5656-7878-909090909090")!
+        let first = densityGhostSteps(patternID: patternID, density: 0.6, cluster: 0)
+        let second = densityGhostSteps(patternID: patternID, density: 0.6, cluster: 0)
+        let secondLoop = densityGhostSteps(patternID: patternID, density: 0.6, cluster: 0, stepOffset: 16)
+
+        XCTAssertFalse(first.isEmpty)
+        XCTAssertEqual(first, second)
+        XCTAssertEqual(first, secondLoop, "ghosts must land on the same positions every loop")
+    }
+
+    /// WS5 AC2: higher density strictly adds — a ghost admitted at a lower
+    /// density is still admitted at every higher density. Property-style
+    /// across several density pairs.
+    func test_densityTransform_isMonotonicAsDensityRises() {
+        let patternID = UUID(uuidString: "aaaaaaaa-1111-2222-3333-bbbbbbbbbbbb")!
+        let densities: [Double] = [0.1, 0.3, 0.5, 0.7, 0.9, 1.0]
+        for (lower, higher) in zip(densities, densities.dropFirst()) {
+            let lowerGhosts = Set(densityGhostSteps(patternID: patternID, density: lower, cluster: 0))
+            let higherGhosts = Set(densityGhostSteps(patternID: patternID, density: higher, cluster: 0))
+            XCTAssertTrue(
+                lowerGhosts.isSubset(of: higherGhosts),
+                "ghosts(\(lower)) must be a subset of ghosts(\(higher))"
+            )
+        }
+        XCTAssertFalse(densityGhostSteps(patternID: patternID, density: 1, cluster: 0).isEmpty)
+    }
+
+    /// WS5 AC3: cluster=attraction admits only adjacent-to-hit ghosts;
+    /// repulsion maximizes spacing from every hit (distribution assertions
+    /// under the deterministic hash — no seeds involved).
+    func test_densityTransform_clusterControlsCandidateDistribution() {
+        let patternID = UUID(uuidString: "cccccccc-1111-2222-3333-dddddddddddd")!
+        let attraction = densityGhostSteps(patternID: patternID, density: 1, cluster: 1)
+        let repulsion = densityGhostSteps(patternID: patternID, density: 1, cluster: -1)
+
+        XCTAssertFalse(attraction.isEmpty)
+        XCTAssertFalse(repulsion.isEmpty)
+        XCTAssertTrue(attraction.allSatisfy { circularDistance(from: $0, toNearestOf: [0, 8], in: 16) <= 3 })
+        XCTAssertTrue(repulsion.allSatisfy { circularDistance(from: $0, toNearestOf: [0, 8], in: 16) >= 4 })
+    }
+
+    /// WS5 ghost policy: velocity is scaled from the neighbouring hits (mean
+    /// of nearest preceding/following, scaled down) and pitch repeats the
+    /// nearest preceding hit (repeat-last for clips; a realized pool-policy
+    /// note for generators).
+    func test_densityGhosts_velocityScaledFromNeighboursAndPitchRepeatsPreceding() {
+        let patternID = UUID(uuidString: "eeeeeeee-1111-2222-3333-ffffffffffff")!
+        let hits = [
+            DensitySourceHit(step: 0, pitch: 60, velocity: 100, voiceTag: nil),
+            DensitySourceHit(step: 8, pitch: 67, velocity: 60, voiceTag: nil)
+        ]
+        var sawGhost = false
+        for step in 0..<16 {
+            let notes = GeneratedSourceEvaluator.applyingDensityTransform(
+                to: [],
+                stepIndex: step,
+                stepCount: 16,
+                patternID: patternID,
+                density: 1,
+                cluster: 0,
+                sourceHits: hits,
+                fallbackPitch: 48
+            )
+            guard let ghost = notes.first else { continue }
+            sawGhost = true
+            let expectedPitch = (1...7).contains(step) ? 60 : 67
+            XCTAssertEqual(ghost.pitch, expectedPitch, "step \(step): ghost must repeat the nearest preceding hit's pitch")
+            XCTAssertEqual(ghost.velocity, 52, "step \(step): ghost velocity must be the scaled neighbour mean (80 * 0.65)")
+            XCTAssertLessThan(ghost.velocity, 60, "ghosts must sit below their neighbours")
+        }
+        XCTAssertTrue(sawGhost)
+    }
+
+    /// Density 0 is a byte-identical pass-through (the pre-WS5 stream).
+    func test_densityTransform_zeroDensityIsPassThrough() {
+        let notes = [GeneratedNote(pitch: 61, velocity: 90, length: 2, voiceTag: nil)]
+        let result = GeneratedSourceEvaluator.applyingDensityTransform(
+            to: notes,
+            stepIndex: 3,
+            stepCount: 16,
+            patternID: UUID(),
+            density: 0,
+            cluster: 0,
+            sourceHits: [DensitySourceHit(step: 0, pitch: 60, velocity: 100, voiceTag: nil)],
+            fallbackPitch: 60
+        )
+        XCTAssertEqual(result, notes)
+    }
+
+    private func densityGhostSteps(
+        patternID: UUID,
+        density: Double,
+        cluster: Double,
+        stepOffset: Int = 0
+    ) -> [Int] {
+        let hits = [
+            DensitySourceHit(step: 0, pitch: 60, velocity: 100, voiceTag: nil),
+            DensitySourceHit(step: 8, pitch: 67, velocity: 100, voiceTag: nil)
+        ]
+        return (0..<16).compactMap { step in
+            let notes = GeneratedSourceEvaluator.applyingDensityTransform(
+                to: [],
+                stepIndex: step + stepOffset,
+                stepCount: 16,
+                patternID: patternID,
+                density: density,
+                cluster: cluster,
+                sourceHits: hits,
+                fallbackPitch: 60
+            )
+            return notes.isEmpty ? nil : step
+        }
+    }
+
+    private func circularDistance(from step: Int, toNearestOf hits: [Int], in stepCount: Int) -> Int {
+        hits.map { hit in
+            let raw = abs(step - hit)
+            return min(raw, stepCount - raw)
+        }.min() ?? stepCount
+    }
+
     private func poolParams(spread: Int = 12, deviation: PitchDeviationSettings) -> GeneratorParams {
         .mono(
             trigger: .native(.euclidean(pulses: 1, steps: 1, offset: 0)),

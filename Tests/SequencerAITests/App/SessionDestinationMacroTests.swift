@@ -369,4 +369,76 @@ final class SessionDestinationMacroTests: XCTestCase {
             "structural layer edits must keep installing snapshots"
         )
     }
+
+    // MARK: - WS5: generation-affecting macros bypass the fast path
+
+    /// WS5 AC4 (macro-descriptor route): a binding flagged `generationAffecting`
+    /// changes compiled note data, so its default drag must NOT ride the
+    /// scoped-runtime fast path — it installs a snapshot (generation-revision
+    /// bump → precompute invalidation, chord-context precedent 4e0ba807) and
+    /// leaves the override map untouched. Dispatch-only macros keep the fast
+    /// path (`test_setMacroLayerDefault_dragSkipsSnapshotInstall_butReachesEngine`).
+    func test_setMacroLayerDefault_generationAffectingBinding_installsSnapshot() throws {
+        var (project, trackID, _) = makeLiveStoreProject(clipPitch: 60)
+        let descriptor = TrackMacroDescriptor(
+            id: UUID(uuidString: "0dd0dd0d-1111-2222-3333-444444444444")!,
+            displayName: "Density",
+            minValue: 0,
+            maxValue: 1,
+            defaultValue: 0,
+            valueType: .scalar,
+            source: .builtin(.sampleGain),
+            generationAffecting: true
+        )
+        let binding = TrackMacroBinding(descriptor: descriptor)
+        guard let index = project.tracks.firstIndex(where: { $0.id == trackID }) else {
+            return XCTFail("expected the fixture track")
+        }
+        project.tracks[index].macros.append(binding)
+        project.syncMacroLayers()
+
+        let (session, engine, _) = makeSessionWithEngine(project: project)
+        defer { SequencerDocumentSessionRegistry.unregister(session) }
+
+        let revisionBefore = engine.tickState.readPrepareInputs().generationInputRevision
+
+        session.setMacroLayerDefault(value: 0.6, bindingID: binding.id, trackID: trackID)
+
+        XCTAssertGreaterThan(
+            engine.tickState.readPrepareInputs().generationInputRevision, revisionBefore,
+            "a generation-affecting macro edit must install a snapshot (revision bump)"
+        )
+        XCTAssertNil(
+            engine.macroLayerDefaultOverridesForTesting[trackID]?[binding.id],
+            "a generation-affecting macro must not ride the scoped-runtime override"
+        )
+    }
+
+    /// WS5 AC4 (phrase-layer route): writing a density cell rides the normal
+    /// snapshot-install path, so published precomputed bars are invalidated by
+    /// the generation-revision bump before a stale bar can play.
+    func test_setPhraseCell_densityLayer_installsSnapshot() throws {
+        let (project, trackID, _) = makeLiveStoreProject(clipPitch: 60)
+        let (session, engine, _) = makeSessionWithEngine(project: project)
+        defer { SequencerDocumentSessionRegistry.unregister(session) }
+
+        guard let densityLayer = session.store.layers.first(where: { $0.target == .macroRow("density") }) else {
+            return XCTFail("expected the built-in density layer")
+        }
+        XCTAssertTrue(densityLayer.generationAffecting)
+
+        let revisionBefore = engine.tickState.readPrepareInputs().generationInputRevision
+
+        session.setPhraseCell(
+            .single(.scalar(0.6)),
+            layerID: densityLayer.id,
+            trackIDs: [trackID],
+            phraseID: session.store.selectedPhraseID
+        )
+
+        XCTAssertGreaterThan(
+            engine.tickState.readPrepareInputs().generationInputRevision, revisionBefore,
+            "a density change must invalidate precomputed bars via the revision bump"
+        )
+    }
 }

@@ -51,6 +51,76 @@ final class SequencerSnapshotCompilerSemanticsTests: XCTestCase {
         XCTAssertEqual(Array(trackState.patternSlotIndex.prefix(2)), [0, 1])
     }
 
+    // MARK: - WS5: density compiles into the typed generation-affecting buffer
+
+    func test_compiler_carries_phraseDensityAsGenerationAffectingTrackValue() throws {
+        var (project, trackID, _) = makeLiveStoreProject(clipPitch: 60, stepPattern: [true, false])
+        let densityLayer = try XCTUnwrap(project.layers.first { $0.target == .macroRow("density") })
+        XCTAssertTrue(densityLayer.generationAffecting, "the density layer must be flagged generation-affecting")
+        project.setPhraseCell(
+            .single(.scalar(0.6)),
+            layerID: densityLayer.id,
+            trackIDs: [trackID],
+            phraseID: project.selectedPhraseID
+        )
+
+        let snapshot = SequencerSnapshotCompiler.compile(project: project)
+        let resolved = try XCTUnwrap(
+            snapshot.resolvedStep(phraseID: snapshot.selectedPhraseID, trackID: trackID, stepInPhrase: 0)
+        )
+
+        XCTAssertEqual(resolved.density, 0.6, accuracy: 0.0001)
+    }
+
+    /// WS5 end-to-end (offline): with density up, `resolvedStepNotes` adds
+    /// ghosts on non-hit steps; the realized stream is identical loop over
+    /// loop and a strict superset of the density-0 stream; density 0 is
+    /// byte-identical to the pre-WS5 stream.
+    func test_resolvedStepNotes_appliesDensityGhostsLoopStably() throws {
+        func realizedLoop(density: Double, loopIndex: Int) throws -> [[GeneratedNote]] {
+            var (project, trackID, _) = makeLiveStoreProject(clipPitch: 60, stepPattern: [true, false, false, false])
+            if density > 0 {
+                let densityLayer = try XCTUnwrap(project.layers.first { $0.target == .macroRow("density") })
+                project.setPhraseCell(
+                    .single(.scalar(density)),
+                    layerID: densityLayer.id,
+                    trackIDs: [trackID],
+                    phraseID: project.selectedPhraseID
+                )
+            }
+            let snapshot = SequencerSnapshotCompiler.compile(project: project)
+            let stepCount = snapshot.phraseBuffersByID[snapshot.selectedPhraseID]?.stepCount ?? 16
+            return (0..<stepCount).map { step in
+                var state = GeneratedSourceEvaluationState()
+                var rng = PreviewRNG()
+                return EngineController.resolvedStepNotes(
+                    for: trackID,
+                    in: snapshot,
+                    phraseID: snapshot.selectedPhraseID,
+                    stepIndex: loopIndex * stepCount + step,
+                    chordContext: nil,
+                    state: &state,
+                    rng: &rng
+                )
+            }
+        }
+
+        let zero = try realizedLoop(density: 0, loopIndex: 0)
+        let firstLoop = try realizedLoop(density: 0.6, loopIndex: 0)
+        let secondLoop = try realizedLoop(density: 0.6, loopIndex: 1)
+
+        XCTAssertEqual(firstLoop, secondLoop, "ghosts must be identical every loop")
+        let zeroCount = zero.map(\.count).reduce(0, +)
+        let densityCount = firstLoop.map(\.count).reduce(0, +)
+        XCTAssertGreaterThan(densityCount, zeroCount, "density 0.6 must add ghost triggers")
+        for (step, notes) in zero.enumerated() {
+            XCTAssertEqual(
+                Array(firstLoop[step].prefix(notes.count)), notes,
+                "step \(step): the density stream must contain the density-0 stream (ghosts only ADD)"
+            )
+        }
+    }
+
     func test_compiler_resolves_drum_group_per_note_per_channel_and_own_destination_overrides() throws {
         let groupID = UUID()
         let perNoteID = UUID()

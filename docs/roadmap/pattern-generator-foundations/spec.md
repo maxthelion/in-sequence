@@ -267,6 +267,43 @@ appended to this spec's CHANGELOG section below.
   capturing). Capture pass for 20b/20c pending an attended visual-automation
   session (unattended TCC gate).
 
+- 2026-07-03: WS5 delivered on `feat/ws5-density` (salvage peel from the
+  wip/ws-batch-snapshot batch, re-knit against post-WS4 main). The DENSITY
+  transform lives in `GeneratedSourceEvaluator.applyingDensityTransform`:
+  inclusion = FNV-1a hash(patternID, step) + a splitmix64 avalanche
+  finalizer (the snapshot's hash was step-invariant in the low 24 bits —
+  admission collapsed to all-or-nothing per pattern; fixed during the peel)
+  compared against the density value — loop-stable, strictly monotonic
+  under sweep, zero RNG. Cluster character shared with WS4
+  (`GeneratorParams.densityCluster`): attraction admits adjacent-to-hit
+  candidates, repulsion far-from-every-hit. Ghost policy COMPLETED beyond
+  the snapshot (which had fixed velocity 72 / first-pitch): ghosts are
+  velocity-scaled from neighbours (mean of nearest preceding/following hit
+  × 0.65) and repeat the nearest preceding hit's pitch — repeat-last for
+  clips, a realized pool-policy note for generators
+  (`DensitySourceHit` profiles; generator profile = deterministic full
+  evaluation under the preview seed). Exposure: the existing built-in
+  density phrase layer compiles into a typed per-step buffer
+  (`TrackPhrasePlaybackBuffer.density` → `ResolvedTrackPlaybackStep`),
+  applied inside `EngineController.resolvedStepNotes` (both precompute and
+  live read it — equivalence rail untouched; density 0 is a byte-identical
+  pass-through). ENGINE ROUTING: `generationAffecting` introduced on
+  `TrackMacroDescriptor` (stored, default false, codable-migrated) and
+  `PhraseLayerDefinition` (density macroRow); `setMacroLayerDefault`
+  consults the flag and routes flagged bindings to the snapshot-install/
+  revision-bump path (chord-context precedent 4e0ba807) while dispatch-only
+  macros keep the 426c0771 scoped-runtime fast path
+  (SessionDestinationMacroTests extended both ways). AC1-AC5 pinned by
+  GeneratedSourceEvaluatorTests (determinism/loop-stability, monotonic
+  property across density pairs, cluster distributions, ghost velocity/
+  pitch policy, zero-density pass-through) +
+  SequencerSnapshotCompilerSemanticsTests (compiled density value,
+  end-to-end loop-stable ghosts, superset-of-density-0) +
+  SessionDestinationMacroTests (both AC4 routes); all three realtime lints
+  + ux-canon green. AC6: rows 10a/10b wired (`phraseDensityValue` runner
+  vocab, density 0 vs 0.6); capture pass pending an attended
+  visual-automation session (unattended TCC gate).
+
 - 2026-07-03: WS4 delivered on `feat/ws4-generators` (salvage peel from the
   wip/ws-batch-snapshot batch, rebased onto post-WS3 main; WS5 density and
   WS6 scene-membership hunks left in the snapshot). Vocabulary: StepAlgo
