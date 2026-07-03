@@ -676,6 +676,7 @@
 		0A6F7CE85DEAB1E33952E0F0 /* note.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = note.md; sourceTree = "<group>"; };
 		0B8F873DA4833FB5A1E79DDD /* system-entity-model.d2 */ = {isa = PBXFileReference; path = "system-entity-model.d2"; sourceTree = "<group>"; };
 		0B96AE4381C3C6F14B59F1A8 /* .gitkeep */ = {isa = PBXFileReference; path = .gitkeep; sourceTree = "<group>"; };
+		0BE50274FB179A60F5E5B9C9 /* 15-pattern-row-v2.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = "15-pattern-row-v2.html"; sourceTree = "<group>"; };
 		0C29B9197263927963D64C7F /* 2026-06-20-tracks-selection-actions-nav.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2026-06-20-tracks-selection-actions-nav.md"; sourceTree = "<group>"; };
 		0C530A909C4B6D2D1C09882D /* PitchAlgo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PitchAlgo.swift; sourceTree = "<group>"; };
 		0C76BA33AC4ED682E2F2EF36 /* note.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = note.md; sourceTree = "<group>"; };
@@ -803,6 +804,7 @@
 		1C74886BF71A261490163364 /* ux-review.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "ux-review.md"; sourceTree = "<group>"; };
 		1C948A1E101750234DAE46CE /* implementation-handoff.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "implementation-handoff.md"; sourceTree = "<group>"; };
 		1CD69D1424D2DDE8EC261FB9 /* TrackSourceModifierTabContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackSourceModifierTabContent.swift; sourceTree = "<group>"; };
+		1CE308E7B270741D470BE54F /* a-trigger.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "a-trigger.png"; sourceTree = "<group>"; };
 		1CF88233EBD7DC0748015125 /* slicer-track.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "slicer-track.png"; sourceTree = "<group>"; };
 		1D4BF2A7761F9A6CD6F238ED /* TrackFillPreviewControl.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackFillPreviewControl.swift; sourceTree = "<group>"; };
 		1DF68E1DAD9751C471543F62 /* resolution.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = resolution.md; sourceTree = "<group>"; };
@@ -1004,6 +1006,7 @@
 		3BD2DD9680640D535D064AB6 /* note.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = note.md; sourceTree = "<group>"; };
 		3C06B6BAD58528B03D4214B8 /* StudioControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudioControls.swift; sourceTree = "<group>"; };
 		3C114D217DAC9085F526BE33 /* window-capture.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "window-capture.json"; sourceTree = "<group>"; };
+		3C37EE560812C937E57FDEC7 /* d-fork.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "d-fork.png"; sourceTree = "<group>"; };
 		3C6E41E9AB079C52436B0E4F /* intent-dictation.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "intent-dictation.md"; sourceTree = "<group>"; };
 		3C779C8DD98A80759A4CE099 /* StepOrderPersistenceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StepOrderPersistenceTests.swift; sourceTree = "<group>"; };
 		3C92D949114A66DC7C85946B /* AppSupportBootstrap.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSupportBootstrap.swift; sourceTree = "<group>"; };
@@ -1310,6 +1313,7 @@
 		666EF669720301BA50BF8480 /* LibraryAssetCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryAssetCatalog.swift; sourceTree = "<group>"; };
 		6677AB6EFE6E95D41DDB082C /* .gitkeep */ = {isa = PBXFileReference; path = .gitkeep; sourceTree = "<group>"; };
 		667CECF7E644B8F4977DE591 /* architecture-review.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "architecture-review.md"; sourceTree = "<group>"; };
+		66845994E3DF3D8EAC4BF60B /* a-split.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "a-split.png"; sourceTree = "<group>"; };
 		6692ECBC0B4761F8D8772550 /* PhraseCurvePreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhraseCurvePreview.swift; sourceTree = "<group>"; };
 		66ECA7FFC18F4CE43E14D384 /* 2026-04-20-ui-organisation-and-track-source-split.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2026-04-20-ui-organisation-and-track-source-split.md"; sourceTree = "<group>"; };
 		671BB62DE5310507E4150A65 /* ux-review.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "ux-review.md"; sourceTree = "<group>"; };
@@ -1375,6 +1379,7 @@
 		6F63132DF8F637022D531689 /* build-holistic-wireframe-from-synthesis.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "build-holistic-wireframe-from-synthesis.md"; sourceTree = "<group>"; };
 		6F713C37F21B3FA3E2D8AD34 /* TrackFillPreviewSessionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackFillPreviewSessionTests.swift; sourceTree = "<group>"; };
 		6F7912BF0F7842228A9D3DDB /* TransportPhraseNavigationPresentationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransportPhraseNavigationPresentationTests.swift; sourceTree = "<group>"; };
+		6FE7C09822C946170331E52B /* b-pitch.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "b-pitch.png"; sourceTree = "<group>"; };
 		7008797607E2628CB162CC3A /* plan.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = plan.md; sourceTree = "<group>"; };
 		706D345F4BFAF20724632A60 /* a-enter.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "a-enter.png"; sourceTree = "<group>"; };
 		709B85686418FD7DEAFE757D /* resolution.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = resolution.md; sourceTree = "<group>"; };
@@ -1524,6 +1529,7 @@
 		8612B66722C7D411955F81B5 /* report.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = report.md; sourceTree = "<group>"; };
 		862D25C1793168EC7115AE4B /* DrumAssetLibraryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DrumAssetLibraryTests.swift; sourceTree = "<group>"; };
 		863DEB8C81889B930EBBA4FD /* image-1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "image-1.png"; sourceTree = "<group>"; };
+		8655B8D29310B027A5F5E748 /* b-pending.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "b-pending.png"; sourceTree = "<group>"; };
 		866143A08569DF8D4F419DA1 /* CreateTrackFlow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateTrackFlow.swift; sourceTree = "<group>"; };
 		8672D38D29953799C9CDC991 /* application-overview.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "application-overview.md"; sourceTree = "<group>"; };
 		86D82AC93E483D21F7D7C6A4 /* resolution.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = resolution.md; sourceTree = "<group>"; };
@@ -1915,6 +1921,7 @@
 		BC0DBE521F50BC3A91EC0A15 /* GeneratorAttachmentControl.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneratorAttachmentControl.swift; sourceTree = "<group>"; };
 		BCCEFDBB5B9EAFC360CF09AB /* plan.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = plan.md; sourceTree = "<group>"; };
 		BCE820B53DE84308B9FB81C7 /* 2026-06-19-scoped-track-perform.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2026-06-19-scoped-track-perform.md"; sourceTree = "<group>"; };
+		BD000EC007E67C6DB3278F04 /* 14b-generator-editor-final.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = "14b-generator-editor-final.html"; sourceTree = "<group>"; };
 		BD628474D98791125F6842D6 /* EngineControllerMixSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EngineControllerMixSync.swift; sourceTree = "<group>"; };
 		BD9AAC830385A03D568CC2E1 /* screen-capture.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "screen-capture.json"; sourceTree = "<group>"; };
 		BE1B9504817F531B1CAFD8A0 /* ux-review.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "ux-review.md"; sourceTree = "<group>"; };
@@ -2127,6 +2134,7 @@
 		D9B002FA4961043CAEAA68D4 /* spec.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = spec.md; sourceTree = "<group>"; };
 		D9B06E931E3FF9222725D0A9 /* plan.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = plan.md; sourceTree = "<group>"; };
 		D9BE8B3CFEEA6D1F1EB698AD /* mid-signal.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "mid-signal.png"; sourceTree = "<group>"; };
+		D9D279528A84A8C3AA3DBABB /* c-ghost.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "c-ghost.png"; sourceTree = "<group>"; };
 		DA068D16F4542EF4B0C01A5D /* WrapRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WrapRow.swift; sourceTree = "<group>"; };
 		DA1AC914F1B1549BC11FEF01 /* mixer-style-guide.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "mixer-style-guide.md"; sourceTree = "<group>"; };
 		DA35DB81DEAF39AEC276C7B9 /* architecture.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = architecture.md; sourceTree = "<group>"; };
@@ -2958,6 +2966,17 @@
 			path = prototypes;
 			sourceTree = "<group>";
 		};
+		1B6AC72A107DFB437DEEB869 /* 15-pattern-row-v2 */ = {
+			isa = PBXGroup;
+			children = (
+				66845994E3DF3D8EAC4BF60B /* a-split.png */,
+				8655B8D29310B027A5F5E748 /* b-pending.png */,
+				D9D279528A84A8C3AA3DBABB /* c-ghost.png */,
+				3C37EE560812C937E57FDEC7 /* d-fork.png */,
+			);
+			path = "15-pattern-row-v2";
+			sourceTree = "<group>";
+		};
 		1CA802773FB1885480F127A1 /* RenderHarness */ = {
 			isa = PBXGroup;
 			children = (
@@ -3300,6 +3319,15 @@
 				0B57E34E3AD72A4BEB8AE899 /* Blocks */,
 			);
 			path = Engine;
+			sourceTree = "<group>";
+		};
+		3090D6CE88F284CF5F0B0230 /* 14b-generator-editor-final */ = {
+			isa = PBXGroup;
+			children = (
+				1CE308E7B270741D470BE54F /* a-trigger.png */,
+				6FE7C09822C946170331E52B /* b-pitch.png */,
+			);
+			path = "14b-generator-editor-final";
 			sourceTree = "<group>";
 		};
 		3139F720F3EA0F619D4FC385 /* 20260620-112546-remove-unnecessary-text-in-the-new-nav-b */ = {
@@ -3693,6 +3721,8 @@
 				77B0186D515A92815B282267 /* 12-clip-randomize.html */,
 				E77F62DF31C10EEFC9F28695 /* 13-track-perform.html */,
 				989308C2C656885F9B371C45 /* 14-generators.html */,
+				BD000EC007E67C6DB3278F04 /* 14b-generator-editor-final.html */,
+				0BE50274FB179A60F5E5B9C9 /* 15-pattern-row-v2.html */,
 				ABEE8F1B5A6961FC2212E5D0 /* README.md */,
 				ABA0D885A684D1DE2D109922 /* rendered */,
 			);
@@ -5483,6 +5513,8 @@
 				FF13536142094787C5002820 /* 12-clip-randomize */,
 				46EB5F734FE5214F099EB0C7 /* 13-track-perform */,
 				3CA115A159E71F7BB8309EC7 /* 14-generators */,
+				3090D6CE88F284CF5F0B0230 /* 14b-generator-editor-final */,
+				1B6AC72A107DFB437DEEB869 /* 15-pattern-row-v2 */,
 			);
 			path = rendered;
 			sourceTree = "<group>";
