@@ -166,4 +166,128 @@ final class CreateTrackWithSoundTests: XCTestCase {
         XCTAssertNil(CreateTrackFlowStep.action(forVisualCommand: "unrelated-command"),
             "Non-creation commands must not touch the flow sheet")
     }
+
+    // MARK: - Capture-harness vocab (qa-surface rows 01b / 06b / 43 / 44)
+
+    /// `swing=` must drive the transport swing through the same clamped
+    /// `setSwing` seam the transport-bar stepper uses, and the status file
+    /// must report the applied amount for the row's wait key.
+    func test_swingCommandDrivesTransportSwingAndStatus() throws {
+        let (session, _) = makeSession()
+
+        VisualScenarioCommandRunner.apply(
+            command: ["swing": "0.4"],
+            section: .constant(.phrase),
+            visualPhraseControlsOpenIndex: .constant(nil),
+            session: session,
+            engineController: session.engineController
+        )
+        XCTAssertEqual(session.engineController.currentSwing, 0.4, accuracy: 0.0001)
+
+        let status = try statusDictionary(session: session)
+        XCTAssertEqual(status["swing"], "0.4",
+            "The status file must report the applied swing for the capture wait")
+
+        VisualScenarioCommandRunner.apply(
+            command: ["swing": "1.7"],
+            section: .constant(.phrase),
+            visualPhraseControlsOpenIndex: .constant(nil),
+            session: session,
+            engineController: session.engineController
+        )
+        XCTAssertEqual(session.engineController.currentSwing, 1.0, accuracy: 0.0001,
+            "Out-of-range swing must clamp, mirroring the UI stepper")
+    }
+
+    /// `phraseSceneViewMode=` must navigate to the phrase workspace and post
+    /// the Macros | Slots switch to the scene perform surface; invalid values
+    /// must post nothing.
+    func test_phraseSceneViewModeCommand_postsSceneViewModeSwitch() {
+        let (session, _) = makeSession()
+        var section = WorkspaceSection.tracks
+        let sectionBinding = Binding(get: { section }, set: { section = $0 })
+        _ = VisualScenarioCommandRunner.drainPendingPhraseMatrixCommands()
+
+        VisualScenarioCommandRunner.apply(
+            command: ["phraseSceneViewMode": "slots"],
+            section: sectionBinding,
+            visualPhraseControlsOpenIndex: .constant(nil),
+            session: session,
+            engineController: session.engineController
+        )
+        XCTAssertEqual(section, .phrase,
+            "The scene view-mode command targets the phrase workspace")
+        XCTAssertTrue(
+            VisualScenarioCommandRunner.drainPendingPhraseMatrixCommands()
+                .contains("scene-view-mode:slots"),
+            "The runner must relay the Macros | Slots switch to the view"
+        )
+
+        VisualScenarioCommandRunner.apply(
+            command: ["phraseSceneViewMode": "bogus"],
+            section: sectionBinding,
+            visualPhraseControlsOpenIndex: .constant(nil),
+            session: session,
+            engineController: session.engineController
+        )
+        XCTAssertFalse(
+            VisualScenarioCommandRunner.drainPendingPhraseMatrixCommands()
+                .contains(where: { $0.hasPrefix("scene-view-mode:") }),
+            "An unknown view mode must not post a switch"
+        )
+    }
+
+    /// The two creation-seed library categories (rows 43/44) must be valid
+    /// `libraryCategory=` vocabulary, and the command must land on the
+    /// library page with the status reporting the selected category.
+    func test_libraryCategoryCommand_acceptsCreationSeedCategories() throws {
+        let (session, _) = makeSession()
+
+        for raw in ["auInstruments", "generators"] {
+            XCTAssertNotNil(LibraryCategory(rawValue: raw),
+                "\(raw) must be a browsable library category")
+
+            var section = WorkspaceSection.tracks
+            let sectionBinding = Binding(get: { section }, set: { section = $0 })
+            VisualScenarioCommandRunner.apply(
+                command: ["libraryCategory": raw],
+                section: sectionBinding,
+                visualPhraseControlsOpenIndex: .constant(nil),
+                session: session,
+                engineController: session.engineController
+            )
+            XCTAssertEqual(section, .library)
+
+            let status = try statusDictionary(session: session, section: .library)
+            XCTAssertEqual(status["libraryCategory"], raw,
+                "The status file must report the selected category for the capture wait")
+        }
+    }
+
+    private func statusDictionary(
+        session: SequencerDocumentSession,
+        section: WorkspaceSection = .phrase
+    ) throws -> [String: String] {
+        let statusURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("create-track-harness-tests-\(UUID().uuidString).status")
+        defer { try? FileManager.default.removeItem(at: statusURL) }
+
+        VisualScenarioCommandRunner.writeStatus(
+            to: statusURL,
+            section: section,
+            visualPhraseControlsOpenIndex: nil,
+            session: session,
+            engineController: session.engineController
+        )
+
+        let payload = try String(contentsOf: statusURL)
+        return payload
+            .split(whereSeparator: \.isNewline)
+            .reduce(into: [:]) { result, rawLine in
+                let line = String(rawLine).trimmingCharacters(in: .whitespaces)
+                guard let separator = line.firstIndex(of: "=") else { return }
+                result[String(line[..<separator])] =
+                    String(line[line.index(after: separator)...])
+            }
+    }
 }

@@ -59,7 +59,11 @@ CAPTURES=$(cat <<'TABLE'
 # still holds the 6x6 population that 01-phrase set up, so the matrix renders
 # fully when run as part of the full suite.
 01a-song|workspace=song|workspace=song;transport=stop
-02-tracks-navigator|workspace=tracks,tracksSelectionMode=off|workspace=tracks;tracksSelectionMode=off;transport=stop
+# Swing is transient runtime state (no document field), so 01b sets a clearly
+# non-zero amount for the transport readout capture and row 02 resets it to 0
+# so every later capture keeps the neutral transport.
+01b-transport-swing-set|workspace=phrase,swing=0.4|workspace=phrase;swing=0.4;transport=stop
+02-tracks-navigator|workspace=tracks,tracksSelectionMode=off,swing=0.0|workspace=tracks;tracksSelectionMode=off;swing=0;transport=stop
 02a-tracks-selection-actions|workspace=tracks,tracksSelectionMode=on,tracksSelectionCount=1|workspace=tracks;tracksSelectionMode=on;tracksClearSelection=true;tracksSelect=first;transport=stop
 02b-tracks-layer-perform-nav|workspace=phrase,phraseWorkspaceTab=layers,performScopeCount=1|workspace=tracks;tracksSelectionMode=on;tracksClearSelection=true;tracksSelect=first;tracksAction=layerPerform;transport=stop
 02c-create-track-modal|workspace=tracks,tracksCreateTrackModalVisible=true|workspace=tracks;tracksCreateTrackModal=open;transport=stop
@@ -82,6 +86,7 @@ CAPTURES=$(cat <<'TABLE'
 05e-scenes-browse-fx|workspace=scenes,scenesMode=browseEdit,sceneEditorFixture=browse-content|scenesMode=browseEdit;sceneEditorFixture=browse-content;transport=stop
 06-phrase-scenes-perform|workspace=phrase,workspaceMode=perform,phraseWorkspaceTab=scenes|workspace=phrase;workspaceMode=perform;phraseWorkspaceTab=scenes;transport=stop
 06a-phrase-scene-select|workspace=phrase,phraseWorkspaceTab=scenes,phraseSceneSelectVisible=true|phraseMatrixTrackCount=8;phraseMatrixPhraseCount=8;phraseWorkspaceTab=scenes;phraseSceneSelect=a;transport=stop
+06b-phrase-scenes-perform-slots|workspace=phrase,phraseWorkspaceTab=scenes,phraseSceneViewMode=slots|workspace=phrase;workspaceMode=perform;phraseWorkspaceTab=scenes;phraseSceneSelect=close;phraseSceneViewMode=slots;transport=stop
 07-library|workspace=library|workspace=library;transport=stop
 08-phrase-layers-pattern|workspace=phrase,phraseWorkspaceTab=layers,phraseMatrixSelectedLayerID=pattern,phraseCellTool=value|phraseMatrixTrackCount=8;phraseMatrixPhraseCount=8;phraseWorkspaceTab=layers;phraseCellTool=value;phraseMatrixLayerID=pattern;transport=stop
 09-phrase-layers-mute|workspace=phrase,phraseWorkspaceTab=layers,phraseMatrixSelectedLayerID=mute|phraseMatrixTrackCount=8;phraseMatrixPhraseCount=8;phraseWorkspaceTab=layers;phraseMatrixLayerID=mute;transport=stop
@@ -151,6 +156,11 @@ CAPTURES=$(cat <<'TABLE'
 40-library-global|workspace=library,libraryCategory=drumKits|workspace=library;libraryCategory=drumKits;transport=stop
 41-library-pool|workspace=library,libraryFixture=pool,libraryPoolCount=4|workspace=library;libraryFixture=pool;libraryCategory=drumKits;transport=stop
 42-library-recordings-populated|workspace=library,libraryCategory=recordings,libraryRecordingsCount=2|workspace=library;libraryFixture=recordings;libraryCategory=recordings;transport=stop
+# 43/44: the two creation-seed categories. AU Instruments lists the live
+# component scan (plus the rescan header); Generators lists the project's
+# default generator pool. Both render per-row create-track (+) affordances.
+43-library-au-instruments|workspace=library,libraryCategory=auInstruments|workspace=library;libraryCategory=auInstruments;transport=stop
+44-library-generators|workspace=library,libraryCategory=generators|workspace=library;libraryCategory=generators;transport=stop
 TABLE
 )
 

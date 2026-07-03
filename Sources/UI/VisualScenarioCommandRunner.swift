@@ -42,6 +42,7 @@ enum VisualScenarioCommandRunner {
     private static var phrasePerformLayerMode = TrackPerformLayerMode.pattern.rawValue
     private static var phrasePerformLayerSelectorVisible = false
     private static var phrasePerformLayerVariant = "none"
+    private static var phraseSceneViewModeState = PhraseSceneViewMode.macros.rawValue
     private static var phraseWorkspaceTab = "layers"
     private static var phraseCellTool = "value"
     private static var phraseGlobalApplyTrackSelectorVisible = false
@@ -60,7 +61,7 @@ enum VisualScenarioCommandRunner {
     private static var libraryFixtureState = "none"
     private static var slicerFixtureState = "none"
     private static var slicerLayerState = SliceTrackClipLayer.steps.rawValue
-    private static var slicerTabState = "source"
+    private static var slicerTabState = "steps"
     private static var sliceSourceModalState = "closed"
     private static var audioInputTabState = "source"
     private static var drumGroupRoutingEditorRenderedState = false
@@ -266,6 +267,7 @@ enum VisualScenarioCommandRunner {
                 phraseGlobalApplyTrackSelectorVisible = userInfo["globalApplyTrackSelectorVisible"] as? Bool ?? false
                 phraseSceneSelectVisible = userInfo["sceneSelectVisible"] as? Bool ?? false
                 phraseCaptureVisible = userInfo["captureVisible"] as? Bool ?? false
+                phraseSceneViewModeState = userInfo["sceneViewMode"] as? String ?? PhraseSceneViewMode.macros.rawValue
             }
         }
     }
@@ -414,6 +416,14 @@ enum VisualScenarioCommandRunner {
            let gain = Double(gainRaw) {
             session.setMasterOutputGain(gain)
             engineController.setLiveMasterOutputGain(gain)
+        }
+
+        // Global transport swing (0…1), the same seam the transport-bar
+        // stepper drives (`transport-swing`, commit ade9a296). Clamped by
+        // `setSwing`; the status file reports the applied `currentSwing`.
+        if let swingRaw = command["swing"],
+           let swing = Double(swingRaw) {
+            engineController.setSwing(swing)
         }
 
         if let peakRaw = command["meterPeak"],
@@ -1047,6 +1057,7 @@ enum VisualScenarioCommandRunner {
         quantiseFillCueActive=\(quantiseFillCueActiveStatus(session: session, engineController: engineController))
         transport=\(engineController.isRunning ? "play" : "stop")
         bpm=\(engineController.currentBPM)
+        swing=\(engineController.currentSwing)
         phraseCount=\(phrases.count)
         phraseNames=\(phrases.map(\.name).joined(separator: "|"))
         phraseControlsOpenIndex=\(visualPhraseControlsOpenIndex.map(String.init) ?? "none")
@@ -1105,6 +1116,7 @@ enum VisualScenarioCommandRunner {
         phraseCellTool=\(phraseCellTool)
         phraseGlobalApplyTrackSelectorVisible=\(phraseGlobalApplyTrackSelectorVisible)
         phraseSceneSelectVisible=\(phraseSceneSelectVisible)
+        phraseSceneViewMode=\(phraseSceneViewModeState)
         phraseCaptureVisible=\(phraseCaptureVisible)
         tracksCreateTrackModalVisible=\(tracksCreateTrackModalVisible)
         tracksAddDrumGroupModalVisible=\(tracksAddDrumGroupModalVisible)
@@ -1386,6 +1398,7 @@ enum VisualScenarioCommandRunner {
               command["phraseGlobalApplyTrackSelector"] != nil ||
               command["phraseGlobalApplySelect"] != nil ||
               command["phraseSceneSelect"] != nil ||
+              command["phraseSceneViewMode"] != nil ||
               command["phraseCapture"] != nil
         else { return }
 
@@ -1480,6 +1493,13 @@ enum VisualScenarioCommandRunner {
         if let rawSelect = command["phraseGlobalApplySelect"],
            let count = Int(rawSelect) {
             posts.append("global-apply-select:\(count)")
+        }
+
+        // Macros | Slots view mode on the SCENES perform surface (the
+        // perform-bar segmented pill from the scenes-in-phrases work).
+        if let rawSceneViewMode = command["phraseSceneViewMode"],
+           PhraseSceneViewMode(rawValue: rawSceneViewMode) != nil {
+            posts.append("scene-view-mode:\(rawSceneViewMode)")
         }
 
         switch command["phraseSceneSelect"] {
@@ -2128,7 +2148,7 @@ enum VisualScenarioCommandRunner {
         }
 
         if let rawTab = command["slicerTab"],
-           ["source", "slice", "fx", "macros", "mixer"].contains(rawTab) {
+           ["steps", "source", "slice", "fx", "macros", "mixer"].contains(rawTab) {
             slicerTabState = rawTab
             postRepeatedVisualCommand(name: .sliceTrackWorkspaceVisualCommand, object: "tab:\(rawTab)")
         }

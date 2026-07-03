@@ -1162,6 +1162,18 @@ struct PhraseWorkspaceView: View {
             return
         }
 
+        // QA: switch the SCENES perform surface between Macros | Slots view
+        // modes (the perform-bar segmented pill).
+        if command.hasPrefix("scene-view-mode:") {
+            let rawMode = String(command.dropFirst("scene-view-mode:".count))
+            if let mode = PhraseSceneViewMode(rawValue: rawMode) {
+                phraseTab = .scenes
+                phraseSceneViewMode = mode
+            }
+            postRenderedMatrixVisualState(isVisible: true)
+            return
+        }
+
         if command.hasPrefix("scene-select:") {
             let rawSlot = String(command.dropFirst("scene-select:".count))
             if rawSlot == "close" {
@@ -1214,6 +1226,7 @@ struct PhraseWorkspaceView: View {
                 "globalApplyTrackSelectorVisible": isVisible && isPresentingGlobalApplyTrackSelector,
                 "captureVisible": isVisible && isPresentingPhraseCapture,
                 "sceneSelectVisible": isVisible && phraseSceneSlotPickerRequest != nil,
+                "sceneViewMode": isVisible ? phraseSceneViewMode.rawValue : "none",
             ]
         )
     }
