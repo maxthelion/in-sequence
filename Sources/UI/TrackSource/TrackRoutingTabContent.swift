@@ -111,6 +111,7 @@ struct TrackRoutingTabContent: View {
 
             HStack(alignment: .center, spacing: 16) {
                 outputSelector
+                sceneMembershipSelector
                 Spacer(minLength: 12)
                 sendKnob(.a, value: summary.sendA)
                 sendKnob(.b, value: summary.sendB)
@@ -169,6 +170,49 @@ struct TrackRoutingTabContent: View {
         }
     }
 
+    private var sceneMembershipSelector: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("SCENE")
+                .studioText(.micro)
+                .tracking(0.8)
+                .foregroundStyle(StudioTheme.mutedText)
+
+            Menu {
+                ForEach(TrackMixSettings.SceneMembership.allCases, id: \.self) { membership in
+                    Button(membership.label) {
+                        commitSceneMembership(membership)
+                    }
+                }
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "arrow.left.and.right")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(StudioTheme.mutedText)
+                    Text(summary.sceneMembership.shortLabel)
+                        .studioText(.labelBold)
+                        .foregroundStyle(StudioTheme.text)
+                        .lineLimit(1)
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(StudioTheme.mutedText)
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 8)
+                .frame(minWidth: 86, alignment: .leading)
+                .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                        .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+                )
+            }
+            .buttonStyle(.plain)
+            .help("\(track.name) scene membership")
+            .accessibilityIdentifier("routing-scene-membership")
+            .accessibilityLabel("\(track.name) scene membership")
+            .accessibilityValue(summary.sceneMembership.label)
+        }
+    }
+
     private enum SendSlot {
         case a
         case b
@@ -200,6 +244,12 @@ struct TrackRoutingTabContent: View {
     private func commitSend(_ slot: SendSlot, value: Double) {
         var mix = track.mix
         mix[keyPath: slot.keyPath] = MixerSendDisplayModel.clamped(value)
+        session.setTrackMix(trackID: track.id, mix: mix)
+    }
+
+    private func commitSceneMembership(_ membership: TrackMixSettings.SceneMembership) {
+        var mix = track.mix
+        mix.sceneMembership = membership
         session.setTrackMix(trackID: track.id, mix: mix)
     }
 }

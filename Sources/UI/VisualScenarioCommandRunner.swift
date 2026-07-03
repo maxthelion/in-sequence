@@ -1079,6 +1079,7 @@ enum VisualScenarioCommandRunner {
         trackClipLayerSwitcher=\(trackClipLayerSwitcherState)
         trackGeneratorStage=\(trackGeneratorStageState)
         trackGeneratorKind=\(trackGeneratorKindState)
+        selectedTrackSceneMembership=\(session.store.selectedTrack.mix.sceneMembership.rawValue)
         selectedTrackSoundDestinationKind=\(selectedTrackSoundDestinationKind(session: session))
         slicerFixture=\(slicerFixtureState)
         slicerLayer=\(slicerLayerState)
@@ -1415,6 +1416,7 @@ enum VisualScenarioCommandRunner {
               command["phraseGlobalApplySelect"] != nil ||
               command["phraseSceneSelect"] != nil ||
               command["phraseSceneViewMode"] != nil ||
+              command["phraseSceneMembershipFixture"] != nil ||
               command["phraseCapture"] != nil
         else { return }
 
@@ -1428,6 +1430,18 @@ enum VisualScenarioCommandRunner {
         if let rawPhraseCount = command["phraseMatrixPhraseCount"],
            let phraseCount = Int(rawPhraseCount) {
             ensurePhraseCount(phraseCount, session: session)
+        }
+
+        // WS6 capture vocabulary (row 06c): spread the tracks across the three
+        // scene memberships through the normal setTrackMix path so the scenes
+        // membership readout renders a non-degenerate split.
+        if command["phraseSceneMembershipFixture"] == "split" {
+            let cycle = TrackMixSettings.SceneMembership.allCases
+            for (index, track) in session.store.tracks.enumerated() {
+                var mix = track.mix
+                mix.sceneMembership = cycle[index % cycle.count]
+                session.setTrackMix(trackID: track.id, mix: mix)
+            }
         }
 
         // New documents only carry the pattern and mute layers; layer-variant
@@ -2194,6 +2208,20 @@ enum VisualScenarioCommandRunner {
             }
             queuePendingTrackSourceEditorCommand("select-tab:source")
             postRepeatedVisualCommand(name: .trackSourceEditorVisualCommand, object: "select-tab:source")
+        }
+
+        // WS6 capture vocabulary (row 22ba): set the selected track's scene
+        // membership through the normal setTrackMix path and land on the mixer
+        // tab where the routing selector renders.
+        if let rawMembership = command["trackSceneMembership"],
+           let membership = TrackMixSettings.SceneMembership(rawValue: rawMembership) {
+            section.wrappedValue = .track
+            trackSourceTabState = "mixer"
+            var mix = session.store.selectedTrack.mix
+            mix.sceneMembership = membership
+            session.setTrackMix(trackID: session.store.selectedTrackID, mix: mix)
+            queuePendingTrackSourceEditorCommand("select-tab:mixer")
+            postRepeatedVisualCommand(name: .trackSourceEditorVisualCommand, object: "select-tab:mixer")
         }
 
         guard let rawTab = command["trackSourceTab"],

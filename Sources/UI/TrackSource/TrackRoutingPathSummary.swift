@@ -17,6 +17,8 @@ struct TrackRoutingPathSummary: Equatable {
     let sendA: Double
     /// Send B level, 0...1, clamped.
     let sendB: Double
+    /// Which master scene crossfade lane this track feeds.
+    let sceneMembership: TrackMixSettings.SceneMembership
 
     /// Whether either send is meaningfully open (mirrors the mixer threshold).
     var hasActiveSend: Bool {
@@ -55,7 +57,8 @@ struct TrackRoutingPathSummary: Equatable {
             instrumentLabel: instrumentLabel(from: destinationSummary),
             destinationLabel: outputTitle,
             sendA: MixerSendDisplayModel.clamped(mix.sendA),
-            sendB: MixerSendDisplayModel.clamped(mix.sendB)
+            sendB: MixerSendDisplayModel.clamped(mix.sendB),
+            sceneMembership: mix.sceneMembership
         )
     }
 

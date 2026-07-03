@@ -583,9 +583,36 @@ struct PhraseWorkspaceView: View {
                 phraseSceneSlot(title: "Slot B", scene: sceneB, slot: .b, isDominant: crossfader > 0.5)
                     .frame(maxWidth: .infinity, alignment: .topLeading)
             }
+            phraseSceneMembershipReadout
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
         .accessibilityIdentifier("phrase-scenes-surface")
+    }
+
+    private var phraseSceneMembershipReadout: some View {
+        HStack(spacing: 8) {
+            Text("INPUTS")
+                .studioText(.micro)
+                .tracking(0.8)
+                .foregroundStyle(StudioTheme.mutedText)
+            ForEach(TrackMixSettings.SceneMembership.allCases, id: \.self) { membership in
+                let count = session.store.tracks.filter { $0.mix.sceneMembership == membership }.count
+                Text("\(membership.shortLabel) \(count)")
+                    .studioText(.micro)
+                    .foregroundStyle(StudioTheme.text)
+                    .padding(.horizontal, 8)
+                    .frame(height: 24)
+                    .background(
+                        Color.white.opacity(StudioOpacity.subtleFill),
+                        in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                            .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+                    )
+            }
+        }
+        .accessibilityIdentifier("phrase-scene-membership-readout")
     }
 
     private var activePhraseSceneSelection: MasterBusABSelection {
