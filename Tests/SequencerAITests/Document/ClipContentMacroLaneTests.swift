@@ -56,6 +56,31 @@ final class ClipContentMacroLaneTests: XCTestCase {
         XCTAssertEqual(decoded.macroLanes[id2]?.values[1], 0.75)
     }
 
+    func test_clipPoolEntry_roundTrip_withRandomizeSettings() throws {
+        let settings = ClipRandomizeSettings(
+            density: 0.62,
+            scaleID: .dorian,
+            rootPitchClass: 2,
+            octaveCenter: 5,
+            octaveSpan: 2,
+            velocityVariance: 0.35,
+            gateVariance: 0.45,
+            lastSeed: 0x1234ABCD
+        )
+        let entry = ClipPoolEntry(
+            id: UUID(),
+            name: "Randomized",
+            trackType: .monoMelodic,
+            content: .stepSequence(stepPattern: [true, false, true], pitches: [60, 64]),
+            randomizeSettings: settings
+        )
+
+        let data = try JSONEncoder().encode(entry)
+        let decoded = try JSONDecoder().decode(ClipPoolEntry.self, from: data)
+
+        XCTAssertEqual(decoded.randomizeSettings, settings)
+    }
+
     func test_clipPoolEntry_legacy_decodesWithEmptyMacroLanes() throws {
         // Simulate old JSON without macroLanes key.
         let legacyJSON = """
@@ -68,6 +93,55 @@ final class ClipContentMacroLaneTests: XCTestCase {
         """.data(using: .utf8)!
         let decoded = try JSONDecoder().decode(ClipPoolEntry.self, from: legacyJSON)
         XCTAssertTrue(decoded.macroLanes.isEmpty)
+        XCTAssertNil(decoded.randomizeSettings)
+    }
+
+    // MARK: - Clip randomize bake
+
+    func test_randomizeBake_sameSeedProducesSameClipBytes() throws {
+        let source = ClipContent.emptyNoteGrid(lengthSteps: 16)
+        let settings = ClipRandomizeSettings(
+            density: 0.55,
+            scaleID: .minorPentatonic,
+            rootPitchClass: 0,
+            octaveCenter: 4,
+            octaveSpan: 1,
+            velocityVariance: 0.3,
+            gateVariance: 0.5
+        )
+
+        let first = ClipRandomizeBaker.bake(source: source, settings: settings, seed: 0xC0FFEE)
+        let second = ClipRandomizeBaker.bake(source: source, settings: settings, seed: 0xC0FFEE)
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+
+        XCTAssertEqual(first, second)
+        XCTAssertEqual(try encoder.encode(first), try encoder.encode(second))
+    }
+
+    func test_randomizeBake_clampsSettingsIntoPlayableNoteGrid() {
+        let source = ClipContent.emptyNoteGrid(lengthSteps: 8)
+        let settings = ClipRandomizeSettings(
+            density: 2,
+            scaleID: .major,
+            rootPitchClass: -1,
+            octaveCenter: 12,
+            octaveSpan: 10,
+            velocityVariance: 2,
+            gateVariance: 2
+        )
+
+        let baked = ClipRandomizeBaker.bake(source: source, settings: settings, seed: 42)
+
+        guard case let .noteGrid(lengthSteps, steps) = baked else {
+            return XCTFail("Expected note-grid bake")
+        }
+        XCTAssertEqual(lengthSteps, 8)
+        XCTAssertEqual(steps.compactMap(\.main).count, 8)
+        let notes = steps.flatMap { $0.main?.notes ?? [] }
+        XCTAssertTrue(notes.allSatisfy { (0...127).contains($0.pitch) })
+        XCTAssertTrue(notes.allSatisfy { (1...127).contains($0.velocity) })
+        XCTAssertTrue(notes.allSatisfy { $0.lengthSteps >= 1 })
     }
 
     // MARK: - synced(with:stepCount:)

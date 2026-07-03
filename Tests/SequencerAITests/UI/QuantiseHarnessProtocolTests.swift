@@ -143,4 +143,40 @@ final class QuantiseHarnessProtocolTests: XCTestCase {
         status = try statusDictionary(fixture: fixture)
         XCTAssertEqual(status["selectedTrackFillEngaged"], "false")
     }
+
+    func test_trackRandomizeRollBakesSelectedClipAndStatus() throws {
+        let fixture = makeFixture()
+
+        apply(
+            [
+                "trackFillSource": "clip",
+                "trackRandomizeRoll": "on",
+            ],
+            fixture: fixture
+        )
+
+        let pattern = fixture.session.store.selectedPattern(for: fixture.session.store.selectedTrackID)
+        let clipID = try XCTUnwrap(pattern.sourceRef.clipID)
+        let clip = try XCTUnwrap(fixture.session.store.clipEntry(id: clipID))
+        XCTAssertNotNil(clip.randomizeSettings)
+
+        let status = try statusDictionary(fixture: fixture)
+        XCTAssertEqual(status["selectedTrackRandomizePersisted"], "true")
+        XCTAssertNotEqual(status["selectedTrackRandomizeLastSeed"], "none")
+        XCTAssertEqual(status["trackRandomizeSheet"], "closed")
+    }
+
+    func test_trackRandomizeSheetCommandWritesStatusAndPendingEditorCommand() throws {
+        let fixture = makeFixture()
+
+        apply(["trackRandomizeSheet": "open"], fixture: fixture)
+
+        let status = try statusDictionary(fixture: fixture)
+        XCTAssertEqual(status["trackRandomizeSheet"], "open")
+        XCTAssertEqual(status["trackSourceTab"], "source")
+        XCTAssertTrue(
+            VisualScenarioCommandRunner.drainPendingTrackSourceEditorCommands()
+                .contains("randomize-sheet:open")
+        )
+    }
 }

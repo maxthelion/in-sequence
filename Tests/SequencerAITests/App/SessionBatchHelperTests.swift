@@ -28,6 +28,12 @@ final class SessionBatchHelperTests: XCTestCase {
             debounceInterval: .seconds(100) // prevent flush during tests
         )
         session.activate()
+        // Test-isolation convention (bacee620): every controller a test
+        // creates gets a full shutdown at teardown so no TickClock or host
+        // work leaks into later suites.
+        addTeardownBlock {
+            engine.shutdown()
+        }
         return (session, engine, box)
     }
 
@@ -91,6 +97,169 @@ final class SessionBatchHelperTests: XCTestCase {
         XCTAssertTrue(result, "batch must return true when something changed")
 
         SequencerDocumentSessionRegistry.unregister(session)
+    }
+
+    // MARK: - Clip randomize bake (WS2)
+
+    func test_bakeRandomizedSelectedClip_overwritesClipAndPersistsSettings() throws {
+        let (project, trackID, clipID) = makeLiveStoreProject(clipPitch: 60, stepPattern: [true, false, false, false])
+        let (session, engine, _) = makeSession(project: project)
+        let originalContent = try XCTUnwrap(session.store.clipEntry(id: clipID)?.content)
+        let snapshotsBefore = engine.applyPlaybackSnapshotCallCount
+        let settings = ClipRandomizeSettings(
+            density: 1,
+            scaleID: .major,
+            rootPitchClass: 5,
+            octaveCenter: 4,
+            octaveSpan: 0,
+            velocityVariance: 0,
+            gateVariance: 0
+        )
+
+        let bakedClipID = session.bakeRandomizedSelectedClip(
+            trackID: trackID,
+            settings: settings,
+            seed: 0xBEEFBEEF
+        )
+
+        let updated = try XCTUnwrap(session.store.clipEntry(id: clipID))
+        XCTAssertEqual(bakedClipID, clipID)
+        XCTAssertNotEqual(updated.content, originalContent)
+        XCTAssertEqual(updated.randomizeSettings?.lastSeed, 0xBEEFBEEF)
+        XCTAssertEqual(updated.randomizeSettings?.rootPitchClass, 5)
+        XCTAssertGreaterThan(engine.applyPlaybackSnapshotCallCount, snapshotsBefore)
+
+        SequencerDocumentSessionRegistry.unregister(session)
+    }
+
+    func test_bakeRandomizedSelectedClip_survivesSaveReload() throws {
+        let (project, trackID, clipID) = makeLiveStoreProject(clipPitch: 60, stepPattern: [true, false, false, false])
+        let (session, _, box) = makeSession(project: project)
+        let settings = ClipRandomizeSettings(
+            density: 1,
+            scaleID: .naturalMinor,
+            rootPitchClass: 2,
+            octaveCenter: 4,
+            octaveSpan: 0,
+            velocityVariance: 0,
+            gateVariance: 0
+        )
+
+        _ = session.bakeRandomizedSelectedClip(
+            trackID: trackID,
+            settings: settings,
+            seed: 0xDEC0DE
+        )
+        let baked = try XCTUnwrap(session.store.clipEntry(id: clipID))
+        session.flushToDocumentSync()
+
+        let encoded = try JSONEncoder().encode(box.document.project)
+        let decoded = try JSONDecoder().decode(Project.self, from: encoded)
+        let decodedClip = try XCTUnwrap(decoded.clipPool.first { $0.id == clipID })
+
+        XCTAssertEqual(decodedClip.content, baked.content)
+        XCTAssertEqual(decodedClip.randomizeSettings?.lastSeed, 0xDEC0DE)
+        XCTAssertEqual(decodedClip.randomizeSettings?.scaleID, .naturalMinor)
+
+        SequencerDocumentSessionRegistry.unregister(session)
+    }
+
+    func test_bakeRandomizedSelectedClip_isUndoableViaExternalDocumentChange() throws {
+        let (project, trackID, clipID) = makeLiveStoreProject(clipPitch: 60, stepPattern: [true, false, false, false])
+        let (session, _, _) = makeSession(project: project)
+        let before = session.store.exportToProject()
+        let originalClip = try XCTUnwrap(session.store.clipEntry(id: clipID))
+        let settings = ClipRandomizeSettings(
+            density: 1,
+            scaleID: .major,
+            rootPitchClass: 9,
+            octaveCenter: 4,
+            octaveSpan: 0,
+            velocityVariance: 0,
+            gateVariance: 0
+        )
+
+        _ = session.bakeRandomizedSelectedClip(
+            trackID: trackID,
+            settings: settings,
+            seed: 0xA11CE
+        )
+        XCTAssertNotEqual(session.store.clipEntry(id: clipID)?.content, originalClip.content)
+        XCTAssertNotNil(session.store.clipEntry(id: clipID)?.randomizeSettings)
+
+        session.flushToDocumentSync()
+        session.ingestExternalDocumentChange(before)
+
+        let restoredClip = try XCTUnwrap(session.store.clipEntry(id: clipID))
+        XCTAssertEqual(restoredClip.content, originalClip.content)
+        XCTAssertNil(restoredClip.randomizeSettings)
+        XCTAssertEqual(session.store.exportToProject(), before)
+
+        SequencerDocumentSessionRegistry.unregister(session)
+    }
+
+    func test_auditionRandomizedSelectedClip_playsOverrideWithoutMutatingClip_andClearsOnClose() throws {
+        let (project, trackID, clipID) = makeLiveStoreProject(clipPitch: 60, stepPattern: [true, false, false, false])
+        let box = DocumentBox(document: SeqAIDocument(project: project))
+        let audioSink = CountingAudioSink()
+        let engine = EngineController(client: nil, endpoint: nil, audioOutput: audioSink)
+        addTeardownBlock {
+            engine.shutdown()
+        }
+        let session = SequencerDocumentSession(
+            document: Binding(
+                get: { box.document },
+                set: { box.document = $0 }
+            ),
+            engineController: engine,
+            debounceInterval: .seconds(100)
+        )
+        session.activate()
+        let originalContent = try XCTUnwrap(session.store.clipEntry(id: clipID)?.content)
+        let settings = ClipRandomizeSettings(
+            density: 1,
+            scaleID: .major,
+            rootPitchClass: 7,
+            octaveCenter: 4,
+            octaveSpan: 0,
+            velocityVariance: 0,
+            gateVariance: 0
+        )
+
+        // While the sheet is open the audition override is active: the engine
+        // plays the baked preview, the document clip is untouched.
+        let state = try XCTUnwrap(session.auditionRandomizedSelectedClip(
+            trackID: trackID,
+            settings: settings,
+            seed: 0xFACE
+        ))
+        engine.processTick(tickIndex: 0, now: 0)
+
+        XCTAssertEqual(session.store.clipEntry(id: clipID)?.content, originalContent)
+        XCTAssertNil(session.store.clipEntry(id: clipID)?.randomizeSettings)
+        let playedPitches = audioSink.playedEvents.flatMap { $0 }.map { Int($0.pitch) }
+        XCTAssertEqual(playedPitches, firstStepPitches(in: state.noteGrid))
+        XCTAssertFalse(playedPitches.contains(60), "audition pool (G major, no C) must replace the clip note")
+
+        // Closing the sheet clears the override: the next cycle plays the
+        // original clip content again.
+        session.clearRandomizeAudition(trackID: trackID)
+        audioSink.resetPlayedEvents()
+        engine.processTick(tickIndex: 4, now: 0.4)
+
+        let clearedPitches = audioSink.playedEvents.flatMap { $0 }.map { Int($0.pitch) }
+        XCTAssertEqual(clearedPitches, [60], "cleared audition must restore the clip's own notes")
+
+        SequencerDocumentSessionRegistry.unregister(session)
+    }
+
+    private func firstStepPitches(in content: ClipContent) -> [Int] {
+        guard case let .noteGrid(_, steps) = content.normalized,
+              let first = steps.first
+        else {
+            return []
+        }
+        return (first.main?.notes ?? []).map(\.pitch)
     }
 
     // MARK: - fullEngineApply dispatches apply(documentModel:) once
