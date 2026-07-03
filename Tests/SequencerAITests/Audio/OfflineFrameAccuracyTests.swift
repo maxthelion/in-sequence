@@ -518,6 +518,184 @@ final class OfflineFrameAccuracyTests: XCTestCase {
         }
     }
 
+    // MARK: - 0-frame gate: quantised fill engage (WS1 AC3)
+
+    /// A clip-backed sample project (main pitch 60 @80, fill pitch 72 @118 on
+    /// every step) wired to the stamp-capture harness, for the fill-engage
+    /// no-immediate-triggers gate. Returns the harness plus the track and
+    /// phrase IDs needed to arm the quantised fill-flag change.
+    private func makeClipFillHarness(
+        bpm: Double,
+        stepsPerBar: Int
+    ) throws -> (harness: OfflineFrameAccuracyHarness, trackID: UUID, phraseID: UUID) {
+        let library = AudioSampleLibrary(libraryRoot: libraryRoot)
+        let kick = try XCTUnwrap(library.firstSample(in: .kick))
+        let sink = CapturingSampleSink()
+
+        let trackID = UUID(uuidString: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")!
+        let clipID = UUID(uuidString: "11111111-2222-3333-4444-555555555555")!
+        let track = StepSequenceTrack(
+            id: trackID,
+            name: "K",
+            pitches: [DrumKitNoteMap.baselineNote],
+            stepPattern: [true],
+            stepAccents: [false],
+            destination: .sample(sampleID: kick.id, settings: .default),
+            velocity: 100,
+            gateLength: 4
+        )
+        let clip = ClipPoolEntry(
+            id: clipID,
+            name: "Fill Clip",
+            trackType: .monoMelodic,
+            content: .noteGrid(
+                lengthSteps: 1,
+                steps: [
+                    ClipStep(
+                        main: ClipLane(chance: 1, notes: [ClipStepNote(pitch: 60, velocity: 80, lengthSteps: 2)]),
+                        fill: ClipLane(chance: 1, notes: [ClipStepNote(pitch: 72, velocity: 118, lengthSteps: 2)])
+                    )
+                ]
+            )
+        )
+        let layers = PhraseLayerDefinition.defaultSet(for: [track])
+        let phrase = PhraseModel.default(
+            tracks: [track],
+            layers: layers,
+            generatorPool: GeneratorPoolEntry.defaultPool,
+            clipPool: [clip]
+        )
+        let project = Project(
+            version: 1,
+            tracks: [track],
+            generatorPool: GeneratorPoolEntry.defaultPool,
+            clipPool: [clip],
+            layers: layers,
+            routes: [],
+            patternBanks: [
+                TrackPatternBank(
+                    trackID: trackID,
+                    slots: [TrackPatternSlot(slotIndex: 0, sourceRef: .clip(clipID))]
+                ),
+            ],
+            selectedTrackID: trackID,
+            phrases: [phrase],
+            selectedPhraseID: phrase.id
+        )
+
+        let controller = EngineController(
+            client: nil,
+            endpoint: nil,
+            stepsPerBar: stepsPerBar,
+            sampleEngine: sink,
+            sampleLibrary: library
+        )
+        controller.apply(documentModel: project)
+        controller.setBPM(bpm)
+
+        let harness = OfflineFrameAccuracyHarness(
+            sampleRate: 48_000,
+            stepsPerBar: stepsPerBar,
+            controller: controller,
+            sink: sink
+        )
+        return (harness, trackID, phrase.id)
+    }
+
+    /// WS1 AC3(b): engaging FILL mid-playback through the quantised fill-flag
+    /// machinery introduces ZERO immediate-mode triggers. Every trigger across
+    /// the engage boundary — before it, on the boundary tick, and after it —
+    /// is handed a real (non-nil) `AVAudioTime` through the scheduled-stamp
+    /// seam and lands on its exact musical-grid frame (0-frame error), i.e.
+    /// the commit re-prepares the boundary bar without re-stamping anything
+    /// from the pump's wake `now`. The event recorder pins that the engage
+    /// actually committed on the boundary in this same run (fill items realized
+    /// only from the boundary step onward).
+    func test_fillEngageMidPlayback_stampsStayOnGrid_zeroImmediateTriggers_GATE() throws {
+        let bpm = 120.0
+        let ticksPerBar = 4
+        let (harness, trackID, phraseID) = try makeClipFillHarness(bpm: bpm, stepsPerBar: ticksPerBar)
+        // Test-isolation convention (bacee620): full shutdown at teardown.
+        addTeardownBlock {
+            harness.controller.shutdown()
+            XCTAssertFalse(harness.controller.clock.isRunning,
+                "no TickClock may survive test teardown")
+        }
+        let recorder = harness.controller.enableEventRecording()
+        let stepDuration = harness.secondsPerStep(bpm: bpm)
+
+        // Transport must be RUNNING for the quantised arm to be accepted.
+        // `startTransportWithoutClockForTesting` sets that state without a
+        // TickClock (no async pump racing the manual drive) and captures the
+        // render-derived origin deterministically — the live `start()` upgrades
+        // the origin asynchronously mid-run, which would race the stamps.
+        harness.controller.startTransportWithoutClockForTesting(now: 0)
+        defer { harness.controller.stop() }
+        XCTAssertTrue(
+            harness.controller.audioMasterClock.capturedOriginCorrelation().isRenderDerived,
+            "fixture: offline manual rendering must give a render-derived origin"
+        )
+        // Transport start anchors musical zero `startupAnchorLeadSeconds`
+        // after the render position (the G2 anchor), so the 0-frame targets
+        // below are measured from the clock's anchored origin frame.
+        let originFrame = harness.controller.audioMasterClock.sampleTime(atMusicalSeconds: 0)
+
+        let steps = 2 * ticksPerBar
+        for step in 0..<steps {
+            if step == 2 {
+                // Engage MID-BAR: commits on the prepare of boundary tick 4.
+                XCTAssertEqual(
+                    harness.controller.armQuantisedToggle(.fillFlag(
+                        trackID: trackID,
+                        enabled: true,
+                        basisPhraseID: phraseID,
+                        lengthBars: nil,
+                        startTick: nil
+                    )),
+                    .armed
+                )
+            }
+            harness.drive(step: step, now: Double(step) * stepDuration)
+        }
+
+        // (1) Zero immediate-mode triggers: every trigger the sink was handed
+        // carries a real stamp — a nil `when` is the immediate-dispatch mode.
+        XCTAssertEqual(harness.sink.stampedTimes.count, steps,
+                       "the clip fires every step — one trigger per step")
+        XCTAssertFalse(
+            harness.sink.stampedTimes.contains { $0 == nil },
+            "engaging fill mid-playback must not introduce a single immediate-mode (nil-stamp) trigger"
+        )
+
+        // (2) Every stamp — across the engage boundary — is on the exact
+        // musical-grid frame (0-frame error via the scheduled-stamp seam),
+        // measured against the clock's anchored origin.
+        for step in 0..<steps {
+            let target = originFrame + harness.targetFrame(forStep: step, bpmForStep: { _ in bpm })
+            let actual = try XCTUnwrap(harness.capturedFrame(forStep: step))
+            XCTAssertEqual(
+                actual, target,
+                "step \(step): the fill engage must not move any trigger off the musical grid " +
+                "(off by \(actual - target) frames)"
+            )
+        }
+
+        // (3) The engage really committed at the bar boundary in this run:
+        // fill items realized only from the boundary step onward.
+        let blockID = EngineController.generatorBlockID(for: trackID)
+        let recorded = recorder.recordedEvents.filter { $0.blockID == blockID }
+        XCTAssertFalse(recorded.isEmpty, "the recorder must capture the realized stream")
+        XCTAssertTrue(Set(recorded.map(\.step)).isSuperset(of: Set(0..<steps)),
+                      "the recording must cover the engage boundary")
+        for event in recorded {
+            let expected = event.step >= ticksPerBar ? 72 : 60
+            XCTAssertEqual(
+                Int(event.pitch), expected,
+                "step \(event.step): fill items must sound only from the boundary tick onward"
+            )
+        }
+    }
+
     // MARK: - 0-frame gate: global transport swing
 
     /// Swung analogue of `targetFrame(forStep:bpmForStep:)`: accumulates the

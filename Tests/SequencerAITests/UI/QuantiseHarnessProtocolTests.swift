@@ -30,6 +30,12 @@ final class QuantiseHarnessProtocolTests: XCTestCase {
             debounceInterval: .seconds(100)
         )
         session.activate()
+        // Test-isolation convention (bacee620): every controller a test
+        // creates gets a full shutdown at teardown so no TickClock or host
+        // work leaks into later suites.
+        addTeardownBlock {
+            engine.shutdown()
+        }
         return Fixture(box: box, engine: engine, session: session)
     }
 
@@ -101,5 +107,40 @@ final class QuantiseHarnessProtocolTests: XCTestCase {
             "\(track.name):mute-on,\(track.name):fill-cue",
             "armed changes report as <track>:<change> in arm order"
         )
+    }
+
+    func test_trackFillEngagedCommandWritesSelectedPhraseFillFlagAndStatus() throws {
+        let fixture = makeFixture()
+        let track = fixture.session.store.selectedTrack
+        let fillLayer = try XCTUnwrap(fixture.session.store.layers.first {
+            if case .macroRow("fill-flag") = $0.target {
+                return true
+            }
+            return false
+        })
+
+        apply(
+            [
+                "trackFillSource": "clip",
+                "trackFillEngaged": "on",
+            ],
+            fixture: fixture
+        )
+
+        XCTAssertEqual(
+            fixture.session.store.selectedPhrase.cell(for: fillLayer.id, trackID: track.id),
+            .single(.bool(true))
+        )
+        var status = try statusDictionary(fixture: fixture)
+        XCTAssertEqual(status["selectedTrackFillEngaged"], "true")
+
+        apply(["trackFillEngaged": "off"], fixture: fixture)
+
+        XCTAssertEqual(
+            fixture.session.store.selectedPhrase.cell(for: fillLayer.id, trackID: track.id),
+            .single(.bool(false))
+        )
+        status = try statusDictionary(fixture: fixture)
+        XCTAssertEqual(status["selectedTrackFillEngaged"], "false")
     }
 }

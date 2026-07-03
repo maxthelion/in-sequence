@@ -63,6 +63,14 @@ final class EngineControllerQuantisedToggleTests: XCTestCase {
             selectedPhraseID: phrase.id
         )
         controller.apply(documentModel: project)
+        // Test-isolation convention (bacee620): every controller a test
+        // creates gets a full shutdown at teardown so no TickClock or host
+        // work leaks into later suites.
+        addTeardownBlock {
+            controller.shutdown()
+            XCTAssertFalse(controller.clock.isRunning,
+                "no TickClock may survive test teardown")
+        }
         return Fixture(
             controller: controller,
             sink: sink,
@@ -268,6 +276,61 @@ final class EngineControllerQuantisedToggleTests: XCTestCase {
         XCTAssertEqual(playedPitches(fixture, tick: 5), [64, 72])
         fixture.controller.confirmQuantisedFillFlagApplied(trackIDs: [fixture.trackID])
         XCTAssertTrue(fixture.controller.quantisedFillFlagOverridesForTesting.isEmpty)
+    }
+
+    /// WS1 AC3(a): a fill ENGAGE armed mid-bar commits exactly at the next
+    /// bar boundary, and the later DISENGAGE returns to the main lane at the
+    /// following boundary — verified on the dispatch stream per tick AND by
+    /// an event-recorder comparison across both boundaries: fill items sound
+    /// only inside [engage boundary, disengage boundary), main items only
+    /// outside it, with no step realized on both lanes.
+    func test_fillEngageAndDisengageMidPlayback_realizedStreamCommitsExactlyAtBarBoundaries() {
+        let fixture = makeFixture()
+        let recorder = fixture.controller.enableEventRecording()
+        startForManualTicks(fixture.controller)
+        defer { fixture.controller.stop() }
+
+        // Bar 0 plays the main lane; the engage is armed MID-BAR (after tick 1).
+        XCTAssertEqual(playedPitches(fixture, tick: 0), [60, 64])
+        XCTAssertEqual(playedPitches(fixture, tick: 1), [60, 64])
+        XCTAssertEqual(fixture.controller.armQuantisedToggle(fillFlagFirstTrack(fixture)), .armed)
+
+        // The rest of bar 0 still plays the main lane — nothing commits early.
+        XCTAssertEqual(playedPitches(fixture, tick: 2), [60, 64])
+        XCTAssertEqual(playedPitches(fixture, tick: 3), [60, 64])
+
+        // Bar 1 (ticks 4-7): the fill lane, from the very first boundary tick.
+        XCTAssertEqual(playedPitches(fixture, tick: 4), [64, 72])
+        XCTAssertEqual(playedPitches(fixture, tick: 5), [64, 72])
+
+        // Disengage armed MID-BAR: bar 1 finishes on the fill lane.
+        XCTAssertEqual(
+            fixture.controller.armQuantisedToggle(fillFlagFirstTrack(fixture, enabled: false)),
+            .armed
+        )
+        XCTAssertEqual(playedPitches(fixture, tick: 6), [64, 72])
+        XCTAssertEqual(playedPitches(fixture, tick: 7), [64, 72])
+
+        // Bar 2: back on the main lane from the boundary tick.
+        XCTAssertEqual(playedPitches(fixture, tick: 8), [60, 64])
+        XCTAssertEqual(playedPitches(fixture, tick: 9), [60, 64])
+
+        // Event-recorder comparison across both boundaries: the realized
+        // stream switches lanes exactly at steps 4 and 8, never mid-bar.
+        let blockID = EngineController.generatorBlockID(for: fixture.trackID)
+        let recorded = recorder.recordedEvents.filter { $0.blockID == blockID }
+        XCTAssertFalse(recorded.isEmpty, "the recorder must capture the realized stream")
+        let recordedSteps = Set(recorded.map(\.step))
+        XCTAssertTrue(recordedSteps.isSuperset(of: Set(0...9)),
+                      "the recording must cover both boundaries")
+        for event in recorded {
+            let expected = (4..<8).contains(event.step) ? 72 : 60
+            XCTAssertEqual(
+                Int(event.pitch), expected,
+                "step \(event.step): the lane switch must commit exactly on the bar boundary — " +
+                "fill items only from the engage boundary, main items only from the disengage boundary"
+            )
+        }
     }
 
     func test_patternCommitUsesNewSlotFromTheBoundaryTickUntilSnapshotConfirmation() {
