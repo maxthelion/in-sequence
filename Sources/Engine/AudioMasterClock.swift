@@ -211,6 +211,21 @@ final class AudioMasterClock {
     private(set) var lastAdvancedStep: UInt64 = 0
     private var cumulativeMusicalSecondsByStep: [UInt64: TimeInterval] = [0: 0]
 
+    /// Serialises every access to the tempo-map state (`cumulativeMusicalSecondsByStep`,
+    /// `lastAdvancedStep`, `latchedSwing`). The class is DOCUMENTED as mutated
+    /// "only on the tick/pump queue", but nothing enforced it: the live
+    /// look-ahead pump (`clock.start` → `advance`) runs on its own background
+    /// queue while a direct `processTick` / MIDI-clock tick can call `advance`
+    /// on another thread. Two overlapping `advance` calls then mutated (and
+    /// REALLOCATED, via the >8-entry prune) the `Dictionary` storage
+    /// concurrently, freeing the buffer under a reader — the
+    /// `Dictionary.subscript.getter` → `objc_msgSend` EXC_BAD_ACCESS segfault
+    /// (evidence 20260702-1903-swing-advance-dict-segfault). This lock is on the
+    /// CONTROL path (tick/pump queue), never the render callback, so it does not
+    /// touch Hard Rule 6 (the render thread only READS engine sampleTime via
+    /// `renderPositionProvider`, which this lock does not gate).
+    private let tempoMapLock = NSLock()
+
     /// Swing currently applied to the in-flight 2-step pair. A new swing value
     /// passed to `advance` is LATCHED only when the crossing enters an odd
     /// (off-beat) step — the start of a swung pair — so both halves of every
@@ -289,9 +304,11 @@ final class AudioMasterClock {
         originLeadSeconds = 0
         originStartupAnchorLeadSeconds = 0
         maxObservedRenderSampleTime = nil
+        tempoMapLock.lock()
         lastAdvancedStep = 0
         cumulativeMusicalSecondsByStep = [0: 0]
         latchedSwing = 0
+        tempoMapLock.unlock()
     }
 
     // MARK: - Tempo map
@@ -326,6 +343,8 @@ final class AudioMasterClock {
     /// most one step later.
     @discardableResult
     func advance(toStep step: UInt64, bpm: Double, swing: Double = 0) -> TimeInterval {
+        tempoMapLock.lock()
+        defer { tempoMapLock.unlock() }
         if let existing = cumulativeMusicalSecondsByStep[step] {
             return existing
         }
@@ -363,7 +382,9 @@ final class AudioMasterClock {
 
     /// Cumulative musical seconds for a step already recorded by `advance`.
     func musicalSeconds(forStep step: UInt64) -> TimeInterval? {
-        cumulativeMusicalSecondsByStep[step]
+        tempoMapLock.lock()
+        defer { tempoMapLock.unlock() }
+        return cumulativeMusicalSecondsByStep[step]
     }
 
     // MARK: - Conversion (the one converter API)
