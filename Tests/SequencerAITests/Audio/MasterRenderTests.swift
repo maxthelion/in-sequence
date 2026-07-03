@@ -296,6 +296,83 @@ final class MasterRenderTests: XCTestCase {
         XCTAssertGreaterThan(rms, 0.01, "Direct sample playback should render offline in automation/manual mode.")
     }
 
+    /// WS6 AC1 (selective scene inputs, roadmap 25): the per-track
+    /// scene-membership gain stage silences a non-member track's contribution
+    /// at the opposing crossfader extreme (full A mutes B-only, full B mutes
+    /// A-only) and passes member tracks at unity. Renders the real sample
+    /// chain in manual-rendering mode for every membership × extreme
+    /// combination — the environment-safe form of the offline RMS gate. The
+    /// membership → gain curve itself is pinned exactly in
+    /// MasterBusStateTests.test_trackMixSceneMembershipGain_usesEqualPowerCrossfader.
+    func test_sceneMembershipGainSilencesNonMemberTracksInManualRendering() throws {
+        MainAudioGraph.useManualRenderingForAutomation = true
+        defer { MainAudioGraph.useManualRenderingForAutomation = false }
+
+        let sampleURL = tmpURL()
+        defer { try? FileManager.default.removeItem(at: sampleURL) }
+        try writeClickWAV(to: sampleURL)
+
+        let combinations: [(membership: TrackMixSettings.SceneMembership, crossfader: Double, expectSilent: Bool)] = [
+            (.sceneA, 0, false),
+            (.sceneA, 1, true),
+            (.sceneB, 0, true),
+            (.sceneB, 1, false),
+            (.both, 0, false),
+            (.both, 1, false),
+        ]
+
+        for combo in combinations {
+            let audioGraph = MainAudioGraph()
+            let sampleEngine = SamplePlaybackEngine(audioGraph: audioGraph)
+            let trackID = UUID()
+            sampleEngine.prepareTrack(trackID: trackID)
+
+            let renderURL = tmpURL()
+            defer { try? FileManager.default.removeItem(at: renderURL) }
+            XCTAssertTrue(audioGraph.startMasterRender(to: renderURL))
+            try sampleEngine.start()
+
+            let sceneGain = combo.membership.gain(crossfader: combo.crossfader)
+            sampleEngine.setTrackMix(trackID: trackID, level: 1, pan: 0)
+            sampleEngine.setTrackSceneGain(trackID: trackID, gain: sceneGain)
+
+            // The scene gain applies through a short wall-clock ramp; let the
+            // gain stage settle before rendering so the RMS window is
+            // steady-state.
+            let chokepoint = try XCTUnwrap(sampleEngine.trackOutputChokepointNodeForTesting(trackID: trackID))
+            let settled = expectation(description: "scene gain settles for \(combo.membership) @ \(combo.crossfader)")
+            let deadline = Date().addingTimeInterval(2.0)
+            func poll() {
+                if abs(chokepoint.outputVolume - Float(sceneGain)) < 0.001 {
+                    settled.fulfill()
+                    return
+                }
+                if Date() > deadline { return }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.005) { poll() }
+            }
+            poll()
+            wait(for: [settled], timeout: 3.0)
+
+            XCTAssertNotNil(sampleEngine.play(sampleURL: sampleURL, settings: .default, trackID: trackID, at: nil))
+            try audioGraph.renderOfflineForTesting(frameCount: 44_100)
+            sampleEngine.stop()
+            XCTAssertEqual(audioGraph.stopMasterRender(), renderURL)
+
+            let rms = try rmsOfFirstChannel(at: renderURL)
+            if combo.expectSilent {
+                XCTAssertLessThan(
+                    rms, 0.0005,
+                    "\(combo.membership) at crossfader \(combo.crossfader) must contribute silence at the master output"
+                )
+            } else {
+                XCTAssertGreaterThan(
+                    rms, 0.01,
+                    "\(combo.membership) at crossfader \(combo.crossfader) must stay audible at the master output"
+                )
+            }
+        }
+    }
+
     func test_rawPlayerRoutedToMixerBusRendersNonSilentAudioInManualRendering() throws {
         MainAudioGraph.useManualRenderingForAutomation = true
         defer { MainAudioGraph.useManualRenderingForAutomation = false }

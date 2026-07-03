@@ -63,11 +63,17 @@ final class EngineControllerSetMixScopedTests: XCTestCase {
         let newCalls = Array(sampleEngine.calls.dropFirst(baselineCallCount))
         XCTAssertEqual(newCalls, [
             .setTrackMix(trackID: track.id, level: 0.25, pan: -0.5),
+            .setTrackMuteGain(trackID: track.id, muted: false),
+            .setTrackSceneGain(trackID: track.id, gain: 1),
             .setTrackSends(trackID: track.id, sendA: 0.35, sendB: 0.65),
         ])
     }
 
-    func test_setMix_for_muted_sample_track_cuts_level_and_preserves_sends() {
+    /// Mute convention (b4701881): the fader level sent to `setTrackMix` stays
+    /// the RAW user value — mute is a separate ramped gain (`setTrackMuteGain`)
+    /// so unmute restores the fader without a hard-cut. (This test previously
+    /// pinned the pre-b4701881 zeroed-level contract and was stale-red.)
+    func test_setMix_for_muted_sample_track_keeps_raw_level_and_ramps_mute_gain() {
         let sampleEngine = CapturingScopedSampleSink()
         let controller = EngineController(
             client: nil,
@@ -93,9 +99,69 @@ final class EngineControllerSetMixScopedTests: XCTestCase {
 
         let newCalls = Array(sampleEngine.calls.dropFirst(baselineCallCount))
         XCTAssertEqual(newCalls, [
-            .setTrackMix(trackID: track.id, level: 0, pan: 0.25),
+            .setTrackMix(trackID: track.id, level: 0.9, pan: 0.25),
+            .setTrackMuteGain(trackID: track.id, muted: true),
+            .setTrackSceneGain(trackID: track.id, gain: 1),
             .setTrackSends(trackID: track.id, sendA: 0.4, sendB: 0.7),
         ])
+    }
+
+    /// WS6 (selective scene inputs): a B-only track at a full-A crossfader gets
+    /// scene gain 0 through the RAMPED scene-gain stage — the raw fader level
+    /// still rides `setTrackMix` untouched, and the Send A/B values are
+    /// byte-identical to the pre-WS6 contract (353829be hard line).
+    func test_setMix_sceneMembership_ridesRampedSceneGainStage_sendsUntouched() {
+        let sampleEngine = CapturingScopedSampleSink()
+        let controller = EngineController(
+            client: nil,
+            endpoint: nil,
+            sampleEngine: sampleEngine
+        )
+
+        let track = StepSequenceTrack(
+            name: "B Only Kick",
+            trackType: .monoMelodic,
+            pitches: [60],
+            stepPattern: [true],
+            destination: .sample(sampleID: UUID(), settings: .default),
+            velocity: 100,
+            gateLength: 4
+        )
+        controller.apply(track: track)
+        // Full A: the live crossfader override is the deterministic source the
+        // membership gain derives from.
+        controller.setLiveMasterCrossfader(0)
+
+        let baselineCallCount = sampleEngine.calls.count
+        let mix = TrackMixSettings(
+            level: 0.75,
+            pan: 0,
+            isMuted: false,
+            sceneMembership: .sceneB,
+            sendA: 0.2,
+            sendB: 0.3
+        )
+
+        controller.setMix(trackID: track.id, mix: mix)
+
+        let newCalls = Array(sampleEngine.calls.dropFirst(baselineCallCount))
+        XCTAssertEqual(newCalls, [
+            .setTrackMix(trackID: track.id, level: 0.75, pan: 0),
+            .setTrackMuteGain(trackID: track.id, muted: false),
+            .setTrackSceneGain(trackID: track.id, gain: 0),
+            .setTrackSends(trackID: track.id, sendA: 0.2, sendB: 0.3),
+        ])
+
+        // Crossfade to full B: the same membership now plays at unity, again
+        // through the ramped scene-gain stage (no document re-apply).
+        controller.setLiveMasterCrossfader(1)
+        XCTAssertEqual(
+            sampleEngine.calls.last(where: {
+                if case .setTrackSceneGain = $0 { return true }
+                return false
+            }),
+            .setTrackSceneGain(trackID: track.id, gain: 1)
+        )
     }
 
     /// Mixer render-livelock invariant (RT-7 / send-amount-hang fix): a scoped
@@ -208,6 +274,8 @@ private final class CapturingScopedSampleSink: SamplePlaybackSink {
         case stop
         case play(trackID: UUID)
         case setTrackMix(trackID: UUID, level: Double, pan: Double)
+        case setTrackMuteGain(trackID: UUID, muted: Bool)
+        case setTrackSceneGain(trackID: UUID, gain: Double)
         case setTrackSends(trackID: UUID, sendA: Double, sendB: Double)
         case removeTrack(trackID: UUID)
         case audition
@@ -231,6 +299,14 @@ private final class CapturingScopedSampleSink: SamplePlaybackSink {
 
     func setTrackMix(trackID: UUID, level: Double, pan: Double) {
         calls.append(.setTrackMix(trackID: trackID, level: level, pan: pan))
+    }
+
+    func setTrackMuteGain(trackID: UUID, muted: Bool, source: TrackMuteSource) {
+        calls.append(.setTrackMuteGain(trackID: trackID, muted: muted))
+    }
+
+    func setTrackSceneGain(trackID: UUID, gain: Double) {
+        calls.append(.setTrackSceneGain(trackID: trackID, gain: gain))
     }
 
     func setTrackSends(trackID: UUID, sendA: Double, sendB: Double) {

@@ -426,6 +426,67 @@ final class MasterBusStateTests: XCTestCase {
         XCTAssertEqual(decoded.sendB, 0)
     }
 
+    func test_trackMixSceneMembership_defaultsToBothForLegacyJSON() throws {
+        let encoded = try JSONEncoder().encode(TrackMixSettings.default)
+        var object = try XCTUnwrap(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+        object.removeValue(forKey: "sceneMembership")
+
+        let decoded = try JSONDecoder().decode(
+            TrackMixSettings.self,
+            from: try JSONSerialization.data(withJSONObject: object)
+        )
+
+        XCTAssertEqual(decoded.sceneMembership, .both)
+    }
+
+    /// WS6 AC3 (353829be hard line): scene membership is a SEPARATE axis from
+    /// the Send A/B levels — assigning membership must leave the send values
+    /// (and their persisted encoding) byte-identical, and the spec default is
+    /// membership BOTH (current behavior preserved).
+    func test_trackMixSceneMembership_leavesSendValuesByteIdentical() throws {
+        XCTAssertEqual(TrackMixSettings.default.sceneMembership, .both)
+
+        var mix = TrackMixSettings(level: 0.8, pan: 0.1, isMuted: false, sendA: 0.33, sendB: 0.44)
+        let sendBytesBefore = try sendFieldBytes(of: mix)
+
+        mix.sceneMembership = .sceneB
+
+        XCTAssertEqual(mix.sendA, 0.33)
+        XCTAssertEqual(mix.sendB, 0.44)
+        XCTAssertEqual(try sendFieldBytes(of: mix), sendBytesBefore)
+
+        let roundTripped = try JSONDecoder().decode(
+            TrackMixSettings.self,
+            from: JSONEncoder().encode(mix)
+        )
+        XCTAssertEqual(roundTripped.sendA, 0.33)
+        XCTAssertEqual(roundTripped.sendB, 0.44)
+        XCTAssertEqual(roundTripped.sceneMembership, .sceneB)
+        XCTAssertEqual(mix.normalized(), mix)
+    }
+
+    private func sendFieldBytes(of mix: TrackMixSettings) throws -> Data {
+        let object = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: JSONEncoder().encode(mix)) as? [String: Any]
+        )
+        let sends: [String: Any] = object.filter { $0.key == "sendA" || $0.key == "sendB" }
+        return try JSONSerialization.data(withJSONObject: sends, options: [.sortedKeys])
+    }
+
+    func test_trackMixSceneMembershipGain_usesEqualPowerCrossfader() {
+        XCTAssertEqual(TrackMixSettings.SceneMembership.sceneA.gain(crossfader: 0), 1, accuracy: 0.0001)
+        XCTAssertEqual(TrackMixSettings.SceneMembership.sceneA.gain(crossfader: 1), 0, accuracy: 0.0001)
+        XCTAssertEqual(TrackMixSettings.SceneMembership.sceneB.gain(crossfader: 0), 0, accuracy: 0.0001)
+        XCTAssertEqual(TrackMixSettings.SceneMembership.sceneB.gain(crossfader: 1), 1, accuracy: 0.0001)
+        XCTAssertEqual(TrackMixSettings.SceneMembership.both.gain(crossfader: 0), 1, accuracy: 0.0001)
+        XCTAssertEqual(TrackMixSettings.SceneMembership.both.gain(crossfader: 1), 1, accuracy: 0.0001)
+        XCTAssertEqual(
+            TrackMixSettings.SceneMembership.sceneA.gain(crossfader: 0.5),
+            TrackMixSettings.SceneMembership.sceneB.gain(crossfader: 0.5),
+            accuracy: 0.0001
+        )
+    }
+
     private func decodePersisted(
         _ state: MasterBusState,
         overridingMasterOutputGainWith masterOutputGain: Double

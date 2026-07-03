@@ -337,3 +337,53 @@ appended to this spec's CHANGELOG section below.
   pending). AC7: rows 22e-22h wired (trackGeneratorStage/Kind/Following
   runner vocab); capture pass pending an attended visual-automation session
   (unattended TCC gate).
+
+- 2026-07-03: WS6 delivered on `feat/ws6-scene-inputs` (salvage peel from the
+  wip/ws-batch-snapshot batch, re-knit against post-WS5 main). Model:
+  `TrackMixSettings.SceneMembership` (A / B / both, equal-power
+  `gain(crossfader:)` — cos/sin quarter-wave, nil crossfader = unity) with
+  spec default `.both` and `decodeIfPresent ?? .both` migration (AC4).
+  Engine: the membership gain multiplies into `effectiveMix` for AU hosts
+  and audio-input routing requests, and rides a NEW dedicated RAMPED
+  scene-gain stage on the sample engine (`setTrackSceneGain`, mirrors the
+  `setTrackMuteGain` shape on the same per-track gain node; effective
+  volume = muted ? 0 : level x sceneGain) — the snapshot's variant, which
+  pushed the gain through the SNAPPING fader path and re-zeroed the fader
+  on mute (a reverse-hunk of the b4701881 mute-as-ramped-gain convention),
+  was REJECTED during the peel; that stale pre-b4701881 muted-level scoped
+  test expectation is fixed alongside. Live crossfader overrides and
+  master-bus applies re-derive member gains
+  (`refreshSceneMembershipGains*`), parameter-path only. DEVIATION from the
+  behavior sketch, recorded: the gain stage lives per-track upstream
+  (track gain stage), not inside MasterBusHost — a non-member track is
+  silenced before both scene branches rather than removed from one branch's
+  insert chain; AC1-AC5 semantics are met and the crossfader morphs only
+  member tracks. Sends: Send A/B knobs/config are byte-identical (353829be
+  hard line, AC3) — the scene selector is a Menu chip in the OUTPUT
+  selector's grammar, visually/semantically distinct from the send knobs,
+  and writes ONLY `mix.sceneMembership`; send-leg gains are not scene-gated
+  (scenes-x-sends interaction deferred with the FX-return design). AC
+  evidence: AC1 model curve (MasterBusStateTests gain test) + controller
+  gains (EngineControllerSetMixScopedTests membership test: B-only at full
+  A -> sceneGain 0, sends untouched) + offline RMS render per membership x
+  crossfader-extreme (MasterRenderTests
+  test_sceneMembershipGainSilencesNonMemberTracksInManualRendering —
+  WRITTEN but environment-red on the delivery machine: the whole
+  manual-render family fails -80802 identically on clean origin/main,
+  verified by stash/run; re-run when coreaudiod recovers). AC2:
+  RampBeforeDisconnectTests
+  test_sceneMembershipChange_soundingTrack_rampsGainStage_notHardCut GREEN
+  (sounding chokepoint ramps 0.8 -> 0 -> 0.8, no synchronous hard-cut);
+  the two pre-existing route-switch live tests are identical-red on clean
+  main (environment). AC3: send byte-identity pinned by
+  MasterBusStateTests test_trackMixSceneMembership_leavesSendValuesByteIdentical
+  + the scoped membership test. AC4/default: legacy-JSON decode test ->
+  both. AC5: rows 06c (phraseSceneMembershipFixture=split scenes readout)
+  and 22ba (trackSceneMembership=sceneA routing selector) wired; capture
+  pass pending an attended visual-automation session (unattended TCC
+  gate). Gates: MasterBusState 24/24, SetMixScoped 6/6,
+  SessionMasterBus 21/21, MasterBusHost 14/14, QuantisedToggle 11/11,
+  SessionDestinationMacro 9/9, TrackFillPreview 5/5,
+  OfflineFrameAccuracy 14/14, app build, four lints rc=0;
+  MasterRender/MixerBusRoutingReconnect(live)/RampBeforeDisconnect(route-
+  switch pair) identical-red on clean origin/main this machine.

@@ -302,6 +302,67 @@ final class RampBeforeDisconnectTests: XCTestCase {
         XCTAssertEqual(chokepoint.outputVolume, 0, accuracy: 0.001)
     }
 
+    /// WS6 AC2 (selective scene inputs): flipping a SOUNDING track's scene
+    /// membership is a full-scale gain jump (e.g. 1 → 0 at a crossfader
+    /// extreme) and must RAMP on the track's gain stage — never a hard-cut
+    /// (Hard Rule 5) — and restoring membership ramps the same stage back to
+    /// the fader level (no regression to silence).
+    func test_sceneMembershipChange_soundingTrack_rampsGainStage_notHardCut() throws {
+        MainAudioGraph.useManualRenderingForAutomation = true
+        defer { MainAudioGraph.useManualRenderingForAutomation = false }
+
+        let graph = MainAudioGraph()
+        let engine = SamplePlaybackEngine(audioGraph: graph)
+        try engine.start()
+        defer { engine.stop() }
+
+        let trackID = UUID()
+        engine.prepareTrack(trackID: trackID)
+        engine.setTrackMix(trackID: trackID, level: 0.8, pan: 0)
+        let chokepoint = try XCTUnwrap(engine.trackOutputChokepointNodeForTesting(trackID: trackID))
+        chokepoint.outputVolume = 0.8 // ensure sounding regardless of apply timing
+
+        // B-only membership at a full-A crossfader: scene gain 0. Immediately
+        // after the (synchronous) call the gain stage must still be sounding —
+        // a synchronous zero here is exactly the Hard Rule 5 hard-cut click.
+        engine.setTrackSceneGain(trackID: trackID, gain: 0)
+        XCTAssertGreaterThan(
+            chokepoint.outputVolume, 0.5,
+            "a scene-membership gain change must ramp, not hard-cut the gain stage"
+        )
+
+        // ... and it fades to silence through the ramp.
+        let faded = expectation(description: "scene gain ramps to silence")
+        let fadeDeadline = Date().addingTimeInterval(2.0)
+        func pollFade() {
+            if chokepoint.outputVolume <= 0.001 {
+                faded.fulfill()
+                return
+            }
+            if Date() > fadeDeadline { return }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.005) { pollFade() }
+        }
+        pollFade()
+        wait(for: [faded], timeout: 3.0)
+
+        // Membership restored (or crossfader returned): the same stage ramps
+        // back up to the configured fader level — not stuck silent.
+        engine.setTrackSceneGain(trackID: trackID, gain: 1)
+        let restored = expectation(description: "scene gain ramps back to the fader level")
+        let restoreDeadline = Date().addingTimeInterval(2.0)
+        func pollRestore() {
+            if chokepoint.outputVolume >= 0.79 {
+                restored.fulfill()
+                return
+            }
+            if Date() > restoreDeadline { return }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.005) { pollRestore() }
+        }
+        pollRestore()
+        wait(for: [restored], timeout: 3.0)
+        XCTAssertEqual(chokepoint.outputVolume, 0.8, accuracy: 0.005)
+    }
+
     /// Route-switch CLICK fix (docs/bugs/20260626-route-switch-teardown-hard-cut
     /// and docs/bugs/20260626-route-to-bus-click): re-routing a SOUNDING sample
     /// track between a bus and master must ramp the OUTGOING route's chokepoint
