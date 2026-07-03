@@ -68,8 +68,8 @@ CAPTURES=$(cat <<'TABLE'
 02b-tracks-layer-perform-nav|workspace=phrase,phraseWorkspaceTab=layers,performScopeCount=1|workspace=tracks;tracksSelectionMode=on;tracksClearSelection=true;tracksSelect=first;tracksAction=layerPerform;transport=stop
 02c-create-track-modal|workspace=tracks,tracksCreateTrackModalVisible=true|workspace=tracks;tracksCreateTrackModal=open;transport=stop
 02d-add-drum-group-modal|workspace=tracks,tracksAddDrumGroupModalVisible=true|workspace=tracks;tracksAddDrumGroupModal=open;transport=stop
-02e-add-slice-track-loop-picker|workspace=tracks,tracksAddSliceTrackModalVisible=true|workspace=tracks;tracksAddSliceTrackModal=open;transport=stop
-02f-create-track-sound-step|workspace=tracks,tracksTrackSoundModalVisible=true|workspace=tracks;tracksTrackSoundModal=open;transport=stop
+02e-add-slice-track-loop-picker|workspace=tracks,tracksAddSliceTrackModalVisible=true|workspace=tracks;tracksAddDrumGroupModal=close;tracksAddSliceTrackModal=open;transport=stop
+02f-create-track-sound-step|workspace=tracks,tracksTrackSoundModalVisible=true|workspace=tracks;tracksAddSliceTrackModal=close;tracksTrackSoundModal=open;transport=stop
 # 03/03a RETIRED: the tracks view is now a plain NAVIGATOR (track tiles +
 # add tile), not a perform surface. There is no Edit/Perform split, no
 # BASIS PHRASE banner, no EDIT SET selection bar, no Perform launcher, and
@@ -129,14 +129,14 @@ CAPTURES=$(cat <<'TABLE'
 23d-track-slicer-source-tab|workspace=track,selectedTrackType=slice,slicerFixture=populated,slicerTab=source|slicerFixture=populated;slicerLayer=steps;slicerTab=source;workspaceScroll=bottom;transport=stop
 23e-track-slicer-slice-tab|workspace=track,selectedTrackType=slice,slicerFixture=populated,slicerTab=slice|slicerFixture=populated;slicerLayer=steps;slicerTab=slice;workspaceScroll=bottom;transport=stop
 23f-slice-source-modal|workspace=track,selectedTrackType=slice,slicerFixture=populated,sliceSourceModal=open|slicerFixture=populated;slicerLayer=steps;slicerTab=source;sliceSourceModal=open;transport=stop
-23fa-slice-layer-quick-switch|workspace=track,selectedTrackType=slice,slicerFixture=populated,slicerLayerSwitcher=open|slicerFixture=populated;slicerLayer=steps;slicerLayerSwitcher=open;workspaceScroll=bottom;transport=stop
+23fa-slice-layer-quick-switch|workspace=track,selectedTrackType=slice,slicerFixture=populated,slicerLayerSwitcher=open|sliceSourceModal=close;slicerFixture=populated;slicerLayer=steps;slicerLayerSwitcher=open;workspaceScroll=bottom;transport=stop
 # 23g step-edit rotaries: the StepLayerRotaryRow / StepLayerRotaryDial cluster
 # lives in ClipContentPreview (the melodic Steps/Clip tab), shared code gated on
 # a step selection — it is NOT rendered by the slicer's own SliceStepStrip. So
 # the honest capture of the rotary cluster selects a step on a melodic track's
 # Steps/Clip grid. (The slicer step-selection command exists too — slicerSelectStep
 # — and highlights a slice step, but shows no rotary cluster.)
-23g-step-edit-rotaries|workspace=track,trackSourceTab=steps-clip|sliceSourceModal=close;trackFillSource=clip;trackSourceTab=steps-clip;trackSelectStep=2;transport=stop
+23g-step-edit-rotaries|workspace=track,selectedTrackType=slice,slicerTab=steps|sliceSourceModal=close;slicerFixture=populated;slicerTab=steps;trackSelectStep=2;transport=stop
 24-audio-idle|workspace=track,selectedTrackType=audioInput|audioInputFixture=idle;audioInputAvailableChannels=0;transport=stop
 25-audio-live|workspace=track,audioInputArmState=idle|audioInputState=live;transport=stop
 26-audio-recording|workspace=track,audioInputArmState=recording|audioInputState=recording;transport=stop
