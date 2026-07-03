@@ -141,6 +141,15 @@ struct CreateTrackFlow: View {
                 )
             }
         }
+        // The flow is ONE continuously-presented sheet: when the presenting
+        // item changes step while the sheet is already up (capture-harness
+        // mutual-exclusion commands, e.g. add-slice-track-modal:open while the
+        // drum-group step is showing), SwiftUI reuses this view — @State only
+        // seeds from initialStep at first mount, so without this the old step
+        // stayed mounted and capture rows 02e/02f rendered 02d's modal.
+        .onChange(of: initialStep) { _, newStep in
+            step = newStep
+        }
     }
 
     // MARK: - Chrome per step
