@@ -148,3 +148,19 @@ rule as **function-based, not nesting-based**:
    and slice params become alternate views.
 2. MIXER FX: clicking an FX on a mixer strip opens the standard StudioModal
    FX editor, not the floating mini-panel (docs/bugs/20260703-093500).
+
+## State-colour vocabulary (owner-decided, 2026-07-03: "keep it fenced")
+
+Semantic STATE colours may cross surfaces; they are fenced to SMALL SOLID
+state elements only (badges, dots, rec strips) — never outlines, well
+strokes, or container chrome, which belong exclusively to the surface
+accent:
+- GREEN = capturing / live take (clip history, kit capture, the Playing pill)
+- AMBER = pending / divergent (queued phrase, right-click-armed slot, ghost
+  phrase, override basis)
+- RED = recording events (perform-session rec strip)
+Lint: these are sanctioned via the state-colour classes; ux-canon-lint
+continues to block accent washes and grey creep, not fenced state colours.
+The deferred clip-history finding from 7ea2b5bd is hereby resolved: keep
+green, verify it is fenced (audit its current usage for any outline/chrome
+use and fold only those).

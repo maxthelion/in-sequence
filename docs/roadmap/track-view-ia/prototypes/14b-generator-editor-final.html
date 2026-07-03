@@ -1,0 +1,504 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Generator editor, final — split stages + hoisted result strip + header chord chip</title>
+<style>
+  :root {
+    --ground:#0d0d10; --inset:#060608; --border:#62626c; --text:#e8e8ec; --muted:#9a9aa4;
+    --fill1: rgba(255,255,255,.05);
+    --cyan:#00ccff; --amber:#ffb444; --green:#4ceb85; --violet:#a187ff;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:#000; color:var(--text); font:14px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; padding:28px 0 60px; }
+  .page { max-width:1180px; margin:0 auto; padding:0 20px; }
+  .page > h1 { font-size:19px; margin:0 0 3px; }
+  .page > .sub { color:var(--muted); font-size:12px; margin:0 0 22px; max-width:920px; }
+
+  .statebar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; padding:10px 14px; border:1px solid #26262c; border-radius:10px; margin-bottom:26px; background:#0a0a0c; }
+  .statebar b { font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); margin-right:4px; }
+  .statebar button { font:inherit; font-size:11px; background:transparent; color:var(--muted); border:1px solid var(--border); border-radius:7px; padding:5px 9px; cursor:pointer; }
+  .statebar button.current { color:var(--cyan); border-color:var(--cyan); }
+  .statebar a.swap { font-size:11px; color:var(--cyan); text-decoration:none; border:1px solid var(--border); border-radius:7px; padding:5px 9px; }
+  .statebar a.swap:last-child { margin-left:auto; }
+
+  .surface { background:var(--ground); border:1px solid #232328; border-radius:16px; padding:22px 22px 26px; margin-bottom:20px; --accent:var(--cyan); }
+  .surface-head { display:flex; align-items:baseline; gap:10px; margin-bottom:14px; }
+  .surface-head .name { font-size:17px; font-weight:800; }
+  .surface-head .kind { font-size:10px; letter-spacing:.1em; text-transform:uppercase; font-weight:800; color:var(--accent); }
+
+  /* primary section switcher — D-pill grammar, the TRACK's own tabs (Steps/Clip etc) */
+  .tabstrip.seg { display:flex; gap:4px; padding:3px; background:var(--fill1); border:1.5px solid rgba(98,98,108,.9); border-radius:12px; margin-bottom:5px; }
+  .tabstrip.seg .schip { flex:1; border:none; background:transparent; color:rgba(232,232,236,.78); font:inherit; font-size:11px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; padding:10px 8px; border-radius:10px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; white-space:nowrap; }
+  .tabstrip.seg .schip.active { background:var(--accent); color:var(--ground); }
+  .tabstrip.seg .schip .mini-badge { font-size:9px; font-weight:800; padding:2px 5px; border-radius:6px; background:var(--accent); color:var(--ground); text-transform:none; letter-spacing:0; }
+  .tabstrip.seg .schip.active .mini-badge { background:var(--ground); color:var(--accent); }
+
+  .well { background:var(--fill1); border:1.5px solid var(--accent); border-radius:12px; padding:18px; }
+  .well-pane[hidden] { display:none; }
+  .stub { border:1.5px dashed var(--border); border-radius:10px; padding:26px; text-align:center; color:var(--muted); font-size:12px; letter-spacing:.02em; }
+
+  /* ---- (1) generator header row: name/mode chip + hoisted FOLLOWING chip + Bake action ---- */
+  .gen-hdr { display:flex; align-items:center; gap:10px; margin-bottom:14px; flex-wrap:wrap; }
+  .badge-lg { font-size:10px; font-weight:800; padding:4px 8px; border-radius:8px; background:var(--accent); color:var(--ground); }
+  .gen-hdr .t { font-size:14px; font-weight:800; }
+  .gen-hdr .kind { font-size:10px; letter-spacing:.1em; text-transform:uppercase; font-weight:800; color:var(--accent); }
+  .following { display:inline-flex; align-items:center; gap:6px; font-size:10px; font-weight:800; letter-spacing:.04em; color:var(--amber); background:rgba(255,180,68,.12); border:1px solid var(--amber); border-radius:999px; padding:5px 10px; }
+  .following .lbl { color:var(--muted); font-weight:700; text-transform:uppercase; letter-spacing:.06em; }
+  .btn-dice { margin-left:auto; position:relative; display:inline-flex; align-items:center; gap:8px; background:var(--accent); color:var(--ground); border:none; border-radius:10px; padding:9px 14px; font-weight:800; font-size:12px; letter-spacing:.02em; cursor:pointer; white-space:nowrap; }
+  .btn-dice .ic { font-size:14px; }
+
+  /* ---- (2) always-visible combined result strip ---- */
+  .seg-block { margin-bottom:14px; }
+  .seg-block:last-child { margin-bottom:0; }
+  .seg-label { font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); font-weight:700; margin-bottom:7px; display:flex; align-items:center; gap:8px; }
+  .previewgrid { display:grid; grid-template-columns:repeat(16,1fr); gap:5px; }
+  .pstep { position:relative; border:1px solid rgba(98,98,108,.6); border-radius:8px; padding:6px 3px; min-height:52px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; background:rgba(255,255,255,.02); }
+  .pstep.on { border-color:var(--accent); }
+  .pstep.on.clustered { border-width:1.5px; background:rgba(0,204,255,.06); }
+  .pstep .dot { width:8px; height:8px; border-radius:50%; border:1.5px solid rgba(98,98,108,.7); }
+  .pstep.on .dot { background:var(--accent); border-color:var(--accent); }
+  .pstep .note { font-size:9px; color:var(--muted); font-weight:700; }
+  .pstep.on .note { color:var(--text); }
+  .flagmark { position:absolute; top:-6px; width:13px; height:13px; border-radius:50%; background:var(--ground); border:1px solid rgba(98,98,108,.9); font-size:8px; font-weight:800; display:flex; align-items:center; justify-content:center; color:var(--text); }
+  .flagmark.acc { left:-6px; }
+  .flagmark.oct { right:-6px; }
+
+  .divider { height:1px; background:rgba(98,98,108,.3); margin:14px 0; }
+
+  /* ---- (3) stage switcher — inset-track solid-thumb (VALUE-SELECTOR family, not D-pill:
+       this editor already lives inside the track's own well) ---- */
+  .track { display:inline-flex; gap:3px; padding:3px; background:var(--inset); border:1px solid rgba(98,98,108,.55); border-radius:999px; flex-wrap:wrap; }
+  .track.wide { display:flex; width:100%; }
+  .track .chip { border:none; background:transparent; color:rgba(232,232,236,.72); font:inherit; font-size:11px; font-weight:700; padding:7px 13px; border-radius:999px; cursor:pointer; white-space:nowrap; }
+  .track .chip.wide { flex:1; text-align:center; }
+  .track .chip.on { background:var(--accent); color:var(--ground); }
+  .track.stagesel .chip { font-size:12px; padding:9px 13px; }
+
+  .eyebrow-row { display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+  .eyebrow-row .eyebrow { font-size:10px; letter-spacing:.1em; text-transform:uppercase; font-weight:800; color:var(--accent); }
+
+  /* euclidean / deviation / selection rotaries — shared 7-o'clock->5-o'clock top-arc dial */
+  .knobrow { display:flex; gap:20px; flex-wrap:wrap; }
+  .knob-wrap { display:flex; flex-direction:column; align-items:center; gap:7px; }
+  .knob-dial { position:relative; }
+  .knob-dial .ring-track, .knob-dial .ring-value {
+    position:absolute; inset:0; border-radius:50%;
+    -webkit-mask:radial-gradient(closest-side, transparent 0 65%, #000 67% 100%);
+    mask:radial-gradient(closest-side, transparent 0 65%, #000 67% 100%);
+  }
+  .knob-dial .ring-track { background:conic-gradient(from 210deg, rgba(98,98,108,.55) 0deg 300deg, transparent 300deg 360deg); }
+  .knob-dial .needle { position:absolute; width:7px; height:7px; margin:-3.5px; border-radius:50%; background:var(--ground); border:2px solid var(--accent); }
+  .knob-dial .center { position:absolute; inset:12px; border-radius:50%; background:var(--ground); display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:800; text-align:center; padding:2px; }
+  .knob-dial.bipolar::before { content:''; position:absolute; top:-3px; left:50%; width:2px; height:6px; background:var(--border); transform:translateX(-50%); z-index:2; }
+  .knob-label { font-size:10px; font-weight:700; color:var(--muted); text-align:center; letter-spacing:.03em; text-transform:uppercase; }
+  .knob-wrap.hot .knob-label { color:var(--accent); }
+
+  /* CLUSTER — bipolar, center-zero, R/A end glyphs */
+  .cluster-block { display:flex; align-items:flex-start; gap:16px; }
+  .cluster-dial-wrap { position:relative; padding:0 12px; }
+  .cluster-end { position:absolute; bottom:2px; width:16px; height:16px; border-radius:5px; border:1px solid rgba(98,98,108,.7); display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:800; color:var(--muted); background:var(--ground); }
+  .cluster-end.r { left:-2px; }
+  .cluster-end.a { right:-2px; }
+  .cluster-end.active { background:var(--accent); border-color:var(--accent); color:var(--ground); }
+  .cluster-meta { display:flex; flex-direction:column; gap:4px; justify-content:center; font-size:10px; color:var(--muted); max-width:220px; padding-top:6px; }
+  .cluster-meta b { color:var(--text); }
+
+  /* POOL / SELECTION / DEVIATION groups */
+  .fld-row { display:grid; grid-template-columns:1fr 1.6fr; gap:14px; align-items:end; }
+  .stepper { display:inline-flex; align-items:center; gap:8px; background:var(--inset); border:1px solid rgba(98,98,108,.55); border-radius:999px; padding:4px; }
+  .stepper .icon-btn { width:24px; height:24px; border:none; background:transparent; color:var(--muted); border-radius:50%; cursor:pointer; }
+  .stepper .val { min-width:34px; text-align:center; font-size:12px; font-weight:800; }
+  .pool-chip { font-size:9px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; color:var(--muted); border:1px solid rgba(98,98,108,.6); border-radius:999px; padding:3px 8px; }
+
+  .markov-row { display:flex; gap:8px; margin-top:8px; align-items:center; }
+  .markov-row[hidden] { display:none; }
+  .markov-row .mlbl { font-size:9px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); font-weight:700; }
+
+  .weighted-hint { color:var(--muted); font-weight:400; text-transform:none; font-size:10px; }
+  .wbars { display:grid; grid-template-columns:repeat(16,1fr); gap:5px; height:88px; align-items:end; }
+  .wbar { display:flex; flex-direction:column; align-items:center; gap:5px; height:100%; justify-content:flex-end; cursor:pointer; }
+  .wbar .fill { width:100%; border-radius:4px 4px 2px 2px; background:var(--accent); min-height:4px; }
+  .wbar .n { font-size:8px; color:var(--muted); font-weight:700; }
+
+  .legend { border:1.5px dashed var(--border); border-radius:12px; padding:16px 18px; margin-top:20px; background:#0a0a0c; }
+  .legend .lt { font-size:11px; letter-spacing:.08em; text-transform:uppercase; font-weight:800; color:var(--muted); margin-bottom:10px; }
+  .legend ul { margin:0; padding-left:18px; font-size:12px; color:#c9c9d1; line-height:1.7; }
+  .legend li b { color:var(--text); }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>Generator editor, final direction — split stages kept, result strip + FOLLOWING chip hoisted</h1>
+  <p class="sub">Resolves <code>docs/intents/inbox/20260703-101500-generator-pipeline-synthesis.md</code>'s semantics correction: the chord sidechain is a PITCH-POOL FILTER ONLY, never a trigger input, so the two-stage editor (Trigger owns triggers, Pitch owns note selection incl. chord filter) is kept as the honest stage contract. Fixes the visibility problem the unified alternative in <code>14-generators.html</code>(c) was solving without merging the stages: an always-visible combined RESULT STRIP now sits above the stage tabs, and the FOLLOWING chord chip moves to the generator HEADER so the dependency reads from either tab. Trigger vocabulary adds WEIGHTED source and a shared CLUSTER placement-character axis (bipolar, repulsion&harr;attraction — the same axis a future density transform will reuse). Pitch vocabulary adds a DEVIATION family (accidentals / octave / leading) alongside POOL and SELECTION.</p>
+
+  <div class="statebar">
+    <b>Jump to state</b>
+    <button id="btn-a" onclick="setPrototypeState('a-trigger')">a-trigger (weighted, attraction)</button>
+    <button id="btn-b" onclick="setPrototypeState('b-pitch')">b-pitch (deviation, flags)</button>
+    <a class="swap" href="14-generators.html">&rarr; 14 (split vs. unified comparison)</a>
+    <a class="swap" href="08-unified-tab-well-D.html">&rarr; 08-D (tab well)</a>
+  </div>
+
+  <section class="surface" id="surface-mono">
+    <div class="surface-head"><span class="name">Mono 12</span><span class="kind">Mono Track</span></div>
+
+    <div class="tabstrip seg">
+      <button class="schip active" data-tab="steps" onclick="selectTrackTab('steps')">Steps / Clip<span class="mini-badge">Gen</span></button>
+      <button class="schip" data-tab="sound" onclick="selectTrackTab('sound')">Sound<span class="mini-badge">Empty</span></button>
+      <button class="schip" data-tab="fx" onclick="selectTrackTab('fx')">FX<span class="mini-badge">Insert</span></button>
+      <button class="schip" data-tab="macros" onclick="selectTrackTab('macros')">Macros<span class="mini-badge">Empty</span></button>
+      <button class="schip" data-tab="mixer" onclick="selectTrackTab('mixer')">Mixer<span class="mini-badge">Master</span></button>
+    </div>
+
+    <div class="well">
+      <div class="well-pane" data-pane="steps">
+
+        <!-- ================= 1. GENERATOR HEADER ================= -->
+        <div class="gen-hdr">
+          <span class="badge-lg">Gen</span>
+          <span class="t">Mono 12</span>
+          <span class="kind">Generator</span>
+          <div class="following" id="genFollowing"><span class="lbl">Following</span> Chords 3 &middot; iv</div>
+          <button class="btn-dice" id="bakeBtn"><span class="ic">&#127922;</span><span>Bake to clip</span></button>
+        </div>
+
+        <!-- ================= 2. ALWAYS-VISIBLE COMBINED RESULT STRIP ================= -->
+        <div class="seg-block">
+          <div class="seg-label">Result <span style="color:var(--muted);font-weight:400;text-transform:none;font-size:10px">&mdash; resolved triggers + pitch, either stage</span></div>
+          <div class="previewgrid" id="resultStrip"></div>
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- ================= 3. STAGE SWITCHER (inset-track, value-selector family) ================= -->
+        <div class="seg-block">
+          <div class="track wide stagesel" id="stageSwitch">
+            <button class="chip wide on" data-stage="trigger" onclick="setStage('trigger')">Trigger</button>
+            <button class="chip wide" data-stage="pitch" onclick="setStage('pitch')">Pitch</button>
+          </div>
+        </div>
+
+        <!-- ================= 4. STAGE CONTENT ================= -->
+        <div class="stage-pane" data-stage="trigger" id="pane-trigger">
+          <div class="seg-block">
+            <div class="seg-label">Source</div>
+            <div class="track wide" id="sourceRow">
+              <button class="chip wide on" data-src="euclidean" onclick="setSource('euclidean')">Euclidean</button>
+              <button class="chip wide" data-src="weighted" onclick="setSource('weighted')">Weighted</button>
+              <button class="chip wide" data-src="manual" onclick="setSource('manual')">Manual</button>
+            </div>
+          </div>
+
+          <div class="seg-block" id="euclideanBlock">
+            <div class="knobrow">
+              <div class="knob-wrap hot" id="dialPulses"></div>
+              <div class="knob-wrap" id="dialSteps"></div>
+              <div class="knob-wrap" id="dialOffset"></div>
+            </div>
+          </div>
+
+          <div class="seg-block" id="weightedBlock" hidden>
+            <div class="seg-label">Per-step weight <span class="weighted-hint">&mdash; tap a step to cycle 0 / .25 / .5 / .75 / 1</span></div>
+            <div class="wbars" id="weightedBars"></div>
+          </div>
+
+          <div class="seg-block" id="manualBlock" hidden>
+            <div class="stub">[ manual step entry &mdash; off path ]</div>
+          </div>
+
+          <div class="seg-block" id="clusterBlock">
+            <div class="seg-label">Cluster <span style="color:var(--muted);font-weight:400;text-transform:none;font-size:10px">&mdash; shared with the density transform</span></div>
+            <div class="cluster-block">
+              <div class="cluster-dial-wrap">
+                <div class="knob-wrap" id="dialCluster"></div>
+                <span class="cluster-end r" id="clusterEndR">R</span>
+                <span class="cluster-end a" id="clusterEndA">A</span>
+              </div>
+              <div class="cluster-meta"><b>Placement character</b> for added/weighted triggers &mdash; repulsion spreads hits, attraction pulls them into rolls.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="stage-pane" data-stage="pitch" id="pane-pitch" hidden>
+          <div class="eyebrow-row"><span class="eyebrow">Pool</span></div>
+          <div class="seg-block">
+            <div class="fld-row">
+              <div>
+                <div class="seg-label">Root</div>
+                <div class="stepper"><button class="icon-btn">&lsaquo;</button><span class="val">C4</span><button class="icon-btn">&rsaquo;</button></div>
+              </div>
+              <div>
+                <div class="seg-label">Scale</div>
+                <div class="track wide">
+                  <button class="chip wide">Major</button>
+                  <button class="chip wide on">Nat Minor</button>
+                  <button class="chip wide">Dorian</button>
+                  <button class="chip wide">Phrygian</button>
+                  <button class="chip wide">Mixolydian</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="seg-block">
+            <div class="seg-label">Chord Source <span class="pool-chip">Pool filter only</span></div>
+            <div class="track wide" id="chordSourceRow"></div>
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="eyebrow-row"><span class="eyebrow">Selection</span></div>
+          <div class="seg-block">
+            <div class="cluster-block">
+              <div class="cluster-dial-wrap" style="padding:0">
+                <div class="knob-wrap" id="dialSelection"></div>
+              </div>
+              <div class="cluster-meta">
+                <b>Memory</b> &mdash; uniform random over the pool at 0%, increasingly last-note-influenced past center.
+                <div class="markov-row" id="markovRow" hidden>
+                  <span class="mlbl">Style</span>
+                  <div class="track" id="markovStyleRow">
+                    <button class="chip" data-style="vocal">Vocal</button>
+                    <button class="chip on" data-style="balanced">Balanced</button>
+                    <button class="chip" data-style="jazz">Jazz</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="eyebrow-row"><span class="eyebrow">Deviation</span></div>
+          <div class="seg-block">
+            <div class="knobrow">
+              <div class="knob-wrap" id="dialAccidentals"></div>
+              <div class="knob-wrap" id="dialOctave"></div>
+              <div class="knob-wrap" id="dialLeading"></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+      <div class="well-pane" data-pane="sound" hidden><div class="stub">[ instrument picker &mdash; off path ]</div></div>
+      <div class="well-pane" data-pane="fx" hidden><div class="stub">[ insert chain &mdash; off path ]</div></div>
+      <div class="well-pane" data-pane="macros" hidden><div class="stub">[ M1&ndash;M8 &mdash; off path ]</div></div>
+      <div class="well-pane" data-pane="mixer" hidden><div class="stub">[ bus + sends &mdash; off path ]</div></div>
+    </div>
+  </section>
+
+  <div class="legend">
+    <div class="lt">Reviewer annotations &mdash; not part of the design</div>
+    <ul>
+      <li><b>Header hoist:</b> the amber FOLLOWING chip and the Bake-to-clip action (the bake/randomize primitive from <code>20260702-150003-clip-randomize-baked.md</code> / the pipeline synthesis's <code>bake(source + seed) -&gt; clip</code>) now live in the generator header, visible from Trigger or Pitch &mdash; the thing 14(c)'s unified surface was solving, without merging the stages.</li>
+      <li><b>Result strip:</b> always shows resolved trigger + pitch, independent of which stage tab is open &mdash; the split editor's one weakness, fixed structurally instead of by unifying.</li>
+      <li><b>Stage switcher:</b> deliberately the inset-track solid-thumb grammar (value-selector family, same as Mode/Lane/Layer chips), not the D-pill grammar &mdash; this editor is already content inside the track's own Steps/Clip D-pill + well, so a second pill row here would read as a sibling section rather than a subordinate switch.</li>
+      <li><b>Cluster:</b> bipolar, center-zero rotary (top-arc dial, zero tick at 12 o'clock) shared with the future density transform's placement character; R/A end glyphs light up solid on whichever side the value leans.</li>
+      <li><b>Chord filter semantics:</b> the "Pool filter only" chip next to Chord Source states the 2026-07-03 correction directly &mdash; the sidechain filters available pitches, it is never a trigger input, so it has no presence in the Trigger stage at all.</li>
+      <li><b>Result-strip flags (state b):</b> a small ring badge at a step's top-left marks an accidental (out-of-pool tone let through by the Accidentals deviation knob); top-right marks an octave jump (register change let through by Octave &plusmn;). Shape only, no caption.</li>
+      <li><b>Weighted</b> trigger source and the Cluster/Deviation families do not exist in <code>StepAlgo</code>/<code>PitchAlgoEditor</code> yet &mdash; proposal only, per the pipeline synthesis's generator vocabulary section.</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+  // ---- track-level D-pill tabs (Steps/Clip, Sound, FX, Macros, Mixer) ----
+  function selectTrackTab(tabName) {
+    document.querySelectorAll('#surface-mono > .tabstrip.seg .schip').forEach(function (el) {
+      el.classList.toggle('active', el.dataset.tab === tabName);
+    });
+    document.querySelectorAll('#surface-mono .well-pane').forEach(function (el) {
+      el.hidden = el.dataset.pane !== tabName;
+    });
+  }
+
+  // ---- stage switcher (Trigger / Pitch) ----
+  function setStage(stage) {
+    document.querySelectorAll('#stageSwitch .chip').forEach(function (el) {
+      el.classList.toggle('on', el.dataset.stage === stage);
+    });
+    document.querySelectorAll('.stage-pane').forEach(function (el) {
+      el.hidden = el.dataset.stage !== stage;
+    });
+  }
+
+  // ---- trigger source (Euclidean / Weighted / Manual) ----
+  function setSource(src) {
+    document.querySelectorAll('#sourceRow .chip').forEach(function (el) {
+      el.classList.toggle('on', el.dataset.src === src);
+    });
+    document.getElementById('euclideanBlock').hidden = src !== 'euclidean';
+    document.getElementById('weightedBlock').hidden = src !== 'weighted';
+    document.getElementById('manualBlock').hidden = src !== 'manual';
+    document.getElementById('clusterBlock').hidden = src === 'manual';
+  }
+
+  // ---- weighted per-step bars ----
+  function buildWeightedBars(seed) {
+    var levels = [0, 0.25, 0.5, 0.75, 1];
+    var el = document.getElementById('weightedBars');
+    el.innerHTML = '';
+    seed.forEach(function (level, i) {
+      var wrap = document.createElement('div');
+      wrap.className = 'wbar';
+      var fill = document.createElement('div');
+      fill.className = 'fill';
+      fill.style.height = Math.max(4, level * 100) + '%';
+      var n = document.createElement('div');
+      n.className = 'n';
+      n.textContent = i + 1;
+      wrap.appendChild(fill);
+      wrap.appendChild(n);
+      var idx = levels.indexOf(level);
+      wrap.addEventListener('click', function () {
+        idx = (idx + 1) % levels.length;
+        fill.style.height = Math.max(4, levels[idx] * 100) + '%';
+      });
+      el.appendChild(wrap);
+    });
+  }
+
+  // ---- chord source row (drives both the Pool-stage row and the header FOLLOWING chip) ----
+  function buildChordSourceRow(selectedLabel) {
+    var row = document.getElementById('chordSourceRow');
+    row.innerHTML = '';
+    var options = [
+      { label: 'None', follow: false },
+      { label: 'Chord Context', follow: false },
+      { label: 'Chords 3', follow: true },
+      { label: 'Chords 7', follow: true },
+    ];
+    options.forEach(function (opt) {
+      var b = document.createElement('button');
+      b.className = 'chip wide' + (opt.label === selectedLabel ? ' on' : '');
+      b.textContent = opt.label;
+      b.addEventListener('click', function () {
+        row.querySelectorAll('.chip').forEach(function (c) { c.classList.remove('on'); });
+        b.classList.add('on');
+        setFollowing(opt.follow ? opt.label : null);
+      });
+      row.appendChild(b);
+    });
+  }
+  function setFollowing(label) {
+    var el = document.getElementById('genFollowing');
+    if (label) {
+      el.hidden = false;
+      el.innerHTML = '<span class="lbl">Following</span> ' + label + ' &middot; iv';
+    } else {
+      el.hidden = true;
+    }
+  }
+
+  // ---- shared 7-o'clock->5-o'clock top-arc dial (unipolar 0..1 or bipolar -1..1) ----
+  function polarBG(fromDeg, aDeg, bDeg) {
+    return 'conic-gradient(from ' + fromDeg + 'deg, transparent 0deg ' + aDeg + 'deg, var(--accent) ' + aDeg + 'deg ' + bDeg + 'deg, transparent ' + bDeg + 'deg 300deg, transparent 300deg 360deg)';
+  }
+  function needlePos(cx, cy, r, angleDeg) {
+    var rad = angleDeg * Math.PI / 180;
+    return { x: cx + r * Math.sin(rad), y: cy - r * Math.cos(rad) };
+  }
+  function renderDial(wrapId, opts) {
+    var wrap = document.getElementById(wrapId);
+    var size = opts.size || 64;
+    var cx = size / 2, cy = size / 2, r = size / 2 - 10;
+    var aDeg, bDeg, angle;
+    if (opts.bipolar) {
+      var offset = opts.value * 150;
+      if (offset >= 0) { aDeg = 150; bDeg = 150 + offset; } else { aDeg = 150 + offset; bDeg = 150; }
+      angle = (210 + 150 + offset + 360) % 360;
+    } else {
+      var sweep = opts.value * 300;
+      aDeg = 0; bDeg = sweep;
+      angle = 210 + sweep;
+    }
+    var pos = needlePos(cx, cy, r, angle);
+    wrap.className = 'knob-wrap' + (opts.hot ? ' hot' : '');
+    wrap.innerHTML =
+      '<div class="knob-dial' + (opts.bipolar ? ' bipolar' : '') + '" style="width:' + size + 'px;height:' + size + 'px">' +
+        '<div class="ring-track"></div>' +
+        '<div class="ring-value" style="background:' + polarBG(210, aDeg, bDeg) + '"></div>' +
+        '<div class="needle" style="left:' + pos.x + 'px; top:' + pos.y + 'px"></div>' +
+        '<div class="center">' + opts.display + '</div>' +
+      '</div>' +
+      '<div class="knob-label">' + opts.label + '</div>';
+  }
+
+  function renderCluster(value) {
+    renderDial('dialCluster', { size:64, bipolar:true, value:value, display:(value >= 0 ? '+' : '') + Math.round(value * 100) + '%', label:'Cluster' });
+    document.getElementById('clusterEndR').classList.toggle('active', value < -0.08);
+    document.getElementById('clusterEndA').classList.toggle('active', value > 0.08);
+  }
+
+  function renderSelection(value) {
+    renderDial('dialSelection', { size:64, value:value, display:Math.round(value * 100) + '%', label:'Uniform ↔ Last-note', hot:value > 0.5 });
+    document.getElementById('markovRow').hidden = value <= 0.5;
+  }
+
+  // ---- (2) always-visible combined result strip ----
+  function renderResultStrip(triggered, notes, accIdx, octIdx) {
+    var el = document.getElementById('resultStrip');
+    el.innerHTML = '';
+    for (var i = 0; i < 16; i++) {
+      var on = triggered.indexOf(i) !== -1;
+      var cell = document.createElement('div');
+      cell.className = 'pstep' + (on ? ' on' : '');
+      if (on && triggered.length > 6) cell.className += ' clustered';
+      var marks = '';
+      if (i === accIdx) marks += '<span class="flagmark acc">♯</span>';
+      if (i === octIdx) marks += '<span class="flagmark oct">⇅</span>';
+      cell.innerHTML = marks +
+        '<div class="dot"></div>' +
+        '<div class="note">' + (on ? notes[i] : '·') + '</div>';
+      el.appendChild(cell);
+    }
+  }
+
+  // ---- named prototype states ----
+  function setPrototypeState(name) {
+    document.querySelectorAll('.statebar button[id^="btn-"]').forEach(function (b) {
+      b.classList.toggle('current', b.id === 'btn-' + name.split('-')[0]);
+    });
+    selectTrackTab('steps');
+    buildChordSourceRow('Chords 3');
+    setFollowing('Chords 3');
+    renderDial('dialPulses', { size:64, value:4/16, display:'4', label:'Pulses', hot:true });
+    renderDial('dialSteps', { size:64, value:1, display:'16', label:'Steps' });
+    renderDial('dialOffset', { size:64, value:0, display:'0', label:'Offset' });
+    renderDial('dialAccidentals', { size:48, value:0.25, display:'25%', label:'Accidentals' });
+    renderDial('dialOctave', { size:48, value:0.18, display:'18%', label:'Octave ±' });
+    renderDial('dialLeading', { size:48, value:0.15, display:'15%', label:'Leading' });
+    renderSelection(0.3);
+    renderCluster(0);
+
+    if (name === 'a-trigger') {
+      setStage('trigger');
+      setSource('weighted');
+      buildWeightedBars([0.25, 0.5, 1, 1, 0.75, 0, 0, 0.25, 1, 0.75, 0, 0, 0, 0.5, 1, 1]);
+      renderCluster(0.65);
+      renderResultStrip(
+        [0, 1, 2, 3, 8, 9, 13, 14, 15],
+        { 0:'C4', 1:'D4', 2:'Eb4', 3:'F4', 8:'G4', 9:'Ab4', 13:'Bb4', 14:'C5', 15:'D5' },
+        -1, -1
+      );
+    } else if (name === 'b-pitch') {
+      setStage('pitch');
+      setSource('euclidean');
+      buildWeightedBars([1, 0, 0.5, 0, 1, 0.25, 0, 0.75, 1, 0, 0.5, 0, 0.25, 0, 1, 0]);
+      renderSelection(0.68);
+      document.querySelectorAll('#markovStyleRow .chip').forEach(function (c) {
+        c.classList.toggle('on', c.dataset.style === 'jazz');
+      });
+      renderResultStrip(
+        [0, 4, 8, 10, 14],
+        { 0:'C4', 4:'F#4', 8:'G4', 10:'Bb3', 14:'D4' },
+        4, 10
+      );
+    }
+  }
+
+  setPrototypeState('a-trigger');
+</script>
+</body>
+</html>

@@ -149,6 +149,13 @@ now cover the three connection forms he asked to compare:
     (trigger dots + resolved note names) that only the unified form can show.
     (b) and (c) are functionally equivalent so split-vs-unified reads as a
     structural comparison only — the owner's open question from intent 150005.
+    **Explored and declined** (see `14b-generator-editor-final.html` below):
+    the pipeline-synthesis semantics correction (2026-07-03) — the chord
+    sidechain is a pitch-pool filter only, never a trigger input — makes the
+    two-stage contract the honest one (Trigger stage never touches chords).
+    The unified form's one real advantage, the combined-result visibility,
+    is kept by hoisting a result strip above the stages instead of merging
+    them.
   - States: `chord-instrument`, `chord-sidechain`, `mono-split-euclidean`,
     `mono-split-weighted`, `mono-split-pitch`, `mono-unified-euclidean`,
     `mono-unified-weighted` (all via `setPrototypeState(...)`). Render with
@@ -158,7 +165,79 @@ now cover the three connection forms he asked to compare:
     surface's own Trigger pane (shown fully in (b) instead). Weighted trigger
     does not exist in `StepAlgo` yet — proposal only.
 
-Copies of all rendered PNGs (08-A/B/C/D + 09 + 14) also live at
+### Generator editor, final direction (pipeline synthesis + vocabulary)
+- `14b-generator-editor-final.html` — resolves
+  `docs/intents/inbox/20260703-101500-generator-pipeline-synthesis.md`: the
+  two-stage editor from `14-generators.html`(b) is KEPT (chord filter =
+  pitch-pool only, never a trigger input, so Trigger/Pitch stay a clean,
+  non-overlapping contract), with the visibility problem fixed structurally
+  instead of by unifying the stages:
+  - **Header** — generator name/mode chip (`Gen` badge + name + "Generator"
+    kind label) + the FOLLOWING chord chip hoisted out of the Pitch stage so
+    it reads from either tab + a "Bake to clip" solid-dice action button (the
+    `bake(source + seed) -> clip` primitive from the synthesis doc).
+  - **Always-visible combined result strip** — a one-bar preview lane
+    (trigger dot + resolved pitch label per step) directly under the header,
+    independent of which stage tab is open. This was the unified form's one
+    structural advantage; it now lives above the stages, shared.
+  - **Stage switcher** — Trigger/Pitch as an inset-track solid-thumb pair
+    (value-selector family), deliberately NOT the D-pill grammar: this editor
+    already lives inside the track's own Steps/Clip D-pill + well, so a
+    second pill row here would read as a sibling section rather than a
+    subordinate switch.
+  - **Trigger stage** — Source segments Euclidean/Weighted/Manual (Manual is
+    a stub); Euclidean = Pulses/Steps/Offset rotaries; Weighted = 16 per-step
+    probability bars; below either, **Cluster** — a new bipolar rotary
+    (center-zero tick at 12 o'clock, R/A end glyphs light solid on whichever
+    side the value leans) for the placement-character axis the synthesis doc
+    shares with the future density transform (repulsion spreads triggers,
+    attraction rolls them together).
+  - **Pitch stage** — three eyebrow-labelled groups: **Pool** (Root stepper +
+    Scale chips + a Chord Source row carrying a "Pool filter only" state chip
+    that states the semantics correction directly — the chord source has no
+    presence in Trigger at all); **Selection** (one memory-axis rotary,
+    Uniform↔Last-note; past center it reveals a secondary Vocal/Balanced/Jazz
+    style chip row — the Markov option formalized); **Deviation** (new
+    family: Accidentals %, Octave ± %, Leading % as three small rotaries).
+  - All rotaries use the true 7-o'clock→5-o'clock top-arc dial (conic-gradient
+    ring + needle), matching `13-track-perform.html`'s macro knobs — not the
+    plain bordered-circle ring used in `12-clip-randomize.html`/`14`.
+  - States: `a-trigger` (Trigger tab, Weighted source with a visibly clustered
+    weight pattern, Cluster at +65% Attraction, result strip showing three
+    rolled clusters), `b-pitch` (Pitch tab, chord-following on, Selection past
+    center revealing the Jazz style chip, Deviation knobs non-zero, result
+    strip flagging one accidental (F#4, top-left ring badge) and one octave
+    jump (Bb3, top-right ring badge) on the default Euclidean pattern).
+    Render:
+    ```sh
+    node scripts/render-html-prototype-screenshots.mjs \
+      docs/roadmap/track-view-ia/prototypes/14b-generator-editor-final.html \
+      docs/roadmap/track-view-ia/prototypes/rendered/14b-generator-editor-final \
+      'a-trigger=setPrototypeState("a-trigger")' \
+      'b-pitch=setPrototypeState("b-pitch")'
+    ```
+  - Copies at `.meta/multipass/visual-review/feature-track-view-tab-unification/`
+    as `proto-14b-a-trigger.png` / `proto-14b-b-pitch.png`.
+  - **Layout finding (from the renders):** at the render rig's fixed 900px
+    capture height, the Trigger tab (`a-trigger`) fits with visible margin
+    below the Cluster block before the well's bottom border. The Pitch tab
+    (`b-pitch`) does NOT fit — the Deviation trio (Accidentals/Octave/Leading)
+    is entirely below the fold, clipped along with the well's closing border.
+    Pool + Selection (with the revealed Style row) alone consume the
+    available height. This isn't necessarily a real app problem (canon Rule 8
+    says an overflowing pane should scroll internally with themed indicators,
+    and 900px is the render script's fixed height, not a real window's
+    minimum), but it is a legitimate signal that the Pitch stage is
+    meaningfully taller than Trigger and a build pass should either confirm
+    the well-pane scrolls internally or tighten Pitch's vertical rhythm
+    (e.g. Root+Scale already share one row; Selection's meta text column
+    could drop in favor of shorter copy, or Deviation's three dials could
+    sit in a tighter row without the meta-text pattern the other groups use).
+  - Off-path stubs: Sound/FX/Macros/Mixer track tabs, Manual trigger source.
+    Weighted trigger, Cluster, and the Deviation family do not exist in
+    `StepAlgo`/`PitchAlgoEditor` yet — proposal only.
+
+Copies of all rendered PNGs (08-A/B/C/D + 09 + 14 + 14b) also live at
 `.meta/multipass/visual-review/feature-track-view-tab-unification/` as
 `proto-08D-audio-input.png` / `proto-09-kit-matrix.png` etc., so the owner's
 bug-reporter app picks them up; `prototypes/rendered/` stays canonical.
