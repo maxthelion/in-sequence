@@ -3,6 +3,7 @@ import Observation
 
 enum StepGridLayer: Equatable, Sendable {
     case trigger
+    case pitch
     case velocity
     case chance
     case macro(index: Int)
@@ -12,7 +13,7 @@ enum StepGridLayer: Equatable, Sendable {
 
     var isEditableValueLayer: Bool {
         switch self {
-        case .velocity, .chance, .macro, .sliceIndex, .sliceMode, .chord:
+        case .pitch, .velocity, .chance, .macro, .sliceIndex, .sliceMode, .chord:
             return true
         case .trigger:
             return false
@@ -30,6 +31,8 @@ struct StepGridRotaryControl: Equatable, Identifiable, Sendable {
         switch layer {
         case .trigger:
             return "trigger"
+        case .pitch:
+            return "pitch"
         case .velocity:
             return "velocity"
         case .chance:
@@ -212,6 +215,9 @@ final class StepGridCoordinator {
 
         case .velocity:
             return .valueBar(fraction: Self.velocityFraction(at: stepIndex, in: clip.content, noteLane: noteLane))
+
+        case .pitch:
+            return Self.pitchContent(at: stepIndex, in: clip.content, noteLane: noteLane)
 
         case .chance:
             return .valueBar(fraction: Self.chanceFraction(at: stepIndex, in: clip.content, noteLane: noteLane))
@@ -437,6 +443,18 @@ private extension StepGridCoordinator {
         ClipNoteGridStepEditing.chanceFraction(at: index, in: content, noteLane: noteLane)
     }
 
+    static func pitchFraction(at index: Int, in content: ClipContent, noteLane: StepGridNoteLane = .main) -> Double {
+        ClipNoteGridStepEditing.pitchFraction(at: index, in: content, noteLane: noteLane)
+    }
+
+    static func pitchContent(at index: Int, in content: ClipContent, noteLane: StepGridNoteLane = .main) -> StepCellContent {
+        ClipNoteGridStepEditing.pitchContent(at: index, in: content, noteLane: noteLane)
+    }
+
+    static func pitchDisplayValue(at index: Int, in content: ClipContent, noteLane: StepGridNoteLane = .main) -> String {
+        ClipNoteGridStepEditing.pitchDisplayValue(at: index, in: content, noteLane: noteLane)
+    }
+
     static func chordLabel(at index: Int, in content: ClipContent, noteLane: StepGridNoteLane = .main) -> String {
         ClipNoteGridStepEditing.chordLabel(at: index, in: content, noteLane: noteLane)
     }
@@ -455,6 +473,8 @@ private extension StepGridCoordinator {
         switch layer {
         case .velocity:
             return velocityFraction(at: index, in: clip.content, noteLane: noteLane)
+        case .pitch:
+            return pitchFraction(at: index, in: clip.content, noteLane: noteLane)
         case .chance:
             return chanceFraction(at: index, in: clip.content, noteLane: noteLane)
         case let .macro(macroIndex):
@@ -486,6 +506,8 @@ private extension StepGridCoordinator {
         switch layer {
         case .trigger:
             return "Steps"
+        case .pitch:
+            return "Pitch"
         case .velocity:
             return "Velocity"
         case .chance:
@@ -509,6 +531,8 @@ private extension StepGridCoordinator {
         noteLane: StepGridNoteLane
     ) -> String {
         switch layer {
+        case .pitch:
+            return pitchDisplayValue(at: seedStepIndex, in: clip.content, noteLane: noteLane)
         case .velocity:
             return "\(Int((clampedUnit(normalizedValue) * 127).rounded()))"
         case .chance, .macro:

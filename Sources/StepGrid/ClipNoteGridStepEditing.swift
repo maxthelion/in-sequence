@@ -171,6 +171,13 @@ enum ClipNoteGridStepEditing {
                 toggleActive(at: index, entry: &entry, noteLane: noteLane, defaultNote: defaultNote)
             }
 
+        case .pitch:
+            let current = pitchValue(at: tappedIndex, in: entry.content, noteLane: noteLane) ?? defaultNote.pitch
+            let target = nextScalePitch(after: current)
+            for index in indexes {
+                setPitch(target, at: index, entry: &entry, noteLane: noteLane, defaultNote: defaultNote)
+            }
+
         case .sliceIndex:
             guard case let .sliceTriggers(_, sliceIndexes, _, _) = entry.content.normalized,
                   let current = sliceIndexes[safe: tappedIndex]
@@ -223,6 +230,8 @@ enum ClipNoteGridStepEditing {
     ) {
         for index in indexes {
             switch layer {
+            case .pitch:
+                setPitchFraction(value, at: index, entry: &entry, noteLane: noteLane, defaultNote: defaultNote)
             case .velocity:
                 setVelocityFraction(value, at: index, entry: &entry, noteLane: noteLane, defaultNote: defaultNote)
             case .chance:
@@ -337,6 +346,73 @@ enum ClipNoteGridStepEditing {
             )
         }
     }
+
+    static func setPitchFraction(
+        _ value: Double,
+        at index: Int,
+        entry: inout ClipPoolEntry,
+        noteLane: StepGridNoteLane,
+        defaultNote: ClipStepNote
+    ) {
+        let pitch = Int((clampedUnit(value) * 127).rounded())
+        setPitch(pitch, at: index, entry: &entry, noteLane: noteLane, defaultNote: defaultNote)
+    }
+
+    static func setPitch(
+        _ pitch: Int,
+        at index: Int,
+        entry: inout ClipPoolEntry,
+        noteLane: StepGridNoteLane,
+        defaultNote: ClipStepNote
+    ) {
+        guard case let .noteGrid(lengthSteps, steps) = entry.content.normalized else { return }
+        var updated = steps
+        guard updated.indices.contains(index) else { return }
+
+        let resolvedPitch = min(max(pitch, 0), 127)
+        if var existingLane = noteLane.lane(in: updated[index]) {
+            let notes = existingLane.notes.isEmpty ? [defaultNote] : existingLane.notes
+            existingLane.notes = notes.enumerated().map { offset, note in
+                var updatedNote = note
+                updatedNote.pitch = min(max(resolvedPitch + offset, 0), 127)
+                return updatedNote
+            }
+            noteLane.setLane(existingLane, on: &updated[index])
+        } else {
+            var note = defaultNote
+            note.pitch = resolvedPitch
+            noteLane.setLane(ClipLane(chance: 1, notes: [note]), on: &updated[index])
+        }
+        entry.content = .noteGrid(lengthSteps: lengthSteps, steps: updated)
+    }
+
+    /// Octave-band tap on a pitch cell (prototype 11): cycle the tapped
+    /// step's octave in place (+1, wrapping past +2 back to -2 around the
+    /// centre octave), preserving each step's pitch class. Selection-aware:
+    /// every affected step lands on the same target octave.
+    static func applyOctaveTap(
+        tappedIndex: Int,
+        indexes: [Int],
+        entry: inout ClipPoolEntry,
+        noteLane: StepGridNoteLane,
+        defaultNote: ClipStepNote
+    ) {
+        let currentPitch = pitchValue(at: tappedIndex, in: entry.content, noteLane: noteLane) ?? defaultNote.pitch
+        let currentOffset = (currentPitch / 12) - centerOctave
+        let targetOffset = currentOffset >= 2 ? -2 : currentOffset + 1
+        let targetOctave = targetOffset + centerOctave
+
+        for index in indexes {
+            let stepPitch = pitchValue(at: index, in: entry.content, noteLane: noteLane) ?? defaultNote.pitch
+            let pitchClass = ((stepPitch % 12) + 12) % 12
+            let shifted = min(max(targetOctave * 12 + pitchClass, 0), 127)
+            setPitch(shifted, at: index, entry: &entry, noteLane: noteLane, defaultNote: defaultNote)
+        }
+    }
+
+    /// MIDI octave treated as the register centre for the pitch cell's
+    /// 3-dot band (octave 4 = "mid"; C4=60 in the 0-based /12 convention).
+    static let centerOctave = 4
 
     static func setMacroValue(_ value: Double?, at index: Int, entry: inout ClipPoolEntry, binding: TrackMacroBinding) {
         let stepCount = entry.content.stepCount
@@ -521,6 +597,47 @@ enum ClipNoteGridStepEditing {
         }
     }
 
+    static func pitchValue(at index: Int, in content: ClipContent, noteLane: StepGridNoteLane = .main) -> Int? {
+        guard case let .noteGrid(_, steps) = content.normalized else { return nil }
+        return steps[safe: index].flatMap { noteLane.lane(in: $0) }?.notes.first?.pitch
+    }
+
+    static func pitchFraction(at index: Int, in content: ClipContent, noteLane: StepGridNoteLane = .main) -> Double {
+        guard let pitch = pitchValue(at: index, in: content, noteLane: noteLane) else { return 0 }
+        return clampedUnit(Double(pitch) / 127)
+    }
+
+    static func pitchContent(at index: Int, in content: ClipContent, noteLane: StepGridNoteLane = .main) -> StepCellContent {
+        guard let pitch = pitchValue(at: index, in: content, noteLane: noteLane) else {
+            return .pitchLabel(degree: "-", octaveBand: 1, badge: nil)
+        }
+        return pitchContent(for: pitch)
+    }
+
+    static func pitchDisplayValue(at index: Int, in content: ClipContent, noteLane: StepGridNoteLane = .main) -> String {
+        guard let pitch = pitchValue(at: index, in: content, noteLane: noteLane) else { return "-" }
+        let content = pitchContent(for: pitch)
+        if case let .pitchLabel(degree, _, badge) = content {
+            return "\(degree)\(badge ?? "")"
+        }
+        return "\(pitch)"
+    }
+
+    static func pitchContent(for pitch: Int) -> StepCellContent {
+        let octave = pitch / 12
+        let band: Int
+        if octave <= 3 {
+            band = 0
+        } else if octave <= 5 {
+            band = 1
+        } else {
+            band = 2
+        }
+        let centerOffset = octave - 4
+        let badge = abs(centerOffset) > 2 ? (centerOffset > 0 ? "+\(centerOffset)" : "\(centerOffset)") : nil
+        return .pitchLabel(degree: scaleDegreeLabel(for: pitch), octaveBand: band, badge: badge)
+    }
+
     static func chordLabel(at index: Int, in content: ClipContent, noteLane: StepGridNoteLane = .main) -> String {
         guard case let .noteGrid(_, steps) = content.normalized,
               let pitch = steps[safe: index].flatMap({ noteLane.lane(in: $0) })?.notes.first?.pitch
@@ -539,6 +656,32 @@ enum ClipNoteGridStepEditing {
             return 0
         }
         return clampedUnit((value - binding.descriptor.minValue) / range)
+    }
+
+    static func scaleDegreeLabel(for pitch: Int) -> String {
+        switch ((pitch % 12) + 12) % 12 {
+        case 0: return "1"
+        case 1: return "b2"
+        case 2: return "2"
+        case 3: return "b3"
+        case 4: return "3"
+        case 5: return "4"
+        case 6: return "#4"
+        case 7: return "5"
+        case 8: return "b6"
+        case 9: return "6"
+        case 10: return "b7"
+        default: return "7"
+        }
+    }
+
+    static func nextScalePitch(after pitch: Int) -> Int {
+        let majorDegrees: Set<Int> = [0, 2, 4, 5, 7, 9, 11]
+        guard pitch < 127 else { return 0 }
+        for candidate in (pitch + 1)...127 where majorDegrees.contains(((candidate % 12) + 12) % 12) {
+            return candidate
+        }
+        return 0
     }
 
     static func clampedUnit(_ value: Double) -> Double {

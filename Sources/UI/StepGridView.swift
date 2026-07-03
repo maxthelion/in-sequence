@@ -17,6 +17,7 @@ struct StepGridView: View {
     let onValueDrag: ((Int, Double) -> Void)?
     let onSelectStep: ((Int) -> Void)?
     let onBackgroundTap: (() -> Void)?
+    let onOctaveTap: ((Int) -> Void)?
     let advanceStep: (Int) -> Void
 
     init(
@@ -28,6 +29,7 @@ struct StepGridView: View {
         onValueDrag: ((Int, Double) -> Void)? = nil,
         onSelectStep: ((Int) -> Void)? = nil,
         onBackgroundTap: (() -> Void)? = nil,
+        onOctaveTap: ((Int) -> Void)? = nil,
         advanceStep: @escaping (Int) -> Void
     ) {
         self.stepStates = stepStates
@@ -38,6 +40,7 @@ struct StepGridView: View {
         self.onValueDrag = onValueDrag
         self.onSelectStep = onSelectStep
         self.onBackgroundTap = onBackgroundTap
+        self.onOctaveTap = onOctaveTap
         self.advanceStep = advanceStep
     }
 
@@ -68,6 +71,9 @@ struct StepGridView: View {
                         action: { advanceStep(absoluteIndex) },
                         selectAction: onSelectStep.map { select in
                             { select(absoluteIndex) }
+                        },
+                        octaveTapAction: onOctaveTap.map { octave in
+                            { octave(absoluteIndex) }
                         }
                     )
                 }
@@ -91,6 +97,7 @@ private struct StepGridCell: View {
     let valueDragAction: ((Double) -> Void)?
     let action: () -> Void
     let selectAction: (() -> Void)?
+    let octaveTapAction: (() -> Void)?
 
     var body: some View {
         VStack(spacing: 7) {
@@ -105,7 +112,8 @@ private struct StepGridCell: View {
                 content: content,
                 onTap: performAction,
                 onDrag: valueDragAction,
-                onSelect: { selectAction?() }
+                onSelect: { selectAction?() },
+                onOctaveTap: octaveTapAction
             )
         }
         .frame(maxWidth: .infinity)

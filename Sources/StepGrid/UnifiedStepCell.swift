@@ -10,6 +10,10 @@ struct UnifiedStepCell: View {
     let onTap: () -> Void
     let onDrag: ((Double) -> Void)?
     let onSelect: () -> Void
+    /// Octave-band tap on a pitch cell (prototype 11): the 3-dot band is its
+    /// own click target so octave is shiftable directly on the cell. Nil for
+    /// non-pitch content or read-only surfaces.
+    var onOctaveTap: (() -> Void)? = nil
 
     @State private var hasActivatedDrag = false
 
@@ -78,6 +82,28 @@ struct UnifiedStepCell: View {
         case .valueBar:
             EmptyView()
 
+        case let .pitchLabel(degree, octaveBand, badge):
+            VStack(spacing: 3) {
+                HStack(alignment: .top, spacing: 1) {
+                    Text(degree)
+                        .font(.system(size: 15, weight: .bold, design: .rounded))
+                        .foregroundStyle(visualConfiguration.primaryContentColor)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+
+                    if let badge {
+                        Text(badge)
+                            .font(.system(size: 7, weight: .bold, design: .rounded))
+                            .foregroundStyle(visualConfiguration.secondaryContentColor)
+                            .lineLimit(1)
+                    }
+                }
+
+                octaveBandView(octaveBand: octaveBand)
+            }
+            .padding(.horizontal, 3)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+
         case let .sliceLabel(index, label):
             VStack(spacing: 2) {
                 Text("\(index + 1)")
@@ -108,6 +134,35 @@ struct UnifiedStepCell: View {
                 .minimumScaleFactor(0.6)
                 .padding(.horizontal, 3)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+
+    /// The 3-dot low/mid/high octave band. When `onOctaveTap` is wired the
+    /// band is its own tap target (child gesture wins over the cell's
+    /// drag/tap gesture), cycling the step's octave in place.
+    @ViewBuilder
+    private func octaveBandView(octaveBand: Int) -> some View {
+        let dots = HStack(spacing: 3) {
+            ForEach(0..<3, id: \.self) { index in
+                Circle()
+                    .fill(index == min(max(octaveBand, 0), 2)
+                        ? visualConfiguration.primaryContentColor
+                        : visualConfiguration.secondaryContentColor.opacity(0.35))
+                    .frame(width: 4, height: 4)
+            }
+        }
+
+        if let onOctaveTap {
+            dots
+                .padding(.horizontal, 4)
+                .padding(.vertical, 3)
+                .contentShape(Rectangle())
+                .onTapGesture(perform: onOctaveTap)
+                .accessibilityElement()
+                .accessibilityLabel("Octave band")
+                .accessibilityAddTraits(.isButton)
+        } else {
+            dots
         }
     }
 
@@ -173,6 +228,8 @@ struct UnifiedStepCell: View {
             return "Step"
         case .valueBar:
             return "Step value"
+        case let .pitchLabel(degree, _, badge):
+            return "Pitch \(degree)\(badge ?? "")"
         case let .sliceLabel(_, label):
             return "Slice \(label)"
         case let .chordLabel(name):
