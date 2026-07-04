@@ -542,6 +542,63 @@ final class MainAudioGraphTests: XCTestCase {
         // into the next test.
         RunLoop.current.run(until: Date().addingTimeInterval(0.2))
     }
+    /// Regression for the record-arm crash mechanism (bug 20260702-123512,
+    /// QA row 26-audio-recording; standalone-repro-proven AVFAudio poison):
+    /// `disconnectNodeOutput`/`detach` on a node holding a MULTI-POINT (1→N)
+    /// output connection — the per-track send FANOUT splitter — while the
+    /// engine is STOPPED, followed by a restart with that node left
+    /// disconnected, corrupts `AVAudioEngineGraph`'s bookkeeping. The next
+    /// disconnect on the RUNNING engine then dies inside
+    /// `UpdateGraphAfterReconfig` (SIGSEGV at 0x68, null-AUInterface virtual
+    /// call) at an unrelated call site. The app hit this exactly when the QA
+    /// fixture replaced the audio-input track: `syncAudioInputRoutings`'
+    /// stopped full rebuild tore down the host's fanout, and the NEXT
+    /// apply's first disconnect (bus-terminal rewire / prepared-track
+    /// repair) crashed.
+    ///
+    /// Drives that exact sequence through the graph API: install an `.input`
+    /// host WITH send buses (fanout = dry+sendA+sendB multi-point), start,
+    /// tear the host down via a stopped full rebuild, then perform a
+    /// running-engine disconnect. Pre-fix this test CRASHES the host; the
+    /// fix dissolves the fanout's edges point-by-point from the destination
+    /// side (`dissolveOutputConnectionsOnMain`) so every edge is gone before
+    /// detach and the walk never sees the poisoned multi-point entry.
+    @MainActor
+    func test_inputHostTeardownAcrossStoppedRebuild_doesNotPoisonNextDisconnect() throws {
+        MainAudioGraph.simulateAudioInputConnectionForTesting = true
+        defer { MainAudioGraph.simulateAudioInputConnectionForTesting = false }
+        MainAudioGraph.useManualRenderingForAutomation = true
+        defer { MainAudioGraph.useManualRenderingForAutomation = false }
+
+        let graph = MainAudioGraph()
+        // Send buses first: the host's track output then routes through the
+        // persistent fanout splitter (dry + sendA + sendB = 1→3 multi-point).
+        graph.installSendBuses([.sendA, .sendB])
+        let trackID = UUID()
+        graph.syncAudioInputRoutings([
+            MainAudioGraph.AudioInputRoutingRequest(
+                trackID: trackID,
+                source: .input,
+                selectedChannel: .stereo(firstChannel: 0),
+                outputBusID: nil,
+                mix: .default
+            ),
+        ])
+        try graph.start()
+        XCTAssertTrue(graph.isEngineRunning)
+
+        // Track replace: the host teardown runs inside the STOPPED full
+        // rebuild — the poisonous window pre-fix.
+        graph.syncAudioInputRoutings([])
+        XCTAssertTrue(graph.isEngineRunning, "full rebuild restarts a previously running engine")
+
+        // The next running-engine disconnect — the production crash site.
+        let probe = AVAudioMixerNode()
+        graph.attach(probe)
+        graph.connect(probe, to: graph.sendReturnDestinationForTesting)
+        graph.disconnectOutput(probe)
+        graph.detach(probe)
+    }
 }
 
 final class MasterMeterPublisherTests: XCTestCase {

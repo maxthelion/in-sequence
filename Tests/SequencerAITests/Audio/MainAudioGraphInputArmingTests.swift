@@ -21,7 +21,74 @@ final class MainAudioGraphInputArmingTests: XCTestCase {
         MainAudioGraph.liveAudioInputAuthorizedOverrideForTesting = nil
         MainAudioGraph.hardwareInputChannelCountOverrideForTesting = nil
         MainAudioGraph.simulateAudioInputConnectionForTesting = false
+        MainAudioGraph.useManualRenderingForAutomation = false
         super.tearDown()
+    }
+
+    /// Regression for the record-arm crash (bug 20260702-123512, QA row
+    /// 26-audio-recording): under OFFLINE manual rendering (the QA/visual-
+    /// automation environment) a stale-authorized TCC record makes
+    /// `liveAudioInputAuthorized` true, so a `.input` monitor routing wired
+    /// the REAL `engine.inputNode` into an engine that has no input IO unit.
+    /// The connect itself held — but tearing that host down (track replace)
+    /// and restarting the engine left the input node in the engine's node set
+    /// with a NULL AUInterface, and the NEXT running-engine disconnect
+    /// (`installMixerBuses` bus-terminal rewire or `repairPreparedTrackGraph`)
+    /// made a virtual call through it inside AVFAudio's
+    /// `UpdateGraphAfterReconfig` — SIGSEGV at `KERN_INVALID_ADDRESS 0x68`.
+    ///
+    /// Pins the state invariant behind the fix: an offline manual-rendering
+    /// graph must handle the full `.input` install → teardown cycle with ZERO
+    /// `engine.inputNode` accesses (the connection is simulated), while the
+    /// host still reports a connected input for UI/route state, and a
+    /// running-engine disconnect after the teardown must succeed.
+    @MainActor
+    func test_manualRenderingInputRoutingCycle_neverTouchesInputNode() throws {
+        MainAudioGraph.useManualRenderingForAutomation = true
+        // The bug's trigger combination: TCC reports authorized (stale record
+        // on a rebuilt ad-hoc binary), test-only simulation NOT requested.
+        MainAudioGraph.liveAudioInputAuthorizedOverrideForTesting = true
+        XCTAssertFalse(MainAudioGraph.simulateAudioInputConnectionForTesting)
+
+        let graph = MainAudioGraph()
+        let trackID = UUID()
+        let request = MainAudioGraph.AudioInputRoutingRequest(
+            trackID: trackID,
+            source: .input,
+            selectedChannel: .stereo(firstChannel: 0),
+            outputBusID: nil,
+            mix: .default
+        )
+
+        // QA row 25 'live': install the `.input` monitor host.
+        graph.syncAudioInputRoutings([request])
+        let readout = try XCTUnwrap(graph.audioInputRoutingReadoutForTesting(trackID: trackID))
+        XCTAssertEqual(
+            readout.connectedSource, .input,
+            "host must still report a connected input for UI/route state"
+        )
+        XCTAssertEqual(
+            graph.inputNodeAccessCountForTesting, 0,
+            "offline manual-rendering install must never touch engine.inputNode (a dangling input node poisons UpdateGraphAfterReconfig)"
+        )
+
+        // QA row 26 (track replace): tear the connected host down.
+        graph.syncAudioInputRoutings([])
+        XCTAssertEqual(
+            graph.inputNodeAccessCountForTesting, 0,
+            "teardown of a simulated-input host must not touch engine.inputNode"
+        )
+
+        // The next apply's running-engine disconnect — the crash site — must
+        // complete. (Offline manual rendering: start() needs no CoreAudio HAL.)
+        try graph.start()
+        defer { graph.stop() }
+        let probe = AVAudioMixerNode()
+        graph.attach(probe)
+        graph.connect(probe, to: graph.sendReturnDestinationForTesting)
+        graph.disconnectOutput(probe)
+        graph.detach(probe)
+        XCTAssertEqual(graph.inputNodeAccessCountForTesting, 0)
     }
 
     @MainActor
