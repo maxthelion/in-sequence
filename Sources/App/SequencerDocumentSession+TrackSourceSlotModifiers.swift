@@ -224,6 +224,7 @@ extension SequencerDocumentSession {
         mutateGenerator(id: generatorID) { entry in
             entry = entry.switchingKind(to: kind)
         }
+        return true
     }
 
     /// WS4 header dice: bake the slot's generator into a NEW clip and point
