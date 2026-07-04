@@ -1,0 +1,290 @@
+{
+  "schemaVersion": 1,
+  "manifestId": "archive-feat-generator-pitch-cleanup-feature-track-view-tab-unification",
+  "commit": "04b5fd73503a505a531c2f5ad7510026cc156e46",
+  "branch": "audio-routing-cleanup",
+  "dirtyWorkingTree": true,
+  "capturedAt": "2026-07-04T16:19:33.051Z",
+  "captureDir": ".worktrees/track-view-tabs/.meta/multipass/visual-review/feature-track-view-tab-unification",
+  "bucket": "ux-captures",
+  "blobPrefix": "screenshots",
+  "manifestPrefix": "manifests",
+  "rows": {
+    "proto-08A-audio-input": {
+      "md5": "1d0c91027cc86c32dc0f4cde29d289e6",
+      "key": "screenshots/1d0c91027cc86c32dc0f4cde29d289e6.png",
+      "bytes": 66623,
+      "status": "captured"
+    },
+    "proto-08A-mono-track": {
+      "md5": "1b2a48d2ec9c3330d0a92142e182ae19",
+      "key": "screenshots/1b2a48d2ec9c3330d0a92142e182ae19.png",
+      "bytes": 57615,
+      "status": "captured"
+    },
+    "proto-08A-slicer-track": {
+      "md5": "b954ba5be1f7f0ac3531c786958ad92c",
+      "key": "screenshots/b954ba5be1f7f0ac3531c786958ad92c.png",
+      "bytes": 44300,
+      "status": "captured"
+    },
+    "proto-08B-audio-input": {
+      "md5": "afd61a3d6df026d0e19168adb6e91b39",
+      "key": "screenshots/afd61a3d6df026d0e19168adb6e91b39.png",
+      "bytes": 65949,
+      "status": "captured"
+    },
+    "proto-08B-mono-track": {
+      "md5": "6737f5810c95270860bd02c73ccfd532",
+      "key": "screenshots/6737f5810c95270860bd02c73ccfd532.png",
+      "bytes": 53157,
+      "status": "captured"
+    },
+    "proto-08B-slicer-track": {
+      "md5": "b01c29860735cbb0bf3d0e35aa3f66eb",
+      "key": "screenshots/b01c29860735cbb0bf3d0e35aa3f66eb.png",
+      "bytes": 44279,
+      "status": "captured"
+    },
+    "proto-08C-audio-input": {
+      "md5": "d74110e78b477b23eaf61c7d7579693f",
+      "key": "screenshots/d74110e78b477b23eaf61c7d7579693f.png",
+      "bytes": 66786,
+      "status": "captured"
+    },
+    "proto-08C-mono-track": {
+      "md5": "bc0d939dc99b875bbf386457deece141",
+      "key": "screenshots/bc0d939dc99b875bbf386457deece141.png",
+      "bytes": 57155,
+      "status": "captured"
+    },
+    "proto-08C-slicer-track": {
+      "md5": "085cfdff805a2d63d28031134ad92ec4",
+      "key": "screenshots/085cfdff805a2d63d28031134ad92ec4.png",
+      "bytes": 44410,
+      "status": "captured"
+    },
+    "proto-08D-audio-input": {
+      "md5": "8c9fa80dc3587930e72b3914a6da2b3c",
+      "key": "screenshots/8c9fa80dc3587930e72b3914a6da2b3c.png",
+      "bytes": 66804,
+      "status": "captured"
+    },
+    "proto-08D-mono-track": {
+      "md5": "1a34697f091986fae2e021aed74ad40a",
+      "key": "screenshots/1a34697f091986fae2e021aed74ad40a.png",
+      "bytes": 56086,
+      "status": "captured"
+    },
+    "proto-08D-slicer-track": {
+      "md5": "82af6ab92bde9d6980f1af1e4983eab4",
+      "key": "screenshots/82af6ab92bde9d6980f1af1e4983eab4.png",
+      "bytes": 44716,
+      "status": "captured"
+    },
+    "proto-09-kit-matrix": {
+      "md5": "633855b7484e90322ff52244d586c393",
+      "key": "screenshots/633855b7484e90322ff52244d586c393.png",
+      "bytes": 74924,
+      "status": "captured"
+    },
+    "proto-09-part-expanded": {
+      "md5": "17a51095b01fb6af6150789479c30626",
+      "key": "screenshots/17a51095b01fb6af6150789479c30626.png",
+      "bytes": 77909,
+      "status": "captured"
+    },
+    "proto-10-a-baseline": {
+      "md5": "388ebf318aef3a709558c65a7cd01382",
+      "key": "screenshots/388ebf318aef3a709558c65a7cd01382.png",
+      "bytes": 76441,
+      "status": "captured"
+    },
+    "proto-10-a-combined": {
+      "md5": "3950221b6988a26e8ac322a7c6c71971",
+      "key": "screenshots/3950221b6988a26e8ac322a7c6c71971.png",
+      "bytes": 77667,
+      "status": "captured"
+    },
+    "proto-10-b-pinned": {
+      "md5": "f53450de9f5b95cac9d2c652f37f867e",
+      "key": "screenshots/f53450de9f5b95cac9d2c652f37f867e.png",
+      "bytes": 83511,
+      "status": "captured"
+    },
+    "proto-10-b-tracking": {
+      "md5": "1f991ad4a0d051f260df0764657cd411",
+      "key": "screenshots/1f991ad4a0d051f260df0764657cd411.png",
+      "bytes": 84822,
+      "status": "captured"
+    },
+    "proto-10-c-engaged": {
+      "md5": "302344986d2d7c907e946ab0de67e52f",
+      "key": "screenshots/302344986d2d7c907e946ab0de67e52f.png",
+      "bytes": 80223,
+      "status": "captured"
+    },
+    "proto-10-c-preview": {
+      "md5": "8ffea8a44c3cde846c080c3b8a86c8d5",
+      "key": "screenshots/8ffea8a44c3cde846c080c3b8a86c8d5.png",
+      "bytes": 107108,
+      "status": "captured"
+    },
+    "proto-10-legend": {
+      "md5": "a1ae32c40771fbcd1f4c9461af6dc5ed",
+      "key": "screenshots/a1ae32c40771fbcd1f4c9461af6dc5ed.png",
+      "bytes": 107196,
+      "status": "captured"
+    },
+    "proto-11-mono-pitch": {
+      "md5": "877b87071424b61cd27d6a7b5b9a1245",
+      "key": "screenshots/877b87071424b61cd27d6a7b5b9a1245.png",
+      "bytes": 74221,
+      "status": "captured"
+    },
+    "proto-11-mono-steps": {
+      "md5": "eef3e2a18cfdb640d8bc6375f7eaae59",
+      "key": "screenshots/eef3e2a18cfdb640d8bc6375f7eaae59.png",
+      "bytes": 88942,
+      "status": "captured"
+    },
+    "proto-11-mono-switch-open": {
+      "md5": "77e1ae2089d48215163152625eb4ee7c",
+      "key": "screenshots/77e1ae2089d48215163152625eb4ee7c.png",
+      "bytes": 64291,
+      "status": "captured"
+    },
+    "proto-11-slicer-direction": {
+      "md5": "31fd58ddf562d37d8e7c4f609978b2d9",
+      "key": "screenshots/31fd58ddf562d37d8e7c4f609978b2d9.png",
+      "bytes": 68431,
+      "status": "captured"
+    },
+    "proto-11-slicer-index": {
+      "md5": "9afb08ae32aec3c3e7f1b5989d62a4fe",
+      "key": "screenshots/9afb08ae32aec3c3e7f1b5989d62a4fe.png",
+      "bytes": 63021,
+      "status": "captured"
+    },
+    "proto-11-slicer-switch-open": {
+      "md5": "ed21124f657b96db225fd83c676cc0df",
+      "key": "screenshots/ed21124f657b96db225fd83c676cc0df.png",
+      "bytes": 61758,
+      "status": "captured"
+    },
+    "proto-12-closed": {
+      "md5": "c2f12f1eec9b05e8bbb1c1ec3c1b1263",
+      "key": "screenshots/c2f12f1eec9b05e8bbb1c1ec3c1b1263.png",
+      "bytes": 90218,
+      "status": "captured"
+    },
+    "proto-12-rolled": {
+      "md5": "9fc1b94b1415f2bc4ac4c45c59b369de",
+      "key": "screenshots/9fc1b94b1415f2bc4ac4c45c59b369de.png",
+      "bytes": 91417,
+      "status": "captured"
+    },
+    "proto-12-settings": {
+      "md5": "685990b78304132ac5089153208fbe9b",
+      "key": "screenshots/685990b78304132ac5089153208fbe9b.png",
+      "bytes": 101800,
+      "status": "captured"
+    },
+    "proto-13-a-enter": {
+      "md5": "b7fffd4ce60ccaee88635221d77935b8",
+      "key": "screenshots/b7fffd4ce60ccaee88635221d77935b8.png",
+      "bytes": 142102,
+      "status": "captured"
+    },
+    "proto-13-b-in-session": {
+      "md5": "302a02bdb00c9dfbd1643fb79b894516",
+      "key": "screenshots/302a02bdb00c9dfbd1643fb79b894516.png",
+      "bytes": 152999,
+      "status": "captured"
+    },
+    "proto-13-c-exit-fork": {
+      "md5": "368c1483c8f64d1c032c5547ffcb0f25",
+      "key": "screenshots/368c1483c8f64d1c032c5547ffcb0f25.png",
+      "bytes": 135796,
+      "status": "captured"
+    },
+    "proto-14-chord-instrument": {
+      "md5": "eef3e2a18cfdb640d8bc6375f7eaae59",
+      "key": "screenshots/eef3e2a18cfdb640d8bc6375f7eaae59.png",
+      "bytes": 88942,
+      "status": "captured"
+    },
+    "proto-14-chord-sidechain": {
+      "md5": "877b87071424b61cd27d6a7b5b9a1245",
+      "key": "screenshots/877b87071424b61cd27d6a7b5b9a1245.png",
+      "bytes": 74221,
+      "status": "captured"
+    },
+    "proto-14-mono-split-euclidean": {
+      "md5": "77e1ae2089d48215163152625eb4ee7c",
+      "key": "screenshots/77e1ae2089d48215163152625eb4ee7c.png",
+      "bytes": 64291,
+      "status": "captured"
+    },
+    "proto-14-mono-split-pitch": {
+      "md5": "31fd58ddf562d37d8e7c4f609978b2d9",
+      "key": "screenshots/31fd58ddf562d37d8e7c4f609978b2d9.png",
+      "bytes": 68431,
+      "status": "captured"
+    },
+    "proto-14-mono-split-weighted": {
+      "md5": "9afb08ae32aec3c3e7f1b5989d62a4fe",
+      "key": "screenshots/9afb08ae32aec3c3e7f1b5989d62a4fe.png",
+      "bytes": 63021,
+      "status": "captured"
+    },
+    "proto-14-mono-unified-euclidean": {
+      "md5": "ed21124f657b96db225fd83c676cc0df",
+      "key": "screenshots/ed21124f657b96db225fd83c676cc0df.png",
+      "bytes": 61758,
+      "status": "captured"
+    },
+    "proto-14-mono-unified-weighted": {
+      "md5": "10d9c86903444355dbad070a890a6035",
+      "key": "screenshots/10d9c86903444355dbad070a890a6035.png",
+      "bytes": 59121,
+      "status": "captured"
+    },
+    "proto-14b-a-trigger": {
+      "md5": "979fcb385c0a30e96ff41b6ad34b957a",
+      "key": "screenshots/979fcb385c0a30e96ff41b6ad34b957a.png",
+      "bytes": 131126,
+      "status": "captured"
+    },
+    "proto-14b-b-pitch": {
+      "md5": "378be26652af9c94021bc60359f18ab5",
+      "key": "screenshots/378be26652af9c94021bc60359f18ab5.png",
+      "bytes": 136160,
+      "status": "captured"
+    },
+    "proto-15-a-split": {
+      "md5": "7744402db9bc428513340f4c06cd75e8",
+      "key": "screenshots/7744402db9bc428513340f4c06cd75e8.png",
+      "bytes": 78924,
+      "status": "captured"
+    },
+    "proto-15-b-pending": {
+      "md5": "e9b582048b31b83a1cf786cc4381faad",
+      "key": "screenshots/e9b582048b31b83a1cf786cc4381faad.png",
+      "bytes": 78794,
+      "status": "captured"
+    },
+    "proto-15-c-ghost": {
+      "md5": "970410569229f4a043d7147dc0c3b4f2",
+      "key": "screenshots/970410569229f4a043d7147dc0c3b4f2.png",
+      "bytes": 80044,
+      "status": "captured"
+    },
+    "proto-15-d-fork": {
+      "md5": "12f56c0249ecd5f4225915dd352d4d96",
+      "key": "screenshots/12f56c0249ecd5f4225915dd352d4d96.png",
+      "bytes": 102488,
+      "status": "captured"
+    }
+  }
+}

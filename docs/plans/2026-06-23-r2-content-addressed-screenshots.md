@@ -1,6 +1,7 @@
 # Plan: Content-Addressed Screenshot Store on Cloudflare R2
 
-**Status:** Proposed — revisit 2026-06-24
+**Status:** Implemented 2026-07-04 — local captures remain disposable after a
+successful manifest/blob upload
 **Author:** Max + Claude
 **Context:** QA visual-capture harness (`scripts/visual-scenarios/qa-surface-coverage.sh`
 + `peekaboo-common.sh`) currently writes PNGs into the working tree under
@@ -151,13 +152,30 @@ Open questions resolved with recommendations:
    metadata only — strictly better than today's branch-slug dirs. Local
    working-tree captures stay branch-namespaced (that's disposable scratch).
 
-**Implement r2-sync.sh / r2-fetch.sh now? → NO, defer.** The design is sound and
-unchanged, but it is **gated on infrastructure Max must provision**: an actual R2
-bucket + access keys, and a decision to adopt the workflow. It is also not
-urgent — the local branch-namespaced captures work fine and this session's focus
-is the audio engine. When Max wants it: provision the bucket + creds, then build
-`r2-sync.sh` (hash → head-check → put → write manifest) and `r2-fetch.sh`
-(manifest → resolve hash → pull to cache), ~1–1.5 days, non-blocking.
+**Implemented 2026-07-04.** `scripts/visual-scenarios/r2-sync.sh` hashes each
+top-level capture PNG, uploads missing blobs to `screenshots/<md5>.png`, writes
+a small local manifest under `.meta/multipass/visual-review/manifests/`, and
+mirrors that manifest to `manifests/<id>.json` in R2. `r2-fetch.sh` resolves a
+manifest and restores one row or all rows into a local ignored cache. The QA
+surface harness stays offline-friendly; set `SEQUENCER_AI_R2_SYNC=1` to request
+an upload after a capture run.
+
+For cleanup of existing local evidence, `r2-archive-local.sh` walks all git
+worktrees, uploads every visual-review directory that contains PNGs, and can
+remove only the uploaded local PNGs with `--prune-local`. It leaves logs,
+status files, command files, and notes in place so local debugging context is
+not accidentally erased.
+
+Credentials are environment-only:
+
+```sh
+export R2_BUCKET=ux-captures
+export R2_ENDPOINT=https://ACCOUNT_ID.r2.cloudflarestorage.com
+export R2_ACCESS_KEY_ID=...
+export R2_SECRET_ACCESS_KEY=...
+```
+
+Do not commit real credentials or endpoint/account details.
 
 ## Rough effort
 

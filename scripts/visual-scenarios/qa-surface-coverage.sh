@@ -496,6 +496,13 @@ fi
 if [ "$final_exit_status" -eq 0 ]; then
   scenario_status="completed - ${captured_count} captures from ${executed_row_count} rows"
   action_log "QA surface coverage complete: ${captured_count} screenshots in ${output_dir}"
+  case "${SEQUENCER_AI_R2_SYNC:-}" in
+    1|true|TRUE|yes|YES|on|ON)
+      "$SCRIPT_DIR/r2-sync.sh" "$output_dir" >> "$output_dir/r2-sync.log" 2>&1 || {
+        action_log "WARN: R2 sync failed; see r2-sync.log"
+      }
+      ;;
+  esac
 else
   action_log "QA surface coverage FAILED: executed=${executed_row_count} png=${png_count} skipped=${#skipped_rows[@]} status=${scenario_status}"
   if [ "${#skipped_rows[@]}" -gt 0 ]; then

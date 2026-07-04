@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "manifestId": "archive-audio-routing-cleanup-phrase-20260619T094211Z",
+  "commit": "04b5fd73503a505a531c2f5ad7510026cc156e46",
+  "branch": "audio-routing-cleanup",
+  "dirtyWorkingTree": true,
+  "capturedAt": "2026-07-04T16:18:58.474Z",
+  "captureDir": ".meta/multipass/visual-review/phrase-20260619T094211Z",
+  "bucket": "ux-captures",
+  "blobPrefix": "screenshots",
+  "manifestPrefix": "manifests",
+  "rows": {
+    "01-phrase": {
+      "md5": "87f76334be1f2926632e550ec848a423",
+      "key": "screenshots/87f76334be1f2926632e550ec848a423.png",
+      "bytes": 165767,
+      "status": "captured"
+    }
+  }
+}

@@ -35,6 +35,11 @@ Pods/
 !.meta/multipass/config/**
 !.meta/multipass/state/
 !.meta/multipass/state/**
+.meta/multipass/visual-review/
+!.meta/multipass/visual-review/
+.meta/multipass/visual-review/*
+!.meta/multipass/visual-review/manifests/
+!.meta/multipass/visual-review/manifests/**
 .meta/multipass/runtime/
 .meta/project/
 .meta/project-tick/
@@ -47,6 +52,9 @@ Pods/
 
 # Local config
 *.local
+r2.env
+*.r2.env
+scripts/visual-scenarios/r2.env
 
 # Claude Code runtime state (per-environment only; project-scoped config is committed)
 .claude/settings.local.json

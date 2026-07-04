@@ -1,0 +1,296 @@
+{
+  "schemaVersion": 1,
+  "manifestId": "archive-feat-generator-pitch-cleanup-feature-tab-well-grammar",
+  "commit": "04b5fd73503a505a531c2f5ad7510026cc156e46",
+  "branch": "audio-routing-cleanup",
+  "dirtyWorkingTree": true,
+  "capturedAt": "2026-07-04T16:19:27.362Z",
+  "captureDir": ".worktrees/track-view-tabs/.meta/multipass/visual-review/feature-tab-well-grammar",
+  "bucket": "ux-captures",
+  "blobPrefix": "screenshots",
+  "manifestPrefix": "manifests",
+  "rows": {
+    "01-phrase": {
+      "md5": "ef81e48b0a4ba5dc5e9e8af10e26f21c",
+      "key": "screenshots/ef81e48b0a4ba5dc5e9e8af10e26f21c.png",
+      "bytes": 178229,
+      "status": "captured"
+    },
+    "01a-song": {
+      "md5": "6094c2d17485e5e2f138509a1943e014",
+      "key": "screenshots/6094c2d17485e5e2f138509a1943e014.png",
+      "bytes": 232924,
+      "status": "captured"
+    },
+    "01b-transport-swing-set": {
+      "md5": "aa0c58d6a6f699a519287c2461ab7228",
+      "key": "screenshots/aa0c58d6a6f699a519287c2461ab7228.png",
+      "bytes": 179207,
+      "status": "captured"
+    },
+    "02-tracks-navigator": {
+      "md5": "a5440b4a1bb9cfc47c2f55f42171ea2b",
+      "key": "screenshots/a5440b4a1bb9cfc47c2f55f42171ea2b.png",
+      "bytes": 164548,
+      "status": "captured"
+    },
+    "02a-tracks-selection-actions": {
+      "md5": "3447ce68cd65449e562ce17dd0e55c40",
+      "key": "screenshots/3447ce68cd65449e562ce17dd0e55c40.png",
+      "bytes": 176150,
+      "status": "captured"
+    },
+    "02b-tracks-layer-perform-nav": {
+      "md5": "338930b90a4b78a3e90a6c1146ef16f9",
+      "key": "screenshots/338930b90a4b78a3e90a6c1146ef16f9.png",
+      "bytes": 167812,
+      "status": "captured"
+    },
+    "02c-create-track-modal": {
+      "md5": "04d0afc8fe906a245f581f7ca58927df",
+      "key": "screenshots/04d0afc8fe906a245f581f7ca58927df.png",
+      "bytes": 258232,
+      "status": "captured"
+    },
+    "02d-add-drum-group-modal": {
+      "md5": "7f9ec10ddc41e45b19ba291a9c672006",
+      "key": "screenshots/7f9ec10ddc41e45b19ba291a9c672006.png",
+      "bytes": 287827,
+      "status": "captured"
+    },
+    "02e-add-slice-track-loop-picker": {
+      "md5": "8c274b713cb3000d2658f4f0bf77e5d6",
+      "key": "screenshots/8c274b713cb3000d2658f4f0bf77e5d6.png",
+      "bytes": 287944,
+      "status": "captured"
+    },
+    "02f-create-track-sound-step": {
+      "md5": "8c274b713cb3000d2658f4f0bf77e5d6",
+      "key": "screenshots/8c274b713cb3000d2658f4f0bf77e5d6.png",
+      "bytes": 287944,
+      "status": "captured"
+    },
+    "04-mixer": {
+      "md5": "fea15760dd2e684f68b17afb576597a3",
+      "key": "screenshots/fea15760dd2e684f68b17afb576597a3.png",
+      "bytes": 196848,
+      "status": "captured"
+    },
+    "05-scenes-browse": {
+      "md5": "d4b5f9a588996c5a04e4c9021a9ab9d3",
+      "key": "screenshots/d4b5f9a588996c5a04e4c9021a9ab9d3.png",
+      "bytes": 152824,
+      "status": "captured"
+    },
+    "05a-scenes-edit-empty": {
+      "md5": "5f7eebcf5f658c6618eab4ba5f53a44a",
+      "key": "screenshots/5f7eebcf5f658c6618eab4ba5f53a44a.png",
+      "bytes": 155623,
+      "status": "captured"
+    },
+    "05b-scenes-edit-content": {
+      "md5": "230ed189422fc59e99822419257785ff",
+      "key": "screenshots/230ed189422fc59e99822419257785ff.png",
+      "bytes": 197042,
+      "status": "captured"
+    },
+    "05c-scenes-add-fx": {
+      "md5": "cf95e83e3ea2a6e6794e807026567dfe",
+      "key": "screenshots/cf95e83e3ea2a6e6794e807026567dfe.png",
+      "bytes": 292879,
+      "status": "captured"
+    },
+    "05d-scenes-bitcrusher-editor": {
+      "md5": "9424d933615c2db3046b53e45652d14d",
+      "key": "screenshots/9424d933615c2db3046b53e45652d14d.png",
+      "bytes": 182937,
+      "status": "captured"
+    },
+    "05e-scenes-browse-fx": {
+      "md5": "1f0dfec28b50a3e35f0ec36f39b34767",
+      "key": "screenshots/1f0dfec28b50a3e35f0ec36f39b34767.png",
+      "bytes": 164644,
+      "status": "captured"
+    },
+    "06-phrase-scenes-perform": {
+      "md5": "0d0ec2407dd7815446d221745d160f69",
+      "key": "screenshots/0d0ec2407dd7815446d221745d160f69.png",
+      "bytes": 195820,
+      "status": "captured"
+    },
+    "06a-phrase-scene-select": {
+      "md5": "11b7b5765547bb8945d261d057de4dcd",
+      "key": "screenshots/11b7b5765547bb8945d261d057de4dcd.png",
+      "bytes": 243006,
+      "status": "captured"
+    },
+    "06b-phrase-scenes-perform-slots": {
+      "md5": "5c0cb1c0d0d1ab6102aac3e8ab5cd665",
+      "key": "screenshots/5c0cb1c0d0d1ab6102aac3e8ab5cd665.png",
+      "bytes": 195105,
+      "status": "captured"
+    },
+    "07-library": {
+      "md5": "6f75a1c51d21d86d3e4d2a6c23380630",
+      "key": "screenshots/6f75a1c51d21d86d3e4d2a6c23380630.png",
+      "bytes": 239955,
+      "status": "captured"
+    },
+    "08-phrase-layers-pattern": {
+      "md5": "262051fee20a07a74fe5f78d007814e0",
+      "key": "screenshots/262051fee20a07a74fe5f78d007814e0.png",
+      "bytes": 188852,
+      "status": "captured"
+    },
+    "09-phrase-layers-mute": {
+      "md5": "a318197635f374bb98c11ebbf74ea7f9",
+      "key": "screenshots/a318197635f374bb98c11ebbf74ea7f9.png",
+      "bytes": 189903,
+      "status": "captured"
+    },
+    "10-phrase-layers-automation-tool": {
+      "md5": "afd36aba6db1e47326432d57421e2d3b",
+      "key": "screenshots/afd36aba6db1e47326432d57421e2d3b.png",
+      "bytes": 190416,
+      "status": "captured"
+    },
+    "11-phrase-layer-selector-open": {
+      "md5": "7cd1bb2962187aaa343c649916bd34ed",
+      "key": "screenshots/7cd1bb2962187aaa343c649916bd34ed.png",
+      "bytes": 194495,
+      "status": "captured"
+    },
+    "12-phrase-scenes": {
+      "md5": "0d0ec2407dd7815446d221745d160f69",
+      "key": "screenshots/0d0ec2407dd7815446d221745d160f69.png",
+      "bytes": 195820,
+      "status": "captured"
+    },
+    "13-phrase-global-apply": {
+      "md5": "d32889ad4db1247c464485d156d53924",
+      "key": "screenshots/d32889ad4db1247c464485d156d53924.png",
+      "bytes": 177739,
+      "status": "captured"
+    },
+    "13a-phrase-global-apply-track-selector": {
+      "md5": "c006a529bb8587a265ab56b1b5aca6c0",
+      "key": "screenshots/c006a529bb8587a265ab56b1b5aca6c0.png",
+      "bytes": 172342,
+      "status": "captured"
+    },
+    "13b-phrase-perform-capture": {
+      "md5": "5e2c650bb8cd4b547708129b4b63def1",
+      "key": "screenshots/5e2c650bb8cd4b547708129b4b63def1.png",
+      "bytes": 246244,
+      "status": "captured"
+    },
+    "13c-phrase-global-apply-selected": {
+      "md5": "4fbe44e8aff5b88577adbae9fd5a30f9",
+      "key": "screenshots/4fbe44e8aff5b88577adbae9fd5a30f9.png",
+      "bytes": 174122,
+      "status": "captured"
+    },
+    "18-track-detail-steps-clip": {
+      "md5": "8730ecb750e5968bfee31881166c00cc",
+      "key": "screenshots/8730ecb750e5968bfee31881166c00cc.png",
+      "bytes": 195690,
+      "status": "captured"
+    },
+    "19-track-detail-sound": {
+      "md5": "965f864b62341ccc4d0ef93d6cc9f8af",
+      "key": "screenshots/965f864b62341ccc4d0ef93d6cc9f8af.png",
+      "bytes": 174294,
+      "status": "captured"
+    },
+    "19a-track-detail-sound-empty": {
+      "md5": "1e21ba696c7ba01b6b67d332ec745f7f",
+      "key": "screenshots/1e21ba696c7ba01b6b67d332ec745f7f.png",
+      "bytes": 174279,
+      "status": "captured"
+    },
+    "20-track-fill-preview-active": {
+      "md5": "bea41ba49edb1d128952ef7723c1ee2c",
+      "key": "screenshots/bea41ba49edb1d128952ef7723c1ee2c.png",
+      "bytes": 175138,
+      "status": "captured"
+    },
+    "21-track-macros-tab": {
+      "md5": "250f562e94084ecc99885b13234371e5",
+      "key": "screenshots/250f562e94084ecc99885b13234371e5.png",
+      "bytes": 176774,
+      "status": "captured"
+    },
+    "22-track-detail-fx": {
+      "md5": "a9bca69176e6a1d9695e5898f20c580a",
+      "key": "screenshots/a9bca69176e6a1d9695e5898f20c580a.png",
+      "bytes": 171917,
+      "status": "captured"
+    },
+    "22b-track-detail-mixer": {
+      "md5": "904e53498295bdf8d209681c9c289f7d",
+      "key": "screenshots/904e53498295bdf8d209681c9c289f7d.png",
+      "bytes": 190123,
+      "status": "captured"
+    },
+    "23-track-slicer": {
+      "md5": "2cdf7e2454c90379877714f22541a3d5",
+      "key": "screenshots/2cdf7e2454c90379877714f22541a3d5.png",
+      "bytes": 168752,
+      "status": "captured"
+    },
+    "23a-track-slicer-populated": {
+      "md5": "25900bff7370e4872898f0f41e09de6f",
+      "key": "screenshots/25900bff7370e4872898f0f41e09de6f.png",
+      "bytes": 208173,
+      "status": "captured"
+    },
+    "23b-track-slicer-velocity-layer": {
+      "md5": "d22213326611113d77959d1c4480836f",
+      "key": "screenshots/d22213326611113d77959d1c4480836f.png",
+      "bytes": 202483,
+      "status": "captured"
+    },
+    "23c-track-slicer-chance-layer": {
+      "md5": "c3eeffacf637b1610a8864fc996f2c34",
+      "key": "screenshots/c3eeffacf637b1610a8864fc996f2c34.png",
+      "bytes": 202524,
+      "status": "captured"
+    },
+    "23d-track-slicer-source-tab": {
+      "md5": "f273f743722521af607878a6e901dd0d",
+      "key": "screenshots/f273f743722521af607878a6e901dd0d.png",
+      "bytes": 200494,
+      "status": "captured"
+    },
+    "23e-track-slicer-slice-tab": {
+      "md5": "3bfa42cd34954e839b94cebdceb0a614",
+      "key": "screenshots/3bfa42cd34954e839b94cebdceb0a614.png",
+      "bytes": 193222,
+      "status": "captured"
+    },
+    "23f-slice-source-modal": {
+      "md5": "ec3e93f73820d4037de989f135651e12",
+      "key": "screenshots/ec3e93f73820d4037de989f135651e12.png",
+      "bytes": 282671,
+      "status": "captured"
+    },
+    "23g-step-edit-rotaries": {
+      "md5": "d2657ccdcfe73fb30e880bc09690df5b",
+      "key": "screenshots/d2657ccdcfe73fb30e880bc09690df5b.png",
+      "bytes": 200347,
+      "status": "captured"
+    },
+    "24-audio-idle": {
+      "md5": "f429fdeb153c26a60abd1c8c2f2fd6fa",
+      "key": "screenshots/f429fdeb153c26a60abd1c8c2f2fd6fa.png",
+      "bytes": 196911,
+      "status": "captured"
+    },
+    "25-audio-live": {
+      "md5": "d0249ce06cb2b32e54a7af3f80ee6e05",
+      "key": "screenshots/d0249ce06cb2b32e54a7af3f80ee6e05.png",
+      "bytes": 197985,
+      "status": "captured"
+    }
+  }
+}
