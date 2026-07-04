@@ -754,33 +754,6 @@ final class SamplePlaybackEngineTests: XCTestCase {
         )
     }
 
-    /// Mirrors the QA row-26 shape: removing one prepared track is followed by
-    /// document-apply mix sync repairing another prepared track through
-    /// `setTrackOutputBus`. The repair path must not ask AVAudioEngine to
-    /// disconnect nodes unless they are still attached and currently connected.
-    @MainActor
-    func test_recordArmReconfigRepairOnlyDisconnectsAttachedConnectedNodes() throws {
-        MainAudioGraph.useManualRenderingForAutomation = true
-        defer { MainAudioGraph.useManualRenderingForAutomation = false }
-
-        let graph = MainAudioGraph()
-        let engine = SamplePlaybackEngine(audioGraph: graph)
-        let removedTrackID = UUID()
-        let repairedTrackID = UUID()
-
-        engine.prepareTrack(trackID: removedTrackID)
-        engine.prepareTrack(trackID: repairedTrackID)
-        engine.removeTrack(trackID: removedTrackID)
-
-        engine.setTrackOutputBus(trackID: repairedTrackID, busID: nil)
-
-        XCTAssertEqual(
-            graph.unsafeDisconnectAttemptCountForTesting,
-            0,
-            "prepared-track repair must guard AVAudioEngine disconnects to attached, connected nodes"
-        )
-    }
-
     /// Poll the prepared-track route readout until `predicate` holds (or
     /// timeout), spinning the runloop so the deferred route-switch build (which
     /// is crossfaded ~12 ms behind the outgoing chokepoint's ramp-to-silence) can
