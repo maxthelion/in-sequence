@@ -168,8 +168,8 @@ struct StepLayerQuickSwitchOptions<Value: Hashable>: View {
                         .foregroundStyle(option.value == selection ? StudioTheme.background : StudioTheme.text)
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 7)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 5)
                         .background(
                             option.value == selection ? accent : Color.white.opacity(StudioOpacity.subtleFill),
                             in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
@@ -1072,7 +1072,6 @@ struct SliceSourceTabContent: View {
 /// values are the real engine-backed `SliceTriggerStepParameters` for the
 /// selected step.
 struct SliceSamplerCard: View {
-    let sampleName: String
     /// The one chrome accent of the surface (track identity colour), passed
     /// explicitly — no silent fallback.
     let accent: Color
@@ -1090,11 +1089,8 @@ struct SliceSamplerCard: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            header
-            divider
+        VStack(alignment: .leading, spacing: 12) {
             browseRow
-            divider
             SliceSamplePlayerParametersView(
                 accent: accent,
                 waveformBuckets: previewBuckets,
@@ -1102,35 +1098,7 @@ struct SliceSamplerCard: View {
                 parameters: $parameters
             )
         }
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-                .stroke(accent, lineWidth: StudioMetrics.borderWidth)
-        )
         .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private var header: some View {
-        HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("\(sampleName) \(sliceTitle)")
-                    .studioText(.subtitle)
-                    .foregroundStyle(StudioTheme.text)
-                    .lineLimit(1)
-                Text(rangeDetail)
-                    .studioText(.label)
-                    .foregroundStyle(StudioTheme.mutedText)
-                    .lineLimit(1)
-            }
-            Spacer(minLength: 8)
-            StudioCircleIconButton(
-                systemName: "play.fill",
-                size: StudioMetrics.ControlSize.medium,
-                help: "Audition this slice",
-                action: onAudition
-            )
-        }
-        .padding(StudioMetrics.Spacing.standard)
     }
 
     private var rangeDetail: String {
@@ -1150,18 +1118,27 @@ struct SliceSamplerCard: View {
     }
 
     private var browseRow: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 10) {
             StudioCircleIconButton(
                 systemName: "chevron.left",
                 help: "Previous slice"
             ) {
                 onBrowse(-1)
             }
-            Spacer()
-            Text("Browse slice")
+            Text(sliceTitle)
+                .studioText(.subtitle)
+                .foregroundStyle(StudioTheme.text)
+            Text(rangeDetail)
                 .studioText(.label)
                 .foregroundStyle(StudioTheme.mutedText)
-            Spacer()
+                .lineLimit(1)
+            Spacer(minLength: 8)
+            StudioCircleIconButton(
+                systemName: "play.fill",
+                size: StudioMetrics.ControlSize.medium,
+                help: "Audition this slice",
+                action: onAudition
+            )
             StudioCircleIconButton(
                 systemName: "chevron.right",
                 help: "Next slice"
@@ -1169,11 +1146,5 @@ struct SliceSamplerCard: View {
                 onBrowse(1)
             }
         }
-        .padding(.horizontal, StudioMetrics.Spacing.comfortable)
-        .padding(.vertical, StudioMetrics.Spacing.snug)
-    }
-
-    private var divider: some View {
-        Divider().overlay(StudioTheme.border.opacity(0.7))
     }
 }

@@ -482,7 +482,6 @@ struct SliceTrackWorkspaceView: View {
         } else if let assigned = selectedAssignedMarker,
                   let markerIndex = currentSliceSet?.markers.firstIndex(where: { $0.id == assigned.id }) {
             SliceSamplerCard(
-                sampleName: currentSample?.name ?? "Slice",
                 accent: accent,
                 markerIndex: markerIndex,
                 buckets: currentSample.map { waveformBuckets(sample: $0) } ?? [],
