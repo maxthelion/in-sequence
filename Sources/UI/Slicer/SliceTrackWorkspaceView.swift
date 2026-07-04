@@ -247,9 +247,12 @@ struct SliceTrackWorkspaceView: View {
             HStack(alignment: .top, spacing: StudioMetrics.Spacing.roomy) {
                 laneSelector
                 lengthSelector
+                sliceLayerChip
                 Spacer(minLength: 0)
             }
-            sliceLayerSelector
+            if isLayerSwitcherOpen {
+                sliceLayerOptions
+            }
             sliceStepEditor
         } else {
             sliceTabPlaceholder(
@@ -293,9 +296,20 @@ struct SliceTrackWorkspaceView: View {
     // other step editors. Slice Index / Velocity / Chance are engine-backed;
     // Direction / Note Repeat / Gate are real selectable layers shown read-only
     // until per-step engine params land (see NOTE in the strip).
-    private var sliceLayerSelector: some View {
-        StepLayerQuickSwitch(
+    private var sliceLayerChip: some View {
+        StepLayerQuickSwitchChip(
             title: "Layer",
+            selection: $selectedLayer,
+            isOpen: $isLayerSwitcherOpen,
+            options: SliceTrackClipLayer.allCases.map { layer in
+                StepLayerQuickSwitchOption(id: layer.rawValue, title: layer.title, value: layer)
+            },
+            accent: accent
+        )
+    }
+
+    private var sliceLayerOptions: some View {
+        StepLayerQuickSwitchOptions(
             selection: $selectedLayer,
             isOpen: $isLayerSwitcherOpen,
             options: SliceTrackClipLayer.allCases.map { layer in
@@ -433,7 +447,6 @@ struct SliceTrackWorkspaceView: View {
             state: sourceState,
             sampleName: currentSample?.name,
             sliceCount: currentSliceSet?.userSliceCount ?? 0,
-            detectionLabel: currentSliceSet.map { Self.detectionLabel(for: $0.mode) },
             accent: accent,
             onChooseSample: { isPresentingAddLoop = true },
             onRemoveSample: removeSample,
@@ -726,17 +739,6 @@ struct SliceTrackWorkspaceView: View {
             set.normalize(sampleLengthFrames: sampleLengthFrames(sample: sample))
         }
         analysisMessage = "Markers normalized"
-    }
-
-    /// The APPLIED slice set's detection mode — real persisted state shown on
-    /// the Source tab (the modal's Transients/Grid picker binds the PENDING
-    /// `analysisMode`, which can disagree with the applied set).
-    static func detectionLabel(for mode: SliceMode) -> String {
-        switch mode {
-        case .transient: return "Transient detection"
-        case .grid: return "Grid detection"
-        case .manual: return "Manual markers"
-        }
     }
 
     // An empty slicer is just a plus card; choosing a loop attaches it in

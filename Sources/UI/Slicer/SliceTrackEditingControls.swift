@@ -74,86 +74,180 @@ struct StepLayerQuickSwitch<Value: Hashable>: View {
     let options: [StepLayerQuickSwitchOption<Value>]
     let accent: Color
 
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            StepLayerQuickSwitchChip(
+                title: title,
+                selection: $selection,
+                isOpen: $isOpen,
+                options: options,
+                accent: accent
+            )
+
+            if isOpen {
+                StepLayerQuickSwitchOptions(
+                    selection: $selection,
+                    isOpen: $isOpen,
+                    options: options,
+                    accent: accent
+                )
+            }
+        }
+    }
+}
+
+struct StepLayerQuickSwitchChip<Value: Hashable>: View {
+    let title: String
+    @Binding var selection: Value
+    @Binding var isOpen: Bool
+    let options: [StepLayerQuickSwitchOption<Value>]
+    let accent: Color
+
     private var selectedTitle: String {
         options.first { $0.value == selection }?.title ?? "Layer"
     }
 
-    private var columns: [GridItem] {
-        Array(repeating: GridItem(.flexible(minimum: 86), spacing: 6), count: 3)
+    var body: some View {
+        HStack(spacing: 8) {
+            Text(title.uppercased())
+                .studioText(.eyebrow)
+                .tracking(0.8)
+                // ux-canon-allow: eyebrow captions are structural labels,
+                // not stateful chrome — mutedText is the caption token.
+                .foregroundStyle(StudioTheme.mutedText)
+
+            Button {
+                isOpen.toggle()
+            } label: {
+                HStack(spacing: 6) {
+                    Text(selectedTitle)
+                        .studioText(.labelBold)
+                        .foregroundStyle(isOpen ? StudioTheme.text : StudioTheme.background)
+                        .lineLimit(1)
+
+                    Image(systemName: isOpen ? "chevron.up" : "chevron.down")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(isOpen ? StudioTheme.mutedText : StudioTheme.background)
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 7)
+                .fixedSize()
+                .background(
+                    isOpen ? Color.white.opacity(StudioOpacity.subtleFill) : accent,
+                    in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
+                        .stroke(isOpen ? StudioTheme.border : Color.clear, lineWidth: StudioMetrics.borderWidth)
+                )
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("\(title) \(selectedTitle)")
+        }
+        .fixedSize()
     }
+}
+
+struct StepLayerQuickSwitchOptions<Value: Hashable>: View {
+    @Binding var selection: Value
+    @Binding var isOpen: Bool
+    let options: [StepLayerQuickSwitchOption<Value>]
+    let accent: Color
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            // Closed = a COMPACT solid value chip (eyebrow label outside the
-            // chip, chip hugs its content) — never a full-width solid accent
-            // bar, which floods a container-sized element (Rule 12, design
-            // review 18/23a; prototype 11 quick-switch grammar). Matches the
-            // adjacent LANE/LENGTH inset selectors' title treatment.
-            HStack(spacing: 8) {
-                Text(title.uppercased())
-                    .studioText(.eyebrow)
-                    .tracking(0.8)
-                    // ux-canon-allow: eyebrow captions are structural labels,
-                    // not stateful chrome — mutedText is the caption token.
-                    .foregroundStyle(StudioTheme.mutedText)
-
+        StepLayerQuickSwitchFlowLayout(spacing: 6) {
+            ForEach(options) { option in
                 Button {
-                    isOpen.toggle()
+                    selection = option.value
+                    isOpen = false
                 } label: {
-                    HStack(spacing: 6) {
-                        Text(selectedTitle)
-                            .studioText(.labelBold)
-                            .foregroundStyle(isOpen ? StudioTheme.text : StudioTheme.background)
-                            .lineLimit(1)
-
-                        Image(systemName: isOpen ? "chevron.up" : "chevron.down")
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundStyle(isOpen ? StudioTheme.mutedText : StudioTheme.background)
-                    }
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 7)
-                    .fixedSize()
-                    .background(
-                        isOpen ? Color.white.opacity(StudioOpacity.subtleFill) : accent,
-                        in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
-                            .stroke(isOpen ? StudioTheme.border : Color.clear, lineWidth: StudioMetrics.borderWidth)
-                    )
+                    Text(option.title)
+                        .studioText(.micro)
+                        .foregroundStyle(option.value == selection ? StudioTheme.background : StudioTheme.text)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 7)
+                        .background(
+                            option.value == selection ? accent : Color.white.opacity(StudioOpacity.subtleFill),
+                            in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
+                                .stroke(option.value == selection ? Color.clear : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+                        )
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("\(title) \(selectedTitle)")
-            }
-
-            if isOpen {
-                LazyVGrid(columns: columns, spacing: 6) {
-                    ForEach(options) { option in
-                        Button {
-                            selection = option.value
-                            isOpen = false
-                        } label: {
-                            Text(option.title)
-                                .studioText(.micro)
-                                .foregroundStyle(option.value == selection ? StudioTheme.background : StudioTheme.text)
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.7)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 7)
-                                .background(
-                                    option.value == selection ? accent : Color.white.opacity(StudioOpacity.subtleFill),
-                                    in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
-                                )
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
-                                        .stroke(option.value == selection ? Color.clear : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
-                                )
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+private struct StepLayerQuickSwitchFlowLayout: Layout {
+    let spacing: CGFloat
+
+    func sizeThatFits(
+        proposal: ProposedViewSize,
+        subviews: Subviews,
+        cache: inout ()
+    ) -> CGSize {
+        let layout = resolveLayout(
+            maxWidth: proposal.width ?? CGFloat.greatestFiniteMagnitude,
+            subviews: subviews
+        )
+        return CGSize(width: proposal.width ?? layout.width, height: layout.height)
+    }
+
+    func placeSubviews(
+        in bounds: CGRect,
+        proposal: ProposedViewSize,
+        subviews: Subviews,
+        cache: inout ()
+    ) {
+        var x: CGFloat = 0
+        var y: CGFloat = 0
+        var rowHeight: CGFloat = 0
+
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if x > 0, x + spacing + size.width > bounds.width {
+                x = 0
+                y += rowHeight + spacing
+                rowHeight = 0
+            }
+
+            subview.place(
+                at: CGPoint(x: bounds.minX + x, y: bounds.minY + y),
+                proposal: ProposedViewSize(width: size.width, height: size.height)
+            )
+
+            x += size.width + spacing
+            rowHeight = max(rowHeight, size.height)
+        }
+    }
+
+    private func resolveLayout(maxWidth: CGFloat, subviews: Subviews) -> CGSize {
+        var x: CGFloat = 0
+        var y: CGFloat = 0
+        var rowHeight: CGFloat = 0
+        var width: CGFloat = 0
+
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if x > 0, x + spacing + size.width > maxWidth {
+                width = max(width, x - spacing)
+                x = 0
+                y += rowHeight + spacing
+                rowHeight = 0
+            }
+
+            x += size.width + spacing
+            rowHeight = max(rowHeight, size.height)
+        }
+
+        width = max(width, x > 0 ? x - spacing : 0)
+        return CGSize(width: width, height: y + rowHeight)
     }
 }
 
@@ -401,10 +495,9 @@ struct SliceStepStrip: View {
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 7)
                     .padding(.horizontal, 3)
-                    .background(StudioTheme.inset, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
                     .overlay(
                         RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                            .stroke(border(for: state, absoluteIndex: absoluteIndex), lineWidth: selectedStepIndex == absoluteIndex ? 2 : StudioMetrics.borderWidth)
+                            .stroke(isSelected(absoluteIndex) ? StudioTheme.amber : Color.clear, lineWidth: 2)
                     )
                     .accessibilityElement(children: .combine)
                     .accessibilityLabel("Slice step \(absoluteIndex + 1)")
@@ -422,16 +515,8 @@ struct SliceStepStrip: View {
         }
     }
 
-    private func border(for state: State, absoluteIndex: Int) -> Color {
-        if selectedStepIndexes.contains(absoluteIndex) || selectedStepIndex == absoluteIndex {
-            return StudioTheme.amber
-        }
-        switch state {
-        case .off:
-            return Color.white.opacity(StudioOpacity.borderSubtle)
-        case .on:
-            return StudioTheme.cyan.opacity(0.4)
-        }
+    private func isSelected(_ absoluteIndex: Int) -> Bool {
+        selectedStepIndexes.contains(absoluteIndex) || selectedStepIndex == absoluteIndex
     }
 }
 
@@ -851,10 +936,6 @@ struct SliceSourceTabContent: View {
     let state: SliceSourceState
     let sampleName: String?
     let sliceCount: Int
-    /// Which detection produced the APPLIED slice set ("Transient detection"/
-    /// "Grid detection"/"Manual markers") — real persisted state, distinct
-    /// from the modal's pending analysis-mode picker.
-    let detectionLabel: String?
     let accent: Color
     let onChooseSample: () -> Void
     let onRemoveSample: () -> Void
@@ -888,65 +969,53 @@ struct SliceSourceTabContent: View {
         }
     }
 
-    // One well, studio styling: sample name + remove on the first row,
-    // the slice action(s) beneath, no white system buttons.
+    // The surrounding StudioTabWell owns the container chrome; this content
+    // keeps only source state and actions.
     private var unslicedState: some View {
-        well {
-            VStack(alignment: .leading, spacing: 12) {
-                sampleNameRow
-                HStack(spacing: 10) {
-                    studioActionButton(
-                        title: "Slice Sample",
-                        systemImage: "scissors",
-                        accent: accent,
-                        action: onOpenSliceModal
-                    )
-                    Text("Unsliced")
-                        .studioText(.labelBold)
-                        .foregroundStyle(StudioTheme.amber)
-                    Spacer()
-                }
+        VStack(alignment: .leading, spacing: 12) {
+            sampleNameRow
+            HStack(spacing: 10) {
+                studioActionButton(
+                    title: "Slice Sample",
+                    systemImage: "scissors",
+                    accent: accent,
+                    action: onOpenSliceModal
+                )
+                Text("Unsliced")
+                    .studioText(.labelBold)
+                    .foregroundStyle(StudioTheme.amber)
+                Spacer()
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var slicedState: some View {
-        well {
-            VStack(alignment: .leading, spacing: 12) {
-                sampleNameRow
-                HStack(spacing: 8) {
-                    // Slice count AND the applied set's detection mode are real
-                    // state (08-D prototype: "8 slices · Grid detection") — the
-                    // modal's Transients/Grid picker only shows the PENDING
-                    // analysis mode, so this is the one readout of what
-                    // produced the current markers.
-                    Text("\(sliceCount) slice\(sliceCount == 1 ? "" : "s")")
-                        .studioText(.labelBold)
-                        .foregroundStyle(StudioTheme.success)
-                    if let detectionLabel {
-                        Text("· \(detectionLabel)")
-                            .studioText(.label)
-                            .foregroundStyle(StudioTheme.mutedText)
-                    }
-                    Spacer()
-                }
-                HStack(spacing: 10) {
-                    studioActionButton(
-                        title: "Edit Slices",
-                        systemImage: "slider.horizontal.3",
-                        accent: accent,
-                        action: onOpenSliceModal
-                    )
-                    studioActionButton(
-                        title: "Re-slice",
-                        systemImage: "arrow.triangle.2.circlepath",
-                        accent: nil,
-                        action: onOpenSliceModal
-                    )
-                    Spacer()
-                }
+        VStack(alignment: .leading, spacing: 12) {
+            sampleNameRow
+            HStack(spacing: 8) {
+                Text("\(sliceCount) slice\(sliceCount == 1 ? "" : "s")")
+                    .studioText(.labelBold)
+                    .foregroundStyle(StudioTheme.success)
+                Spacer()
+            }
+            HStack(spacing: 10) {
+                studioActionButton(
+                    title: "Edit Slices",
+                    systemImage: "slider.horizontal.3",
+                    accent: accent,
+                    action: onOpenSliceModal
+                )
+                studioActionButton(
+                    title: "Re-slice",
+                    systemImage: "arrow.triangle.2.circlepath",
+                    accent: nil,
+                    action: onOpenSliceModal
+                )
+                Spacer()
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var sampleNameRow: some View {
@@ -990,16 +1059,6 @@ struct SliceSourceTabContent: View {
         .buttonStyle(.plain)
     }
 
-    private func well<Content: View>(@ViewBuilder content: () -> Content) -> some View {
-        content()
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(StudioMetrics.Spacing.standard)
-            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                    .stroke(StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
-            )
-    }
 }
 
 // MARK: - Slice tab sampler card (drum-part sampler grammar)
@@ -1035,18 +1094,16 @@ struct SliceSamplerCard: View {
             browseRow
             divider
             SliceSamplePlayerParametersView(
-                markerIndex: markerIndex,
-                sampleName: sampleName,
-                sliceDetail: rangeDetail,
+                accent: accent,
                 waveformBuckets: previewBuckets,
                 mode: $mode,
                 parameters: $parameters
             )
         }
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                .stroke(accent.opacity(StudioOpacity.mediumStroke), lineWidth: StudioMetrics.borderWidth)
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                .stroke(accent, lineWidth: StudioMetrics.borderWidth)
         )
         .frame(maxWidth: .infinity, alignment: .leading)
     }
