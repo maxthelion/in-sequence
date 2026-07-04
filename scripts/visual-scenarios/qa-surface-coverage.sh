@@ -308,6 +308,7 @@ $payload"
   # product behaviour changes.
   local settle=0.8
   case "$name" in
+    01-*|01a-*|01b-*|02-*|02a-*|02b-*) settle=1.8 ;;
     29g-*) settle=2.8 ;;
   esac
   sleep "$settle"
