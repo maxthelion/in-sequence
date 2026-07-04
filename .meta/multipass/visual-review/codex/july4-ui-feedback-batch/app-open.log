@@ -1,0 +1,30 @@
+app_path=/Users/maxwilliams/Library/Developer/Xcode/DerivedData/SequencerAI-fcugnhuorxccfhfilhtuhttpcwhq/Build/Products/Debug/SequencerAI.app
+2026-07-04 16:57:03.073 SequencerAI[7514:40319562] [SequencerAIAppDelegate] launch version=0.0.1 build=1 gitCommit=unknown gitBranch=unknown gitDirty=unknown attributionID=unknown attributionVersion=unknown
+2026-07-04 16:57:03.076 SequencerAI[7514:40319562] [AppDiagnostics] info app.launch Application launch
+2026-07-04 16:57:03.076 SequencerAI[7514:40319562] [U2] SequencerAIAppDelegate: beginWarmingIfNeeded
+2026-07-04 16:57:03.294 SequencerAI[7514:40319562] [MainAudioGraph] manual-rendering (offline) ENABLED for automation — HAL IO unit suppressed
+2026-07-04 16:57:03.437 SequencerAI[7514:40319562] [MainAudioGraph] manual-rendering (offline) ENABLED for automation — HAL IO unit suppressed
+2026-07-04 16:57:03.493 SequencerAI[7514:40319562] [VisualScenarioCommandRunner] watching command file /Users/maxwilliams/Library/Containers/ai.sequencer.SequencerAI/Data/tmp/sequencer-ai-visual-commands/qa-surface-coverage-command.env
+2026-07-04 16:57:03.503 SequencerAI[7514:40319562] [MainAudioGraph] manual-rendering (offline) ENABLED for automation — HAL IO unit suppressed
+2026-07-04 16:57:03.564 SequencerAI[7514:40319562] [MainAudioGraph] manual-rendering (offline) ENABLED for automation — HAL IO unit suppressed
+2026-07-04 16:57:03.873 SequencerAI[7514:40319562] +[IMKClient subclass]: chose IMKClient_Modern
+2026-07-04 16:57:03.873 SequencerAI[7514:40319562] +[IMKInputSession subclass]: chose IMKInputSession_Modern
+2026-07-04 16:58:43.254 SequencerAI[7514:40319562] [StepGridTap] t=1401166.793547 contentPropChangedFromStore noteGrid length=16 notes=6
+2026-07-04 17:00:05.893 SequencerAI[7514:40319562] [StepGridTap] t=1401249.434240 step=13 cellStateChanged on->off
+2026-07-04 17:00:05.893 SequencerAI[7514:40319562] [StepGridTap] t=1401249.434555 step=5 cellStateChanged on->off
+2026-07-04 17:02:04.331 SequencerAI[7514:40319562] [StepGridTap] t=1401367.874599 step=11 cellStateChanged on->off
+2026-07-04 17:02:04.332 SequencerAI[7514:40319562] [StepGridTap] t=1401367.874911 step=3 cellStateChanged on->off
+2026-07-04 17:02:04.332 SequencerAI[7514:40319562] [StepGridTap] t=1401367.874939 step=12 cellStateChanged on->off
+2026-07-04 17:02:04.332 SequencerAI[7514:40319562] [StepGridTap] t=1401367.874955 step=4 cellStateChanged on->off
+2026-07-04 17:02:04.332 SequencerAI[7514:40319562] [StepGridTap] t=1401367.874972 step=15 cellStateChanged on->off
+2026-07-04 17:02:04.332 SequencerAI[7514:40319562] [StepGridTap] t=1401367.874989 step=13 cellStateChanged on->off
+2026-07-04 17:02:04.332 SequencerAI[7514:40319562] [StepGridTap] t=1401367.875002 step=11 cellStateChanged on->off
+2026-07-04 17:02:04.332 SequencerAI[7514:40319562] [StepGridTap] t=1401367.875014 step=9 cellStateChanged on->off
+2026-07-04 17:02:04.332 SequencerAI[7514:40319562] [StepGridTap] t=1401367.875025 step=7 cellStateChanged on->off
+2026-07-04 17:02:04.332 SequencerAI[7514:40319562] [StepGridTap] t=1401367.875037 step=5 cellStateChanged on->off
+2026-07-04 17:02:04.332 SequencerAI[7514:40319562] [StepGridTap] t=1401367.875049 step=3 cellStateChanged on->off
+2026-07-04 17:02:04.332 SequencerAI[7514:40319562] [StepGridTap] t=1401367.875060 step=1 cellStateChanged on->off
+2026-07-04 17:02:04.332 SequencerAI[7514:40319562] [StepGridTap] t=1401367.875071 step=15 cellStateChanged on->off
+2026-07-04 17:02:04.332 SequencerAI[7514:40319562] [StepGridTap] t=1401367.875083 step=7 cellStateChanged on->off
+2026-07-04 17:02:04.332 SequencerAI[7514:40319562] [StepGridTap] t=1401367.875094 step=9 cellStateChanged on->off
+2026-07-04 17:02:04.332 SequencerAI[7514:40319562] [StepGridTap] t=1401367.875105 step=1 cellStateChanged on->off

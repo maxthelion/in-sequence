@@ -1,0 +1,211 @@
+Visual command written: windowFrame=120,80,1100,780; workspace=phrase; transport=stop
+Visual command written: windowFrame=120,80,1100,780; phraseMatrixTrackCount=6; phraseMatrixPhraseCount=6; phraseMatrixLayerIndex=0; transport=stop
+Captured 01-phrase.png (1)
+Visual command written: windowFrame=120,80,1100,780; workspace=song; transport=stop
+Captured 01a-song.png (2)
+Visual command written: windowFrame=120,80,1100,780; workspace=phrase; swing=0.4; transport=stop
+Captured 01b-transport-swing-set.png (3)
+Visual command written: windowFrame=120,80,1100,780; workspace=tracks; tracksSelectionMode=off; swing=0; transport=stop
+Captured 02-tracks-navigator.png (4)
+Visual command written: windowFrame=120,80,1100,780; workspace=tracks; tracksSelectionMode=on; tracksClearSelection=true; tracksSelect=first; transport=stop
+Captured 02a-tracks-selection-actions.png (5)
+Visual command written: windowFrame=120,80,1100,780; workspace=tracks; tracksSelectionMode=on; tracksClearSelection=true; tracksSelect=first; tracksAction=layerPerform; transport=stop
+Captured 02b-tracks-layer-perform-nav.png (6)
+Visual command written: windowFrame=120,80,1100,780; workspace=tracks; tracksCreateTrackModal=open; transport=stop
+Captured 02c-create-track-modal.png (7)
+Visual command written: windowFrame=120,80,1100,780; workspace=tracks; tracksAddDrumGroupModal=open; transport=stop
+Captured 02d-add-drum-group-modal.png (8)
+Visual command written: windowFrame=120,80,1100,780; workspace=tracks; tracksAddDrumGroupModal=close; tracksAddSliceTrackModal=open; transport=stop
+Captured 02e-add-slice-track-loop-picker.png (9)
+Visual command written: windowFrame=120,80,1100,780; workspace=tracks; tracksAddSliceTrackModal=close; tracksTrackSoundModal=open; transport=stop
+Captured 02f-create-track-sound-step.png (10)
+Visual command written: windowFrame=120,80,1100,780; workspace=mixer; transport=stop
+Captured 04-mixer.png (11)
+Visual command written: windowFrame=120,80,1100,780; scenesMode=browseEdit; transport=stop
+Captured 05-scenes-browse.png (12)
+Visual command written: windowFrame=120,80,1100,780; scenesMode=browseEdit; sceneEditorFixture=empty; transport=stop
+Captured 05a-scenes-edit-empty.png (13)
+Visual command written: windowFrame=120,80,1100,780; scenesMode=browseEdit; sceneEditorFixture=content; transport=stop
+Captured 05b-scenes-edit-content.png (14)
+Visual command written: windowFrame=120,80,1100,780; scenesMode=browseEdit; sceneEditorFixture=content; scenesAddFXModal=open; transport=stop
+Captured 05c-scenes-add-fx.png (15)
+Visual command written: windowFrame=120,80,1100,780; scenesMode=browseEdit; sceneEditorFixture=content; scenesAddFXModal=close; scenesSelectInsert=1; transport=stop
+Captured 05d-scenes-bitcrusher-editor.png (16)
+Visual command written: windowFrame=120,80,1100,780; scenesMode=browseEdit; sceneEditorFixture=browse-content; transport=stop
+Captured 05e-scenes-browse-fx.png (17)
+Visual command written: windowFrame=120,80,1100,780; workspace=phrase; workspaceMode=perform; phraseWorkspaceTab=scenes; transport=stop
+Captured 06-phrase-scenes-perform.png (18)
+Visual command written: windowFrame=120,80,1100,780; phraseMatrixTrackCount=8; phraseMatrixPhraseCount=8; phraseWorkspaceTab=scenes; phraseSceneSelect=a; transport=stop
+Captured 06a-phrase-scene-select.png (19)
+Visual command written: windowFrame=120,80,1100,780; workspace=phrase; workspaceMode=perform; phraseWorkspaceTab=scenes; phraseSceneSelect=close; phraseSceneViewMode=slots; transport=stop
+Captured 06b-phrase-scenes-perform-slots.png (20)
+Visual command written: windowFrame=120,80,1100,780; phraseMatrixTrackCount=8; phraseMatrixPhraseCount=8; phraseWorkspaceTab=scenes; phraseSceneMembershipFixture=split; transport=stop
+WARN: timed out waiting for phraseSceneViewMode=macros; last value was 'slots'
+SKIP: 06c-phrase-scenes-membership.png (status-timeout)
+Visual command written: windowFrame=120,80,1100,780; workspace=library; transport=stop
+Captured 07-library.png (21)
+Visual command written: windowFrame=120,80,1100,780; phraseMatrixTrackCount=8; phraseMatrixPhraseCount=8; phraseWorkspaceTab=layers; phraseCellTool=value; phraseMatrixLayerID=pattern; transport=stop
+Captured 08-phrase-layers-pattern.png (22)
+Visual command written: windowFrame=120,80,1100,780; phraseMatrixTrackCount=8; phraseMatrixPhraseCount=8; phraseWorkspaceTab=layers; phraseMatrixLayerID=mute; transport=stop
+Captured 09-phrase-layers-mute.png (23)
+Visual command written: windowFrame=120,80,1100,780; phraseMatrixTrackCount=8; phraseMatrixPhraseCount=8; phraseWorkspaceTab=layers; phraseCellTool=automation; phraseMatrixLayerID=pattern; transport=stop
+Captured 10-phrase-layers-automation-tool.png (24)
+Visual command written: windowFrame=120,80,1100,780; phraseMatrixTrackCount=8; phraseMatrixPhraseCount=8; phraseMatrixEnsureDefaultLayers=true; phraseWorkspaceTab=layers; phraseMatrixLayerID=density; phraseDensityValue=0; transport=stop
+WARN: timed out waiting for phraseMatrixSelectedLayerID=density; last value was 'pattern'
+SKIP: 10a-phrase-density-zero.png (status-timeout)
+Visual command written: windowFrame=120,80,1100,780; phraseMatrixTrackCount=8; phraseMatrixPhraseCount=8; phraseMatrixEnsureDefaultLayers=true; phraseWorkspaceTab=layers; phraseMatrixLayerID=density; phraseDensityValue=0.6; transport=stop
+WARN: timed out waiting for phraseMatrixSelectedLayerID=density; last value was 'pattern'
+SKIP: 10b-phrase-density-ghosts.png (status-timeout)
+Visual command written: windowFrame=120,80,1100,780; phraseMatrixTrackCount=8; phraseMatrixPhraseCount=8; phraseWorkspaceTab=layers; phrasePerformLayerSelector=open; transport=stop
+Captured 11-phrase-layer-selector-open.png (25)
+Visual command written: windowFrame=120,80,1100,780; phraseMatrixTrackCount=8; phraseMatrixPhraseCount=8; phraseWorkspaceTab=scenes; transport=stop
+Captured 12-phrase-scenes.png (26)
+Visual command written: windowFrame=120,80,1100,780; phraseMatrixTrackCount=8; phraseMatrixPhraseCount=8; phraseWorkspaceTab=globalApply; transport=stop
+Captured 13-phrase-global-apply.png (27)
+Visual command written: windowFrame=120,80,1100,780; phraseMatrixTrackCount=8; phraseMatrixPhraseCount=8; phraseWorkspaceTab=globalApply; phraseGlobalApplyTrackSelector=open; transport=stop
+Captured 13a-phrase-global-apply-track-selector.png (28)
+Visual command written: windowFrame=120,80,1100,780; phraseMatrixTrackCount=8; phraseMatrixPhraseCount=8; workspaceMode=perform; phraseWorkspaceTab=layers; phraseCapture=open; transport=stop
+Captured 13b-phrase-perform-capture.png (29)
+Visual command written: windowFrame=120,80,1100,780; phraseMatrixTrackCount=8; phraseCapture=close; phraseWorkspaceTab=globalApply; phraseGlobalApplyTrackSelector=open; phraseGlobalApplySelect=2; transport=stop
+Captured 13c-phrase-global-apply-selected.png (30)
+Visual command written: windowFrame=120,80,1100,780; trackFillSource=clip; trackSourceTab=steps-clip; transport=stop
+Captured 18-track-detail-steps-clip.png (31)
+Visual command written: windowFrame=120,80,1100,780; trackFillSource=generator; trackSourceTab=sound; transport=stop
+Captured 19-track-detail-sound.png (32)
+Visual command written: windowFrame=120,80,1100,780; trackSoundSource=empty; trackSourceTab=sound; transport=stop
+Captured 19a-track-detail-sound-empty.png (33)
+Visual command written: windowFrame=120,80,1100,780; trackFillSource=clip; trackFillPreview=on; transport=stop
+Captured 20-track-fill-preview-active.png (34)
+Visual command written: windowFrame=120,80,1100,780; trackFillSource=clip; trackFillPreview=off; trackFillEngaged=on; transport=stop
+WARN: timed out waiting for selectedTrackFillEngaged=true; last value was 'false'
+SKIP: 20a-track-fill-engaged.png (status-timeout)
+Visual command written: windowFrame=120,80,1100,780; trackFillSource=clip; trackSourceTab=source; trackRandomizeSheet=open; transport=stop
+Captured 20b-track-randomize-settings.png (35)
+Visual command written: windowFrame=120,80,1100,780; trackFillSource=clip; trackSourceTab=source; trackRandomizeRoll=on; transport=stop
+Captured 20c-track-randomize-rolled.png (36)
+Visual command written: windowFrame=120,80,1100,780; trackRandomizeSheet=closed; trackFillSource=clip; trackFillPreview=off; trackSourceTab=macros; transport=stop
+Captured 21-track-macros-tab.png (37)
+Visual command written: windowFrame=120,80,1100,780; trackFillSource=generator; trackSourceTab=fx; transport=stop
+Captured 22-track-detail-fx.png (38)
+Visual command written: windowFrame=120,80,1100,780; trackFillSource=clip; trackSourceTab=mixer; workspaceMode=setup; transport=stop
+Captured 22b-track-detail-mixer.png (39)
+Visual command written: windowFrame=120,80,1100,780; trackFillSource=clip; trackSourceTab=mixer; trackSceneMembership=sceneA; workspaceMode=setup; transport=stop
+Captured 22ba-track-routing-scene-selector.png (40)
+Visual command written: windowFrame=120,80,1100,780; trackFillSource=clip; trackSourceTab=steps-clip; trackClipLayer=pitch; transport=stop
+Captured 22c-track-pitch-layer.png (41)
+Visual command written: windowFrame=120,80,1100,780; trackFillSource=clip; trackSourceTab=steps-clip; trackClipLayerSwitcher=open; transport=stop
+Captured 22d-track-layer-quick-switch.png (42)
+Visual command written: windowFrame=120,80,1100,780; trackFillSource=generator; trackSourceTab=source; trackGeneratorStage=trigger; transport=stop
+Captured 22e-track-generator-trigger-tab.png (43)
+Visual command written: windowFrame=120,80,1100,780; trackFillSource=generator; trackSourceTab=source; trackGeneratorStage=pitch; transport=stop
+Captured 22f-track-generator-pitch-tab.png (44)
+Visual command written: windowFrame=120,80,1100,780; addTrack=polyMelodic; trackFillSource=generator; trackGeneratorKind=progressionChordGenerator; trackSourceTab=source; transport=stop
+Captured 22g-track-generator-chord-instrument.png (45)
+Visual command written: windowFrame=120,80,1100,780; trackFillSource=generator; trackSourceTab=source; trackGeneratorFollowing=chord; trackGeneratorStage=pitch; transport=stop
+Captured 22h-track-generator-chord-consumer.png (46)
+Visual command written: windowFrame=120,80,1100,780; addTrack=slice; transport=stop
+Captured 23-track-slicer.png (47)
+Visual command written: windowFrame=120,80,1100,780; slicerFixture=populated; slicerLayer=steps; workspaceScroll=top; transport=stop
+Captured 23a-track-slicer-populated.png (48)
+Visual command written: windowFrame=120,80,1100,780; slicerFixture=populated; slicerLayer=velocity; workspaceScroll=bottom; transport=stop
+Captured 23b-track-slicer-velocity-layer.png (49)
+Visual command written: windowFrame=120,80,1100,780; slicerFixture=populated; slicerLayer=chance; workspaceScroll=bottom; transport=stop
+Captured 23c-track-slicer-chance-layer.png (50)
+Visual command written: windowFrame=120,80,1100,780; slicerFixture=populated; slicerLayer=steps; slicerTab=source; workspaceScroll=bottom; transport=stop
+Captured 23d-track-slicer-source-tab.png (51)
+Visual command written: windowFrame=120,80,1100,780; slicerFixture=populated; slicerLayer=steps; slicerTab=slice; workspaceScroll=bottom; transport=stop
+Captured 23e-track-slicer-slice-tab.png (52)
+Visual command written: windowFrame=120,80,1100,780; slicerFixture=populated; slicerLayer=steps; slicerTab=source; sliceSourceModal=open; transport=stop
+Captured 23f-slice-source-modal.png (53)
+Visual command written: windowFrame=120,80,1100,780; sliceSourceModal=close; slicerFixture=populated; slicerTab=steps; slicerLayer=steps; slicerLayerSwitcher=open; workspaceScroll=bottom; transport=stop
+Captured 23fa-slice-layer-quick-switch.png (54)
+Visual command written: windowFrame=120,80,1100,780; sliceSourceModal=close; slicerFixture=populated; slicerTab=steps; workspaceScroll=bottom; trackSelectStep=2; transport=stop
+Captured 23g-step-edit-rotaries.png (55)
+Visual command written: windowFrame=120,80,1100,780; audioInputFixture=idle; audioInputAvailableChannels=0; transport=stop
+Captured 24-audio-idle.png (56)
+Visual command written: windowFrame=120,80,1100,780; audioInputState=live; transport=stop
+Captured 25-audio-live.png (57)
+Visual command written: windowFrame=120,80,1100,780; audioInputState=recording; transport=stop
+Captured 26-audio-recording.png (58)
+Visual command written: windowFrame=120,80,1100,780; audioInputState=completed; transport=stop
+Captured 27-audio-loop-ready.png (59)
+Visual command written: windowFrame=120,80,1100,780; audioInputState=live; audioInputTab=source; transport=stop
+Captured 27a-audio-source-tab.png (60)
+Visual command written: windowFrame=120,80,1100,780; audioInputState=completed; audioInputTab=mixer; transport=stop
+Captured 27b-audio-mixer-tab.png (61)
+Visual command written: windowFrame=120,80,1100,780; audioInputState=playback; audioInputTab=source; transport=stop
+Captured 27c-audio-playback.png (62)
+Visual command written: windowFrame=120,80,1100,780; drumPartHeaderFixture=kit; drumPartHeaderSelectedIndex=2; transport=stop
+WARN: timed out waiting for drumPartHeaderVisible=true; last value was 'false'
+SKIP: 28b-drum-track-default-kit.png (status-timeout)
+Visual command written: windowFrame=120,80,1100,780; drumKitMatrixCommand=closeRouting; transport=stop
+Visual command written: windowFrame=120,80,1100,780; drumPartHeaderFixture=kit; drumKitMatrixFixture=mixed; drumPartHeaderOpenKitView=true; drumKitMatrixDisplayStepCount=16; transport=stop
+WARN: timed out waiting for drumKitMatrixRenderedGroupPatternSlot=mixed; last value was '1'
+SKIP: 29-drum-kit-matrix.png (status-timeout)
+Visual command written: windowFrame=120,80,1100,780; drumKitMatrixCommand=closeRouting; transport=stop
+Visual command written: windowFrame=120,80,1100,780; drumPartHeaderFixture=kit; drumKitMatrixFixture=mixed; drumPartHeaderOpenKitView=true; drumKitMatrixDisplayStepCount=32; transport=stop
+WARN: timed out waiting for drumKitMatrixRenderedDisplayStepCount=32; last value was '16'
+SKIP: 30-drum-kit-matrix-32.png (status-timeout)
+Visual command written: windowFrame=120,80,1100,780; drumPartHeaderFixture=kit; drumPartHeaderOpenKitView=true; drumKitMatrixCommand=openRouting; drumGroupRoutingEditorState=channel; transport=stop
+Captured 31-drum-kit-routing.png (63)
+Visual command written: windowFrame=120,80,1100,780; drumPartHeaderFixture=kit; drumKitMatrixFixture=mixed; drumPartHeaderOpenKitView=true; drumKitMatrixCommand=tab-fx; transport=stop
+Captured 29a-drum-kit-fx-tab.png (64)
+Visual command written: windowFrame=120,80,1100,780; drumPartHeaderFixture=kit; drumKitMatrixFixture=mixed; drumPartHeaderOpenKitView=true; drumKitMatrixCommand=tab-macros; transport=stop
+Captured 29b-drum-kit-macros-tab.png (65)
+Visual command written: windowFrame=120,80,1100,780; drumPartHeaderFixture=kit; drumKitMatrixFixture=mixed; drumPartHeaderOpenKitView=true; drumKitMatrixCommand=tab-mixer; transport=stop
+Captured 29c-drum-kit-mixer-tab.png (66)
+Visual command written: windowFrame=120,80,1100,780; drumPartHeaderFixture=kit; drumKitMatrixFixture=mixed; drumPartHeaderOpenKitView=true; drumKitMatrixCommands=tab-fx,open-kit-fx-chooser; transport=stop
+WARN: timed out waiting for drumKitMatrixRenderedKitFXChooserVisible=true; last value was 'false'
+SKIP: 29d-drum-kit-fx-chooser.png (status-timeout)
+Visual command written: windowFrame=120,80,1100,780; drumPartHeaderFixture=kit; drumKitMatrixFixture=mixed; drumPartHeaderOpenKitView=true; drumKitMatrixCommands=close-kit-fx-chooser,open-capture; transport=stop
+WARN: timed out waiting for drumKitMatrixRenderedCaptureOpen=true; last value was 'false'
+SKIP: 29e-drum-kit-capture.png (status-timeout)
+Visual command written: windowFrame=120,80,1100,780; drumPartHeaderFixture=kit; drumKitMatrixFixture=mixed; drumPartHeaderOpenKitView=true; drumKitMatrixCommands=close-kit-fx-chooser,open-capture,history-save-open; transport=stop
+Captured 29f-drum-kit-capture-save-slot.png (67)
+Visual command written: windowFrame=120,80,1100,780; drumPartHeaderFixture=kit; drumKitMatrixFixture=mixed; drumPartHeaderOpenKitView=true; drumKitMatrixCommands=close-kit-fx-chooser,expand-part:0,row-tab-sound; transport=stop
+WARN: timed out waiting for drumKitMatrixRenderedRowExpanded=true; last value was 'false'
+SKIP: 29g-drum-kit-expanded-row.png (status-timeout)
+Visual command written: windowFrame=120,80,1100,780; drumKitMatrixCommand=closeRouting; transport=stop
+Visual command written: windowFrame=120,80,1100,780; drumPartHeaderFixture=kit; drumKitMatrixFixture=mixed; drumPartHeaderOpenKitView=true; drumKitMatrixLayer=velocity; transport=stop
+Captured 35-drum-kit-matrix-velocity-layer.png (68)
+Visual command written: windowFrame=120,80,1100,780; drumKitMatrixCommand=closeRouting; transport=stop
+Visual command written: windowFrame=120,80,1100,780; drumPartHeaderFixture=kit; drumKitMatrixFixture=mixed; drumPartHeaderOpenKitView=true; drumKitMatrixLayer=chance; transport=stop
+Captured 36-drum-kit-matrix-chance-layer.png (69)
+Visual command written: windowFrame=120,80,1100,780; drumKitMatrixCommand=closeRouting; transport=stop
+Visual command written: windowFrame=120,80,1100,780; drumPartHeaderFixture=kit; drumKitMatrixFixture=mixed; drumPartHeaderOpenKitView=true; drumKitMatrixPattern=2; transport=stop
+WARN: timed out waiting for drumKitMatrixRenderedGroupPatternSlot=2; last value was '1'
+SKIP: 37-drum-kit-matrix-pattern-realign.png (status-timeout)
+Visual command written: windowFrame=120,80,1100,780; drumKitMatrixCommand=closeRouting; transport=stop
+Visual command written: windowFrame=120,80,1100,780; drumPartHeaderFixture=kit; drumPartHeaderOpenKitView=true; drumKitMatrixTemplateChooser=open; transport=stop
+Captured 38-drum-kit-matrix-template-chooser.png (70)
+Visual command written: windowFrame=120,80,1100,780; drumKitMatrixCommand=closeRouting; transport=stop
+Visual command written: windowFrame=120,80,1100,780; drumPartHeaderFixture=kit; drumKitMatrixFixture=generatorAndReadOnly; drumPartHeaderOpenKitView=true; drumKitMatrixTemplateChooser=close; transport=stop
+Captured 39-drum-kit-matrix-generator-readonly.png (71)
+Visual command written: windowFrame=120,80,1100,780; stepOrderFixture=unassigned; phrasePerformLayer=stepOrder; transport=stop
+Captured 32-step-order-unassigned.png (72)
+Visual command written: windowFrame=120,80,1100,780; stepOrderFixture=assignedOn; phrasePerformLayer=stepOrder; transport=stop
+Captured 33-step-order-assigned-on.png (73)
+Visual command written: windowFrame=120,80,1100,780; workspace=library; libraryCategory=drumKits; transport=stop
+Captured 40-library-global.png (74)
+Visual command written: windowFrame=120,80,1100,780; workspace=library; libraryFixture=pool; libraryCategory=drumKits; transport=stop
+Captured 41-library-pool.png (75)
+Visual command written: windowFrame=120,80,1100,780; workspace=library; libraryFixture=recordings; libraryCategory=recordings; transport=stop
+Captured 42-library-recordings-populated.png (76)
+Visual command written: windowFrame=120,80,1100,780; workspace=library; libraryCategory=auInstruments; transport=stop
+Captured 43-library-au-instruments.png (77)
+Visual command written: windowFrame=120,80,1100,780; workspace=library; libraryCategory=generators; transport=stop
+Captured 44-library-generators.png (78)
+QA surface coverage FAILED: executed=89 png=78 skipped=11 status=failed - 78 PNGs for 89 executed rows
+Skipped rows:
+  06c-phrase-scenes-membership (status-timeout)
+  10a-phrase-density-zero (status-timeout)
+  10b-phrase-density-ghosts (status-timeout)
+  20a-track-fill-engaged (status-timeout)
+  28b-drum-track-default-kit (status-timeout)
+  29-drum-kit-matrix (status-timeout)
+  30-drum-kit-matrix-32 (status-timeout)
+  29d-drum-kit-fx-chooser (status-timeout)
+  29e-drum-kit-capture (status-timeout)
+  29g-drum-kit-expanded-row (status-timeout)
+  37-drum-kit-matrix-pattern-realign (status-timeout)
+Visual command written: transport=stop

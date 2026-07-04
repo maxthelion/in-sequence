@@ -32,11 +32,13 @@ Repair commit: `94851e00`
   across normal and slicer tracks.
 - [x] Add a tracked status note for `20260704-153522`.
 - [x] Run a Debug build.
-- [x] Run the QA surface coverage script if the visual automation gate is enabled;
-  otherwise record the blocked evidence file produced by the guard.
+- [x] Run the QA surface coverage script with visual automation enabled and
+  record the generated capture set.
 
 ## Verification
 
 - `xcodebuild -project SequencerAI.xcodeproj -scheme SequencerAI -configuration Debug -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO build` passed on 2026-07-04.
-- `scripts/visual-scenarios/qa-surface-coverage.sh` exited `42` on 2026-07-04 because `SEQUENCER_AI_ALLOW_VISUAL_AUTOMATION` is not enabled. The guard wrote `.meta/multipass/visual-review/visual-automation-blocked.md`, which records `capture-permission-or-focus` / `evidence-insufficient`.
+- `SEQUENCER_AI_ALLOW_VISUAL_AUTOMATION=1 PEEKABOO_OUTPUT_DIR='.meta/multipass/visual-review/codex/july4-ui-feedback-batch' scripts/visual-scenarios/qa-surface-coverage.sh` produced a fresh capture set on 2026-07-04.
+- Capture output lives under `.meta/multipass/visual-review/codex/july4-ui-feedback-batch/`.
+- The run recorded 78 PNG captures from 89 executed rows. It exited nonzero because 11 drum/secondary rows timed out; the skipped row list is captured in `.meta/multipass/visual-review/codex/july4-ui-feedback-batch/qa-surface-coverage-notes.md`.
 - `scripts/bug-status.sh --open` no longer lists the July 4 morning reports covered by this batch.
