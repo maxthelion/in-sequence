@@ -154,12 +154,8 @@ struct StepLayerQuickSwitchOptions<Value: Hashable>: View {
     let options: [StepLayerQuickSwitchOption<Value>]
     let accent: Color
 
-    private var columns: [GridItem] {
-        Array(repeating: GridItem(.flexible(minimum: 86), spacing: 6), count: 3)
-    }
-
     var body: some View {
-        LazyVGrid(columns: columns, spacing: 6) {
+        StepLayerQuickSwitchFlowLayout(spacing: 6) {
             ForEach(options) { option in
                 Button {
                     selection = option.value
@@ -170,7 +166,7 @@ struct StepLayerQuickSwitchOptions<Value: Hashable>: View {
                         .foregroundStyle(option.value == selection ? StudioTheme.background : StudioTheme.text)
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
-                        .frame(maxWidth: .infinity)
+                        .padding(.horizontal, 10)
                         .padding(.vertical, 7)
                         .background(
                             option.value == selection ? accent : Color.white.opacity(StudioOpacity.subtleFill),
@@ -184,6 +180,74 @@ struct StepLayerQuickSwitchOptions<Value: Hashable>: View {
                 .buttonStyle(.plain)
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+private struct StepLayerQuickSwitchFlowLayout: Layout {
+    let spacing: CGFloat
+
+    func sizeThatFits(
+        proposal: ProposedViewSize,
+        subviews: Subviews,
+        cache: inout ()
+    ) -> CGSize {
+        let layout = resolveLayout(
+            maxWidth: proposal.width ?? CGFloat.greatestFiniteMagnitude,
+            subviews: subviews
+        )
+        return CGSize(width: proposal.width ?? layout.width, height: layout.height)
+    }
+
+    func placeSubviews(
+        in bounds: CGRect,
+        proposal: ProposedViewSize,
+        subviews: Subviews,
+        cache: inout ()
+    ) {
+        var x: CGFloat = 0
+        var y: CGFloat = 0
+        var rowHeight: CGFloat = 0
+
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if x > 0, x + spacing + size.width > bounds.width {
+                x = 0
+                y += rowHeight + spacing
+                rowHeight = 0
+            }
+
+            subview.place(
+                at: CGPoint(x: bounds.minX + x, y: bounds.minY + y),
+                proposal: ProposedViewSize(width: size.width, height: size.height)
+            )
+
+            x += size.width + spacing
+            rowHeight = max(rowHeight, size.height)
+        }
+    }
+
+    private func resolveLayout(maxWidth: CGFloat, subviews: Subviews) -> CGSize {
+        var x: CGFloat = 0
+        var y: CGFloat = 0
+        var rowHeight: CGFloat = 0
+        var width: CGFloat = 0
+
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if x > 0, x + spacing + size.width > maxWidth {
+                width = max(width, x - spacing)
+                x = 0
+                y += rowHeight + spacing
+                rowHeight = 0
+            }
+
+            x += size.width + spacing
+            rowHeight = max(rowHeight, size.height)
+        }
+
+        width = max(width, x > 0 ? x - spacing : 0)
+        return CGSize(width: width, height: y + rowHeight)
     }
 }
 
