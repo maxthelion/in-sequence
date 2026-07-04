@@ -20,6 +20,12 @@ struct TrackSourceSourceTabContent: View {
     let generatedSourceInputClips: [ClipPoolEntry]
     let harmonicSidechainClips: [ClipPoolEntry]
     let onAssignMacroSlot: (Int) -> Void
+    let canRandomizeClip: Bool
+    let isRandomizePanelVisible: Bool
+    let hasSavedRandomizeSettings: Bool
+    let randomizePanel: () -> AnyView
+    let onRandomizeClip: () -> Void
+    let onToggleRandomizePanel: () -> Void
     let onShowSourcePicker: () -> Void
     let onBackOutSourcePicker: () -> Void
     let onShowSourceGeneratorPool: () -> Void
@@ -61,7 +67,13 @@ struct TrackSourceSourceTabContent: View {
                     canAssignAUMacros: canAssignAUMacros,
                     playingStepIndex: playingStepIndex,
                     stepGridCoordinator: stepGridCoordinator,
-                    onAssignMacroSlot: onAssignMacroSlot
+                    onAssignMacroSlot: onAssignMacroSlot,
+                    canRandomizeClip: canRandomizeClip,
+                    isRandomizePanelVisible: isRandomizePanelVisible,
+                    hasSavedRandomizeSettings: hasSavedRandomizeSettings,
+                    randomizePanel: randomizePanel,
+                    onRandomizeClip: onRandomizeClip,
+                    onToggleRandomizePanel: onToggleRandomizePanel
                 )
             }
 

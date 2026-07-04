@@ -88,10 +88,6 @@ struct TrackFillPreviewHeaderPresentation: Equatable {
     }
 }
 
-private struct ClipRandomizeSheetRequest: Identifiable {
-    let id = UUID()
-}
-
 struct TrackSourceEditorView: View {
     @Binding var document: SeqAIDocument
     @Environment(EngineController.self) private var engineController
@@ -105,7 +101,7 @@ struct TrackSourceEditorView: View {
     @State private var macroSlotPickerRequest: MacroSlotPickerRequest?
     @State private var clipHistoryModel: ClipHistoryTransferViewModel?
     @State private var clipHistoryToast: String?
-    @State private var randomizeSheetRequest: ClipRandomizeSheetRequest?
+    @State private var isRandomizePanelVisible = false
     @State private var randomizeDraft = ClipRandomizeSettings()
     @State private var randomizeAuditionSeed: UInt64?
     @State private var isAddFXPresented = false
@@ -287,8 +283,6 @@ struct TrackSourceEditorView: View {
                 showsHeader: false,
                 content: {
                     VStack(alignment: .leading, spacing: 10) {
-                        randomizeActionRow
-
                         TrackPatternSlotPalette(
                             selectedSlot: selectedPatternIndexBinding,
                             occupiedSlots: occupiedPatternSlots,
@@ -344,19 +338,6 @@ struct TrackSourceEditorView: View {
             }
             .presentationBackground(.clear)
         }
-        .sheet(item: $randomizeSheetRequest) { _ in
-            ClipRandomizeSettingsSheet(
-                settings: $randomizeDraft,
-                accent: accent,
-                isAuditioning: randomizeAuditionSeed != nil,
-                previewContent: randomizePreviewContent,
-                onReRoll: auditionRandomizeDraft,
-                onBake: bakeRandomizeDraft,
-                onCancel: closeRandomizeSheet
-            )
-            .presentationBackground(.clear)
-            .environment(\.colorScheme, .dark)
-        }
         .sheet(isPresented: $isAddFXPresented) {
             addFXSheet
         }
@@ -375,7 +356,7 @@ struct TrackSourceEditorView: View {
             sourcePickerStep = nil
             modifierPickerStep = nil
             resetClipHistoryDestinationMode()
-            closeRandomizeSheet()
+            closeRandomizePanel()
         }
         .onChange(of: selectedTab) { _, newValue in
             if newValue != .stepsClip {
@@ -388,7 +369,7 @@ struct TrackSourceEditorView: View {
         }
         .onChange(of: track.id) { _, _ in
             session.clearTrackFillPreview(reason: .selectedTrackChanged)
-            closeRandomizeSheet()
+            closeRandomizePanel()
         }
         .onAppear {
             syncStepGridCoordinator()
@@ -406,7 +387,7 @@ struct TrackSourceEditorView: View {
         }
         .onDisappear {
             session.clearTrackFillPreview(reason: .editorClosed)
-            closeRandomizeSheet()
+            closeRandomizePanel()
         }
         .onChange(of: session.workspaceMode) { _, newMode in
             if !selectedTab.isAvailable(in: newMode) {
@@ -417,58 +398,6 @@ struct TrackSourceEditorView: View {
             guard let command = notification.object as? String else { return }
             handleTrackSourceEditorVisualCommand(command)
         }
-    }
-
-    @ViewBuilder
-    private var randomizeActionRow: some View {
-        HStack(spacing: 8) {
-            Button(action: randomizeSelectedClipNow) {
-                Label("Randomize", systemImage: "die.face.5")
-                    .studioText(.labelBold)
-                    .foregroundStyle(canRandomizeSelectedClip ? StudioTheme.background : StudioTheme.mutedText)
-                    .padding(.vertical, 9)
-                    .padding(.horizontal, 12)
-                    .background(
-                        canRandomizeSelectedClip ? accent : StudioTheme.border,
-                        in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-                    )
-            }
-            .buttonStyle(.plain)
-            .disabled(!canRandomizeSelectedClip)
-            .accessibilityLabel("Randomize current clip")
-
-            Button(action: presentRandomizeSheet) {
-                Image(systemName: "slider.horizontal.3")
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundStyle(canRandomizeSelectedClip ? StudioTheme.text : StudioTheme.mutedText)
-                    .frame(width: 34, height: 34)
-                    .background(
-                        Color.white.opacity(StudioOpacity.subtleFill),
-                        in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-                            .stroke(randomizeSettingsStroke, lineWidth: StudioMetrics.borderWidth)
-                    )
-            }
-            .buttonStyle(.plain)
-            .disabled(!canRandomizeSelectedClip)
-            .accessibilityLabel("Randomize settings")
-
-            if currentClip?.randomizeSettings != nil {
-                Circle()
-                    .fill(accent)
-                    .frame(width: 7, height: 7)
-                    .accessibilityLabel("Randomize settings saved")
-            }
-
-            Spacer(minLength: 0)
-        }
-    }
-
-    private var randomizeSettingsStroke: Color {
-        guard canRandomizeSelectedClip else { return StudioTheme.border }
-        return currentClip?.randomizeSettings == nil ? StudioTheme.border : accent
     }
 
     private var randomizePreviewContent: ClipContent? {
@@ -488,12 +417,12 @@ struct TrackSourceEditorView: View {
 
         if command == "randomize-sheet:open" {
             selectedTab = .stepsClip
-            presentRandomizeSheet()
+            presentRandomizePanel()
             return
         }
 
         if command == "randomize-sheet:close" {
-            closeRandomizeSheet()
+            closeRandomizePanel()
             return
         }
 
@@ -517,11 +446,11 @@ struct TrackSourceEditorView: View {
         _ = session.bakeRandomizedSelectedClip(trackID: track.id, settings: settings, seed: seed)
     }
 
-    private func presentRandomizeSheet() {
+    private func presentRandomizePanel() {
         guard canRandomizeSelectedClip else { return }
         randomizeDraft = currentClip?.randomizeSettings ?? ClipRandomizeSettings()
         randomizeAuditionSeed = nil
-        randomizeSheetRequest = ClipRandomizeSheetRequest()
+        isRandomizePanelVisible = true
     }
 
     private func auditionRandomizeDraft() {
@@ -542,13 +471,13 @@ struct TrackSourceEditorView: View {
         _ = session.bakeRandomizedSelectedClip(trackID: track.id, settings: persisted, seed: seed)
         session.clearRandomizeAudition(trackID: track.id)
         randomizeAuditionSeed = nil
-        randomizeSheetRequest = nil
+        isRandomizePanelVisible = false
     }
 
-    private func closeRandomizeSheet() {
+    private func closeRandomizePanel() {
         session.clearRandomizeAudition(trackID: track.id)
         randomizeAuditionSeed = nil
-        randomizeSheetRequest = nil
+        isRandomizePanelVisible = false
     }
 
     private func nextRandomizeSeed() -> UInt64 {
@@ -591,6 +520,30 @@ struct TrackSourceEditorView: View {
             generatedSourceInputClips: generatedSourceInputClips,
             harmonicSidechainClips: harmonicSidechainClips,
             onAssignMacroSlot: prepareAndPresentMacroSlotPicker(slotIndex:),
+            canRandomizeClip: canRandomizeSelectedClip,
+            isRandomizePanelVisible: isRandomizePanelVisible,
+            hasSavedRandomizeSettings: currentClip?.randomizeSettings != nil,
+            randomizePanel: {
+                AnyView(
+                    ClipRandomizeSettingsPanel(
+                        settings: $randomizeDraft,
+                        accent: accent,
+                        isAuditioning: randomizeAuditionSeed != nil,
+                        previewContent: randomizePreviewContent,
+                        onReRoll: auditionRandomizeDraft,
+                        onBake: bakeRandomizeDraft,
+                        onClose: closeRandomizePanel
+                    )
+                )
+            },
+            onRandomizeClip: randomizeSelectedClipNow,
+            onToggleRandomizePanel: {
+                if isRandomizePanelVisible {
+                    closeRandomizePanel()
+                } else {
+                    presentRandomizePanel()
+                }
+            },
             onShowSourcePicker: { updateSourcePickerStep(.showRoot) },
             onBackOutSourcePicker: { updateSourcePickerStep(.cancel) },
             onShowSourceGeneratorPool: { updateSourcePickerStep(.showGeneratorPool) },
@@ -1140,28 +1093,31 @@ struct TrackSourceEditorView: View {
     }
 }
 
-private struct ClipRandomizeSettingsSheet: View {
+struct ClipRandomizeSettingsPanel: View {
     @Binding var settings: ClipRandomizeSettings
     let accent: Color
     let isAuditioning: Bool
     let previewContent: ClipContent?
     let onReRoll: () -> Void
     let onBake: () -> Void
-    let onCancel: () -> Void
+    let onClose: () -> Void
 
     var body: some View {
-        StudioModal(
-            title: "Randomize Clip",
-            accent: accent,
-            minWidth: 620,
-            onClose: onCancel
-        ) {
-            VStack(alignment: .leading, spacing: 16) {
-                controls
-                previewStrip
-                actionRow
-            }
+        VStack(alignment: .leading, spacing: 14) {
+            controls
+            previewStrip
+            actionRow
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(StudioMetrics.Spacing.standard)
+        .background(
+            Color.white.opacity(StudioOpacity.subtleFill),
+            in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
+                .stroke(accent.opacity(0.75), lineWidth: StudioMetrics.borderWidth)
+        )
     }
 
     // Continuous values are rotary knobs and value lists are themed menus —
@@ -1310,7 +1266,7 @@ private struct ClipRandomizeSettingsSheet: View {
 
             Spacer(minLength: 0)
 
-            Button("Cancel", action: onCancel)
+            Button("Close", action: onClose)
                 .buttonStyle(.plain)
                 .studioText(.labelBold)
                 .foregroundStyle(StudioTheme.mutedText)

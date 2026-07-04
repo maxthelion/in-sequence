@@ -48,10 +48,7 @@ struct TrackRoutingTabContent: View {
     }
 
     private var mixerWell: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            pathSummaryHeader
-            destinationRow
-        }
+        destinationRow
     }
 
     // MARK: - Path summary (INSTRUMENT → FX → DEST)
@@ -103,12 +100,7 @@ struct TrackRoutingTabContent: View {
     // MARK: - Destination + sends (master / a bus, sends A/B)
 
     private var destinationRow: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("MIXER & FX")
-                .studioText(.eyebrow)
-                .tracking(0.8)
-                .foregroundStyle(StudioTheme.mutedText)
-
+        VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .center, spacing: 16) {
                 outputSelector
                 sceneMembershipSelector
@@ -117,12 +109,7 @@ struct TrackRoutingTabContent: View {
                 sendKnob(.b, value: summary.sendB)
             }
         }
-        .padding(StudioMetrics.Spacing.standard)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
-        )
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var outputSelector: some View {
@@ -177,35 +164,31 @@ struct TrackRoutingTabContent: View {
                 .tracking(0.8)
                 .foregroundStyle(StudioTheme.mutedText)
 
-            Menu {
+            HStack(spacing: 6) {
                 ForEach(TrackMixSettings.SceneMembership.allCases, id: \.self) { membership in
-                    Button(membership.label) {
+                    let isSelected = summary.sceneMembership == membership
+                    Button {
                         commitSceneMembership(membership)
+                    } label: {
+                        Text(membership.shortLabel)
+                            .studioText(.labelBold)
+                            .foregroundStyle(isSelected ? StudioTheme.background : StudioTheme.text)
+                            .frame(minWidth: 38)
+                            .padding(.vertical, 8)
+                            .padding(.horizontal, 8)
+                            .background(
+                                isSelected ? accent : Color.white.opacity(StudioOpacity.subtleFill),
+                                in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                                    .stroke(isSelected ? Color.clear : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+                            )
                     }
+                    .buttonStyle(.plain)
+                    .help(membership.label)
                 }
-            } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: "arrow.left.and.right")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(StudioTheme.mutedText)
-                    Text(summary.sceneMembership.shortLabel)
-                        .studioText(.labelBold)
-                        .foregroundStyle(StudioTheme.text)
-                        .lineLimit(1)
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundStyle(StudioTheme.mutedText)
-                }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 8)
-                .frame(minWidth: 86, alignment: .leading)
-                .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-                        .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
-                )
             }
-            .buttonStyle(.plain)
             .help("\(track.name) scene membership")
             .accessibilityIdentifier("routing-scene-membership")
             .accessibilityLabel("\(track.name) scene membership")

@@ -4,9 +4,7 @@ import SwiftUI
 ///
 /// Each insert is one row with a drag handle (reorder — no up/down arrows), a
 /// name + subtitle, and a bypass toggle + remove (✕) on the SAME line. Inserts
-/// are added via a "+ FX" button (not an "Insert" dropdown). The empty state is
-/// a single compact line + the "+ FX" button — no "Enabled" label and no large
-/// "Empty"/"Empty Scene" filler text (AC5).
+/// are added via a dashed full-width Add FX tile (not an "Insert" dropdown).
 struct TrackFXChainView: View {
     let inserts: [TrackFXInsert]
     let accent: Color
@@ -27,15 +25,16 @@ struct TrackFXChainView: View {
         .padding(StudioMetrics.Spacing.standard)
     }
 
-    // MARK: - Empty state (AC5: compact only)
+    // MARK: - Empty state
 
     private var emptyState: some View {
-        HStack(spacing: 12) {
-            Text("No inserts yet.")
-                .studioText(.body)
-                .foregroundStyle(StudioTheme.mutedText)
-            Spacer(minLength: 0)
-            addFXButton
+        StudioAddCard(
+            label: "",
+            accent: accent,
+            minHeight: 132,
+            help: "Add FX"
+        ) {
+            onAddFX()
         }
     }
 
@@ -59,9 +58,13 @@ struct TrackFXChainView: View {
             .scrollContentBackground(.hidden)
             .frame(height: listHeight)
 
-            HStack {
-                Spacer(minLength: 0)
-                addFXButton
+            StudioAddCard(
+                label: "Add FX",
+                accent: accent,
+                minHeight: 64,
+                help: "Add FX"
+            ) {
+                onAddFX()
             }
         }
     }
@@ -86,19 +89,6 @@ struct TrackFXChainView: View {
             onToggleBypass: { onSetBypassed(insert.id, $0) },
             onRemove: { onRemove(insert.id) }
         )
-    }
-
-    private var addFXButton: some View {
-        Button(action: onAddFX) {
-            Label("FX", systemImage: "plus")
-                .studioText(.labelBold)
-                .foregroundStyle(StudioTheme.background)
-                .padding(.vertical, 8)
-                .padding(.horizontal, 12)
-                .background(accent, in: Capsule())
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("Add FX insert")
     }
 
     static func iconName(for kind: MasterBusInsertKind) -> String {

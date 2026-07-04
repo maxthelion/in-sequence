@@ -14,6 +14,12 @@ struct TrackSourceClipPanel: View {
     let playingStepIndex: Int?
     let stepGridCoordinator: StepGridCoordinator?
     let onAssignMacroSlot: (Int) -> Void
+    let canRandomizeClip: Bool
+    let isRandomizePanelVisible: Bool
+    let hasSavedRandomizeSettings: Bool
+    let randomizePanel: () -> AnyView
+    let onRandomizeClip: () -> Void
+    let onToggleRandomizePanel: () -> Void
 
     var body: some View {
         ClipContentPreview(
@@ -26,6 +32,12 @@ struct TrackSourceClipPanel: View {
             macroFallbackValues: macroFallbackValues,
             stepGridCoordinator: stepGridCoordinator,
             onAssignMacroSlot: canAssignAUMacros ? onAssignMacroSlot : nil,
+            canRandomize: canRandomizeClip,
+            isRandomizePanelVisible: isRandomizePanelVisible,
+            hasSavedRandomizeSettings: hasSavedRandomizeSettings,
+            randomizePanel: randomizePanel,
+            onRandomize: onRandomizeClip,
+            onToggleRandomizePanel: onToggleRandomizePanel,
             playingStepIndex: playingStepIndex
         )
         .frame(maxWidth: .infinity, alignment: .leading)

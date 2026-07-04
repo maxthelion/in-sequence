@@ -109,12 +109,14 @@ struct StepLayerQuickSwitchChip<Value: Hashable>: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            Text(title.uppercased())
-                .studioText(.eyebrow)
-                .tracking(0.8)
-                // ux-canon-allow: eyebrow captions are structural labels,
-                // not stateful chrome — mutedText is the caption token.
-                .foregroundStyle(StudioTheme.mutedText)
+            if !title.isEmpty {
+                Text(title.uppercased())
+                    .studioText(.eyebrow)
+                    .tracking(0.8)
+                    // ux-canon-allow: eyebrow captions are structural labels,
+                    // not stateful chrome — mutedText is the caption token.
+                    .foregroundStyle(StudioTheme.mutedText)
+            }
 
             Button {
                 isOpen.toggle()
@@ -142,7 +144,7 @@ struct StepLayerQuickSwitchChip<Value: Hashable>: View {
                 )
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("\(title) \(selectedTitle)")
+            .accessibilityLabel(title.isEmpty ? selectedTitle : "\(title) \(selectedTitle)")
         }
         .fixedSize()
     }

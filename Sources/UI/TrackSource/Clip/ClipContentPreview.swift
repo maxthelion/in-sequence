@@ -170,6 +170,12 @@ struct ClipContentPreview: View {
     let macroFallbackValues: [UUID: Double]
     let stepGridCoordinator: StepGridCoordinator?
     let onAssignMacroSlot: ((Int) -> Void)?
+    let canRandomize: Bool
+    let isRandomizePanelVisible: Bool
+    let hasSavedRandomizeSettings: Bool
+    let randomizePanel: (() -> AnyView)?
+    let onRandomize: (() -> Void)?
+    let onToggleRandomizePanel: (() -> Void)?
     let playingStepIndex: Int?
 
     @State private var displayedContent: ClipContent
@@ -188,6 +194,12 @@ struct ClipContentPreview: View {
         macroFallbackValues: [UUID: Double] = [:],
         stepGridCoordinator: StepGridCoordinator? = nil,
         onAssignMacroSlot: ((Int) -> Void)? = nil,
+        canRandomize: Bool = false,
+        isRandomizePanelVisible: Bool = false,
+        hasSavedRandomizeSettings: Bool = false,
+        randomizePanel: (() -> AnyView)? = nil,
+        onRandomize: (() -> Void)? = nil,
+        onToggleRandomizePanel: (() -> Void)? = nil,
         playingStepIndex: Int? = nil
     ) {
         let normalizedContent = content.normalized
@@ -200,6 +212,12 @@ struct ClipContentPreview: View {
         self.macroFallbackValues = macroFallbackValues
         self.stepGridCoordinator = stepGridCoordinator
         self.onAssignMacroSlot = onAssignMacroSlot
+        self.canRandomize = canRandomize
+        self.isRandomizePanelVisible = isRandomizePanelVisible
+        self.hasSavedRandomizeSettings = hasSavedRandomizeSettings
+        self.randomizePanel = randomizePanel
+        self.onRandomize = onRandomize
+        self.onToggleRandomizePanel = onToggleRandomizePanel
         self.playingStepIndex = playingStepIndex
         self._displayedContent = State(initialValue: normalizedContent)
     }
@@ -314,71 +332,15 @@ struct ClipContentPreview: View {
         VStack(alignment: .leading, spacing: 12) {
             clipHeaderControls(lengthSteps: lengthSteps, steps: steps)
 
-            layerDisclosureRow(lengthSteps: lengthSteps, steps: steps)
-
-            if let selectedMacroLayer {
-                let layer = StepGridLayer.macro(index: selectedMacroLayer.macroIndex)
-                let previewClip = macroPreviewClip(lengthSteps: lengthSteps, steps: steps)
-
-                StepGridView(
-                    stepStates: visibleSteps.map { stepVisualState(for: $0, lane: selectedLane) },
-                    indexOffset: pageStart,
-                    playingStepIndex: playingStepIndex,
-                    selectedStepIndexes: selectedStepIndexes,
-                    contentProvider: { index, _ in
-                        StepGridCoordinator.cellContent(
-                            for: index,
-                            in: previewClip,
-                            layer: layer,
-                            macroBindings: macroBindings
-                        )
-                    },
-                    onValueDrag: { index, fraction in
-                        writeValueLayer(fraction, layer: layer, tappedIndex: index)
-                    },
-                    onSelectStep: selectStepAction,
-                    onBackgroundTap: clearSelectionAction
-                ) { index in
-                    cycleMacroLayerValue(macroIndex: selectedMacroLayer.macroIndex, tappedIndex: index)
-                }
-                .allowsHitTesting(isEditable)
+            if isRandomizePanelVisible, let randomizePanel {
+                randomizePanel()
             } else {
-                switch selectedMode {
-                case .trigger:
-                    StepGridView(
-                        stepStates: visibleSteps.map { stepVisualState(for: $0, lane: selectedLane) },
-                        indexOffset: pageStart,
-                        playingStepIndex: playingStepIndex,
-                        selectedStepIndexes: selectedStepIndexes,
-                        onSelectStep: selectStepAction,
-                        onBackgroundTap: clearSelectionAction
-                    ) { index in
-                        #if DEBUG
-                        let beforeState = steps.indices.contains(index)
-                            ? stepVisualState(for: steps[index], lane: selectedLane).diagnosticName
-                            : "missing"
-                        StepGridTapDiagnostics.log(
-                            "clipTriggerTapHandler",
-                            stepIndex: index,
-                            details: "lane=\(selectedLane.rawValue) before=\(beforeState)"
-                        )
-                        #endif
-                        let indexes = affectedStepIndexes(for: index)
-                        commit { entry in
-                            ClipNoteGridStepEditing.applyTap(
-                                tappedIndex: index,
-                                indexes: indexes,
-                                layer: .trigger,
-                                entry: &entry,
-                                macroBindings: nil,
-                                noteLane: selectedLane.noteLane,
-                                defaultNote: defaultNote
-                            )
-                        }
-                    }
-                    .allowsHitTesting(isEditable)
+                layerDisclosureRow(lengthSteps: lengthSteps, steps: steps)
 
-                case .pitch:
+                if let selectedMacroLayer {
+                    let layer = StepGridLayer.macro(index: selectedMacroLayer.macroIndex)
+                    let previewClip = macroPreviewClip(lengthSteps: lengthSteps, steps: steps)
+
                     StepGridView(
                         stepStates: visibleSteps.map { stepVisualState(for: $0, lane: selectedLane) },
                         indexOffset: pageStart,
@@ -387,101 +349,161 @@ struct ClipContentPreview: View {
                         contentProvider: { index, _ in
                             StepGridCoordinator.cellContent(
                                 for: index,
-                                in: macroPreviewClip(lengthSteps: lengthSteps, steps: steps),
-                                layer: .pitch,
-                                noteLane: selectedLane.noteLane
+                                in: previewClip,
+                                layer: layer,
+                                macroBindings: macroBindings
                             )
                         },
                         onValueDrag: { index, fraction in
-                            writeValueLayer(fraction, layer: .pitch, tappedIndex: index)
+                            writeValueLayer(fraction, layer: layer, tappedIndex: index)
                         },
                         onSelectStep: selectStepAction,
-                        onBackgroundTap: clearSelectionAction,
-                        onOctaveTap: { index in
+                        onBackgroundTap: clearSelectionAction
+                    ) { index in
+                        cycleMacroLayerValue(macroIndex: selectedMacroLayer.macroIndex, tappedIndex: index)
+                    }
+                    .allowsHitTesting(isEditable)
+                } else {
+                    switch selectedMode {
+                    case .trigger:
+                        StepGridView(
+                            stepStates: visibleSteps.map { stepVisualState(for: $0, lane: selectedLane) },
+                            indexOffset: pageStart,
+                            playingStepIndex: playingStepIndex,
+                            selectedStepIndexes: selectedStepIndexes,
+                            onSelectStep: selectStepAction,
+                            onBackgroundTap: clearSelectionAction
+                        ) { index in
+                            #if DEBUG
+                            let beforeState = steps.indices.contains(index)
+                                ? stepVisualState(for: steps[index], lane: selectedLane).diagnosticName
+                                : "missing"
+                            StepGridTapDiagnostics.log(
+                                "clipTriggerTapHandler",
+                                stepIndex: index,
+                                details: "lane=\(selectedLane.rawValue) before=\(beforeState)"
+                            )
+                            #endif
                             let indexes = affectedStepIndexes(for: index)
                             commit { entry in
-                                ClipNoteGridStepEditing.applyOctaveTap(
+                                ClipNoteGridStepEditing.applyTap(
                                     tappedIndex: index,
                                     indexes: indexes,
+                                    layer: .trigger,
                                     entry: &entry,
+                                    macroBindings: nil,
                                     noteLane: selectedLane.noteLane,
                                     defaultNote: defaultNote
                                 )
                             }
                         }
-                    ) { index in
-                        let indexes = affectedStepIndexes(for: index)
-                        commit { entry in
-                            ClipNoteGridStepEditing.applyTap(
-                                tappedIndex: index,
-                                indexes: indexes,
-                                layer: .pitch,
-                                entry: &entry,
-                                macroBindings: nil,
-                                noteLane: selectedLane.noteLane,
-                                defaultNote: defaultNote
-                            )
+                        .allowsHitTesting(isEditable)
+
+                    case .pitch:
+                        StepGridView(
+                            stepStates: visibleSteps.map { stepVisualState(for: $0, lane: selectedLane) },
+                            indexOffset: pageStart,
+                            playingStepIndex: playingStepIndex,
+                            selectedStepIndexes: selectedStepIndexes,
+                            contentProvider: { index, _ in
+                                StepGridCoordinator.cellContent(
+                                    for: index,
+                                    in: macroPreviewClip(lengthSteps: lengthSteps, steps: steps),
+                                    layer: .pitch,
+                                    noteLane: selectedLane.noteLane
+                                )
+                            },
+                            onValueDrag: { index, fraction in
+                                writeValueLayer(fraction, layer: .pitch, tappedIndex: index)
+                            },
+                            onSelectStep: selectStepAction,
+                            onBackgroundTap: clearSelectionAction,
+                            onOctaveTap: { index in
+                                let indexes = affectedStepIndexes(for: index)
+                                commit { entry in
+                                    ClipNoteGridStepEditing.applyOctaveTap(
+                                        tappedIndex: index,
+                                        indexes: indexes,
+                                        entry: &entry,
+                                        noteLane: selectedLane.noteLane,
+                                        defaultNote: defaultNote
+                                    )
+                                }
+                            }
+                        ) { index in
+                            let indexes = affectedStepIndexes(for: index)
+                            commit { entry in
+                                ClipNoteGridStepEditing.applyTap(
+                                    tappedIndex: index,
+                                    indexes: indexes,
+                                    layer: .pitch,
+                                    entry: &entry,
+                                    macroBindings: nil,
+                                    noteLane: selectedLane.noteLane,
+                                    defaultNote: defaultNote
+                                )
+                            }
                         }
-                    }
-                    .allowsHitTesting(isEditable)
+                        .allowsHitTesting(isEditable)
 
-                case .velocity:
-                    StepGridView(
-                        stepStates: visibleSteps.map { stepVisualState(for: $0, lane: selectedLane) },
-                        indexOffset: pageStart,
-                        playingStepIndex: playingStepIndex,
-                        selectedStepIndexes: selectedStepIndexes,
-                        contentProvider: { index, _ in
-                            guard steps.indices.contains(index) else {
-                                return .valueBar(fraction: 0)
-                            }
-                            return .valueBar(fraction: velocityValue(for: steps[index], lane: selectedLane) / 127.0)
-                        },
-                        onValueDrag: { index, fraction in
-                            writeValueLayer(fraction, layer: .velocity, tappedIndex: index)
-                        },
-                        onSelectStep: selectStepAction,
-                        onBackgroundTap: clearSelectionAction
-                    ) { index in
-                        guard steps.indices.contains(index) else { return }
-                        let nextValue = ClipNoteGridStepEditing.cycledValue(
-                            after: velocityValue(for: steps[index], lane: selectedLane),
-                            allowedValues: ClipNoteGridStepEditing.velocityCycleValues
-                        )
-                        writeValueLayer(nextValue / 127.0, layer: .velocity, tappedIndex: index)
-                    }
-                    .allowsHitTesting(isEditable)
+                    case .velocity:
+                        StepGridView(
+                            stepStates: visibleSteps.map { stepVisualState(for: $0, lane: selectedLane) },
+                            indexOffset: pageStart,
+                            playingStepIndex: playingStepIndex,
+                            selectedStepIndexes: selectedStepIndexes,
+                            contentProvider: { index, _ in
+                                guard steps.indices.contains(index) else {
+                                    return .valueBar(fraction: 0)
+                                }
+                                return .valueBar(fraction: velocityValue(for: steps[index], lane: selectedLane) / 127.0)
+                            },
+                            onValueDrag: { index, fraction in
+                                writeValueLayer(fraction, layer: .velocity, tappedIndex: index)
+                            },
+                            onSelectStep: selectStepAction,
+                            onBackgroundTap: clearSelectionAction
+                        ) { index in
+                            guard steps.indices.contains(index) else { return }
+                            let nextValue = ClipNoteGridStepEditing.cycledValue(
+                                after: velocityValue(for: steps[index], lane: selectedLane),
+                                allowedValues: ClipNoteGridStepEditing.velocityCycleValues
+                            )
+                            writeValueLayer(nextValue / 127.0, layer: .velocity, tappedIndex: index)
+                        }
+                        .allowsHitTesting(isEditable)
 
-                case .probability:
-                    StepGridView(
-                        stepStates: visibleSteps.map { stepVisualState(for: $0, lane: selectedLane) },
-                        indexOffset: pageStart,
-                        playingStepIndex: playingStepIndex,
-                        selectedStepIndexes: selectedStepIndexes,
-                        contentProvider: { index, _ in
-                            guard steps.indices.contains(index) else {
-                                return .valueBar(fraction: 0)
-                            }
-                            return .valueBar(fraction: chanceValue(for: steps[index], lane: selectedLane))
-                        },
-                        onValueDrag: { index, fraction in
-                            writeValueLayer(fraction, layer: .chance, tappedIndex: index)
-                        },
-                        onSelectStep: selectStepAction,
-                        onBackgroundTap: clearSelectionAction
-                    ) { index in
-                        guard steps.indices.contains(index) else { return }
-                        let nextValue = ClipNoteGridStepEditing.cycledValue(
-                            after: chanceValue(for: steps[index], lane: selectedLane),
-                            allowedValues: ClipNoteGridStepEditing.chanceCycleValues
-                        )
-                        writeValueLayer(nextValue, layer: .chance, tappedIndex: index)
+                    case .probability:
+                        StepGridView(
+                            stepStates: visibleSteps.map { stepVisualState(for: $0, lane: selectedLane) },
+                            indexOffset: pageStart,
+                            playingStepIndex: playingStepIndex,
+                            selectedStepIndexes: selectedStepIndexes,
+                            contentProvider: { index, _ in
+                                guard steps.indices.contains(index) else {
+                                    return .valueBar(fraction: 0)
+                                }
+                                return .valueBar(fraction: chanceValue(for: steps[index], lane: selectedLane))
+                            },
+                            onValueDrag: { index, fraction in
+                                writeValueLayer(fraction, layer: .chance, tappedIndex: index)
+                            },
+                            onSelectStep: selectStepAction,
+                            onBackgroundTap: clearSelectionAction
+                        ) { index in
+                            guard steps.indices.contains(index) else { return }
+                            let nextValue = ClipNoteGridStepEditing.cycledValue(
+                                after: chanceValue(for: steps[index], lane: selectedLane),
+                                allowedValues: ClipNoteGridStepEditing.chanceCycleValues
+                            )
+                            writeValueLayer(nextValue, layer: .chance, tappedIndex: index)
+                        }
+                        .allowsHitTesting(isEditable)
                     }
-                    .allowsHitTesting(isEditable)
                 }
-            }
 
-            clipFooter(lengthSteps: lengthSteps, steps: steps, page: page, pageCount: pageCount, playheadPage: playheadPage)
+                clipFooter(lengthSteps: lengthSteps, steps: steps, page: page, pageCount: pageCount, playheadPage: playheadPage)
+            }
         }
         .background {
             StepGridEscapeKeyHandler(isEnabled: stepGridCoordinator?.isSelectionActive ?? false) {
@@ -638,15 +660,70 @@ struct ClipContentPreview: View {
             )
 
             StepLayerQuickSwitchChip(
-                title: "Layer",
+                title: "",
                 selection: $selectedLayer,
                 isOpen: $isLayerSwitcherOpen,
                 options: layerQuickSwitchOptions,
                 accent: accent
             )
 
+            randomizeControls
+
             Spacer(minLength: 0)
         }
+    }
+
+    @ViewBuilder
+    private var randomizeControls: some View {
+        if onRandomize != nil || onToggleRandomizePanel != nil {
+            HStack(spacing: 6) {
+                Button {
+                    onRandomize?()
+                } label: {
+                    Label("Randomize", systemImage: "die.face.5")
+                        .studioText(.labelBold)
+                        .foregroundStyle(canRandomize ? StudioTheme.background : StudioTheme.mutedText)
+                        .lineLimit(1)
+                        .padding(.vertical, 7)
+                        .padding(.horizontal, 10)
+                        .background(
+                            canRandomize ? accent : StudioTheme.border,
+                            in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                        )
+                }
+                .buttonStyle(.plain)
+                .disabled(!canRandomize)
+                .accessibilityLabel("Randomize current clip")
+
+                Button {
+                    onToggleRandomizePanel?()
+                } label: {
+                    Image(systemName: "slider.horizontal.3")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(canRandomize ? StudioTheme.text : StudioTheme.mutedText)
+                        .frame(width: 30, height: 30)
+                        .background(
+                            isRandomizePanelVisible ? Color.white.opacity(StudioOpacity.subtleFill) : Color.clear,
+                            in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                                .stroke(randomizeSettingsStroke, lineWidth: StudioMetrics.borderWidth)
+                        )
+                }
+                .buttonStyle(.plain)
+                .disabled(!canRandomize)
+                .help("Randomize settings")
+                .accessibilityLabel("Randomize settings")
+                .accessibilityValue(hasSavedRandomizeSettings ? "Saved" : "Default")
+            }
+            .fixedSize()
+        }
+    }
+
+    private var randomizeSettingsStroke: Color {
+        guard canRandomize else { return StudioTheme.border }
+        return isRandomizePanelVisible || hasSavedRandomizeSettings ? accent : StudioTheme.border
     }
 
     @ViewBuilder
