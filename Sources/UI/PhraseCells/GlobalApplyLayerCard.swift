@@ -53,7 +53,7 @@ struct GlobalApplyLayerCard: View {
                 )
             }
             .padding(StudioMetrics.Spacing.compact)
-            .frame(maxWidth: .infinity, alignment: .topLeading)
+            .frame(maxWidth: .infinity, minHeight: 130, maxHeight: 130, alignment: .topLeading)
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
                     .stroke(borderColor, lineWidth: isDivergent ? 2 : StudioMetrics.borderWidth)

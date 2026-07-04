@@ -5,7 +5,7 @@ struct CellPreviewMetrics: Equatable {
     let valueHeight: CGFloat
 
     static let matrix = CellPreviewMetrics(
-        booleanHeight: 72,
+        booleanHeight: 84,
         valueHeight: 84
     )
 

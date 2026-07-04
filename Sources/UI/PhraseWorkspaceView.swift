@@ -302,9 +302,6 @@ struct PhraseWorkspaceView: View {
                 phrasePerformToggle
             }
 
-            if isPresentingPerformanceLayerSelection, phraseTab == .layers {
-                performanceLayerSelectionGrid
-            }
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
@@ -1446,16 +1443,22 @@ struct PhraseWorkspaceView: View {
         .accessibilityIdentifier(direction == .previous ? "phrase-matrix-page-previous" : "phrase-matrix-page-next")
     }
 
+    @ViewBuilder
     private var selectedPhraseLayerMatrix: some View {
-        // Size the track columns to the width the panel actually hands us so a
-        // full page of columns fits inside the page without a clipped partial
-        // column running off the right edge (bug 20260620-135607).
-        GeometryReader { proxy in
-            let columnWidth = fittedTrackColumnWidth(forAvailableWidth: proxy.size.width)
-            matrixGrid(trackColumnWidth: columnWidth)
-                .frame(width: proxy.size.width, alignment: .leading)
+        if isPresentingPerformanceLayerSelection {
+            performanceLayerSelectionGrid
+                .frame(maxWidth: .infinity, minHeight: 280, alignment: .topLeading)
+        } else {
+            // Size the track columns to the width the panel actually hands us
+            // so a full page of columns fits inside the page without a clipped
+            // partial column running off the right edge (bug 20260620-135607).
+            GeometryReader { proxy in
+                let columnWidth = fittedTrackColumnWidth(forAvailableWidth: proxy.size.width)
+                matrixGrid(trackColumnWidth: columnWidth)
+                    .frame(width: proxy.size.width, alignment: .leading)
+            }
+            .frame(minHeight: 280)
         }
-        .frame(minHeight: 280)
     }
 
     private func matrixGrid(trackColumnWidth _: CGFloat) -> some View {
@@ -1692,9 +1695,9 @@ struct PhraseWorkspaceView: View {
             Text(title)
                 .studioText(.labelBold)
                 .foregroundStyle(StudioTheme.text)
-                .frame(width: 92, height: 44)
-                .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous).stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth))
+                .frame(width: 76, height: 30)
+                .background(Color.clear, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous).stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth))
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier(identifier)
@@ -1725,8 +1728,8 @@ struct PhraseWorkspaceView: View {
                 .foregroundStyle(isSelected ? StudioTheme.background : StudioTheme.text)
                 .lineLimit(1)
                 .padding(StudioMetrics.Spacing.compact)
-                .frame(maxWidth: .infinity, minHeight: 56, alignment: .topLeading)
-                .background(isSelected ? StudioTheme.amber : Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
+                .frame(maxWidth: .infinity, minHeight: 56, maxHeight: 56, alignment: .topLeading)
+                .background(isSelected ? StudioTheme.amber : Color.clear, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
                         .stroke(isSelected ? StudioTheme.amber : StudioTheme.border, lineWidth: isSelected ? 2 : StudioMetrics.borderWidth)
@@ -1893,28 +1896,22 @@ struct PhraseWorkspaceView: View {
         )
     }
 
-    // The layer-selection grid lives INSIDE the orange perform shell (bug
-    // 20260620-135925): no "CHOOSE PHRASE LAYER" title and no separate box, so
-    // it reads as an extension of the PATTERN/layer button it drops down from.
+    // The layer-selection grid replaces the track matrix in-place: no "CHOOSE
+    // PHRASE LAYER" title and no separate box, so it reads as the same cell
+    // field changing modes rather than a second surface.
     private var performanceLayerSelectionGrid: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            // Divider chrome tracks the surface accent, never the perform
-            // state colour (State-colour fence).
-            Divider()
-                .overlay(phraseShellAccent.opacity(StudioOpacity.mediumStroke))
-
-            LazyVGrid(columns: performanceLayerSelectionColumns, alignment: .leading, spacing: 10) {
-                ForEach(phraseLocalPerformanceLayerOptions) { option in
-                    PerformanceLayerOptionCell(
-                        option: option,
-                        isSelected: performanceLayerSelection.mode == option.mode
-                            && performanceLayerSelection.variantLabel == option.variantLabel
-                    ) {
-                        choosePerformanceLayer(option)
-                    }
+        LazyVGrid(columns: performanceLayerSelectionColumns, alignment: .leading, spacing: 10) {
+            ForEach(phraseLocalPerformanceLayerOptions) { option in
+                PerformanceLayerOptionCell(
+                    option: option,
+                    isSelected: performanceLayerSelection.mode == option.mode
+                        && performanceLayerSelection.variantLabel == option.variantLabel
+                ) {
+                    choosePerformanceLayer(option)
                 }
             }
         }
+        .padding(.vertical, 2)
         .accessibilityIdentifier("phrase-performance-layer-selection-surface")
     }
 
@@ -2704,14 +2701,14 @@ private struct PhraseGridCell: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         }
         .padding(StudioMetrics.Spacing.compact)
-        // Bold-flat pass: no container fill — the cell preview is the block,
-        // sitting directly on the ground (one less nesting level). The
-        // container only draws a line when selected or inherited.
+        // Bold-flat pass: no container fill — the value preview is the block,
+        // and the container border is always visible so every matrix cell has
+        // the same readable boundary.
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
                 .stroke(
-                    isSelected ? accent : (isInherited ? StudioTheme.border : Color.clear),
-                    style: StrokeStyle(lineWidth: StudioMetrics.borderWidth, dash: isInherited && !isSelected ? StudioAddCard.dashPattern : [])
+                    isSelected ? accent : StudioTheme.border,
+                    lineWidth: isSelected ? 2 : StudioMetrics.borderWidth
                 )
         )
         .help(isInherited ? "Follows the layer default. Click to set its own value; shift-click to push a value into this and the following phrases." : "")
