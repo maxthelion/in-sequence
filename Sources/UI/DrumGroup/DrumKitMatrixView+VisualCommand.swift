@@ -132,12 +132,16 @@ extension DrumKitMatrixView {
             isPresentingRoutingEditor = false
         case .openTemplateChooser:
             isPresentingTemplateChooser = true
+            postRenderedVisualState(isVisible: true)
         case .closeTemplateChooser:
             isPresentingTemplateChooser = false
+            postRenderedVisualState(isVisible: true)
         case .openCapture:
             isCaptureOpen = true
+            postRenderedVisualState(isVisible: true)
         case .closeCapture:
             isCaptureOpen = false
+            postRenderedVisualState(isVisible: true)
         case .historyScrubBack:
             if let model { historyScrubBack(model) }
         case .historyScrubForward:
@@ -158,20 +162,26 @@ extension DrumKitMatrixView {
             postRenderedVisualState(isVisible: true)
         case .openKitFXChooser:
             isPresentingKitFX = true
+            postRenderedVisualState(isVisible: true)
         case .closeKitFXChooser:
             isPresentingKitFX = false
+            postRenderedVisualState(isVisible: true)
         case .tabMatrix:
             isCaptureOpen = false
             kitTab = .matrix
+            postRenderedVisualState(isVisible: true)
         case .tabFX:
             isCaptureOpen = false
             kitTab = .fx
+            postRenderedVisualState(isVisible: true)
         case .tabMacros:
             isCaptureOpen = false
             kitTab = .macros
+            postRenderedVisualState(isVisible: true)
         case .tabMixer:
             isCaptureOpen = false
             kitTab = .mixer
+            postRenderedVisualState(isVisible: true)
         case .collapseRow:
             expandedPartID = nil
             postRenderedVisualState(isVisible: true)
@@ -213,14 +223,20 @@ extension DrumKitMatrixView {
         case let .selectIndex(index):
             if let model, model.rows.indices.contains(index) {
                 onSelectPart(model.rows[index].memberID)
+                postRenderedVisualState(isVisible: true)
             }
         case let .layer(layer):
             selectedLayer = layer
+            postRenderedVisualState(isVisible: true)
         case let .bar(page):
-            if page >= 0 { barPage = page }
+            if page >= 0 {
+                barPage = page
+                postRenderedVisualState(isVisible: true)
+            }
         case let .pattern(slotIndex):
             if (0..<TrackPatternBank.slotCount).contains(slotIndex) {
                 session.setDrumGroupSelectedPatternIndex(slotIndex, groupID: navigationState.groupID)
+                postRenderedVisualState(isVisible: true)
             }
         case let .saveSlot(slotIndex):
             if (0..<TrackPatternBank.slotCount).contains(slotIndex), let model {

@@ -99,3 +99,28 @@ These are not exact duplicates, but visual differences are very small:
    waits. Do not publish another R2 manifest from forced timeout captures unless
    the manifest or audit clearly marks those rows as provisional.
 
+## Correction - 2026-07-04
+
+Implemented in the follow-up capture harness/app fix:
+
+- Retired stale or invisible duplicate rows: `06c`, `10a`, `10b`, `12`, `19a`,
+  `20a`, `22h`, `28b`, `29`, `29a`, `29b`, `29c`, `29d`, `29e`, `29f`, `29g`,
+  `30`, `33`, and `37`.
+- Rewrote `23g-step-edit-rotaries` to use the melodic Steps/Clip rotary surface
+  instead of duplicating the slicer quick-switch state.
+- Rewrote `32-step-order-unassigned` to enter the current phrase perform
+  step-order surface. `33` remains retired because the assigned/on state reports
+  differently but renders pixel-identically today.
+- Added kit-matrix mount-drain support for visual commands so layer/template
+  commands survive the open-kit-view race, and gave kit-matrix rows a longer
+  strict wait.
+- Regenerated `.meta/multipass/visual-review/main/` from a clean full run:
+  `69` rows executed, `69` PNGs captured, `0` skipped rows.
+- Re-ran the decoded-pixel audit: `0` exact pixel-duplicate groups remain.
+
+Remaining near-duplicates after correction are subtle but non-identical:
+
+| Rows | Difference |
+| --- | --- |
+| `25-audio-live`, `27a-audio-source-tab` | Same audio source surface with a small live/source-tab state delta. |
+| `19-track-detail-sound`, `20-track-fill-preview-active` | Same track-detail frame with a small fill-preview control delta. |

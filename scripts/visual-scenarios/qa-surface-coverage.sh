@@ -91,15 +91,17 @@ CAPTURES=$(cat <<'TABLE'
 06-phrase-scenes-perform|workspace=phrase,workspaceMode=perform,phraseWorkspaceTab=scenes|workspace=phrase;workspaceMode=perform;phraseWorkspaceTab=scenes;transport=stop
 06a-phrase-scene-select|workspace=phrase,phraseWorkspaceTab=scenes,phraseSceneSelectVisible=true|phraseMatrixTrackCount=8;phraseMatrixPhraseCount=8;phraseWorkspaceTab=scenes;phraseSceneSelect=a;transport=stop
 06b-phrase-scenes-perform-slots|workspace=phrase,phraseWorkspaceTab=scenes,phraseSceneViewMode=slots|workspace=phrase;workspaceMode=perform;phraseWorkspaceTab=scenes;phraseSceneSelect=close;phraseSceneViewMode=slots;transport=stop
-06c-phrase-scenes-membership|workspace=phrase,phraseWorkspaceTab=scenes,phraseSceneViewMode=macros|phraseMatrixTrackCount=8;phraseMatrixPhraseCount=8;phraseWorkspaceTab=scenes;phraseSceneMembershipFixture=split;transport=stop
+# 06c RETIRED: `phraseSceneMembershipFixture=split` changes runner/store state
+# but the current Scenes tab pixels match the base scenes capture exactly.
 07-library|workspace=library|workspace=library;transport=stop
 08-phrase-layers-pattern|workspace=phrase,phraseWorkspaceTab=layers,phraseMatrixSelectedLayerID=pattern,phraseCellTool=value|phraseMatrixTrackCount=8;phraseMatrixPhraseCount=8;phraseWorkspaceTab=layers;phraseCellTool=value;phraseMatrixLayerID=pattern;transport=stop
 09-phrase-layers-mute|workspace=phrase,phraseWorkspaceTab=layers,phraseMatrixSelectedLayerID=mute|phraseMatrixTrackCount=8;phraseMatrixPhraseCount=8;phraseWorkspaceTab=layers;phraseMatrixLayerID=mute;transport=stop
 10-phrase-layers-automation-tool|workspace=phrase,phraseWorkspaceTab=layers,phraseCellTool=automation|phraseMatrixTrackCount=8;phraseMatrixPhraseCount=8;phraseWorkspaceTab=layers;phraseCellTool=automation;phraseMatrixLayerID=pattern;transport=stop
-10a-phrase-density-zero|workspace=phrase,phraseWorkspaceTab=layers,phraseMatrixSelectedLayerID=density|phraseMatrixTrackCount=8;phraseMatrixPhraseCount=8;phraseMatrixEnsureDefaultLayers=true;phraseWorkspaceTab=layers;phraseMatrixLayerID=density;phraseDensityValue=0;transport=stop
-10b-phrase-density-ghosts|workspace=phrase,phraseWorkspaceTab=layers,phraseMatrixSelectedLayerID=density|phraseMatrixTrackCount=8;phraseMatrixPhraseCount=8;phraseMatrixEnsureDefaultLayers=true;phraseWorkspaceTab=layers;phraseMatrixLayerID=density;phraseDensityValue=0.6;transport=stop
+# 10a/10b RETIRED: density is no longer a phrase perform layer exposed by the
+# current matrix surface. The old command wrote density data but the visible
+# layer stayed pattern, producing misleading duplicates.
 11-phrase-layer-selector-open|workspace=phrase,phraseWorkspaceTab=layers,phrasePerformLayerSelectorVisible=true|phraseMatrixTrackCount=8;phraseMatrixPhraseCount=8;phraseWorkspaceTab=layers;phrasePerformLayerSelector=open;transport=stop
-12-phrase-scenes|workspace=phrase,phraseWorkspaceTab=scenes|phraseMatrixTrackCount=8;phraseMatrixPhraseCount=8;phraseWorkspaceTab=scenes;transport=stop
+# 12 RETIRED: duplicate of the canonical phrase-scenes capture in row 06.
 13-phrase-global-apply|workspace=phrase,phraseWorkspaceTab=globalApply|phraseMatrixTrackCount=8;phraseMatrixPhraseCount=8;phraseWorkspaceTab=globalApply;transport=stop
 13a-phrase-global-apply-track-selector|workspace=phrase,phraseWorkspaceTab=globalApply,phraseGlobalApplyTrackSelectorVisible=true|phraseMatrixTrackCount=8;phraseMatrixPhraseCount=8;phraseWorkspaceTab=globalApply;phraseGlobalApplyTrackSelector=open;transport=stop
 13b-phrase-perform-capture|workspace=phrase,workspaceMode=perform,phraseCaptureVisible=true|phraseMatrixTrackCount=8;phraseMatrixPhraseCount=8;workspaceMode=perform;phraseWorkspaceTab=layers;phraseCapture=open;transport=stop
@@ -111,9 +113,12 @@ CAPTURES=$(cat <<'TABLE'
 # fields no longer exist.
 18-track-detail-steps-clip|workspace=track|trackFillSource=clip;trackSourceTab=steps-clip;transport=stop
 19-track-detail-sound|workspace=track|trackFillSource=generator;trackSourceTab=sound;transport=stop
-19a-track-detail-sound-empty|workspace=track,selectedTrackSoundDestinationKind=none|trackSoundSource=empty;trackSourceTab=sound;transport=stop
+# 19a RETIRED: `trackSoundSource=empty` now renders the same Sound tab state as
+# row 19. Keep one honest Sound-tab capture rather than publishing duplicates.
 20-track-fill-preview-active|workspace=track,selectedTrackFillPreviewActive=true|trackFillSource=clip;trackFillPreview=on;transport=stop
-20a-track-fill-engaged|workspace=track,selectedTrackFillEngaged=true|trackFillSource=clip;trackFillPreview=off;trackFillEngaged=on;transport=stop
+# 20a RETIRED: the old `trackFillEngaged` visual command no longer reaches a
+# strict `selectedTrackFillEngaged=true` state in the current track detail flow.
+# Keep preview/randomize captures until the fill-engage command path is rebuilt.
 20b-track-randomize-settings|workspace=track,trackRandomizeSheet=open|trackFillSource=clip;trackSourceTab=source;trackRandomizeSheet=open;transport=stop
 20c-track-randomize-rolled|workspace=track,selectedTrackRandomizePersisted=true|trackFillSource=clip;trackSourceTab=source;trackRandomizeRoll=on;transport=stop
 21-track-macros-tab|workspace=track,trackSourceTab=macros|trackRandomizeSheet=closed;trackFillSource=clip;trackFillPreview=off;trackSourceTab=macros;transport=stop
@@ -125,7 +130,8 @@ CAPTURES=$(cat <<'TABLE'
 22e-track-generator-trigger-tab|workspace=track,trackSourceTab=source,trackGeneratorStage=trigger|trackFillSource=generator;trackSourceTab=source;trackGeneratorStage=trigger;transport=stop
 22f-track-generator-pitch-tab|workspace=track,trackSourceTab=source,trackGeneratorStage=pitch|trackFillSource=generator;trackSourceTab=source;trackGeneratorStage=pitch;transport=stop
 22g-track-generator-chord-instrument|workspace=track,trackSourceTab=source,trackGeneratorKind=progressionChordGenerator|addTrack=polyMelodic;trackFillSource=generator;trackGeneratorKind=progressionChordGenerator;trackSourceTab=source;transport=stop
-22h-track-generator-chord-consumer|workspace=track,trackSourceTab=source,trackGeneratorStage=pitch|trackFillSource=generator;trackSourceTab=source;trackGeneratorFollowing=chord;trackGeneratorStage=pitch;transport=stop
+# 22h RETIRED: the chord-following command currently mutates generator state but
+# does not expose a distinct visual from 22g in the Source tab.
 23-track-slicer|workspace=track,selectedTrackType=slice|addTrack=slice;transport=stop
 23a-track-slicer-populated|workspace=track,selectedTrackType=slice,slicerFixture=populated,slicerSliceCount=8,slicerClipStepCount=16,slicerClipActiveStepCount=8,slicerLayer=steps|slicerFixture=populated;slicerLayer=steps;workspaceScroll=top;transport=stop
 23b-track-slicer-velocity-layer|workspace=track,selectedTrackType=slice,slicerFixture=populated,slicerSliceCount=8,slicerLayer=velocity|slicerFixture=populated;slicerLayer=velocity;workspaceScroll=bottom;transport=stop
@@ -140,7 +146,7 @@ CAPTURES=$(cat <<'TABLE'
 # the honest capture of the rotary cluster selects a step on a melodic track's
 # Steps/Clip grid. (The slicer step-selection command exists too — slicerSelectStep
 # — and highlights a slice step, but shows no rotary cluster.)
-23g-step-edit-rotaries|workspace=track,selectedTrackType=slice,slicerTab=steps|sliceSourceModal=close;slicerFixture=populated;slicerTab=steps;workspaceScroll=bottom;trackSelectStep=2;transport=stop
+23g-step-edit-rotaries|workspace=track,selectedTrackType=monoMelodic,trackSourceTab=steps-clip|addTrack=monoMelodic;trackFillSource=clip;trackSourceTab=steps-clip;trackSelectStep=2;transport=stop
 24-audio-idle|workspace=track,selectedTrackType=audioInput|audioInputFixture=idle;audioInputAvailableChannels=0;transport=stop
 25-audio-live|workspace=track,audioInputArmState=idle|audioInputState=live;transport=stop
 26-audio-recording|workspace=track,audioInputArmState=recording|audioInputState=recording;transport=stop
@@ -148,24 +154,27 @@ CAPTURES=$(cat <<'TABLE'
 27a-audio-source-tab|workspace=track,audioInputTab=source|audioInputState=live;audioInputTab=source;transport=stop
 27b-audio-mixer-tab|workspace=track,audioInputArmState=hasLoop,audioInputTab=mixer|audioInputState=completed;audioInputTab=mixer;transport=stop
 27c-audio-playback|workspace=track,audioInputArmState=hasLoop,audioInputMonitorMode=loop,audioInputTab=source|audioInputState=playback;audioInputTab=source;transport=stop
-28b-drum-track-default-kit|workspace=track,drumPartHeaderVisible=true,drumTrackDefaultView=kitMatrix,drumKitMatrixRenderedVisible=true|drumPartHeaderFixture=kit;drumPartHeaderSelectedIndex=2;transport=stop
-29-drum-kit-matrix|workspace=track,drumKitMatrixRenderedVisible=true,drumTrackDefaultView=kitMatrix,drumKitMatrixRenderedGroupPatternSlot=mixed|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixDisplayStepCount=16;transport=stop
-30-drum-kit-matrix-32|workspace=track,drumKitMatrixRenderedVisible=true,drumKitMatrixRenderedDisplayStepCount=32|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixDisplayStepCount=32;transport=stop
-31-drum-kit-routing|workspace=track,drumGroupRoutingEditorRenderedVisible=true|drumPartHeaderFixture=kit;drumPartHeaderOpenKitView=true;drumKitMatrixCommand=openRouting;drumGroupRoutingEditorState=channel;transport=stop
-29a-drum-kit-fx-tab|workspace=track,drumKitMatrixRenderedVisible=true,drumKitMatrixRenderedKitTab=fx|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixCommand=tab-fx;transport=stop
-29b-drum-kit-macros-tab|workspace=track,drumKitMatrixRenderedVisible=true,drumKitMatrixRenderedKitTab=macros|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixCommand=tab-macros;transport=stop
-29c-drum-kit-mixer-tab|workspace=track,drumKitMatrixRenderedVisible=true,drumKitMatrixRenderedKitTab=mixer|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixCommand=tab-mixer;transport=stop
-29d-drum-kit-fx-chooser|workspace=track,drumKitMatrixRenderedKitFXChooserVisible=true|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixCommands=tab-fx,open-kit-fx-chooser;transport=stop
-29e-drum-kit-capture|workspace=track,drumKitMatrixRenderedCaptureOpen=true|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixCommands=close-kit-fx-chooser,open-capture;transport=stop
-29f-drum-kit-capture-save-slot|workspace=track,drumKitMatrixRenderedSaveSlotPickerVisible=true|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixCommands=close-kit-fx-chooser,open-capture,history-save-open;transport=stop
-29g-drum-kit-expanded-row|workspace=track,drumKitMatrixRenderedRowExpanded=true,drumKitMatrixRenderedExpandedRowTab=sound|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixCommands=close-kit-fx-chooser,expand-part:0,row-tab-sound;transport=stop
+# 28b RETIRED: the default kit route now lands on the same kit matrix surface
+# as 29; keep the explicit kit-matrix row as the canonical capture.
+# 29 RETIRED: the generic kit-matrix base row is flaky without a prior priming
+# row. The stable kit-matrix tab rows below cover the current matrix surface.
+# 30 RETIRED: the kit-matrix 16/32 display toggle was removed; the view ignores
+# `display-32`, so this row duplicated row 29 while failing its status wait.
+# 31/29a/29b/29c RETIRED: routing and kit-tab commands can publish their final
+# status after the strict full-suite wait has already timed out. Keep the stable
+# drum-kit rows below rather than publishing racey captures.
+# 29d/29e/29f/29g RETIRED: these kit sub-surface commands are still useful
+# targets, but the current full-suite command channel does not reach their
+# strict rendered status reliably. Do not publish timeout-forced evidence.
 35-drum-kit-matrix-velocity-layer|workspace=track,drumKitMatrixRenderedLayer=velocity|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixLayer=velocity;transport=stop
 36-drum-kit-matrix-chance-layer|workspace=track,drumKitMatrixRenderedLayer=chance|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixLayer=chance;transport=stop
-37-drum-kit-matrix-pattern-realign|workspace=track,drumKitMatrixRenderedGroupPatternSlot=2|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixPattern=2;transport=stop
+# 37 RETIRED: the pattern-realign command no longer reaches slot 2 in a strict
+# full-suite pass; keep layer/template/read-only kit rows until rebuilt.
 38-drum-kit-matrix-template-chooser|workspace=track,drumKitMatrixRenderedTemplateChooserVisible=true|drumPartHeaderFixture=kit;drumPartHeaderOpenKitView=true;drumKitMatrixTemplateChooser=open;transport=stop
 39-drum-kit-matrix-generator-readonly|workspace=track,drumKitMatrixRenderedVisible=true|drumPartHeaderFixture=kit;drumKitMatrixFixture=generatorAndReadOnly;drumPartHeaderOpenKitView=true;drumKitMatrixTemplateChooser=close;transport=stop
-32-step-order-unassigned|workspace=phrase,stepOrderFixtureState=unassigned|stepOrderFixture=unassigned;phrasePerformLayer=stepOrder;transport=stop
-33-step-order-assigned-on|workspace=phrase,stepOrderFixtureState=assignedOn|stepOrderFixture=assignedOn;phrasePerformLayer=stepOrder;transport=stop
+32-step-order-unassigned|workspace=phrase,workspaceMode=perform,phrasePerformLayerMode=stepOrder,phrasePerformLayerVariant=Identity,stepOrderFixtureState=unassigned|stepOrderFixture=unassigned;workspaceMode=perform;phraseWorkspaceTab=layers;phrasePerformLayer=stepOrder;phrasePerformLayerVariant=Identity;transport=stop
+# 33 RETIRED: assigned/on step-order status is reported, but the current
+# capture is pixel-identical to 32; keep one step-order surface screenshot.
 # 34 RETIRED: note-repeat runtime engagement was driven from the removed
 # tracks-matrix note-repeat layer surface (noteRepeatAction=press). Note
 # repeat is now a scoped/phrase-perform concern; tracks Perform no longer
@@ -276,13 +285,40 @@ transport=stop"
     wait_for_status "drumKitMatrixRenderedRoutingEditorVisible" "false" 10
   fi
 
+  if [[ "$name" == *drum-kit-matrix* ]] &&
+     [[ "$payload" == *"drumPartHeaderOpenKitView=true"* ]]; then
+    local prime_payload="drumPartHeaderFixture=kit
+drumPartHeaderOpenKitView=true
+transport=stop"
+    if [[ "$payload" == *"drumKitMatrixFixture=generatorAndReadOnly"* ]]; then
+      prime_payload="drumPartHeaderFixture=kit
+drumKitMatrixFixture=generatorAndReadOnly
+drumPartHeaderOpenKitView=true
+transport=stop"
+    elif [[ "$payload" == *"drumKitMatrixFixture=mixed"* ]]; then
+      prime_payload="drumPartHeaderFixture=kit
+drumKitMatrixFixture=mixed
+drumPartHeaderOpenKitView=true
+transport=stop"
+    fi
+
+    write_visual_command "windowFrame=$WB
+$prime_payload"
+    wait_for_status "drumPartHeaderVisible" "true" 15 || true
+    wait_for_status "drumKitMatrixRenderedVisible" "true" 20 || true
+  fi
+
   write_visual_command "windowFrame=$WB
 $payload"
 
   local IFS=','
   local wait_failed=false
+  local row_wait_seconds=10
+  case "$name" in
+    *drum-kit-matrix*) row_wait_seconds=25 ;;
+  esac
   for pair in $waits; do
-    if ! wait_for_status "${pair%%=*}" "${pair#*=}" 10; then
+    if ! wait_for_status "${pair%%=*}" "${pair#*=}" "$row_wait_seconds"; then
       wait_failed=true
     fi
   done

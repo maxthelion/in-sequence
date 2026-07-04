@@ -1898,6 +1898,7 @@ enum VisualScenarioCommandRunner {
                 // open-capture, history-save-open, open-kit-fx-chooser,
                 // expand-part:N, row-tab-*, etc.). Posted repeatedly because the
                 // matrix view may mount after the open-kit-view navigation tick.
+                pendingDrumKitMatrixCommands.append(rawCommand)
                 postRepeatedVisualCommand(name: .drumKitMatrixVisualCommand, object: rawCommand)
             }
         case nil:
@@ -1908,20 +1909,26 @@ enum VisualScenarioCommandRunner {
         // repeatedly because the matrix view may mount after open-kit-view.
         if let rawLayer = command["drumKitMatrixLayer"],
            DrumKitMatrixLayer(rawValue: rawLayer) != nil {
-            postRepeatedVisualCommand(name: .drumKitMatrixVisualCommand, object: "layer:\(rawLayer)")
+            let visualCommand = "layer:\(rawLayer)"
+            pendingDrumKitMatrixCommands.append(visualCommand)
+            postRepeatedVisualCommand(name: .drumKitMatrixVisualCommand, object: visualCommand)
         }
 
         // Group pattern row selection (1-based slot number in the command).
         if let rawPattern = command["drumKitMatrixPattern"],
            let slotNumber = Int(rawPattern),
            (1...TrackPatternBank.slotCount).contains(slotNumber) {
-            postRepeatedVisualCommand(name: .drumKitMatrixVisualCommand, object: "pattern:\(slotNumber - 1)")
+            let visualCommand = "pattern:\(slotNumber - 1)"
+            pendingDrumKitMatrixCommands.append(visualCommand)
+            postRepeatedVisualCommand(name: .drumKitMatrixVisualCommand, object: visualCommand)
         }
 
         switch command["drumKitMatrixTemplateChooser"] {
         case "open", "visible", "true":
+            pendingDrumKitMatrixCommands.append("open-template-chooser")
             postRepeatedVisualCommand(name: .drumKitMatrixVisualCommand, object: "open-template-chooser")
         case "close", "hidden", "false":
+            pendingDrumKitMatrixCommands.append("close-template-chooser")
             NotificationCenter.default.post(name: .drumKitMatrixVisualCommand, object: "close-template-chooser")
         default:
             break
