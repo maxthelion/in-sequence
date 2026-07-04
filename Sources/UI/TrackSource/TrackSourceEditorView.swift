@@ -136,16 +136,6 @@ struct TrackSourceEditorView: View {
             return slot.slotIndex
         })
     }
-    private var randomizedPatternSlots: Set<Int> {
-        Set(bank.slots.compactMap { slot in
-            guard let clipID = slot.sourceRef.clipID,
-                  session.store.clipEntry(id: clipID)?.randomizeSettings != nil
-            else {
-                return nil
-            }
-            return slot.slotIndex
-        })
-    }
     private var selectedSourceMode: TrackSourceMode { selectedPattern.sourceRef.mode }
     private var compatibleClips: [ClipPoolEntry] { session.store.compatibleClips(for: track) }
     private var compatibleSourceGenerators: [GeneratorPoolEntry] { session.store.compatibleGenerators(for: track) }
@@ -299,8 +289,6 @@ struct TrackSourceEditorView: View {
                         TrackPatternSlotPalette(
                             selectedSlot: selectedPatternIndexBinding,
                             occupiedSlots: occupiedPatternSlots,
-                            randomizedSlots: randomizedPatternSlots,
-                            randomizedBadgeAccent: accent,
                             bypassState: .notApplicable,
                             onBypassToggle: { _ in },
                             destinationMode: clipHistoryDestinationMode
@@ -501,12 +489,6 @@ struct TrackSourceEditorView: View {
     private var sectionPills: some View {
         TrackSourceSectionPills(
             selectedTab: $selectedTab,
-            sourceState: sourceDisplayState,
-            modifierState: modifierDisplayState,
-            routingState: TrackSourceRoutingDisplayState(
-                soundBadgeTitle: routingPathSummary.instrumentLabel,
-                mixerBadgeTitle: routingPathSummary.destinationLabel
-            ),
             accent: accent
         )
     }

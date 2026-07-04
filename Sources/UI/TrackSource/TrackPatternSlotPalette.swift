@@ -13,11 +13,6 @@ struct TrackPatternSlotPalette: View {
 
     @Binding var selectedSlot: Int
     let occupiedSlots: Set<Int>
-    var randomizedSlots: Set<Int> = []
-    /// Surface accent for the persisted-randomize ring badge (prototype 12:
-    /// "same accent as the surface, never a rogue color"). State colours
-    /// (green/amber/red) stay fenced away from this indicator.
-    var randomizedBadgeAccent: Color = StudioTheme.cyan
     let bypassState: BypassState
     let onBypassToggle: (Int) -> Void
     var destinationMode: DestinationMode?
@@ -90,14 +85,6 @@ struct TrackPatternSlotPalette: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel(slotAccessibilityLabel(slotIndex: slotIndex, isBypassed: isBypassed, bypassApplicable: bypassApplicable))
-
-            if randomizedSlots.contains(slotIndex), destinationMode == nil {
-                Circle()
-                    .stroke(accentForRandomizedBadge(isBypassed: isBypassed), lineWidth: 2)
-                    .frame(width: 11, height: 11)
-                    .background(StudioTheme.background, in: Circle())
-                    .offset(x: -5, y: 5)
-            }
 
             if bypassApplicable && destinationMode == nil {
                 Button {
@@ -192,10 +179,6 @@ struct TrackPatternSlotPalette: View {
 
     private func bypassBadgeFill(_ isBypassed: Bool) -> Color {
         isBypassed ? StudioTheme.violet : StudioTheme.cyan
-    }
-
-    private func accentForRandomizedBadge(isBypassed: Bool) -> Color {
-        isBypassed ? StudioTheme.violet : randomizedBadgeAccent
     }
 
     private func borderWidth(for slotIndex: Int) -> CGFloat {
