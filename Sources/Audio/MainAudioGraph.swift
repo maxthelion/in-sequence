@@ -436,11 +436,15 @@ final class MainAudioGraph {
         }
     }
 
-    func disconnectOutput(_ node: AVAudioNode) {
+    @discardableResult
+    func disconnectOutput(_ node: AVAudioNode) -> Bool {
         TickPathMainSyncGuard.assertNotHoldingLifecycleLockForGraphMutation("MainAudioGraph.disconnectOutput")
-        performOnMain {
-            if node.engine !== self.engine || self.engine.outputConnectionPoints(for: node, outputBus: 0).isEmpty {
-                self.unsafeDisconnectAttemptCountForTesting += 1
+        return performOnMainReturning {
+            guard node.engine === self.engine else { return false }
+            guard !self.engine.outputConnectionPoints(for: node, outputBus: 0).isEmpty else {
+                self.removeChannelMeterTapIfInstalled(on: node)
+                self.removeTrackSendNodes(for: node)
+                return false
             }
             // A node's channel-meter tap MUST come off before its topology is
             // mutated. `disconnectNodeOutput` reconfigures the affected subgraph
@@ -458,17 +462,21 @@ final class MainAudioGraph {
             self.removeChannelMeterTapIfInstalled(on: node)
             self.removeTrackSendNodes(for: node)
             self.engine.disconnectNodeOutput(node)
+            return true
         }
     }
 
     /// Disconnect a node's inputs without the track-output send-node teardown
     /// side effect of `disconnectOutput`. Used by `TrackInsertChainHost` to
     /// detach an insert from its upstream neighbour during a chain rebuild.
-    func disconnectInput(_ node: AVAudioNode) {
+    @discardableResult
+    func disconnectInput(_ node: AVAudioNode) -> Bool {
         TickPathMainSyncGuard.assertNotHoldingLifecycleLockForGraphMutation("MainAudioGraph.disconnectInput")
-        performOnMain {
-            if node.engine !== self.engine || self.engine.inputConnectionPoint(for: node, inputBus: 0) == nil {
-                self.unsafeDisconnectAttemptCountForTesting += 1
+        return performOnMainReturning {
+            guard node.engine === self.engine else { return false }
+            guard self.engine.inputConnectionPoint(for: node, inputBus: 0) != nil else {
+                self.removeChannelMeterTapIfInstalled(on: node)
+                return false
             }
             // See `disconnectOutput`: never reconfigure a node whose meter tap is
             // still live (UpdateGraphAfterReconfig fault). The prepared-track
@@ -476,6 +484,7 @@ final class MainAudioGraph {
             // any tap first — re-registered after the rebuild.
             self.removeChannelMeterTapIfInstalled(on: node)
             self.engine.disconnectNodeInput(node)
+            return true
         }
     }
 

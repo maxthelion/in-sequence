@@ -2340,23 +2340,27 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
             let filter = pool.voiceFilters[index]
             if outputConnectionExists(from: voice) {
                 // realtime-allow-graph-mutation: exceptional prepared graph repair only; normal playback uses fast path and logs repair. Test: RealtimePathLintTests.
-                audioGraph.disconnectOutput(voice)
-                mutationCount += 1
+                if audioGraph.disconnectOutput(voice) {
+                    mutationCount += 1
+                }
                 // realtime-allow-graph-mutation: exceptional prepared graph repair only; normal playback uses fast path and logs repair. Test: RealtimePathLintTests.
-                audioGraph.disconnectInput(filter.avNode)
-                mutationCount += 1
+                if audioGraph.disconnectInput(filter.avNode) {
+                    mutationCount += 1
+                }
             }
             if outputConnectionExists(from: filter.avNode) {
                 // realtime-allow-graph-mutation: exceptional prepared graph repair only; normal playback uses fast path and logs repair. Test: RealtimePathLintTests.
-                audioGraph.disconnectOutput(filter.avNode)
-                mutationCount += 1
-                disconnectedMixerInputs = true
+                if audioGraph.disconnectOutput(filter.avNode) {
+                    mutationCount += 1
+                    disconnectedMixerInputs = true
+                }
             }
         }
         if disconnectedMixerInputs {
             // realtime-allow-graph-mutation: exceptional prepared graph repair only; normal playback uses fast path and logs repair. Test: RealtimePathLintTests.
-            audioGraph.disconnectInput(mixer)
-            mutationCount += 1
+            if audioGraph.disconnectInput(mixer) {
+                mutationCount += 1
+            }
         }
         // `disconnectNodeOutput` removes these sources from the mixer, but
         // `nextAvailableInputBus` can still advance after repeated repair
