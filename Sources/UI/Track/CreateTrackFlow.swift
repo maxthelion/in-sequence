@@ -172,7 +172,7 @@ struct CreateTrackFlow: View {
         case .pickType:
             return nil
         case .monoPolySound:
-            return "Choose how this track makes sound. You can change it later from the Sound tab."
+            return nil
         case .sliceSound:
             return "Choose a loop. Slices are detected after the track opens."
         case .drumGroupSound:
@@ -276,41 +276,7 @@ struct CreateTrackFlow: View {
     /// the fast path — one click attaches the AU and opens the track.
     private func monoPolySoundStep(_ trackType: TrackType) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            StudioOptionButton(
-                title: "Blank",
-                detail: "No sound source yet — add one later from the Sound tab.",
-                accent: nil
-            ) {
-                session.appendTrack(trackType: trackType)
-                finish()
-            }
-
-            // The Sampler fast path needs a library sample to seed; with an
-            // empty library it used to fall back silently to
-            // `.internalSampler(.drumKitDefault)` — a NOT-implemented, silent
-            // sound source — betraying the "track that makes sound in one
-            // gesture" promise. Disable it honestly instead.
-            StudioOptionButton(
-                title: "Sampler",
-                detail: defaultSampleDestination == nil
-                    ? "No library samples yet — add one from the Library page first."
-                    : "Use the sample engine with a library sample.",
-                accent: nil,
-                isEnabled: defaultSampleDestination != nil,
-                disabledHelp: "The sample library is empty"
-            ) {
-                guard let destination = defaultSampleDestination else { return }
-                _ = session.appendTrack(trackType: trackType, soundDestination: destination)
-                finish()
-            }
-
-            Text("AU INSTRUMENTS")
-                .studioText(.eyebrow)
-                .tracking(0.8)
-                .foregroundStyle(StudioTheme.mutedText)
-                .padding(.top, 8)
-
-            StudioPluginRescanHeader()
+            auInstrumentSectionHeader
 
             if audioInstrumentChoices.isEmpty {
                 StudioEmptyListRow(message: "No AU instruments found")
@@ -328,6 +294,54 @@ struct CreateTrackFlow: View {
                 }
                 .frame(maxHeight: 320)
             }
+
+            StudioOptionButton(
+                title: "Sampler",
+                accent: nil,
+                isEnabled: defaultSampleDestination != nil,
+                disabledHelp: "The sample library is empty",
+                help: "Use the sample engine with the first library sample"
+            ) {
+                guard let destination = defaultSampleDestination else { return }
+                _ = session.appendTrack(trackType: trackType, soundDestination: destination)
+                finish()
+            }
+
+            StudioOptionButton(
+                title: "Blank",
+                accent: nil,
+                help: "Create the track without a sound destination"
+            ) {
+                session.appendTrack(trackType: trackType)
+                finish()
+            }
+        }
+    }
+
+    private var auInstrumentSectionHeader: some View {
+        HStack(spacing: 10) {
+            Text("AU INSTRUMENTS")
+                .studioText(.eyebrow)
+                .tracking(0.8)
+                .foregroundStyle(StudioTheme.mutedText)
+
+            Text(engineController.audioPluginChoiceScanState.displayText)
+                .studioText(.micro)
+                .foregroundStyle(StudioTheme.mutedText)
+                .lineLimit(1)
+
+            Spacer(minLength: 8)
+
+            Button {
+                engineController.rescanAudioPluginChoices()
+            } label: {
+                Label("Rescan", systemImage: "arrow.clockwise")
+                    .studioText(.labelBold)
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(StudioTheme.violet)
+            .disabled(engineController.audioPluginChoiceScanState.isScanning)
+            .opacity(engineController.audioPluginChoiceScanState.isScanning ? 0.5 : 1)
         }
     }
 

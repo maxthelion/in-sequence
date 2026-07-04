@@ -305,7 +305,7 @@ struct LibraryWorkspaceView: View {
             // one stays the pool toggle.
             if let createHelp = createTrackHelp {
                 StudioCircleIconButton(
-                    systemName: "plus",
+                    systemName: "music.note.list",
                     size: StudioMetrics.ControlSize.small,
                     accent: StudioTheme.violet,
                     help: createHelp
