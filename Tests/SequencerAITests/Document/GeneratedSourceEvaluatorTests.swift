@@ -2,6 +2,30 @@ import XCTest
 @testable import SequencerAI
 
 final class GeneratedSourceEvaluatorTests: XCTestCase {
+    func test_pitchPoolClasses_returns_scale_pitch_classes() {
+        let classes = PitchAlgo.pitchPoolClasses(root: 60, scaleID: .major, spread: 12)
+
+        XCTAssertEqual(classes, Set([0, 2, 4, 5, 7, 9, 11]))
+    }
+
+    func test_pitchPoolClasses_intersects_scale_with_chord_classes() {
+        let chord = Chord(root: 62, chordType: ChordID.minorTriad.rawValue, scale: ScaleID.dorian.rawValue)
+        let classes = PitchAlgo.pitchPoolClasses(root: 60, scaleID: .major, spread: 12, chord: chord)
+
+        XCTAssertEqual(classes, Set([2, 5, 9]))
+    }
+
+    func test_pitchPoolClasses_intersects_scale_with_static_filter_classes() {
+        let classes = PitchAlgo.pitchPoolClasses(
+            root: 60,
+            scaleID: .major,
+            spread: 12,
+            filterPitchClasses: Set([1, 4, 8])
+        )
+
+        XCTAssertEqual(classes, Set([4]))
+    }
+
     func test_randomInScale_expands_middleC_seed_within_scale_and_spread() {
         let params = GeneratorParams.mono(
             trigger: .native(.euclidean(pulses: 1, steps: 1, offset: 0), basePitch: 60),

@@ -186,6 +186,40 @@ extension PitchAlgo {
             return defaultPool
         }
     }
+
+    static func pitchPoolClasses(
+        root: Int,
+        scaleID: ScaleID,
+        spread: Int,
+        chord: Chord? = nil,
+        filterPitchClasses: Set<Int> = []
+    ) -> Set<Int> {
+        let scaleClasses = Set(scalePool(root: root, scaleID: scaleID, spread: spread).map { positiveModulo($0, 12) })
+        guard !scaleClasses.isEmpty else {
+            return []
+        }
+
+        if let chord,
+           let chordID = ChordID(rawValue: chord.chordType),
+           let definition = ChordDefinition.for(id: chordID)
+        {
+            let chordClasses = Set(definition.intervals.map { positiveModulo(Int(chord.root) + $0, 12) })
+            let filtered = scaleClasses.intersection(chordClasses)
+            if !filtered.isEmpty {
+                return filtered
+            }
+        }
+
+        if !filterPitchClasses.isEmpty {
+            let normalizedFilter = Set(filterPitchClasses.map { positiveModulo($0, 12) })
+            let filtered = scaleClasses.intersection(normalizedFilter)
+            if !filtered.isEmpty {
+                return filtered
+            }
+        }
+
+        return scaleClasses
+    }
 }
 
 private func pickFromPool<R: RandomNumberGenerator>(

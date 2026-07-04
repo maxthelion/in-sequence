@@ -40,6 +40,11 @@ struct PitchAlgoEditor: View {
                     ))
                 }
 
+                PitchPoolKeyboardStrip(
+                    availablePitchClasses: pitchPoolClasses(root: root, scale: scale, spread: spread),
+                    accent: accent
+                )
+
                 SourceParameterSliderRow(title: "Selection", value: (normalizedSelection.memory + 1) * 50, range: 0...100, accent: StudioTheme.violet) {
                     onChange(PitchStage(
                         algo: .pool(
@@ -135,6 +140,68 @@ struct PitchAlgoEditor: View {
             options: ScaleID.allCases.map { StudioMenuPickerOption(label: $0.displayName, value: $0) },
             help: "Scale"
         )
+    }
+
+    private func pitchPoolClasses(root: Int, scale: ScaleID, spread: Int) -> Set<Int> {
+        let filterClasses: Set<Int>
+        switch poolStage.harmonicSidechain {
+        case let .clip(clipID):
+            let pitches = harmonicSidechainClipChoices.first(where: { $0.id == clipID })?.pitchPool ?? []
+            filterClasses = Set(pitches.map { (($0 % 12) + 12) % 12 })
+        case .none, .projectChordContext:
+            filterClasses = []
+        }
+
+        return PitchAlgo.pitchPoolClasses(
+            root: root,
+            scaleID: scale,
+            spread: spread,
+            filterPitchClasses: filterClasses
+        )
+    }
+}
+
+private struct PitchPoolKeyboardStrip: View {
+    let availablePitchClasses: Set<Int>
+    let accent: Color
+
+    private let pitchClasses = Array(0..<12)
+    private let labels = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
+    private let blackKeyClasses: Set<Int> = [1, 3, 6, 8, 10]
+
+    var body: some View {
+        HStack(alignment: .bottom, spacing: 3) {
+            ForEach(pitchClasses, id: \.self) { pitchClass in
+                key(for: pitchClass)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityLabel("Pitch pool keyboard")
+        .accessibilityIdentifier("pitch-pool-keyboard")
+    }
+
+    private func key(for pitchClass: Int) -> some View {
+        let isBlackKey = blackKeyClasses.contains(pitchClass)
+        let isAvailable = availablePitchClasses.contains(pitchClass)
+
+        return VStack(spacing: 4) {
+            Circle()
+                .fill(isAvailable ? accent : StudioTheme.border)
+                .frame(width: isAvailable ? 6 : 3, height: isAvailable ? 6 : 3)
+
+            Text(labels[pitchClass])
+                .studioText(.micro)
+                .foregroundStyle(isAvailable ? StudioTheme.text : StudioTheme.mutedText)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+        }
+        .frame(width: 24, height: isBlackKey ? 34 : 46)
+        .background(isBlackKey ? StudioTheme.inset : StudioTheme.background)
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous)
+                .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+        )
+        .accessibilityLabel(labels[pitchClass])
     }
 }
 
