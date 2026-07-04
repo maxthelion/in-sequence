@@ -19,6 +19,7 @@ struct UnifiedStepCell: View {
 
     private static let geometry = UnifiedStepCellGeometry()
     private static let cornerRadius: CGFloat = 6
+    private static let valueBarInset: CGFloat = 3
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -65,10 +66,13 @@ struct UnifiedStepCell: View {
     @ViewBuilder
     private var valueBar: some View {
         if let fraction = visualConfiguration.valueFraction {
+            let availableHeight = Self.geometry.size.height - (Self.valueBarInset * 2)
             Rectangle()
                 .fill(visualConfiguration.valueBarColor)
-                .frame(height: Self.geometry.size.height * fraction)
+                .frame(height: availableHeight * fraction)
                 .frame(maxWidth: .infinity, alignment: .bottom)
+                .padding(.horizontal, Self.valueBarInset)
+                .padding(.bottom, Self.valueBarInset)
                 .opacity(fraction > 0 ? 1 : 0)
         }
     }
@@ -276,6 +280,8 @@ struct UnifiedStepCellVisualConfiguration {
     let toggleFillColor: Color
     let outlineColor: Color
     let playingBorderInset: CGFloat
+    let usesBarInOutlineValueTreatment: Bool
+    let valueBarInset: CGFloat
 
     init(
         visualState: StepVisualState,
@@ -283,19 +289,25 @@ struct UnifiedStepCellVisualConfiguration {
         isSelected: Bool,
         content: StepCellContent
     ) {
+        let clampedValueFraction = Self.valueFraction(for: content)
+        let isValueBarContent = clampedValueFraction != nil
         self.isActive = visualState != .off
         self.isPlaying = isPlaying
         self.isSelected = isSelected
-        self.valueFraction = Self.valueFraction(for: content)
+        self.valueFraction = visualState == .off ? nil : clampedValueFraction
         self.playingBorderInset = isSelected ? 3 : 0.5
+        self.usesBarInOutlineValueTreatment = isValueBarContent
+        self.valueBarInset = 3
 
         // Bold-flat pass, like the reference's pad rows: an inactive step is
         // outline-only on the ground; an active step is a fully solid accent
-        // block with dark glyphs inside — no in-between washes.
+        // block with dark glyphs inside. Magnitude/value cells use the
+        // prototype-11 bar-in-outline grammar instead: outline plus one solid
+        // inner accent bar with a small padding gap.
         switch visualState {
         case .off:
             backgroundColor = .clear
-            valueBarColor = StudioTheme.cyan.opacity(0.58)
+            valueBarColor = .clear
             primaryContentColor = StudioTheme.mutedText
             secondaryContentColor = StudioTheme.mutedText.opacity(0.72)
             toggleStrokeColor = StudioTheme.border
@@ -303,8 +315,8 @@ struct UnifiedStepCellVisualConfiguration {
             outlineColor = StudioTheme.border
 
         case .on:
-            backgroundColor = StudioTheme.cyan
-            valueBarColor = StudioTheme.background.opacity(0.38)
+            backgroundColor = isValueBarContent ? .clear : StudioTheme.cyan
+            valueBarColor = StudioTheme.cyan
             primaryContentColor = StudioTheme.background
             secondaryContentColor = StudioTheme.background.opacity(0.72)
             toggleStrokeColor = StudioTheme.background.opacity(0.85)
@@ -312,8 +324,8 @@ struct UnifiedStepCellVisualConfiguration {
             outlineColor = StudioTheme.cyan
 
         case .accented:
-            backgroundColor = StudioTheme.amber
-            valueBarColor = StudioTheme.background.opacity(0.38)
+            backgroundColor = isValueBarContent ? .clear : StudioTheme.amber
+            valueBarColor = StudioTheme.amber
             primaryContentColor = StudioTheme.background
             secondaryContentColor = StudioTheme.background.opacity(0.72)
             toggleStrokeColor = StudioTheme.background.opacity(0.9)

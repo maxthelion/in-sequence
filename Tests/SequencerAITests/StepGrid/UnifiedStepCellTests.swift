@@ -19,6 +19,8 @@ final class UnifiedStepCellTests: XCTestCase {
         XCTAssertTrue(configuration.showsCompoundPlayingSelection)
         XCTAssertEqual(configuration.valueFraction ?? -1, 0.7, accuracy: 0.0001)
         XCTAssertGreaterThan(configuration.playingBorderInset, 0.5)
+        XCTAssertTrue(configuration.usesBarInOutlineValueTreatment)
+        XCTAssertEqual(configuration.valueBarInset, 3, accuracy: 0.0001)
     }
 
     func test_selectedOffCellIsUnfilledButSelected() {
@@ -97,13 +99,13 @@ final class UnifiedStepCellTests: XCTestCase {
 
     func test_valueFractionsClampToUnitRange() {
         let low = UnifiedStepCellVisualConfiguration(
-            visualState: .off,
+            visualState: .on,
             isPlaying: false,
             isSelected: false,
             content: .valueBar(fraction: -0.2)
         )
         let high = UnifiedStepCellVisualConfiguration(
-            visualState: .off,
+            visualState: .on,
             isPlaying: false,
             isSelected: false,
             content: .valueBar(fraction: 1.4)
@@ -111,6 +113,19 @@ final class UnifiedStepCellTests: XCTestCase {
 
         XCTAssertEqual(low.valueFraction ?? -1, 0, accuracy: 0.0001)
         XCTAssertEqual(high.valueFraction ?? -1, 1, accuracy: 0.0001)
+    }
+
+    func test_inactiveValueBarCellsDoNotRenderAValueFill() {
+        let configuration = UnifiedStepCellVisualConfiguration(
+            visualState: .off,
+            isPlaying: false,
+            isSelected: false,
+            content: .valueBar(fraction: 0.8)
+        )
+
+        XCTAssertFalse(configuration.isActive)
+        XCTAssertTrue(configuration.usesBarInOutlineValueTreatment)
+        XCTAssertNil(configuration.valueFraction)
     }
 
     func test_valueDragThresholdAndAbsoluteMapping() {

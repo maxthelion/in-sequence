@@ -431,10 +431,9 @@ struct SliceStepStrip: View {
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 7)
                     .padding(.horizontal, 3)
-                    .background(StudioTheme.inset, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
                     .overlay(
                         RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                            .stroke(border(for: state, absoluteIndex: absoluteIndex), lineWidth: selectedStepIndex == absoluteIndex ? 2 : StudioMetrics.borderWidth)
+                            .stroke(isSelected(absoluteIndex) ? StudioTheme.amber : Color.clear, lineWidth: 2)
                     )
                     .accessibilityElement(children: .combine)
                     .accessibilityLabel("Slice step \(absoluteIndex + 1)")
@@ -452,16 +451,8 @@ struct SliceStepStrip: View {
         }
     }
 
-    private func border(for state: State, absoluteIndex: Int) -> Color {
-        if selectedStepIndexes.contains(absoluteIndex) || selectedStepIndex == absoluteIndex {
-            return StudioTheme.amber
-        }
-        switch state {
-        case .off:
-            return Color.white.opacity(StudioOpacity.borderSubtle)
-        case .on:
-            return StudioTheme.cyan.opacity(0.4)
-        }
+    private func isSelected(_ absoluteIndex: Int) -> Bool {
+        selectedStepIndexes.contains(absoluteIndex) || selectedStepIndex == absoluteIndex
     }
 }
 
