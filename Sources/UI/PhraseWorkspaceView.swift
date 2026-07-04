@@ -602,36 +602,9 @@ struct PhraseWorkspaceView: View {
                 phraseSceneSlot(title: "Slot B", scene: sceneB, slot: .b, isDominant: crossfader > 0.5)
                     .frame(maxWidth: .infinity, alignment: .topLeading)
             }
-            phraseSceneMembershipReadout
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
         .accessibilityIdentifier("phrase-scenes-surface")
-    }
-
-    private var phraseSceneMembershipReadout: some View {
-        HStack(spacing: 8) {
-            Text("INPUTS")
-                .studioText(.micro)
-                .tracking(0.8)
-                .foregroundStyle(StudioTheme.mutedText)
-            ForEach(TrackMixSettings.SceneMembership.allCases, id: \.self) { membership in
-                let count = session.store.tracks.filter { $0.mix.sceneMembership == membership }.count
-                Text("\(membership.shortLabel) \(count)")
-                    .studioText(.micro)
-                    .foregroundStyle(StudioTheme.text)
-                    .padding(.horizontal, 8)
-                    .frame(height: 24)
-                    .background(
-                        Color.white.opacity(StudioOpacity.subtleFill),
-                        in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                            .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
-                    )
-            }
-        }
-        .accessibilityIdentifier("phrase-scene-membership-readout")
     }
 
     private var activePhraseSceneSelection: MasterBusABSelection {
@@ -655,7 +628,7 @@ struct PhraseWorkspaceView: View {
                     Text(title.uppercased())
                         .studioText(.micro)
                         .tracking(0.8)
-                        .foregroundStyle(isDominant ? StudioTheme.amber : StudioTheme.mutedText)
+                        .foregroundStyle(slot.accent)
 
                     Text(scene.name)
                         .studioText(.title)
@@ -666,33 +639,13 @@ struct PhraseWorkspaceView: View {
 
                 Spacer(minLength: 8)
 
-                // In Slots mode the inline scene matrix supersedes the modal
-                // picker, so Choose only appears alongside the macro grid.
-                if phraseSceneViewMode == .macros {
-                    Button {
-                        phraseSceneSlotPickerRequest = ScenePerformSlotPickerRequest(slot: slot)
-                    } label: {
-                        HStack(spacing: 5) {
-                            Text("Choose")
-                                .studioText(.micro)
-                            Image(systemName: "chevron.down")
-                                .font(.system(size: 9, weight: .bold))
-                        }
-                        .foregroundStyle(StudioTheme.mutedText)
-                        .padding(.horizontal, 9)
-                        .frame(height: 26)
-                        .background(
-                            Color.white.opacity(StudioOpacity.subtleFill),
-                            in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                                .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
-                        )
-                    }
-                    .buttonStyle(.plain)
-                    .help("Choose scene")
-                }
+                Text("\(slot.shortTitle):\(sceneNumber(for: scene.id) ?? 0)")
+                    .studioText(.labelBold)
+                    .monospacedDigit()
+                    .foregroundStyle(StudioTheme.background)
+                    .padding(.horizontal, 9)
+                    .frame(height: 26)
+                    .background(slot.accent, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
             }
             .padding(StudioMetrics.Spacing.comfortable)
             .background(
@@ -701,7 +654,7 @@ struct PhraseWorkspaceView: View {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                    .stroke(isDominant ? StudioTheme.amber.opacity(StudioOpacity.mediumStroke) : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+                    .stroke(isDominant ? slot.accent.opacity(StudioOpacity.mediumStroke) : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
             )
             .contentShape(Rectangle())
             .onTapGesture {
@@ -716,10 +669,10 @@ struct PhraseWorkspaceView: View {
             }
         }
         .padding(StudioMetrics.Spacing.standard)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
+        .background(Color.clear, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                .stroke(StudioTheme.amber.opacity(StudioOpacity.hoverFill), lineWidth: StudioMetrics.borderWidth)
+                .stroke(slot.accent.opacity(StudioOpacity.hoverFill), lineWidth: StudioMetrics.borderWidth)
         )
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("phrase-scene-slot-\(slot.rawValue)")
@@ -804,31 +757,67 @@ struct PhraseWorkspaceView: View {
         .accessibilityIdentifier("phrase-scene-crossfader")
     }
 
-    // Slots mode: every scene inline under the slot header, so a performer
-    // taps a card straight into slot A or B without opening the Choose modal.
-    // Unlike the modal (which scrolls inside StudioModal), the inline matrix
-    // owns its own ScrollView so a large scene library cannot overflow the
-    // slot column.
+    // Slots mode: fixed 4x4 numbered cells. Existing scenes are tap targets;
+    // unused scene positions stay as dashed empty cells so the surface reads
+    // as a matrix rather than a stack of scene cards.
     private func phraseSceneSlotMatrix(slot: ScenePerformSlotPickerRequest.Slot) -> some View {
-        ScrollView {
-            LazyVGrid(columns: sceneSlotMatrixColumns, spacing: 10) {
-                ForEach(session.store.masterBus.scenes) { scene in
-                    phraseScenePickerCard(scene, slot: slot)
+        LazyVGrid(columns: sceneSlotMatrixColumns, spacing: 8) {
+            let scenes = Array(session.store.masterBus.scenes.prefix(16))
+            ForEach(0..<16, id: \.self) { index in
+                if scenes.indices.contains(index) {
+                    phraseSceneMatrixCell(scene: scenes[index], sceneNumber: index + 1, slot: slot)
+                } else {
+                    phraseSceneEmptyMatrixCell(sceneNumber: index + 1, accent: slot.accent)
                 }
             }
-            .padding(StudioMetrics.Spacing.comfortable)
         }
-        .frame(maxHeight: 320)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
-        )
+        .padding(StudioMetrics.Spacing.compact)
         .accessibilityIdentifier("phrase-scene-slot-matrix-\(slot.rawValue)")
     }
 
     private var sceneSlotMatrixColumns: [GridItem] {
-        [GridItem(.adaptive(minimum: 104, maximum: 160), spacing: 10)]
+        Array(repeating: GridItem(.flexible(minimum: 46), spacing: 8), count: 4)
+    }
+
+    private func phraseSceneMatrixCell(
+        scene: MasterBusScene,
+        sceneNumber: Int,
+        slot: ScenePerformSlotPickerRequest.Slot
+    ) -> some View {
+        let selected = selectedPhraseSceneID(for: slot) == scene.id
+        return Button {
+            setPhraseScene(scene.id, for: slot)
+        } label: {
+            Text("\(sceneNumber)")
+                .font(.system(size: 30, weight: .black, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(selected ? StudioTheme.background : StudioTheme.text)
+                .frame(maxWidth: .infinity)
+                .frame(height: 56)
+                .background(selected ? slot.accent : Color.clear, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                        .stroke(selected ? slot.accent : StudioTheme.border, lineWidth: selected ? 2 : StudioMetrics.borderWidth)
+                )
+        }
+        .buttonStyle(.plain)
+        .help("\(slot.title): \(scene.name)")
+        .accessibilityLabel("\(slot.title) scene \(sceneNumber), \(scene.name)")
+    }
+
+    private func phraseSceneEmptyMatrixCell(sceneNumber: Int, accent: Color) -> some View {
+        Text("\(sceneNumber)")
+            .font(.system(size: 30, weight: .black, design: .rounded))
+            .monospacedDigit()
+            .foregroundStyle(StudioTheme.mutedText.opacity(0.45))
+            .frame(maxWidth: .infinity)
+            .frame(height: 56)
+            .background(Color.clear, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                    .stroke(accent.opacity(StudioOpacity.hoverFill), style: StrokeStyle(lineWidth: StudioMetrics.borderWidth, dash: StudioAddCard.dashPattern))
+            )
+            .accessibilityLabel("Empty scene slot \(sceneNumber)")
     }
 
     private func phraseSceneSlotPickerSheet(_ request: ScenePerformSlotPickerRequest) -> some View {
@@ -860,21 +849,21 @@ struct PhraseWorkspaceView: View {
     // Shared scene card: used by the Choose modal and the inline Slots matrix.
     private func phraseScenePickerCard(_ scene: MasterBusScene, slot: ScenePerformSlotPickerRequest.Slot) -> some View {
         let selected = selectedPhraseSceneID(for: slot) == scene.id
+        let sceneNumber = sceneNumber(for: scene.id) ?? 0
         return Button {
             setPhraseScene(scene.id, for: slot)
         } label: {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
-                    Image(systemName: "slider.horizontal.3")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(selected ? StudioTheme.background : StudioTheme.text)
-                        .frame(width: 26, height: 26)
-                        .background(selected ? StudioTheme.amber : Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+                    Text("\(sceneNumber)")
+                        .font(.system(size: 28, weight: .black, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(selected ? slot.accent : StudioTheme.text)
                     Spacer()
                     if selected {
                         Image(systemName: "checkmark")
                             .font(.system(size: 12, weight: .bold))
-                            .foregroundStyle(StudioTheme.amber)
+                            .foregroundStyle(slot.accent)
                     }
                 }
 
@@ -894,10 +883,14 @@ struct PhraseWorkspaceView: View {
             .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                    .stroke(selected ? StudioTheme.amber.opacity(StudioOpacity.ghostStroke) : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+                    .stroke(selected ? slot.accent.opacity(StudioOpacity.ghostStroke) : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
             )
         }
         .buttonStyle(.plain)
+    }
+
+    private func sceneNumber(for sceneID: UUID) -> Int? {
+        session.store.masterBus.scenes.firstIndex { $0.id == sceneID }.map { $0 + 1 }
     }
 
     private func selectedPhraseSceneID(for slot: ScenePerformSlotPickerRequest.Slot) -> UUID {

@@ -91,7 +91,9 @@ struct WorkspaceDetailView: View {
                 section = .track
             }
         case .scenes:
-            ScenesWorkspaceView(document: $document, resetToken: scenesResetToken)
+            ScenesWorkspaceView(document: $document, resetToken: scenesResetToken) {
+                section = .phrase
+            }
         case .library:
             LibraryWorkspaceView(onOpenTrack: {
                 section = .track

@@ -15,10 +15,24 @@ struct ScenePerformSlotPickerRequest: Identifiable, Equatable {
         case a
         case b
 
+        var shortTitle: String {
+            switch self {
+            case .a: "A"
+            case .b: "B"
+            }
+        }
+
         var title: String {
             switch self {
             case .a: "Slot A"
             case .b: "Slot B"
+            }
+        }
+
+        var accent: Color {
+            switch self {
+            case .a: StudioTheme.cyan
+            case .b: StudioTheme.violet
             }
         }
     }
@@ -45,6 +59,7 @@ struct ScenesWorkspaceView: View {
     @State var sceneMacroTargetPickerRequest: SceneMacroTargetPickerRequest?
     @State var scenePerformSlotPickerRequest: ScenePerformSlotPickerRequest?
     @State private var addInsertPickerRequest: AddInsertPickerRequest?
+    var onOpenPhraseScenes: () -> Void = {}
 
     private let sceneColumns = Array(
         repeating: GridItem(.flexible(minimum: 112, maximum: 190), spacing: 12),
@@ -144,11 +159,44 @@ struct ScenesWorkspaceView: View {
 
     private var sceneBrowser: some View {
         StudioPanel(title: "", accent: StudioTheme.amber, showsHeader: false) {
-            LazyVGrid(columns: sceneColumns, spacing: 12) {
-                ForEach(masterBus.scenes) { scene in
-                    sceneCard(scene)
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 10) {
+                    Text("SCENES")
+                        .studioText(.microEmphasis)
+                        .tracking(0.9)
+                        .foregroundStyle(StudioTheme.amber)
+
+                    Spacer(minLength: 8)
+
+                    Button {
+                        session.workspaceMode = .perform
+                        session.requestPhrasePerform(
+                            tab: .scenes,
+                            trackIDs: Set(session.store.tracks.map(\.id))
+                        )
+                        onOpenPhraseScenes()
+                    } label: {
+                        Label("Phrase Perform", systemImage: "square.split.2x2")
+                            .studioText(.labelBold)
+                            .foregroundStyle(StudioTheme.text)
+                            .padding(.horizontal, 10)
+                            .frame(height: 30)
+                            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
+                                    .stroke(StudioTheme.amber, lineWidth: StudioMetrics.borderWidth)
+                            )
+                    }
+                    .buttonStyle(.plain)
+                    .help("Open phrase scene perform")
                 }
-                addSceneCard
+
+                LazyVGrid(columns: sceneColumns, spacing: 12) {
+                    ForEach(Array(masterBus.scenes.enumerated()), id: \.element.id) { index, scene in
+                        sceneCard(scene, sceneNumber: index + 1)
+                    }
+                    addSceneCard
+                }
             }
         }
     }
@@ -272,19 +320,19 @@ struct ScenesWorkspaceView: View {
         return sceneID
     }
 
-    private func sceneCard(_ scene: MasterBusScene) -> some View {
+    private func sceneCard(_ scene: MasterBusScene, sceneNumber: Int) -> some View {
         // The card body is tap-to-open (contentShape + tap gesture, matching
         // the Perform slot cards) rather than one big Button so the inline
         // duplicate/delete cluster stays independently clickable.
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 8) {
-                Image(systemName: "slider.horizontal.3")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(StudioTheme.background)
-                    .frame(width: 30, height: 30)
-                    .background(StudioTheme.amber, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
+                Text("\(sceneNumber)")
+                    .font(.system(size: 34, weight: .black, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(scene.id == masterBus.activeSceneID ? StudioTheme.amber : StudioTheme.text)
+                    .frame(width: 42, alignment: .leading)
                 Spacer(minLength: 0)
-                sceneSlotBadges(scene.id)
+                sceneSlotBadges(scene.id, sceneNumber: sceneNumber)
             }
 
             VStack(alignment: .leading, spacing: 4) {
@@ -293,10 +341,6 @@ struct ScenesWorkspaceView: View {
                     .foregroundStyle(StudioTheme.text)
                     .lineLimit(2)
                     .minimumScaleFactor(0.72)
-                Text("\(scene.inserts.count) inserts - \(scene.macroBindings.count) macros")
-                    .studioText(.micro)
-                    .foregroundStyle(StudioTheme.mutedText)
-                    .lineLimit(1)
             }
 
             sceneCardFXChips(scene)
@@ -383,24 +427,24 @@ struct ScenesWorkspaceView: View {
     }
 
     @ViewBuilder
-    private func sceneSlotBadges(_ sceneID: UUID) -> some View {
+    private func sceneSlotBadges(_ sceneID: UUID, sceneNumber: Int) -> some View {
         HStack(spacing: 5) {
             if activeABSelection.sceneAID == sceneID {
-                slotBadge("A")
+                slotBadge("A:\(sceneNumber)", accent: ScenePerformSlotPickerRequest.Slot.a.accent)
             }
             if activeABSelection.sceneBID == sceneID {
-                slotBadge("B")
+                slotBadge("B:\(sceneNumber)", accent: ScenePerformSlotPickerRequest.Slot.b.accent)
             }
         }
     }
 
-    private func slotBadge(_ title: String) -> some View {
+    private func slotBadge(_ title: String, accent: Color) -> some View {
         Text(title)
             .studioText(.micro)
             .foregroundStyle(StudioTheme.background)
             .padding(.horizontal, 7)
             .padding(.vertical, 4)
-            .background(StudioTheme.amber, in: Capsule())
+            .background(accent, in: Capsule())
     }
 
     private var sceneEditor: some View {
