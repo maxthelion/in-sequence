@@ -157,10 +157,23 @@ struct TrackSourceEditorView: View {
         selectedSourceMode == .clip && currentClip != nil
     }
     private var selectedSourceGenerator: GeneratorPoolEntry? {
-        session.store.generatorEntry(id: selectedPattern.sourceRef.generatorID)
+        guard let generator = session.store.generatorEntry(id: selectedPattern.sourceRef.generatorID),
+              generator.trackType == track.trackType,
+              generator.kind.compatibleWith.contains(track.trackType)
+        else {
+            return nil
+        }
+        return generator
     }
     private var selectedModifierGenerator: GeneratorPoolEntry? {
-        session.store.generatorEntry(id: selectedPattern.sourceRef.modifierGeneratorID)
+        guard let generator = session.store.generatorEntry(id: selectedPattern.sourceRef.modifierGeneratorID),
+              generator.trackType == track.trackType,
+              generator.kind.compatibleWith.contains(track.trackType),
+              generator.kind.supportsModifierStage
+        else {
+            return nil
+        }
+        return generator
     }
     private var sourceDisplayState: TrackSourceSourceDisplayState {
         TrackSourceSourceDisplayState.resolve(

@@ -2,11 +2,17 @@ import Foundation
 
 extension Project {
     func compatibleGenerators(for track: StepSequenceTrack) -> [GeneratorPoolEntry] {
-        generatorPool.filter { $0.trackType == track.trackType }
+        generatorPool.filter {
+            $0.trackType == track.trackType && $0.kind.compatibleWith.contains(track.trackType)
+        }
     }
 
     func compatibleModifierGenerators(for track: StepSequenceTrack) -> [GeneratorPoolEntry] {
-        generatorPool.filter { $0.trackType == track.trackType && $0.kind.supportsModifierStage }
+        generatorPool.filter {
+            $0.trackType == track.trackType
+                && $0.kind.compatibleWith.contains(track.trackType)
+                && $0.kind.supportsModifierStage
+        }
     }
 
     func compatibleClips(for track: StepSequenceTrack) -> [ClipPoolEntry] {

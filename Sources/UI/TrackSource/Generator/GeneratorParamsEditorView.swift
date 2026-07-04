@@ -90,13 +90,15 @@ struct GeneratorParamsEditorView: View {
     private var foundationEditorShell: some View {
         VStack(alignment: .leading, spacing: 12) {
             generatorHeader
-            GeneratorResultStrip(
-                notesByStep: GeneratorResultStrip.barContent(
-                    for: generator.params,
-                    clipChoices: inputClipChoices
-                ),
-                accent: accent
-            )
+            if layout != .sourceContained {
+                GeneratorResultStrip(
+                    notesByStep: GeneratorResultStrip.barContent(
+                        for: generator.params,
+                        clipChoices: inputClipChoices
+                    ),
+                    accent: accent
+                )
+            }
 
             if generator.kind == .progressionChordGenerator {
                 sourceSection
@@ -156,28 +158,39 @@ struct GeneratorParamsEditorView: View {
             )
             .disabled(onSwitchKind == nil)
 
-            GeneratorHeaderChip(title: "FOLLOWING", value: followingChipValue, accent: accent)
+            if let followingChipValue {
+                GeneratorHeaderChip(title: "FOLLOWING", value: followingChipValue, accent: accent)
+            }
 
             Spacer(minLength: 0)
 
-            StudioCircleIconButton(
-                systemName: "die.face.5",
-                accent: accent,
-                isEnabled: onBakeToClip != nil,
-                help: "Bake generator result to clip",
-                action: { onBakeToClip?() }
-            )
+            Button {
+                onBakeToClip?()
+            } label: {
+                Label("Bake", systemImage: "die.face.5")
+                    .studioText(.labelBold)
+                    .foregroundStyle(onBakeToClip == nil ? StudioTheme.mutedText : StudioTheme.background)
+                    .padding(.vertical, 8)
+                    .padding(.horizontal, 10)
+                    .background(
+                        onBakeToClip == nil ? StudioTheme.border : accent,
+                        in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                    )
+            }
+            .buttonStyle(.plain)
+            .disabled(onBakeToClip == nil)
+            .help("Bake generator result to clip")
         }
     }
 
-    private var followingChipValue: String {
+    private var followingChipValue: String? {
         switch firstPitchStage?.harmonicSidechain {
         case .some(.projectChordContext):
             return "Chord"
         case .some(.clip):
             return "Clip"
         case .some(.none), nil:
-            return "None"
+            return nil
         }
     }
 
@@ -351,24 +364,8 @@ struct GeneratorParamsEditorView: View {
         @ViewBuilder content: () -> Content
     ) -> some View {
         if isContained {
-            let containedTitle = title == "Generator Source" ? "Generator Controls" : title
-            VStack(alignment: .leading, spacing: 14) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(containedTitle.uppercased())
-                        .studioText(.bodyEmphasis)
-                        .tracking(1.1)
-                        .foregroundStyle(StudioTheme.text)
-
-                    if let eyebrow {
-                        Text(eyebrow)
-                            .studioText(.label)
-                            .foregroundStyle(StudioTheme.mutedText)
-                    }
-                }
-
-                content()
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            content()
+                .frame(maxWidth: .infinity, alignment: .leading)
         } else {
             StudioPanel(title: title, eyebrow: eyebrow, accent: accent) {
                 content()
