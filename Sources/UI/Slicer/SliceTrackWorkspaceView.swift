@@ -247,9 +247,12 @@ struct SliceTrackWorkspaceView: View {
             HStack(alignment: .top, spacing: StudioMetrics.Spacing.roomy) {
                 laneSelector
                 lengthSelector
+                sliceLayerChip
                 Spacer(minLength: 0)
             }
-            sliceLayerSelector
+            if isLayerSwitcherOpen {
+                sliceLayerOptions
+            }
             sliceStepEditor
         } else {
             sliceTabPlaceholder(
@@ -293,9 +296,20 @@ struct SliceTrackWorkspaceView: View {
     // other step editors. Slice Index / Velocity / Chance are engine-backed;
     // Direction / Note Repeat / Gate are real selectable layers shown read-only
     // until per-step engine params land (see NOTE in the strip).
-    private var sliceLayerSelector: some View {
-        StepLayerQuickSwitch(
+    private var sliceLayerChip: some View {
+        StepLayerQuickSwitchChip(
             title: "Layer",
+            selection: $selectedLayer,
+            isOpen: $isLayerSwitcherOpen,
+            options: SliceTrackClipLayer.allCases.map { layer in
+                StepLayerQuickSwitchOption(id: layer.rawValue, title: layer.title, value: layer)
+            },
+            accent: accent
+        )
+    }
+
+    private var sliceLayerOptions: some View {
+        StepLayerQuickSwitchOptions(
             selection: $selectedLayer,
             isOpen: $isLayerSwitcherOpen,
             options: SliceTrackClipLayer.allCases.map { layer in

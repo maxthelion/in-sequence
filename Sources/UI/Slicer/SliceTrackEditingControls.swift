@@ -74,84 +74,114 @@ struct StepLayerQuickSwitch<Value: Hashable>: View {
     let options: [StepLayerQuickSwitchOption<Value>]
     let accent: Color
 
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            StepLayerQuickSwitchChip(
+                title: title,
+                selection: $selection,
+                isOpen: $isOpen,
+                options: options,
+                accent: accent
+            )
+
+            if isOpen {
+                StepLayerQuickSwitchOptions(
+                    selection: $selection,
+                    isOpen: $isOpen,
+                    options: options,
+                    accent: accent
+                )
+            }
+        }
+    }
+}
+
+struct StepLayerQuickSwitchChip<Value: Hashable>: View {
+    let title: String
+    @Binding var selection: Value
+    @Binding var isOpen: Bool
+    let options: [StepLayerQuickSwitchOption<Value>]
+    let accent: Color
+
     private var selectedTitle: String {
         options.first { $0.value == selection }?.title ?? "Layer"
     }
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Text(title.uppercased())
+                .studioText(.eyebrow)
+                .tracking(0.8)
+                // ux-canon-allow: eyebrow captions are structural labels,
+                // not stateful chrome — mutedText is the caption token.
+                .foregroundStyle(StudioTheme.mutedText)
+
+            Button {
+                isOpen.toggle()
+            } label: {
+                HStack(spacing: 6) {
+                    Text(selectedTitle)
+                        .studioText(.labelBold)
+                        .foregroundStyle(isOpen ? StudioTheme.text : StudioTheme.background)
+                        .lineLimit(1)
+
+                    Image(systemName: isOpen ? "chevron.up" : "chevron.down")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(isOpen ? StudioTheme.mutedText : StudioTheme.background)
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 7)
+                .fixedSize()
+                .background(
+                    isOpen ? Color.white.opacity(StudioOpacity.subtleFill) : accent,
+                    in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
+                        .stroke(isOpen ? StudioTheme.border : Color.clear, lineWidth: StudioMetrics.borderWidth)
+                )
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("\(title) \(selectedTitle)")
+        }
+        .fixedSize()
+    }
+}
+
+struct StepLayerQuickSwitchOptions<Value: Hashable>: View {
+    @Binding var selection: Value
+    @Binding var isOpen: Bool
+    let options: [StepLayerQuickSwitchOption<Value>]
+    let accent: Color
 
     private var columns: [GridItem] {
         Array(repeating: GridItem(.flexible(minimum: 86), spacing: 6), count: 3)
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            // Closed = a COMPACT solid value chip (eyebrow label outside the
-            // chip, chip hugs its content) — never a full-width solid accent
-            // bar, which floods a container-sized element (Rule 12, design
-            // review 18/23a; prototype 11 quick-switch grammar). Matches the
-            // adjacent LANE/LENGTH inset selectors' title treatment.
-            HStack(spacing: 8) {
-                Text(title.uppercased())
-                    .studioText(.eyebrow)
-                    .tracking(0.8)
-                    // ux-canon-allow: eyebrow captions are structural labels,
-                    // not stateful chrome — mutedText is the caption token.
-                    .foregroundStyle(StudioTheme.mutedText)
-
+        LazyVGrid(columns: columns, spacing: 6) {
+            ForEach(options) { option in
                 Button {
-                    isOpen.toggle()
+                    selection = option.value
+                    isOpen = false
                 } label: {
-                    HStack(spacing: 6) {
-                        Text(selectedTitle)
-                            .studioText(.labelBold)
-                            .foregroundStyle(isOpen ? StudioTheme.text : StudioTheme.background)
-                            .lineLimit(1)
-
-                        Image(systemName: isOpen ? "chevron.up" : "chevron.down")
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundStyle(isOpen ? StudioTheme.mutedText : StudioTheme.background)
-                    }
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 7)
-                    .fixedSize()
-                    .background(
-                        isOpen ? Color.white.opacity(StudioOpacity.subtleFill) : accent,
-                        in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
-                            .stroke(isOpen ? StudioTheme.border : Color.clear, lineWidth: StudioMetrics.borderWidth)
-                    )
+                    Text(option.title)
+                        .studioText(.micro)
+                        .foregroundStyle(option.value == selection ? StudioTheme.background : StudioTheme.text)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 7)
+                        .background(
+                            option.value == selection ? accent : Color.white.opacity(StudioOpacity.subtleFill),
+                            in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
+                                .stroke(option.value == selection ? Color.clear : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+                        )
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("\(title) \(selectedTitle)")
-            }
-
-            if isOpen {
-                LazyVGrid(columns: columns, spacing: 6) {
-                    ForEach(options) { option in
-                        Button {
-                            selection = option.value
-                            isOpen = false
-                        } label: {
-                            Text(option.title)
-                                .studioText(.micro)
-                                .foregroundStyle(option.value == selection ? StudioTheme.background : StudioTheme.text)
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.7)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 7)
-                                .background(
-                                    option.value == selection ? accent : Color.white.opacity(StudioOpacity.subtleFill),
-                                    in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
-                                )
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
-                                        .stroke(option.value == selection ? Color.clear : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
-                                )
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
             }
         }
     }

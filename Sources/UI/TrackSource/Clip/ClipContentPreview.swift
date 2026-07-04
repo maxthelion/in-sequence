@@ -314,7 +314,7 @@ struct ClipContentPreview: View {
         VStack(alignment: .leading, spacing: 12) {
             clipHeaderControls(lengthSteps: lengthSteps, steps: steps)
 
-            layerControlRow(lengthSteps: lengthSteps, steps: steps)
+            layerDisclosureRow(lengthSteps: lengthSteps, steps: steps)
 
             if let selectedMacroLayer {
                 let layer = StepGridLayer.macro(index: selectedMacroLayer.macroIndex)
@@ -637,7 +637,32 @@ struct ClipContentPreview: View {
                 layout: .init(fillsWidth: false, minWidth: 44)
             )
 
+            StepLayerQuickSwitchChip(
+                title: "Layer",
+                selection: $selectedLayer,
+                isOpen: $isLayerSwitcherOpen,
+                options: layerQuickSwitchOptions,
+                accent: accent
+            )
+
             Spacer(minLength: 0)
+        }
+    }
+
+    @ViewBuilder
+    private func layerDisclosureRow(lengthSteps: Int, steps: [ClipStep]) -> some View {
+        if isLayerSwitcherOpen {
+            VStack(alignment: .leading, spacing: 8) {
+                StepLayerQuickSwitchOptions(
+                    selection: $selectedLayer,
+                    isOpen: $isLayerSwitcherOpen,
+                    options: layerQuickSwitchOptions,
+                    accent: accent
+                )
+                assignMacroButtonRow
+            }
+        } else {
+            layerControlRow(lengthSteps: lengthSteps, steps: steps)
         }
     }
 
@@ -691,19 +716,15 @@ struct ClipContentPreview: View {
     /// Single-line layer selector: chevrons step through trigger/velocity/
     /// chance and any assigned macro lanes without spending grid rows.
     private var layerLineControl: some View {
-        HStack(spacing: 10) {
-            StepLayerQuickSwitch(
-                title: "Layer",
-                selection: $selectedLayer,
-                isOpen: $isLayerSwitcherOpen,
-                options: layerQuickSwitchOptions,
-                accent: accent
-            )
+        assignMacroButtonRow
+    }
 
-            Spacer(minLength: 0)
-
-            if let firstUnassignedSlot = macroSlots.first(where: { $0.binding == nil }),
-               onAssignMacroSlot != nil {
+    @ViewBuilder
+    private var assignMacroButtonRow: some View {
+        if let firstUnassignedSlot = macroSlots.first(where: { $0.binding == nil }),
+           onAssignMacroSlot != nil {
+            HStack {
+                Spacer(minLength: 0)
                 Button {
                     onAssignMacroSlot?(firstUnassignedSlot.slotIndex)
                 } label: {
@@ -715,13 +736,6 @@ struct ClipContentPreview: View {
                 .help("Assign macro M\(firstUnassignedSlot.slotIndex + 1)")
             }
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
-                .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
-        )
     }
 
     private var layerQuickSwitchOptions: [StepLayerQuickSwitchOption<ClipEditorLayer>] {
