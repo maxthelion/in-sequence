@@ -230,6 +230,7 @@ final class MainAudioGraph {
     private let channelMeterTapGeneration = AtomicInt32(0)
     private(set) var channelMeterTapInstallCountForTesting = 0
     private(set) var channelMeterTapRemoveCountForTesting = 0
+    private(set) var unsafeDisconnectAttemptCountForTesting = 0
     private let masterRenderLock = NSLock()
     private var masterRenderFile: AVAudioFile?
     private var masterRenderURL: URL?
@@ -438,6 +439,9 @@ final class MainAudioGraph {
     func disconnectOutput(_ node: AVAudioNode) {
         TickPathMainSyncGuard.assertNotHoldingLifecycleLockForGraphMutation("MainAudioGraph.disconnectOutput")
         performOnMain {
+            if node.engine !== self.engine || self.engine.outputConnectionPoints(for: node, outputBus: 0).isEmpty {
+                self.unsafeDisconnectAttemptCountForTesting += 1
+            }
             // A node's channel-meter tap MUST come off before its topology is
             // mutated. `disconnectNodeOutput` reconfigures the affected subgraph
             // (`AVAudioEngineGraph::UpdateGraphAfterReconfig`); doing so while a
@@ -463,6 +467,9 @@ final class MainAudioGraph {
     func disconnectInput(_ node: AVAudioNode) {
         TickPathMainSyncGuard.assertNotHoldingLifecycleLockForGraphMutation("MainAudioGraph.disconnectInput")
         performOnMain {
+            if node.engine !== self.engine || self.engine.inputConnectionPoint(for: node, inputBus: 0) == nil {
+                self.unsafeDisconnectAttemptCountForTesting += 1
+            }
             // See `disconnectOutput`: never reconfigure a node whose meter tap is
             // still live (UpdateGraphAfterReconfig fault). The prepared-track
             // repair disconnects voice-filter / mixer INPUTS through here; drop
