@@ -617,7 +617,7 @@ private struct AudioInputRuntimePanel: View {
         VStack(alignment: .leading, spacing: 16) {
             HStack(alignment: .center, spacing: 12) {
                 StudioSegmentedControl(
-                    title: "Mode",
+                    title: nil,
                     selection: monitorBinding,
                     segments: [
                         StudioSegment(title: "Live", value: .input),
@@ -628,7 +628,8 @@ private struct AudioInputRuntimePanel: View {
                             help: runtime?.hasRecordedLoop == true ? nil : "The audio interface does not provide enough inputs for Playback"
                         ),
                     ],
-                    accent: accent
+                    accent: accent,
+                    accessibilityLabel: { segment in "Input mode \(segment.title)" }
                 )
                 .frame(width: 210)
 
@@ -791,7 +792,7 @@ private struct AudioInputRuntimePanel: View {
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                .stroke(StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
+                .stroke(accent.opacity(StudioOpacity.borderSubtle), lineWidth: StudioMetrics.borderWidth)
         )
     }
 
@@ -815,7 +816,7 @@ private struct AudioInputRuntimePanel: View {
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                .stroke(StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
+                .stroke(accent.opacity(StudioOpacity.borderSubtle), lineWidth: StudioMetrics.borderWidth)
         )
     }
 
@@ -829,7 +830,7 @@ private struct AudioInputRuntimePanel: View {
                 .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-                        .stroke(isSelected ? accent : StudioTheme.border.opacity(0.8), lineWidth: isSelected ? 1.5 : StudioMetrics.borderWidth)
+                        .stroke(isSelected ? accent : accent.opacity(StudioOpacity.borderSubtle), lineWidth: isSelected ? 1.5 : StudioMetrics.borderWidth)
                 )
         }
         .buttonStyle(.plain)
@@ -940,11 +941,6 @@ private struct AudioInputRuntimePanel: View {
                 .buttonStyle(.link)
                 .studioText(.micro)
             }
-        } else if !canArmInput, !isArmedOrRecording, availableChannels == 0 {
-            Text("NO INPUT DEVICE")
-                .studioText(.microEmphasis)
-                .tracking(0.6)
-                .foregroundStyle(StudioTheme.amber)
         }
     }
 
