@@ -47,10 +47,34 @@ struct PitchStage: Codable, Equatable, Hashable, Sendable {
     var algo: PitchAlgo
     var harmonicSidechain: HarmonicSidechainSource
 
+    init(algo: PitchAlgo, harmonicSidechain: HarmonicSidechainSource) {
+        self.algo = algo
+        self.harmonicSidechain = harmonicSidechain
+    }
+
     static let defaultMono = PitchStage(
-        algo: .manual(pitches: [60, 62, 64, 67], pickMode: .random),
+        algo: .pool(
+            root: 60,
+            scale: .major,
+            spread: 12,
+            selection: .balanced,
+            deviation: .none
+        ),
         harmonicSidechain: .none
     )
+}
+
+extension PitchStage {
+    private enum CodingKeys: String, CodingKey {
+        case algo
+        case harmonicSidechain
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        algo = try container.decode(PitchAlgo.self, forKey: .algo).normalizedForPitchGrammar
+        harmonicSidechain = try container.decode(HarmonicSidechainSource.self, forKey: .harmonicSidechain)
+    }
 }
 
 enum TriggerStageNode: Codable, Equatable, Hashable, Sendable {

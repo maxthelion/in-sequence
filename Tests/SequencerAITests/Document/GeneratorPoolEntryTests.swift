@@ -43,7 +43,7 @@ final class GeneratorPoolEntryTests: XCTestCase {
         }
     }
 
-    func test_generator_pool_entry_round_trips_new_shape() throws {
+    func test_generator_pool_entry_decodes_legacy_pitch_stages_as_pool() throws {
         let entry = GeneratorPoolEntry(
             id: UUID(uuidString: "88888888-8888-8888-8888-888888888888")!,
             name: "Poly Motion",
@@ -58,7 +58,10 @@ final class GeneratorPoolEntryTests: XCTestCase {
 
         let data = try JSONEncoder().encode(entry)
         let decoded = try JSONDecoder().decode(GeneratorPoolEntry.self, from: data)
-        XCTAssertEqual(decoded, entry)
+        guard case let .poly(_, pitches, _) = decoded.params else {
+            return XCTFail("expected poly params")
+        }
+        XCTAssertEqual(pitches, [.native(.pool(root: 60, scale: .major, spread: 12, selection: .balanced, deviation: .none))])
     }
 
     func test_make_default_seeds_params_from_kind() {
@@ -112,7 +115,7 @@ final class GeneratorPoolEntryTests: XCTestCase {
             return XCTFail("expected poly params")
         }
         XCTAssertEqual(roundTripTrigger, .native(.defaultMono))
-        XCTAssertEqual(pitches, [.native(.randomInScale(root: 65, scale: .naturalMinor, spread: 12))])
+        XCTAssertEqual(pitches, [.native(.pool(root: 65, scale: .naturalMinor, spread: 12, selection: .balanced, deviation: .none))])
         XCTAssertEqual(shape.velocity, 88)
     }
 }

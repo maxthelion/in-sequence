@@ -35,7 +35,6 @@ struct GeneratorParamsEditorView: View {
     let onSwitchKind: ((GeneratorKind) -> Void)?
     let onBakeToClip: (() -> Void)?
 
-    @State private var selectedPolyLane = 0
     @State private var selectedStageTab: StageTab = .trigger
 
     init(
@@ -257,55 +256,32 @@ struct GeneratorParamsEditorView: View {
     private var modifierSection: some View {
         switch generator.params {
         case let .mono(_, pitch, _):
-            // No explainer eyebrow: "Runs after the selected source" was a
-            // Rule 3 sentence (design review 22f/22h) — the ordering is shape
-            // knowledge and lives in the container's hover help.
-            modifierEditorContainer(title: "Pitch Modifier", eyebrow: nil) {
+            PitchAlgoEditor(
+                stage: pitch.pitchStage,
+                inputClipChoices: inputClipChoices,
+                harmonicSidechainClipChoices: harmonicSidechainClipChoices,
+                accent: accent
+            ) { nextStage in
+                onUpdate(.mono(trigger: monoTriggerNode, pitch: .native(nextStage), shape: monoShape))
+            }
+
+        case let .poly(_, pitches, _):
+            let sharedStage = pitches.first?.pitchStage ?? .defaultMono
+            VStack(alignment: .leading, spacing: 12) {
+                SourceParameterStepperRow(title: "Voices", value: max(1, pitches.count), range: 1...8) { nextCount in
+                    let nextPitches = Array(repeating: PitchStageNode.native(sharedStage), count: nextCount)
+                    onUpdate(.poly(trigger: polyTriggerNode, pitches: nextPitches, shape: polyShape))
+                }
+
                 PitchAlgoEditor(
-                    stage: pitch.pitchStage,
+                    stage: sharedStage,
                     inputClipChoices: inputClipChoices,
                     harmonicSidechainClipChoices: harmonicSidechainClipChoices,
                     accent: accent
                 ) { nextStage in
-                    onUpdate(.mono(trigger: monoTriggerNode, pitch: .native(nextStage), shape: monoShape))
-                }
-            }
-
-        case let .poly(_, pitches, _):
-            // The eyebrow carries the one real fact (lane count) — the old
-            // "N lanes over the selected source" line was a Rule 3 sentence
-            // with a plural bug ("1 lanes"), design review 22h.
-            modifierEditorContainer(title: "Pitch Modifier", eyebrow: "\(pitches.count) lane\(pitches.count == 1 ? "" : "s")") {
-                VStack(alignment: .leading, spacing: 16) {
-                    PolyLaneSelector(
-                        laneCount: pitches.count,
-                        selectedLane: $selectedPolyLane,
-                        accent: accent,
-                        onAddLane: {
-                            var nextPitches = pitches
-                            nextPitches.append(.native(.defaultMono))
-                            selectedPolyLane = nextPitches.count - 1
-                            onUpdate(.poly(trigger: polyTriggerNode, pitches: nextPitches, shape: polyShape))
-                        },
-                        onRemoveLane: pitches.count > 1 ? {
-                            var nextPitches = pitches
-                            nextPitches.remove(at: min(selectedPolyLane, nextPitches.count - 1))
-                            selectedPolyLane = min(selectedPolyLane, max(0, nextPitches.count - 1))
-                            onUpdate(.poly(trigger: polyTriggerNode, pitches: nextPitches, shape: polyShape))
-                        } : nil
-                    )
-
-                    let laneIndex = min(selectedPolyLane, max(0, pitches.count - 1))
-                    PitchAlgoEditor(
-                        stage: pitches[laneIndex].pitchStage,
-                        inputClipChoices: inputClipChoices,
-                        harmonicSidechainClipChoices: harmonicSidechainClipChoices,
-                        accent: accent
-                    ) { nextStage in
-                        var nextPitches = pitches
-                        nextPitches[laneIndex] = .native(nextStage)
-                        onUpdate(.poly(trigger: polyTriggerNode, pitches: nextPitches, shape: polyShape))
-                    }
+                    let voiceCount = max(1, pitches.count)
+                    let nextPitches = Array(repeating: PitchStageNode.native(nextStage), count: voiceCount)
+                    onUpdate(.poly(trigger: polyTriggerNode, pitches: nextPitches, shape: polyShape))
                 }
             }
 

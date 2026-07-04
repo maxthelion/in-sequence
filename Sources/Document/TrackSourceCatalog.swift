@@ -85,10 +85,7 @@ enum GeneratorKind: String, Codable, CaseIterable, Equatable, Sendable {
                         basePitch: 60
                     )
                 ),
-                pitches: [.native(.init(
-                    algo: .manual(pitches: [60, 64, 67], pickMode: .random),
-                    harmonicSidechain: .none
-                ))],
+                pitches: [.native(.defaultMono)],
                 shape: .default
             )
         case .progressionChordGenerator:
@@ -234,10 +231,12 @@ extension GeneratorParams {
             return pitches.first
         case let .progressionChords(params):
             let normalized = params.normalized
-            return .native(.randomInScale(
+            return .native(.pool(
                 root: normalized.rootMIDI,
                 scale: normalized.mode.scaleID,
-                spread: 12
+                spread: 12,
+                selection: .balanced,
+                deviation: .none
             ))
         case .drum, .template, .slice:
             return nil

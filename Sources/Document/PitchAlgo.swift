@@ -144,6 +144,50 @@ enum PitchAlgo: Codable, Equatable, Hashable, Sendable {
     }
 }
 
+extension PitchAlgo {
+    var normalizedForPitchGrammar: PitchAlgo {
+        let defaultPool = PitchStage.defaultMono.algo
+
+        switch self {
+        case let .pool(root, scale, spread, selection, deviation):
+            return .pool(
+                root: root,
+                scale: scale,
+                spread: spread,
+                selection: selection.normalized,
+                deviation: deviation.normalized
+            )
+        case let .randomInScale(root, scale, spread):
+            return .pool(
+                root: root,
+                scale: scale,
+                spread: spread,
+                selection: .balanced,
+                deviation: .none
+            )
+        case let .intervalProb(root, scale, _),
+             let .markov(root, scale, _, _, _):
+            return .pool(
+                root: root,
+                scale: scale,
+                spread: 12,
+                selection: .balanced,
+                deviation: .none
+            )
+        case let .randomInChord(root, _, _, spread):
+            return .pool(
+                root: root,
+                scale: .major,
+                spread: spread,
+                selection: .balanced,
+                deviation: .none
+            )
+        case .manual, .fromClipPitches, .external:
+            return defaultPool
+        }
+    }
+}
+
 private func pickFromPool<R: RandomNumberGenerator>(
     root: Int,
     scaleID: ScaleID,
