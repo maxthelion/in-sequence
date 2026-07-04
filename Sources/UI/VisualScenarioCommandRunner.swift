@@ -3367,6 +3367,13 @@ enum VisualScenarioCommandRunner {
         _ = engineController.rerouteAudioInput(trackID: trackID, channel: session.store.selectedTrack.inputChannel)
         _ = engineController.setAudioInputMonitorMode(trackID: trackID, mode: .input)
 
+        // The QA rows keep the transport stopped (`transport=stop`), which
+        // arms the post-stop tick suppression — but the arm/record states
+        // below are driven by manually pumped `processTick` calls. Lift the
+        // suppression so those fixture ticks are processed (otherwise
+        // armed -> recording never fires and row 26 times out).
+        engineController.resumeManualTickProcessingForFixtures()
+
         switch requestedAudioInputState {
         case "live":
             _ = engineController.cancelAudioInputArm(trackID: trackID)

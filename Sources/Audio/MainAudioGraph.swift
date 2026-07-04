@@ -589,6 +589,27 @@ final class MainAudioGraph {
         return engine.inputNode
     }
 
+    /// True when a live `.input` monitor connection must be SIMULATED instead
+    /// of wired through `engine.inputNode`. Two cases:
+    ///
+    /// - Unit tests (`simulateAudioInputConnectionForTesting`) — real input
+    ///   access risks the mic-TCC prompt and CoreAudio stalls.
+    /// - OFFLINE MANUAL-RENDERING engines (the QA/visual-automation force):
+    ///   an offline engine has no HAL IO unit, so `engine.inputNode` has no
+    ///   underlying audio unit. Wiring it in "works" until the host is torn
+    ///   down and the engine restarts — the input node is then left in the
+    ///   engine's node set with a NULL AUInterface, and the NEXT
+    ///   running-engine disconnect's `UpdateGraphAfterReconfig` walk makes a
+    ///   virtual call through that null interface: the record-arm SIGSEGV at
+    ///   `KERN_INVALID_ADDRESS 0x68` (bug 20260702-123512). This slipped the
+    ///   "automation never instantiates the input IO unit" invariant because
+    ///   a stale-authorized TCC record makes `liveAudioInputAuthorized` true
+    ///   on rebuilt ad-hoc binaries. Automation fixtures inject capture
+    ///   buffers directly, so nothing offline needs the real input edge.
+    private var simulatesLiveInputConnection: Bool {
+        Self.simulateAudioInputConnectionForTesting || engine.isInManualRenderingMode
+    }
+
     /// Test seam for the HAL default-input-device channel-count read.
     static var hardwareInputChannelCountOverrideForTesting: Int?
 
@@ -2339,13 +2360,17 @@ final class MainAudioGraph {
             // Send buses not installed yet: route dry only and tear down any
             // stale send nodes. installSendBuses re-reconnects every track once
             // the buses exist, which establishes the persistent geometry above.
+            // The fanout is a potential MULTI-POINT source: dissolve its output
+            // point-by-point (see `dissolveOutputConnectionsOnMain`) so a
+            // stopped-engine teardown cannot plant the UpdateGraphAfterReconfig
+            // poison; all edges are gone before `detach`.
             let key = ObjectIdentifier(source)
             if let nodes = trackSendNodes.removeValue(forKey: key) {
-                engine.disconnectNodeOutput(nodes.fanout)
+                dissolveOutputConnectionsOnMain(of: nodes.fanout)
                 engine.disconnectNodeInput(nodes.fanout)
-                engine.disconnectNodeOutput(nodes.sendA)
+                dissolveOutputConnectionsOnMain(of: nodes.sendA)
                 engine.disconnectNodeInput(nodes.sendA)
-                engine.disconnectNodeOutput(nodes.sendB)
+                dissolveOutputConnectionsOnMain(of: nodes.sendB)
                 engine.disconnectNodeInput(nodes.sendB)
                 engine.detach(nodes.fanout)
                 engine.detach(nodes.sendA)
@@ -2490,7 +2515,7 @@ final class MainAudioGraph {
         requestedSource: AudioInputMonitorSource
     ) {
         removeAudioInputCaptureTapOnMain(host: host)
-        if host.connectedSource == .input, !Self.simulateAudioInputConnectionForTesting {
+        if host.connectedSource == .input, !simulatesLiveInputConnection {
             // Already-armed path: a live `.input` connection exists, so the
             // input node was necessarily accessed before.
             engine.disconnectNodeOutput(armedEngineInputNode())
@@ -2506,7 +2531,12 @@ final class MainAudioGraph {
 
         switch requestedSource {
         case .input:
-            if Self.simulateAudioInputConnectionForTesting {
+            if simulatesLiveInputConnection {
+                // Simulated live connect (tests, or an offline manual-rendering
+                // engine that has no input IO unit — see
+                // `simulatesLiveInputConnection`). The host reports `.input`
+                // for UI/route state; no real input edge exists.
+                DevActivity.trace(DevActivity.audioGraph, "audio-input monitor connect SIMULATED (no engine.inputNode wiring) track=\(host.trackID.uuidString)")
                 host.connectedSource = .input
                 return
             }
@@ -2589,7 +2619,7 @@ final class MainAudioGraph {
 
     @MainActor
     private func teardownAudioInputRoutingNodesOnMain(host: AudioInputRoutingHost) {
-        if host.connectedSource == .input, !Self.simulateAudioInputConnectionForTesting {
+        if host.connectedSource == .input, !simulatesLiveInputConnection {
             // Already-armed path (live `.input` connection being torn down).
             engine.disconnectNodeOutput(armedEngineInputNode())
         }
@@ -2714,6 +2744,33 @@ final class MainAudioGraph {
         return nodes
     }
 
+    /// Sever every output edge of `node` by disconnecting each DESTINATION's
+    /// input bus, one connection point at a time — never
+    /// `disconnectNodeOutput(node)` on a node that may hold a MULTI-POINT
+    /// (1→N) output connection while the engine is stopped.
+    ///
+    /// AVFAudio poison (bug 20260702-123512, record-arm crash): calling
+    /// `disconnectNodeOutput` (or `detach`, whose internal disconnect takes
+    /// the same path) on a node with a multi-point output connection while
+    /// the engine is STOPPED, and then restarting WITHOUT re-establishing a
+    /// connection on that node, leaves a stale entry in
+    /// `AVAudioEngineGraph`'s bookkeeping. The NEXT disconnect on the
+    /// RUNNING engine then walks it in `UpdateGraphAfterReconfig` and makes
+    /// a virtual call through a NULL AUInterface — SIGSEGV at
+    /// `KERN_INVALID_ADDRESS 0x68` at a completely unrelated call site
+    /// (bus-terminal rewire, prepared-track repair). Proven by a standalone
+    /// AVAudioEngine repro: source-side multi-point disconnect while stopped
+    /// crashes; this destination-side point-by-point dissolve is clean.
+    /// The only multi-point source in the track architecture is the per-track
+    /// send FANOUT splitter (dry + sendA + sendB), torn down exactly here.
+    @MainActor
+    private func dissolveOutputConnectionsOnMain(of node: AVAudioNode) {
+        for point in engine.outputConnectionPoints(for: node, outputBus: 0) {
+            guard let destination = point.node else { continue }
+            engine.disconnectNodeInput(destination, bus: point.bus)
+        }
+    }
+
     @MainActor
     private func removeTrackSendNodes(for source: AVAudioNode) {
         let key = ObjectIdentifier(source)
@@ -2723,9 +2780,13 @@ final class MainAudioGraph {
             trackSendDestinationsForTesting.removeValue(forKey: key)
             return
         }
-        engine.disconnectNodeOutput(nodes.fanout)
-        engine.disconnectNodeOutput(nodes.sendA)
-        engine.disconnectNodeOutput(nodes.sendB)
+        // See `dissolveOutputConnectionsOnMain`: the fanout's 1→3 splitter
+        // output must come apart point-by-point, and every edge must be gone
+        // BEFORE `detach` below so detach's internal disconnect is a no-op.
+        dissolveOutputConnectionsOnMain(of: nodes.fanout)
+        engine.disconnectNodeInput(nodes.fanout)
+        dissolveOutputConnectionsOnMain(of: nodes.sendA)
+        dissolveOutputConnectionsOnMain(of: nodes.sendB)
         // Forget the ramp's per-node settled targets so a recycled
         // ObjectIdentifier (a new node at the same address) can't inherit a
         // stale rest level.

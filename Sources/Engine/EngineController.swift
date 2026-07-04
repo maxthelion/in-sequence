@@ -1504,6 +1504,19 @@ final class EngineController: RouterDispatcher {
     var audioDeviceApplyOverrideForTesting: ((_ inputUID: String?, _ outputUID: String?) throws -> AudioDeviceApplyResult)?
     var audioInputAvailableChannelCountOverrideForTesting: Int?
     var audioInputCapturePlanOverrideForTesting: ((_ trackID: UUID, _ bars: Int) -> AudioInputCapturePlan?)?
+
+    /// Harness-only (VisualScenarioCommandRunner audio-input fixtures): lift
+    /// the post-stop in-flight-tick suppression so manually pumped fixture
+    /// ticks are processed while the transport is stopped. A real transport
+    /// start clears the flag in `start()`; the QA fixture drives
+    /// `processTick` directly with the transport INTENTIONALLY stopped
+    /// (`transport=stop` rows), so without this the audio-input arm/record
+    /// state machine never advances (row 26-audio-recording stuck at
+    /// `armed`). Does not touch the transport generation or clock origin —
+    /// it only re-enables tick processing for the manual driver.
+    func resumeManualTickProcessingForFixtures() {
+        transportStoppedSuppressingTicks = false
+    }
     var bypassAudioInputRoutingSyncForTesting = false
     var audioInputCapturePublicationEnabledForTesting: Bool { publishesAudioInputCapture }
 
