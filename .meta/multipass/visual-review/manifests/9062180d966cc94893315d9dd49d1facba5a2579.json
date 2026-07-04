@@ -1,0 +1,548 @@
+{
+  "schemaVersion": 1,
+  "manifestId": "9062180d966cc94893315d9dd49d1facba5a2579",
+  "commit": "9062180d966cc94893315d9dd49d1facba5a2579",
+  "branch": "main",
+  "dirtyWorkingTree": true,
+  "capturedAt": "2026-07-04T17:35:48.234Z",
+  "captureDir": ".meta/multipass/visual-review/main",
+  "bucket": "ux-captures",
+  "blobPrefix": "screenshots",
+  "manifestPrefix": "manifests",
+  "rows": {
+    "01-phrase": {
+      "md5": "a731c597c8707f62408dcb4422594fc6",
+      "key": "screenshots/a731c597c8707f62408dcb4422594fc6.png",
+      "bytes": 181034,
+      "status": "captured"
+    },
+    "01a-song": {
+      "md5": "aee90ee6d0cffe4f9e998212a1214f25",
+      "key": "screenshots/aee90ee6d0cffe4f9e998212a1214f25.png",
+      "bytes": 207643,
+      "status": "captured"
+    },
+    "01b-transport-swing-set": {
+      "md5": "ba856536b4a4ccaf37a079237a244af6",
+      "key": "screenshots/ba856536b4a4ccaf37a079237a244af6.png",
+      "bytes": 170844,
+      "status": "captured"
+    },
+    "02-tracks-navigator": {
+      "md5": "887bb35e65a5107280164fd61612f9a0",
+      "key": "screenshots/887bb35e65a5107280164fd61612f9a0.png",
+      "bytes": 153216,
+      "status": "captured"
+    },
+    "02a-tracks-selection-actions": {
+      "md5": "505b15842f51b0535f176ff99c079ce3",
+      "key": "screenshots/505b15842f51b0535f176ff99c079ce3.png",
+      "bytes": 163555,
+      "status": "captured"
+    },
+    "02b-tracks-layer-perform-nav": {
+      "md5": "56f80ab607b7976d8557ac5dbc9ebed3",
+      "key": "screenshots/56f80ab607b7976d8557ac5dbc9ebed3.png",
+      "bytes": 170389,
+      "status": "captured"
+    },
+    "02c-create-track-modal": {
+      "md5": "bf308343c0a97dc30d3608a4a971770e",
+      "key": "screenshots/bf308343c0a97dc30d3608a4a971770e.png",
+      "bytes": 259881,
+      "status": "captured"
+    },
+    "02d-add-drum-group-modal": {
+      "md5": "dbe686f92ab80db344a52d71c074a7ba",
+      "key": "screenshots/dbe686f92ab80db344a52d71c074a7ba.png",
+      "bytes": 261635,
+      "status": "captured"
+    },
+    "02e-add-slice-track-loop-picker": {
+      "md5": "873e700fd9f64ef09615934bbb8a93da",
+      "key": "screenshots/873e700fd9f64ef09615934bbb8a93da.png",
+      "bytes": 326262,
+      "status": "captured"
+    },
+    "02f-create-track-sound-step": {
+      "md5": "599a802ff29d0da096dbc307ce1b3d4f",
+      "key": "screenshots/599a802ff29d0da096dbc307ce1b3d4f.png",
+      "bytes": 287454,
+      "status": "captured"
+    },
+    "04-mixer": {
+      "md5": "ddb9f30492dc359b24301474e0cfbd24",
+      "key": "screenshots/ddb9f30492dc359b24301474e0cfbd24.png",
+      "bytes": 196535,
+      "status": "captured"
+    },
+    "05-scenes-browse": {
+      "md5": "4281b45e8faf5476c73c29894c8f1382",
+      "key": "screenshots/4281b45e8faf5476c73c29894c8f1382.png",
+      "bytes": 156682,
+      "status": "captured"
+    },
+    "05a-scenes-edit-empty": {
+      "md5": "3638e04cce77f7a66ed8a2aca7ef1ca4",
+      "key": "screenshots/3638e04cce77f7a66ed8a2aca7ef1ca4.png",
+      "bytes": 154970,
+      "status": "captured"
+    },
+    "05b-scenes-edit-content": {
+      "md5": "edfbf90240b12f4dd828846e0aee8841",
+      "key": "screenshots/edfbf90240b12f4dd828846e0aee8841.png",
+      "bytes": 198010,
+      "status": "captured"
+    },
+    "05c-scenes-add-fx": {
+      "md5": "45dffc91e314a9572f5357a750cce01c",
+      "key": "screenshots/45dffc91e314a9572f5357a750cce01c.png",
+      "bytes": 290813,
+      "status": "captured"
+    },
+    "05d-scenes-bitcrusher-editor": {
+      "md5": "6ea0e6c244aad9bb44bd4541a663b16c",
+      "key": "screenshots/6ea0e6c244aad9bb44bd4541a663b16c.png",
+      "bytes": 186035,
+      "status": "captured"
+    },
+    "05e-scenes-browse-fx": {
+      "md5": "99a43b15606c13ed517c39fbaed6d13f",
+      "key": "screenshots/99a43b15606c13ed517c39fbaed6d13f.png",
+      "bytes": 166142,
+      "status": "captured"
+    },
+    "06-phrase-scenes-perform": {
+      "md5": "ba9a02c11d19eefa5f0c3f1f969f5740",
+      "key": "screenshots/ba9a02c11d19eefa5f0c3f1f969f5740.png",
+      "bytes": 197582,
+      "status": "captured"
+    },
+    "06a-phrase-scene-select": {
+      "md5": "824fab49045a19b928874ad5a4bdec65",
+      "key": "screenshots/824fab49045a19b928874ad5a4bdec65.png",
+      "bytes": 247089,
+      "status": "captured"
+    },
+    "06b-phrase-scenes-perform-slots": {
+      "md5": "9a1c5b17aa93ec09066c5bd565c00548",
+      "key": "screenshots/9a1c5b17aa93ec09066c5bd565c00548.png",
+      "bytes": 218870,
+      "status": "captured"
+    },
+    "06c-phrase-scenes-membership": {
+      "md5": "d1f9eafa4e81a9672a274ff46f02a3ea",
+      "key": "screenshots/d1f9eafa4e81a9672a274ff46f02a3ea.png",
+      "bytes": 182816,
+      "status": "captured"
+    },
+    "07-library": {
+      "md5": "4650c5306a944491779145e0ab7b7486",
+      "key": "screenshots/4650c5306a944491779145e0ab7b7486.png",
+      "bytes": 240514,
+      "status": "captured"
+    },
+    "08-phrase-layers-pattern": {
+      "md5": "21f60c215b157c20f4fab7a99a6bc0a2",
+      "key": "screenshots/21f60c215b157c20f4fab7a99a6bc0a2.png",
+      "bytes": 195970,
+      "status": "captured"
+    },
+    "09-phrase-layers-mute": {
+      "md5": "119968e0646c539c29cfeb3b07558dde",
+      "key": "screenshots/119968e0646c539c29cfeb3b07558dde.png",
+      "bytes": 189847,
+      "status": "captured"
+    },
+    "10-phrase-layers-automation-tool": {
+      "md5": "5357ee5fe8f32fee880efc47b54b0167",
+      "key": "screenshots/5357ee5fe8f32fee880efc47b54b0167.png",
+      "bytes": 196018,
+      "status": "captured"
+    },
+    "10a-phrase-density-zero": {
+      "md5": "ab891086f7eb8e44402ba58c4fa2919a",
+      "key": "screenshots/ab891086f7eb8e44402ba58c4fa2919a.png",
+      "bytes": 152650,
+      "status": "captured"
+    },
+    "10b-phrase-density-ghosts": {
+      "md5": "2ce440f53225795f5f8133ee0dc62628",
+      "key": "screenshots/2ce440f53225795f5f8133ee0dc62628.png",
+      "bytes": 151540,
+      "status": "captured"
+    },
+    "11-phrase-layer-selector-open": {
+      "md5": "9f6a836906e41dbe19e25336674d4506",
+      "key": "screenshots/9f6a836906e41dbe19e25336674d4506.png",
+      "bytes": 181714,
+      "status": "captured"
+    },
+    "12-phrase-scenes": {
+      "md5": "3cb21cb8a5ca6f4f10470b55d37a2f06",
+      "key": "screenshots/3cb21cb8a5ca6f4f10470b55d37a2f06.png",
+      "bytes": 201952,
+      "status": "captured"
+    },
+    "13-phrase-global-apply": {
+      "md5": "5bdc0c4ba7e63eeb4230fe48e796edde",
+      "key": "screenshots/5bdc0c4ba7e63eeb4230fe48e796edde.png",
+      "bytes": 181634,
+      "status": "captured"
+    },
+    "13a-phrase-global-apply-track-selector": {
+      "md5": "e849728de43cb806a2c29bb656c97216",
+      "key": "screenshots/e849728de43cb806a2c29bb656c97216.png",
+      "bytes": 175745,
+      "status": "captured"
+    },
+    "13b-phrase-perform-capture": {
+      "md5": "af290c7c28bd95b414ab665b33096f6c",
+      "key": "screenshots/af290c7c28bd95b414ab665b33096f6c.png",
+      "bytes": 249334,
+      "status": "captured"
+    },
+    "13c-phrase-global-apply-selected": {
+      "md5": "9e8adef12c373f01751bb1abae82900d",
+      "key": "screenshots/9e8adef12c373f01751bb1abae82900d.png",
+      "bytes": 177569,
+      "status": "captured"
+    },
+    "18-track-detail-steps-clip": {
+      "md5": "66bba749407a070ecdd88911201d725d",
+      "key": "screenshots/66bba749407a070ecdd88911201d725d.png",
+      "bytes": 193193,
+      "status": "captured"
+    },
+    "19-track-detail-sound": {
+      "md5": "3c894adb0630891dceedf6f69f1a3a32",
+      "key": "screenshots/3c894adb0630891dceedf6f69f1a3a32.png",
+      "bytes": 170866,
+      "status": "captured"
+    },
+    "19a-track-detail-sound-empty": {
+      "md5": "3c894adb0630891dceedf6f69f1a3a32",
+      "key": "screenshots/3c894adb0630891dceedf6f69f1a3a32.png",
+      "bytes": 170866,
+      "status": "captured"
+    },
+    "20-track-fill-preview-active": {
+      "md5": "96f6efdb7e788da3639cb60ff675cb97",
+      "key": "screenshots/96f6efdb7e788da3639cb60ff675cb97.png",
+      "bytes": 171279,
+      "status": "captured"
+    },
+    "20a-track-fill-engaged": {
+      "md5": "cd33a8b3e22f63bb7211b05640c0d295",
+      "key": "screenshots/cd33a8b3e22f63bb7211b05640c0d295.png",
+      "bytes": 195083,
+      "status": "captured"
+    },
+    "20b-track-randomize-settings": {
+      "md5": "65d4e2b19abc41829be82d82759a3a00",
+      "key": "screenshots/65d4e2b19abc41829be82d82759a3a00.png",
+      "bytes": 211797,
+      "status": "captured"
+    },
+    "20c-track-randomize-rolled": {
+      "md5": "be3a2ffc4d61c7548119cb66c4b4ebec",
+      "key": "screenshots/be3a2ffc4d61c7548119cb66c4b4ebec.png",
+      "bytes": 211415,
+      "status": "captured"
+    },
+    "21-track-macros-tab": {
+      "md5": "ab367b54cded9331d738feaff6b57a0d",
+      "key": "screenshots/ab367b54cded9331d738feaff6b57a0d.png",
+      "bytes": 171921,
+      "status": "captured"
+    },
+    "22-track-detail-fx": {
+      "md5": "4168098bde2bd65a546ddbf8c530f7b8",
+      "key": "screenshots/4168098bde2bd65a546ddbf8c530f7b8.png",
+      "bytes": 169377,
+      "status": "captured"
+    },
+    "22b-track-detail-mixer": {
+      "md5": "ed41e719c22a4cddba830590219c1a70",
+      "key": "screenshots/ed41e719c22a4cddba830590219c1a70.png",
+      "bytes": 176155,
+      "status": "captured"
+    },
+    "22ba-track-routing-scene-selector": {
+      "md5": "a2e40d2c919418bab164ad4046f82127",
+      "key": "screenshots/a2e40d2c919418bab164ad4046f82127.png",
+      "bytes": 176398,
+      "status": "captured"
+    },
+    "22c-track-pitch-layer": {
+      "md5": "d24a4ea1f39b2dbda89a9af8ab3b7465",
+      "key": "screenshots/d24a4ea1f39b2dbda89a9af8ab3b7465.png",
+      "bytes": 195189,
+      "status": "captured"
+    },
+    "22d-track-layer-quick-switch": {
+      "md5": "4753b8056e219e710563691d909617c9",
+      "key": "screenshots/4753b8056e219e710563691d909617c9.png",
+      "bytes": 201618,
+      "status": "captured"
+    },
+    "22e-track-generator-trigger-tab": {
+      "md5": "7df8c58a4f54b0ba55e2dab21dd8ced8",
+      "key": "screenshots/7df8c58a4f54b0ba55e2dab21dd8ced8.png",
+      "bytes": 200148,
+      "status": "captured"
+    },
+    "22f-track-generator-pitch-tab": {
+      "md5": "90f1dcd27fdcaa50b1ac59fb871d3fb6",
+      "key": "screenshots/90f1dcd27fdcaa50b1ac59fb871d3fb6.png",
+      "bytes": 197396,
+      "status": "captured"
+    },
+    "22g-track-generator-chord-instrument": {
+      "md5": "5b9260b66ae3c5987fafdf870288f007",
+      "key": "screenshots/5b9260b66ae3c5987fafdf870288f007.png",
+      "bytes": 208140,
+      "status": "captured"
+    },
+    "22h-track-generator-chord-consumer": {
+      "md5": "5b9260b66ae3c5987fafdf870288f007",
+      "key": "screenshots/5b9260b66ae3c5987fafdf870288f007.png",
+      "bytes": 208140,
+      "status": "captured"
+    },
+    "23-track-slicer": {
+      "md5": "5d4cc8006f759d33c7f7f365b7b9b9a1",
+      "key": "screenshots/5d4cc8006f759d33c7f7f365b7b9b9a1.png",
+      "bytes": 171747,
+      "status": "captured"
+    },
+    "23a-track-slicer-populated": {
+      "md5": "53015594b47507a5a7500b912f8fcb5a",
+      "key": "screenshots/53015594b47507a5a7500b912f8fcb5a.png",
+      "bytes": 205660,
+      "status": "captured"
+    },
+    "23b-track-slicer-velocity-layer": {
+      "md5": "b650f4911dc24dbc4fd76925b529f72f",
+      "key": "screenshots/b650f4911dc24dbc4fd76925b529f72f.png",
+      "bytes": 198431,
+      "status": "captured"
+    },
+    "23c-track-slicer-chance-layer": {
+      "md5": "2282057bf7fe66a3eb9a4cdf19afe380",
+      "key": "screenshots/2282057bf7fe66a3eb9a4cdf19afe380.png",
+      "bytes": 198315,
+      "status": "captured"
+    },
+    "23d-track-slicer-source-tab": {
+      "md5": "92fa7542b65fe202f3b2de8d4ff9f467",
+      "key": "screenshots/92fa7542b65fe202f3b2de8d4ff9f467.png",
+      "bytes": 197908,
+      "status": "captured"
+    },
+    "23e-track-slicer-slice-tab": {
+      "md5": "4ca85849ec8db283744f9165cd7cb34d",
+      "key": "screenshots/4ca85849ec8db283744f9165cd7cb34d.png",
+      "bytes": 197456,
+      "status": "captured"
+    },
+    "23f-slice-source-modal": {
+      "md5": "0502a026a6b22d6f9dd5416354bb14aa",
+      "key": "screenshots/0502a026a6b22d6f9dd5416354bb14aa.png",
+      "bytes": 282522,
+      "status": "captured"
+    },
+    "23fa-slice-layer-quick-switch": {
+      "md5": "dd5978c79fde26676a53e503a5307563",
+      "key": "screenshots/dd5978c79fde26676a53e503a5307563.png",
+      "bytes": 205595,
+      "status": "captured"
+    },
+    "23g-step-edit-rotaries": {
+      "md5": "35840ea59c4803cf87d261e29f4b1ef0",
+      "key": "screenshots/35840ea59c4803cf87d261e29f4b1ef0.png",
+      "bytes": 205582,
+      "status": "captured"
+    },
+    "24-audio-idle": {
+      "md5": "d93c4704ba3ae29d945748e1e1e18b7f",
+      "key": "screenshots/d93c4704ba3ae29d945748e1e1e18b7f.png",
+      "bytes": 195163,
+      "status": "captured"
+    },
+    "25-audio-live": {
+      "md5": "2836247a30c8f90846ffb376e32ce3b5",
+      "key": "screenshots/2836247a30c8f90846ffb376e32ce3b5.png",
+      "bytes": 198207,
+      "status": "captured"
+    },
+    "26-audio-recording": {
+      "md5": "bdf4294f3aab16140ef4044fb6f198f4",
+      "key": "screenshots/bdf4294f3aab16140ef4044fb6f198f4.png",
+      "bytes": 200121,
+      "status": "captured"
+    },
+    "27-audio-loop-ready": {
+      "md5": "2d9c41139e7b0bef7973687d71c5b721",
+      "key": "screenshots/2d9c41139e7b0bef7973687d71c5b721.png",
+      "bytes": 198528,
+      "status": "captured"
+    },
+    "27a-audio-source-tab": {
+      "md5": "000f0edb8e49f3bafea72ddad00f75ff",
+      "key": "screenshots/000f0edb8e49f3bafea72ddad00f75ff.png",
+      "bytes": 199216,
+      "status": "captured"
+    },
+    "27b-audio-mixer-tab": {
+      "md5": "2c7f715bab9e40cf1c686fc4ad21e338",
+      "key": "screenshots/2c7f715bab9e40cf1c686fc4ad21e338.png",
+      "bytes": 169240,
+      "status": "captured"
+    },
+    "27c-audio-playback": {
+      "md5": "cec74a8599db9e52afa9993269521844",
+      "key": "screenshots/cec74a8599db9e52afa9993269521844.png",
+      "bytes": 173427,
+      "status": "captured"
+    },
+    "28b-drum-track-default-kit": {
+      "md5": "6fc078be398ddfc457909eaf116b1905",
+      "key": "screenshots/6fc078be398ddfc457909eaf116b1905.png",
+      "bytes": 215558,
+      "status": "captured"
+    },
+    "29-drum-kit-matrix": {
+      "md5": "62bcd8e27595a2b161118cd916ec00b4",
+      "key": "screenshots/62bcd8e27595a2b161118cd916ec00b4.png",
+      "bytes": 152686,
+      "status": "captured"
+    },
+    "29a-drum-kit-fx-tab": {
+      "md5": "6e32c620f587b1e33a54952070d59281",
+      "key": "screenshots/6e32c620f587b1e33a54952070d59281.png",
+      "bytes": 169173,
+      "status": "captured"
+    },
+    "29b-drum-kit-macros-tab": {
+      "md5": "76092f82c634bb45d78d015b01180d1b",
+      "key": "screenshots/76092f82c634bb45d78d015b01180d1b.png",
+      "bytes": 181254,
+      "status": "captured"
+    },
+    "29c-drum-kit-mixer-tab": {
+      "md5": "c15698a1d477dc828090d68f6c2af5d1",
+      "key": "screenshots/c15698a1d477dc828090d68f6c2af5d1.png",
+      "bytes": 171466,
+      "status": "captured"
+    },
+    "29d-drum-kit-fx-chooser": {
+      "md5": "36cd9e6101bc70cfdd59794fbabc3d14",
+      "key": "screenshots/36cd9e6101bc70cfdd59794fbabc3d14.png",
+      "bytes": 281871,
+      "status": "captured"
+    },
+    "29e-drum-kit-capture": {
+      "md5": "9f5971d32581ae386a371e8b7ed16b78",
+      "key": "screenshots/9f5971d32581ae386a371e8b7ed16b78.png",
+      "bytes": 211422,
+      "status": "captured"
+    },
+    "29f-drum-kit-capture-save-slot": {
+      "md5": "42832876e784e2ec6f6fc013fcd691c2",
+      "key": "screenshots/42832876e784e2ec6f6fc013fcd691c2.png",
+      "bytes": 230432,
+      "status": "captured"
+    },
+    "29g-drum-kit-expanded-row": {
+      "md5": "4b83f4050a1beb4bc774220c8b2cc8e1",
+      "key": "screenshots/4b83f4050a1beb4bc774220c8b2cc8e1.png",
+      "bytes": 228106,
+      "status": "captured"
+    },
+    "30-drum-kit-matrix-32": {
+      "md5": "22ed45cebbaf5b16438f7cf68d9ec6c6",
+      "key": "screenshots/22ed45cebbaf5b16438f7cf68d9ec6c6.png",
+      "bytes": 153424,
+      "status": "captured"
+    },
+    "31-drum-kit-routing": {
+      "md5": "16a9fe58d51c2e014c70b10aafde88c9",
+      "key": "screenshots/16a9fe58d51c2e014c70b10aafde88c9.png",
+      "bytes": 326483,
+      "status": "captured"
+    },
+    "32-step-order-unassigned": {
+      "md5": "81feafcda988fe791c46c1775fed9f56",
+      "key": "screenshots/81feafcda988fe791c46c1775fed9f56.png",
+      "bytes": 187939,
+      "status": "captured"
+    },
+    "33-step-order-assigned-on": {
+      "md5": "81feafcda988fe791c46c1775fed9f56",
+      "key": "screenshots/81feafcda988fe791c46c1775fed9f56.png",
+      "bytes": 187939,
+      "status": "captured"
+    },
+    "35-drum-kit-matrix-velocity-layer": {
+      "md5": "e8723e6caff43ae1bb8849d8c63712e5",
+      "key": "screenshots/e8723e6caff43ae1bb8849d8c63712e5.png",
+      "bytes": 209884,
+      "status": "captured"
+    },
+    "36-drum-kit-matrix-chance-layer": {
+      "md5": "18ec3f224c74bd4228ed1d7cca3f6ad4",
+      "key": "screenshots/18ec3f224c74bd4228ed1d7cca3f6ad4.png",
+      "bytes": 209964,
+      "status": "captured"
+    },
+    "37-drum-kit-matrix-pattern-realign": {
+      "md5": "544c2aa77a51892399e144c0d6a8a6fa",
+      "key": "screenshots/544c2aa77a51892399e144c0d6a8a6fa.png",
+      "bytes": 210044,
+      "status": "captured"
+    },
+    "38-drum-kit-matrix-template-chooser": {
+      "md5": "92760feb7a76b0c0f3641a2c3881d328",
+      "key": "screenshots/92760feb7a76b0c0f3641a2c3881d328.png",
+      "bytes": 283095,
+      "status": "captured"
+    },
+    "39-drum-kit-matrix-generator-readonly": {
+      "md5": "adf8c1615a200c95855b36424d0b3124",
+      "key": "screenshots/adf8c1615a200c95855b36424d0b3124.png",
+      "bytes": 211987,
+      "status": "captured"
+    },
+    "40-library-global": {
+      "md5": "d66495dc4982e43a69d24a21f4d16a5b",
+      "key": "screenshots/d66495dc4982e43a69d24a21f4d16a5b.png",
+      "bytes": 189163,
+      "status": "captured"
+    },
+    "41-library-pool": {
+      "md5": "e72e0a5f5b606b73d1a6891acebda216",
+      "key": "screenshots/e72e0a5f5b606b73d1a6891acebda216.png",
+      "bytes": 212483,
+      "status": "captured"
+    },
+    "42-library-recordings-populated": {
+      "md5": "cdeccc5d9139a0bfc9438bd668a52983",
+      "key": "screenshots/cdeccc5d9139a0bfc9438bd668a52983.png",
+      "bytes": 210411,
+      "status": "captured"
+    },
+    "43-library-au-instruments": {
+      "md5": "6bc95819fb6f18dac4e7654c04558407",
+      "key": "screenshots/6bc95819fb6f18dac4e7654c04558407.png",
+      "bytes": 251107,
+      "status": "captured"
+    },
+    "44-library-generators": {
+      "md5": "b22cc41ed1a7bf908a074c8928f632f6",
+      "key": "screenshots/b22cc41ed1a7bf908a074c8928f632f6.png",
+      "bytes": 226193,
+      "status": "captured"
+    }
+  }
+}
