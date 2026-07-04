@@ -288,6 +288,14 @@ $payload"
   done
   unset IFS
   if [ "$wait_failed" = true ]; then
+    case "${QA_SURFACE_CAPTURE_ON_STATUS_TIMEOUT:-}" in
+      1|true|TRUE|yes|YES|on|ON)
+        action_log "WARN: capturing ${name}.png after status-timeout because QA_SURFACE_CAPTURE_ON_STATUS_TIMEOUT is set"
+        sleep 0.8
+        capture_state "$pid" "$name"
+        return 0
+        ;;
+    esac
     skip_capture_state "$name" "status-timeout"
     return 1
   fi
