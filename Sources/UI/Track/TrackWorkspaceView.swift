@@ -36,6 +36,25 @@ struct TrackWorkspaceView: View {
         session.store.routesSourced(from: track.id).count
     }
 
+    private var occupiedPatternSlots: Set<Int> {
+        let bank = session.store.patternBank(for: track.id)
+        return Set(bank.slots.compactMap { slot in
+            guard let clip = session.store.clipEntry(id: slot.sourceRef.clipID),
+                  !clipIsEmpty(clip.content)
+            else {
+                return nil
+            }
+            return slot.slotIndex
+        })
+    }
+
+    private var selectedPatternIndexBinding: Binding<Int> {
+        Binding(
+            get: { session.store.selectedPatternIndex(for: track.id) },
+            set: { session.setSelectedPatternIndex($0, for: track.id) }
+        )
+    }
+
     private var sourceAccent: Color {
         switch track.trackType {
         case .monoMelodic, .polyMelodic:
@@ -185,6 +204,13 @@ struct TrackWorkspaceView: View {
 
                 deleteTrackButton
             }
+        } patternPalette: {
+            TrackPatternSlotPalette(
+                selectedSlot: selectedPatternIndexBinding,
+                occupiedSlots: occupiedPatternSlots,
+                bypassState: .notApplicable,
+                onBypassToggle: { _ in }
+            )
         }
         .confirmationDialog(
             "Delete \(track.name)?",
@@ -385,49 +411,46 @@ struct TrackPerformHeaderButton: View {
 }
 
 /// Shared compact top-header grammar for the three track-detail surfaces
-/// (melodic track, slicer, audio input). Renders the track title together with
-/// the PATTERN section label on a single tight row, with the surface's
-/// immediate controls (Fill Preview / Perform / etc.) trailing on that same
-/// line. Keeps the three views visually uniform and minimises vertical space.
-struct CompactTrackDetailHeader<Title: View, Trailing: View>: View {
+/// (melodic track, slicer, audio input). Renders the track title, immediate
+/// controls, and pattern slots inside one rounded shell matching the drum-kit
+/// header grammar.
+struct CompactTrackDetailHeader<Title: View, Trailing: View, PatternPalette: View>: View {
     var accent: Color
     @ViewBuilder var title: () -> Title
     @ViewBuilder var trailing: () -> Trailing
+    @ViewBuilder var patternPalette: () -> PatternPalette
 
     init(
         accent: Color,
         @ViewBuilder title: @escaping () -> Title,
-        @ViewBuilder trailing: @escaping () -> Trailing = { EmptyView() }
+        @ViewBuilder trailing: @escaping () -> Trailing = { EmptyView() },
+        @ViewBuilder patternPalette: @escaping () -> PatternPalette = { EmptyView() }
     ) {
         self.accent = accent
         self.title = title
         self.trailing = trailing
+        self.patternPalette = patternPalette
     }
 
     var body: some View {
-        HStack(alignment: .center, spacing: 14) {
-            title()
-                .layoutPriority(1)
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .center, spacing: 12) {
+                title()
+                    .layoutPriority(1)
 
-            patternLabel
+                Spacer(minLength: 12)
 
-            Spacer(minLength: 12)
+                trailing()
+            }
 
-            trailing()
+            patternPalette()
         }
-    }
-
-    private var patternLabel: some View {
-        HStack(alignment: .center, spacing: 8) {
-            Text("PATTERN")
-                .studioText(.bodyEmphasis)
-                .tracking(1.1)
-                .foregroundStyle(StudioTheme.mutedText)
-
-            Rectangle()
-                .fill(accent)
-                .frame(width: 28, height: 2)
-        }
+        .padding(StudioMetrics.Spacing.standard)
+        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.section, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.section, style: .continuous)
+                .stroke(accent.opacity(StudioOpacity.hoverFill), lineWidth: StudioMetrics.borderWidth)
+        )
     }
 }
 
@@ -554,15 +577,6 @@ private struct AudioInputRuntimePanel: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            StudioPanel(title: "Pattern", accent: accent, showsHeader: false) {
-                TrackPatternSlotPalette(
-                    selectedSlot: selectedPatternIndexBinding,
-                    occupiedSlots: occupiedPatternSlots,
-                    bypassState: .notApplicable,
-                    onBypassToggle: { _ in }
-                )
-            }
-
             // Unified tab grammar (Variant D): the section pills float a small
             // gap above the accent-outlined well; tab content lives inside it.
             VStack(alignment: .leading, spacing: StudioTabWellGrammar.pillRowToWellGap) {

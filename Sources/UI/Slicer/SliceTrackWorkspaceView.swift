@@ -111,8 +111,6 @@ struct SliceTrackWorkspaceView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            topControlsPanel
-
             waveformPanel
 
             lowerTabs
@@ -161,27 +159,6 @@ struct SliceTrackWorkspaceView: View {
         .onReceive(NotificationCenter.default.publisher(for: .sliceTrackWorkspaceVisualCommand)) { notification in
             guard let command = notification.object as? String else { return }
             applyVisualCommand(command)
-        }
-    }
-
-    // MARK: - Top grammar (above the editor)
-
-    // Standard track-detail top grammar: pattern slots, lane (Normal/Fill),
-    // clip length. This mirrors `TrackSourceEditorView` rather than the old
-    // bespoke slicer split.
-    private var topControlsPanel: some View {
-        // The PATTERN section label lives in the workspace's compact top header
-        // (collapsed top grammar), so this panel renders headerless — the slot
-        // palette sits directly beneath the shared header. Lane/Layer/Length
-        // are value selectors, so they live INSIDE the step well (Variant D
-        // grammar), not up here.
-        StudioPanel(title: "Pattern", accent: accent, showsHeader: false) {
-            TrackPatternSlotPalette(
-                selectedSlot: selectedPatternIndexBinding,
-                occupiedSlots: occupiedPatternSlots,
-                bypassState: .notApplicable,
-                onBypassToggle: { _ in }
-            )
         }
     }
 

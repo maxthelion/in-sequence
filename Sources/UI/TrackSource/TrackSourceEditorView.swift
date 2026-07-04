@@ -277,33 +277,7 @@ struct TrackSourceEditorView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            // The PATTERN section label + Perform now live in the workspace's
-            // compact top header (collapsed top grammar), so this panel renders
-            // the slot palette headerless directly beneath it.
-            StudioPanel(
-                title: "Pattern",
-                accent: accent,
-                showsHeader: false,
-                content: {
-                    VStack(alignment: .leading, spacing: 10) {
-                        TrackPatternSlotPalette(
-                            selectedSlot: selectedPatternIndexBinding,
-                            occupiedSlots: occupiedPatternSlots,
-                            bypassState: .notApplicable,
-                            onBypassToggle: { _ in },
-                            destinationMode: clipHistoryDestinationMode
-                                ? TrackPatternSlotPalette.DestinationMode(
-                                    pendingReplaceSlot: pendingClipHistoryReplaceSlot,
-                                    accent: StudioTheme.success
-                                )
-                                : nil,
-                            onDestinationSelect: selectClipHistoryDestination
-                        )
-
-                        clipHistoryDestinationRow
-                    }
-                }
-            )
+            clipHistoryDestinationPanel
 
             // Unified tab grammar (Variant D): the section pills float a
             // small gap above the accent-outlined well; tab content lives
@@ -398,6 +372,29 @@ struct TrackSourceEditorView: View {
         .onReceive(NotificationCenter.default.publisher(for: .trackSourceEditorVisualCommand)) { notification in
             guard let command = notification.object as? String else { return }
             handleTrackSourceEditorVisualCommand(command)
+        }
+    }
+
+    @ViewBuilder
+    private var clipHistoryDestinationPanel: some View {
+        if clipHistoryDestinationMode {
+            StudioPanel(title: "Save Capture", accent: StudioTheme.success, showsHeader: false) {
+                VStack(alignment: .leading, spacing: 10) {
+                    TrackPatternSlotPalette(
+                        selectedSlot: selectedPatternIndexBinding,
+                        occupiedSlots: occupiedPatternSlots,
+                        bypassState: .notApplicable,
+                        onBypassToggle: { _ in },
+                        destinationMode: TrackPatternSlotPalette.DestinationMode(
+                            pendingReplaceSlot: pendingClipHistoryReplaceSlot,
+                            accent: StudioTheme.success
+                        ),
+                        onDestinationSelect: selectClipHistoryDestination
+                    )
+
+                    clipHistoryDestinationRow
+                }
+            }
         }
     }
 
