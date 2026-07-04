@@ -7,14 +7,14 @@ final class GeneratorParamsTests: XCTestCase {
         let values: [GeneratorParams] = [
             .mono(
                 trigger: .native(.euclidean(pulses: 1, steps: 2, offset: 0)),
-                pitch: .native(.manual(pitches: [60, 64], pickMode: .sequential)),
+                pitch: .native(.pool(root: 60, scale: .major, spread: 12, selection: .balanced, deviation: .none)),
                 shape: .default
             ),
             .poly(
                 trigger: .native(.euclidean(pulses: 3, steps: 8, offset: 0)),
                 pitches: [
-                    .native(.manual(pitches: [60, 64, 67], pickMode: .random)),
-                    .native(.randomInScale(root: 60, scale: .major, spread: 12)),
+                    .native(.pool(root: 60, scale: .major, spread: 12, selection: .balanced, deviation: .none)),
+                    .native(.pool(root: 65, scale: .dorian, spread: 17, selection: .lastNote, deviation: .none)),
                 ],
                 shape: NoteShape(velocity: 96, gateLength: 6, accent: true)
             ),
@@ -42,9 +42,34 @@ final class GeneratorParamsTests: XCTestCase {
             GeneratorParams.defaultMono,
             .mono(
                 trigger: .native(.euclidean(pulses: 4, steps: 16, offset: 0)),
-                pitch: .native(.manual(pitches: [60, 62, 64, 67], pickMode: .random)),
+                pitch: .native(.pool(root: 60, scale: .major, spread: 12, selection: .balanced, deviation: .none)),
                 shape: .default
             )
+        )
+    }
+
+    func test_legacy_pitch_algos_normalize_to_pool_on_decode() throws {
+        let legacy = GeneratorParams.poly(
+            trigger: .native(.euclidean(pulses: 3, steps: 8, offset: 0)),
+            pitches: [
+                .native(.manual(pitches: [60, 64, 67], pickMode: .random)),
+                .native(.randomInScale(root: 65, scale: .dorian, spread: 17)),
+            ],
+            shape: .default
+        )
+
+        let data = try JSONEncoder().encode(legacy)
+        let decoded = try JSONDecoder().decode(GeneratorParams.self, from: data)
+
+        guard case let .poly(_, pitches, _) = decoded else {
+            return XCTFail("expected poly params")
+        }
+        XCTAssertEqual(
+            pitches,
+            [
+                .native(.pool(root: 60, scale: .major, spread: 12, selection: .balanced, deviation: .none)),
+                .native(.pool(root: 65, scale: .dorian, spread: 17, selection: .balanced, deviation: .none)),
+            ]
         )
     }
 

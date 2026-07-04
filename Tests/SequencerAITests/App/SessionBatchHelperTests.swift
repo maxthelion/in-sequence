@@ -315,6 +315,31 @@ final class SessionBatchHelperTests: XCTestCase {
         SequencerDocumentSessionRegistry.unregister(session)
     }
 
+    func test_switchGeneratorKind_rejects_incompatible_kind_for_mono_generator() throws {
+        var project = makeLiveStoreProject().0
+        let generatorID = UUID(uuidString: "33333333-4444-5555-6666-777777777777")!
+        let generator = GeneratorPoolEntry(
+            id: generatorID,
+            name: "Mono Guarded",
+            trackType: .monoMelodic,
+            kind: .monoGenerator,
+            params: .defaultMono
+        )
+        project.generatorPool.append(generator)
+
+        let (session, _, _) = makeSession(project: project)
+
+        XCTAssertFalse(session.switchGeneratorKind(id: generatorID, to: .progressionChordGenerator))
+        XCTAssertFalse(session.switchGeneratorKind(id: generatorID, to: .polyGenerator))
+
+        let updated = try XCTUnwrap(session.store.generatorEntry(id: generatorID))
+        XCTAssertEqual(updated.kind, .monoGenerator)
+        XCTAssertEqual(updated.trackType, .monoMelodic)
+        XCTAssertEqual(updated.params, .defaultMono)
+
+        SequencerDocumentSessionRegistry.unregister(session)
+    }
+
     // MARK: - fullEngineApply dispatches apply(documentModel:) once
 
     func test_batch_fullEngineApply_callsApplyDocumentModelOnce() throws {

@@ -144,6 +144,84 @@ enum PitchAlgo: Codable, Equatable, Hashable, Sendable {
     }
 }
 
+extension PitchAlgo {
+    var normalizedForPitchGrammar: PitchAlgo {
+        let defaultPool = PitchStage.defaultMono.algo
+
+        switch self {
+        case let .pool(root, scale, spread, selection, deviation):
+            return .pool(
+                root: root,
+                scale: scale,
+                spread: spread,
+                selection: selection.normalized,
+                deviation: deviation.normalized
+            )
+        case let .randomInScale(root, scale, spread):
+            return .pool(
+                root: root,
+                scale: scale,
+                spread: spread,
+                selection: .balanced,
+                deviation: .none
+            )
+        case let .intervalProb(root, scale, _),
+             let .markov(root, scale, _, _, _):
+            return .pool(
+                root: root,
+                scale: scale,
+                spread: 12,
+                selection: .balanced,
+                deviation: .none
+            )
+        case let .randomInChord(root, _, _, spread):
+            return .pool(
+                root: root,
+                scale: .major,
+                spread: spread,
+                selection: .balanced,
+                deviation: .none
+            )
+        case .manual, .fromClipPitches, .external:
+            return defaultPool
+        }
+    }
+
+    static func pitchPoolClasses(
+        root: Int,
+        scaleID: ScaleID,
+        spread: Int,
+        chord: Chord? = nil,
+        filterPitchClasses: Set<Int> = []
+    ) -> Set<Int> {
+        let scaleClasses = Set(scalePool(root: root, scaleID: scaleID, spread: spread).map { positiveModulo($0, 12) })
+        guard !scaleClasses.isEmpty else {
+            return []
+        }
+
+        if let chord,
+           let chordID = ChordID(rawValue: chord.chordType),
+           let definition = ChordDefinition.for(id: chordID)
+        {
+            let chordClasses = Set(definition.intervals.map { positiveModulo(Int(chord.root) + $0, 12) })
+            let filtered = scaleClasses.intersection(chordClasses)
+            if !filtered.isEmpty {
+                return filtered
+            }
+        }
+
+        if !filterPitchClasses.isEmpty {
+            let normalizedFilter = Set(filterPitchClasses.map { positiveModulo($0, 12) })
+            let filtered = scaleClasses.intersection(normalizedFilter)
+            if !filtered.isEmpty {
+                return filtered
+            }
+        }
+
+        return scaleClasses
+    }
+}
+
 private func pickFromPool<R: RandomNumberGenerator>(
     root: Int,
     scaleID: ScaleID,
