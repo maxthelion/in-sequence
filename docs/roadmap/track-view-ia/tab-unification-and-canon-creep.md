@@ -164,3 +164,29 @@ continues to block accent washes and grey creep, not fenced state colours.
 The deferred clip-history finding from 7ea2b5bd is hereby resolved: keep
 green, verify it is fenced (audit its current usage for any outline/chrome
 use and fold only those).
+
+## Grammar amendments — owner feedback round, 2026-07-04
+
+Generalized from the nine 2026-07-04 bug reports (all fixed same day):
+
+1. CLOSED CONTROLS DO NOT OWN ROWS: value-selector chips (lane/length/layer
+   and kin) share ONE header line; only expanded/disclosure content may
+   occupy a row below. A closed chip on its own line is a violation.
+2. MAGNITUDE CELL: step number OUTSIDE the cell border; ONE solid inner bar
+   in the same colour as the cell outline, inset by a small uniform padding
+   gap; no two-tone bars, no solid-fill-with-dark-bar inversions.
+3. ONE CONTAINER PER REGION: no bordered card inside a well/card carrying
+   its own chrome unless (a) its radius is strictly less than the parent
+   minus inset and (b) it introduces NO duplicate header and NO dead
+   controls. Prefer collapsing to the parent container.
+4. CHIPS HUG LABELS: option chips in choice grids size to content (no
+   maxWidth-infinity stretching into equal thirds).
+5. NO TECHNICAL DESCRIPTORS on surfaces: detection methods, frame counts,
+   internal engine terms — delete or move to .help, never surface text.
+6. SELF-DESCRIBING CONTROLS CARRY NO CAPTION: no eyebrow that restates
+   verb-labelled segments (MODE over Live/Playback); no status text where
+   a visible affordance already communicates the state (NO INPUT DEVICE
+   beside an Add Audio Input card). Actionable states (MIC ACCESS DENIED +
+   Open Settings) stay.
+7. SHOW, DON'T DESCRIBE (principle): prefer domain visuals over words —
+   the pitch-pool mini piano replaces pool text; extend the pattern.
