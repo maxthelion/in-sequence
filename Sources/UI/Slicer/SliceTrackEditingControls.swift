@@ -872,10 +872,6 @@ struct SliceSourceTabContent: View {
     let state: SliceSourceState
     let sampleName: String?
     let sliceCount: Int
-    /// Which detection produced the APPLIED slice set ("Transient detection"/
-    /// "Grid detection"/"Manual markers") — real persisted state, distinct
-    /// from the modal's pending analysis-mode picker.
-    let detectionLabel: String?
     let accent: Color
     let onChooseSample: () -> Void
     let onRemoveSample: () -> Void
@@ -909,65 +905,53 @@ struct SliceSourceTabContent: View {
         }
     }
 
-    // One well, studio styling: sample name + remove on the first row,
-    // the slice action(s) beneath, no white system buttons.
+    // The surrounding StudioTabWell owns the container chrome; this content
+    // keeps only source state and actions.
     private var unslicedState: some View {
-        well {
-            VStack(alignment: .leading, spacing: 12) {
-                sampleNameRow
-                HStack(spacing: 10) {
-                    studioActionButton(
-                        title: "Slice Sample",
-                        systemImage: "scissors",
-                        accent: accent,
-                        action: onOpenSliceModal
-                    )
-                    Text("Unsliced")
-                        .studioText(.labelBold)
-                        .foregroundStyle(StudioTheme.amber)
-                    Spacer()
-                }
+        VStack(alignment: .leading, spacing: 12) {
+            sampleNameRow
+            HStack(spacing: 10) {
+                studioActionButton(
+                    title: "Slice Sample",
+                    systemImage: "scissors",
+                    accent: accent,
+                    action: onOpenSliceModal
+                )
+                Text("Unsliced")
+                    .studioText(.labelBold)
+                    .foregroundStyle(StudioTheme.amber)
+                Spacer()
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var slicedState: some View {
-        well {
-            VStack(alignment: .leading, spacing: 12) {
-                sampleNameRow
-                HStack(spacing: 8) {
-                    // Slice count AND the applied set's detection mode are real
-                    // state (08-D prototype: "8 slices · Grid detection") — the
-                    // modal's Transients/Grid picker only shows the PENDING
-                    // analysis mode, so this is the one readout of what
-                    // produced the current markers.
-                    Text("\(sliceCount) slice\(sliceCount == 1 ? "" : "s")")
-                        .studioText(.labelBold)
-                        .foregroundStyle(StudioTheme.success)
-                    if let detectionLabel {
-                        Text("· \(detectionLabel)")
-                            .studioText(.label)
-                            .foregroundStyle(StudioTheme.mutedText)
-                    }
-                    Spacer()
-                }
-                HStack(spacing: 10) {
-                    studioActionButton(
-                        title: "Edit Slices",
-                        systemImage: "slider.horizontal.3",
-                        accent: accent,
-                        action: onOpenSliceModal
-                    )
-                    studioActionButton(
-                        title: "Re-slice",
-                        systemImage: "arrow.triangle.2.circlepath",
-                        accent: nil,
-                        action: onOpenSliceModal
-                    )
-                    Spacer()
-                }
+        VStack(alignment: .leading, spacing: 12) {
+            sampleNameRow
+            HStack(spacing: 8) {
+                Text("\(sliceCount) slice\(sliceCount == 1 ? "" : "s")")
+                    .studioText(.labelBold)
+                    .foregroundStyle(StudioTheme.success)
+                Spacer()
+            }
+            HStack(spacing: 10) {
+                studioActionButton(
+                    title: "Edit Slices",
+                    systemImage: "slider.horizontal.3",
+                    accent: accent,
+                    action: onOpenSliceModal
+                )
+                studioActionButton(
+                    title: "Re-slice",
+                    systemImage: "arrow.triangle.2.circlepath",
+                    accent: nil,
+                    action: onOpenSliceModal
+                )
+                Spacer()
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var sampleNameRow: some View {
@@ -1011,16 +995,6 @@ struct SliceSourceTabContent: View {
         .buttonStyle(.plain)
     }
 
-    private func well<Content: View>(@ViewBuilder content: () -> Content) -> some View {
-        content()
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(StudioMetrics.Spacing.standard)
-            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                    .stroke(StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
-            )
-    }
 }
 
 // MARK: - Slice tab sampler card (drum-part sampler grammar)
@@ -1056,18 +1030,16 @@ struct SliceSamplerCard: View {
             browseRow
             divider
             SliceSamplePlayerParametersView(
-                markerIndex: markerIndex,
-                sampleName: sampleName,
-                sliceDetail: rangeDetail,
+                accent: accent,
                 waveformBuckets: previewBuckets,
                 mode: $mode,
                 parameters: $parameters
             )
         }
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                .stroke(accent.opacity(StudioOpacity.mediumStroke), lineWidth: StudioMetrics.borderWidth)
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                .stroke(accent, lineWidth: StudioMetrics.borderWidth)
         )
         .frame(maxWidth: .infinity, alignment: .leading)
     }

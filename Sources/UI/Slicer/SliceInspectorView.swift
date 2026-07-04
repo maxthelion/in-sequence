@@ -66,9 +66,7 @@ struct SliceInspectorView: View {
 }
 
 struct SliceSamplePlayerParametersView: View {
-    let markerIndex: Int
-    let sampleName: String
-    let sliceDetail: String
+    let accent: Color
     let waveformBuckets: [Float]
     @Binding var mode: SliceTriggerStepMode
     @Binding var parameters: SliceTriggerStepParameters
@@ -76,16 +74,7 @@ struct SliceSamplePlayerParametersView: View {
     private let knobColumns = Array(repeating: GridItem(.flexible(), spacing: 12), count: 3)
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            header
-            divider
-            parametersBody
-        }
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                .stroke(StudioTheme.violet.opacity(StudioOpacity.mediumStroke), lineWidth: StudioMetrics.borderWidth)
-        )
+        parametersBody
     }
 
     /// Side-by-side layout: the waveform sits on the left at a flexible width,
@@ -122,35 +111,6 @@ struct SliceSamplePlayerParametersView: View {
             divider
             playbackSection
         }
-    }
-
-    private var header: some View {
-        HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(sampleName)
-                    .studioText(.subtitle)
-                    .foregroundStyle(StudioTheme.text)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.75)
-
-                Text("\(markerIndex == 0 ? "Whole Sample" : "S\(markerIndex)") • \(sliceDetail)")
-                    .studioText(.label)
-                    .foregroundStyle(StudioTheme.mutedText)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.75)
-            }
-
-            Spacer(minLength: 8)
-
-            StudioCircleIconButton(
-                systemName: "play.fill",
-                size: StudioMetrics.ControlSize.medium,
-                help: "Preview slice",
-                action: {}
-            )
-            .disabled(true)
-        }
-        .padding(StudioMetrics.Spacing.standard)
     }
 
     private var waveformSection: some View {
@@ -233,17 +193,17 @@ struct SliceSamplePlayerParametersView: View {
 
     private var playbackSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            optionRow(
+            StudioSegmentedControl(
                 title: "Mode",
-                options: SliceTriggerStepMode.allCases,
-                selection: mode,
-                titleForOption: { option in
-                    switch option {
-                    case .single: return "Single"
-                    case .runFromHere: return "Run"
-                    }
+                selection: Binding(
+                    get: { mode },
+                    set: { mode = $0 }
+                ),
+                segments: SliceTriggerStepMode.allCases.map { option in
+                    StudioSegment(title: title(for: option), value: option)
                 },
-                onSelect: { mode = $0 }
+                accent: accent,
+                layout: .init(fillsWidth: false, minWidth: 74)
             )
 
             HStack(spacing: 10) {
@@ -262,6 +222,13 @@ struct SliceSamplePlayerParametersView: View {
     private var reverseBinding: Binding<Bool> { parameterBinding(\.reverse) }
     private var chokeBinding: Binding<Bool> { parameterBinding(\.choke) }
 
+    private func title(for mode: SliceTriggerStepMode) -> String {
+        switch mode {
+        case .single: return "Single"
+        case .runFromHere: return "Run"
+        }
+    }
+
     private var lengthNormalized: Double {
         max(0.01, 1 - parameters.startTrim - parameters.endTrim)
     }
@@ -278,43 +245,6 @@ struct SliceSamplePlayerParametersView: View {
         Self.clamp((parameters.pan + 1) / 2, to: 0...1)
     }
 
-    private func optionRow<Option: Hashable & Sendable>(
-        title: String,
-        options: [Option],
-        selection: Option,
-        titleForOption: @escaping (Option) -> String,
-        onSelect: @escaping (Option) -> Void
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(title.uppercased())
-                .studioText(.eyebrow)
-                .tracking(0.8)
-                .foregroundStyle(StudioTheme.mutedText)
-
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 74), spacing: 8)], alignment: .leading, spacing: 8) {
-                ForEach(Array(options.enumerated()), id: \.offset) { _, option in
-                    Button(titleForOption(option)) {
-                        onSelect(option)
-                    }
-                    .font(.system(size: 12, weight: .semibold, design: .rounded))
-                    .foregroundStyle(selection == option ? StudioTheme.text : StudioTheme.mutedText)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .frame(maxWidth: .infinity)
-                    .background(
-                        (selection == option ? StudioTheme.violet.opacity(0.18) : Color.white.opacity(StudioOpacity.subtleFill)),
-                        in: Capsule()
-                    )
-                    .overlay(
-                        Capsule()
-                            .stroke(selection == option ? StudioTheme.violet.opacity(0.7) : StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
-                    )
-                    .buttonStyle(.plain)
-                }
-            }
-        }
-    }
-
     private func booleanButton(title: String, isOn: Binding<Bool>) -> some View {
         Button {
             isOn.wrappedValue.toggle()
@@ -329,7 +259,7 @@ struct SliceSamplePlayerParametersView: View {
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 8)
-            .background(isOn.wrappedValue ? StudioTheme.violet : Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
+            .background(isOn.wrappedValue ? accent : Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
                     .stroke(isOn.wrappedValue ? Color.clear : StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)

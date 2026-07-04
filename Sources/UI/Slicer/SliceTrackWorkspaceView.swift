@@ -447,7 +447,6 @@ struct SliceTrackWorkspaceView: View {
             state: sourceState,
             sampleName: currentSample?.name,
             sliceCount: currentSliceSet?.userSliceCount ?? 0,
-            detectionLabel: currentSliceSet.map { Self.detectionLabel(for: $0.mode) },
             accent: accent,
             onChooseSample: { isPresentingAddLoop = true },
             onRemoveSample: removeSample,
@@ -740,17 +739,6 @@ struct SliceTrackWorkspaceView: View {
             set.normalize(sampleLengthFrames: sampleLengthFrames(sample: sample))
         }
         analysisMessage = "Markers normalized"
-    }
-
-    /// The APPLIED slice set's detection mode — real persisted state shown on
-    /// the Source tab (the modal's Transients/Grid picker binds the PENDING
-    /// `analysisMode`, which can disagree with the applied set).
-    static func detectionLabel(for mode: SliceMode) -> String {
-        switch mode {
-        case .transient: return "Transient detection"
-        case .grid: return "Grid detection"
-        case .manual: return "Manual markers"
-        }
     }
 
     // An empty slicer is just a plus card; choosing a loop attaches it in
