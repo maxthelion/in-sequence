@@ -2,6 +2,7 @@
 
 Created: 2026-07-04
 Branch: `codex/july4-ui-feedback-batch`
+Repair commit: `94851e00`
 
 ## Missed Work
 
