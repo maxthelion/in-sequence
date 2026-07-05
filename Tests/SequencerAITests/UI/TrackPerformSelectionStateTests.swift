@@ -27,6 +27,26 @@ final class TrackPerformSelectionStateTests: XCTestCase {
         return session
     }
 
+    private func makeSessionWithEngine(project: Project) -> (SequencerDocumentSession, EngineController) {
+        let documentBox = DocumentBox(document: SeqAIDocument(project: project))
+        let engine = EngineController(client: nil, endpoint: nil, audioOutput: CountingAudioSink())
+        let session = SequencerDocumentSession(
+            document: Binding(
+                get: { documentBox.document },
+                set: { documentBox.document = $0 }
+            ),
+            engineController: engine,
+            debounceInterval: .seconds(100)
+        )
+        session.activate()
+        return (session, engine)
+    }
+
+    private func startEngineForManualTicks(_ engine: EngineController) {
+        engine.start()
+        engine.clock.stop()
+    }
+
     private func makeThreeTrackProject() -> Project {
         var project = makeLiveStoreProject().0
         project.appendTrack(trackType: .monoMelodic)
@@ -119,6 +139,72 @@ final class TrackPerformSelectionStateTests: XCTestCase {
         )
 
         XCTAssertNil(selectedSlot)
+    }
+
+    func testTrackPerformPatternMiniCellExplicitSlotCanArmQuantisedPatternChange() throws {
+        let project = makeThreeTrackProject()
+        let (session, engine) = makeSessionWithEngine(project: project)
+        defer {
+            engine.stop()
+            SequencerDocumentSessionRegistry.unregister(session)
+        }
+        session.workspaceMode = .perform
+        startEngineForManualTicks(engine)
+
+        let trackID = session.store.tracks[0].id
+        let phrase = session.store.selectedPhrase
+        let requestedSlot = try XCTUnwrap(TrackPerformPatternMiniCellInteraction.selectedSlotAfterMiniCellClick(
+            requestedSlotIndex: 3
+        ))
+
+        session.selectQuantisedPatternIndex(
+            slotIndex: requestedSlot,
+            trackIDs: [trackID],
+            basisPhrase: phrase
+        )
+
+        XCTAssertEqual(
+            engine.quantisedPendingChanges,
+            [.pattern(trackID: trackID, slotIndex: 3, basisPhraseID: phrase.id, lengthBars: nil, startTick: nil)],
+            "P4 mini-cell selection must arm exactly P4 through the shared quantised pattern route"
+        )
+        XCTAssertNil(
+            session.performOverlayCell(phraseID: phrase.id, layerID: TrackPerformLayerMode.pattern.phraseLayerID!, trackID: trackID),
+            "Q:BAR arming should not stage the overlay until the boundary commit"
+        )
+    }
+
+    func testTrackPerformPatternMiniCellImmediatePathStagesExactSlotWhenQuantiseOff() throws {
+        let project = makeThreeTrackProject()
+        let (session, engine) = makeSessionWithEngine(project: project)
+        defer {
+            engine.stop()
+            SequencerDocumentSessionRegistry.unregister(session)
+        }
+        session.workspaceMode = .perform
+        session.performQuantise = .off
+        startEngineForManualTicks(engine)
+
+        let trackID = session.store.tracks[0].id
+        let phrase = session.store.selectedPhrase
+        let patternLayerID = try XCTUnwrap(TrackPerformLayerMode.pattern.phraseLayerID)
+        let requestedSlot = try XCTUnwrap(TrackPerformPatternMiniCellInteraction.selectedSlotAfterMiniCellClick(
+            requestedSlotIndex: 3
+        ))
+
+        session.setPhraseCell(
+            .single(.index(requestedSlot)),
+            layerID: patternLayerID,
+            trackIDs: [trackID],
+            phraseID: phrase.id
+        )
+
+        XCTAssertTrue(engine.quantisedPendingChanges.isEmpty)
+        XCTAssertEqual(
+            session.performOverlayCell(phraseID: phrase.id, layerID: patternLayerID, trackID: trackID),
+            .single(.index(3)),
+            "Q:OFF mini-cell selection stays immediate and exact"
+        )
     }
 
     func testTrackPerformPatternCardBackgroundDoesNotCyclePattern() {

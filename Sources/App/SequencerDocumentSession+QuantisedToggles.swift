@@ -156,6 +156,27 @@ extension SequencerDocumentSession {
         }
     }
 
+    /// Explicit pattern-slot selection in phrase Perform with Q:BAR. Mini
+    /// cells use this instead of the cycling helper so P4 arms exactly P4
+    /// while still sharing the boundary scheduler and overlay staging path.
+    func selectQuantisedPatternIndex(
+        slotIndex: Int,
+        trackIDs: [UUID],
+        basisPhrase: PhraseModel,
+        lengthBars: Int? = nil
+    ) {
+        let clampedSlotIndex = min(max(slotIndex, 0), TrackPatternBank.slotCount - 1)
+        for trackID in trackIDs {
+            engineController.armQuantisedToggle(.pattern(
+                trackID: trackID,
+                slotIndex: clampedSlotIndex,
+                basisPhraseID: basisPhrase.id,
+                lengthBars: lengthBars.map { max(1, $0) },
+                startTick: nil
+            ))
+        }
+    }
+
     /// Boundary commit mirror (installed as the engine's committed handler):
     /// the engine already applied the changes on the tick path; this stages
     /// the document record for mute changes through the phrase perform

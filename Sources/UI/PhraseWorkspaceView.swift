@@ -1308,7 +1308,9 @@ struct PhraseWorkspaceView: View {
     }
 
     private func selectPatternSlot(_ slotIndex: Int, phraseID: UUID, trackID: UUID) {
-        guard let activeMatrixLayer, activeMatrixLayer.valueType == .patternIndex else {
+        guard let activeMatrixLayer, activeMatrixLayer.valueType == .patternIndex,
+              let phrase = phrases.first(where: { $0.id == phraseID })
+        else {
             return
         }
         guard let selectedSlotIndex = TrackPerformPatternMiniCellInteraction.selectedSlotAfterMiniCellClick(
@@ -1317,6 +1319,22 @@ struct PhraseWorkspaceView: View {
             return
         }
         session.setSelectedPhraseAndTrackID(phraseID: phraseID, trackID: trackID)
+
+        let displayedPhrase = session.phraseWithPerformOverlay(phrase)
+        if PhrasePerformTimingPolicy.usesQuantisedLayerArming(
+            layerID: activeMatrixLayer.id,
+            latchMode: phraseLatchMode,
+            sessionArmingActive: session.isQuantisedPerformToggleArmingActive
+        ) {
+            session.selectQuantisedPatternIndex(
+                slotIndex: selectedSlotIndex,
+                trackIDs: [trackID],
+                basisPhrase: displayedPhrase,
+                lengthBars: phraseLatchLengthBars
+            )
+            return
+        }
+
         session.setPhraseCell(
             .single(.index(selectedSlotIndex)),
             layerID: activeMatrixLayer.id,
