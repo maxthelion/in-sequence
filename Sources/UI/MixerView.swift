@@ -722,10 +722,9 @@ struct MixerInsertChainView: View {
 
     private var emptyInsertSlot: some View {
         Button(action: addAction) {
-            Label(addLabel, systemImage: "plus")
-                .studioText(.micro)
-                .tracking(0.6)
-                .foregroundStyle(StudioTheme.text)
+            Image(systemName: "plus")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(accent)
                 .frame(maxWidth: .infinity, minHeight: 32)
         }
         .buttonStyle(.plain)
@@ -734,6 +733,8 @@ struct MixerInsertChainView: View {
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
                 .stroke(StudioTheme.border.opacity(0.75), style: StrokeStyle(lineWidth: StudioMetrics.borderWidth, dash: [4, 4]))
         )
+        .help(addLabel)
+        .accessibilityLabel(addLabel)
     }
 
     private var inertEmptySlot: some View {

@@ -1,1 +1,3 @@
 There was a fix made to send channels so that their effects weren't spilling out in the mixer. However, there are 2 issues. First, there is still too much wasted space causing titles to be truncated. Dot and chevron should be removed. Secondly, the fix wasn't done to other channels. The FX element withiin a channel should be the same for all. See it broken on the 808 bus
+
+Status: RESOLVED 2ad4c0d7 - mixer send-return and shared bus/master insert rows now use the same name-only strip grammar; the inline dot/chevron/control affordances are removed from strip rows, the empty FX slot is a bare plus with help/accessibility labels, and the modal editor retains enable, wet where applicable, reorder, and remove controls.

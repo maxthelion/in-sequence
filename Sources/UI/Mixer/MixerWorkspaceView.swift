@@ -200,15 +200,15 @@ struct MixerWorkspaceView: View {
                 .minimumScaleFactor(0.85)
                 .padding(.horizontal, StudioMetrics.Spacing.snug)
                 .padding(.vertical, 8)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            // Colour identifies, it never floods (ux-canon rule 12): selection
-            // reads from the accent outline, not a tinted row fill.
-            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
-                    .stroke(isSelected ? accent : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
-            )
-            .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
+                .frame(maxWidth: .infinity, alignment: .leading)
+                // Colour identifies, it never floods (ux-canon rule 12):
+                // selection reads from the accent outline, not a tinted row fill.
+                .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
+                        .stroke(isSelected ? accent : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+                )
+                .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
         }
         .buttonStyle(.plain)
         .help(insert.name)
