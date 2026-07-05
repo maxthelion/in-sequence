@@ -28,8 +28,9 @@ final class StudioMixerStripScaffoldTests: XCTestCase {
         )
     }
 
-    func test_ordinaryStripsShareOneWidthNarrowerThanMaster() {
+    func test_masterStripOnlyKeepsScaleRoomItActuallyUses() {
         XCTAssertLessThan(StudioMixerStripMetrics.stripWidth, StudioMixerStripMetrics.masterWidth)
+        XCTAssertLessThanOrEqual(StudioMixerStripMetrics.masterWidth, StudioMixerStripMetrics.stripWidth + 24)
         XCTAssertEqual(MixerWorkspaceLayout.busStripWidth, StudioMixerStripMetrics.stripWidth)
         XCTAssertEqual(MixerWorkspaceLayout.sendReturnStripWidth, StudioMixerStripMetrics.stripWidth)
     }

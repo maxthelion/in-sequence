@@ -5,11 +5,11 @@ final class MixerMasterOutputTests: XCTestCase {
     func test_masterOutputLayoutUsesFixedColumnAtNormalWidths() {
         XCTAssertEqual(
             MasterOutputColumnLayout.presentation(for: 540),
-            .fullColumn(width: 190)
+            .fullColumn(width: StudioMixerStripMetrics.masterWidth)
         )
         XCTAssertEqual(
             MasterOutputColumnLayout.presentation(for: 900),
-            .fullColumn(width: 190)
+            .fullColumn(width: StudioMixerStripMetrics.masterWidth)
         )
     }
 
@@ -72,7 +72,7 @@ final class MixerMasterOutputTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(MasterOutputClearClipControlMetrics.minHeight, 22)
         XCTAssertLessThanOrEqual(
             MasterOutputClearClipControlMetrics.minWidth,
-            MasterOutputColumnLayout.fullColumnWidth * 0.2
+            MasterOutputColumnLayout.fullColumnWidth * 0.3
         )
     }
 

@@ -16,7 +16,7 @@ enum MasterOutputColumnPresentation: Equatable {
 
 enum MasterOutputColumnLayout {
     static let compactBreakpoint: CGFloat = 540
-    static let fullColumnWidth: CGFloat = 190
+    static let fullColumnWidth: CGFloat = StudioMixerStripMetrics.masterWidth
     static let compactStripWidth: CGFloat = 44
 
     static func presentation(for workspaceWidth: CGFloat) -> MasterOutputColumnPresentation {

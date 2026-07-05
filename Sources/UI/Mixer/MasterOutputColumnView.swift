@@ -88,19 +88,7 @@ struct MasterOutputColumnView: View {
 
     private var abBlendControl: some View {
         VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 6) {
-                Text(sceneA.name)
-                    .studioText(.micro)
-                    .tracking(0.6)
-                    .foregroundStyle(StudioTheme.amber)
-                    .lineLimit(1)
-                Spacer(minLength: 6)
-                Text(sceneB.name)
-                    .studioText(.micro)
-                    .tracking(0.6)
-                    .foregroundStyle(StudioTheme.amber)
-                    .lineLimit(1)
-            }
+            sceneLabelsRow
 
             StudioSlideControl(
                 value: crossfaderValue,
@@ -113,6 +101,29 @@ struct MasterOutputColumnView: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("master-crossfader")
+    }
+
+    private var sceneLabelsRow: some View {
+        HStack(alignment: .top, spacing: 6) {
+            sceneBlendEndpoint(label: "Scene A", name: sceneA.name, alignment: .leading)
+            Spacer(minLength: 6)
+            sceneBlendEndpoint(label: "Scene B", name: sceneB.name, alignment: .trailing)
+        }
+    }
+
+    private func sceneBlendEndpoint(label: String, name: String, alignment: HorizontalAlignment) -> some View {
+        VStack(alignment: alignment, spacing: 1) {
+            Text(label)
+                .studioText(.microEmphasis)
+                .foregroundStyle(StudioTheme.amber)
+                .lineLimit(1)
+            Text(name)
+                .studioText(.micro)
+                .tracking(0.6)
+                .foregroundStyle(StudioTheme.mutedText)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+        }
     }
 
     private var masterInsertSection: some View {
