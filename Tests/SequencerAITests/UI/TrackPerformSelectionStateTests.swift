@@ -34,6 +34,17 @@ final class TrackPerformSelectionStateTests: XCTestCase {
         return project
     }
 
+    private func makeTrack(name: String = "Track") -> StepSequenceTrack {
+        StepSequenceTrack(
+            name: name,
+            trackType: .monoMelodic,
+            pitches: [60],
+            stepPattern: Array(repeating: false, count: 16),
+            velocity: 100,
+            gateLength: 4
+        )
+    }
+
     func test_selectedSet_addRemoveToggleClearAndReconcile() {
         let trackA = UUID()
         let trackB = UUID()
@@ -73,7 +84,7 @@ final class TrackPerformSelectionStateTests: XCTestCase {
         XCTAssertEqual(TrackPerformLayerMode.noteRepeat.binaryControl, .noteRepeat)
         XCTAssertNil(TrackPerformLayerMode.stepOrder.phraseLayerID)
         XCTAssertNil(TrackPerformLayerMode.stepOrder.binaryControl)
-        XCTAssertEqual(TrackPerformLayerMode.volume.phraseLayerID, "volume")
+        XCTAssertNil(TrackPerformLayerMode.volume.phraseLayerID)
         XCTAssertNil(TrackPerformLayerMode.volume.binaryControl)
         XCTAssertNil(TrackPerformLayerMode.pan.phraseLayerID)
     }
@@ -84,6 +95,41 @@ final class TrackPerformSelectionStateTests: XCTestCase {
         XCTAssertEqual(TrackPerformLayerMode.stepOrder.inlineVariantLabels, ["Identity", "Break Fold", "Back Half", "Reverse", "Skip 4", "Repeat 3", "Custom"])
         XCTAssertTrue(TrackPerformLayerMode.mute.inlineVariantLabels.isEmpty)
         XCTAssertTrue(TrackPerformLayerMode.volume.inlineVariantLabels.isEmpty)
+    }
+
+    func testTrackPerformPatternMiniCellSelectsExactSlot() {
+        let selectedSlot = TrackPerformPatternMiniCellInteraction.selectedSlotAfterMiniCellClick(
+            requestedSlotIndex: 3
+        )
+
+        XCTAssertEqual(selectedSlot, 3)
+    }
+
+    func testTrackPerformPatternMiniCellRepeatedClickDoesNotCycle() {
+        let selectedSlot = TrackPerformPatternMiniCellInteraction.selectedSlotAfterMiniCellClick(
+            requestedSlotIndex: 3
+        )
+
+        XCTAssertEqual(selectedSlot, 3)
+    }
+
+    func testTrackPerformPatternMiniCellUnavailableSlotIsInert() {
+        let selectedSlot = TrackPerformPatternMiniCellInteraction.selectedSlotAfterMiniCellClick(
+            requestedSlotIndex: TrackPatternBank.slotCount
+        )
+
+        XCTAssertNil(selectedSlot)
+    }
+
+    func testTrackPerformPatternCardBackgroundDoesNotCyclePattern() {
+        let track = makeTrack()
+        let patternLayer = PhraseLayerDefinition.defaultSet(for: [track])
+            .first { $0.id == TrackPerformLayerMode.pattern.phraseLayerID }!
+        let muteLayer = PhraseLayerDefinition.defaultSet(for: [track])
+            .first { $0.id == TrackPerformLayerMode.mute.phraseLayerID }!
+
+        XCTAssertFalse(TrackPerformPatternMiniCellInteraction.shouldCycleFromCardBackground(layer: patternLayer))
+        XCTAssertTrue(TrackPerformPatternMiniCellInteraction.shouldCycleFromCardBackground(layer: muteLayer))
     }
 
     func test_performanceLayerOptionsFlattenVariantsIntoFullCells() {

@@ -1307,6 +1307,24 @@ struct PhraseWorkspaceView: View {
         }
     }
 
+    private func selectPatternSlot(_ slotIndex: Int, phraseID: UUID, trackID: UUID) {
+        guard let activeMatrixLayer, activeMatrixLayer.valueType == .patternIndex else {
+            return
+        }
+        guard let selectedSlotIndex = TrackPerformPatternMiniCellInteraction.selectedSlotAfterMiniCellClick(
+            requestedSlotIndex: slotIndex
+        ) else {
+            return
+        }
+        session.setSelectedPhraseAndTrackID(phraseID: phraseID, trackID: trackID)
+        session.setPhraseCell(
+            .single(.index(selectedSlotIndex)),
+            layerID: activeMatrixLayer.id,
+            trackIDs: [trackID],
+            phraseID: phraseID
+        )
+    }
+
     /// Shift-click: toggle the value, write it as an explicit value on THIS
     /// phrase, and convert every *following* phrase's cell to inherit it.
     /// Inheritance is forward-only — earlier phrases are never touched, and the
@@ -1485,7 +1503,10 @@ struct PhraseWorkspaceView: View {
                                 track: track,
                                 isSelected: track.id == selectedTrackID,
                                 accent: accent,
-                                inherited: rowInherited
+                                inherited: rowInherited,
+                                onSelectPatternSlot: { slotIndex in
+                                    selectPatternSlot(slotIndex, phraseID: displayedPhrase.id, trackID: track.id)
+                                }
                             )
                         } else {
                             PhrasePerformancePlaceholderCell(
@@ -1499,11 +1520,12 @@ struct PhraseWorkspaceView: View {
                     }
                     .frame(maxWidth: .infinity)
                     .contentShape(Rectangle())
-                    .gesture(
-                        TapGesture()
-                            .onEnded {
-                                handleSingleTap(on: displayedPhrase.id, trackID: track.id)
-                            }
+                    .modifier(
+                        PhraseGridCellTapModifier(
+                            isEnabled: activeLayer.map(TrackPerformPatternMiniCellInteraction.shouldCycleFromCardBackground) ?? true
+                        ) {
+                            handleSingleTap(on: displayedPhrase.id, trackID: track.id)
+                        }
                     )
                     .simultaneousGesture(
                         scalarDragGesture(phrase: displayedPhrase, track: track, layer: activeLayer)
@@ -2660,6 +2682,7 @@ private struct PhraseGridCell: View {
     let isSelected: Bool
     let accent: Color
     var inherited: PhraseInheritedDefaults.Resolved?
+    var onSelectPatternSlot: ((Int) -> Void)?
     // By Track has no header row, so each cell carries the track name. The Song
     // phrase matrix has its own track-header row, so it passes false to avoid
     // showing the name twice.
@@ -2689,14 +2712,7 @@ private struct PhraseGridCell: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
 
-            PhraseCellPreview(
-                layer: layer,
-                cell: cell,
-                resolvedValue: resolvedValue,
-                accent: accent,
-                summary: valueLabel(resolvedValue, layer: layer),
-                metrics: .matrix
-            )
+            cellPreview
             .opacity(isInherited ? StudioOpacity.inheritedContent : 1)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         }
@@ -2712,6 +2728,46 @@ private struct PhraseGridCell: View {
                 )
         )
         .help(isInherited ? "Follows the layer default. Click to set its own value; shift-click to push a value into this and the following phrases." : "")
+    }
+
+    @ViewBuilder
+    private var cellPreview: some View {
+        if layer.valueType == .patternIndex {
+            PatternIndexCellPreview(
+                layer: layer,
+                resolvedValue: resolvedValue,
+                accent: accent,
+                summary: valueLabel(resolvedValue, layer: layer),
+                isMixed: false,
+                metrics: .matrix,
+                onSelectSlot: onSelectPatternSlot
+            )
+        } else {
+            PhraseCellPreview(
+                layer: layer,
+                cell: cell,
+                resolvedValue: resolvedValue,
+                accent: accent,
+                summary: valueLabel(resolvedValue, layer: layer),
+                metrics: .matrix
+            )
+        }
+    }
+}
+
+private struct PhraseGridCellTapModifier: ViewModifier {
+    let isEnabled: Bool
+    let onTap: () -> Void
+
+    func body(content: Content) -> some View {
+        if isEnabled {
+            content.gesture(
+                TapGesture()
+                    .onEnded(onTap)
+            )
+        } else {
+            content
+        }
     }
 }
 

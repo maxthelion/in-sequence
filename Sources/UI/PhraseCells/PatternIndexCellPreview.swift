@@ -11,6 +11,7 @@ struct PatternIndexCellPreview: View {
     let summary: String
     let isMixed: Bool
     let metrics: CellPreviewMetrics
+    var onSelectSlot: ((Int) -> Void)?
 
     private let slotCount = TrackPatternBank.slotCount
     private let columns = Array(
@@ -37,13 +38,7 @@ struct PatternIndexCellPreview: View {
                 VStack(alignment: .leading, spacing: StudioMetrics.Spacing.tight) {
                     LazyVGrid(columns: columns, spacing: StudioMetrics.Spacing.hairline) {
                         ForEach(0..<slotCount, id: \.self) { index in
-                            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous)
-                                .fill(slotFill(for: index))
-                                .frame(height: pillHeight)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous)
-                                        .stroke(slotStroke(for: index), lineWidth: StudioMetrics.borderWidth)
-                                )
+                            slotCell(index)
                         }
                     }
 
@@ -94,5 +89,32 @@ struct PatternIndexCellPreview: View {
         return index == activeIndex
             ? StudioTheme.patternColor(index)
             : StudioTheme.border.opacity(StudioOpacity.softStroke)
+    }
+
+    @ViewBuilder
+    private func slotCell(_ index: Int) -> some View {
+        let label = slotCellLabel(index)
+        if let onSelectSlot {
+            Button {
+                onSelectSlot(index)
+            } label: {
+                label
+            }
+            .buttonStyle(.plain)
+            .help("P\(index + 1)")
+            .accessibilityLabel("Pattern slot \(index + 1)")
+        } else {
+            label
+        }
+    }
+
+    private func slotCellLabel(_ index: Int) -> some View {
+        RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous)
+            .fill(slotFill(for: index))
+            .frame(height: pillHeight)
+            .overlay(
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous)
+                    .stroke(slotStroke(for: index), lineWidth: StudioMetrics.borderWidth)
+            )
     }
 }

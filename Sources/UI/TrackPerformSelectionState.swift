@@ -59,6 +59,22 @@ enum TrackPerformAuthoredEdit {
     }
 }
 
+enum TrackPerformPatternMiniCellInteraction {
+    static func selectedSlotAfterMiniCellClick(
+        requestedSlotIndex: Int,
+        slotCount: Int = TrackPatternBank.slotCount
+    ) -> Int? {
+        guard (0..<slotCount).contains(requestedSlotIndex) else {
+            return nil
+        }
+        return requestedSlotIndex
+    }
+
+    static func shouldCycleFromCardBackground(layer: PhraseLayerDefinition) -> Bool {
+        layer.valueType != .patternIndex
+    }
+}
+
 enum TrackPerformLatchMode: String, CaseIterable, Equatable, Identifiable {
     case momentary
     case latched
