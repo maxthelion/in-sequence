@@ -971,12 +971,6 @@ private struct ClipHistoryEvidenceSurface: View {
         ClipHistoryEvidenceShell {
             TrackSourceSectionPills(
                 selectedTab: .constant(.stepsClip),
-                sourceState: sourceState,
-                modifierState: .empty,
-                routingState: TrackSourceRoutingDisplayState(
-                    soundBadgeTitle: "AU Instrument",
-                    mixerBadgeTitle: "Master"
-                ),
                 accent: StudioTheme.cyan
             )
 
@@ -1020,12 +1014,6 @@ private struct ClipHistoryDestinationEvidenceSurface: View {
 
             TrackSourceSectionPills(
                 selectedTab: .constant(.stepsClip),
-                sourceState: .occupiedGenerator,
-                modifierState: .empty,
-                routingState: TrackSourceRoutingDisplayState(
-                    soundBadgeTitle: "AU Instrument",
-                    mixerBadgeTitle: "Master"
-                ),
                 accent: StudioTheme.cyan
             )
 
@@ -1089,12 +1077,6 @@ private struct ClipHistoryUnavailableEvidenceSurface: View {
         ClipHistoryEvidenceShell {
             TrackSourceSectionPills(
                 selectedTab: .constant(.stepsClip),
-                sourceState: sourceState,
-                modifierState: .empty,
-                routingState: TrackSourceRoutingDisplayState(
-                    soundBadgeTitle: "AU Instrument",
-                    mixerBadgeTitle: "Master"
-                ),
                 accent: StudioTheme.cyan
             )
 

@@ -80,6 +80,26 @@ final class ChannelMeterBankTests: XCTestCase {
     }
 
     @MainActor
+    func test_mainAudioGraphStopMeterResetSnapsChannelsAndMasterToSilence() {
+        let bank = ChannelMeterBank()
+        let channel = bank.publisher(for: .track(UUID()))
+        let master = MasterMeterPublisher()
+        let graph = MainAudioGraph(masterMeterPublisher: master, channelMeterBank: bank)
+
+        channel.recordPeakAmplitudes(left: 1.0, right: 0.5)
+        master.recordPeakAmplitudes(left: 0.5, right: 1.0)
+        bank.pumpOnceForTesting(now: 10)
+
+        XCTAssertGreaterThan(channel.displayState.leftPeakDBFS, MasterMeterDisplayState.displayFloorDBFS)
+        XCTAssertGreaterThan(master.displayState.rightPeakDBFS, MasterMeterDisplayState.displayFloorDBFS)
+
+        graph.resetMetersToSilence()
+
+        XCTAssertEqual(channel.displayState, .silent)
+        XCTAssertEqual(master.displayState, .silent)
+    }
+
+    @MainActor
     func test_publisherSkipsRedundantDisplayStateWrites() {
         // One publisher per strip makes a 60Hz unconditional write a page-
         // wide re-render; verify steady silence publishes no state change.

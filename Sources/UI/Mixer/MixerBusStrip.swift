@@ -44,15 +44,18 @@ struct MixerBusStrip: View {
                 onEnd: commitLevel
             )
         } pan: {
-            StudioSlideControl(
+            StudioRotaryKnob(
+                title: "PAN",
                 value: displayedPan,
+                range: -1...1,
                 accent: accent,
-                leadingLabel: "PAN",
-                trailingLabel: StudioSlideControlModel.panLabel(for: displayedPan),
-                help: "\(bus.name) pan",
-                onChange: { updatePan($0) },
-                onEnd: { commitPan() }
+                size: 34,
+                format: { StudioSlideControlModel.panLabel(for: $0) },
+                onChange: { _ in commitPan() },
+                onLiveChange: { updatePan($0) }
             )
+            .frame(maxWidth: .infinity)
+            .help("\(bus.name) pan")
         } actions: {
             actionsSlot
         } footer: {

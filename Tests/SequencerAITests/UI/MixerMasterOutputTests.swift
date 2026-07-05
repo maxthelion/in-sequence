@@ -116,4 +116,18 @@ final class MixerMasterOutputTests: XCTestCase {
             ["Kick", "Snare"]
         )
     }
+
+    func test_sharedMixerInsertRowsUseNameOnlyGrammarInputs() {
+        var masterInsert = MasterBusInsert.filter()
+        masterInsert.name = "808 Bus Crunch"
+        masterInsert.isEnabled = false
+
+        var bus = MixerBus(name: "808 Bus", inserts: [masterInsert])
+
+        XCTAssertEqual(bus.inserts.map(\.name), ["808 Bus Crunch"])
+        XCTAssertFalse(bus.inserts.contains { $0.name.contains("Filter /") })
+
+        bus.inserts[0].isEnabled = true
+        XCTAssertTrue(bus.inserts[0].isEnabled)
+    }
 }

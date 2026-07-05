@@ -34,6 +34,10 @@ final class StudioMixerStripScaffoldTests: XCTestCase {
         XCTAssertEqual(MixerWorkspaceLayout.sendReturnStripWidth, StudioMixerStripMetrics.stripWidth)
     }
 
+    func test_stripSlotsFitCompactRotaryPanControl() {
+        XCTAssertGreaterThanOrEqual(StudioMixerStripMetrics.panHeight, 34 + 18)
+    }
+
     // MARK: - dB convergence
 
     func test_dBLabelConvergesOnMasterVocabulary() {
