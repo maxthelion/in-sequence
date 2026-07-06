@@ -330,7 +330,13 @@ struct ClipContentPreview: View {
         let visibleSteps = visibleIndices.map { steps[$0] }
 
         VStack(alignment: .leading, spacing: 12) {
-            clipHeaderControls(lengthSteps: lengthSteps, steps: steps)
+            clipHeaderControls(
+                lengthSteps: lengthSteps,
+                steps: steps,
+                page: page,
+                pageCount: pageCount,
+                playheadPage: playheadPage
+            )
 
             if isRandomizePanelVisible, let randomizePanel {
                 randomizePanel()
@@ -501,8 +507,6 @@ struct ClipContentPreview: View {
                         .allowsHitTesting(isEditable)
                     }
                 }
-
-                clipFooter(lengthSteps: lengthSteps, steps: steps, page: page, pageCount: pageCount, playheadPage: playheadPage)
             }
         }
         .background {
@@ -629,8 +633,14 @@ struct ClipContentPreview: View {
     // panel (no "CLIP" header restating, canon Rule 1), and Lane/Length are
     // VALUE selectors — solid surface-accent thumbs inside darker inset
     // tracks, never bespoke floating capsules or a second chrome accent.
-    private func clipHeaderControls(lengthSteps: Int, steps: [ClipStep]) -> some View {
-        HStack(alignment: .top, spacing: StudioMetrics.Spacing.roomy) {
+    private func clipHeaderControls(
+        lengthSteps: Int,
+        steps: [ClipStep],
+        page: Int,
+        pageCount: Int,
+        playheadPage: Int?
+    ) -> some View {
+        HStack(alignment: .top, spacing: StudioMetrics.Spacing.standard) {
             StudioSegmentedControl(
                 title: "Lane",
                 selection: $selectedLane,
@@ -659,8 +669,12 @@ struct ClipContentPreview: View {
                 layout: .init(fillsWidth: false, minWidth: 44)
             )
 
+            if pageCount > 1 {
+                pageSelector(lengthSteps: lengthSteps, page: page, pageCount: pageCount, playheadPage: playheadPage)
+            }
+
             StepLayerQuickSwitchChip(
-                title: "",
+                title: "Layer",
                 selection: $selectedLayer,
                 isOpen: $isLayerSwitcherOpen,
                 options: layerQuickSwitchOptions,
@@ -668,6 +682,11 @@ struct ClipContentPreview: View {
             )
 
             randomizeControls
+
+            Text("\(noteCount(in: steps)) notes")
+                .studioText(.labelBold)
+                .foregroundStyle(StudioTheme.mutedText)
+                .fixedSize()
 
             Spacer(minLength: 0)
         }
@@ -740,30 +759,6 @@ struct ClipContentPreview: View {
             }
         } else {
             layerControlRow(lengthSteps: lengthSteps, steps: steps)
-        }
-    }
-
-    // Single-page clips show every note on the grid, so the footer only
-    // exists for multi-page clips: the total note count (real state — pages
-    // off-screen contribute to it) plus the bar-range selector.
-    @ViewBuilder
-    private func clipFooter(
-        lengthSteps: Int,
-        steps: [ClipStep],
-        page: Int,
-        pageCount: Int,
-        playheadPage: Int?
-    ) -> some View {
-        if pageCount > 1 {
-            HStack(alignment: .center, spacing: 12) {
-                Text("\(noteCount(in: steps)) notes")
-                    .studioText(.labelBold)
-                    .foregroundStyle(StudioTheme.mutedText)
-
-                Spacer(minLength: 12)
-
-                pageSelector(lengthSteps: lengthSteps, page: page, pageCount: pageCount, playheadPage: playheadPage)
-            }
         }
     }
 

@@ -158,13 +158,7 @@ struct SamplerDestinationWidget: View {
                     stepSample(-1)
                 }
 
-                Spacer()
-
-                Text("Browse \(sample.category.displayName.lowercased())")
-                    .studioText(.label)
-                    .foregroundStyle(StudioTheme.mutedText)
-
-                Spacer()
+                Spacer(minLength: StudioMetrics.Spacing.standard)
 
                 StudioCircleIconButton(
                     systemName: "chevron.right",
