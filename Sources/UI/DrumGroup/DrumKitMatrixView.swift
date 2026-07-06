@@ -234,8 +234,12 @@ struct DrumKitMatrixView: View {
     /// windowed pseudo-clip so the whole kit plays the selected window as its
     /// clips. Cleared on toggle-off, capture close, and after a save.
     @State var isAuditioningCapture = false
-    /// Whether the save-slot picker (P1–P16) popover is shown (AC15 save).
-    @State var isPresentingSaveSlotPicker = false
+    /// Capture-save mode: when true, the header pattern row becomes the save
+    /// target picker for the selected history window.
+    @State var isSelectingCaptureSaveSlot = false
+    /// Visual-scenario capture fixtures, used only when the QA command channel
+    /// seeds deterministic kit history without running transport.
+    @State var visualCaptureSnapshots: [UUID: CaptureSnapshot] = [:]
     /// AC21 accordion: which part row is expanded inline (nil == all compact).
     /// Transient UI state; expanding does not change link/pattern state.
     @State var expandedPartID: UUID?
@@ -352,16 +356,18 @@ struct DrumKitMatrixView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            header
+        StudioPanel(title: "Drum Kit", accent: accent, showsHeader: false, contentPadding: 0) {
+            VStack(alignment: .leading, spacing: 18) {
+                header
 
-            if let model {
-                kitBody(model)
-            } else {
-                unavailableState
+                if let model {
+                    kitBody(model)
+                } else {
+                    unavailableState
+                }
             }
         }
-        .padding(StudioMetrics.Spacing.section)
+        .padding(StudioMetrics.Spacing.workspaceInset)
         .sheet(isPresented: $isPresentingRoutingEditor) {
             if let draft = DrumGroupRoutingEditorDraft(
                 groupID: navigationState.groupID,
@@ -448,7 +454,8 @@ struct DrumKitMatrixView: View {
         .onChange(of: isCaptureOpen) {
             if !isCaptureOpen {
                 stopKitAudition()
-                isPresentingSaveSlotPicker = false
+                isSelectingCaptureSaveSlot = false
+                visualCaptureSnapshots = [:]
             }
             postRenderedVisualState(isVisible: true)
         }
@@ -513,7 +520,7 @@ struct DrumKitMatrixView: View {
                 ? (historyBarsBack == 0 ? "live" : "\(historyBarsBack) back")
                 : "none",
             historyAuditioning: isVisible && isCaptureOpen && isAuditioningCapture,
-            historySaveSlotPickerVisible: isVisible && isCaptureOpen && isPresentingSaveSlotPicker,
+            historySaveSlotPickerVisible: isVisible && isCaptureOpen && isSelectingCaptureSaveSlot,
             expandedPartIndex: isVisible ? expandedIndex : nil,
             expandedRowTab: isVisible && expandedIndex != nil ? expandedRowTab.rawValue : "none",
             expandedSourceMode: expandedSourceMode

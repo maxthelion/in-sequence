@@ -70,7 +70,16 @@ extension DrumKitMatrixView {
             selectedSlot: groupPatternSlotBinding(model),
             occupiedSlots: model.occupiedSlotIndexes,
             bypassState: .notApplicable,
-            onBypassToggle: { _ in }
+            onBypassToggle: { _ in },
+            destinationMode: isCaptureOpen && isSelectingCaptureSaveSlot
+                ? TrackPatternSlotPalette.DestinationMode(
+                    pendingReplaceSlot: historyTargetSlotIndex(model),
+                    accent: accent
+                )
+                : nil,
+            onDestinationSelect: { slotIndex in
+                saveKitHistoryClipSet(model, slotIndex: slotIndex)
+            }
         )
     }
 

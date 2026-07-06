@@ -1,7 +1,7 @@
 import SwiftUI
 
 // Capture / History surface for the kit matrix (AC14/AC15/AC16): the header,
-// scrubber, per-part windowed previews, save-slot picker, plus the shared
+// scrubber, per-part windowed previews, top-row save target mode, plus the shared
 // window math, audition overrides, and coordinated save. Split out of
 // DrumKitMatrixView.swift as an extension; zero behavior change.
 
@@ -27,14 +27,20 @@ extension DrumKitMatrixView {
         // to call it 3–4× per part per render. Capturing here and threading the
         // map down collapses that to one snapshot per member per render.
         let snapshots = captureSnapshots(model)
-        return StudioPanel(title: "Capture · History", accent: accent) {
-            VStack(alignment: .leading, spacing: 14) {
-                captureHistoryHeader(model)
-                captureHistoryScrubber(model, snapshots: snapshots)
+        VStack(alignment: .leading, spacing: 14) {
+            captureHistoryHeader(model)
+            captureHistoryScrubber(model, snapshots: snapshots)
+            VStack(alignment: .leading, spacing: 12) {
                 captureHistoryParts(model, snapshots: snapshots)
-                captureHistoryFooter(model)
             }
+            .padding(StudioMetrics.Spacing.comfortable)
+            .background(Color.clear, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
+                    .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+            )
         }
+        .frame(maxWidth: .infinity, alignment: .topLeading)
     }
 
     /// One snapshot per member, taken once per render and threaded down to the
@@ -44,9 +50,13 @@ extension DrumKitMatrixView {
         var snapshots: [UUID: CaptureSnapshot] = [:]
         snapshots.reserveCapacity(model.rows.count)
         for row in model.rows where snapshots[row.memberID] == nil {
-            snapshots[row.memberID] = engineController.captureSnapshot(trackID: row.memberID)
+            snapshots[row.memberID] = captureSnapshot(memberID: row.memberID)
         }
         return snapshots
+    }
+
+    func captureSnapshot(memberID: UUID) -> CaptureSnapshot {
+        visualCaptureSnapshots[memberID] ?? engineController.captureSnapshot(trackID: memberID)
     }
 
     func captureHistoryHeader(_ model: DrumKitMatrixModel) -> some View {
@@ -74,6 +84,23 @@ extension DrumKitMatrixView {
             captureAuditionButton(model)
 
             historyLengthControl
+
+            Button {
+                isSelectingCaptureSaveSlot.toggle()
+                historySaveMessage = nil
+                postRenderedVisualState(isVisible: true)
+            } label: {
+                Label(isSelectingCaptureSaveSlot ? "Slot target" : "Save capture", systemImage: "tray.and.arrow.down")
+                    .studioText(.labelBold)
+                    .foregroundStyle(StudioTheme.background)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(isSelectingCaptureSaveSlot ? StudioTheme.amber : accent, in: Capsule())
+            }
+            .buttonStyle(.plain)
+            .help("Use the pattern numbers above to save each part's windowed selection as one coordinated clip set")
+            .accessibilityIdentifier("kit-history-save")
+            .accessibilityLabel("Save kit capture")
         }
     }
 
@@ -159,11 +186,6 @@ extension DrumKitMatrixView {
         let maxBack = historyMaxBarsBack(model, snapshots: snapshots)
         let back = min(historyBarsBack, maxBack)
         return HStack(spacing: 10) {
-            Text("HISTORY")
-                .studioText(.eyebrow)
-                .tracking(0.8)
-                .foregroundStyle(StudioTheme.mutedText)
-
             historyScrubButton(
                 systemImage: "chevron.left.2",
                 id: "kit-history-scrub-back",
@@ -212,6 +234,12 @@ extension DrumKitMatrixView {
                     .accessibilityLabel("History window position")
             }
 
+            if let historySaveMessage {
+                Text(historySaveMessage)
+                    .studioText(.label)
+                    .foregroundStyle(StudioTheme.success)
+            }
+
             Spacer(minLength: 0)
         }
     }
@@ -257,10 +285,10 @@ extension DrumKitMatrixView {
         return VStack(alignment: .leading, spacing: 8) {
             // Canon Rule 3: real state only — the window length and target
             // slot ARE the state; the explanation lives in the tooltip.
-            Text("SELECTION · \(lengthLabel.uppercased()) → P\(targetSlot + 1)")
+            Text("\(lengthLabel.uppercased()) → P\(targetSlot + 1)")
                 .studioText(.eyebrow)
                 .tracking(0.8)
-                .foregroundStyle(StudioTheme.mutedText)
+                .foregroundStyle(isSelectingCaptureSaveSlot ? StudioTheme.amber : StudioTheme.mutedText)
                 .help("The \(lengthLabel) window Save writes into pattern slot P\(targetSlot + 1)")
 
             ScrollView(.vertical) {
@@ -273,7 +301,7 @@ extension DrumKitMatrixView {
                     }
                 }
             }
-            .frame(maxHeight: 260)
+            .frame(maxHeight: 180)
             .scrollIndicators(.never)
         }
     }
@@ -287,7 +315,7 @@ extension DrumKitMatrixView {
     ) -> some View {
         // One snapshot drives all three previews for this row (full buffer,
         // grid step count, selection highlight) instead of three separate locks.
-        let snapshot = snapshot ?? engineController.captureSnapshot(trackID: row.memberID)
+        let snapshot = snapshot ?? captureSnapshot(memberID: row.memberID)
         return HStack(spacing: 10) {
             Text(row.partName)
                 .studioText(.labelBold)
@@ -296,105 +324,32 @@ extension DrumKitMatrixView {
                 .truncationMode(.tail)
                 .frame(width: 120, alignment: .leading)
 
-            ClipHistoryPianoRollPreview(
-                content: historyFullBufferContent(snapshot: snapshot, memberID: row.memberID),
-                gridSteps: historyDisplayedGridSteps(snapshot: snapshot),
-                liveFillStepIndex: nil,
-                accent: accent,
-                isTransportRunning: engineController.isRunning,
-                selectionRange: historySelectionRange(snapshot: snapshot)
-            )
-            .frame(height: 56)
+            captureTriggeredStepStrip(snapshot: snapshot, memberID: row.memberID)
+                .frame(height: 28)
             .frame(maxWidth: .infinity)
         }
     }
 
-    func captureHistoryFooter(_ model: DrumKitMatrixModel) -> some View {
-        HStack(spacing: 10) {
-            if let message = historySaveMessage {
-                Text(message)
-                    .studioText(.label)
-                    .foregroundStyle(StudioTheme.success)
+    func captureTriggeredStepStrip(snapshot: CaptureSnapshot, memberID: UUID) -> some View {
+        let states: [Bool] = {
+            guard let content = historyWindowContent(memberID: memberID, snapshot: snapshot),
+                  case let .noteGrid(_, steps) = content
+            else {
+                return Array(repeating: false, count: historyLengthSteps)
             }
-
-            Spacer(minLength: 0)
-
-            Button {
-                isPresentingSaveSlotPicker.toggle()
-            } label: {
-                Label("Save capture", systemImage: "tray.and.arrow.down")
-                    .studioText(.labelBold)
-                    .foregroundStyle(StudioTheme.background)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(accent, in: Capsule())
-            }
-            .buttonStyle(.plain)
-            .help("Save each part's windowed selection into a chosen pattern slot as one coordinated clip set")
-            .accessibilityIdentifier("kit-history-save")
-            .accessibilityLabel("Save kit capture")
-            .popover(isPresented: $isPresentingSaveSlotPicker, arrowEdge: .bottom) {
-                captureSaveSlotPicker(model)
+            return steps.map { !$0.isEmpty }
+        }()
+        return HStack(spacing: 3) {
+            ForEach(Array(states.enumerated()), id: \.offset) { index, isTriggered in
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous)
+                    .fill(isTriggered ? accent : Color.clear)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous)
+                            .stroke(isTriggered ? accent : StudioTheme.border.opacity(StudioOpacity.softStroke), lineWidth: StudioMetrics.borderWidth)
+                    )
+                    .help("Step \(index + 1)")
             }
         }
-    }
-
-    /// Save-slot picker (AC15): a 4×4 grid of P1–P16 slot buttons. Picking a
-    /// slot saves each part's windowed selection into that slot as one
-    /// coordinated clip set. Occupied slots read with the accent border so the
-    /// user can see what is already assigned.
-    func captureSaveSlotPicker(_ model: DrumKitMatrixModel) -> some View {
-        let occupied = model.occupiedSlotIndexes
-        return VStack(alignment: .leading, spacing: 10) {
-            // Canon Rule 3: no explainer prose — the Save button's tooltip
-            // already explains the coordinated clip-set save.
-            Text("Save capture to slot")
-                .studioText(.labelBold)
-                .foregroundStyle(StudioTheme.text)
-
-            LazyVGrid(columns: captureSaveSlotColumns, spacing: 6) {
-                ForEach(0..<TrackPatternBank.slotCount, id: \.self) { slotIndex in
-                    captureSaveSlotButton(model, slotIndex: slotIndex, isOccupied: occupied.contains(slotIndex))
-                }
-            }
-        }
-        .padding(StudioMetrics.Spacing.comfortable)
-        .frame(width: 280)
-        .background(StudioTheme.stageFill)
-    }
-
-    var captureSaveSlotColumns: [GridItem] {
-        Array(repeating: GridItem(.flexible(), spacing: 6), count: 4)
-    }
-
-    func captureSaveSlotButton(
-        _ model: DrumKitMatrixModel,
-        slotIndex: Int,
-        isOccupied: Bool
-    ) -> some View {
-        let title = "P\(slotIndex + 1)"
-        return Button {
-            isPresentingSaveSlotPicker = false
-            saveKitHistoryClipSet(model, slotIndex: slotIndex)
-        } label: {
-            Text(title)
-                .studioText(.labelBold)
-                .foregroundStyle(StudioTheme.text)
-                .frame(maxWidth: .infinity, minHeight: 34)
-                .background(
-                    Color.white.opacity(StudioOpacity.subtleFill),
-                    in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-                        .stroke(isOccupied ? accent : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
-                )
-        }
-        .buttonStyle(.plain)
-        .help(isOccupied ? "\(title) (occupied) — save the capture here" : "Save the capture into \(title)")
-        .accessibilityIdentifier("kit-history-save-slot-\(slotIndex + 1)")
-        .accessibilityLabel("Save capture to \(title)")
-        .accessibilityValue(isOccupied ? "Occupied" : "Empty")
     }
 
     // MARK: - Kit history window math + save (AC15/AC16)
@@ -421,7 +376,7 @@ extension DrumKitMatrixView {
         var minMaxSteps = Int.max
         for row in model.rows {
             let snapshot = snapshots[row.memberID]
-                ?? engineController.captureSnapshot(trackID: row.memberID)
+                ?? captureSnapshot(memberID: row.memberID)
             minMaxSteps = min(minMaxSteps, snapshot.maxSteps)
         }
         guard minMaxSteps != Int.max else { return 0 }
@@ -446,7 +401,11 @@ extension DrumKitMatrixView {
     /// buffer (AC15/AC16). Reuses `PseudoClipState`, the same materializer the
     /// single-track history uses.
     func historyWindowContent(memberID: UUID) -> ClipContent? {
-        let snapshot = engineController.captureSnapshot(trackID: memberID)
+        let snapshot = captureSnapshot(memberID: memberID)
+        return historyWindowContent(memberID: memberID, snapshot: snapshot)
+    }
+
+    func historyWindowContent(memberID: UUID, snapshot: CaptureSnapshot) -> ClipContent? {
         guard !snapshot.isEmpty else { return nil }
         return PseudoClipState.materialize(
             sourceTrackID: memberID,
@@ -577,7 +536,7 @@ extension DrumKitMatrixView {
     }
 
     func applyMemberAuditionOverride(memberID: UUID) {
-        let snapshot = engineController.captureSnapshot(trackID: memberID)
+        let snapshot = captureSnapshot(memberID: memberID)
         guard !snapshot.isEmpty else {
             engineController.setAuditionOverride(nil, for: memberID)
             return
@@ -610,9 +569,54 @@ extension DrumKitMatrixView {
         if savedCount > 0 {
             historySaveMessage = "Saved \(savedCount) part\(savedCount == 1 ? "" : "s") to P\(slotIndex + 1)"
         } else {
-            historySaveMessage = "Nothing to capture yet — play the kit first."
+            historySaveMessage = "No captured history"
         }
+        isSelectingCaptureSaveSlot = false
         stopKitAudition()
+        postRenderedVisualState(isVisible: true)
+    }
+
+    func seedVisualCaptureHistory(_ model: DrumKitMatrixModel) {
+        let patterns: [[Int]] = [
+            [0, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 60],
+            [4, 12, 20, 28, 36, 44, 52, 60],
+            [2, 6, 10, 14, 18, 22, 26, 30, 34, 38, 42, 46, 50, 54, 58, 62],
+            [6, 14, 22, 30, 38, 46, 54, 62],
+            [3, 11, 19, 27, 35, 43, 51, 59],
+            [2, 10, 18, 26, 34, 42, 50, 58],
+            [0, 7, 12, 23, 32, 39, 44, 55],
+            [5, 13, 21, 29, 37, 45, 53, 61],
+        ]
+        var snapshots: [UUID: CaptureSnapshot] = [:]
+        snapshots.reserveCapacity(model.rows.count)
+        for (rowIndex, row) in model.rows.enumerated() {
+            let activeSteps = patterns[rowIndex % patterns.count]
+            var steps = activeSteps.map { step in
+                CaptureSnapshot.Step(
+                    absoluteStep: step,
+                    notes: [
+                        CaptureSnapshot.Note(
+                            pitch: 36 + rowIndex,
+                            velocity: 100,
+                            lengthSteps: 1,
+                            voiceTag: nil
+                        ),
+                    ]
+                )
+            }
+            steps.append(CaptureSnapshot.Step(absoluteStep: 63, notes: []))
+            snapshots[row.memberID] = CaptureSnapshot(maxSteps: 64, steps: steps)
+        }
+        visualCaptureSnapshots = snapshots
+        historyBarsBack = 0
+        historySaveMessage = nil
+        refreshKitAuditionIfActive()
+        postRenderedVisualState(isVisible: true)
+    }
+
+    func clearVisualCaptureHistory() {
+        visualCaptureSnapshots = [:]
+        refreshKitAuditionIfActive()
         postRenderedVisualState(isVisible: true)
     }
 }

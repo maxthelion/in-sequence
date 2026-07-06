@@ -11,12 +11,27 @@ set -euo pipefail
 # Adding QA coverage = adding a row. Analysis of the output folder is the only
 # step that needs human/LLM judgment.
 # Set QA_SURFACE_CAPTURE_FILTER to run only rows whose names contain that text.
+#
+# Capture recording and gallery publishing are separate steps. This script only
+# records PNGs and notes. Publish them with:
+#
+#   bug-reporter absorb-captures "$PEEKABOO_OUTPUT_DIR" \
+#     --project in-sequence \
+#     --source qa-surface-coverage
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+caller_peekaboo_output_dir="${PEEKABOO_OUTPUT_DIR-}"
+caller_peekaboo_output_dir_set="${PEEKABOO_OUTPUT_DIR+x}"
 source "$SCRIPT_DIR/peekaboo-common.sh"
+if [ -n "$caller_peekaboo_output_dir_set" ]; then
+  PEEKABOO_OUTPUT_DIR="$caller_peekaboo_output_dir"
+else
+  unset PEEKABOO_OUTPUT_DIR
+fi
 
-output_dir="${PEEKABOO_OUTPUT_DIR:-.meta/multipass/runtime/loops/project/observe/qa-surface-coverage}"
+default_output_dir="${TMPDIR:-/tmp}/in-sequence-captures/qa-${USER:-user}"
+output_dir="${PEEKABOO_OUTPUT_DIR:-$default_output_dir}"
 case "$output_dir" in
   /*) ;;
   *) output_dir="$REPO_ROOT/$output_dir" ;;
@@ -52,6 +67,8 @@ skipped_rows=()
 app_crashed=false
 app_crash_after=""
 scenario_status="started; no captures completed yet"
+visual_command_sequence=0
+last_visual_command_id=""
 
 # ---------------------------------------------------------------------------
 # Capture table. Fields separated by |, newlines in payload encoded as ;
@@ -68,7 +85,7 @@ CAPTURES=$(cat <<'TABLE'
 # so every later capture keeps the neutral transport.
 01b-transport-swing-set|workspace=phrase,swing=0.4|workspace=phrase;swing=0.4;transport=stop
 02-tracks-navigator|workspace=tracks,tracksSelectionMode=off,swing=0.0|workspace=tracks;tracksSelectionMode=off;swing=0;transport=stop
-02a-tracks-selection-actions|workspace=tracks,tracksSelectionMode=on,tracksSelectionCount=1|workspace=tracks;tracksSelectionMode=on;tracksClearSelection=true;tracksSelect=first;transport=stop
+02a-tracks-selection-actions|workspace=tracks,tracksSelectionMode=on,tracksSelectionCount=1|workspace=tracks;tracksSelectionMode=on;tracksClearSelection=true;tracksSelect=first;tracksPrimeClipboard=true;transport=stop
 02b-tracks-layer-perform-nav|workspace=phrase,phraseWorkspaceTab=layers,performScopeCount=1|workspace=tracks;tracksSelectionMode=on;tracksClearSelection=true;tracksSelect=first;tracksAction=layerPerform;transport=stop
 02c-create-track-modal|workspace=tracks,tracksCreateTrackModalVisible=true|workspace=tracks;tracksCreateTrackModal=open;transport=stop
 02d-add-drum-group-modal|workspace=tracks,tracksAddDrumGroupModalVisible=true|workspace=tracks;tracksAddDrumGroupModal=open;transport=stop
@@ -89,14 +106,18 @@ CAPTURES=$(cat <<'TABLE'
 05d-scenes-bitcrusher-editor|workspace=scenes,scenesMode=browseEdit,sceneEditorFixture=content,scenesSelectedInsertIndex=1|scenesMode=browseEdit;sceneEditorFixture=content;scenesAddFXModal=close;scenesSelectInsert=1;transport=stop
 05e-scenes-browse-fx|workspace=scenes,scenesMode=browseEdit,sceneEditorFixture=browse-content|scenesMode=browseEdit;sceneEditorFixture=browse-content;transport=stop
 06-phrase-scenes-perform|workspace=phrase,workspaceMode=perform,phraseWorkspaceTab=scenes|workspace=phrase;workspaceMode=perform;phraseWorkspaceTab=scenes;transport=stop
-06a-phrase-scene-select|workspace=phrase,phraseWorkspaceTab=scenes,phraseSceneSelectVisible=true|phraseMatrixTrackCount=8;phraseMatrixPhraseCount=8;phraseWorkspaceTab=scenes;phraseSceneSelect=a;transport=stop
+# 06a RETIRED: the old phrase-scene selector sheet was replaced by the slot
+# surface. `phraseSceneSelect=a` still mutates state for legacy command files,
+# but there is no `phraseSceneSelectVisible=true` surface to screenshot.
 06b-phrase-scenes-perform-slots|workspace=phrase,phraseWorkspaceTab=scenes,phraseSceneViewMode=slots|workspace=phrase;workspaceMode=perform;phraseWorkspaceTab=scenes;phraseSceneSelect=close;phraseSceneViewMode=slots;transport=stop
 # 06c RETIRED: `phraseSceneMembershipFixture=split` changes runner/store state
 # but the current Scenes tab pixels match the base scenes capture exactly.
 07-library|workspace=library|workspace=library;transport=stop
 08-phrase-layers-pattern|workspace=phrase,phraseWorkspaceTab=layers,phraseMatrixSelectedLayerID=pattern,phraseCellTool=value|phraseMatrixTrackCount=8;phraseMatrixPhraseCount=8;phraseWorkspaceTab=layers;phraseCellTool=value;phraseMatrixLayerID=pattern;transport=stop
 09-phrase-layers-mute|workspace=phrase,phraseWorkspaceTab=layers,phraseMatrixSelectedLayerID=mute|phraseMatrixTrackCount=8;phraseMatrixPhraseCount=8;phraseWorkspaceTab=layers;phraseMatrixLayerID=mute;transport=stop
-10-phrase-layers-automation-tool|workspace=phrase,phraseWorkspaceTab=layers,phraseCellTool=automation|phraseMatrixTrackCount=8;phraseMatrixPhraseCount=8;phraseWorkspaceTab=layers;phraseCellTool=automation;phraseMatrixLayerID=pattern;transport=stop
+# 10 RETIRED: the old visible VALUE/AUTOMATION tool pills were removed. Cell
+# automation now lives in the context menu for a single phrase-layer selection,
+# so this command no longer creates a distinct screenshot from row 08.
 # 10a/10b RETIRED: density is no longer a phrase perform layer exposed by the
 # current matrix surface. The old command wrote density data but the visible
 # layer stayed pattern, producing misleading duplicates.
@@ -115,7 +136,7 @@ CAPTURES=$(cat <<'TABLE'
 19-track-detail-sound|workspace=track|trackFillSource=generator;trackSourceTab=sound;transport=stop
 # 19a RETIRED: `trackSoundSource=empty` now renders the same Sound tab state as
 # row 19. Keep one honest Sound-tab capture rather than publishing duplicates.
-20-track-fill-preview-active|workspace=track,selectedTrackFillPreviewActive=true|trackFillSource=clip;trackFillPreview=on;transport=stop
+20-track-fill-preview-active|workspace=track,trackSourceTab=steps-clip,selectedTrackFillPreviewActive=true|trackFillSource=clip;trackFillPreview=on;trackSourceTab=steps-clip;transport=stop
 # 20a RETIRED: the old `trackFillEngaged` visual command no longer reaches a
 # strict `selectedTrackFillEngaged=true` state in the current track detail flow.
 # Keep preview/randomize captures until the fill-engage command path is rebuilt.
@@ -156,16 +177,16 @@ CAPTURES=$(cat <<'TABLE'
 27c-audio-playback|workspace=track,audioInputArmState=hasLoop,audioInputMonitorMode=loop,audioInputTab=source|audioInputState=playback;audioInputTab=source;transport=stop
 # 28b RETIRED: the default kit route now lands on the same kit matrix surface
 # as 29; keep the explicit kit-matrix row as the canonical capture.
-# 29 RETIRED: the generic kit-matrix base row is flaky without a prior priming
-# row. The stable kit-matrix tab rows below cover the current matrix surface.
+29-drum-kit-matrix|workspace=track,drumKitMatrixRenderedVisible=true|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;transport=stop
 # 30 RETIRED: the kit-matrix 16/32 display toggle was removed; the view ignores
 # `display-32`, so this row duplicated row 29 while failing its status wait.
-# 31/29a/29b/29c RETIRED: routing and kit-tab commands can publish their final
-# status after the strict full-suite wait has already timed out. Keep the stable
-# drum-kit rows below rather than publishing racey captures.
-# 29d/29e/29f/29g RETIRED: these kit sub-surface commands are still useful
+29a-drum-kit-fx-tab|workspace=track,drumKitMatrixRenderedKitTab=fx|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixCommand=tab-fx;transport=stop
+29b-drum-kit-macros-tab|workspace=track,drumKitMatrixRenderedKitTab=macros|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixCommand=tab-macros;transport=stop
+29c-drum-kit-mixer-tab|workspace=track,drumKitMatrixRenderedKitTab=mixer|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixCommand=tab-mixer;drumKitSceneMembership=sceneA;transport=stop
+# 29d/29e/29g RETIRED: chooser and expanded-row sub-surfaces are still useful
 # targets, but the current full-suite command channel does not reach their
 # strict rendered status reliably. Do not publish timeout-forced evidence.
+29f-drum-kit-capture-save-slot|workspace=track,drumKitMatrixRenderedCaptureOpen=true,drumKitMatrixRenderedSaveSlotPickerVisible=true|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixCommands=open-capture,history-fixture,history-audition-on,history-save-open;transport=stop
 35-drum-kit-matrix-velocity-layer|workspace=track,drumKitMatrixRenderedLayer=velocity|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixLayer=velocity;transport=stop
 36-drum-kit-matrix-chance-layer|workspace=track,drumKitMatrixRenderedLayer=chance|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixLayer=chance;transport=stop
 # 37 RETIRED: the pattern-realign command no longer reaches slot 2 in a strict
@@ -197,10 +218,12 @@ TABLE
 
 write_visual_command() {
   local state="$1"
+  visual_command_sequence=$((visual_command_sequence + 1))
+  last_visual_command_id="qa-surface-coverage-$$-${visual_command_sequence}"
   mkdir -p "$(dirname "$command_file")"
-  printf '%s\n' "$state" > "${command_file}.tmp"
+  printf '%s\nvisualCommandID=%s\n' "$state" "$last_visual_command_id" > "${command_file}.tmp"
   mv "${command_file}.tmp" "$command_file"
-  action_log "Visual command written: ${state//$'\n'/; }"
+  action_log "Visual command written: ${state//$'\n'/; }; visualCommandID=${last_visual_command_id}"
 }
 
 status_value() {
@@ -222,6 +245,12 @@ wait_for_status() {
   done
   action_log "WARN: timed out waiting for ${key}=${expected}; last value was '${actual}'"
   return 1
+}
+
+wait_for_visual_command_ack() {
+  local timeout_seconds="${1:-10}"
+  [ -n "$last_visual_command_id" ] || return 0
+  wait_for_status "visualCommandID" "$last_visual_command_id" "$timeout_seconds"
 }
 
 copy_row_evidence() {
@@ -282,6 +311,7 @@ run_capture_row() {
     write_visual_command "windowFrame=$WB
 drumKitMatrixCommand=closeRouting
 transport=stop"
+    wait_for_visual_command_ack 10
     wait_for_status "drumKitMatrixRenderedRoutingEditorVisible" "false" 10
   fi
 
@@ -304,19 +334,25 @@ transport=stop"
 
     write_visual_command "windowFrame=$WB
 $prime_payload"
-    wait_for_status "drumPartHeaderVisible" "true" 15 || true
-    wait_for_status "drumKitMatrixRenderedVisible" "true" 20 || true
+    # Optional warm-up only. The required row wait below proves the rendered
+    # surface; this primer must not create warning noise when SwiftUI skips
+    # straight to the final row command.
+    sleep 0.8
   fi
 
-  write_visual_command "windowFrame=$WB
-$payload"
-
-  local IFS=','
   local wait_failed=false
   local row_wait_seconds=10
   case "$name" in
     *drum-kit-matrix*) row_wait_seconds=25 ;;
   esac
+
+  write_visual_command "windowFrame=$WB
+$payload"
+  if ! wait_for_visual_command_ack "$row_wait_seconds"; then
+    wait_failed=true
+  fi
+
+  local IFS=','
   for pair in $waits; do
     if ! wait_for_status "${pair%%=*}" "${pair#*=}" "$row_wait_seconds"; then
       wait_failed=true
@@ -344,7 +380,7 @@ $payload"
   # product behaviour changes.
   local settle=0.8
   case "$name" in
-    01-*|01a-*|01b-*|02-*|02a-*|02b-*) settle=1.8 ;;
+    01-*|01a-*|01b-*|02-*|02a-*|02b-*) settle=3.5 ;;
     29g-*) settle=2.8 ;;
   esac
   sleep "$settle"
@@ -406,6 +442,10 @@ write_notes() {
     echo "there are no coordinate clicks. The capture list is the CAPTURES table"
     echo "at the top of the script — one row per screenshot."
     echo
+    echo "To publish these captures to the bug-reporter gallery/R2 store, run:"
+    echo
+    echo "  bug-reporter absorb-captures \"${output_dir}\" --project in-sequence --source qa-surface-coverage"
+    echo
     echo "Fixture document: ${runtime_fixture_path}"
     echo "Set SEQUENCER_AI_QA_FIXTURE to override the source fixture."
     echo
@@ -452,6 +492,7 @@ mkdir -p "$output_dir"
 # purge the other rows' artifacts.
 if [ -z "$capture_filter" ]; then
   rm -f "$output_dir"/*.png "$output_dir"/*.status "$output_dir"/*.command.env
+  : > "$output_dir/scenario-actions.log"
 fi
 mkdir -p "$(dirname "$command_file")"
 mkdir -p "$(dirname "$runtime_fixture_path")"
@@ -491,6 +532,7 @@ write_visual_command "windowFrame=$WB
 workspace=phrase
 transport=stop"
 ensure_document_window "$pid"
+wait_for_visual_command_ack 15
 wait_for_status "workspace" "phrase" 15
 
 while IFS= read -r row; do
@@ -541,13 +583,7 @@ fi
 if [ "$final_exit_status" -eq 0 ]; then
   scenario_status="completed - ${captured_count} captures from ${executed_row_count} rows"
   action_log "QA surface coverage complete: ${captured_count} screenshots in ${output_dir}"
-  case "${SEQUENCER_AI_R2_SYNC:-}" in
-    1|true|TRUE|yes|YES|on|ON)
-      "$SCRIPT_DIR/r2-sync.sh" "$output_dir" >> "$output_dir/r2-sync.log" 2>&1 || {
-        action_log "WARN: R2 sync failed; see r2-sync.log"
-      }
-      ;;
-  esac
+  action_log "Publish with: bug-reporter absorb-captures \"${output_dir}\" --project in-sequence --source qa-surface-coverage"
 else
   action_log "QA surface coverage FAILED: executed=${executed_row_count} png=${png_count} skipped=${#skipped_rows[@]} status=${scenario_status}"
   if [ "${#skipped_rows[@]}" -gt 0 ]; then

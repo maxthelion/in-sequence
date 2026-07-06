@@ -379,6 +379,43 @@ final class DrumKitMatrixEditingTests: XCTestCase {
         )
     }
 
+    func test_kitCaptureSave_writesEveryMemberToChosenPatternSlot() throws {
+        let (session, _) = makeSession()
+        let outsiderID = session.store.selectedTrackID
+        let groupID = makeDrumGroup(in: session)
+        let memberIDs = try XCTUnwrap(
+            session.store.trackGroups.first(where: { $0.id == groupID })?.memberIDs
+        )
+        let destinationSlot = 5
+
+        for (memberOffset, memberID) in memberIDs.enumerated() {
+            let clipID = session.saveMaterializedClipToPatternSlot(
+                trackID: memberID,
+                slotIndex: destinationSlot,
+                content: Self.captureContent(memberOffset: memberOffset),
+                name: "Kit Capture P\(destinationSlot + 1)"
+            )
+            XCTAssertNotNil(clipID)
+        }
+
+        let model = try XCTUnwrap(matrixModel(session, groupID: groupID))
+        XCTAssertTrue(model.occupiedSlotIndexes.contains(destinationSlot))
+
+        for (memberOffset, memberID) in memberIDs.enumerated() {
+            let content = try XCTUnwrap(slotContent(session, trackID: memberID, slotIndex: destinationSlot))
+            guard case let .noteGrid(lengthSteps, steps) = content else {
+                return XCTFail("expected note-grid capture for kit member")
+            }
+            XCTAssertEqual(lengthSteps, 16)
+            XCTAssertEqual(steps[memberOffset].main?.notes.first?.pitch, 60 + memberOffset)
+        }
+
+        XCTAssertNil(
+            session.store.patternBank(for: outsiderID).slot(at: destinationSlot).sourceRef.clipID,
+            "Kit capture save must only write kit members"
+        )
+    }
+
     // MARK: - Apply Template: one batched, atomic mutation
 
     func test_applyPatternTemplate_isOneAtomicDocumentMutation() throws {
@@ -510,6 +547,24 @@ final class DrumKitMatrixEditingTests: XCTestCase {
 
         let after = try XCTUnwrap(matrixModel(session, groupID: groupID))
         XCTAssertNotNil(after.groupSelectedSlotIndex, "All parts still share the slot")
+    }
+
+    private static func captureContent(memberOffset: Int) -> ClipContent {
+        var steps = Array(repeating: ClipStep.empty, count: 16)
+        steps[memberOffset] = ClipStep(
+            main: ClipLane(
+                chance: 1,
+                notes: [
+                    ClipStepNote(
+                        pitch: 60 + memberOffset,
+                        velocity: 100,
+                        lengthSteps: 1
+                    ),
+                ]
+            ),
+            fill: nil
+        )
+        return .noteGrid(lengthSteps: 16, steps: steps)
     }
 
 }

@@ -27,6 +27,8 @@ enum DrumKitVisualCommand: Equatable {
     case historySave
     case historyAuditionOn
     case historyAuditionOff
+    case historyFixture
+    case historyFixtureClear
     case historySaveOpen
     case historySaveClose
     case openKitFXChooser
@@ -66,6 +68,8 @@ enum DrumKitVisualCommand: Equatable {
         case "history-save": self = .historySave
         case "history-audition-on": self = .historyAuditionOn
         case "history-audition-off": self = .historyAuditionOff
+        case "history-fixture": self = .historyFixture
+        case "history-fixture-clear": self = .historyFixtureClear
         case "history-save-open": self = .historySaveOpen
         case "history-save-close": self = .historySaveClose
         case "open-kit-fx-chooser": self = .openKitFXChooser
@@ -141,6 +145,7 @@ extension DrumKitMatrixView {
             postRenderedVisualState(isVisible: true)
         case .closeCapture:
             isCaptureOpen = false
+            visualCaptureSnapshots = [:]
             postRenderedVisualState(isVisible: true)
         case .historyScrubBack:
             if let model { historyScrubBack(model) }
@@ -154,11 +159,15 @@ extension DrumKitMatrixView {
             if let model { startKitAudition(model) }
         case .historyAuditionOff:
             if let model { stopKitAudition(model) }
+        case .historyFixture:
+            if let model { seedVisualCaptureHistory(model) }
+        case .historyFixtureClear:
+            clearVisualCaptureHistory()
         case .historySaveOpen:
-            isPresentingSaveSlotPicker = true
+            isSelectingCaptureSaveSlot = true
             postRenderedVisualState(isVisible: true)
         case .historySaveClose:
-            isPresentingSaveSlotPicker = false
+            isSelectingCaptureSaveSlot = false
             postRenderedVisualState(isVisible: true)
         case .openKitFXChooser:
             isPresentingKitFX = true
@@ -240,7 +249,6 @@ extension DrumKitMatrixView {
             }
         case let .saveSlot(slotIndex):
             if (0..<TrackPatternBank.slotCount).contains(slotIndex), let model {
-                isPresentingSaveSlotPicker = false
                 saveKitHistoryClipSet(model, slotIndex: slotIndex)
             }
         case let .historyLength(steps):
