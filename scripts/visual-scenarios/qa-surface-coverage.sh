@@ -334,9 +334,10 @@ transport=stop"
 
     write_visual_command "windowFrame=$WB
 $prime_payload"
-    # Optional warm-up only. The required row wait below proves the rendered
-    # surface; this primer must not create warning noise when SwiftUI skips
-    # straight to the final row command.
+    # This primer opens/rebuilds the kit matrix. Wait for it before writing the
+    # row command; otherwise two near-identical file updates can race the
+    # command watcher and leave the row one visualCommandID behind.
+    wait_for_visual_command_ack 25 || true
     sleep 0.8
   fi
 
