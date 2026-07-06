@@ -5,6 +5,8 @@ APP_NAME="${APP_NAME:-SequencerAI}"
 PEEKABOO_BIN="${PEEKABOO_BIN:-peekaboo}"
 PEEKABOO_ACTION_TIMEOUT_SECONDS="${PEEKABOO_ACTION_TIMEOUT_SECONDS:-8}"
 PEEKABOO_OUTPUT_DIR="${PEEKABOO_OUTPUT_DIR:-${TMPDIR:-/tmp}/in-sequence-captures/peekaboo-${USER:-user}}"
+VISUAL_CAPTURE_LOCK_PATH="${SEQUENCER_AI_VISUAL_CAPTURE_LOCK:-${TMPDIR:-/tmp}/in-sequence-visual-capture.lock}"
+VISUAL_CAPTURE_LOCK_TIMEOUT_SECONDS="${SEQUENCER_AI_VISUAL_CAPTURE_LOCK_TIMEOUT_SECONDS:-900}"
 
 visual_automation_blocked() {
   case "${SEQUENCER_AI_BLOCK_VISUAL_AUTOMATION:-${SEQUENCER_AI_DISABLE_VISUAL_AUTOMATION:-}}" in
@@ -44,13 +46,45 @@ BLOCKED
   exit 42
 }
 
-require_visual_automation_not_blocked
-
 action_log() {
   local output_dir="$PEEKABOO_OUTPUT_DIR"
   mkdir -p "$output_dir"
   printf '%s\n' "$*" >> "$output_dir/scenario-actions.log"
 }
+
+visual_capture_lock_disabled() {
+  case "${SEQUENCER_AI_DISABLE_VISUAL_CAPTURE_LOCK:-}" in
+    1|true|TRUE|yes|YES|on|ON) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+acquire_visual_capture_lock() {
+  if visual_capture_lock_disabled; then
+    action_log "Visual capture mutex disabled by SEQUENCER_AI_DISABLE_VISUAL_CAPTURE_LOCK."
+    return 0
+  fi
+
+  mkdir -p "$(dirname "$VISUAL_CAPTURE_LOCK_PATH")"
+  action_log "Waiting for visual capture mutex: ${VISUAL_CAPTURE_LOCK_PATH}"
+  exec 9>"$VISUAL_CAPTURE_LOCK_PATH"
+  if lockf -s -t "$VISUAL_CAPTURE_LOCK_TIMEOUT_SECONDS" 9; then
+    action_log "Acquired visual capture mutex: ${VISUAL_CAPTURE_LOCK_PATH}"
+    return 0
+  fi
+
+  {
+    echo "Visual capture mutex is busy: ${VISUAL_CAPTURE_LOCK_PATH}"
+    echo "Timed out after ${VISUAL_CAPTURE_LOCK_TIMEOUT_SECONDS}s."
+    echo "Set SEQUENCER_AI_VISUAL_CAPTURE_LOCK_TIMEOUT_SECONDS to wait longer,"
+    echo "or SEQUENCER_AI_DISABLE_VISUAL_CAPTURE_LOCK=1 only for intentional debugging."
+  } >&2
+  action_log "Timed out waiting for visual capture mutex after ${VISUAL_CAPTURE_LOCK_TIMEOUT_SECONDS}s."
+  exit 75
+}
+
+require_visual_automation_not_blocked
+acquire_visual_capture_lock
 
 run_with_timeout() {
   local seconds="$1"
