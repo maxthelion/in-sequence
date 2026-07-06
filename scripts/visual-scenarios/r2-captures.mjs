@@ -49,6 +49,7 @@ function isTracked(file) {
 }
 
 function branchSlug(branch) {
+  branch = branch.replace(/^codex\//, "");
   const slug = branch.replace(/[^A-Za-z0-9._-]+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
   return slug || "detached";
 }
@@ -81,6 +82,42 @@ function requiredConfig({ allowMissing = false } = {}) {
 
 function trimSlashes(value) {
   return value.replace(/^\/+|\/+$/g, "");
+}
+
+async function loadDotEnvFile(file) {
+  let text = "";
+  try {
+    text = await fs.readFile(file, "utf8");
+  } catch {
+    return;
+  }
+  for (const rawLine of text.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith("#")) continue;
+    const separator = line.indexOf("=");
+    if (separator < 1) continue;
+    const key = line.slice(0, separator).trim();
+    let value = line.slice(separator + 1).trim();
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1);
+    }
+    if (!process.env[key]) process.env[key] = value;
+  }
+}
+
+async function loadR2Environment(root) {
+  const candidates = [
+    process.env.R2_ENV_FILE,
+    path.join(root, "scripts/visual-scenarios/.env"),
+    path.join(root, ".env"),
+    path.resolve(root, "../bug-reporter/.env"),
+  ].filter(Boolean);
+  for (const file of candidates) {
+    await loadDotEnvFile(file);
+  }
 }
 
 function hmac(key, value) {
@@ -187,6 +224,7 @@ async function topLevelPngs(dir) {
 
 async function syncCommand(argv) {
   const root = repoRoot();
+  await loadR2Environment(root);
   let capturesDir = "";
   let dryRun = false;
   let pruneLocal = false;
@@ -300,6 +338,7 @@ async function loadManifest(root, cfg, manifestId) {
 
 async function fetchCommand(argv) {
   const root = repoRoot();
+  await loadR2Environment(root);
   const manifestId = argv[0];
   if (!manifestId) throw new Error("fetch requires <manifest-id>");
   const row = argv[1] || "";

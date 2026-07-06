@@ -73,7 +73,17 @@ When updating or running visual evidence, start here instead of searching:
 - `scripts/visual-scenarios/qa-surface-coverage.sh` is the broad screenshot
   capture script. Its `CAPTURES` table is the place to add or update app
   surfaces, including phrase Layers, Scenes, Global Apply, Capture, and
-  Automation states.
+  Automation states. Record captures to a temp inbox, then publish them through
+  bug-reporter:
+
+  ```sh
+  PEEKABOO_OUTPUT_DIR="$TMPDIR/in-sequence-captures/qa-$USER" \
+    scripts/visual-scenarios/qa-surface-coverage.sh
+
+  bug-reporter absorb-captures "$TMPDIR/in-sequence-captures/qa-$USER" \
+    --project in-sequence \
+    --source qa-surface-coverage
+  ```
 - `scripts/visual-scenarios/phrase-matrix-navigation.sh` is the smaller
   phrase-matrix paging/layer-switch scenario.
 - `scripts/visual-scenarios/phrase-perform-dirty-overlay.sh` is the older
@@ -109,8 +119,9 @@ the established pattern (the capture harness is built on it).
   — a repo path fails with `Operation not permitted`.
 - Write atomically (`.tmp` then `mv`); poll the `.status` file to confirm a
   command landed.
-- NOT gated by `SEQUENCER_AI_ALLOW_VISUAL_AUTOMATION` (that gate only guards the
-  Peekaboo screenshot script).
+- NOT gated by the Peekaboo visual-automation block. The block is opt-out and
+  only affects screenshot scripts when `SEQUENCER_AI_BLOCK_VISUAL_AUTOMATION=1`
+  or `SEQUENCER_AI_DISABLE_VISUAL_AUTOMATION=1`.
 
 For **audio graph-edit safety**, drive `scripts/visual-scenarios/routing-stress.sh`
 (headless real-HAL via `SEQUENCER_AI_HEADLESS_REAL_HAL=1`): it walks mute / add-fx
@@ -207,25 +218,80 @@ scripts/bug-status.sh --all    # + every bug dir with its status
 When you fix or reject a bug, append a `Status: RESOLVED <commit>` (or
 `Status: WONTFIX <reason>`) line to its note/report so the count stays accurate.
 
+### Bug-reporter CLI (fresh bugs + capture links)
+
+Use the local `bug-reporter` CLI for newly filed database-backed bugs and their
+associated verification captures. Start with:
+
+```sh
+bug-reporter help
+```
+
+List fresh/open bugs for this project:
+
+```sh
+bug-reporter list-bugs --project in-sequence --status open
+bug-reporter list-bugs --project in-sequence --status open --json
+```
+
+The JSON form includes each bug's `captureRefs`, with the capture `runId`,
+`rowId`, branch, commit, image hash, and any local attachment path. Use it before
+guessing which screenshot a report refers to. Inspect one bug or retrieve its
+referenced capture with:
+
+```sh
+bug-reporter show-bug BUG_ID
+bug-reporter fetch-capture RUN_ID ROW_ID --project in-sequence --out /tmp/capture.png
+```
+
+Update database-backed bug status through the CLI as well:
+
+```sh
+bug-reporter update-bug BUG_ID --status in_progress
+bug-reporter update-bug BUG_ID --status fixed
+```
+
+`scripts/bug-status.sh` still reports the markdown `docs/bugs` status convention.
+For current intake triage, check both the CLI list and the primary checkout's
+`docs/bugs/<slug>/` notes, because bug-reporter can create both a database row
+and a file-backed note with screenshots/capture references.
+
 ### Where evidence goes (the bug-reporter app + branch handling)
 
 The local bug-reporter app is `~/dev/bug-reporter` (`node server.js`, port 4747),
-configured by `~/dev/bug-reporter/config.json`. It has two distinct sinks with
-different branch/worktree behaviour — **do not conflate them**:
+configured by `~/dev/bug-reporter/config.json`. It has separate intake paths
+with different branch/worktree behaviour — **do not conflate them**:
 
 - **Bug reports** → `outputDir` = **`/Users/maxwilliams/dev/in-sequence/docs/bugs`**,
   the PRIMARY checkout — a literal path, branch-agnostic. A report written in a
   *worktree's* `docs/bugs` is INVISIBLE to the app. So file reports into the primary
   checkout's `docs/bugs/<YYYYMMDD-HHMMSS-slug>/` (a `note.md`: first line = title,
   images under a `Screenshots:` list) even when you are working in a worktree.
-- **Screenshots** (what "captures" usually refers to) → the gallery scans
-  `galleryDir` = `.meta/multipass/visual-review/<branch>/` and UNIONS it across every
-  open git worktree (`git worktree list`), partitioned by branch subdir (the worktree
-  copy wins over a merged main copy). A branch's UI screenshots go in *that branch's
-  worktree* under `.meta/multipass/visual-review/<name>/` and appear automatically.
-  This is a UI-screenshot mechanism — NOT for audio/waveform renders.
+- **UI screenshots/captures** → first record raw PNGs on disk, normally in the
+  temp capture inbox:
 
-Never leave evidence in `/tmp` (the app never sees it). The app is sandboxed; the
+  ```sh
+  PEEKABOO_OUTPUT_DIR="$TMPDIR/in-sequence-captures/qa-$USER" \
+    scripts/visual-scenarios/qa-surface-coverage.sh
+  ```
+
+  Then publish them:
+
+  ```sh
+  bug-reporter absorb-captures "$TMPDIR/in-sequence-captures/qa-$USER" \
+    --project in-sequence \
+    --source qa-surface-coverage
+  ```
+
+  `absorb-captures` owns the R2 upload and gallery filing, including the current
+  branch/commit metadata. Do not manually copy normal QA captures into
+  `.meta/multipass/visual-review/<branch>/`, and do not run the legacy `r2-sync`
+  helper for the standard QA/gallery flow. This mechanism is for UI screenshots
+  only — NOT for audio/waveform renders.
+
+Do not leave evidence in an unfiled temp directory after you want the app/gallery
+to see it; run `bug-reporter absorb-captures` for screenshots, or file bug-report
+evidence into `docs/bugs/<slug>/`. The app is sandboxed; the
 drum-timing rig (`capture_8bar.sh` + `render_8bar.py`) must write its WAV under
 `~/Library/Containers/ai.sequencer.SequencerAI/Data/tmp/...` (it cannot write
 `/tmp`). An audio/waveform render is bug-report *evidence* — it goes in the primary
@@ -258,10 +324,12 @@ update the compact summary through the loop.
   production-code changes on `main`.
 - Review the actual built surface for UX/visual decisions. Use Peekaboo
   screenshots where relevant.
-- Unattended agents must not run Peekaboo, visual scenario scripts, `osascript`
-  UI automation, or app-control flows that can trigger macOS TCC prompts unless
-  `SEQUENCER_AI_ALLOW_VISUAL_AUTOMATION=1` is explicitly set for an interactive,
-  pre-authorized session. If the gate is closed, record
+- Coordinators that spin up parallel agents should set
+  `SEQUENCER_AI_BLOCK_VISUAL_AUTOMATION=1` before dispatching workers so those
+  workers do not steal focus, launch apps, or trigger macOS TCC prompts while
+  competing for the same desktop. Interactive single-agent capture runs are
+  allowed by default; `SEQUENCER_AI_ALLOW_VISUAL_AUTOMATION=1` remains accepted
+  by older runbooks but is no longer required. If the block is set, record
   `capture-permission-or-focus` / `evidence-insufficient` instead of retrying.
 - Audio test source by permission tier: **unattended/headless audio runs use
   sample sources only** (`Destination.sample`/`.slicer` — deterministic, no

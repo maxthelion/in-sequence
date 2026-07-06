@@ -44,12 +44,12 @@ SEQUENCER_AI_VISUAL_COMMAND_FILE="$dir/cmd.env" \
 live somewhere it can read — use the container tmp dir above, not a repo path.
 Reading a fixture straight from the repo fails with `Operation not permitted`.
 
-**No automation gate.** The command runner is NOT behind
-`SEQUENCER_AI_ALLOW_VISUAL_AUTOMATION` — that gate only guards the Peekaboo
-screenshot script. Driving the app via the command file is always available once
-wired. (Normal etiquette still applies: this is interactive/owner-authorized
-territory; don't drive the app unattended in a way that could trigger TCC
-prompts.)
+**No screenshot block.** The command runner is NOT behind the Peekaboo
+visual-automation block. Screenshot scripts are allowed by default and only stop
+when a coordinator explicitly sets `SEQUENCER_AI_BLOCK_VISUAL_AUTOMATION=1` (or
+`SEQUENCER_AI_DISABLE_VISUAL_AUTOMATION=1`) for parallel worker runs. Driving the
+app via the command file is always available once wired. Normal etiquette still
+applies: do not drive the app unattended in a way that could trigger TCC prompts.
 
 ## Writing commands
 
@@ -87,7 +87,8 @@ The authoritative list is the `command["..."]` keys in
   `scenesSelectInsert=`, `sendAInserts=`, `sendBInserts=`.
 - **Phrase matrix:** `phraseMatrixTrackCount=`, `phraseMatrixPhraseCount=`,
   `phraseWorkspaceTab=`, `phrasePerformLayer(Selector|Variant)=`,
-  `phraseGlobalApply*`, `phraseCapture=`, `phraseSceneSelect=`.
+  `phraseGlobalApply*`, `phraseCapture=`, `phraseSceneSelect=` (legacy state
+  mutation; the old selector sheet is retired).
 - **Mixer / misc:** `masterGain=`, `windowFrame=`, `quantise=`.
 - **Graph-edit (routing self-test):** `trackMute=<idx>:<on|off>`,
   `busMute=<idx>:<on|off>`, `trackAddInsert=<idx>:<native-filter|native-bitcrusher>`,
@@ -153,3 +154,22 @@ sufficient — pair it with a human real-audio pass for the excluded classes.
   on this channel (and its `CAPTURES` table = worked command examples).
 - AGENTS.md → *Visual Capture Map* and *Driving the running app*.
 - [[runtime-observability]] for reading engine/runtime breadcrumbs.
+
+## Publishing QA Captures
+
+The command channel records screenshots; bug-reporter publishes them. Use a
+temporary capture inbox for the raw files, then absorb that inbox into the
+gallery/R2 store:
+
+```sh
+PEEKABOO_OUTPUT_DIR="$TMPDIR/in-sequence-captures/qa-$USER" \
+  scripts/visual-scenarios/qa-surface-coverage.sh
+
+bug-reporter absorb-captures "$TMPDIR/in-sequence-captures/qa-$USER" \
+  --project in-sequence \
+  --source qa-surface-coverage
+```
+
+Do not manually copy standard QA screenshots into
+`.meta/multipass/visual-review/<branch>/`, and do not use the legacy
+`r2-sync.sh` helper for the normal bug-reporter gallery flow.

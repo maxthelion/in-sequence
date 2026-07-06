@@ -14,6 +14,15 @@ while [ "$#" -gt 0 ]; do
       cat <<'HELP'
 Usage: r2-archive-local.sh [--dry-run] [--prune-local]
 
+Legacy archival helper only. The standard QA/gallery path is:
+
+  PEEKABOO_OUTPUT_DIR="$TMPDIR/in-sequence-captures/qa-$USER" \
+    scripts/visual-scenarios/qa-surface-coverage.sh
+
+  bug-reporter absorb-captures "$TMPDIR/in-sequence-captures/qa-$USER" \
+    --project in-sequence \
+    --source qa-surface-coverage
+
 Finds top-level capture directories under .meta/multipass/visual-review/ in
 every git worktree, uploads each directory's PNGs through r2-sync.sh, and writes
 one manifest per capture directory. With --prune-local, only PNGs from

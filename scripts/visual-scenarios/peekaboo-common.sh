@@ -4,41 +4,47 @@ set -euo pipefail
 APP_NAME="${APP_NAME:-SequencerAI}"
 PEEKABOO_BIN="${PEEKABOO_BIN:-peekaboo}"
 PEEKABOO_ACTION_TIMEOUT_SECONDS="${PEEKABOO_ACTION_TIMEOUT_SECONDS:-8}"
-PEEKABOO_OUTPUT_DIR="${PEEKABOO_OUTPUT_DIR:-.meta/multipass/visual-review}"
+PEEKABOO_OUTPUT_DIR="${PEEKABOO_OUTPUT_DIR:-${TMPDIR:-/tmp}/in-sequence-captures/peekaboo-${USER:-user}}"
 
-require_visual_automation_allowed() {
-  case "${SEQUENCER_AI_ALLOW_VISUAL_AUTOMATION:-}" in
-    1|true|TRUE|yes|YES|on|ON)
-      return 0
-      ;;
+visual_automation_blocked() {
+  case "${SEQUENCER_AI_BLOCK_VISUAL_AUTOMATION:-${SEQUENCER_AI_DISABLE_VISUAL_AUTOMATION:-}}" in
+    1|true|TRUE|yes|YES|on|ON) return 0 ;;
+    *) return 1 ;;
   esac
+}
+
+require_visual_automation_not_blocked() {
+  if ! visual_automation_blocked; then
+    return 0
+  fi
 
   mkdir -p "$PEEKABOO_OUTPUT_DIR"
   cat > "$PEEKABOO_OUTPUT_DIR/visual-automation-blocked.md" <<BLOCKED
 # Visual Automation Blocked
 
-Visual automation was not started because \`SEQUENCER_AI_ALLOW_VISUAL_AUTOMATION\`
-is not enabled.
+Visual automation was not started because \`SEQUENCER_AI_BLOCK_VISUAL_AUTOMATION\`
+is enabled.
 
-This guard prevents unattended Foreman/Codex agents from triggering macOS TCC
-permission prompts such as "bun would like to access data from other apps".
+This opt-out guard is for coordinators that intentionally run parallel
+sub-agents and do not want those workers to steal focus, launch apps, or
+interfere with one another's visual automation.
 
-To run this scenario in an interactive, pre-authorized session:
+To block visual automation for a coordinator run:
 
 \`\`\`sh
-SEQUENCER_AI_ALLOW_VISUAL_AUTOMATION=1 PEEKABOO_OUTPUT_DIR="$PEEKABOO_OUTPUT_DIR" <visual-scenario-command>
+SEQUENCER_AI_BLOCK_VISUAL_AUTOMATION=1 <coordinator-command>
 \`\`\`
 
-Unattended actors should treat this as \`capture-permission-or-focus\` /
-\`evidence-insufficient\` and route a bounded interactive capture or process
-repair instead of retrying.
+Normal interactive and single-agent capture runs do not need to set an allow
+variable. \`SEQUENCER_AI_ALLOW_VISUAL_AUTOMATION=1\` is still accepted by older
+runbooks, but it is no longer required.
 BLOCKED
 
-  echo "Visual automation disabled; set SEQUENCER_AI_ALLOW_VISUAL_AUTOMATION=1 only in an interactive, pre-authorized session." >&2
+  echo "Visual automation disabled because SEQUENCER_AI_BLOCK_VISUAL_AUTOMATION is enabled." >&2
   exit 42
 }
 
-require_visual_automation_allowed
+require_visual_automation_not_blocked
 
 action_log() {
   local output_dir="$PEEKABOO_OUTPUT_DIR"
@@ -169,8 +175,9 @@ click_point() {
   local x="$2"
   local y="$3"
   local status
+  mkdir -p "$PEEKABOO_OUTPUT_DIR"
   if run_with_timeout "$PEEKABOO_ACTION_TIMEOUT_SECONDS" \
-    "$PEEKABOO_BIN" click --coords "${x},${y}" --pid "$pid" --no-remote --json >/dev/null 2>>"${PEEKABOO_OUTPUT_DIR:-.meta/multipass/visual-review}/peekaboo-actions.err"; then
+    "$PEEKABOO_BIN" click --coords "${x},${y}" --pid "$pid" --no-remote --json >/dev/null 2>>"$PEEKABOO_OUTPUT_DIR/peekaboo-actions.err"; then
     return 0
   else
     status="$?"
@@ -187,6 +194,7 @@ drag_point() {
   local to_x="$4"
   local to_y="$5"
   local status
+  mkdir -p "$PEEKABOO_OUTPUT_DIR"
   if run_with_timeout "$PEEKABOO_ACTION_TIMEOUT_SECONDS" "$PEEKABOO_BIN" drag \
     --from-coords "${from_x},${from_y}" \
     --to-coords "${to_x},${to_y}" \
@@ -194,7 +202,7 @@ drag_point() {
     --steps 14 \
     --pid "$pid" \
     --no-remote \
-    --json >/dev/null 2>>"${PEEKABOO_OUTPUT_DIR:-.meta/multipass/visual-review}/peekaboo-actions.err"; then
+    --json >/dev/null 2>>"$PEEKABOO_OUTPUT_DIR/peekaboo-actions.err"; then
     return 0
   else
     status="$?"

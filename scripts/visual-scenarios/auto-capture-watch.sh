@@ -5,8 +5,9 @@
 # StartInterval=300, or `while :; do auto-capture-watch.sh; sleep 300; done`).
 #
 # It is deliberately cheap on the common path: a couple of `stat` calls and an
-# exit. It only does the expensive thing (force build + full capture sweep) when
-# UI source has actually changed since the last capture AND edits have settled.
+# exit. It only does the expensive thing (force build + full capture sweep +
+# bug-reporter absorb) when UI source has actually changed since the last
+# capture AND edits have settled.
 #
 # Guards: single-instance lock, skips if a capture is already running, and a
 # debounce so it never fires mid-edit. A failed/partial capture is NOT recorded
@@ -19,8 +20,8 @@
 set -euo pipefail
 
 REPO="/Users/maxwilliams/dev/in-sequence"
-REVIEW_DIR="$REPO/.meta/multipass/visual-review/main"
 STATE_DIR="$REPO/.meta/multipass/visual-review"
+CAPTURE_DIR="${PEEKABOO_OUTPUT_DIR:-${TMPDIR:-/tmp}/in-sequence-captures/qa-${USER:-autocapture}}"
 LOCK_DIR="$STATE_DIR/.auto-capture.lock"
 LOG="$STATE_DIR/.auto-capture.log"
 
@@ -31,7 +32,7 @@ DEBOUNCE_SECONDS=120   # don't capture while source changed in the last 2 min
 
 log() { printf '%s %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*" >> "$LOG"; }
 
-mkdir -p "$REVIEW_DIR"
+mkdir -p "$STATE_DIR" "$CAPTURE_DIR"
 
 # --- single-instance lock (mkdir is atomic; reclaim if clearly stale) --------
 if ! mkdir "$LOCK_DIR" 2>/dev/null; then
@@ -53,7 +54,7 @@ if pgrep -f 'qa-surface-coverage.sh' >/dev/null 2>&1; then
 fi
 
 # --- newest capture PNG (the staleness baseline; absent => never captured) --
-newest_png=$(ls -t "$REVIEW_DIR"/*.png 2>/dev/null | head -1 || true)
+newest_png=$(ls -t "$CAPTURE_DIR"/*.png 2>/dev/null | head -1 || true)
 
 # --- staleness decision (cheap path) ----------------------------------------
 # Stop at the FIRST source file newer than the newest capture (`-print -quit`),
@@ -102,10 +103,19 @@ if ! DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
 fi
 
 # --- full capture sweep (no filter => purge + regenerate every surface) ------
-if SEQUENCER_AI_ALLOW_VISUAL_AUTOMATION=1 \
+if PEEKABOO_OUTPUT_DIR="$CAPTURE_DIR" \
    bash "$REPO/scripts/visual-scenarios/qa-surface-coverage.sh" >>"$LOG" 2>&1; then
-  log "capture sweep OK"
+  log "capture sweep OK: $CAPTURE_DIR"
 else
   log "capture sweep returned non-zero — will retry next tick"
+  exit 1
+fi
+
+if bug-reporter absorb-captures "$CAPTURE_DIR" \
+     --project in-sequence \
+     --source qa-surface-coverage >>"$LOG" 2>&1; then
+  log "bug-reporter absorb OK"
+else
+  log "bug-reporter absorb failed — captures remain in $CAPTURE_DIR"
   exit 1
 fi
