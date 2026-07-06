@@ -110,6 +110,7 @@ struct CreateTrackFlow: View {
         StudioModal(
             title: title,
             subtitle: subtitle,
+            showsTitleRule: false,
             minWidth: minWidth,
             minHeight: minHeight,
             onClose: onDismiss,
@@ -174,7 +175,7 @@ struct CreateTrackFlow: View {
         case .monoPolySound:
             return nil
         case .sliceSound:
-            return "Choose a loop. Slices are detected after the track opens."
+            return nil
         case .drumGroupSound:
             return nil
         }
@@ -260,6 +261,10 @@ struct CreateTrackFlow: View {
             title: title,
             accent: accent,
             minHeight: 120,
+            titleFontSize: 21,
+            horizontalAlignment: .center,
+            contentAlignment: .center,
+            centersText: true,
             isEnabled: isEnabled,
             disabledHelp: disabledHelp,
             help: help,
@@ -286,7 +291,7 @@ struct CreateTrackFlow: View {
                         // Rows commit on a single click (bug 20260610-100343):
                         // create the track, attach the AU, open the track.
                         ForEach(audioInstrumentChoices, id: \.id) { choice in
-                            StudioOptionButton(title: choice.displayName, accent: nil) {
+                            StudioOptionButton(title: choice.displayName, accent: StudioTheme.cyan) {
                                 createTrackWithAUInstrument(choice, trackType: trackType)
                             }
                         }
@@ -297,7 +302,7 @@ struct CreateTrackFlow: View {
 
             StudioOptionButton(
                 title: "Sampler",
-                accent: nil,
+                accent: StudioTheme.violet,
                 isEnabled: defaultSampleDestination != nil,
                 disabledHelp: "The sample library is empty",
                 help: "Use the sample engine with the first library sample"
@@ -308,8 +313,8 @@ struct CreateTrackFlow: View {
             }
 
             StudioOptionButton(
-                title: "Blank",
-                accent: nil,
+                title: "Leave Blank",
+                accent: StudioTheme.amber,
                 help: "Create the track without a sound destination"
             ) {
                 session.appendTrack(trackType: trackType)

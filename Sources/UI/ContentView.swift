@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 struct ContentView: View {
@@ -5,6 +6,7 @@ struct ContentView: View {
     @State private var section: WorkspaceSection = .tracks
     @State private var scenesResetToken = 0
     @State private var visualPhraseControlsOpenIndex: Int?
+    @State private var visualScenarioWindow: NSWindow?
     @State private var visualScenarioCommandTask: Task<Void, Never>?
     @Environment(SequencerDocumentSession.self) private var session
     @Environment(EngineController.self) private var engineController
@@ -48,6 +50,11 @@ struct ContentView: View {
                     .padding(.bottom, StudioMetrics.Spacing.tight)
             }
         }
+        .background(
+            VisualScenarioWindowReader { window in
+                visualScenarioWindow = window
+            }
+        )
         .onAppear {
             guard visualScenarioCommandTask == nil else { return }
             visualScenarioCommandTask = Task {
@@ -55,7 +62,8 @@ struct ContentView: View {
                     section: sectionBinding,
                     visualPhraseControlsOpenIndex: $visualPhraseControlsOpenIndex,
                     session: session,
-                    engineController: engineController
+                    engineController: engineController,
+                    owningWindow: { visualScenarioWindow }
                 )
             }
         }
@@ -63,5 +71,19 @@ struct ContentView: View {
             visualScenarioCommandTask?.cancel()
             visualScenarioCommandTask = nil
         }
+    }
+}
+
+private struct VisualScenarioWindowReader: NSViewRepresentable {
+    let onResolve: (NSWindow?) -> Void
+
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView(frame: .zero)
+        DispatchQueue.main.async { onResolve(view.window) }
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        DispatchQueue.main.async { onResolve(nsView.window) }
     }
 }

@@ -20,7 +20,7 @@ extension ScenesWorkspaceView {
         let sceneB = masterBus.scene(id: selection.sceneBID)
             ?? masterBus.scenes.first { $0.id != sceneA.id }
             ?? MasterBusScene.sceneB
-        StudioPanel(title: "", accent: StudioTheme.amber, showsHeader: false) {
+        StudioPanel(title: "", accent: StudioTheme.amber, showsHeader: false, contentPadding: 0) {
             HStack(alignment: .top, spacing: 0) {
                 performSlot(title: "Slot A", scene: sceneA, isA: true, isDominant: dominance.isADominant)
                     .frame(maxWidth: .infinity, alignment: .topLeading)

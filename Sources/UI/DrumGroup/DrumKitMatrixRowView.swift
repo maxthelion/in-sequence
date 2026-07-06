@@ -40,15 +40,15 @@ struct DrumKitMatrixRowView<DetailPanel: View>: View {
         }
         .padding(StudioMetrics.Spacing.compact)
         // Locked grammar (DECISION 2026-07-02): a part row — expanded or not —
-        // is a NEUTRAL-outlined sub-card inside the kit well: grey border, one
-        // neutral fill step, no second accent outline fighting the kit's.
+        // is a neutral outline directly on the kit well: no grey row fill and
+        // no second accent outline fighting the kit's.
         .background(
-            Color.white.opacity(StudioOpacity.subtleFill),
+            Color.clear,
             in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
         )
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+                .stroke(StudioTheme.border.opacity(StudioOpacity.softStroke), lineWidth: StudioMetrics.borderWidth)
         )
     }
 
@@ -110,7 +110,7 @@ struct DrumKitMatrixRowView<DetailPanel: View>: View {
                 .foregroundStyle(StudioTheme.mutedText)
                 .padding(.horizontal, 7)
                 .padding(.vertical, 4)
-                .background(Color.white.opacity(StudioOpacity.borderSubtle), in: Capsule())
+                .overlay(Capsule().stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth))
             Text(detail)
                 .studioText(.label)
                 .foregroundStyle(StudioTheme.mutedText)

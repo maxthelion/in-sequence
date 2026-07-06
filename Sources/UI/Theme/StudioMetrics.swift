@@ -52,6 +52,7 @@ enum StudioMetrics {
         static let roomy: CGFloat = 16
         static let loose: CGFloat = 18
         static let section: CGFloat = 20
+        static let workspaceInset: CGFloat = 10
         static let page: CGFloat = 24
     }
 

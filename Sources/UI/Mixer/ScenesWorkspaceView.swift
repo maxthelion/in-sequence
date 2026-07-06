@@ -99,7 +99,7 @@ struct ScenesWorkspaceView: View {
         // Standard workspace surface inset (matches Tracks/Mixer/Track/Drum):
         // the borderless scene-browser panel had no outer padding, so it sat
         // tighter to the left/top than the other pages.
-        .padding(StudioMetrics.Spacing.section)
+        .padding(StudioMetrics.Spacing.workspaceInset)
         .onAppear {
             selectedInsertID = selectedSceneID.flatMap { masterBus.scene(id: $0)?.inserts.first?.id }
         }
@@ -158,7 +158,7 @@ struct ScenesWorkspaceView: View {
     }
 
     private var sceneBrowser: some View {
-        StudioPanel(title: "", accent: StudioTheme.amber, showsHeader: false) {
+        StudioPanel(title: "", accent: StudioTheme.amber, showsHeader: false, contentPadding: 0) {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 10) {
                     Text("SCENES")
@@ -324,49 +324,49 @@ struct ScenesWorkspaceView: View {
         // The card body is tap-to-open (contentShape + tap gesture, matching
         // the Perform slot cards) rather than one big Button so the inline
         // duplicate/delete cluster stays independently clickable.
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 8) {
-                Text("\(sceneNumber)")
-                    .font(.system(size: 34, weight: .black, design: .rounded))
-                    .monospacedDigit()
-                    .foregroundStyle(scene.id == masterBus.activeSceneID ? StudioTheme.amber : StudioTheme.text)
-                    .frame(width: 42, alignment: .leading)
-                Spacer(minLength: 0)
-                sceneSlotBadges(scene.id, sceneNumber: sceneNumber)
-            }
+        let borderColor = sceneSlotBorderColor(scene.id)
+        let borderWidth: CGFloat = sceneHasSlotMembership(scene.id) || scene.id == masterBus.activeSceneID
+            ? 2
+            : StudioMetrics.borderWidth
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text(scene.name)
-                    .studioText(.bodyEmphasis)
-                    .foregroundStyle(StudioTheme.text)
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.72)
-            }
+        return ZStack(alignment: .center) {
+            Text("\(sceneNumber)")
+                .font(.system(size: 46, weight: .black, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(scene.id == masterBus.activeSceneID ? StudioTheme.amber : StudioTheme.text)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
 
-            sceneCardFXChips(scene)
-
-            Spacer(minLength: 0)
-
-            // Shared 24pt icon actions, same glyph/sizing grammar as the
-            // phrase-row action cluster (`StudioIconActionButton`).
-            HStack(spacing: 6) {
-                Spacer(minLength: 0)
-                StudioIconActionButton(
-                    systemImage: "plus.square.on.square",
-                    help: "New Scene From This"
-                ) {
-                    duplicateScene(from: scene.id)
+            VStack {
+                HStack {
+                    Spacer(minLength: 0)
+                    sceneSlotBadges(scene.id)
                 }
-                StudioIconActionButton(
-                    systemImage: "trash",
-                    isDisabled: masterBus.scenes.count <= 2,
-                    help: "Delete Scene"
-                ) {
-                    session.removeMasterBusScene(scene.id)
+
+                Spacer(minLength: 0)
+
+                HStack(alignment: .bottom, spacing: 8) {
+                    sceneCardFXChips(scene)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                    HStack(spacing: 6) {
+                        StudioIconActionButton(
+                            systemImage: "plus.square.on.square",
+                            help: "New Scene From This"
+                        ) {
+                            duplicateScene(from: scene.id)
+                        }
+                        StudioIconActionButton(
+                            systemImage: "trash",
+                            isDisabled: masterBus.scenes.count <= 2,
+                            help: "Delete Scene"
+                        ) {
+                            session.removeMasterBusScene(scene.id)
+                        }
+                    }
                 }
             }
         }
-        .frame(maxWidth: .infinity, minHeight: 132, alignment: .topLeading)
+        .frame(maxWidth: .infinity, minHeight: 132, alignment: .center)
         .padding(StudioMetrics.Spacing.comfortable)
         // Colour identifies, it never floods (ux-canon rule 12): the card
         // body stays neutral; the active scene reads from the amber
@@ -374,7 +374,7 @@ struct ScenesWorkspaceView: View {
         .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                .stroke(scene.id == masterBus.activeSceneID ? StudioTheme.amber : StudioTheme.border, lineWidth: scene.id == masterBus.activeSceneID ? 2 : StudioMetrics.borderWidth)
+                .stroke(borderColor, lineWidth: borderWidth)
         )
         .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
         .onTapGesture {
@@ -427,15 +427,32 @@ struct ScenesWorkspaceView: View {
     }
 
     @ViewBuilder
-    private func sceneSlotBadges(_ sceneID: UUID, sceneNumber: Int) -> some View {
+    private func sceneSlotBadges(_ sceneID: UUID) -> some View {
         HStack(spacing: 5) {
             if activeABSelection.sceneAID == sceneID {
-                slotBadge("A:\(sceneNumber)", accent: ScenePerformSlotPickerRequest.Slot.a.accent)
+                slotBadge("A", accent: ScenePerformSlotPickerRequest.Slot.a.accent)
             }
             if activeABSelection.sceneBID == sceneID {
-                slotBadge("B:\(sceneNumber)", accent: ScenePerformSlotPickerRequest.Slot.b.accent)
+                slotBadge("B", accent: ScenePerformSlotPickerRequest.Slot.b.accent)
             }
         }
+    }
+
+    private func sceneSlotBorderColor(_ sceneID: UUID) -> Color {
+        let isA = activeABSelection.sceneAID == sceneID
+        let isB = activeABSelection.sceneBID == sceneID
+        if isA && isB { return StudioTheme.amber }
+        if isA { return ScenePerformSlotPickerRequest.Slot.a.accent }
+        if isB { return ScenePerformSlotPickerRequest.Slot.b.accent }
+        return sceneID == masterBus.activeSceneID ? StudioTheme.amber : StudioTheme.border
+    }
+
+    private func sceneHasSlotMembership(_ sceneID: UUID) -> Bool {
+        activeABSelection.sceneAID == sceneID || activeABSelection.sceneBID == sceneID
+    }
+
+    private func sceneNumber(for sceneID: UUID) -> Int? {
+        masterBus.scenes.firstIndex { $0.id == sceneID }.map { $0 + 1 }
     }
 
     private func slotBadge(_ title: String, accent: Color) -> some View {
@@ -481,17 +498,10 @@ struct ScenesWorkspaceView: View {
 
     private var sceneEditorHeader: some View {
         HStack(alignment: .center, spacing: 14) {
-            TextField("Scene Name", text: sceneNameBinding(selectedScene.id, fallback: selectedScene.name))
-                .studioText(.title)
+            Text("\(sceneNumber(for: selectedScene.id) ?? 0)")
+                .font(.system(size: 38, weight: .black, design: .rounded))
+                .monospacedDigit()
                 .foregroundStyle(StudioTheme.text)
-                .textFieldStyle(.plain)
-                .frame(minWidth: 180, maxWidth: 420, alignment: .leading)
-                .padding(.vertical, 4)
-                .overlay(alignment: .bottomLeading) {
-                    Rectangle()
-                        .fill(StudioTheme.cyan)
-                        .frame(width: 36, height: 2)
-                }
 
             Spacer()
         }
@@ -663,9 +673,6 @@ struct ScenesWorkspaceView: View {
                     .tracking(0.8)
                     .foregroundStyle(StudioTheme.mutedText)
                 Spacer()
-                Text("\(selectedScene.macroBindings.count) / \(MasterSceneMacroBinding.slotCount)")
-                    .studioText(.eyebrowBold)
-                    .foregroundStyle(StudioTheme.cyan)
             }
 
             ScrollView(.horizontal, showsIndicators: false) {

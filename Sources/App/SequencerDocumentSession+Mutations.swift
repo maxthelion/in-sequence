@@ -1698,6 +1698,23 @@ extension SequencerDocumentSession {
         tracksSelection.removeAll()
     }
 
+    /// Duplicate selected navigator tracks. Track copy/paste is a document
+    /// mutation, so it uses the same project round-trip as append/remove.
+    @discardableResult
+    func duplicateTracks(ids: Set<UUID>) -> [UUID] {
+        guard !ids.isEmpty else { return [] }
+        let orderedIDs = store.tracks.map(\.id).filter { ids.contains($0) }
+        var createdIDs: [UUID] = []
+        batch(impact: .fullEngineApply, changed: .full) { s in
+            var p = s.exportToProject()
+            createdIDs = p.duplicateTracks(ids: orderedIDs)
+            s.importFromProject(p)
+        }
+        tracksSelection = Set(createdIDs)
+        tracksSelectionMode = !createdIDs.isEmpty
+        return createdIDs
+    }
+
     @discardableResult
     func armAudioInputTrack(
         trackID: UUID,
@@ -1793,6 +1810,20 @@ extension SequencerDocumentSession {
             p.addToGroup(trackID: newTrackID, groupID: groupID)
             s.importFromProject(p)
             createdTrackID = newTrackID
+        }
+        return createdTrackID
+    }
+
+    /// Add the first/default part to a drum group that may currently be empty.
+    /// This keeps the stress-test-oriented `addDrumPart(groupID:sampleSourceTrackID:)`
+    /// strict while giving the UI a real empty-kit affordance.
+    @discardableResult
+    func addDefaultDrumPart(groupID: TrackGroupID) -> UUID? {
+        var createdTrackID: UUID?
+        batch(impact: .fullEngineApply, changed: .full) { s in
+            var p = s.exportToProject()
+            createdTrackID = p.addDrumPart(groupID: groupID)
+            s.importFromProject(p)
         }
         return createdTrackID
     }

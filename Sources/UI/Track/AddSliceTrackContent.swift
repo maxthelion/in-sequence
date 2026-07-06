@@ -96,11 +96,6 @@ struct AddSliceTrackContent: View {
                             .foregroundStyle(StudioTheme.success)
                     }
                 }
-
-                Text(sampleDetail(sample))
-                    .studioText(.label)
-                    .foregroundStyle(StudioTheme.mutedText)
-                    .lineLimit(1)
             }
 
             Spacer(minLength: 12)
@@ -156,9 +151,4 @@ struct AddSliceTrackContent: View {
         previewingSampleID = sample.id
     }
 
-    private func sampleDetail(_ sample: AudioSample) -> String {
-        let length = sample.lengthSeconds.map { String(format: "%.2fs", $0) } ?? "--"
-        let rate = sample.sampleRate.map { String(format: "%.1fk", $0 / 1_000) } ?? "--"
-        return "\(sample.category.displayName) • \(length) • \(rate)"
-    }
 }

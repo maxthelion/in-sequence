@@ -177,7 +177,7 @@ struct TrackWorkspaceView: View {
                     }
                 }
             }
-            .padding(StudioMetrics.Spacing.section)
+            .padding(StudioMetrics.Spacing.workspaceInset)
         }
     }
 

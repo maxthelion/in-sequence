@@ -24,10 +24,6 @@ extension Project {
         library: AudioSampleLibrary = .shared,
         templateLookup: (UUID) -> PatternTemplate? = { DrumAssetLibrary.shared.template(id: $0) }
     ) -> TrackGroupID? {
-        guard !plan.members.isEmpty else {
-            return nil
-        }
-
         let groupID = TrackGroupID()
         var newTracks: [StepSequenceTrack] = []
         var newBanks: [TrackPatternBank] = []
@@ -125,6 +121,129 @@ extension Project {
             applyPatternTemplate(template, toGroup: groupID, slotIndex: 0)
         }
         return groupID
+    }
+
+    @discardableResult
+    mutating func addDrumPart(
+        groupID: TrackGroupID,
+        sampleSourceTrackID: UUID? = nil,
+        library: AudioSampleLibrary = .shared
+    ) -> UUID? {
+        guard let groupIndex = trackGroups.firstIndex(where: { $0.id == groupID }) else {
+            return nil
+        }
+
+        let group = trackGroups[groupIndex]
+        let tag = Self.nextDrumPartTag(for: group, tracks: tracks)
+        let memberNumber = group.memberIDs.count + 1
+        let destination = Self.drumPartDestination(
+            for: tag,
+            group: group,
+            sampleSourceTrackID: sampleSourceTrackID,
+            tracks: tracks,
+            library: library
+        )
+        let emptyPattern = Array(repeating: false, count: 16)
+        var track = StepSequenceTrack(
+            name: Self.defaultDrumPartName(for: tag, memberNumber: memberNumber),
+            trackType: .monoMelodic,
+            voiceTag: tag,
+            pitches: [DrumKitNoteMap.baselineNote],
+            stepPattern: emptyPattern,
+            destination: destination,
+            groupID: groupID,
+            velocity: StepSequenceTrack.default.velocity,
+            gateLength: StepSequenceTrack.default.gateLength
+        )
+        track.macros = Self.defaultMacroBindings(forVoiceTag: tag, trackID: track.id)
+
+        let clip = ClipPoolEntry(
+            id: UUID(),
+            name: track.name,
+            trackType: .monoMelodic,
+            content: .stepSequence(
+                stepPattern: emptyPattern,
+                pitches: [DrumKitNoteMap.baselineNote]
+            )
+        )
+
+        tracks.append(track)
+        clipPool.append(clip)
+        patternBanks.append(TrackPatternBank.default(for: track, initialClipID: clip.id))
+        trackGroups[groupIndex].memberIDs.append(track.id)
+
+        if case .midi = group.sharedDestination {
+            trackGroups[groupIndex].noteMapping[track.id] = Int(DrumKitNoteMap.note(for: tag)) - DrumKitNoteMap.baselineNote
+            trackGroups[groupIndex].channelMapping[track.id] = UInt8((memberNumber - 1) % 16)
+        }
+
+        if let busID = drumGroupBusID(for: group) {
+            setTrackOutputBus(trackID: track.id, busID: busID)
+        }
+
+        selectedTrackID = track.id
+        syncPhrasesWithTracks()
+        syncMacroLayers()
+        return track.id
+    }
+
+    private static func drumPartDestination(
+        for tag: VoiceTag,
+        group: TrackGroup,
+        sampleSourceTrackID: UUID?,
+        tracks: [StepSequenceTrack],
+        library: AudioSampleLibrary
+    ) -> Destination {
+        if let sampleSourceTrackID,
+           let source = tracks.first(where: { $0.id == sampleSourceTrackID }),
+           case .sample = source.destination {
+            return source.destination
+        }
+
+        if group.sharedDestination != nil {
+            return .inheritGroup
+        }
+
+        return defaultDestination(
+            forVoiceTag: tag,
+            fallbackPresetName: group.name,
+            library: library
+        )
+    }
+
+    private static func nextDrumPartTag(for group: TrackGroup, tracks: [StepSequenceTrack]) -> VoiceTag {
+        let preferredTags: [VoiceTag] = ["kick", "snare", "hat-closed", "clap", "tom-low", "tom-mid", "tom-high", "perc"]
+        let usedTags = Set(group.memberIDs.compactMap { memberID in
+            tracks.first(where: { $0.id == memberID })?.voiceTag
+        })
+        return preferredTags.first(where: { !usedTags.contains($0) }) ?? "perc"
+    }
+
+    private static func defaultDrumPartName(for tag: VoiceTag, memberNumber: Int) -> String {
+        switch tag {
+        case "kick":
+            return "Kick"
+        case "snare":
+            return "Snare"
+        case "hat-closed":
+            return "Hat"
+        case "clap":
+            return "Clap"
+        default:
+            return "Part \(memberNumber)"
+        }
+    }
+
+    private func drumGroupBusID(for group: TrackGroup) -> UUID? {
+        let routedMemberBusIDs = group.memberIDs.compactMap { memberID in
+            tracks.first(where: { $0.id == memberID })?.outputBusID
+        }
+        if let existingBusID = routedMemberBusIDs.first(where: { busID in
+            buses.contains(where: { $0.id == busID })
+        }) {
+            return existingBusID
+        }
+        return buses.first(where: { $0.name == group.name })?.id
     }
 
     /// Applies a pattern template to a drum group by tag matching:

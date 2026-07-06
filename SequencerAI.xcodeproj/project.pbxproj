@@ -53,6 +53,7 @@
 		1297D30DD6B295C596BB62AB /* TracksMatrixView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0097C26CE717B68546B671EB /* TracksMatrixView.swift */; };
 		12C8B40C8727B23FAFE343BA /* StudioRotaryKnob.swift in Sources */ = {isa = PBXBuildFile; fileRef = BED192E17DC2ADD0DA71B0ED /* StudioRotaryKnob.swift */; };
 		12DA27C506B5F683A3B90CA2 /* DAWNoteNameTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11163218F974CA992AF481FD /* DAWNoteNameTests.swift */; };
+		31D26E0A725148F5B5BD3006 /* StudioRightClickSelection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2535326EFBBD4F3A9E1CE4A7 /* StudioRightClickSelection.swift */; };
 		1342CBA6B5D09D1D3B63BFBE /* LookAheadSchedulingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D441332F084BAC300E713657 /* LookAheadSchedulingTests.swift */; };
 		13C0D20E24601C96D109A96C /* SequencerDocumentSession+QuantisedToggles.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9BBAAD034ECDE5FF5D85300 /* SequencerDocumentSession+QuantisedToggles.swift */; };
 		147CAA19D1A50CDA73254F69 /* BarPrecompute.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2A7C7A93A1BC018217A78D4 /* BarPrecompute.swift */; };
@@ -1933,6 +1934,7 @@
 		BEAE38966F93587582469B42 /* 2026-04-25-incremental-snapshot-compilation-remediation.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2026-04-25-incremental-snapshot-compilation-remediation.md"; sourceTree = "<group>"; };
 		BEB87BCC372BECFFFDA53634 /* Project+Diff.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Project+Diff.swift"; sourceTree = "<group>"; };
 		BED192E17DC2ADD0DA71B0ED /* StudioRotaryKnob.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudioRotaryKnob.swift; sourceTree = "<group>"; };
+		2535326EFBBD4F3A9E1CE4A7 /* StudioRightClickSelection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudioRightClickSelection.swift; sourceTree = "<group>"; };
 		BED2EDC78355F6AD45C38484 /* AudioInstrumentChoiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioInstrumentChoiceTests.swift; sourceTree = "<group>"; };
 		BEF04E0F267B1E5C723C9CD4 /* PhraseButtonControlPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhraseButtonControlPresentation.swift; sourceTree = "<group>"; };
 		BF325706CEDAFC71D36C9CE1 /* note.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = note.md; sourceTree = "<group>"; };
@@ -6876,6 +6878,7 @@
 				9F746B1B4B99A1410F789D27 /* StudioPanel.swift */,
 				4C2CB885ED3ACF8E063DBC46 /* StudioPlaceholderTile.swift */,
 				BED192E17DC2ADD0DA71B0ED /* StudioRotaryKnob.swift */,
+				2535326EFBBD4F3A9E1CE4A7 /* StudioRightClickSelection.swift */,
 				C18916AC07B911A25FF39A56 /* StudioSectionPills.swift */,
 				7CC99FECAEF3AD769EA4DC3E /* StudioSegmentedControls.swift */,
 				8BB0A9325317FC46B13699C1 /* StudioSlideControl.swift */,
@@ -7754,6 +7757,7 @@
 				388C598DEA25E7688CC8979B /* StudioPanel.swift in Sources */,
 				ACF1A1580F80D9E0CFC4EDE3 /* StudioPlaceholderTile.swift in Sources */,
 				12C8B40C8727B23FAFE343BA /* StudioRotaryKnob.swift in Sources */,
+				31D26E0A725148F5B5BD3006 /* StudioRightClickSelection.swift in Sources */,
 				4D27B6E063C712A84AD6567D /* StudioSectionPills.swift in Sources */,
 				0A43E32C374F1E8E21BED3FF /* StudioSegmentedControls.swift in Sources */,
 				DF3180258A4C6BED48B2EC80 /* StudioSlideControl.swift in Sources */,

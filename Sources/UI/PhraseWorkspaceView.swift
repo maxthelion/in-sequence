@@ -22,6 +22,8 @@ struct PhraseWorkspaceView: View {
     @State private var phraseLatchMode: TrackPerformLatchMode = .momentary
     @State private var phraseLatchLengthBars: Int?
     @State private var scalarDragBase: (phraseID: UUID, trackID: UUID, value: Double)?
+    @State private var phraseLayerSelection: Set<UUID> = []
+    @State private var copiedPhraseLayerCell: PhraseLayerCellClipboard?
 
     private let phraseColumnWidth: CGFloat = 118
     private let trackColumnWidth: CGFloat = 126
@@ -130,7 +132,8 @@ struct PhraseWorkspaceView: View {
         StudioPanel(
             title: "Phrase Matrix",
             accent: activeLayerAccent,
-            showsHeader: false
+            showsHeader: false,
+            contentPadding: 0
         ) {
             VStack(alignment: .leading, spacing: 8) {
                 // The phrase-local tab row sits ABOVE the perform-copy bar.
@@ -155,9 +158,9 @@ struct PhraseWorkspaceView: View {
             }
         }
         // Standard workspace surface inset (matches Tracks/Mixer/Track/Drum):
-        // every page roots its content at `.section` so the left/top gap from
-        // the nav chrome is identical across surfaces.
-        .padding(StudioMetrics.Spacing.section)
+        // every page roots its content at the shared workspace inset so the
+        // left/top/bottom gap from the nav chrome is identical across surfaces.
+        .padding(StudioMetrics.Spacing.workspaceInset)
         .sheet(item: $editingCellTarget) { target in
             PhraseCellEditorSheet(
                 target: target,
@@ -226,6 +229,9 @@ struct PhraseWorkspaceView: View {
         }
         .onChange(of: tracks.map(\.id)) {
             dismissInvalidEditorTarget()
+            phraseLayerSelection = phraseLayerSelection.filter { trackID in
+                tracks.contains { $0.id == trackID }
+            }
         }
         .onChange(of: layers.map(\.id)) {
             dismissInvalidEditorTarget()
@@ -590,13 +596,13 @@ struct PhraseWorkspaceView: View {
 
         return VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .top, spacing: 12) {
-                phraseSceneSlot(title: "Slot A", scene: sceneA, slot: .a, isDominant: crossfader < 0.5)
+                phraseSceneSlot(scene: sceneA, slot: .a, isDominant: crossfader < 0.5)
                     .frame(maxWidth: .infinity, alignment: .topLeading)
 
                 phraseSceneCrossfader(value: crossfader)
                     .frame(width: 180)
 
-                phraseSceneSlot(title: "Slot B", scene: sceneB, slot: .b, isDominant: crossfader > 0.5)
+                phraseSceneSlot(scene: sceneB, slot: .b, isDominant: crossfader > 0.5)
                     .frame(maxWidth: .infinity, alignment: .topLeading)
             }
         }
@@ -614,36 +620,17 @@ struct PhraseWorkspaceView: View {
     }
 
     private func phraseSceneSlot(
-        title: String,
         scene: MasterBusScene,
         slot: ScenePerformSlotPickerRequest.Slot,
         isDominant: Bool
     ) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .top, spacing: 10) {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(title.uppercased())
-                        .studioText(.micro)
-                        .tracking(0.8)
-                        .foregroundStyle(slot.accent)
-
-                    Text(scene.name)
-                        .studioText(.title)
-                        .foregroundStyle(StudioTheme.text)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                }
-
-                Spacer(minLength: 8)
-
-                Text("\(slot.shortTitle):\(sceneNumber(for: scene.id) ?? 0)")
-                    .studioText(.labelBold)
-                    .monospacedDigit()
-                    .foregroundStyle(StudioTheme.background)
-                    .padding(.horizontal, 9)
-                    .frame(height: 26)
-                    .background(slot.accent, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
-            }
+            Text("\(slot.shortTitle):\(sceneNumber(for: scene.id) ?? 0)")
+                .font(.system(size: 34, weight: .black, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(StudioTheme.background)
+                .frame(maxWidth: .infinity, minHeight: 58, alignment: .center)
+                .background(slot.accent, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
             .padding(StudioMetrics.Spacing.comfortable)
             .background(
                 Color.white.opacity(StudioOpacity.subtleFill),
@@ -943,19 +930,14 @@ struct PhraseWorkspaceView: View {
     }
 
     // Compact layer controls that live INSIDE the orange perform-copy bar on
-    // the LAYERS tab (bug 20260619-213241). Same PHRASE LAYER pill + VALUE /
-    // AUTOMATION cell tools as before, sized to share the bar's single line.
+    // the LAYERS tab. The selected layer pill carries the value context; copy /
+    // paste / automation live on the cells' right-click menu.
     @ViewBuilder
     private var shellLayerControls: some View {
         if phraseLayerEditMode == .byTrack {
             HStack(spacing: 8) {
                 phraseLayerSelectorButton
                     .frame(width: 132)
-
-                phraseCellToolButton(.value)
-                    .frame(width: 84)
-                phraseCellToolButton(.automation)
-                    .frame(width: 104)
             }
             .fixedSize(horizontal: true, vertical: false)
         }
@@ -1216,7 +1198,9 @@ struct PhraseWorkspaceView: View {
                 phraseSceneSlotPickerRequest = nil
             } else if let slot = ScenePerformSlotPickerRequest.Slot(rawValue: rawSlot) {
                 phraseTab = .scenes
-                phraseSceneSlotPickerRequest = ScenePerformSlotPickerRequest(slot: slot)
+                phraseSceneViewMode = .slots
+                setPhraseSceneCrossfader(slot == .a ? 0 : 1)
+                phraseSceneSlotPickerRequest = nil
             }
             postRenderedMatrixVisualState(isVisible: true)
             return
@@ -1305,6 +1289,19 @@ struct PhraseWorkspaceView: View {
         case .scalar:
             break
         }
+    }
+
+    private func handlePhraseLayerCellTap(on phraseID: UUID, trackID: UUID) {
+        let flags = NSEvent.modifierFlags
+        let isAdditiveSelection = flags.contains(.command)
+            || (flags.contains(.shift) && activeMatrixLayer?.valueType != .boolean)
+        if isAdditiveSelection {
+            selectPhraseLayerTrack(trackID, additive: !phraseLayerSelection.isEmpty)
+            session.setSelectedPhraseAndTrackID(phraseID: phraseID, trackID: trackID)
+            return
+        }
+
+        handleSingleTap(on: phraseID, trackID: trackID)
     }
 
     private func selectPatternSlot(_ slotIndex: Int, phraseID: UUID, trackID: UUID) {
@@ -1442,6 +1439,69 @@ struct PhraseWorkspaceView: View {
         )
     }
 
+    private var canPastePhraseLayerValue: Bool {
+        guard let copiedPhraseLayerCell, let activeMatrixLayer else {
+            return false
+        }
+        return copiedPhraseLayerCell.layerID == activeMatrixLayer.id
+    }
+
+    private func selectPhraseLayerTrack(_ trackID: UUID, additive: Bool) {
+        if !additive {
+            phraseLayerSelection.removeAll()
+        }
+        phraseLayerSelection.insert(trackID)
+        session.setSelectedTrackID(trackID)
+    }
+
+    private func phraseLayerSingleSelectionID(fallbackTrackID: UUID) -> UUID? {
+        if phraseLayerSelection.count == 1 {
+            return phraseLayerSelection.first
+        }
+        if phraseLayerSelection.isEmpty {
+            return fallbackTrackID
+        }
+        return nil
+    }
+
+    private func copyPhraseLayerValue(phrase: PhraseModel, trackID: UUID) {
+        guard let activeMatrixLayer else { return }
+        let inherited = inheritedDefaults(for: phrase.id)
+        copiedPhraseLayerCell = PhraseLayerCellClipboard(
+            layerID: activeMatrixLayer.id,
+            cell: .single(
+                phrase.resolvedValue(
+                    for: activeMatrixLayer,
+                    trackID: trackID,
+                    stepIndex: 0,
+                    inherited: inherited
+                )
+            )
+        )
+        selectPhraseLayerTrack(trackID, additive: phraseLayerSelection.contains(trackID))
+    }
+
+    private func pastePhraseLayerValue(phraseID: UUID, fallbackTrackID: UUID) {
+        guard let copiedPhraseLayerCell,
+              let activeMatrixLayer,
+              copiedPhraseLayerCell.layerID == activeMatrixLayer.id
+        else {
+            return
+        }
+
+        let scopedIDs = Set(scopedLayerTracks.map(\.id))
+        let targetIDs = phraseLayerSelection.isEmpty
+            ? [fallbackTrackID]
+            : scopedLayerTracks.map(\.id).filter { phraseLayerSelection.contains($0) && scopedIDs.contains($0) }
+        guard !targetIDs.isEmpty else { return }
+        session.setPhraseCell(
+            copiedPhraseLayerCell.cell,
+            layerID: activeMatrixLayer.id,
+            trackIDs: targetIDs,
+            phraseID: phraseID
+        )
+    }
+
     private func trackPageArrow(_ direction: PhraseMatrixPageDirection) -> some View {
         let presentation = matrixLayout.arrow(for: direction)
         let systemImage = direction == .previous ? "chevron.left" : "chevron.right"
@@ -1512,14 +1572,16 @@ struct PhraseWorkspaceView: View {
         return ScrollView(.vertical) {
             LazyVGrid(columns: columns, alignment: .leading, spacing: gridSpacing) {
                 ForEach(scopedLayerTracks, id: \.id) { track in
+                    let renderedCell = activeLayer.map { displayedPhrase.cell(for: $0.id, trackID: track.id) }
+                    let cellIsSelected = phraseLayerSelection.contains(track.id) || track.id == selectedTrackID
                     Group {
                         if let activeLayer {
                             PhraseGridCell(
                                 layer: activeLayer,
-                                cell: displayedPhrase.cell(for: activeLayer.id, trackID: track.id),
+                                cell: renderedCell ?? .inheritDefault,
                                 phrase: displayedPhrase,
                                 track: track,
-                                isSelected: track.id == selectedTrackID,
+                                isSelected: cellIsSelected,
                                 accent: accent,
                                 inherited: rowInherited,
                                 onSelectPatternSlot: { slotIndex in
@@ -1531,7 +1593,7 @@ struct PhraseWorkspaceView: View {
                                 selection: performanceLayerSelection,
                                 phrase: displayedPhrase,
                                 track: track,
-                                isSelected: track.id == selectedTrackID,
+                                isSelected: cellIsSelected,
                                 accent: accent
                             )
                         }
@@ -1542,12 +1604,42 @@ struct PhraseWorkspaceView: View {
                         PhraseGridCellTapModifier(
                             isEnabled: activeLayer.map(TrackPerformPatternMiniCellInteraction.shouldCycleFromCardBackground) ?? true
                         ) {
-                            handleSingleTap(on: displayedPhrase.id, trackID: track.id)
+                            handlePhraseLayerCellTap(on: displayedPhrase.id, trackID: track.id)
                         }
                     )
                     .simultaneousGesture(
                         scalarDragGesture(phrase: displayedPhrase, track: track, layer: activeLayer)
                     )
+                    .studioSelectOnRightClick {
+                        selectPhraseLayerTrack(track.id, additive: phraseLayerSelection.contains(track.id))
+                        session.setSelectedPhraseAndTrackID(phraseID: displayedPhrase.id, trackID: track.id)
+                    }
+                    .contextMenu {
+                        Button("Select") {
+                            selectPhraseLayerTrack(track.id, additive: false)
+                        }
+                        Button("Add to Selection") {
+                            selectPhraseLayerTrack(track.id, additive: true)
+                        }
+                        Divider()
+                        Button("Copy Value") {
+                            copyPhraseLayerValue(phrase: displayedPhrase, trackID: track.id)
+                        }
+                        if canPastePhraseLayerValue {
+                            Button("Paste Value") {
+                                pastePhraseLayerValue(phraseID: displayedPhrase.id, fallbackTrackID: track.id)
+                            }
+                        }
+                        if phraseLayerSingleSelectionID(fallbackTrackID: track.id) != nil {
+                            Divider()
+                            Button("Automation") {
+                                openCellEditor(
+                                    phraseID: displayedPhrase.id,
+                                    trackID: phraseLayerSingleSelectionID(fallbackTrackID: track.id) ?? track.id
+                                )
+                            }
+                        }
+                    }
                 }
             }
             .frame(maxWidth: .infinity)
@@ -2032,14 +2124,13 @@ struct SongWorkspaceView: View {
     }
 
     var body: some View {
-        StudioPanel(title: "Song", accent: StudioTheme.cyan, showsHeader: false) {
+        StudioPanel(title: "Song", accent: StudioTheme.cyan, showsHeader: false, contentPadding: 0) {
             VStack(alignment: .leading, spacing: 16) {
                 songHeader
                 phraseGrid
             }
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 10)
+        .padding(StudioMetrics.Spacing.workspaceInset)
         .accessibilityIdentifier("song-workspace")
     }
 
@@ -2272,6 +2363,11 @@ private enum PhraseCellTool: String, Equatable {
             return "Cell clicks open automation editing for the selected layer"
         }
     }
+}
+
+private struct PhraseLayerCellClipboard: Equatable {
+    let layerID: String
+    let cell: PhraseCell
 }
 
 enum PhraseLayerEditMode: String, CaseIterable, Identifiable {

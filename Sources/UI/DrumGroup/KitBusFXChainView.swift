@@ -91,6 +91,7 @@ struct KitBusFXChainView: View {
             label: "Add FX",
             accent: accent,
             minHeight: minHeight,
+            backgroundColor: StudioTheme.background.opacity(0.72),
             help: "Add FX"
         ) {
             onAddFX()

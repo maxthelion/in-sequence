@@ -99,7 +99,7 @@ struct TracksWorkspaceView: View {
             selectedLayerID: $selectedLayerID,
             onOpenTrack: onOpenTrack
         )
-        .padding(StudioMetrics.Spacing.section)
+        .padding(StudioMetrics.Spacing.workspaceInset)
     }
 }
 
@@ -118,6 +118,9 @@ struct TracksMatrixView: View {
     @State private var createTrackStep: CreateTrackFlowStep?
     /// Drives the delete confirmation for the selection-action bar.
     @State private var isConfirmingSelectionDelete = false
+    /// Transient track clipboard for navigator copy/paste. Stores IDs only;
+    /// Paste resolves them against the current document before duplicating.
+    @State private var copiedTrackIDs: Set<UUID> = []
     /// AC18: a linked drum kit collapses to ONE cell; an unlinked kit expands
     /// to its per-part cells (linked↔collapsed, unlinked↔expanded). The Expand
     /// affordance on a collapsed cell adds the group to this transient set,
@@ -127,11 +130,8 @@ struct TracksMatrixView: View {
     private let columns = StudioMetrics.Grid.matrixColumns(spacing: 12, minimum: 112, maximum: 190)
 
     private var groupedSections: [GroupedTrackSection] {
-        session.store.trackGroups.compactMap { group in
+        session.store.trackGroups.map { group in
             let members = session.store.tracksInGroup(group.id)
-            guard !members.isEmpty else {
-                return nil
-            }
             return GroupedTrackSection(group: group, members: members)
         }
     }
@@ -154,7 +154,8 @@ struct TracksMatrixView: View {
             StudioPanel(
                 title: "Tracks",
                 accent: StudioTheme.cyan,
-                showsHeader: false
+                showsHeader: false,
+                contentPadding: 0
             ) {
                 VStack(alignment: .leading, spacing: 18) {
                     selectionTopBar(trackCount: tracks.count)
@@ -200,6 +201,11 @@ struct TracksMatrixView: View {
     /// status (set when the command is applied); this just sets the @State so
     /// the sheet renders at the requested step.
     private func applyModalVisualCommand(_ command: String) {
+        if command == "copy-selection" {
+            copyTracksSelection()
+            return
+        }
+
         switch CreateTrackFlowStep.action(forVisualCommand: command) {
         case .present(let step):
             createTrackStep = step
@@ -249,6 +255,20 @@ struct TracksMatrixView: View {
 
                 Divider()
                     .frame(height: 22)
+
+                selectionActionButton(
+                    title: "Copy",
+                    accent: StudioTheme.cyan,
+                    identifier: "tracks-action-copy"
+                ) { copyTracksSelection() }
+
+                if canPasteTracks {
+                    selectionActionButton(
+                        title: "Paste",
+                        accent: StudioTheme.cyan,
+                        identifier: "tracks-action-paste"
+                    ) { pasteCopiedTracks() }
+                }
 
                 // Peer toggles share the ONE surface accent (cyan, the tracks
                 // navigator accent) — purple-vs-cyan here was accent roulette
@@ -336,6 +356,12 @@ struct TracksMatrixView: View {
         .help("Clear selection")
     }
 
+    private var canPasteTracks: Bool {
+        !copiedTrackIDs.isEmpty && copiedTrackIDs.contains { copiedID in
+            session.store.tracks.contains { $0.id == copiedID }
+        }
+    }
+
     /// A compact selection action button. By Track / By Value navigate to the
     /// phrase Layers surface with the selected tracks preloaded as scope.
     private func selectionActionButton(
@@ -394,6 +420,41 @@ struct TracksMatrixView: View {
             layerEditMode: mode,
             trackIDs: session.tracksSelection
         )
+    }
+
+    private func copyTracksSelection() {
+        copiedTrackIDs = session.tracksSelection
+    }
+
+    private func copySingleTrack(_ trackID: UUID) {
+        copiedTrackIDs = [trackID]
+    }
+
+    private func pasteCopiedTracks() {
+        let liveIDs = Set(session.store.tracks.map(\.id))
+        let resolvedIDs = copiedTrackIDs.intersection(liveIDs)
+        guard !resolvedIDs.isEmpty else { return }
+        let createdIDs = session.duplicateTracks(ids: resolvedIDs)
+        copiedTrackIDs = Set(createdIDs)
+    }
+
+    private func selectTrackForActions(_ trackID: UUID, additive: Bool = false) {
+        session.tracksSelectionMode = true
+        if !additive {
+            session.tracksSelection.removeAll()
+        }
+        session.tracksSelection.insert(trackID)
+        session.setSelectedTrackID(trackID)
+    }
+
+    private func selectTracksForActions(_ trackIDs: [UUID], additive: Bool = false) {
+        guard let firstTrackID = trackIDs.first else { return }
+        session.tracksSelectionMode = true
+        if !additive {
+            session.tracksSelection.removeAll()
+        }
+        trackIDs.forEach { session.tracksSelection.insert($0) }
+        session.setSelectedTrackID(firstTrackID)
     }
 
     /// One flat navigator grid: ungrouped track cells, then each kit (a single
@@ -466,9 +527,23 @@ struct TracksMatrixView: View {
             isFocused: section.members.contains { $0.id == selectedTrackID },
             isSelectionMode: session.tracksSelectionMode,
             isSelected: kitSelected,
+            onSelectKit: {
+                selectTracksForActions(memberIDs, additive: kitSelected)
+            },
+            onCopyKit: {
+                copiedTrackIDs = Set(memberIDs)
+            },
+            onAddPart: {
+                if let createdID = session.addDefaultDrumPart(groupID: section.group.id) {
+                    session.setSelectedTrackID(createdID)
+                    onOpenTrack()
+                }
+            },
             onOpenKit: {
                 if session.tracksSelectionMode {
                     session.toggleTracksSelected(memberIDs)
+                } else if NSApp.currentEvent?.modifierFlags.contains(.shift) == true {
+                    selectTracksForActions(memberIDs, additive: !session.tracksSelection.isEmpty)
                 } else if let representativeTrackID {
                     session.setSelectedTrackID(representativeTrackID)
                     onOpenTrack()
@@ -495,10 +570,18 @@ struct TracksMatrixView: View {
             isSelected: session.tracksSelection.contains(track.id),
             onToggleMute: {
                 session.toggleTrackMute(trackID: track.id)
+            },
+            onContextSelect: {
+                selectTrackForActions(track.id, additive: session.tracksSelection.contains(track.id))
+            },
+            onContextCopy: {
+                copySingleTrack(track.id)
             }
         ) {
             if session.tracksSelectionMode {
                 session.toggleTrackSelected(track.id)
+            } else if NSApp.currentEvent?.modifierFlags.contains(.shift) == true {
+                selectTrackForActions(track.id, additive: !session.tracksSelection.isEmpty)
             } else {
                 session.setSelectedTrackID(track.id)
                 onOpenTrack()
@@ -549,6 +632,9 @@ private struct KitMatrixCard: View {
     let isFocused: Bool
     var isSelectionMode: Bool = false
     var isSelected: Bool = false
+    let onSelectKit: () -> Void
+    let onCopyKit: () -> Void
+    let onAddPart: () -> Void
     let onOpenKit: () -> Void
     let onToggleExpand: () -> Void
 
@@ -574,7 +660,7 @@ private struct KitMatrixCard: View {
                         .foregroundStyle(isSelected ? accent : StudioTheme.mutedText)
                         .frame(width: 26, height: 26)
                         .accessibilityIdentifier("kit-card-select-mark")
-                } else {
+                } else if isCollapsed {
                     // The expand/collapse affordance lives ON the cell.
                     Button(action: onToggleExpand) {
                         Image(systemName: isCollapsed
@@ -591,13 +677,26 @@ private struct KitMatrixCard: View {
                     .help(isCollapsed
                         ? "Expand \(group.name) to its per-part cells"
                         : "Collapse \(group.name) back to one cell")
+                } else {
+                    Button(action: onToggleExpand) {
+                        Image(systemName: "arrow.down.right.and.arrow.up.left")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(accent)
+                            .frame(width: 26, height: 26)
+                            .overlay(Circle().stroke(accent.opacity(StudioOpacity.accentStroke), lineWidth: StudioMetrics.borderWidth))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("kit-collapse")
+                    .help("Collapse \(group.name) back to one cell")
                 }
             }
 
             // The contained parts shown as small cells inside the kit cell, for
             // indication, while collapsed. When expanded they live in the grid
             // as sibling cells instead, so the strip is hidden.
-            if isCollapsed, !partNames.isEmpty {
+            if partNames.isEmpty {
+                emptyPartAction
+            } else if isCollapsed {
                 partThumbnailStrip
             }
 
@@ -634,13 +733,53 @@ private struct KitMatrixCard: View {
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
                 .stroke(
-                    isSelected ? accent : (isFocused ? accent.opacity(StudioOpacity.accentFill) : StudioTheme.border),
+                    isSelected ? accent : accent.opacity(isFocused ? 0.86 : StudioOpacity.accentStroke),
                     lineWidth: (isSelected || isFocused) ? 2 : StudioMetrics.borderWidth
                 )
         )
         .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
         .onTapGesture(perform: onOpenKit)
+        .studioSelectOnRightClick {
+            onSelectKit()
+        }
+        .contextMenu {
+            Button("Select") {
+                onSelectKit()
+            }
+            Button("Copy") {
+                onCopyKit()
+            }
+            if partNames.isEmpty {
+                Button("Add Part") {
+                    onAddPart()
+                }
+            }
+            Divider()
+            Button(isCollapsed ? "Expand" : "Collapse") {
+                onToggleExpand()
+            }
+        }
         .accessibilityIdentifier("kit-collapsed-cell")
+    }
+
+    private var emptyPartAction: some View {
+        Button(action: onAddPart) {
+            HStack(spacing: 8) {
+                Image(systemName: "plus.circle.fill")
+                    .font(.system(size: 14, weight: .semibold))
+                Text("Add Part")
+                    .studioText(.microEmphasis)
+                    .tracking(0.8)
+            }
+            .foregroundStyle(accent)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 8)
+            .background(accent.opacity(StudioOpacity.accentFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous).stroke(accent.opacity(StudioOpacity.accentStroke), lineWidth: StudioMetrics.borderWidth))
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("kit-add-first-part")
+        .help("Add the first part to \(group.name)")
     }
 
     /// The contained part tracks rendered as small nested cells inside the kit
@@ -818,6 +957,8 @@ private struct TrackMatrixCard: View {
     var isSelectionMode: Bool = false
     var isSelected: Bool = false
     let onToggleMute: () -> Void
+    let onContextSelect: () -> Void
+    let onContextCopy: () -> Void
     let onTap: () -> Void
 
     // Identity hue (bug 20260629-100436): a grouped part shares its kit's hue so
@@ -850,22 +991,14 @@ private struct TrackMatrixCard: View {
                         .foregroundStyle(isSelected ? accent : StudioTheme.mutedText)
                         .frame(width: 26, height: 26)
                         .accessibilityIdentifier("track-card-select-mark")
-                } else {
-                    // A tiny mute toggle is the only control on the tile.
-                    Button(action: onToggleMute) {
-                        Image(systemName: isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundStyle(isMuted ? StudioTheme.background : StudioTheme.mutedText)
-                            .frame(width: 26, height: 26)
-                            .background(
-                                isMuted ? StudioTheme.amber : Color.white.opacity(StudioOpacity.subtleFill),
-                                in: Circle()
-                            )
-                            .overlay(Circle().stroke(isMuted ? StudioTheme.amber : StudioTheme.border, lineWidth: StudioMetrics.borderWidth))
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("track-card-mute")
-                    .help(isMuted ? "Unmute \(track.name)" : "Mute \(track.name)")
+                } else if isMuted {
+                    Image(systemName: "speaker.slash.fill")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(StudioTheme.background)
+                        .frame(width: 26, height: 26)
+                        .background(StudioTheme.amber, in: Circle())
+                        .overlay(Circle().stroke(StudioTheme.amber, lineWidth: StudioMetrics.borderWidth))
+                        .accessibilityIdentifier("track-card-muted")
                 }
             }
 
@@ -902,12 +1035,26 @@ private struct TrackMatrixCard: View {
         .onTapGesture {
             onTap()
         }
+        .studioSelectOnRightClick {
+            onContextSelect()
+        }
+        .contextMenu {
+            Button("Select") {
+                onContextSelect()
+            }
+            Button("Copy") {
+                onContextCopy()
+            }
+            Divider()
+            Button(isMuted ? "Unmute" : "Mute") {
+                onToggleMute()
+            }
+        }
     }
 
     private var strokeColor: Color {
         if isSelected { return accent }
-        if isFocused { return accent.opacity(StudioOpacity.accentFill) }
-        return StudioTheme.border
+        return accent.opacity(isFocused ? 0.86 : StudioOpacity.accentStroke)
     }
 
     private var strokeWidth: CGFloat {

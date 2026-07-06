@@ -7,6 +7,7 @@ struct StudioModal<Content: View, HeaderAccessory: View>: View {
     let title: String
     var subtitle: String? = nil
     var accent: Color = StudioTheme.cyan
+    var showsTitleRule = true
     var minWidth: CGFloat = 480
     var minHeight: CGFloat? = nil
     var onClose: () -> Void
@@ -34,9 +35,11 @@ struct StudioModal<Content: View, HeaderAccessory: View>: View {
                         .font(.system(size: 22, weight: .bold, design: .rounded))
                         .foregroundStyle(StudioTheme.text)
 
-                    Rectangle()
-                        .fill(accent)
-                        .frame(width: 36, height: 2)
+                    if showsTitleRule {
+                        Rectangle()
+                            .fill(accent)
+                            .frame(width: 36, height: 2)
+                    }
                 }
 
                 if let subtitle {
@@ -62,6 +65,7 @@ extension StudioModal where HeaderAccessory == EmptyView {
         title: String,
         subtitle: String? = nil,
         accent: Color = StudioTheme.cyan,
+        showsTitleRule: Bool = true,
         minWidth: CGFloat = 480,
         minHeight: CGFloat? = nil,
         onClose: @escaping () -> Void,
@@ -71,6 +75,7 @@ extension StudioModal where HeaderAccessory == EmptyView {
             title: title,
             subtitle: subtitle,
             accent: accent,
+            showsTitleRule: showsTitleRule,
             minWidth: minWidth,
             minHeight: minHeight,
             onClose: onClose,

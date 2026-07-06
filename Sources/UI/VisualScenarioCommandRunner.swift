@@ -82,6 +82,8 @@ enum VisualScenarioCommandRunner {
     private static var drumKitMatrixOriginatingPartID: UUID?
     private static var drumKitMatrixDisplayStepCount = 16
     private static var isObservingRenderedMatrixState = false
+    private static var lastAppliedVisualCommandID = "none"
+    private static weak var commandChannelWindow: NSWindow?
 
     // MARK: - Command-channel ownership (single-driver protocol)
 
@@ -119,6 +121,7 @@ enum VisualScenarioCommandRunner {
         commandChannelOwnershipLock.lock()
         defer { commandChannelOwnershipLock.unlock() }
         commandChannelOwned = false
+        commandChannelWindow = nil
     }
 
     /// True when a command file is configured — i.e. the app is being driven
@@ -135,7 +138,8 @@ enum VisualScenarioCommandRunner {
         section: Binding<WorkspaceSection>,
         visualPhraseControlsOpenIndex: Binding<Int?>,
         session: SequencerDocumentSession,
-        engineController: EngineController
+        engineController: EngineController,
+        owningWindow: @MainActor @escaping () -> NSWindow?
     ) async {
         // The command-file path is exported via `launchctl setenv` (global),
         // so XCTest host apps spawning during a capture run inherit it and
@@ -160,6 +164,7 @@ enum VisualScenarioCommandRunner {
             )
             return
         }
+        commandChannelWindow = owningWindow()
         defer { releaseCommandChannelOwnership() }
         NSLog("[VisualScenarioCommandRunner] watching command file %@", rawPath)
 
@@ -346,6 +351,10 @@ enum VisualScenarioCommandRunner {
                 session.toggleTrackSelected(trackID)
             }
         }
+        if command["tracksPrimeClipboard"] == "true" {
+            pendingTracksMatrixCommands.append("copy-selection")
+            postRepeatedVisualCommand(name: .tracksMatrixVisualCommand, object: "copy-selection")
+        }
         // Drive the tracks actions nav: stash the selection as the perform
         // scope and request navigation to Phrase Layers, exactly as the By
         // Track / By Value buttons do. `WorkspaceDetailView` and
@@ -512,6 +521,10 @@ enum VisualScenarioCommandRunner {
             if !plan.members.isEmpty {
                 _ = session.addDrumGroup(plan: plan)
             }
+        }
+
+        if let commandID = command["visualCommandID"], !commandID.isEmpty {
+            lastAppliedVisualCommandID = commandID
         }
     }
 
@@ -1052,6 +1065,7 @@ enum VisualScenarioCommandRunner {
             ? ScenesWorkspaceMode.browseEdit
             : session.workspaceMode.scenesModeValue
         let status: String = """
+        visualCommandID=\(lastAppliedVisualCommandID)
         workspace=\(section.rawValue)
         workspaceMode=\(session.workspaceMode.rawValue)
         tracksMode=\(session.workspaceMode.tracksModeValue.rawValue)
@@ -1932,6 +1946,17 @@ enum VisualScenarioCommandRunner {
             NotificationCenter.default.post(name: .drumKitMatrixVisualCommand, object: "close-template-chooser")
         default:
             break
+        }
+
+        if let rawMembership = command["drumKitSceneMembership"],
+           let membership = TrackMixSettings.SceneMembership(rawValue: rawMembership),
+           let model = currentDrumKitMatrixModel(session: session) {
+            let memberIDs = Set(model.rows.map(\.memberID))
+            for track in session.store.tracks where memberIDs.contains(track.id) {
+                var mix = track.mix
+                mix.sceneMembership = membership
+                session.setTrackMix(trackID: track.id, mix: mix)
+            }
         }
 
         if let mutation = command["drumKitMatrixMutation"] {
@@ -3249,10 +3274,14 @@ enum VisualScenarioCommandRunner {
             .split(separator: ",")
             .compactMap { Double($0.trimmingCharacters(in: .whitespacesAndNewlines)) }
         guard values.count == 4,
-              let window = NSApplication.shared.windows.first(where: { $0.isVisible })
+              let window = commandChannelWindow
+                ?? NSApplication.shared.keyWindow
+                ?? NSApplication.shared.windows.first(where: { $0.isVisible })
                 ?? NSApplication.shared.windows.first
         else { return }
 
+        NSApplication.shared.activate(ignoringOtherApps: true)
+        window.makeKeyAndOrderFront(nil)
         window.setFrame(
             NSRect(x: values[0], y: values[1], width: values[2], height: values[3]),
             display: true

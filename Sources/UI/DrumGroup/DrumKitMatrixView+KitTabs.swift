@@ -133,8 +133,6 @@ extension DrumKitMatrixView {
     @ViewBuilder
     func kitMacrosTabBody(_ model: DrumKitMatrixModel) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            kitNotYetFunctionalBadge("Kit-wide macro sweeps coming soon")
-
             let slots = kitMacroSlots(model)
             LazyVGrid(columns: Self.macroColumns, alignment: .leading, spacing: 14) {
                 ForEach(slots) { slot in
@@ -148,8 +146,6 @@ extension DrumKitMatrixView {
                 }
             }
             .padding(.vertical, 4)
-            .opacity(0.55)
-            .allowsHitTesting(false)
         }
     }
 
@@ -192,13 +188,18 @@ extension DrumKitMatrixView {
 
     // MARK: - Kit Mixer tab (AC23: bus output + sends + per-part levels)
 
-    /// Mixer tab: the kit bus output (→ its destination) plus Send A/B summary.
-    /// This mirrors the minimal normal-track mixer grammar — bus output + sends.
+    /// Mixer tab: the kit bus output (→ its destination) plus scene routing.
+    /// This mirrors the normal-track mixer grammar without presenting unwired
+    /// Send A/B placeholders as finished controls.
     /// Per-part levels live on each member's accordion mixer mini-tab, not here.
     /// Full bus-strip editing is reachable from the global Mixer.
     @ViewBuilder
     func kitMixerTabBody(_ model: DrumKitMatrixModel) -> some View {
-        kitBusOutputRow(model)
+        HStack(alignment: .top, spacing: 20) {
+            kitBusOutputRow(model)
+            kitSceneMembershipSelector(model)
+            Spacer(minLength: 0)
+        }
     }
 
     func kitBusOutputRow(_ model: DrumKitMatrixModel) -> some View {
@@ -221,30 +222,64 @@ extension DrumKitMatrixView {
                 .background(accent, in: Capsule())
 
             Spacer(minLength: 0)
-
-            kitSendBadge("A")
-            kitSendBadge("B")
         }
     }
 
-    /// Decorative Send A/B badge. The kit-bus send routing is not wired yet, so
-    /// it reads as a dimmed "soon" affordance rather than a finished control.
-    func kitSendBadge(_ label: String) -> some View {
-        HStack(spacing: 4) {
-            Text("Send \(label)")
-                .studioText(.label)
-            Text("soon")
+    func kitSceneMembershipSelector(_ model: DrumKitMatrixModel) -> some View {
+        let selectedMembership = kitSceneMembership(model)
+        return VStack(alignment: .leading, spacing: 6) {
+            Text("SCENE")
                 .studioText(.micro)
-                .foregroundStyle(StudioTheme.mutedText.opacity(0.7))
+                .tracking(0.8)
+                .foregroundStyle(StudioTheme.mutedText)
+
+            HStack(spacing: 6) {
+                ForEach(TrackMixSettings.SceneMembership.allCases, id: \.self) { membership in
+                    let isSelected = selectedMembership == membership
+                    Button {
+                        commitKitSceneMembership(membership, model: model)
+                    } label: {
+                        Text(membership.shortLabel)
+                            .studioText(.labelBold)
+                            .foregroundStyle(isSelected ? StudioTheme.background : StudioTheme.text)
+                            .frame(minWidth: 38)
+                            .padding(.vertical, 8)
+                            .padding(.horizontal, 8)
+                            .background(
+                                isSelected ? accent : Color.white.opacity(StudioOpacity.subtleFill),
+                                in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                                    .stroke(isSelected ? Color.clear : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+                            )
+                    }
+                    .buttonStyle(.plain)
+                    .help(membership.label)
+                }
+            }
+            .help("\(model.groupName) scene membership")
+            .accessibilityIdentifier("kit-routing-scene-membership")
+            .accessibilityLabel("\(model.groupName) scene membership")
+            .accessibilityValue(selectedMembership?.label ?? "Mixed")
         }
-        .foregroundStyle(StudioTheme.mutedText.opacity(0.6))
-        .padding(.horizontal, 9)
-        .padding(.vertical, 5)
-        .background(Color.white.opacity(StudioOpacity.subtleFill * 0.6), in: Capsule())
-        .overlay(
-            Capsule().stroke(StudioTheme.border.opacity(0.6), style: StrokeStyle(lineWidth: StudioMetrics.borderWidth, dash: [3, 3]))
-        )
-        .help("Kit-bus sends are not yet functional")
+    }
+
+    func kitSceneMembership(_ model: DrumKitMatrixModel) -> TrackMixSettings.SceneMembership? {
+        let tracksByID = Dictionary(uniqueKeysWithValues: session.store.tracks.map { ($0.id, $0) })
+        let memberships = Set(model.rows.compactMap { row in
+            tracksByID[row.memberID]?.mix.sceneMembership
+        })
+        return memberships.count == 1 ? memberships.first : nil
+    }
+
+    func commitKitSceneMembership(_ membership: TrackMixSettings.SceneMembership, model: DrumKitMatrixModel) {
+        let memberIDs = Set(model.rows.map(\.memberID))
+        for track in session.store.tracks where memberIDs.contains(track.id) {
+            var mix = track.mix
+            mix.sceneMembership = membership
+            session.setTrackMix(trackID: track.id, mix: mix)
+        }
     }
 
     func kitPartLevelRow(_ row: DrumKitMatrixModel.Row) -> some View {
@@ -271,7 +306,7 @@ extension DrumKitMatrixView {
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 8)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+        .background(Color.clear, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
                 .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)

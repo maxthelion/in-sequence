@@ -12,6 +12,7 @@ struct StudioPanel<Content: View, Accessory: View>: View {
     var eyebrow: String? = nil
     var accent: Color = StudioTheme.cyan
     var showsHeader = true
+    var contentPadding: CGFloat = StudioMetrics.Spacing.loose
     let content: Content
     let accessory: Accessory
 
@@ -20,6 +21,7 @@ struct StudioPanel<Content: View, Accessory: View>: View {
         eyebrow: String? = nil,
         accent: Color = StudioTheme.cyan,
         showsHeader: Bool = true,
+        contentPadding: CGFloat = StudioMetrics.Spacing.loose,
         @ViewBuilder content: () -> Content,
         @ViewBuilder accessory: () -> Accessory
     ) {
@@ -27,6 +29,7 @@ struct StudioPanel<Content: View, Accessory: View>: View {
         self.eyebrow = eyebrow
         self.accent = accent
         self.showsHeader = showsHeader
+        self.contentPadding = contentPadding
         self.content = content()
         self.accessory = accessory()
     }
@@ -62,7 +65,7 @@ struct StudioPanel<Content: View, Accessory: View>: View {
 
             content
         }
-        .padding(StudioMetrics.Spacing.loose)
+        .padding(contentPadding)
         // Bold-flat pass: a panel is pure grouping — no fill at all. Content
         // sits directly on the single near-black ground; the header rule and
         // spacing do the separating.
@@ -75,6 +78,7 @@ extension StudioPanel where Accessory == EmptyView {
         eyebrow: String? = nil,
         accent: Color = StudioTheme.cyan,
         showsHeader: Bool = true,
+        contentPadding: CGFloat = StudioMetrics.Spacing.loose,
         @ViewBuilder content: () -> Content
     ) {
         self.init(
@@ -82,6 +86,7 @@ extension StudioPanel where Accessory == EmptyView {
             eyebrow: eyebrow,
             accent: accent,
             showsHeader: showsHeader,
+            contentPadding: contentPadding,
             content: content,
             accessory: { EmptyView() }
         )

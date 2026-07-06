@@ -47,8 +47,6 @@ struct AddDrumGroupContent: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: StudioMetrics.Spacing.roomy) {
                     soundsSection
-                    patternsSection
-                    routingSection
                 }
             }
             .scrollIndicators(.never)
@@ -87,7 +85,8 @@ struct AddDrumGroupContent: View {
     private var soundsSection: some View {
         StudioPanel(
             title: "Sounds",
-            accent: Self.surfaceAccent
+            accent: Self.surfaceAccent,
+            showsHeader: false
         ) {
             VStack(alignment: .leading, spacing: StudioMetrics.Spacing.comfortable) {
                 kitPickerRow
@@ -527,12 +526,27 @@ struct AddDrumGroupContent: View {
 
             // Primary action carries the surface accent — success-green is a
             // fenced state colour, not an action fill.
-            Button("Create Group") {
+            Button {
                 onCreate(plan)
+            } label: {
+                HStack(spacing: 7) {
+                    Image(systemName: "plus")
+                        .font(.system(size: 11, weight: .black))
+                    Text("Create Group")
+                        .studioText(.microEmphasis)
+                        .tracking(0.8)
+                }
+                .foregroundStyle(StudioTheme.background)
+                .frame(height: 32)
+                .padding(.horizontal, 14)
+                .background(Self.surfaceAccent, in: Capsule())
+                .overlay(
+                    Capsule().stroke(Self.surfaceAccent, lineWidth: StudioMetrics.borderWidth)
+                )
             }
-            .buttonStyle(.borderedProminent)
-            .tint(Self.surfaceAccent)
-            .disabled(plan.members.isEmpty)
+            .buttonStyle(.plain)
+            .help("Create drum group")
+            .accessibilityIdentifier("add-drum-group-create")
         }
     }
 

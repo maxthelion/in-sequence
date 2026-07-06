@@ -13,6 +13,10 @@ struct StudioOptionButton: View {
     /// explicit `nil` for a deliberately neutral action card in a pick list.
     let accent: Color?
     var minHeight: CGFloat? = nil
+    var titleFontSize: CGFloat = 15
+    var horizontalAlignment: HorizontalAlignment = .leading
+    var contentAlignment: Alignment = .topLeading
+    var centersText: Bool = false
     var isEnabled: Bool = true
     var disabledHelp: String = ""
     /// Tooltip while enabled (`disabledHelp` covers the disabled state). Use
@@ -22,10 +26,11 @@ struct StudioOptionButton: View {
 
     var body: some View {
         Button(action: action) {
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: horizontalAlignment, spacing: 6) {
                 Text(title)
-                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                    .font(.system(size: titleFontSize, weight: .bold, design: .rounded))
                     .foregroundStyle(StudioTheme.text)
+                    .multilineTextAlignment(centersText ? .center : .leading)
 
                 if !detail.isEmpty {
                     Text(detail)
@@ -34,7 +39,7 @@ struct StudioOptionButton: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
-            .frame(maxWidth: .infinity, minHeight: minHeight, alignment: .topLeading)
+            .frame(maxWidth: .infinity, minHeight: minHeight, alignment: contentAlignment)
             .padding(StudioMetrics.Spacing.standard)
             .background(fill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
             .overlay(
@@ -120,6 +125,7 @@ struct StudioAddCard: View {
     let label: String
     var accent: Color = StudioTheme.success
     var minHeight: CGFloat = 132
+    var backgroundColor: Color = Color.white.opacity(StudioOpacity.subtleFill)
     var help: String = ""
     let action: () -> Void
 
@@ -142,7 +148,7 @@ struct StudioAddCard: View {
             }
             .frame(maxWidth: .infinity, minHeight: minHeight)
             .padding(StudioMetrics.Spacing.comfortable)
-            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
+            .background(backgroundColor, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
                     .stroke(accent.opacity(StudioOpacity.hoverFill), style: StrokeStyle(lineWidth: StudioMetrics.borderWidth, dash: Self.dashPattern))

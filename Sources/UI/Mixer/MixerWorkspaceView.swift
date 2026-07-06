@@ -17,11 +17,11 @@ struct MixerWorkspaceView: View {
             VStack(alignment: .leading, spacing: 18) {
                 // The top-nav pill already names this page; the panel renders
                 // no header of its own (ux-canon rule 1).
-                StudioPanel(title: "Mixer", accent: StudioTheme.cyan, showsHeader: false) {
+                StudioPanel(title: "Mixer", accent: StudioTheme.cyan, showsHeader: false, contentPadding: 0) {
                     masterAwareMixer(presentation: presentation)
                 }
             }
-            .padding(StudioMetrics.Spacing.section)
+            .padding(StudioMetrics.Spacing.workspaceInset)
             .onChange(of: presentation.usesCompactOverlay) {
                 if !presentation.usesCompactOverlay {
                     isMasterOverlayPresented = false
@@ -121,6 +121,8 @@ struct MixerWorkspaceView: View {
             // sendInsertRow); the only strip-level action is Add.
             if !sendBus.inserts.isEmpty {
                 addSendFXButton(sendBus.id, accent: accent)
+            } else {
+                Color.clear
             }
         } footer: {
             Text("→ Master")

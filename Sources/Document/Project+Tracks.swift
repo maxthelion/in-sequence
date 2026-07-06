@@ -131,6 +131,93 @@ extension Project {
         }
     }
 
+    /// Duplicate tracks in project order. Copies are intentionally ungrouped:
+    /// pasting a kit member should not silently mutate the kit's membership
+    /// graph, but it should preserve the track's authored pattern bank and
+    /// phrase-layer values under a fresh track id.
+    @discardableResult
+    mutating func duplicateTracks(ids: [UUID]) -> [UUID] {
+        let requestedIDs = Set(ids)
+        guard !requestedIDs.isEmpty else { return [] }
+
+        var usedNames = Set(tracks.map(\.name))
+        var createdIDs: [UUID] = []
+
+        for sourceTrack in tracks where requestedIDs.contains(sourceTrack.id) {
+            let sourceID = sourceTrack.id
+            var duplicate = sourceTrack
+            duplicate.id = UUID()
+            duplicate.name = Self.uniqueTrackCopyName(for: sourceTrack.name, usedNames: &usedNames)
+            duplicate.groupID = nil
+            duplicate.voiceTag = nil
+
+            tracks.append(duplicate)
+            createdIDs.append(duplicate.id)
+
+            if var sourceBank = patternBanks.first(where: { $0.trackID == sourceID }) {
+                sourceBank.trackID = duplicate.id
+                sourceBank = duplicatePatternBank(sourceBank)
+                patternBanks.append(sourceBank)
+            } else {
+                patternBanks.append(
+                    TrackPatternBank.default(
+                        for: duplicate,
+                        initialClipID: clipPool.first(where: { $0.trackType == duplicate.trackType })?.id
+                    )
+                )
+            }
+
+            for phraseIndex in phrases.indices {
+                let copiedCells = phrases[phraseIndex].cells
+                    .filter { $0.trackID == sourceID }
+                    .map { PhraseCellAssignment(trackID: duplicate.id, layerID: $0.layerID, cell: $0.cell) }
+                phrases[phraseIndex].cells.append(contentsOf: copiedCells)
+            }
+        }
+
+        if let lastCreatedID = createdIDs.last {
+            selectedTrackID = lastCreatedID
+        }
+        syncPhrasesWithTracks()
+        return createdIDs
+    }
+
+    private mutating func duplicatePatternBank(_ sourceBank: TrackPatternBank) -> TrackPatternBank {
+        var copiedBank = sourceBank
+        var copiedClipIDs: [UUID: UUID] = [:]
+
+        for slotIndex in copiedBank.slots.indices {
+            guard let sourceClipID = copiedBank.slots[slotIndex].sourceRef.clipID else {
+                continue
+            }
+
+            let copiedClipID: UUID
+            if let existingCopiedID = copiedClipIDs[sourceClipID] {
+                copiedClipID = existingCopiedID
+            } else if let sourceClip = clipPool.first(where: { $0.id == sourceClipID }) {
+                var copiedClip = sourceClip
+                copiedClip.id = UUID()
+                copiedClip.name = Self.uniqueClipCopyName(for: sourceClip.name, existingNames: Set(clipPool.map(\.name)))
+                clipPool.append(copiedClip)
+                copiedClipIDs[sourceClipID] = copiedClip.id
+                copiedClipID = copiedClip.id
+            } else {
+                continue
+            }
+
+            let sourceRef = copiedBank.slots[slotIndex].sourceRef
+            copiedBank.slots[slotIndex].sourceRef = SourceRef(
+                mode: sourceRef.mode,
+                generatorID: sourceRef.generatorID,
+                clipID: copiedClipID,
+                modifierGeneratorID: sourceRef.modifierGeneratorID,
+                modifierBypassed: sourceRef.modifierBypassed
+            )
+        }
+
+        return copiedBank
+    }
+
     private static func defaultTrackName(for trackType: TrackType, index: Int) -> String {
         switch trackType {
         case .monoMelodic:
@@ -166,6 +253,33 @@ extension Project {
         case .audioInput:
             return Array(repeating: false, count: 16)
         }
+    }
+
+    private static func uniqueTrackCopyName(for sourceName: String, usedNames: inout Set<String>) -> String {
+        let baseName = "\(sourceName) Copy"
+        if !usedNames.contains(baseName) {
+            usedNames.insert(baseName)
+            return baseName
+        }
+
+        var index = 2
+        while usedNames.contains("\(baseName) \(index)") {
+            index += 1
+        }
+        let resolvedName = "\(baseName) \(index)"
+        usedNames.insert(resolvedName)
+        return resolvedName
+    }
+
+    private static func uniqueClipCopyName(for name: String, existingNames: Set<String>) -> String {
+        let baseName = name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Clip" : name
+        var candidate = "\(baseName) Copy"
+        var index = 2
+        while existingNames.contains(candidate) {
+            candidate = "\(baseName) Copy \(index)"
+            index += 1
+        }
+        return candidate
     }
 
     static func defaultDestination(for trackType: TrackType) -> Destination {

@@ -35,7 +35,7 @@ struct LibraryWorkspaceView: View {
             poolPanel
                 .frame(width: 320, alignment: .topLeading)
         }
-        .padding(StudioMetrics.Spacing.section)
+        .padding(StudioMetrics.Spacing.workspaceInset)
         .onAppear {
             sampleLibrary.reload()
             recordingLibrary.reload()
