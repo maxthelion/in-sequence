@@ -43,10 +43,14 @@ Work in a worktree off `main`. For EACH slice:
 
 1. **Baseline first.** Before touching code, force a fresh build and capture the
    exact QA rows that exercise the surface, into a saved baseline:
-   `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project SequencerAI.xcodeproj -scheme SequencerAI -destination 'platform=macOS,arch=arm64' build`
-   then `QA_SURFACE_CAPTURE_FILTER=<rows> SEQUENCER_AI_ALLOW_VISUAL_AUTOMATION=1 bash scripts/visual-scenarios/qa-surface-coverage.sh`
-   and copy the resulting PNGs in `.meta/multipass/visual-review/main/` to a
-   `baseline/` stash for that slice.
+   `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project SequencerAI.xcodeproj -scheme SequencerAI -destination 'platform=macOS,arch=arm64' build`,
+   then run:
+   `QA_SURFACE_CAPTURE_FILTER=<rows> PEEKABOO_OUTPUT_DIR="$TMPDIR/in-sequence-captures/qa-$USER" bash scripts/visual-scenarios/qa-surface-coverage.sh`.
+   Use:
+   `bug-reporter absorb-captures "$TMPDIR/in-sequence-captures/qa-$USER" --project in-sequence --source qa-surface-coverage`
+   when the capture set should appear in the gallery/R2 store. Copy raw PNGs
+   from the temp capture inbox into a local `baseline/` stash only for local
+   before/after comparison.
 2. **Refactor.** One logical change per commit, standard trailers
    (`Co-Authored-By: Claude Opus 4.8 (1M context) …` / `Claude-Session: …`). New
    file → commit the regenerated `project.pbxproj` reference (it IS tracked).

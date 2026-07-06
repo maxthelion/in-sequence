@@ -1,18 +1,19 @@
 ---
 id: 13
 title: Autoslice Algorithm
-status: implementation-handoff-accepted
+status: complete-phase0-merged
 priority: unset
 blocked_by: []
-stage: ready-for-project-promotion
+stage: consumed-by-build-loop
 owner: pm
 updated: 2026-06-07
 ---
 
 # Autoslice Algorithm
 
-Status: Accepted open questions, architecture, spec, plan, and implementation
-handoff exist. PM artifact package is ready for a project-level decider to
-consider promotion; no build loop has been promoted from this lane.
+Status: Accepted PM artifacts were promoted and consumed by
+`build/autoslice-algorithm`. Phase 0, the isolated Swift autoslice analysis
+contract, is complete and locally merged on `main`; future production slicer UI
+or audition integration needs fresh scope.
 
 Use this directory for Autoslice algorithm notes, user stories, existing-state reports, prototypes, UX reviews, specs, and build plans.

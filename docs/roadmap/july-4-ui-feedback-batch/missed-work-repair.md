@@ -40,5 +40,9 @@ Repair commit: `94851e00`
 - `xcodebuild -project SequencerAI.xcodeproj -scheme SequencerAI -configuration Debug -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO build` passed on 2026-07-04.
 - `SEQUENCER_AI_ALLOW_VISUAL_AUTOMATION=1 PEEKABOO_OUTPUT_DIR='.meta/multipass/visual-review/codex/july4-ui-feedback-batch' scripts/visual-scenarios/qa-surface-coverage.sh` produced a fresh capture set on 2026-07-04.
 - Capture output lives under `.meta/multipass/visual-review/codex/july4-ui-feedback-batch/`.
+- That was the legacy capture path used on 2026-07-04. Current QA capture runs
+  should record into `$TMPDIR/in-sequence-captures/qa-$USER` and then run
+  `bug-reporter absorb-captures ... --project in-sequence --source
+  qa-surface-coverage`.
 - The run recorded 78 PNG captures from 89 executed rows. It exited nonzero because 11 drum/secondary rows timed out; the skipped row list is captured in `.meta/multipass/visual-review/codex/july4-ui-feedback-batch/qa-surface-coverage-notes.md`.
 - `scripts/bug-status.sh --open` no longer lists the July 4 morning reports covered by this batch.
