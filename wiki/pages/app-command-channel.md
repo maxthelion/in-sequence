@@ -170,6 +170,13 @@ bug-reporter absorb-captures "$TMPDIR/in-sequence-captures/qa-$USER" \
   --source qa-surface-coverage
 ```
 
+Peekaboo-backed capture scripts serialize through a shared macOS `lockf` mutex
+at `$TMPDIR/in-sequence-visual-capture.lock` before they touch the app/window
+session. Concurrent agents wait up to
+`SEQUENCER_AI_VISUAL_CAPTURE_LOCK_TIMEOUT_SECONDS` (default 900s), so normal
+interactive capture runs should queue instead of overlapping. Use
+`SEQUENCER_AI_DISABLE_VISUAL_CAPTURE_LOCK=1` only for intentional debugging.
+
 Do not manually copy standard QA screenshots into
 `.meta/multipass/visual-review/<branch>/`, and do not use the legacy
 `r2-sync.sh` helper for the normal bug-reporter gallery flow.

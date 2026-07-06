@@ -42,6 +42,12 @@ Do not conflate the two sinks (see AGENTS.md → "Where evidence goes"):
     --source qa-surface-coverage
   ```
 
+  Peekaboo-backed capture scripts take a shared macOS `lockf` mutex at
+  `$TMPDIR/in-sequence-visual-capture.lock` before driving the app. Concurrent
+  agents wait up to `SEQUENCER_AI_VISUAL_CAPTURE_LOCK_TIMEOUT_SECONDS` (default
+  900s); use `SEQUENCER_AI_DISABLE_VISUAL_CAPTURE_LOCK=1` only for intentional
+  debugging.
+
 Do not manually copy standard QA captures into `.meta/multipass/visual-review/`
 or run the legacy R2 sync helper for the gallery path. The app is sandboxed, so
 the timing rig writes its WAV under

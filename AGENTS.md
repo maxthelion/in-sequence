@@ -84,6 +84,13 @@ When updating or running visual evidence, start here instead of searching:
     --project in-sequence \
     --source qa-surface-coverage
   ```
+
+  Peekaboo-backed scenario scripts serialize through a shared macOS `lockf`
+  mutex (`$TMPDIR/in-sequence-visual-capture.lock`) before touching the app or
+  desktop. A second agent will wait up to
+  `SEQUENCER_AI_VISUAL_CAPTURE_LOCK_TIMEOUT_SECONDS` (default 900s) instead of
+  racing the first capture. Only set `SEQUENCER_AI_DISABLE_VISUAL_CAPTURE_LOCK=1`
+  for deliberate debugging.
 - `scripts/visual-scenarios/phrase-matrix-navigation.sh` is the smaller
   phrase-matrix paging/layer-switch scenario.
 - `scripts/visual-scenarios/phrase-perform-dirty-overlay.sh` is the older
@@ -288,6 +295,8 @@ with different branch/worktree behaviour — **do not conflate them**:
   `.meta/multipass/visual-review/<branch>/`, and do not run the legacy `r2-sync`
   helper for the standard QA/gallery flow. This mechanism is for UI screenshots
   only — NOT for audio/waveform renders.
+  Peekaboo screenshot scripts also take a shared visual-capture mutex before
+  driving the desktop, so concurrent agents should queue instead of overlapping.
 
 Do not leave evidence in an unfiled temp directory after you want the app/gallery
 to see it; run `bug-reporter absorb-captures` for screenshots, or file bug-report
@@ -329,8 +338,11 @@ update the compact summary through the loop.
   workers do not steal focus, launch apps, or trigger macOS TCC prompts while
   competing for the same desktop. Interactive single-agent capture runs are
   allowed by default; `SEQUENCER_AI_ALLOW_VISUAL_AUTOMATION=1` remains accepted
-  by older runbooks but is no longer required. If the block is set, record
-  `capture-permission-or-focus` / `evidence-insufficient` instead of retrying.
+  by older runbooks but is no longer required. Peekaboo capture scripts also
+  acquire a shared `lockf` mutex by default, so simultaneous interactive agents
+  wait rather than corrupting each other's screenshots. If the block is set,
+  record `capture-permission-or-focus` / `evidence-insufficient` instead of
+  retrying.
 - Audio test source by permission tier: **unattended/headless audio runs use
   sample sources only** (`Destination.sample`/`.slicer` — deterministic, no
   prompt). **AU instruments/effects and audio-input tests only when a human is
