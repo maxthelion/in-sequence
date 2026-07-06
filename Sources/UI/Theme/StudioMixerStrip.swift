@@ -42,7 +42,7 @@ enum StudioMixerStripMetrics {
 /// row of mixed strip types reads as one aligned grid.
 struct StudioMixerStrip<Header: View, Processing: View, Levels: View, Pan: View, Actions: View, Footer: View>: View {
     var width: CGFloat = StudioMixerStripMetrics.stripWidth
-    var accent: Color = StudioTheme.cyan
+    var accent: Color = StudioTheme.transportAccent
     var isHighlighted = false
     var highlightAccent: Color? = nil
     var dimsContent = false

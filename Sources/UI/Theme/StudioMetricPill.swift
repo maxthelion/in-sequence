@@ -3,7 +3,7 @@ import SwiftUI
 struct StudioMetricPill: View {
     let title: String
     let value: String
-    var accent: Color = StudioTheme.cyan
+    var accent: Color = StudioTheme.transportAccent
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {

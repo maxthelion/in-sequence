@@ -17,7 +17,7 @@ struct AlgorithmSummaryCard: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(StudioMetrics.Spacing.standard)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
+        .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
                 .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)

@@ -44,7 +44,7 @@ struct GridEditor<Value: BinaryFloatingPoint>: View {
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 8)
-                .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
+                .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
                 .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
                 .onTapGesture {
                     onChange(cycledValues(tapping: index))

@@ -88,7 +88,7 @@ struct StudioTopBar: View {
             .foregroundStyle(StudioTheme.mutedText)
             .padding(.horizontal, 9)
             .padding(.vertical, 4)
-            .background(Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
+            .background(StudioTheme.subtleFill, in: Capsule())
             .overlay(
                 Capsule()
                     .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
@@ -100,11 +100,11 @@ struct StudioTopBar: View {
     /// Bold-flat pass: the selected pill is a fully solid accent block with a
     /// dark glyph inside; inactive pills are outline-only on the ground.
     private func buttonFill(for sectionValue: WorkspaceSection) -> Color {
-        section == sectionValue ? StudioTheme.cyan : Color.clear
+        section == sectionValue ? StudioTheme.transportAccent : Color.clear
     }
 
     private func buttonStroke(for sectionValue: WorkspaceSection) -> Color {
-        section == sectionValue ? StudioTheme.cyan : StudioTheme.border
+        section == sectionValue ? StudioTheme.transportAccent : StudioTheme.border
     }
 
     private func buttonTitle(for sectionValue: WorkspaceSection) -> String {

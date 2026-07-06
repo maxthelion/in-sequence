@@ -55,7 +55,7 @@ struct TrackFillPreviewControl: View {
     /// body stays neutral; the active state reads from the accent outline and
     /// the solid ON badge.
     private var backgroundFill: Color {
-        Color.white.opacity(StudioOpacity.subtleFill)
+        StudioTheme.subtleFill
     }
 
     private var border: Color {
@@ -69,6 +69,6 @@ struct TrackFillPreviewControl: View {
         if !presentation.isEnabled {
             return StudioTheme.border
         }
-        return presentation.isActive ? accent.opacity(StudioOpacity.accentFill) : Color.white.opacity(StudioOpacity.borderSubtle)
+        return presentation.isActive ? accent.opacity(StudioOpacity.accentFill) : StudioTheme.borderSubtleFill
     }
 }

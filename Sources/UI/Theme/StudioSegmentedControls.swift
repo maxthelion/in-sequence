@@ -105,7 +105,7 @@ struct StudioSegmentedControl<Value: Equatable>: View {
         }
         .padding(3)
         .background(
-            Color.white.opacity(StudioOpacity.subtleFill),
+            StudioTheme.subtleFill,
             in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
         )
         .overlay(
@@ -254,7 +254,7 @@ struct StudioMenuPicker<Value: Hashable>: View {
             .padding(.horizontal, 10)
             .frame(minHeight: 28)
             .background(
-                Color.white.opacity(StudioOpacity.subtleFill),
+                StudioTheme.subtleFill,
                 in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
             )
             .overlay(
@@ -303,7 +303,7 @@ struct StudioModeSegmentedPill<Mode: Hashable>: View {
             }
         }
         .padding(2)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
+        .background(StudioTheme.subtleFill, in: Capsule())
         .overlay(
             Capsule()
                 .stroke(accent.opacity(StudioOpacity.mediumStroke), lineWidth: StudioMetrics.borderWidth)
@@ -333,7 +333,7 @@ struct StudioModeSegmentedPill<Mode: Hashable>: View {
             .foregroundStyle(isSelected ? StudioTheme.background : StudioTheme.mutedText)
             .frame(width: 96, height: 32)
             .background(
-                isSelected ? accent : Color.white.opacity(StudioOpacity.subtleFill),
+                isSelected ? accent : StudioTheme.subtleFill,
                 in: Capsule()
             )
         }

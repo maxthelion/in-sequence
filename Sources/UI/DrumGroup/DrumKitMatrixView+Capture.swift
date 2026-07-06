@@ -69,7 +69,7 @@ extension DrumKitMatrixView {
                     .foregroundStyle(StudioTheme.text)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 6)
-                    .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+                    .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
                     .overlay(
                         RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
                             .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
@@ -95,7 +95,7 @@ extension DrumKitMatrixView {
                     .foregroundStyle(StudioTheme.background)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
-                    .background(isSelectingCaptureSaveSlot ? StudioTheme.amber : accent, in: Capsule())
+                    .background(accent, in: Capsule())
             }
             .buttonStyle(.plain)
             .help("Use the pattern numbers above to save each part's windowed selection as one coordinated clip set")
@@ -119,7 +119,7 @@ extension DrumKitMatrixView {
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
                 .background(
-                    on ? StudioTheme.success : Color.white.opacity(StudioOpacity.subtleFill),
+                    on ? accent : StudioTheme.subtleFill,
                     in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
                 )
                 .overlay(
@@ -213,7 +213,7 @@ extension DrumKitMatrixView {
                     .padding(.horizontal, 10)
                     .padding(.vertical, 6)
                     .background(
-                        back == 0 ? accent : Color.white.opacity(StudioOpacity.subtleFill),
+                        back == 0 ? accent : StudioTheme.subtleFill,
                         in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
                     )
                     .overlay(
@@ -237,7 +237,7 @@ extension DrumKitMatrixView {
             if let historySaveMessage {
                 Text(historySaveMessage)
                     .studioText(.label)
-                    .foregroundStyle(StudioTheme.success)
+                    .foregroundStyle(accent)
             }
 
             Spacer(minLength: 0)
@@ -256,7 +256,7 @@ extension DrumKitMatrixView {
                 .font(.system(size: 12, weight: .bold))
                 .foregroundStyle(enabled ? StudioTheme.text : StudioTheme.mutedText)
                 .frame(width: 32, height: 30)
-                .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+                .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
                         .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
@@ -288,7 +288,7 @@ extension DrumKitMatrixView {
             Text("\(lengthLabel.uppercased()) → P\(targetSlot + 1)")
                 .studioText(.eyebrow)
                 .tracking(0.8)
-                .foregroundStyle(isSelectingCaptureSaveSlot ? StudioTheme.amber : StudioTheme.mutedText)
+                .foregroundStyle(isSelectingCaptureSaveSlot ? accent : StudioTheme.mutedText)
                 .help("The \(lengthLabel) window Save writes into pattern slot P\(targetSlot + 1)")
 
             ScrollView(.vertical) {

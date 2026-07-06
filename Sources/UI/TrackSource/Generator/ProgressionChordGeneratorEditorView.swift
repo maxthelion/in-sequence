@@ -175,7 +175,7 @@ struct ProgressionChordGeneratorEditorView: View {
             }
         }
         .padding(StudioMetrics.Spacing.standard)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
+        .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
                 .stroke(StudioTheme.border.opacity(StudioOpacity.softStroke), style: StrokeStyle(lineWidth: StudioMetrics.borderWidth, dash: [5, 4]))
@@ -230,7 +230,7 @@ struct ProgressionChordGeneratorEditorView: View {
             }
         }
         .padding(StudioMetrics.Spacing.standard)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
+        .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
                 .stroke(StudioTheme.border.opacity(StudioOpacity.subtleStroke), lineWidth: StudioMetrics.borderWidth)
@@ -296,7 +296,7 @@ struct ProgressionChordGeneratorEditorView: View {
             // Colour identifies, it never floods (ux-canon rule 12): the
             // selected card reads from its accent outline, not a wash.
             .background(
-                Color.white.opacity(StudioOpacity.subtleFill),
+                StudioTheme.subtleFill,
                 in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
             )
             .overlay(
@@ -342,7 +342,7 @@ struct ProgressionChordGeneratorEditorView: View {
             // Colour identifies, it never floods (ux-canon rule 12): the
             // selected step cell reads from its accent outline, not a wash.
             .background(
-                Color.white.opacity(StudioOpacity.subtleFill),
+                StudioTheme.subtleFill,
                 in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
             )
             .overlay(
@@ -383,7 +383,7 @@ struct ProgressionChordGeneratorEditorView: View {
                 .padding(.horizontal, 12)
                 .padding(.vertical, 10)
                 .background(
-                    selectedLayer == layer ? accent : Color.white.opacity(StudioOpacity.subtleFill),
+                    selectedLayer == layer ? accent : StudioTheme.subtleFill,
                     in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
                 )
                 .overlay(
@@ -606,7 +606,7 @@ struct ProgressionChordGeneratorEditorView: View {
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
                 .background(
-                    isSelected ? accent : Color.white.opacity(StudioOpacity.subtleFill),
+                    isSelected ? accent : StudioTheme.subtleFill,
                     in: Capsule()
                 )
                 .overlay(

@@ -28,7 +28,7 @@ struct MixerBusStrip: View {
             width: MixerWorkspaceLayout.busStripWidth,
             accent: accent,
             isHighlighted: bus.mix.isSoloed,
-            highlightAccent: StudioTheme.amber,
+            highlightAccent: StudioTheme.transportAccent,
             dimsContent: isEffectivelyMuted && !bus.mix.isMuted
         ) {
             headerSlot
@@ -156,7 +156,7 @@ struct MixerBusStrip: View {
             MixerStripActionButton(
                 title: "",
                 systemName: bus.mix.isMuted ? "speaker.slash.fill" : "speaker.slash",
-                accent: StudioTheme.amber,
+                accent: StudioTheme.transportAccent,
                 isActive: bus.mix.isMuted,
                 minWidth: 20,
                 action: onToggleMute
@@ -167,7 +167,7 @@ struct MixerBusStrip: View {
             MixerStripActionButton(
                 title: "",
                 systemName: "headphones",
-                accent: StudioTheme.amber,
+                accent: StudioTheme.transportAccent,
                 isActive: bus.mix.isSoloed,
                 minWidth: 20,
                 action: onToggleSolo

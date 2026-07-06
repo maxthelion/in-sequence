@@ -188,6 +188,7 @@ struct SliceTrackWorkspaceView: View {
                 sliceSet: sliceSet,
                 sampleLengthFrames: sampleLengthFrames(sample: sample),
                 selectedMarkerID: selectedMarker?.id,
+                accent: accent,
                 zoom: 1,
                 scroll: 0,
                 onSelectMarker: selectMarker,
@@ -207,7 +208,7 @@ struct SliceTrackWorkspaceView: View {
             if let analysisMessage {
                 Text(analysisMessage)
                     .studioText(.label)
-                    .foregroundStyle(StudioTheme.amber)
+                    .foregroundStyle(StudioTheme.warning)
             }
         }
     }
@@ -309,6 +310,7 @@ struct SliceTrackWorkspaceView: View {
                     selectedStepIndex: selectedStepIndex,
                     selectedStepIndexes: coordinator?.selection.selectedStepIndexes ?? [],
                     activeLayer: selectedLayer,
+                    accent: accent,
                     contentProvider: { stepIndex, state in
                         sliceStepContent(stepIndex: stepIndex, state: state, coordinator: coordinator)
                     },
@@ -360,7 +362,7 @@ struct SliceTrackWorkspaceView: View {
                                     .foregroundStyle(page == selectedPage ? StudioTheme.background : StudioTheme.text)
                                     .frame(minWidth: 34)
                                     .padding(.vertical, 6)
-                                    .background(page == selectedPage ? accent : Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
+                                    .background(page == selectedPage ? accent : StudioTheme.subtleFill, in: Capsule())
                             }
                             .buttonStyle(.plain)
                         }
@@ -609,6 +611,7 @@ struct SliceTrackWorkspaceView: View {
                 sliceSet: sliceSet,
                 sampleLengthFrames: sampleLengthFrames(sample: sample),
                 selectedMarkerID: selectedMarker?.id,
+                accent: accent,
                 zoom: waveformZoom,
                 scroll: waveformScroll,
                 onSelectMarker: selectMarker,
@@ -671,7 +674,7 @@ struct SliceTrackWorkspaceView: View {
                     .padding(.vertical, 6)
             }
             .buttonStyle(.borderedProminent)
-            .tint(StudioTheme.success)
+            .tint(accent)
             .controlSize(.large)
         }
     }
@@ -1035,7 +1038,7 @@ struct SliceTrackWorkspaceView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.vertical, 9)
             .padding(.horizontal, 12)
-            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
+            .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
                     .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)

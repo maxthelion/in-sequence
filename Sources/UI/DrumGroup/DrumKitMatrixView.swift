@@ -275,18 +275,12 @@ struct DrumKitMatrixView: View {
         )
     }
 
-    /// The kit accent, derived straight from the group's stored color hex.
-    /// This intentionally does NOT build `DrumKitMatrixModel` — `colorHex` is a
-    /// verbatim copy of `group.color`, and `accent` is read ~37× per render, so
-    /// rebuilding the whole model (tracksByID dict + every member's note-grid
-    /// decode + occupiedSlotIndexes) just to read the color was pure waste.
-    /// When the group no longer resolves, `model` is also nil, so falling back
-    /// to `StudioTheme.success` matches the old `Color(hex: "") ?? success`.
+    /// The kit accent, derived from the group's stored identity colour.
     var accent: Color {
-        let hex = session.store.trackGroups
-            .first(where: { $0.id == navigationState.groupID })?
-            .color
-        return Color(hex: hex ?? "") ?? StudioTheme.success
+        guard let group = session.store.trackGroups.first(where: { $0.id == navigationState.groupID }) else {
+            return StudioTheme.identityAccent(for: navigationState.groupID)
+        }
+        return StudioTheme.groupAccent(for: group)
     }
 
     /// The kit's own bus, resolved from its members' `outputBusID` (kits route
@@ -356,74 +350,13 @@ struct DrumKitMatrixView: View {
     }
 
     var body: some View {
-        StudioPanel(title: "Drum Kit", accent: accent, showsHeader: false, contentPadding: 0) {
-            VStack(alignment: .leading, spacing: 18) {
-                header
-
-                if let model {
-                    kitBody(model)
-                } else {
-                    unavailableState
-                }
-            }
-        }
-        .padding(StudioMetrics.Spacing.workspaceInset)
+        content
+        .padding(StudioMetrics.Spacing.page)
         .sheet(isPresented: $isPresentingRoutingEditor) {
-            if let draft = DrumGroupRoutingEditorDraft(
-                groupID: navigationState.groupID,
-                trackGroups: session.store.trackGroups,
-                tracks: session.store.tracks
-            ) {
-                DrumGroupRoutingEditorSheet(
-                    draft: draft,
-                    audioInstrumentChoices: engineController.availableAudioInstruments,
-                    onApply: { routingDraft in
-                        session.applyDrumGroupRoutingDraft(routingDraft)
-                        isPresentingRoutingEditor = false
-                    },
-                    onCancel: {
-                        isPresentingRoutingEditor = false
-                    }
-                )
-            } else {
-                Text("Routing editor unavailable")
-                    .studioText(.body)
-                    .foregroundStyle(StudioTheme.mutedText)
-                    .padding(StudioMetrics.Spacing.page)
-                    .background(StudioTheme.stageFill)
-            }
+            routingEditorSheet
         }
         .sheet(isPresented: $isPresentingTemplateChooser) {
-            if let model,
-               let group = session.store.trackGroups.first(where: { $0.id == model.groupID }) {
-                DrumKitTemplateChooserSheet(
-                    groupName: model.groupName,
-                    targetSlotIndex: model.groupSelectedSlotIndex ?? model.rows.first?.patternSlotIndex ?? 0,
-                    previewProvider: { template, slotIndex in
-                        PatternTemplateApplicationPreview(
-                            template: template,
-                            group: group,
-                            tracks: session.store.tracks,
-                            patternBanks: Array(session.store.patternBanksByTrackID.values),
-                            clipPool: session.store.clipPool,
-                            slotIndex: slotIndex
-                        )
-                    },
-                    onApply: { template, slotIndex in
-                        session.applyPatternTemplate(template, toGroup: group.id, slotIndex: slotIndex)
-                        isPresentingTemplateChooser = false
-                    },
-                    onCancel: {
-                        isPresentingTemplateChooser = false
-                    }
-                )
-            } else {
-                Text("Template chooser unavailable")
-                    .studioText(.body)
-                    .foregroundStyle(StudioTheme.mutedText)
-                    .padding(StudioMetrics.Spacing.page)
-                    .background(StudioTheme.stageFill)
-            }
+            templateChooserSheet
         }
         .sheet(isPresented: $isPresentingKitFX) {
             kitFXChooserSheet
@@ -475,6 +408,83 @@ struct DrumKitMatrixView: View {
             guard let command = notification.object as? String else { return }
             applyVisualCommand(command)
         }
+    }
+
+    private var content: some View {
+        StudioPanel(title: "Drum Kit", accent: accent, showsHeader: false) {
+            VStack(alignment: .leading, spacing: 18) {
+                header
+
+                if let model {
+                    kitBody(model)
+                } else {
+                    unavailableState
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var routingEditorSheet: some View {
+        if let draft = DrumGroupRoutingEditorDraft(
+            groupID: navigationState.groupID,
+            trackGroups: session.store.trackGroups,
+            tracks: session.store.tracks
+        ) {
+            DrumGroupRoutingEditorSheet(
+                draft: draft,
+                accent: accent,
+                audioInstrumentChoices: engineController.availableAudioInstruments,
+                onApply: { routingDraft in
+                    session.applyDrumGroupRoutingDraft(routingDraft)
+                    isPresentingRoutingEditor = false
+                },
+                onCancel: {
+                    isPresentingRoutingEditor = false
+                }
+            )
+        } else {
+            unavailableSheet("Routing editor unavailable")
+        }
+    }
+
+    @ViewBuilder
+    private var templateChooserSheet: some View {
+        if let model,
+           let group = session.store.trackGroups.first(where: { $0.id == model.groupID }) {
+            DrumKitTemplateChooserSheet(
+                groupName: model.groupName,
+                targetSlotIndex: model.groupSelectedSlotIndex ?? model.rows.first?.patternSlotIndex ?? 0,
+                accent: accent,
+                previewProvider: { template, slotIndex in
+                    PatternTemplateApplicationPreview(
+                        template: template,
+                        group: group,
+                        tracks: session.store.tracks,
+                        patternBanks: Array(session.store.patternBanksByTrackID.values),
+                        clipPool: session.store.clipPool,
+                        slotIndex: slotIndex
+                    )
+                },
+                onApply: { template, slotIndex in
+                    session.applyPatternTemplate(template, toGroup: group.id, slotIndex: slotIndex)
+                    isPresentingTemplateChooser = false
+                },
+                onCancel: {
+                    isPresentingTemplateChooser = false
+                }
+            )
+        } else {
+            unavailableSheet("Template chooser unavailable")
+        }
+    }
+
+    private func unavailableSheet(_ title: String) -> some View {
+        Text(title)
+            .studioText(.body)
+            .foregroundStyle(StudioTheme.mutedText)
+            .padding(StudioMetrics.Spacing.page)
+            .background(StudioTheme.stageFill)
     }
 
     func postRenderedVisualState(isVisible: Bool) {
@@ -668,7 +678,7 @@ struct DrumKitMatrixView: View {
 
     var unavailableState: some View {
         // Canon Rule 3: state title only — the explanation lives in the tooltip.
-        StudioPlaceholderTile(title: "Group unavailable", accent: StudioTheme.amber)
+        StudioPlaceholderTile(title: "Group unavailable", accent: StudioTheme.warning)
             .help("The selected kit no longer resolves to a track group")
     }
 }

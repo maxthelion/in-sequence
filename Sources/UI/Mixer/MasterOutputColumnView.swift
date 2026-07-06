@@ -23,7 +23,7 @@ struct MasterOutputColumnView: View {
     var body: some View {
         StudioMixerStrip(
             width: StudioMixerStripMetrics.masterWidth,
-            accent: StudioTheme.amber
+            accent: StudioTheme.transportAccent
         ) {
             header
         } processing: {
@@ -75,7 +75,7 @@ struct MasterOutputColumnView: View {
                         .foregroundStyle(StudioTheme.background)
                         .padding(.horizontal, 7)
                         .padding(.vertical, 4)
-                        .background(StudioTheme.amber, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+                        .background(StudioTheme.transportAccent, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
                 }
                 .buttonStyle(.plain)
                 .help("Clear solo")
@@ -94,7 +94,7 @@ struct MasterOutputColumnView: View {
                 value: crossfaderValue,
                 range: 0...1,
                 fillStyle: .fromLeading,
-                accent: StudioTheme.amber,
+                accent: StudioTheme.transportAccent,
                 help: "Scene A B blend",
                 onChange: { engineController.setLiveMasterCrossfader($0) }
             )
@@ -115,7 +115,7 @@ struct MasterOutputColumnView: View {
         VStack(alignment: alignment, spacing: 1) {
             Text(label)
                 .studioText(.microEmphasis)
-                .foregroundStyle(StudioTheme.amber)
+                .foregroundStyle(StudioTheme.transportAccent)
                 .lineLimit(1)
             Text(name)
                 .studioText(.micro)
@@ -136,7 +136,7 @@ struct MasterOutputColumnView: View {
             ScrollView(showsIndicators: false) {
                 MixerInsertChainView(
                     inserts: masterBus.masterInserts,
-                    accent: StudioTheme.amber,
+                    accent: StudioTheme.transportAccent,
                     emptySlotCount: emptySlotCount,
                     maxAddAffordances: 1,
                     addLabel: "Add FX",
@@ -227,7 +227,7 @@ struct MasterOutputColumnView: View {
                     .foregroundStyle(StudioTheme.background)
                     .padding(.horizontal, 7)
                     .padding(.vertical, 4)
-                    .background(Color.red, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+                    .background(StudioTheme.danger, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)) // ux-canon-allow: latched CLIP is a true danger state
             }
 
             if meterState.isClearClipActionable {
@@ -250,7 +250,7 @@ struct MasterOutputColumnView: View {
                     minWidth: MasterOutputClearClipControlMetrics.minWidth,
                     minHeight: MasterOutputClearClipControlMetrics.minHeight
                 )
-                .background(Color.red, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+                .background(StudioTheme.danger, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)) // ux-canon-allow: clear action belongs to the latched CLIP danger state
         }
         .buttonStyle(.plain)
         .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
@@ -264,7 +264,7 @@ struct MasterOutputColumnView: View {
                 Text(label)
                     .studioText(.micro)
                     .monospacedDigit()
-                    .foregroundStyle(label == "0" ? StudioTheme.amber : StudioTheme.mutedText)
+                    .foregroundStyle(label == "0" ? StudioTheme.transportAccent : StudioTheme.mutedText)
                 if label != "-inf" {
                     Spacer(minLength: 1)
                 }
@@ -342,23 +342,23 @@ private struct MasterOutputFaderMeter: View {
 
                 // The same draggable blue slide control as the channel faders.
                 Capsule(style: .continuous)
-                    .fill(StudioTheme.border.opacity(StudioOpacity.softStroke))
+                    .fill(StudioTheme.borderSoftFill)
                     .frame(width: 4)
                     .padding(.vertical, thumbDiameter / 2)
 
                 Capsule(style: .continuous)
-                    .fill(StudioTheme.cyan)
+                    .fill(StudioTheme.transportAccent)
                     .frame(width: 4, height: max(0, usableHeight * CGFloat(position)))
                     .offset(y: -thumbDiameter / 2)
 
                 // Unity (0 dB) reference tick.
                 Rectangle()
-                    .fill(StudioTheme.amber)
+                    .fill(StudioTheme.transportAccent)
                     .frame(width: 30, height: 2)
                     .offset(y: -usableHeight * MasterOutputGainScale.unityPosition - thumbDiameter / 2 + 1)
 
                 Circle()
-                    .fill(StudioTheme.cyan)
+                    .fill(StudioTheme.transportAccent)
                     .overlay(Circle().stroke(StudioTheme.inset, lineWidth: 2))
                     .frame(width: thumbDiameter, height: thumbDiameter)
                     .offset(y: -(height - thumbCenterY) + thumbDiameter / 2)

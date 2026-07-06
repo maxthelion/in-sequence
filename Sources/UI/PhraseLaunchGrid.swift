@@ -67,7 +67,7 @@ struct PhraseLaunchGridSheet: View {
                     if isQueued {
                         Image(systemName: "clock.fill")
                             .font(.system(size: 9, weight: .bold))
-                            .foregroundStyle(StudioTheme.amber)
+                            .foregroundStyle(StudioTheme.phraseAccent)
                     }
                 }
 
@@ -82,19 +82,19 @@ struct PhraseLaunchGridSheet: View {
             }
             .padding(StudioMetrics.Spacing.snug)
             .frame(maxWidth: .infinity, minHeight: 62, alignment: .topLeading)
-            // Colour identifies, it never floods (ux-canon rule 12): the
-            // current phrase reads from the solid cyan outline; the cell body
-            // stays on the neutral step.
+            // Colour identifies, it never floods (ux-canon rule 12): current
+            // and queued phrases read from the phrase-accent outline; the cell
+            // body stays on the neutral step.
             .background(
-                Color.white.opacity(StudioOpacity.subtleFill),
+                StudioTheme.subtleFill,
                 in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
                     .stroke(
                         isCurrent
-                            ? StudioTheme.cyan
-                            : (isQueued ? StudioTheme.amber.opacity(StudioOpacity.mediumStroke) : StudioTheme.border),
+                            ? StudioTheme.phraseAccent
+                            : (isQueued ? StudioTheme.phraseAccent.opacity(StudioOpacity.mediumStroke) : StudioTheme.border),
                         lineWidth: isCurrent ? 2 : 1
                     )
             )
@@ -151,11 +151,11 @@ struct PhraseLaunchGridSheet: View {
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
                     Capsule()
-                        .fill(Color.white.opacity(StudioOpacity.borderFaint))
+                        .fill(StudioTheme.borderFaintFill)
 
                     if isCurrent {
                         Capsule()
-                            .fill(StudioTheme.cyan)
+                            .fill(StudioTheme.phraseAccent)
                             .frame(width: geo.size.width * fraction)
                     }
                 }

@@ -4,6 +4,7 @@ struct SliceInspectorView: View {
     let markerIndex: Int
     @Binding var marker: SliceMarker
     let sampleLengthFrames: Int64
+    let accent: Color
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -29,12 +30,14 @@ struct SliceInspectorView: View {
             HStack(spacing: 12) {
                 SlicerControlField(title: "Gain") {
                     Slider(value: $marker.gain, in: -60...12)
+                        .tint(accent)
                     Text(String(format: "%+.1f dB", marker.gain))
                         .studioText(.labelBold)
                         .foregroundStyle(StudioTheme.text)
                 }
                 SlicerControlField(title: "Timing") {
                     Slider(value: $marker.microTimingSteps, in: -0.5...0.5)
+                        .tint(accent)
                     Text(String(format: "%+.2f step", marker.microTimingSteps))
                         .studioText(.labelBold)
                         .foregroundStyle(StudioTheme.text)
@@ -44,12 +47,13 @@ struct SliceInspectorView: View {
             HStack(spacing: 12) {
                 Toggle("Reverse", isOn: $marker.reverse)
                     .toggleStyle(.switch)
+                    .tint(accent)
                 TextField("Tag", text: $marker.tag)
                     .textFieldStyle(.roundedBorder)
             }
         }
         .padding(StudioMetrics.Spacing.comfortable)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+        .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
                 .stroke(StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
@@ -114,10 +118,10 @@ struct SliceSamplePlayerParametersView: View {
     }
 
     private var waveformSection: some View {
-        WaveformView(buckets: waveformBuckets)
+        WaveformView(buckets: waveformBuckets, fillColor: accent)
             .frame(minHeight: 60, maxHeight: .infinity)
             .padding(StudioMetrics.Spacing.snug)
-            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip))
+            .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip))
             .overlay(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip).stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth))
             .padding(StudioMetrics.Spacing.comfortable)
     }
@@ -127,7 +131,8 @@ struct SliceSamplePlayerParametersView: View {
             SamplerParameterKnob(
                 label: "Start",
                 normalizedValue: parameters.startTrim,
-                displayText: percentLabel(parameters.startTrim)
+                displayText: percentLabel(parameters.startTrim),
+                accent: accent
             ) { normalized in
                 updateStartTrim(normalized)
             }
@@ -135,7 +140,8 @@ struct SliceSamplePlayerParametersView: View {
             SamplerParameterKnob(
                 label: "Length",
                 normalizedValue: lengthNormalized,
-                displayText: percentLabel(lengthNormalized)
+                displayText: percentLabel(lengthNormalized),
+                accent: accent
             ) { normalized in
                 updateLength(normalized)
             }
@@ -143,7 +149,8 @@ struct SliceSamplePlayerParametersView: View {
             SamplerParameterKnob(
                 label: "Gain",
                 normalizedValue: normalizedGain,
-                displayText: gainLabel(parameters.gain)
+                displayText: gainLabel(parameters.gain),
+                accent: accent
             ) { normalized in
                 updateDouble(\.gain, value: gainFromNormalized(normalized))
             }
@@ -151,7 +158,8 @@ struct SliceSamplePlayerParametersView: View {
             SamplerParameterKnob(
                 label: "Pitch",
                 normalizedValue: normalizedPitch,
-                displayText: pitchLabel(parameters.pitch)
+                displayText: pitchLabel(parameters.pitch),
+                accent: accent
             ) { normalized in
                 updateDouble(\.pitch, value: pitchFromNormalized(normalized))
             }
@@ -159,7 +167,8 @@ struct SliceSamplePlayerParametersView: View {
             SamplerParameterKnob(
                 label: "Filter",
                 normalizedValue: parameters.filter,
-                displayText: percentLabel(parameters.filter)
+                displayText: percentLabel(parameters.filter),
+                accent: accent
             ) { normalized in
                 updateDouble(\.filter, value: normalized)
             }
@@ -167,7 +176,8 @@ struct SliceSamplePlayerParametersView: View {
             SamplerParameterKnob(
                 label: "Pan",
                 normalizedValue: normalizedPan,
-                displayText: panLabel(parameters.pan)
+                displayText: panLabel(parameters.pan),
+                accent: accent
             ) { normalized in
                 updateDouble(\.pan, value: panFromNormalized(normalized))
             }
@@ -175,7 +185,8 @@ struct SliceSamplePlayerParametersView: View {
             SamplerParameterKnob(
                 label: "Attack",
                 normalizedValue: parameters.attackMs / 100,
-                displayText: msLabel(parameters.attackMs)
+                displayText: msLabel(parameters.attackMs),
+                accent: accent
             ) { normalized in
                 updateDouble(\.attackMs, value: Self.clamp(normalized, to: 0...1) * 100)
             }
@@ -183,7 +194,8 @@ struct SliceSamplePlayerParametersView: View {
             SamplerParameterKnob(
                 label: "Release",
                 normalizedValue: parameters.releaseMs / 200,
-                displayText: msLabel(parameters.releaseMs)
+                displayText: msLabel(parameters.releaseMs),
+                accent: accent
             ) { normalized in
                 updateDouble(\.releaseMs, value: Self.clamp(normalized, to: 0...1) * 200)
             }
@@ -259,7 +271,7 @@ struct SliceSamplePlayerParametersView: View {
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 8)
-            .background(isOn.wrappedValue ? accent : Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
+            .background(isOn.wrappedValue ? accent : StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
                     .stroke(isOn.wrappedValue ? Color.clear : StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)

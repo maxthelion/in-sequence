@@ -13,6 +13,7 @@ struct StepGridView: View {
     let indexOffset: Int
     let playingStepIndex: Int?
     let selectedStepIndexes: Set<Int>
+    let accent: Color
     let contentProvider: (Int, StepVisualState) -> StepCellContent
     let onValueDrag: ((Int, Double) -> Void)?
     let onSelectStep: ((Int) -> Void)?
@@ -25,6 +26,7 @@ struct StepGridView: View {
         indexOffset: Int = 0,
         playingStepIndex: Int? = nil,
         selectedStepIndexes: Set<Int> = [],
+        accent: Color,
         contentProvider: @escaping (Int, StepVisualState) -> StepCellContent = { _, _ in .toggle },
         onValueDrag: ((Int, Double) -> Void)? = nil,
         onSelectStep: ((Int) -> Void)? = nil,
@@ -36,6 +38,7 @@ struct StepGridView: View {
         self.indexOffset = indexOffset
         self.playingStepIndex = playingStepIndex
         self.selectedStepIndexes = selectedStepIndexes
+        self.accent = accent
         self.contentProvider = contentProvider
         self.onValueDrag = onValueDrag
         self.onSelectStep = onSelectStep
@@ -64,6 +67,7 @@ struct StepGridView: View {
                         state: state,
                         isPlaying: playingStepIndex == absoluteIndex,
                         isSelected: isStepSelected(absoluteIndex),
+                        accent: accent,
                         content: contentProvider(absoluteIndex, state),
                         valueDragAction: onValueDrag.map { drag in
                             { value in drag(absoluteIndex, value) }
@@ -93,6 +97,7 @@ private struct StepGridCell: View {
     let state: StepVisualState
     let isPlaying: Bool
     let isSelected: Bool
+    let accent: Color
     let content: StepCellContent
     let valueDragAction: ((Double) -> Void)?
     let action: () -> Void
@@ -110,6 +115,7 @@ private struct StepGridCell: View {
                 isPlaying: isPlaying,
                 isSelected: isSelected,
                 content: content,
+                accent: accent,
                 onTap: performAction,
                 onDrag: valueDragAction,
                 onSelect: { selectAction?() },
@@ -121,10 +127,10 @@ private struct StepGridCell: View {
         .padding(.horizontal, 3)
         // Bold-flat pass: no per-step container plate — the step cell's own
         // outline/fill is the control (one less nesting level). Selection
-        // alone draws the outer amber line.
+        // alone draws the outer accent line.
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                .stroke(isSelected ? StudioTheme.amber : Color.clear, lineWidth: 2)
+                .stroke(isSelected ? accent : Color.clear, lineWidth: 2)
         )
         .background {
             #if DEBUG
@@ -294,6 +300,7 @@ private struct StepGridMouseDownProbe: NSViewRepresentable {
         stepStates: [.on, .off, .accented, .off, .on, .off, .accented, .off, .on, .accented, .off, .off, .on, .on, .accented, .off],
         playingStepIndex: 4,
         selectedStepIndexes: [2, 9],
+        accent: StudioTheme.transportAccent,
         onSelectStep: { _ in },
         advanceStep: { _ in }
     )

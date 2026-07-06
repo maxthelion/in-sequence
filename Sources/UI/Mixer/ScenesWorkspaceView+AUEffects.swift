@@ -19,7 +19,7 @@ extension ScenesWorkspaceView {
                     Label("Open Plug-In", systemImage: "macwindow")
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(StudioTheme.amber)
+                .tint(StudioTheme.transportAccent)
 
                 Button {
                     engineController.prepareMasterAUEffect(insertID: insert.id)
@@ -133,7 +133,7 @@ struct SceneFilterCurveView: View {
     let mode: MasterFilterSettings.Mode
     let cutoffHz: Double
     let resonance: Double
-    var accent: Color = StudioTheme.cyan
+    var accent: Color = StudioTheme.transportAccent
 
     var body: some View {
         Canvas { context, size in

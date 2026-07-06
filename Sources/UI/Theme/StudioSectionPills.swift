@@ -60,7 +60,7 @@ struct StudioSectionPills<Section: Hashable>: View {
         .padding(3)
         .frame(maxWidth: fillsWidth ? .infinity : nil, alignment: .leading)
         .background(
-            Color.white.opacity(StudioOpacity.subtleFill),
+            StudioTheme.subtleFill,
             in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
         )
         .overlay(

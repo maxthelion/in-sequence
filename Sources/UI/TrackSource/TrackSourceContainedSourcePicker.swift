@@ -291,7 +291,7 @@ struct TrackSourceContainedSourcePicker: View {
                             poolEntryButton(
                                 title: clip.name,
                                 detail: clipMetadata(for: clip),
-                                accent: StudioTheme.success,
+                                accent: accent,
                                 action: { onSelectClip(clip) }
                             )
                         }
@@ -343,7 +343,7 @@ struct TrackSourceContainedSourcePicker: View {
         }
         .padding(StudioMetrics.Spacing.standard)
         .background(
-            Color.white.opacity(StudioOpacity.subtleFill),
+            StudioTheme.subtleFill,
             in: RoundedRectangle(
                 cornerRadius: StudioMetrics.CornerRadius.panel,
                 style: .continuous
@@ -393,7 +393,7 @@ struct TrackSourceContainedSourcePicker: View {
         case .createBlankGenerator:
             return accent
         case .createBlankClip:
-            return StudioTheme.success
+            return accent
         case .showGeneratorPool, .showClipPool:
             return StudioTheme.border
         }
@@ -438,7 +438,7 @@ struct TrackSourceContainedSourcePicker: View {
         for role: TrackSourceContainedSourcePickerActionRole,
         accent: Color
     ) -> Color {
-        Color.white.opacity(StudioOpacity.subtleFill)
+        StudioTheme.subtleFill
     }
 
     private func rootActionStroke(
@@ -477,7 +477,7 @@ struct TrackSourceContainedSourcePicker: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(StudioMetrics.Spacing.comfortable)
             .background(
-                Color.white.opacity(StudioOpacity.subtleFill),
+                StudioTheme.subtleFill,
                 in: RoundedRectangle(
                     cornerRadius: StudioMetrics.CornerRadius.control,
                     style: .continuous

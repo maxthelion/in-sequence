@@ -82,7 +82,7 @@ struct PhraseCellEditorSheet: View {
                             // 12): the selected mode is a fully solid accent
                             // thumb with a dark glyph, never a translucent wash.
                             .background(
-                                cell.editMode == mode ? accent : Color.white.opacity(StudioOpacity.subtleFill),
+                                cell.editMode == mode ? accent : StudioTheme.subtleFill,
                                 in: Capsule()
                             )
                     }
@@ -99,7 +99,7 @@ struct PhraseCellEditorSheet: View {
                         .studioText(.labelBold)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 8)
-                        .background(Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
+                        .background(StudioTheme.subtleFill, in: Capsule())
                         .overlay(Capsule().stroke(cell.isAutomated ? accent : StudioTheme.border, lineWidth: StudioMetrics.borderWidth))
                 }
                 .buttonStyle(.plain)
@@ -156,7 +156,8 @@ struct PhraseCellEditorSheet: View {
                     set: { newIndex in
                         setCell(.single(.index(newIndex)), phrase: phrase, track: track, layer: layer)
                     }
-                )
+                ),
+                accent: accent
             )
         case .scalar:
             ScalarValueEditor(
@@ -223,7 +224,7 @@ struct PhraseCellEditorSheet: View {
                             .foregroundStyle(index == activePage ? StudioTheme.background : StudioTheme.text)
                             .padding(.horizontal, 10)
                             .padding(.vertical, 6)
-                            .background(index == activePage ? accent : Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
+                            .background(index == activePage ? accent : StudioTheme.subtleFill, in: Capsule())
                     }
                     .buttonStyle(.plain)
                 }
@@ -246,7 +247,7 @@ struct PhraseCellEditorSheet: View {
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 12)
-                        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
+                        .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
                         .overlay(
                             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
                                 .stroke(accent.opacity(0.25), lineWidth: StudioMetrics.borderWidth)
@@ -303,7 +304,8 @@ struct PhraseCellEditorSheet: View {
                         return 0
                     },
                     set: { onChange(.index($0)) }
-                )
+                ),
+                accent: accent
             )
         case .scalar:
             ScalarValueEditor(

@@ -29,7 +29,7 @@ struct StudioSearchBar: View {
                 .textFieldStyle(.plain)
         }
         .padding(StudioMetrics.Spacing.snug)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge))
+        .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge))
     }
 }
 

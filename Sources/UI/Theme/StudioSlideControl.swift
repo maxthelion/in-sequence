@@ -40,7 +40,7 @@ struct StudioSlideControl: View {
     let value: Double
     var range: ClosedRange<Double> = -1...1
     var fillStyle: FillStyle = .fromCenter
-    var accent: Color = StudioTheme.cyan
+    var accent: Color = StudioTheme.transportAccent
     var leadingLabel: String? = nil
     var trailingLabel: String? = nil
     var help: String = "Pan"
@@ -97,7 +97,7 @@ struct StudioSlideControl: View {
 
                 if fillStyle == .fromCenter {
                     Rectangle()
-                        .fill(Color.white.opacity(StudioOpacity.selectedFill))
+                        .fill(StudioTheme.selectedFill)
                         .frame(width: 2, height: 11)
                         .offset(x: width / 2 - 1)
                 }

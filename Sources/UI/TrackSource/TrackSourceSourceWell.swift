@@ -182,7 +182,7 @@ struct TrackSourceSourceWell: View {
                 .foregroundStyle(StudioTheme.text)
                 .frame(width: 28, height: 28)
                 .background(
-                    Color.white.opacity(StudioOpacity.subtleFill),
+                    StudioTheme.subtleFill,
                     in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
                 )
                 .overlay(

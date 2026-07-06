@@ -1,9 +1,9 @@
 import SwiftUI
 
 /// Pattern-slot cell: a 4×4 matrix of pills, one per pattern slot, with the
-/// active slot lit in that pattern's identity colour and the cell tinted to
-/// match. The matrix *is* the value — no "P1"/"Pattern slot" caption repeating
-/// what the layer header and the colour already say (ux-canon rules 1/3).
+/// active slot lit by the current phrase accent. The matrix *is* the value —
+/// no "P1"/"Pattern slot" caption repeating what the layer header already says
+/// (ux-canon rules 1/3).
 struct PatternIndexCellPreview: View {
     let layer: PhraseLayerDefinition
     let resolvedValue: PhraseCellValue
@@ -73,13 +73,13 @@ struct PatternIndexCellPreview: View {
         Color.clear
     }
 
-    /// Bold-flat pass: the active slot is a fully solid identity-colour
-    /// block; inactive slots are outline-only on the ground.
+    /// Bold-flat pass: the active slot is a fully solid surface-accent block;
+    /// inactive slots are outline-only on the ground.
     func slotFill(for index: Int) -> Color {
         guard let activeIndex, !isMixed, index == activeIndex else {
             return Color.clear
         }
-        return StudioTheme.patternColor(index)
+        return accent
     }
 
     func slotStroke(for index: Int) -> Color {
@@ -87,7 +87,7 @@ struct PatternIndexCellPreview: View {
             return StudioTheme.border.opacity(StudioOpacity.softStroke)
         }
         return index == activeIndex
-            ? StudioTheme.patternColor(index)
+            ? accent
             : StudioTheme.border.opacity(StudioOpacity.softStroke)
     }
 

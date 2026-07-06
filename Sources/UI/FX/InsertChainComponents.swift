@@ -119,7 +119,7 @@ struct InsertChainRow: View {
                 .labelsHidden()
                 .toggleStyle(.switch)
                 .controlSize(.mini)
-                .tint(StudioTheme.success)
+                .tint(accent)
 
             // The circled-✕ is the standard remove component (canon Rule 6 —
             // a bare ✕ where the circled form exists is a finding, 05b/05d).
@@ -134,7 +134,7 @@ struct InsertChainRow: View {
         .padding(.horizontal, 10)
         // Colour identifies, it never floods (ux-canon rule 12): selection reads
         // from the accent outline, not a tinted row fill.
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
+        .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
                 .stroke(strokeColor, lineWidth: StudioMetrics.borderWidth)
@@ -145,7 +145,7 @@ struct InsertChainRow: View {
 
     private var strokeColor: Color {
         if showsSelection, isSelected {
-            return StudioTheme.cyan
+            return StudioTheme.transportAccent
         }
         return StudioTheme.border
     }
@@ -210,7 +210,7 @@ enum NativeInsertParameterEditor {
                 )
                 .frame(height: 120)
                 .frame(maxWidth: .infinity)
-                .background(StudioTheme.background.opacity(0.35), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
+                .background(StudioTheme.inset, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
                         .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
@@ -252,7 +252,7 @@ enum NativeInsertParameterEditor {
             }
             .padding(3)
             .background(
-                Color.white.opacity(StudioOpacity.subtleFill),
+                StudioTheme.subtleFill,
                 in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
             )
             .overlay(

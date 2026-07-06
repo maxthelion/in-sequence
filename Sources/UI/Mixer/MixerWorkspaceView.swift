@@ -17,7 +17,7 @@ struct MixerWorkspaceView: View {
             VStack(alignment: .leading, spacing: 18) {
                 // The top-nav pill already names this page; the panel renders
                 // no header of its own (ux-canon rule 1).
-                StudioPanel(title: "Mixer", accent: StudioTheme.cyan, showsHeader: false, contentPadding: 0) {
+                StudioPanel(title: "Mixer", accent: StudioTheme.transportAccent, showsHeader: false, contentPadding: 0) {
                     masterAwareMixer(presentation: presentation)
                 }
             }
@@ -82,8 +82,8 @@ struct MixerWorkspaceView: View {
 
     private var sendReturnStrips: some View {
         HStack(alignment: .top, spacing: MixerWorkspaceLayout.laneSpacing) {
-            sendReturnStrip(sendBus(.sendA), accent: StudioTheme.cyan)
-            sendReturnStrip(sendBus(.sendB), accent: StudioTheme.violet)
+            sendReturnStrip(sendBus(.sendA), accent: StudioTheme.transportAccent)
+            sendReturnStrip(sendBus(.sendB), accent: StudioTheme.transportAccent)
         }
         .accessibilityIdentifier("mixer-send-return-strips")
     }
@@ -205,7 +205,7 @@ struct MixerWorkspaceView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 // Colour identifies, it never floods (ux-canon rule 12):
                 // selection reads from the accent outline, not a tinted row fill.
-                .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
+                .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
                         .stroke(isSelected ? accent : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
@@ -248,8 +248,8 @@ struct MixerWorkspaceView: View {
     }
 
     /// The one chrome accent of each send strip (matches `sendReturnStrips`).
-    private func sendAccent(for busID: SendBusID) -> Color {
-        busID == .sendA ? StudioTheme.cyan : StudioTheme.violet
+    private func sendAccent(for _: SendBusID) -> Color {
+        StudioTheme.transportAccent
     }
 
     private func addSendFXButton(_ busID: SendBusID, accent: Color) -> some View {
@@ -317,7 +317,7 @@ struct MixerWorkspaceView: View {
             .foregroundStyle(StudioTheme.text)
             .padding(.horizontal, 10)
             .padding(.vertical, 9)
-            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
+            .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
         }
         .buttonStyle(.plain)
         .overlay(
@@ -375,7 +375,7 @@ enum MixerWorkspaceLayout {
 struct MixerStripActionButton: View {
     let title: String
     var systemName: String?
-    var accent: Color = StudioTheme.cyan
+    var accent: Color = StudioTheme.transportAccent
     var isActive = false
     var minWidth: CGFloat = 52
     let action: () -> Void
@@ -398,7 +398,7 @@ struct MixerStripActionButton: View {
             // Colour identifies, it never floods (ux-canon rule 12): an
             // engaged action chip is fully solid accent with dark text.
             .background(
-                (isActive ? accent : Color.white.opacity(StudioOpacity.subtleFill)),
+                (isActive ? accent : StudioTheme.subtleFill),
                 in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
             )
             .overlay(
@@ -437,7 +437,7 @@ private struct MasterOutputCompactStrip: View {
                     Text("CLIP")
                         .studioText(.micro)
                         .tracking(0.8)
-                        .foregroundStyle(Color.red)
+                        .foregroundStyle(StudioTheme.danger) // ux-canon-allow: latched CLIP is a true danger state
                         .rotationEffect(.degrees(-90))
                         .frame(width: 34, height: 24)
                 }
@@ -448,7 +448,7 @@ private struct MasterOutputCompactStrip: View {
             .background(StudioTheme.panelFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                    .stroke(StudioTheme.amber.opacity(0.7), lineWidth: StudioMetrics.borderWidth)
+                    .stroke(StudioTheme.transportAccent.opacity(0.7), lineWidth: StudioMetrics.borderWidth)
             )
         }
         .buttonStyle(.plain)
@@ -483,7 +483,7 @@ private struct CompactMasterMeter: View {
                 .fill(StudioTheme.inset)
                 .overlay(alignment: .bottom) {
                     RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                        .fill(state.isClipLatched ? Color.red : StudioTheme.success)
+                        .fill(state.isClipLatched ? StudioTheme.danger : StudioTheme.success) // ux-canon-allow: compact master meter uses semantic danger/success states
                         .frame(height: max(4, height * peak))
                 }
         }

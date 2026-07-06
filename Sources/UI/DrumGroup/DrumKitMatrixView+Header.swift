@@ -19,7 +19,7 @@ extension DrumKitMatrixView {
                     .foregroundStyle(StudioTheme.text)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 7)
-                    .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+                    .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
                     .overlay(
                         RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
                             .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
@@ -53,7 +53,7 @@ extension DrumKitMatrixView {
             }
         }
         .padding(StudioMetrics.Spacing.standard)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.section, style: .continuous))
+        .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.section, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.section, style: .continuous)
                 .stroke(accent.opacity(StudioOpacity.hoverFill), lineWidth: StudioMetrics.borderWidth)
@@ -71,6 +71,7 @@ extension DrumKitMatrixView {
             occupiedSlots: model.occupiedSlotIndexes,
             bypassState: .notApplicable,
             onBypassToggle: { _ in },
+            accent: accent,
             destinationMode: isCaptureOpen && isSelectingCaptureSaveSlot
                 ? TrackPatternSlotPalette.DestinationMode(
                     pendingReplaceSlot: historyTargetSlotIndex(model),
@@ -114,7 +115,7 @@ extension DrumKitMatrixView {
         .foregroundStyle(StudioTheme.text)
         .padding(.horizontal, 10)
         .padding(.vertical, 7)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+        .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
                 .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
@@ -136,7 +137,7 @@ extension DrumKitMatrixView {
         .padding(.horizontal, 10)
         .padding(.vertical, 7)
         .background(
-            isCaptureOpen ? accent : Color.white.opacity(StudioOpacity.subtleFill),
+            isCaptureOpen ? accent : StudioTheme.subtleFill,
             in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
         )
         .overlay(

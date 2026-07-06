@@ -7,6 +7,7 @@ struct SlicerSourceWidget: View {
     let library: AudioSampleLibrary
     let sampleEngine: SamplePlaybackSink
     let trackID: UUID
+    let accent: Color
     var onInstallSliceSet: (SliceSet, SlicerSettings) -> Void
     var onUpdateSliceSet: (SliceSet, Int64) -> Void
     var onApplyAnalyzedSliceSet: (SliceSet, Int64, Int) -> Void = { _, _, _ in }
@@ -83,7 +84,7 @@ struct SlicerSourceWidget: View {
                 emptyState
             }
         }
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+        .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
                 .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
@@ -94,6 +95,7 @@ struct SlicerSourceWidget: View {
                     sliceSet: effectiveSliceSet,
                     sample: sample,
                     library: library,
+                    accent: accent,
                     onCommit: commitEditedSliceSet
                 )
                 .presentationBackground(.clear)
@@ -107,7 +109,7 @@ struct SlicerSourceWidget: View {
                 .font(.system(size: 15, weight: .semibold))
                 .foregroundStyle(StudioTheme.background)
                 .frame(width: 28, height: 28)
-                .background(StudioTheme.cyan, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+                .background(accent, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(currentSample?.name ?? "Choose a loop")
@@ -182,7 +184,7 @@ struct SlicerSourceWidget: View {
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(StudioMetrics.Spacing.compact)
-                            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip))
+                            .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip))
                             .overlay(
                                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip)
                                     .stroke(StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
@@ -196,7 +198,7 @@ struct SlicerSourceWidget: View {
             if let analysisMessage {
                 Text(analysisMessage)
                     .studioText(.label)
-                    .foregroundStyle(Color.orange.opacity(0.9))
+                    .foregroundStyle(StudioTheme.warning)
             }
         }
         .padding(StudioMetrics.Spacing.comfortable)
@@ -209,11 +211,12 @@ struct SlicerSourceWidget: View {
                 sliceSet: displayedSliceSet,
                 sampleLengthFrames: sampleLengthFrames(sample: sample),
                 selectedMarkerID: nil,
+                accent: accent,
                 onBoundaryMove: nil
             )
             .frame(height: 72)
             .padding(StudioMetrics.Spacing.snug)
-            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip))
+            .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip))
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip)
                     .stroke(StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
@@ -226,7 +229,7 @@ struct SlicerSourceWidget: View {
                     Label(analysisDraft == nil ? "Auto Detect" : "Refresh Detection", systemImage: "waveform.badge.magnifyingglass")
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(StudioTheme.violet)
+                .tint(accent)
 
                 Spacer()
 
@@ -247,7 +250,7 @@ struct SlicerSourceWidget: View {
             if let analysisMessage {
                 Text(analysisMessage)
                     .studioText(.label)
-                    .foregroundStyle(Color.orange.opacity(0.9))
+                    .foregroundStyle(StudioTheme.warning)
             }
         }
         .padding(StudioMetrics.Spacing.comfortable)
@@ -281,10 +284,10 @@ struct SlicerSourceWidget: View {
                     .frame(maxWidth: .infinity, minHeight: 48)
                     // Colour identifies, it never floods (ux-canon rule 12):
                     // pads stay neutral; kind reads from the outline colour.
-                    .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+                    .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
                     .overlay(
                         RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                            .stroke(index == 0 ? StudioTheme.violet.opacity(0.65) : StudioTheme.cyan.opacity(0.55), lineWidth: StudioMetrics.borderWidth)
+                            .stroke(accent.opacity(index == 0 ? 0.65 : 0.55), lineWidth: StudioMetrics.borderWidth)
                     )
                 }
                 .buttonStyle(.plain)
@@ -327,7 +330,7 @@ struct SlicerSourceWidget: View {
 
                 Text(analysisSummary)
                     .studioText(.labelBold)
-                    .foregroundStyle(StudioTheme.violet)
+                    .foregroundStyle(accent)
                     .lineLimit(1)
             }
 
@@ -351,7 +354,7 @@ struct SlicerSourceWidget: View {
                     Label("Apply", systemImage: "checkmark.circle.fill")
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(StudioTheme.success)
+                .tint(accent)
 
                 Button {
                     analysisDraft = nil
@@ -366,11 +369,11 @@ struct SlicerSourceWidget: View {
         }
         .padding(StudioMetrics.Spacing.comfortable)
         // Colour identifies, it never floods (ux-canon rule 12): the panel is
-        // neutral; the violet lives in its outline.
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+        // neutral; the surface accent lives in its outline.
+        .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                .stroke(StudioTheme.violet.opacity(StudioOpacity.mediumStroke), lineWidth: StudioMetrics.borderWidth)
+                .stroke(accent.opacity(StudioOpacity.mediumStroke), lineWidth: StudioMetrics.borderWidth)
         )
     }
 
@@ -430,7 +433,7 @@ struct SlicerSourceWidget: View {
             .foregroundStyle(effectiveSliceSet.mode == mode ? StudioTheme.background : StudioTheme.mutedText)
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
-            .background(effectiveSliceSet.mode == mode ? StudioTheme.cyan : Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
+            .background(effectiveSliceSet.mode == mode ? accent : StudioTheme.subtleFill, in: Capsule())
             .overlay(
                 Capsule()
                     .stroke(effectiveSliceSet.mode == mode ? Color.clear : StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)

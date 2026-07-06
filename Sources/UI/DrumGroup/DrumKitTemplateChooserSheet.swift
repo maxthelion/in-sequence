@@ -8,6 +8,7 @@ import SwiftUI
 struct DrumKitTemplateChooserSheet: View {
     let groupName: String
     let targetSlotIndex: Int
+    var accent: Color = StudioTheme.transportAccent
     let templates: [PatternTemplate]
     let previewProvider: (PatternTemplate, Int) -> PatternTemplateApplicationPreview
     let onApply: (PatternTemplate, Int) -> Void
@@ -19,6 +20,7 @@ struct DrumKitTemplateChooserSheet: View {
     init(
         groupName: String,
         targetSlotIndex: Int,
+        accent: Color = StudioTheme.transportAccent,
         templates: [PatternTemplate] = DrumAssetLibrary.shared.templates,
         previewProvider: @escaping (PatternTemplate, Int) -> PatternTemplateApplicationPreview,
         onApply: @escaping (PatternTemplate, Int) -> Void,
@@ -26,6 +28,7 @@ struct DrumKitTemplateChooserSheet: View {
     ) {
         self.groupName = groupName
         self.targetSlotIndex = targetSlotIndex
+        self.accent = accent
         self.templates = templates
         self.previewProvider = previewProvider
         self.onApply = onApply
@@ -44,6 +47,7 @@ struct DrumKitTemplateChooserSheet: View {
         StudioModal(
             title: "Apply Template",
             subtitle: "\(groupName) — into pattern slot P\(targetSlotIndex + 1)",
+            accent: accent,
             minWidth: 560,
             minHeight: 460,
             onClose: onCancel
@@ -95,7 +99,7 @@ struct DrumKitTemplateChooserSheet: View {
                     requestApply()
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(StudioTheme.success)
+                .tint(accent)
                 .disabled(selectedTemplate == nil || selectedPreview?.filledPartNames.isEmpty != false)
                 .help(applyHelp)
             }
@@ -132,7 +136,7 @@ struct DrumKitTemplateChooserSheet: View {
                             .foregroundStyle(StudioTheme.background)
                             .padding(.horizontal, 7)
                             .padding(.vertical, 3)
-                            .background(StudioTheme.amber, in: Capsule())
+                            .background(StudioTheme.warning, in: Capsule())
                     }
 
                     Spacer(minLength: 0)
@@ -148,13 +152,13 @@ struct DrumKitTemplateChooserSheet: View {
             // Colour identifies, it never floods (ux-canon rule 12): the
             // template row stays neutral; selection reads from the outline.
             .background(
-                Color.white.opacity(StudioOpacity.subtleFill),
+                StudioTheme.subtleFill,
                 in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
                     .stroke(
-                        isSelected ? StudioTheme.success : StudioTheme.border,
+                        isSelected ? accent : StudioTheme.border,
                         lineWidth: isSelected ? 2 : StudioMetrics.borderWidth
                     )
             )
@@ -188,12 +192,12 @@ struct DrumKitTemplateChooserSheet: View {
             confirmList(
                 title: "Overwritten",
                 names: preview.overwrittenPartNames,
-                accent: StudioTheme.amber
+                accent: StudioTheme.warning
             )
 
             let freshFills = preview.filledPartNames.filter { !preview.overwrittenPartNames.contains($0) }
             if !freshFills.isEmpty {
-                confirmList(title: "Filled (empty slot)", names: freshFills, accent: StudioTheme.success)
+                confirmList(title: "Filled (empty slot)", names: freshFills, accent: accent)
             }
 
             if !preview.generatorSkippedPartNames.isEmpty {
@@ -226,7 +230,7 @@ struct DrumKitTemplateChooserSheet: View {
                     onApply(template, targetSlotIndex)
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(StudioTheme.amber)
+                .tint(StudioTheme.warning)
             }
         }
     }

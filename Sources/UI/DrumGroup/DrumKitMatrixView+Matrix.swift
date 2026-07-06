@@ -97,7 +97,7 @@ extension DrumKitMatrixView {
             .foregroundStyle(StudioTheme.mutedText)
             .padding(.horizontal, 10)
             .padding(.vertical, 7)
-            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+            .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
     }
 
     var emptyRowsState: some View {
@@ -107,7 +107,7 @@ extension DrumKitMatrixView {
             .foregroundStyle(StudioTheme.text)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(StudioMetrics.Spacing.loose)
-            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+            .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
                     .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)

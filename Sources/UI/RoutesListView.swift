@@ -15,23 +15,27 @@ struct RoutesListView: View {
         session.store.routesSourced(from: selectedTrack.id)
     }
 
+    private var accent: Color {
+        StudioTheme.trackAccent(for: selectedTrack, groups: session.store.trackGroups)
+    }
+
     var body: some View {
         let tracks = session.store.tracks
         VStack(alignment: .leading, spacing: 14) {
             HStack {
-                StudioMetricPill(title: "Routes Out", value: "\(routes.count)", accent: StudioTheme.violet)
+                StudioMetricPill(title: "Routes Out", value: "\(routes.count)", accent: accent)
                 Spacer()
                 Button("Add Route") {
                     editingRoute = session.makeDefaultRoute(from: selectedTrack.id)
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(StudioTheme.cyan)
+                .tint(accent)
             }
 
             if routes.isEmpty {
                 StudioPlaceholderTile(
                     title: "No Project Routes Yet",
-                    accent: StudioTheme.violet
+                    accent: accent
                 )
                 .help("Routes duplicate this track's notes to another track, a MIDI endpoint, or a chord-context lane")
             } else {
@@ -89,14 +93,14 @@ private struct RouteRowView: View {
                         .foregroundStyle(StudioTheme.background)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
-                        .background(StudioTheme.amber, in: Capsule())
+                            .background(StudioTheme.warning, in: Capsule())
                 }
             }
 
             HStack(spacing: 8) {
                 Button("Edit", action: onEdit)
                     .buttonStyle(.borderedProminent)
-                    .tint(StudioTheme.cyan)
+                    .tint(StudioTheme.transportAccent)
 
                 Button("Delete", role: .destructive, action: onDelete)
                     .buttonStyle(.bordered)
@@ -104,7 +108,7 @@ private struct RouteRowView: View {
         }
         .padding(StudioMetrics.Spacing.standard)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+        .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
                 .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)

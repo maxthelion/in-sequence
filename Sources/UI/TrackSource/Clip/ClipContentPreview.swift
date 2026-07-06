@@ -15,15 +15,6 @@ private enum ClipEditorLane: String, CaseIterable, Identifiable {
         }
     }
 
-    var accent: Color {
-        switch self {
-        case .main:
-            return StudioTheme.cyan
-        case .fill:
-            return StudioTheme.success
-        }
-    }
-
     var activeState: StepVisualState {
         switch self {
         case .main:
@@ -239,7 +230,8 @@ struct ClipContentPreview: View {
                 VStack(alignment: .leading, spacing: 14) {
                     StepGridView(
                         stepStates: stepPattern.map { $0 ? .on : .off },
-                        playingStepIndex: playingStepIndex
+                        playingStepIndex: playingStepIndex,
+                        accent: accent
                     ) { index in
                         guard stepPattern.indices.contains(index) else { return }
                         commit { entry in
@@ -346,6 +338,7 @@ struct ClipContentPreview: View {
                         indexOffset: pageStart,
                         playingStepIndex: playingStepIndex,
                         selectedStepIndexes: selectedStepIndexes,
+                        accent: accent,
                         contentProvider: { index, _ in
                             StepGridCoordinator.cellContent(
                                 for: index,
@@ -371,6 +364,7 @@ struct ClipContentPreview: View {
                             indexOffset: pageStart,
                             playingStepIndex: playingStepIndex,
                             selectedStepIndexes: selectedStepIndexes,
+                            accent: accent,
                             onSelectStep: selectStepAction,
                             onBackgroundTap: clearSelectionAction
                         ) { index in
@@ -405,6 +399,7 @@ struct ClipContentPreview: View {
                             indexOffset: pageStart,
                             playingStepIndex: playingStepIndex,
                             selectedStepIndexes: selectedStepIndexes,
+                            accent: accent,
                             contentProvider: { index, _ in
                                 StepGridCoordinator.cellContent(
                                     for: index,
@@ -452,6 +447,7 @@ struct ClipContentPreview: View {
                             indexOffset: pageStart,
                             playingStepIndex: playingStepIndex,
                             selectedStepIndexes: selectedStepIndexes,
+                            accent: accent,
                             contentProvider: { index, _ in
                                 guard steps.indices.contains(index) else {
                                     return .valueBar(fraction: 0)
@@ -479,6 +475,7 @@ struct ClipContentPreview: View {
                             indexOffset: pageStart,
                             playingStepIndex: playingStepIndex,
                             selectedStepIndexes: selectedStepIndexes,
+                            accent: accent,
                             contentProvider: { index, _ in
                                 guard steps.indices.contains(index) else {
                                     return .valueBar(fraction: 0)
@@ -548,7 +545,7 @@ struct ClipContentPreview: View {
                 ),
                 activeLayer: selectedLayer.stepGridLayer,
                 suppressActiveLayerHighlight: selectedLayer == .mode(.trigger),
-                accent: selectedLane.accent,
+                accent: accent,
                 onSelectLayer: { layer in
                     if let editorLayer = ClipEditorLayer(stepGridLayer: layer) {
                         selectedLayer = editorLayer
@@ -559,7 +556,7 @@ struct ClipContentPreview: View {
                 }
             )
         } else if stepGridCoordinator?.isSelectionActive == true {
-            StepLayerRotaryEmptyState()
+            StepLayerRotaryEmptyState(accent: accent)
         } else {
             layerLineControl
         }
@@ -703,7 +700,7 @@ struct ClipContentPreview: View {
                         .foregroundStyle(canRandomize ? StudioTheme.text : StudioTheme.mutedText)
                         .frame(width: 30, height: 30)
                         .background(
-                            isRandomizePanelVisible ? Color.white.opacity(StudioOpacity.subtleFill) : Color.clear,
+                            isRandomizePanelVisible ? StudioTheme.subtleFill : Color.clear,
                             in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
                         )
                         .overlay(
@@ -782,7 +779,7 @@ struct ClipContentPreview: View {
                 return StudioSegment(
                     title: "\(start)-\(end)",
                     value: index,
-                    indicatorAccent: playheadPage == index ? StudioTheme.success : nil
+                    indicatorAccent: playheadPage == index ? accent : nil
                 )
             },
             accent: accent,
@@ -1033,7 +1030,7 @@ struct ClipContentPreview: View {
                         // 12): an engaged step cell is fully solid accent with
                         // dark glyphs, never a translucent wash.
                         .background(
-                            mode == .runFromHere ? StudioTheme.violet : Color.white.opacity(StudioOpacity.subtleFill),
+                            mode == .runFromHere ? accent : StudioTheme.subtleFill,
                             in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
                         )
                         .overlay(

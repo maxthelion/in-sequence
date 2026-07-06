@@ -31,7 +31,7 @@ struct AUEffectPickerList<Row: View>: View {
 
             if effects.isEmpty {
                 StudioEmptyListRow(message: "No AU effects found")
-                    .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
+                    .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
             } else if filtered.isEmpty {
                 StudioEmptyListRow(message: "No effects match “\(query)”")
             } else {
@@ -72,7 +72,7 @@ struct StudioPluginRescanHeader: View {
                     .studioText(.labelBold)
             }
             .buttonStyle(.plain)
-            .foregroundStyle(StudioTheme.violet)
+            .foregroundStyle(StudioTheme.transportAccent)
             .disabled(engineController.audioPluginChoiceScanState.isScanning)
             .opacity(engineController.audioPluginChoiceScanState.isScanning ? 0.5 : 1)
         }

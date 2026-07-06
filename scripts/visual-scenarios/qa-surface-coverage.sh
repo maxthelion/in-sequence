@@ -61,6 +61,7 @@ esac
 status_file="${command_file}.status"
 WB="120,80,1100,780"
 capture_filter="${QA_SURFACE_CAPTURE_FILTER:-}"
+startup_wait_seconds="${QA_SURFACE_STARTUP_WAIT_SECONDS:-45}"
 captured_count=0
 executed_row_count=0
 skipped_rows=()
@@ -533,8 +534,8 @@ write_visual_command "windowFrame=$WB
 workspace=phrase
 transport=stop"
 ensure_document_window "$pid"
-wait_for_visual_command_ack 15
-wait_for_status "workspace" "phrase" 15
+wait_for_visual_command_ack "$startup_wait_seconds"
+wait_for_status "workspace" "phrase" "$startup_wait_seconds"
 
 while IFS= read -r row; do
   [ -n "$row" ] || continue

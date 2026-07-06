@@ -9,7 +9,8 @@ import SwiftUI
 //   • full-strength surface-accent outline at StudioMetrics.borderWidth
 //     (accent as OUTLINE only, never a fill — ux-canon rule 12);
 //   • ALL four corners rounded at 12 px (StudioMetrics.CornerRadius.control);
-//   • exactly one neutral fill step above the ground (StudioOpacity.subtleFill).
+//   • exactly one opaque neutral fill step above the ground
+//     (StudioTheme.subtleFill).
 //
 // The section switcher (StudioSectionPills) floats ABOVE the well with the
 // standard StudioTabWellGrammar.pillRowToWellGap; tab content and any
@@ -56,7 +57,7 @@ struct StudioTabWell<Content: View>: View {
         // is neutral — one fill step above the ground — and its accent lives
         // entirely in the full-strength outline.
         .background(
-            Color.white.opacity(StudioOpacity.subtleFill),
+            StudioTheme.subtleFill,
             in: shape
         )
         .overlay(

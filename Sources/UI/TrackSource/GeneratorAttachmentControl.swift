@@ -41,7 +41,7 @@ struct GeneratorAttachmentControl: View {
                             .foregroundStyle(StudioTheme.text)
                             .padding(.vertical, 7)
                             .padding(.horizontal, 12)
-                            .background(Color.white.opacity(StudioOpacity.borderSubtle), in: Capsule())
+                            .background(StudioTheme.borderSubtleFill, in: Capsule())
                             .overlay(Capsule().stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth))
                     }
                     .buttonStyle(.plain)
@@ -53,7 +53,7 @@ struct GeneratorAttachmentControl: View {
                         .foregroundStyle(StudioTheme.text)
                         .padding(.vertical, 7)
                         .padding(.horizontal, 12)
-                        .background(Color.white.opacity(StudioOpacity.borderSubtle), in: Capsule())
+                        .background(StudioTheme.borderSubtleFill, in: Capsule())
                         .overlay(Capsule().stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth))
                 }
                 .buttonStyle(.plain)

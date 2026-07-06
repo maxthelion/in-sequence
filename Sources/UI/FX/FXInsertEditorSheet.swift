@@ -43,7 +43,7 @@ struct FXInsertEditorSheet: View {
                     .labelsHidden()
                     .toggleStyle(.switch)
                     .controlSize(.small)
-                    .tint(StudioTheme.success)
+                    .tint(accent)
                     .help(isEnabled.wrappedValue ? "Bypass insert" : "Enable insert")
             },
             content: {
@@ -157,7 +157,6 @@ struct FXInsertEditorSheet: View {
             }
             .buttonStyle(.bordered)
             .controlSize(.small)
-            .tint(StudioTheme.danger)
             .help("Remove insert")
         }
     }

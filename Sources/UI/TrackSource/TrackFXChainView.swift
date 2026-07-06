@@ -32,7 +32,7 @@ struct TrackFXChainView: View {
             label: "",
             accent: accent,
             minHeight: 132,
-            backgroundColor: StudioTheme.background.opacity(0.72),
+            backgroundColor: StudioTheme.background,
             help: "Add FX"
         ) {
             onAddFX()
@@ -63,7 +63,7 @@ struct TrackFXChainView: View {
                 label: "Add FX",
                 accent: accent,
                 minHeight: 64,
-                backgroundColor: StudioTheme.background.opacity(0.72),
+                backgroundColor: StudioTheme.background,
                 help: "Add FX"
             ) {
                 onAddFX()

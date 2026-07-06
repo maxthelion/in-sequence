@@ -124,7 +124,7 @@ struct RouteEditorSheet: View {
                     dismiss()
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(StudioTheme.cyan)
+                .tint(StudioTheme.transportAccent)
             }
         }
     }

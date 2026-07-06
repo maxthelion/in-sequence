@@ -84,7 +84,7 @@ struct TrackRoutingTabContent: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 12)
         .padding(.vertical, 9)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
+        .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
                 .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
@@ -144,7 +144,7 @@ struct TrackRoutingTabContent: View {
                 .padding(.horizontal, 10)
                 .padding(.vertical, 8)
                 .frame(minWidth: 120, alignment: .leading)
-                .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
+                .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
                         .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
@@ -177,7 +177,7 @@ struct TrackRoutingTabContent: View {
                             .padding(.vertical, 8)
                             .padding(.horizontal, 8)
                             .background(
-                                isSelected ? accent : Color.white.opacity(StudioOpacity.subtleFill),
+                                isSelected ? accent : StudioTheme.subtleFill,
                                 in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
                             )
                             .overlay(
@@ -201,7 +201,6 @@ struct TrackRoutingTabContent: View {
         case b
 
         var title: String { self == .a ? "A" : "B" }
-        var accent: Color { self == .a ? StudioTheme.cyan : StudioTheme.violet }
         var keyPath: WritableKeyPath<TrackMixSettings, Double> {
             self == .a ? \.sendA : \.sendB
         }
@@ -214,7 +213,7 @@ struct TrackRoutingTabContent: View {
             title: "SEND \(slot.title)",
             value: MixerSendDisplayModel.clamped(value),
             range: TrackMixSettings.sendRange,
-            accent: slot.accent,
+            accent: accent,
             size: 40,
             format: { MixerSendDisplayModel.percentLabel(for: $0) },
             onChange: { commitSend(slot, value: $0) },

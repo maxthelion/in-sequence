@@ -5,7 +5,7 @@ struct StudioPlaceholderTile: View {
     /// Optional short state caption. Instructional prose belongs in a `.help`
     /// tooltip, not here (canon Rule 3: no explainer prose on surfaces).
     var detail: String? = nil
-    var accent: Color = StudioTheme.cyan
+    var accent: Color = StudioTheme.transportAccent
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -22,7 +22,7 @@ struct StudioPlaceholderTile: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(StudioMetrics.Spacing.standard)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+        .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
                 .stroke(accent.opacity(StudioOpacity.softFill), lineWidth: StudioMetrics.borderWidth)

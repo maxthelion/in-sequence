@@ -161,7 +161,7 @@ extension DrumKitMatrixView {
         .foregroundStyle(StudioTheme.mutedText)
         .padding(.horizontal, 9)
         .padding(.vertical, 5)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
+        .background(StudioTheme.subtleFill, in: Capsule())
         .overlay(
             Capsule().stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
         )
@@ -246,7 +246,7 @@ extension DrumKitMatrixView {
                             .padding(.vertical, 8)
                             .padding(.horizontal, 8)
                             .background(
-                                isSelected ? accent : Color.white.opacity(StudioOpacity.subtleFill),
+                                isSelected ? accent : StudioTheme.subtleFill,
                                 in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
                             )
                             .overlay(

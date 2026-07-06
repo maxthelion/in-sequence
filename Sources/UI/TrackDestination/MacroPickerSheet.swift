@@ -53,7 +53,7 @@ struct MacroPickerSheet: View {
                         Spacer()
                         Button("Confirm") { commitSelection() }
                             .buttonStyle(.borderedProminent)
-                            .tint(StudioTheme.success)
+                            .tint(StudioTheme.transportAccent)
                     }
                     .padding(.top, 12)
                 }
@@ -125,7 +125,7 @@ struct MacroPickerSheet: View {
 
         return HStack(spacing: 12) {
             Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                .foregroundStyle(isSelected ? StudioTheme.success : StudioTheme.mutedText)
+                .foregroundStyle(isSelected ? StudioTheme.transportAccent : StudioTheme.mutedText)
                 .font(.system(size: 16))
 
             VStack(alignment: .leading, spacing: 2) {
@@ -161,7 +161,7 @@ struct MacroPickerSheet: View {
         .padding(.vertical, 8)
         // Colour identifies, it never floods (ux-canon rule 12): selection is
         // a neutral row step (the leading checkmark carries the green).
-        .background(isSelected ? Color.white.opacity(StudioOpacity.subtleFill) : Color.clear)
+        .background(isSelected ? StudioTheme.subtleFill : Color.clear)
     }
 
     // MARK: - Built-in Read-Only Content
@@ -180,7 +180,7 @@ struct MacroPickerSheet: View {
     private func builtinRow(_ binding: TrackMacroBinding) -> some View {
         HStack(spacing: 12) {
             Image(systemName: "checkmark.circle.fill")
-                .foregroundStyle(StudioTheme.success)
+                .foregroundStyle(StudioTheme.transportAccent)
                 .font(.system(size: 16))
 
             VStack(alignment: .leading, spacing: 2) {

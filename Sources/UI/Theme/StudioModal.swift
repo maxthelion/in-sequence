@@ -6,7 +6,7 @@ import SwiftUI
 struct StudioModal<Content: View, HeaderAccessory: View>: View {
     let title: String
     var subtitle: String? = nil
-    var accent: Color = StudioTheme.cyan
+    var accent: Color = StudioTheme.transportAccent
     var showsTitleRule = true
     var minWidth: CGFloat = 480
     var minHeight: CGFloat? = nil
@@ -64,7 +64,7 @@ extension StudioModal where HeaderAccessory == EmptyView {
     init(
         title: String,
         subtitle: String? = nil,
-        accent: Color = StudioTheme.cyan,
+        accent: Color = StudioTheme.transportAccent,
         showsTitleRule: Bool = true,
         minWidth: CGFloat = 480,
         minHeight: CGFloat? = nil,

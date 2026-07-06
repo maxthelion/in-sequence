@@ -15,6 +15,7 @@ struct TrackPatternSlotPalette: View {
     let occupiedSlots: Set<Int>
     let bypassState: BypassState
     let onBypassToggle: (Int) -> Void
+    let accent: Color
     var destinationMode: DestinationMode?
     var onDestinationSelect: (Int) -> Void = { _ in }
 
@@ -124,39 +125,39 @@ struct TrackPatternSlotPalette: View {
     private func backgroundFill(for slotIndex: Int, isBypassed: Bool) -> Color {
         if let destinationMode {
             if destinationMode.pendingReplaceSlot == slotIndex {
-                return StudioTheme.amber
+                return destinationMode.accent
             }
-            return Color.white.opacity(StudioOpacity.subtleFill)
+            return StudioTheme.subtleFill
         }
         if selectedSlot == slotIndex {
-            return isBypassed ? StudioTheme.violet : StudioTheme.success
+            return accent
         }
-        return Color.white.opacity(StudioOpacity.subtleFill)
+        return StudioTheme.subtleFill
     }
 
     private func borderColor(for slotIndex: Int, isBypassed: Bool) -> Color {
         if let destinationMode {
             if destinationMode.pendingReplaceSlot == slotIndex {
-                return StudioTheme.amber
+                return destinationMode.accent
             }
             return destinationMode.accent.opacity(destinationPulse ? 0.9 : 0.45)
         }
         if isBypassed {
             return selectedSlot == slotIndex
-                ? StudioTheme.violet
-                : StudioTheme.violet.opacity(0.4)
+                ? accent
+                : accent.opacity(0.4)
         }
         if selectedSlot == slotIndex {
-            return StudioTheme.success
+            return accent
         }
         if occupiedSlots.contains(slotIndex) {
-            return StudioTheme.success.opacity(StudioOpacity.subtleStroke)
+            return accent.opacity(StudioOpacity.subtleStroke)
         }
         return StudioTheme.border
     }
 
     private func bypassBadgeFill(_ isBypassed: Bool) -> Color {
-        isBypassed ? StudioTheme.violet : StudioTheme.cyan
+        isBypassed ? StudioTheme.neutral : accent
     }
 
     private func borderWidth(for slotIndex: Int) -> CGFloat {
@@ -168,7 +169,7 @@ struct TrackPatternSlotPalette: View {
             return Color.clear
         }
         if destinationMode.pendingReplaceSlot == slotIndex {
-            return StudioTheme.amber.opacity(destinationPulse ? 0.38 : 0.12)
+            return destinationMode.accent.opacity(destinationPulse ? 0.38 : 0.12)
         }
         return destinationMode.accent.opacity(destinationPulse ? 0.32 : 0.08)
     }

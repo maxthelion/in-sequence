@@ -2,6 +2,7 @@ import SwiftUI
 
 struct StepAlgoEditor: View {
     let stage: StepStage
+    var accent: Color = StudioTheme.transportAccent
     let onChange: (StepStage) -> Void
 
     @State private var showsSecondaryParameters = false
@@ -24,7 +25,7 @@ struct StepAlgoEditor: View {
                         accessibilityIdentifier: "generator-trigger-source-\(kind.rawValue)"
                     )
                 },
-                accent: StudioTheme.cyan
+                accent: accent
             )
 
             stageControls
@@ -41,7 +42,7 @@ struct StepAlgoEditor: View {
                         title: "Pulses",
                         value: Double(pulses),
                         range: 0...Double(steps),
-                        accent: StudioTheme.cyan,
+                        accent: accent,
                         size: 56
                     ) {
                         onChange(StepStage(algo: .euclidean(pulses: Int($0.rounded()), steps: steps, offset: offset), basePitch: stage.basePitch))
@@ -52,7 +53,7 @@ struct StepAlgoEditor: View {
                             title: "Steps",
                             value: Double(steps),
                             range: 1...32,
-                            accent: StudioTheme.violet
+                            accent: accent
                         ) { newValue in
                             let nextSteps = Int(newValue.rounded())
                             onChange(StepStage(algo: .euclidean(pulses: min(pulses, nextSteps), steps: nextSteps, offset: offset), basePitch: stage.basePitch))
@@ -62,7 +63,7 @@ struct StepAlgoEditor: View {
                             title: "Offset",
                             value: Double(offset),
                             range: -32...32,
-                            accent: StudioTheme.violet
+                            accent: accent
                         ) {
                             onChange(StepStage(algo: .euclidean(pulses: pulses, steps: steps, offset: Int($0.rounded())), basePitch: stage.basePitch))
                         }
@@ -71,7 +72,7 @@ struct StepAlgoEditor: View {
                             title: "Pitch",
                             value: Double(stage.basePitch),
                             range: 0...127,
-                            accent: StudioTheme.amber
+                            accent: accent
                         ) {
                             onChange(StepStage(algo: stage.algo, basePitch: Int($0.rounded())))
                         }
@@ -94,7 +95,7 @@ struct StepAlgoEditor: View {
                 GridEditor(
                     values: pattern.map { $0 ? 1.0 : 0.0 },
                     allowedValues: [0, 1],
-                    accent: StudioTheme.cyan
+                    accent: accent
                 ) { next in
                     onChange(StepStage(algo: .manual(pattern: next.map { $0 >= 0.5 }), basePitch: stage.basePitch))
                 }
@@ -103,7 +104,7 @@ struct StepAlgoEditor: View {
                     title: "Pitch",
                     value: Double(stage.basePitch),
                     range: 0...127,
-                    accent: StudioTheme.amber,
+                    accent: accent,
                     size: 56
                 ) {
                     onChange(StepStage(algo: stage.algo, basePitch: Int($0.rounded())))
@@ -111,7 +112,7 @@ struct StepAlgoEditor: View {
             }
         case let .weighted(weights, steps, cluster):
             VStack(alignment: .leading, spacing: 14) {
-                GridEditor(values: weights, allowedValues: [0, 0.25, 0.5, 0.75, 1], accent: StudioTheme.cyan) { next in
+                GridEditor(values: weights, allowedValues: [0, 0.25, 0.5, 0.75, 1], accent: accent) { next in
                     onChange(StepStage(algo: .weighted(weights: next, steps: steps, cluster: cluster), basePitch: stage.basePitch))
                 }
 
@@ -120,7 +121,7 @@ struct StepAlgoEditor: View {
                         title: "Steps",
                         value: Double(steps),
                         range: 1...32,
-                        accent: StudioTheme.violet,
+                        accent: accent,
                         size: 56
                     ) { newValue in
                         let nextSteps = Int(newValue.rounded())
@@ -132,7 +133,7 @@ struct StepAlgoEditor: View {
                         title: "Cluster",
                         value: cluster,
                         range: -1...1,
-                        accent: StudioTheme.amber,
+                        accent: accent,
                         size: 56
                     ) {
                         onChange(StepStage(algo: .weighted(weights: weights, steps: steps, cluster: $0), basePitch: stage.basePitch))
@@ -142,7 +143,7 @@ struct StepAlgoEditor: View {
                         title: "Pitch",
                         value: Double(stage.basePitch),
                         range: 0...127,
-                        accent: StudioTheme.amber,
+                        accent: accent,
                         size: 56
                     ) {
                         onChange(StepStage(algo: stage.algo, basePitch: Int($0.rounded())))

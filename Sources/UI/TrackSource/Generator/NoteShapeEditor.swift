@@ -2,6 +2,7 @@ import SwiftUI
 
 struct NoteShapeEditor: View {
     let shape: NoteShape
+    var accent: Color = StudioTheme.transportAccent
     let onChange: (NoteShape) -> Void
 
     var body: some View {
@@ -10,7 +11,7 @@ struct NoteShapeEditor: View {
                 title: "Velocity",
                 value: Double(shape.velocity),
                 range: 1...127,
-                accent: StudioTheme.amber
+                accent: accent
             ) { newValue in
                 onChange(NoteShape(velocity: Int(newValue.rounded()), gateLength: shape.gateLength, accent: shape.accent))
             }
@@ -19,7 +20,7 @@ struct NoteShapeEditor: View {
                 title: "Gate",
                 value: Double(shape.gateLength),
                 range: 1...16,
-                accent: StudioTheme.violet
+                accent: accent
             ) { newValue in
                 onChange(NoteShape(velocity: shape.velocity, gateLength: Int(newValue.rounded()), accent: shape.accent))
             }

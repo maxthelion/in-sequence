@@ -7,6 +7,7 @@ struct SamplerDestinationWidget: View {
     /// binding so the session can dispatch to the engine via `.scopedRuntime(.filter(...))`.
     let sampleEngine: SamplePlaybackSink
     let trackID: UUID
+    let accent: Color
     @Binding var filterSettings: SamplerFilterSettings
     var onManageMacros: () -> Void = {}
     var onRemove: () -> Void = {}
@@ -53,7 +54,7 @@ struct SamplerDestinationWidget: View {
             divider
             sampleBody(sample: sample)
         }
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+        .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
                 .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
@@ -184,13 +185,13 @@ struct SamplerDestinationWidget: View {
         let buckets = WaveformDownsampler.downsample(url: url, bucketCount: 64)
         let start = currentSettings.start.clamped(to: 0...1)
         let stop = (currentSettings.start + currentSettings.length).clamped(to: 0...1)
-        return WaveformView(buckets: buckets)
+        return WaveformView(buckets: buckets, fillColor: accent)
             .frame(height: 120)
             .overlay(
-                WaveformRegionMarkers(start: start, stop: stop)
+                WaveformRegionMarkers(start: start, stop: stop, accent: accent)
             )
             .padding(StudioMetrics.Spacing.snug)
-            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip))
+            .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip))
             .overlay(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip).stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth))
     }
 
@@ -200,7 +201,8 @@ struct SamplerDestinationWidget: View {
             SamplerParameterKnob(
                 label: "Start",
                 normalizedValue: currentSettings.start,
-                displayText: percentLabel(currentSettings.start)
+                displayText: percentLabel(currentSettings.start),
+                accent: accent
             ) { normalized in
                 commitStart(normalized)
             }
@@ -208,7 +210,8 @@ struct SamplerDestinationWidget: View {
             SamplerParameterKnob(
                 label: "Length",
                 normalizedValue: currentSettings.length,
-                displayText: percentLabel(currentSettings.length)
+                displayText: percentLabel(currentSettings.length),
+                accent: accent
             ) { normalized in
                 commitLength(normalized)
             }
@@ -216,7 +219,8 @@ struct SamplerDestinationWidget: View {
             SamplerParameterKnob(
                 label: "Gain",
                 normalizedValue: normalizedGain,
-                displayText: gainLabel(currentSettings.gain)
+                displayText: gainLabel(currentSettings.gain),
+                accent: accent
             ) { normalized in
                 commitGain(gainFromNormalized(normalized))
             }
@@ -230,7 +234,8 @@ struct SamplerDestinationWidget: View {
             SamplerParameterKnob(
                 label: "Cutoff",
                 normalizedValue: normalizedCutoff(filterSettings.cutoffHz),
-                displayText: cutoffLabel(filterSettings.cutoffHz)
+                displayText: cutoffLabel(filterSettings.cutoffHz),
+                accent: accent
             ) { normalized in
                 onCutoffChanged(cutoffFromNormalized(normalized))
             }
@@ -238,7 +243,8 @@ struct SamplerDestinationWidget: View {
             SamplerParameterKnob(
                 label: "Reso",
                 normalizedValue: filterSettings.resonance,
-                displayText: percentLabel(filterSettings.resonance)
+                displayText: percentLabel(filterSettings.resonance),
+                accent: accent
             ) { normalized in
                 onResoChanged(normalized)
             }
@@ -246,7 +252,8 @@ struct SamplerDestinationWidget: View {
             SamplerParameterKnob(
                 label: "Drive",
                 normalizedValue: filterSettings.drive,
-                displayText: percentLabel(filterSettings.drive)
+                displayText: percentLabel(filterSettings.drive),
+                accent: accent
             ) { normalized in
                 onDriveChanged(normalized)
             }
@@ -256,10 +263,10 @@ struct SamplerDestinationWidget: View {
 
     private var filterSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            FilterCurveView(settings: filterSettings)
+            FilterCurveView(settings: filterSettings, accent: accent)
                 .frame(height: 64)
                 .padding(StudioMetrics.Spacing.snug)
-                .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip))
+                .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip))
                 .overlay(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip).stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth))
 
             optionRow(
@@ -326,7 +333,7 @@ struct SamplerDestinationWidget: View {
                     .foregroundStyle(StudioTheme.text)
                     .padding(.vertical, 8)
                     .padding(.horizontal, 12)
-                    .background(Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
+                    .background(StudioTheme.subtleFill, in: Capsule())
                     .overlay(
                         Capsule()
                             .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
@@ -336,7 +343,7 @@ struct SamplerDestinationWidget: View {
             .help("Choose another sample or remove the destination")
             .padding(StudioMetrics.Spacing.comfortable)
         }
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+        .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
                 .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
@@ -382,12 +389,12 @@ struct SamplerDestinationWidget: View {
                     .padding(.vertical, 6)
                     .frame(maxWidth: .infinity)
                     .background(
-                        (selection == option ? StudioTheme.cyan.opacity(0.18) : Color.white.opacity(StudioOpacity.subtleFill)),
+                        StudioTheme.subtleFill,
                         in: Capsule()
                     )
                     .overlay(
                         Capsule()
-                            .stroke(selection == option ? StudioTheme.cyan.opacity(0.7) : StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
+                            .stroke(selection == option ? accent.opacity(0.7) : StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
                     )
                     .buttonStyle(.plain)
                 }
@@ -535,6 +542,7 @@ struct SamplerParameterKnob: View {
     let label: String
     let normalizedValue: Double
     let displayText: String
+    let accent: Color
     let onCommit: (Double) -> Void
 
     var body: some View {
@@ -542,6 +550,7 @@ struct SamplerParameterKnob: View {
             title: label,
             value: normalizedValue.clamped(to: 0...1),
             range: 0...1,
+            accent: accent,
             size: StudioMetrics.ControlSize.knob,
             format: { _ in displayText },
             onChange: onCommit
@@ -556,6 +565,7 @@ struct SamplerParameterKnob: View {
 /// is an illustrative response, not a measured one.
 private struct FilterCurveView: View {
     let settings: SamplerFilterSettings
+    let accent: Color
 
     private let sampleCount = 96
 
@@ -568,12 +578,12 @@ private struct FilterCurveView: View {
             fill.addLine(to: CGPoint(x: size.width, y: size.height))
             fill.addLine(to: CGPoint(x: 0, y: size.height))
             fill.closeSubpath()
-            context.fill(fill, with: .color(StudioTheme.cyan.opacity(0.14)))
+            context.fill(fill, with: .color(StudioTheme.subtleFill))
 
             // Stroke the curve.
             context.stroke(
                 path,
-                with: .color(StudioTheme.cyan),
+                with: .color(accent),
                 style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round)
             )
         }
@@ -658,6 +668,7 @@ private struct FilterCurveView: View {
 private struct WaveformRegionMarkers: View {
     let start: Double
     let stop: Double
+    let accent: Color
 
     var body: some View {
         GeometryReader { geo in
@@ -669,7 +680,7 @@ private struct WaveformRegionMarkers: View {
             ZStack(alignment: .topLeading) {
                 // Shaded active region between start and stop.
                 Rectangle()
-                    .fill(StudioTheme.cyan.opacity(0.10))
+                    .fill(StudioTheme.subtleFill)
                     .frame(width: max(0, stopX - startX), height: height)
                     .offset(x: startX)
 
@@ -681,7 +692,7 @@ private struct WaveformRegionMarkers: View {
 
     private func marker(at x: CGFloat, height: CGFloat) -> some View {
         Rectangle()
-            .fill(StudioTheme.cyan)
+            .fill(accent)
             .frame(width: 2, height: height)
             .offset(x: x - 1)
     }

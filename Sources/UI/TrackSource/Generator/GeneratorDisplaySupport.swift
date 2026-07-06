@@ -41,14 +41,5 @@ func pitchDisplayLabel(_ pitch: PitchAlgo) -> String {
 }
 
 func stepAlgoAccentColor(for kind: StepAlgoKind) -> Color {
-    switch kind {
-    case .euclidean:
-        return StudioTheme.success
-    case .manual:
-        return StudioTheme.cyan
-    case .weighted:
-        // Violet, not amber: amber is fenced to the PENDING state vocabulary
-        // (tab-unification-and-canon-creep.md) and a kind accent is chrome.
-        return StudioTheme.violet
-    }
+    StudioTheme.transportAccent
 }

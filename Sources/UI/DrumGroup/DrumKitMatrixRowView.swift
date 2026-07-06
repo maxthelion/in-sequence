@@ -130,6 +130,7 @@ struct DrumKitMatrixRowView<DetailPanel: View>: View {
             StepGridView(
                 stepStates: states,
                 indexOffset: pageOffset,
+                accent: accent,
                 contentProvider: { index, _ in
                     cellContent(steps: steps, index: index)
                 },
@@ -171,6 +172,7 @@ struct DrumKitMatrixRowView<DetailPanel: View>: View {
         StepGridView(
             stepStates: states,
             indexOffset: pageOffset,
+            accent: accent,
             advanceStep: { _ in }
         )
         .allowsHitTesting(false)

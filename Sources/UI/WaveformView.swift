@@ -2,7 +2,7 @@ import SwiftUI
 
 struct WaveformView: View {
     let buckets: [Float]
-    var fillColor: Color = StudioTheme.success
+    var fillColor: Color = StudioTheme.transportAccent
     var inactiveColor: Color = StudioTheme.border
 
     var body: some View {

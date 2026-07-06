@@ -221,19 +221,20 @@ struct CreateTrackFlow: View {
     // MARK: - Step 1: type picker
 
     private var pickTypeStep: some View {
-        LazyVGrid(columns: columns, spacing: 12) {
-            createButton(title: "Mono", accent: StudioTheme.cyan, help: "Single melodic lane") {
+        let creationAccent = StudioTheme.transportAccent
+        return LazyVGrid(columns: columns, spacing: 12) {
+            createButton(title: "Mono", accent: creationAccent, help: "Single melodic lane") {
                 step = .monoPolySound(.monoMelodic)
             }
-            createButton(title: "Poly", accent: StudioTheme.amber, help: "Chord-capable lane") {
+            createButton(title: "Poly", accent: creationAccent, help: "Chord-capable lane") {
                 step = .monoPolySound(.polyMelodic)
             }
-            createButton(title: "Slice", accent: StudioTheme.violet, help: "Sample/slice trigger lane") {
+            createButton(title: "Slice", accent: creationAccent, help: "Sample/slice trigger lane") {
                 step = .sliceSound
             }
             createButton(
                 title: "Input",
-                accent: StudioTheme.success,
+                accent: creationAccent,
                 help: "Audio input lane",
                 isEnabled: session.canAppendAudioInputTrack,
                 disabledHelp: "One audio input track is available in this version"
@@ -241,7 +242,7 @@ struct CreateTrackFlow: View {
                 session.appendTrack(trackType: .audioInput)
                 finish()
             }
-            createButton(title: "Drum Group", accent: StudioTheme.amber, help: "Grouped drum part tracks") {
+            createButton(title: "Drum Group", accent: creationAccent, help: "Grouped drum part tracks") {
                 step = .drumGroupSound
             }
         }
@@ -291,7 +292,7 @@ struct CreateTrackFlow: View {
                         // Rows commit on a single click (bug 20260610-100343):
                         // create the track, attach the AU, open the track.
                         ForEach(audioInstrumentChoices, id: \.id) { choice in
-                            StudioOptionButton(title: choice.displayName, accent: StudioTheme.cyan) {
+                            StudioOptionButton(title: choice.displayName, accent: StudioTheme.transportAccent) {
                                 createTrackWithAUInstrument(choice, trackType: trackType)
                             }
                         }
@@ -302,7 +303,7 @@ struct CreateTrackFlow: View {
 
             StudioOptionButton(
                 title: "Sampler",
-                accent: StudioTheme.violet,
+                accent: StudioTheme.transportAccent,
                 isEnabled: defaultSampleDestination != nil,
                 disabledHelp: "The sample library is empty",
                 help: "Use the sample engine with the first library sample"
@@ -314,7 +315,7 @@ struct CreateTrackFlow: View {
 
             StudioOptionButton(
                 title: "Leave Blank",
-                accent: StudioTheme.amber,
+                accent: StudioTheme.transportAccent,
                 help: "Create the track without a sound destination"
             ) {
                 session.appendTrack(trackType: trackType)
@@ -344,7 +345,7 @@ struct CreateTrackFlow: View {
                     .studioText(.labelBold)
             }
             .buttonStyle(.plain)
-            .foregroundStyle(StudioTheme.violet)
+            .foregroundStyle(StudioTheme.transportAccent)
             .disabled(engineController.audioPluginChoiceScanState.isScanning)
             .opacity(engineController.audioPluginChoiceScanState.isScanning ? 0.5 : 1)
         }

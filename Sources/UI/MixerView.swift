@@ -159,17 +159,15 @@ struct MixerView<TrailingContent: View>: View {
         }
     }
 
-    static func busAccent(for bus: MixerBus, index: Int) -> Color {
+    static func busAccent(for bus: MixerBus, index _: Int) -> Color {
         if let color = bus.color?.lowercased() {
             switch color {
-            case "cyan", "blue": return StudioTheme.cyan
-            case "amber", "yellow": return StudioTheme.amber
-            case "green", "success": return StudioTheme.success
-            case "violet", "purple": return StudioTheme.violet
+            case "cyan", "blue", "amber", "yellow", "green", "success", "violet", "purple":
+                return StudioTheme.transportAccent
             default: break
             }
         }
-        return [StudioTheme.violet, StudioTheme.cyan, StudioTheme.amber, StudioTheme.success][index % 4]
+        return StudioTheme.transportAccent
     }
 
     private func destinationLabel(for track: StepSequenceTrack) -> String {
@@ -243,10 +241,7 @@ private struct MixerChannelStrip: View {
         }
 
         var accent: Color {
-            switch self {
-            case .a: return StudioTheme.cyan
-            case .b: return StudioTheme.violet
-            }
+            StudioTheme.transportAccent
         }
     }
 
@@ -271,7 +266,7 @@ private struct MixerChannelStrip: View {
 
     var body: some View {
         StudioMixerStrip(
-            accent: StudioTheme.cyan,
+            accent: StudioTheme.transportAccent,
             isHighlighted: isSelected,
             dimsContent: isEffectivelyMuted && !track.mix.isMuted
         ) {
@@ -294,7 +289,7 @@ private struct MixerChannelStrip: View {
                 title: "PAN",
                 value: displayedPan,
                 range: -1...1,
-                accent: StudioTheme.violet,
+                accent: StudioTheme.transportAccent,
                 size: 34,
                 format: { StudioSlideControlModel.panLabel(for: $0) },
                 onChange: { _ in commitPan() },
@@ -362,7 +357,7 @@ private struct MixerChannelStrip: View {
             MixerStripActionButton(
                 title: "",
                 systemName: track.mix.isMuted ? "speaker.slash.fill" : "speaker.slash",
-                accent: StudioTheme.amber,
+                accent: StudioTheme.transportAccent,
                 isActive: track.mix.isMuted,
                 minWidth: 20
             ) {
@@ -374,7 +369,7 @@ private struct MixerChannelStrip: View {
             MixerStripActionButton(
                 title: "",
                 systemName: "headphones",
-                accent: StudioTheme.amber,
+                accent: StudioTheme.transportAccent,
                 isActive: track.mix.isSoloed,
                 minWidth: 20
             ) {
@@ -411,7 +406,7 @@ private struct MixerChannelStrip: View {
             }
             .padding(.horizontal, 8)
             .padding(.vertical, 7)
-            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
+            .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
                     .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
@@ -599,7 +594,7 @@ struct MixerStripLevelsColumn: View {
             Text(valueLabel ?? StudioLevelFormat.dBLabel(forLinear: level))
                 .studioText(.eyebrow)
                 .monospacedDigit()
-                .foregroundStyle(StudioTheme.cyan)
+                .foregroundStyle(StudioTheme.transportAccent)
         }
         .frame(maxWidth: .infinity)
     }
@@ -682,7 +677,7 @@ struct MixerInsertChainView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, StudioMetrics.Spacing.snug)
                 .padding(.vertical, 7)
-                .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
+                .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
                         .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
@@ -824,17 +819,17 @@ struct VerticalLevelFader: View {
                     // The draggable blue slide control, vertical: a thin
                     // accent rail with a round thumb at the level position.
                     Capsule(style: .continuous)
-                        .fill(StudioTheme.border.opacity(StudioOpacity.softStroke))
+                        .fill(StudioTheme.borderSoftFill)
                         .frame(width: 4)
                         .padding(.vertical, thumbDiameter / 2)
 
                     Capsule(style: .continuous)
-                        .fill(isMuted ? Color.white.opacity(StudioOpacity.selectedFill) : StudioTheme.cyan)
+                        .fill(isMuted ? StudioTheme.selectedFill : StudioTheme.transportAccent)
                         .frame(width: 4, height: max(0, usableHeight * clampedLevel))
                         .offset(y: -thumbDiameter / 2)
 
                     Circle()
-                        .fill(isMuted ? Color.white.opacity(0.85) : StudioTheme.cyan)
+                        .fill(isMuted ? StudioTheme.strongFill : StudioTheme.transportAccent)
                         .overlay(
                             Circle().stroke(StudioTheme.inset, lineWidth: 2)
                         )

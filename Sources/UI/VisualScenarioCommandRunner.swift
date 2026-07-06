@@ -183,9 +183,11 @@ enum VisualScenarioCommandRunner {
         while !Task.isCancelled {
             if let payload = try? String(contentsOf: commandURL), payload != lastPayload {
                 lastPayload = payload
+                let command = parse(payload)
+                lastAppliedVisualCommandID = command["visualCommandID"].flatMap { $0.isEmpty ? nil : $0 } ?? "none"
                 DevActivity.trace(DevActivity.harness, "apply command: \(payload.replacingOccurrences(of: "\n", with: "; "))")
                 apply(
-                    command: parse(payload),
+                    command: command,
                     section: section,
                     visualPhraseControlsOpenIndex: visualPhraseControlsOpenIndex,
                     session: session,
@@ -1551,7 +1553,7 @@ enum VisualScenarioCommandRunner {
         }
 
         // QA: preselect the first N tracks in the global-apply scope so a
-        // capture shows amber-selected cells.
+        // capture shows accent-selected cells.
         if let rawSelect = command["phraseGlobalApplySelect"],
            let count = Int(rawSelect) {
             posts.append("global-apply-select:\(count)")
@@ -2131,7 +2133,7 @@ enum VisualScenarioCommandRunner {
     /// setup-only; the editor's own guard ignores a `routing` selection while
     /// the workspace is in perform mode.
     /// Drives the Sound tab's SOUND SOURCE well into a chosen destination
-    /// state. `empty` clears the destination so the cyan "Add Sound Source"
+    /// state. `empty` clears the destination so the accent "Add Sound Source"
     /// add card renders (TrackDestinationEditor.unsetState).
     private static func applyTrackSoundSourceCommand(
         command: [String: String],
@@ -3383,10 +3385,7 @@ enum VisualScenarioCommandRunner {
         else { return }
 
         let requestedAudioInputState = command["audioInputState"] ?? command["audioInputFixture"]
-        var trackID = ensureSelectedAudioInputTrack(section: section, session: session)
-        if shouldResetAudioInputFixtureTrack(for: requestedAudioInputState) {
-            trackID = replaceAudioInputFixtureTrack(section: section, session: session)
-        }
+        let trackID = ensureSelectedAudioInputTrack(section: section, session: session)
         engineController.audioInputCapturePlanOverrideForTesting = { requestedTrackID, bars in
             guard requestedTrackID == trackID else { return nil }
             return AudioInputCapturePlan(
@@ -3489,32 +3488,6 @@ enum VisualScenarioCommandRunner {
             session.setSelectedTrackID(existing.id)
             section.wrappedValue = .track
             return existing.id
-        }
-
-        session.appendTrack(trackType: .audioInput)
-        section.wrappedValue = .track
-        return session.store.selectedTrackID
-    }
-
-    private static func shouldResetAudioInputFixtureTrack(for state: String?) -> Bool {
-        switch state {
-        case "recording", "completed", "playback", "loop-empty", "invalid-route", "recording-away":
-            return true
-        default:
-            return false
-        }
-    }
-
-    private static func replaceAudioInputFixtureTrack(
-        section: Binding<WorkspaceSection>,
-        session: SequencerDocumentSession
-    ) -> UUID {
-        if let existingInputTrackID = session.store.tracks.first(where: { $0.trackType == .audioInput })?.id {
-            if session.store.tracks.count <= 1 {
-                session.appendTrack(trackType: .monoMelodic)
-            }
-            session.setSelectedTrackID(existingInputTrackID)
-            session.removeSelectedTrack()
         }
 
         session.appendTrack(trackType: .audioInput)

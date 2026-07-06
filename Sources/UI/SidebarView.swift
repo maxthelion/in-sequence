@@ -113,7 +113,7 @@ private struct SidebarRow: View {
         // row takes the neutral fill step, not an accent wash.
         .background(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge)
-                .fill(isSelected ? Color.white.opacity(StudioOpacity.borderSubtle) : Color.clear)
+                .fill(isSelected ? StudioTheme.borderSubtleFill : Color.clear)
         )
     }
 }

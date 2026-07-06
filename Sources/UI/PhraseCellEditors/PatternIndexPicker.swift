@@ -2,6 +2,7 @@ import SwiftUI
 
 struct PatternIndexPicker: View {
     @Binding var selectedIndex: Int
+    var accent: Color = StudioTheme.phraseAccent
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -15,7 +16,7 @@ struct PatternIndexPicker: View {
                             .foregroundStyle(index == selectedIndex ? StudioTheme.background : StudioTheme.text)
                             .padding(.horizontal, 10)
                             .padding(.vertical, 8)
-                            .background(index == selectedIndex ? StudioTheme.violet : Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
+                            .background(index == selectedIndex ? accent : StudioTheme.subtleFill, in: Capsule())
                     }
                     .buttonStyle(.plain)
                 }

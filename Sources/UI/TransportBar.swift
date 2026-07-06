@@ -168,7 +168,7 @@ struct TransportBar: View {
         return HStack(spacing: 6) {
             Text("A")
                 .studioText(.eyebrowBold)
-                .foregroundStyle(clamped <= 0.5 ? StudioTheme.cyan : StudioTheme.mutedText)
+                .foregroundStyle(clamped <= 0.5 ? StudioTheme.transportAccent : StudioTheme.mutedText)
             ZStack(alignment: .leading) {
                 Capsule()
                     .fill(StudioTheme.border)
@@ -181,7 +181,7 @@ struct TransportBar: View {
             .frame(width: trackWidth, height: thumb)
             Text("B")
                 .studioText(.eyebrowBold)
-                .foregroundStyle(clamped >= 0.5 ? StudioTheme.violet : StudioTheme.mutedText)
+                .foregroundStyle(clamped >= 0.5 ? StudioTheme.transportAccent : StudioTheme.mutedText)
         }
         .fixedSize()
         .help("Scene crossfader — A \(Int(((1 - clamped) * 100).rounded()))% / B \(Int((clamped * 100).rounded()))%")
@@ -202,15 +202,15 @@ struct TransportBar: View {
                 Image(systemName: engineController.isRunning ? "stop.fill" : "play.fill")
                     .font(.system(size: 11, weight: .bold))
             }
-            .buttonStyle(TransportButtonStyle(accent: engineController.isRunning ? StudioTheme.amber : StudioTheme.cyan))
+            .buttonStyle(TransportButtonStyle(accent: StudioTheme.transportAccent))
             .disabled(!engineController.canStart)
 
             Button {} label: {
                 Image(systemName: "record.circle.fill")
                     .font(.system(size: 11, weight: .bold))
-                    .foregroundStyle(StudioTheme.amber)
+                    .foregroundStyle(StudioTheme.mutedText)
             }
-            .buttonStyle(TransportButtonStyle(accent: StudioTheme.amber))
+            .buttonStyle(TransportButtonStyle(accent: StudioTheme.neutral))
             .disabled(true)
 
             Rectangle()
@@ -224,7 +224,7 @@ struct TransportBar: View {
                 Text(String(format: "%.0f", engineController.currentBPM))
                     .studioText(.metricValue)
                     .monospacedDigit()
-                    .foregroundStyle(StudioTheme.cyan)
+                    .foregroundStyle(StudioTheme.transportAccent)
                     .lineLimit(1)
                     .fixedSize()
 
@@ -247,7 +247,7 @@ struct TransportBar: View {
                 Text(String(format: "%.0f%%", engineController.currentSwing * 100))
                     .studioText(.metricValue)
                     .monospacedDigit()
-                    .foregroundStyle(engineController.currentSwing > 0 ? StudioTheme.violet : StudioTheme.mutedText)
+                    .foregroundStyle(engineController.currentSwing > 0 ? StudioTheme.transportAccent : StudioTheme.mutedText)
                     .lineLimit(1)
                     .fixedSize()
 
@@ -277,17 +277,17 @@ struct TransportBar: View {
             Text(engineController.transportPosition)
                 .studioText(.metricValue)
                 .monospacedDigit()
-                .foregroundStyle(StudioTheme.cyan)
+                .foregroundStyle(StudioTheme.transportAccent)
                 .lineLimit(1)
                 .fixedSize()
                 .layoutPriority(2)
 
             Circle()
-                .fill(noteActivityIsHot ? StudioTheme.amber : StudioTheme.mutedText.opacity(0.35))
+                .fill(noteActivityIsHot ? StudioTheme.transportAccent : StudioTheme.mutedText.opacity(0.35))
                 .frame(width: 8, height: 8)
                 .overlay(
                     Circle()
-                        .stroke((noteActivityIsHot ? StudioTheme.amber : StudioTheme.border).opacity(0.8), lineWidth: StudioMetrics.borderWidth)
+                        .stroke((noteActivityIsHot ? StudioTheme.transportAccent : StudioTheme.border).opacity(0.8), lineWidth: StudioMetrics.borderWidth)
                 )
                 .animation(.easeOut(duration: 0.12), value: noteActivityIsHot)
                 .help(noteActivityIsHot ? "Note triggered" : "No recent note trigger")
@@ -330,7 +330,7 @@ struct TransportBar: View {
             // bar runs along the bottom (no text).
             phraseButton(
                 title: phrasePresentation.currentName,
-                accent: StudioTheme.cyan,
+                accent: StudioTheme.transportAccent,
                 isPrimary: phrasePresentation.hasCurrent,
                 openPhraseID: phrasePresentation.currentID,
                 showProgress: true
@@ -345,7 +345,7 @@ struct TransportBar: View {
             // NEXT / QUEUED phrase button.
             phraseButton(
                 title: phrasePresentation.nextName,
-                accent: phrasePresentation.hasNext ? StudioTheme.amber : StudioTheme.border,
+                accent: phrasePresentation.hasNext ? StudioTheme.transportAccent : StudioTheme.border,
                 isPrimary: phrasePresentation.hasNext,
                 openPhraseID: phrasePresentation.nextID,
                 showProgress: false
@@ -411,7 +411,7 @@ struct TransportBar: View {
             .padding(.bottom, showProgress ? 6 : 5)
             .background(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-                    .fill(Color.white.opacity(StudioOpacity.subtleFill))
+                    .fill(StudioTheme.subtleFill)
             )
             .overlay(alignment: .bottom) {
                 if showProgress {
@@ -482,10 +482,10 @@ private struct TransportPhraseProgressBar: View {
         GeometryReader { geo in
             ZStack(alignment: .leading) {
                 Capsule()
-                    .fill(Color.white.opacity(StudioOpacity.borderFaint))
+                    .fill(StudioTheme.borderFaintFill)
 
                 Capsule()
-                    .fill(phrase == nil ? StudioTheme.border : StudioTheme.cyan)
+                    .fill(phrase == nil ? StudioTheme.border : StudioTheme.transportAccent)
                     .frame(width: geo.size.width * CGFloat(progress.fraction))
             }
         }
@@ -519,11 +519,11 @@ private struct TransportModePicker: View {
                         .padding(.vertical, 5)
                         .background(
                             Capsule()
-                                .fill(selection == mode ? StudioTheme.amber : Color.clear)
+                                .fill(selection == mode ? StudioTheme.transportAccent : Color.clear)
                         )
                         .overlay(
                             Capsule()
-                                .stroke(selection == mode ? StudioTheme.amber : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+                                .stroke(selection == mode ? StudioTheme.transportAccent : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
                         )
                         // Unselected modes have a clear fill; pin the hit area to
                         // the whole capsule so taps don't require the glyph.
@@ -546,7 +546,7 @@ private struct TransportButtonStyle: ButtonStyle {
         configuration.label
             .foregroundStyle(StudioTheme.text)
             .frame(width: 34, height: 28)
-            .background(Color.white.opacity(configuration.isPressed ? StudioOpacity.borderSubtle : StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
+            .background(configuration.isPressed ? StudioTheme.borderSubtleFill : StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
                     .stroke(accent.opacity(StudioOpacity.mediumStroke), lineWidth: StudioMetrics.borderWidth)

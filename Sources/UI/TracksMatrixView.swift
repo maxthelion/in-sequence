@@ -153,7 +153,7 @@ struct TracksMatrixView: View {
         VStack(alignment: .leading, spacing: 18) {
             StudioPanel(
                 title: "Tracks",
-                accent: StudioTheme.cyan,
+                accent: StudioTheme.transportAccent,
                 showsHeader: false,
                 contentPadding: 0
             ) {
@@ -163,7 +163,7 @@ struct TracksMatrixView: View {
                     if tracks.isEmpty {
                         StudioPlaceholderTile(
                             title: "No Tracks Yet",
-                            accent: StudioTheme.cyan
+                            accent: StudioTheme.transportAccent
                         )
                         .help("Create a mono, poly, slice, or drum-kit bundle to start building the matrix")
                     } else {
@@ -234,15 +234,15 @@ struct TracksMatrixView: View {
                         .studioText(.microEmphasis)
                         .tracking(0.8)
                 }
-                .foregroundStyle(isOn ? StudioTheme.background : StudioTheme.text)
+                .foregroundStyle(isOn ? StudioTheme.transportAccent : StudioTheme.text)
                 .frame(height: 32)
                 .padding(.horizontal, 14)
                 .background(
-                    isOn ? StudioTheme.cyan : Color.white.opacity(StudioOpacity.subtleFill),
+                    StudioTheme.subtleFill,
                     in: Capsule()
                 )
                 .overlay(
-                    Capsule().stroke(isOn ? StudioTheme.cyan : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+                    Capsule().stroke(isOn ? StudioTheme.transportAccent : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
                 )
             }
             .buttonStyle(.plain)
@@ -258,30 +258,29 @@ struct TracksMatrixView: View {
 
                 selectionActionButton(
                     title: "Copy",
-                    accent: StudioTheme.cyan,
+                    accent: StudioTheme.transportAccent,
                     identifier: "tracks-action-copy"
                 ) { copyTracksSelection() }
 
                 if canPasteTracks {
                     selectionActionButton(
                         title: "Paste",
-                        accent: StudioTheme.cyan,
+                        accent: StudioTheme.transportAccent,
                         identifier: "tracks-action-paste"
                     ) { pasteCopiedTracks() }
                 }
 
-                // Peer toggles share the ONE surface accent (cyan, the tracks
-                // navigator accent) — purple-vs-cyan here was accent roulette
-                // (design review 02a).
+                // Peer toggles route into the phrase Layers surface, so they
+                // use the phrase affordance role rather than old category hues.
                 selectionActionButton(
                     title: "By Track",
-                    accent: StudioTheme.cyan,
+                    accent: StudioTheme.phraseAccent,
                     identifier: "tracks-action-by-track"
                 ) { requestPhrasePerform(mode: .byTrack) }
 
                 selectionActionButton(
                     title: "By Value",
-                    accent: StudioTheme.cyan,
+                    accent: StudioTheme.phraseAccent,
                     identifier: "tracks-action-by-value"
                 ) { requestPhrasePerform(mode: .byValue) }
 
@@ -316,9 +315,10 @@ struct TracksMatrixView: View {
     }
 
     /// Selection-action Delete: removes the selected tracks after a
-    /// confirmation. Styled with the amber destructive accent.
+    /// confirmation. Styled as a true destructive action.
     private var deleteSelectionButton: some View {
-        Button {
+        let destructiveAccent = StudioTheme.danger // ux-canon-allow: semantic destructive delete action uses the danger role
+        return Button {
             isConfirmingSelectionDelete = true
         } label: {
             HStack(spacing: 6) {
@@ -328,11 +328,11 @@ struct TracksMatrixView: View {
                     .studioText(.microEmphasis)
                     .tracking(0.8)
             }
-            .foregroundStyle(StudioTheme.background)
+            .foregroundStyle(destructiveAccent)
             .frame(height: 32)
             .padding(.horizontal, 14)
-            .background(StudioTheme.amber.opacity(StudioOpacity.accentFill), in: Capsule())
-            .overlay(Capsule().stroke(StudioTheme.amber.opacity(StudioOpacity.accentStroke), lineWidth: StudioMetrics.borderWidth))
+            .background(StudioTheme.subtleFill, in: Capsule())
+            .overlay(Capsule().stroke(destructiveAccent, lineWidth: StudioMetrics.borderWidth))
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("tracks-action-delete")
@@ -374,11 +374,11 @@ struct TracksMatrixView: View {
             Text(title)
                 .studioText(.microEmphasis)
                 .tracking(0.8)
-                .foregroundStyle(StudioTheme.background)
+                .foregroundStyle(accent)
                 .frame(height: 32)
                 .padding(.horizontal, 14)
-                .background(accent.opacity(StudioOpacity.accentFill), in: Capsule())
-                .overlay(Capsule().stroke(accent.opacity(StudioOpacity.accentStroke), lineWidth: StudioMetrics.borderWidth))
+                .background(StudioTheme.subtleFill, in: Capsule())
+                .overlay(Capsule().stroke(accent, lineWidth: StudioMetrics.borderWidth))
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier(identifier)
@@ -638,9 +638,9 @@ private struct KitMatrixCard: View {
     let onOpenKit: () -> Void
     let onToggleExpand: () -> Void
 
-    // Identity hue shared with this kit's member parts (bug 20260629-100436).
+    // Group identity accent shared with this kit's member parts.
     private var accent: Color {
-        group.identityColor
+        StudioTheme.groupAccent(for: group)
     }
 
     var body: some View {
@@ -669,7 +669,7 @@ private struct KitMatrixCard: View {
                             .font(.system(size: 11, weight: .bold))
                             .foregroundStyle(accent)
                             .frame(width: 26, height: 26)
-                            .background(Color.white.opacity(StudioOpacity.subtleFill), in: Circle())
+                            .background(StudioTheme.subtleFill, in: Circle())
                             .overlay(Circle().stroke(accent.opacity(StudioOpacity.accentStroke), lineWidth: StudioMetrics.borderWidth))
                     }
                     .buttonStyle(.plain)
@@ -728,7 +728,7 @@ private struct KitMatrixCard: View {
         // (design review 02a).
         .background(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                .fill(Color.white.opacity(StudioOpacity.subtleFill))
+                .fill(StudioTheme.subtleFill)
         )
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
@@ -799,7 +799,7 @@ private struct KitMatrixCard: View {
                     .padding(.horizontal, 6)
                     .padding(.vertical, 4)
                     .frame(maxWidth: .infinity)
-                    .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+                    .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
                     .overlay(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous).stroke(accent.opacity(StudioOpacity.accentStroke), lineWidth: StudioMetrics.borderWidth))
             }
 
@@ -810,7 +810,8 @@ private struct KitMatrixCard: View {
                     .foregroundStyle(accent)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 4)
-                    .background(accent.opacity(StudioOpacity.accentFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+                    .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous).stroke(accent, lineWidth: StudioMetrics.borderWidth))
             }
         }
         .accessibilityIdentifier("kit-part-thumbnails")
@@ -875,7 +876,7 @@ struct PhrasePerformCaptureSheet: View {
         StudioModal(
             title: "Save Phrase Copy",
             subtitle: "\(stagedCellCount) change\(stagedCellCount == 1 ? "" : "s") on \(basisName)",
-            accent: StudioTheme.amber,
+            accent: StudioTheme.phraseAccent,
             minWidth: 500,
             onClose: onCancel
         ) {
@@ -906,13 +907,13 @@ struct PhrasePerformCaptureSheet: View {
 
                     Text(phrase.id == basisPhraseID ? "basis" : "\(phrase.lengthBars) bars")
                         .studioText(.micro)
-                        .foregroundStyle(phrase.id == basisPhraseID ? StudioTheme.amber : StudioTheme.mutedText)
+                        .foregroundStyle(phrase.id == basisPhraseID ? StudioTheme.phraseAccent : StudioTheme.mutedText)
                 }
                 .frame(maxWidth: .infinity, minHeight: 58, alignment: .leading)
                 .padding(.horizontal, 10)
                 .overlay(
                     RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-                        .stroke(phrase.id == basisPhraseID ? StudioTheme.amber : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+                        .stroke(phrase.id == basisPhraseID ? StudioTheme.phraseAccent : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
                 )
             }
             .buttonStyle(.plain)
@@ -923,15 +924,19 @@ struct PhrasePerformCaptureSheet: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("+ New")
                         .studioText(.labelBold)
-                        .foregroundStyle(StudioTheme.background)
+                        .foregroundStyle(StudioTheme.phraseAccent)
 
                     Text("phrase")
                         .studioText(.micro)
-                        .foregroundStyle(StudioTheme.background.opacity(0.82))
+                        .foregroundStyle(StudioTheme.mutedText)
                 }
                 .frame(maxWidth: .infinity, minHeight: 58, alignment: .leading)
                 .padding(.horizontal, 10)
-                .background(StudioTheme.amber, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
+                .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                        .stroke(StudioTheme.phraseAccent, lineWidth: StudioMetrics.borderWidth)
+                )
             }
             .buttonStyle(.plain)
             .help("Create a new phrase from these edits")
@@ -967,9 +972,9 @@ private struct TrackMatrixCard: View {
     // hue, so identity and selection no longer collide.
     private var accent: Color {
         if let group {
-            return group.identityColor
+            return StudioTheme.groupAccent(for: group)
         }
-        return Color(hex: TrackPalette.identityHex(for: track.id)) ?? StudioTheme.cyan
+        return StudioTheme.trackAccent(for: track)
     }
 
     private var typeLabel: String {
@@ -996,8 +1001,8 @@ private struct TrackMatrixCard: View {
                         .font(.system(size: 12, weight: .bold))
                         .foregroundStyle(StudioTheme.background)
                         .frame(width: 26, height: 26)
-                        .background(StudioTheme.amber, in: Circle())
-                        .overlay(Circle().stroke(StudioTheme.amber, lineWidth: StudioMetrics.borderWidth))
+                        .background(accent, in: Circle())
+                        .overlay(Circle().stroke(accent, lineWidth: StudioMetrics.borderWidth))
                         .accessibilityIdentifier("track-card-muted")
                 }
             }
@@ -1025,7 +1030,7 @@ private struct TrackMatrixCard: View {
         // (design review 02a).
         .background(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                .fill(Color.white.opacity(StudioOpacity.subtleFill))
+                .fill(StudioTheme.subtleFill)
         )
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
@@ -1215,7 +1220,7 @@ struct TrackPerformRuntimeLayerControl: View {
                     // (wireframes §2): lands at the bar boundary.
                     Image(systemName: QuantisedTogglePresentation.pendingGlyphSystemName)
                         .font(.system(size: 14, weight: .bold))
-                        .foregroundStyle(StudioTheme.amber)
+                        .foregroundStyle(StudioTheme.phraseAccent)
                 }
                 Text(cuePresentation.stateLabel ?? stateLabel(isActive: isActive))
                     .studioText(layout == .card ? .title : .labelBold)
@@ -1228,7 +1233,7 @@ struct TrackPerformRuntimeLayerControl: View {
                 Text(cueDetailLabel)
                     .studioText(.micro)
                     .tracking(0.8)
-                    .foregroundStyle(StudioTheme.amber)
+                    .foregroundStyle(StudioTheme.phraseAccent)
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
             } else if let capturedInfoLabel = capturedInfoLabel(isActive: isActive, activeRepeatSnapshot: activeRepeatSnapshot) {
@@ -1297,7 +1302,7 @@ struct TrackPerformRuntimeLayerControl: View {
             return StudioTheme.mutedText
         }
         if isCuePending || state.isMomentaryPressed {
-            return StudioTheme.amber
+            return StudioTheme.phraseAccent
         }
         if state.isLatched {
             return accent
@@ -1309,23 +1314,23 @@ struct TrackPerformRuntimeLayerControl: View {
     /// surface stays on the neutral step; engaged state reads from the accent
     /// outline (`labelStroke`) and accent state text.
     private var labelBackground: Color {
-        Color.white.opacity(StudioOpacity.subtleFill)
+        StudioTheme.subtleFill
     }
 
     private func labelStroke(cuePresentation: QuantisedFillCuePresentation, isActive: Bool) -> Color {
         if !state.isAvailable {
             return StudioTheme.border
         }
-        // Armed = dashed amber; applies-at-boundary = solid amber for the
-        // cued bar (the armed-toggle grammar, wireframes §2).
+        // Armed = dashed phrase accent; applies-at-boundary = solid phrase
+        // accent for the cued bar (the armed-toggle grammar, wireframes §2).
         if cuePresentation.isPending || cuePresentation.isCueBarActive {
-            return StudioTheme.amber.opacity(0.9)
+            return StudioTheme.phraseAccent
         }
         if state.isMomentaryPressed {
-            return StudioTheme.amber.opacity(0.9)
+            return StudioTheme.phraseAccent
         }
         if state.isLatched {
-            return accent.opacity(0.7)
+            return accent
         }
         return StudioTheme.border
     }
@@ -1371,34 +1376,5 @@ private struct TrackTypeBadge: View {
             .foregroundStyle(StudioTheme.background)
             .frame(width: 30, height: 30)
             .background(accent, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
-    }
-}
-
-private extension Color {
-    init?(hex: String) {
-        var string = hex.trimmingCharacters(in: .whitespacesAndNewlines)
-        string = string.replacingOccurrences(of: "#", with: "")
-        guard string.count == 6, let value = UInt64(string, radix: 16) else {
-            return nil
-        }
-
-        self.init(
-            red: Double((value & 0xFF0000) >> 16) / 255.0,
-            green: Double((value & 0x00FF00) >> 8) / 255.0,
-            blue: Double(value & 0x0000FF) / 255.0
-        )
-    }
-}
-
-private extension TrackGroup {
-    /// The group's identity hue: its stored colour when that is a valid 6-digit
-    /// hex, otherwise a stable palette colour derived from the group id. The
-    /// fallback means a kit and its parts resolve the SAME hue even for the
-    /// legacy malformed "#8AA" default — no document migration required.
-    var identityColor: Color {
-        if TrackPalette.isValidHex(color), let stored = Color(hex: color) {
-            return stored
-        }
-        return Color(hex: TrackPalette.identityHex(for: id)) ?? StudioTheme.success
     }
 }

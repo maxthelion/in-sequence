@@ -15,7 +15,7 @@ struct AUPresetRowView: View {
                 // the names stay aligned.
                 Image(systemName: "checkmark")
                     .font(.system(size: 12, weight: .bold))
-                    .foregroundStyle(StudioTheme.cyan)
+                    .foregroundStyle(StudioTheme.transportAccent)
                     .frame(width: 16)
                     .opacity(isLoaded ? 1 : 0)
 

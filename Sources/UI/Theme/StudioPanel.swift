@@ -10,7 +10,7 @@ import SwiftUI
 struct StudioPanel<Content: View, Accessory: View>: View {
     let title: String
     var eyebrow: String? = nil
-    var accent: Color = StudioTheme.cyan
+    var accent: Color = StudioTheme.transportAccent
     var showsHeader = true
     var contentPadding: CGFloat = StudioMetrics.Spacing.loose
     let content: Content
@@ -19,7 +19,7 @@ struct StudioPanel<Content: View, Accessory: View>: View {
     init(
         title: String,
         eyebrow: String? = nil,
-        accent: Color = StudioTheme.cyan,
+        accent: Color = StudioTheme.transportAccent,
         showsHeader: Bool = true,
         contentPadding: CGFloat = StudioMetrics.Spacing.loose,
         @ViewBuilder content: () -> Content,
@@ -76,7 +76,7 @@ extension StudioPanel where Accessory == EmptyView {
     init(
         title: String,
         eyebrow: String? = nil,
-        accent: Color = StudioTheme.cyan,
+        accent: Color = StudioTheme.transportAccent,
         showsHeader: Bool = true,
         contentPadding: CGFloat = StudioMetrics.Spacing.loose,
         @ViewBuilder content: () -> Content

@@ -29,7 +29,7 @@ struct GeneratedNotesPreview: View {
                         }
                         .frame(width: 84, alignment: .leading)
                         .padding(StudioMetrics.Spacing.compact)
-                        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
+                        .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
                     }
                 }
             }

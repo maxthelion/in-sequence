@@ -135,7 +135,7 @@ struct StepLayerQuickSwitchChip<Value: Hashable>: View {
                 .padding(.vertical, 7)
                 .fixedSize()
                 .background(
-                    isOpen ? Color.white.opacity(StudioOpacity.subtleFill) : accent,
+                    isOpen ? StudioTheme.subtleFill : accent,
                     in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
                 )
                 .overlay(
@@ -171,7 +171,7 @@ struct StepLayerQuickSwitchOptions<Value: Hashable>: View {
                         .padding(.horizontal, 8)
                         .padding(.vertical, 5)
                         .background(
-                            option.value == selection ? accent : Color.white.opacity(StudioOpacity.subtleFill),
+                            option.value == selection ? accent : StudioTheme.subtleFill,
                             in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
                         )
                         .overlay(
@@ -268,7 +268,7 @@ struct StepLayerRotaryRow: View {
             HStack(spacing: 8) {
                 Text("STEP EDIT")
                     .studioText(.eyebrowBold)
-                    .foregroundStyle(StudioTheme.amber)
+                    .foregroundStyle(accent)
 
                 Text("\(controls.count) layer\(controls.count == 1 ? "" : "s")")
                     .studioText(.eyebrow)
@@ -329,11 +329,13 @@ struct StepLayerRotaryRow: View {
 }
 
 struct StepLayerRotaryEmptyState: View {
+    let accent: Color
+
     var body: some View {
         HStack(spacing: 8) {
             Text("STEP EDIT")
                 .studioText(.eyebrowBold)
-                .foregroundStyle(StudioTheme.amber)
+                .foregroundStyle(accent)
 
             Text("No editable layers")
                 .studioText(.labelBold)
@@ -342,7 +344,7 @@ struct StepLayerRotaryEmptyState: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 9)
         .frame(minHeight: 44, alignment: .leading)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
+        .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
                 .stroke(StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
@@ -391,10 +393,10 @@ private struct StepLayerRotaryDial: View {
         .padding(.vertical, 7)
         .padding(.horizontal, 6)
         .frame(minHeight: 84)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
+        .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
-                .stroke(isActiveLayer ? StudioTheme.amber.opacity(0.95) : StudioTheme.border.opacity(0.8), lineWidth: isActiveLayer ? 2 : StudioMetrics.borderWidth)
+                .stroke(isActiveLayer ? accent.opacity(0.95) : StudioTheme.border.opacity(0.8), lineWidth: isActiveLayer ? 2 : StudioMetrics.borderWidth)
         )
         .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
         .onTapGesture(perform: onSelectLayer)
@@ -432,6 +434,7 @@ struct SliceStepStrip: View {
     let selectedStepIndex: Int
     let selectedStepIndexes: Set<Int>
     let activeLayer: SliceTrackClipLayer
+    let accent: Color
     let contentProvider: (Int, State) -> StepCellContent
     let onValueDrag: ((Int, Double) -> Void)?
     let onBackgroundTap: (() -> Void)?
@@ -447,6 +450,7 @@ struct SliceStepStrip: View {
         selectedStepIndex: Int,
         selectedStepIndexes: Set<Int>,
         activeLayer: SliceTrackClipLayer,
+        accent: Color,
         contentProvider: @escaping (Int, State) -> StepCellContent,
         onValueDrag: ((Int, Double) -> Void)?,
         onBackgroundTap: (() -> Void)? = nil,
@@ -459,6 +463,7 @@ struct SliceStepStrip: View {
         self.selectedStepIndex = selectedStepIndex
         self.selectedStepIndexes = selectedStepIndexes
         self.activeLayer = activeLayer
+        self.accent = accent
         self.contentProvider = contentProvider
         self.onValueDrag = onValueDrag
         self.onBackgroundTap = onBackgroundTap
@@ -487,6 +492,7 @@ struct SliceStepStrip: View {
                             isPlaying: playingStepIndex == absoluteIndex,
                             isSelected: selectedStepIndexes.contains(absoluteIndex),
                             content: contentProvider(absoluteIndex, state),
+                            accent: accent,
                             onTap: { onTap(absoluteIndex) },
                             onDrag: activeLayer == .steps ? nil : { value in
                                 onValueDrag?(absoluteIndex, value)
@@ -499,7 +505,7 @@ struct SliceStepStrip: View {
                     .padding(.horizontal, 3)
                     .overlay(
                         RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                            .stroke(isSelected(absoluteIndex) ? StudioTheme.amber : Color.clear, lineWidth: 2)
+                            .stroke(isSelected(absoluteIndex) ? accent : Color.clear, lineWidth: 2)
                     )
                     .accessibilityElement(children: .combine)
                     .accessibilityLabel("Slice step \(absoluteIndex + 1)")
@@ -627,6 +633,7 @@ struct SliceTrackWaveformEditor: View {
     let sliceSet: SliceSet
     let sampleLengthFrames: Int64
     let selectedMarkerID: UUID?
+    let accent: Color
     let zoom: Double
     let scroll: Double
     let onSelectMarker: (UUID) -> Void
@@ -645,7 +652,7 @@ struct SliceTrackWaveformEditor: View {
 
             ZStack(alignment: .topLeading) {
                 ZStack(alignment: .leading) {
-                    WaveformView(buckets: visibleBuckets, fillColor: StudioTheme.cyan, inactiveColor: StudioTheme.border.opacity(0.65))
+                    WaveformView(buckets: visibleBuckets, fillColor: accent, inactiveColor: StudioTheme.border.opacity(0.65))
                         .frame(width: contentWidth, height: contentHeight)
 
                     if let selectedMarker {
@@ -697,7 +704,7 @@ struct SliceTrackWaveformEditor: View {
     private func boundaryLine(marker: SliceMarker, width: CGFloat) -> some View {
         let x = xPosition(for: marker.startFrame, width: width)
         return Rectangle()
-            .fill(marker.id == selectedMarkerID ? StudioTheme.amber : StudioTheme.violet)
+            .fill(accent)
             .frame(width: marker.id == selectedMarkerID ? 3 : 2)
             .offset(x: x)
             .opacity(isVisible(marker.startFrame) ? 0.95 : 0)
@@ -715,7 +722,7 @@ struct SliceTrackWaveformEditor: View {
             // selected region is a neutral wash; identity stays in the solid
             // amber/violet boundary lines.
             Rectangle()
-                .fill(Color.white.opacity(StudioOpacity.borderSubtle))
+                .fill(StudioTheme.borderSubtleFill)
                 .frame(width: max(2, end - start))
                 .offset(x: start)
         }
@@ -729,9 +736,9 @@ struct SliceTrackWaveformEditor: View {
                 .foregroundStyle(StudioTheme.background)
                 .padding(.horizontal, 5)
                 .padding(.vertical, 2)
-                .background(StudioTheme.success, in: Capsule())
+                .background(accent, in: Capsule())
             Rectangle()
-                .fill(StudioTheme.success)
+                .fill(accent)
                 .frame(width: 3)
         }
         .offset(x: x)
@@ -985,7 +992,7 @@ struct SliceSourceTabContent: View {
                 )
                 Text("Unsliced")
                     .studioText(.labelBold)
-                    .foregroundStyle(StudioTheme.amber)
+                    .foregroundStyle(StudioTheme.mutedText)
                 Spacer()
             }
         }
@@ -998,7 +1005,7 @@ struct SliceSourceTabContent: View {
             HStack(spacing: 8) {
                 Text("\(sliceCount) slice\(sliceCount == 1 ? "" : "s")")
                     .studioText(.labelBold)
-                    .foregroundStyle(StudioTheme.success)
+                    .foregroundStyle(accent)
                 Spacer()
             }
             HStack(spacing: 10) {
@@ -1055,7 +1062,7 @@ struct SliceSourceTabContent: View {
             .foregroundStyle(StudioTheme.text)
             .padding(.horizontal, 13)
             .padding(.vertical, 8)
-            .background(Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
+            .background(StudioTheme.subtleFill, in: Capsule())
             .overlay(Capsule().stroke(stroke, lineWidth: StudioMetrics.borderWidth))
         }
         .buttonStyle(.plain)

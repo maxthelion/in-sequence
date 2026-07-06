@@ -170,6 +170,20 @@ names a thing or a state; it never fills an area:
    background or fill — composing accents into `StudioOpacity` fill tokens
    counts. Hover/pressed feedback uses the neutral fill step or outline
    brightening, never an accent wash.
+5. **Neutral fills are opaque tokens, not opacity recipes.**
+   Structural grey backgrounds use `StudioTheme` solid fill roles such as
+   `subtleFill`, `borderSubtleFill`, or `inset`. `Color.white.opacity(…)`
+   and `StudioTheme.background.opacity(…)` are banned for surface chrome
+   because nested controls otherwise get lighter with every level.
+
+Limited-colour amendment (2026-07-06): colour does not identify track type,
+pattern number, phrase layer mode, source category, or arbitrary control
+category. Transport uses the fixed app accent. Track detail, slicer, audio
+input, drum-kit, and track-source surfaces use the focused track/kit identity
+accent. Phrase perform/layer surfaces use the phrase accent, except where a
+cell is explicitly identifying a track. Pattern slots are numbered positions,
+not a rainbow palette. Red/amber/green are reserved for true danger,
+warning/recording, and completed/available semantic states.
 
 Sources: 2026-06-11 flat-UI pass-2 review (scene A/B cards, perform track
 cards, Track Source editor screenshots), reference image in

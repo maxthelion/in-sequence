@@ -66,7 +66,7 @@ struct AUMacroSlotKnob: View {
                 )
             },
             value: value,
-            accent: StudioTheme.cyan,
+            accent: StudioTheme.transportAccent,
             knobSize: knobSize,
             showSlotLabel: showSlotLabel,
             onAssign: onAssign,

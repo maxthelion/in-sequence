@@ -88,7 +88,7 @@ struct SingleMacroSlotPickerSheet: View {
     private func paramRow(_ param: AUParameterDescriptor) -> some View {
         HStack(spacing: 12) {
             Image(systemName: "plus.circle.fill")
-                .foregroundStyle(StudioTheme.success)
+                .foregroundStyle(StudioTheme.transportAccent)
                 .font(.system(size: 16))
 
             VStack(alignment: .leading, spacing: 2) {

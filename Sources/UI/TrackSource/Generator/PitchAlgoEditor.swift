@@ -5,7 +5,7 @@ struct PitchAlgoEditor: View {
     let inputClipChoices: [ClipPoolEntry]
     let harmonicSidechainClipChoices: [ClipPoolEntry]
     /// The one chrome accent of the hosting surface (track identity colour).
-    var accent: Color = StudioTheme.cyan
+    var accent: Color = StudioTheme.transportAccent
     let onChange: (PitchStage) -> Void
 
     private var poolStage: PitchStage {
@@ -45,7 +45,7 @@ struct PitchAlgoEditor: View {
                     accent: accent
                 )
 
-                SourceParameterSliderRow(title: "Selection", value: (normalizedSelection.memory + 1) * 50, range: 0...100, accent: StudioTheme.violet) {
+                SourceParameterSliderRow(title: "Selection", value: (normalizedSelection.memory + 1) * 50, range: 0...100, accent: accent) {
                     onChange(PitchStage(
                         algo: .pool(
                             root: root,
@@ -63,7 +63,7 @@ struct PitchAlgoEditor: View {
                         title: "Accidentals",
                         value: normalizedDeviation.accidentalChance * 100,
                         range: 0...100,
-                        accent: StudioTheme.amber,
+                        accent: accent,
                         size: 56
                     ) {
                         onChange(PitchStage(
@@ -86,7 +86,7 @@ struct PitchAlgoEditor: View {
                         title: "Octaves",
                         value: Double(normalizedDeviation.octaveSpan),
                         range: 0...3,
-                        accent: StudioTheme.cyan,
+                        accent: accent,
                         size: 56
                     ) {
                         onChange(PitchStage(
@@ -109,7 +109,7 @@ struct PitchAlgoEditor: View {
                         title: "Leading",
                         value: normalizedDeviation.leadingChance * 100,
                         range: 0...100,
-                        accent: StudioTheme.violet,
+                        accent: accent,
                         size: 56
                     ) {
                         onChange(PitchStage(

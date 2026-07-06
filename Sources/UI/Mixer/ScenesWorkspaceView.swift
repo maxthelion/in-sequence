@@ -30,10 +30,7 @@ struct ScenePerformSlotPickerRequest: Identifiable, Equatable {
         }
 
         var accent: Color {
-            switch self {
-            case .a: StudioTheme.cyan
-            case .b: StudioTheme.violet
-            }
+            StudioTheme.transportAccent
         }
     }
 
@@ -158,13 +155,13 @@ struct ScenesWorkspaceView: View {
     }
 
     private var sceneBrowser: some View {
-        StudioPanel(title: "", accent: StudioTheme.amber, showsHeader: false, contentPadding: 0) {
+        StudioPanel(title: "", accent: StudioTheme.transportAccent, showsHeader: false, contentPadding: 0) {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 10) {
                     Text("SCENES")
                         .studioText(.microEmphasis)
                         .tracking(0.9)
-                        .foregroundStyle(StudioTheme.amber)
+                        .foregroundStyle(StudioTheme.transportAccent)
 
                     Spacer(minLength: 8)
 
@@ -181,10 +178,10 @@ struct ScenesWorkspaceView: View {
                             .foregroundStyle(StudioTheme.text)
                             .padding(.horizontal, 10)
                             .frame(height: 30)
-                            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
+                            .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
                             .overlay(
                                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
-                                    .stroke(StudioTheme.amber, lineWidth: StudioMetrics.borderWidth)
+                                    .stroke(StudioTheme.transportAccent, lineWidth: StudioMetrics.borderWidth)
                             )
                     }
                     .buttonStyle(.plain)
@@ -333,7 +330,7 @@ struct ScenesWorkspaceView: View {
             Text("\(sceneNumber)")
                 .font(.system(size: 46, weight: .black, design: .rounded))
                 .monospacedDigit()
-                .foregroundStyle(scene.id == masterBus.activeSceneID ? StudioTheme.amber : StudioTheme.text)
+                .foregroundStyle(scene.id == masterBus.activeSceneID ? StudioTheme.transportAccent : StudioTheme.text)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
 
             VStack {
@@ -369,9 +366,9 @@ struct ScenesWorkspaceView: View {
         .frame(maxWidth: .infinity, minHeight: 132, alignment: .center)
         .padding(StudioMetrics.Spacing.comfortable)
         // Colour identifies, it never floods (ux-canon rule 12): the card
-        // body stays neutral; the active scene reads from the amber
+        // body stays neutral; the active scene reads from the accent
         // outline and the solid slot badge.
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
+        .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
                 .stroke(borderColor, lineWidth: borderWidth)
@@ -396,7 +393,7 @@ struct ScenesWorkspaceView: View {
                     HStack(spacing: 5) {
                         Image(systemName: iconName(for: insert.kind))
                             .font(.system(size: 9, weight: .semibold))
-                            .foregroundStyle(StudioTheme.amber)
+                            .foregroundStyle(StudioTheme.transportAccent)
                         Text(insert.name)
                             .studioText(.micro)
                             .foregroundStyle(StudioTheme.text)
@@ -404,7 +401,7 @@ struct ScenesWorkspaceView: View {
                     }
                     .padding(.horizontal, 7)
                     .padding(.vertical, 3)
-                    .background(Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
+                    .background(StudioTheme.subtleFill, in: Capsule())
                     .overlay(Capsule().stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth))
                 }
                 if scene.inserts.count > visibleInserts.count {
@@ -441,10 +438,10 @@ struct ScenesWorkspaceView: View {
     private func sceneSlotBorderColor(_ sceneID: UUID) -> Color {
         let isA = activeABSelection.sceneAID == sceneID
         let isB = activeABSelection.sceneBID == sceneID
-        if isA && isB { return StudioTheme.amber }
+        if isA && isB { return StudioTheme.transportAccent }
         if isA { return ScenePerformSlotPickerRequest.Slot.a.accent }
         if isB { return ScenePerformSlotPickerRequest.Slot.b.accent }
-        return sceneID == masterBus.activeSceneID ? StudioTheme.amber : StudioTheme.border
+        return sceneID == masterBus.activeSceneID ? StudioTheme.transportAccent : StudioTheme.border
     }
 
     private func sceneHasSlotMembership(_ sceneID: UUID) -> Bool {
@@ -542,12 +539,12 @@ struct ScenesWorkspaceView: View {
 
     // Dashed full-width "Add FX" tile (bugs 135118 + 135233): reuses the same
     // StudioAddCard grammar as the tracks navigator and the track-source "Add
-    // Sound Source" tile, tinted in-theme with the Scenes accent (amber) — never
+    // Sound Source" tile, tinted with the app surface accent — never
     // the green success accent. It opens the add-FX picker sheet.
     private func addFXTile(minHeight: CGFloat) -> some View {
         StudioAddCard(
             label: "Add FX",
-            accent: StudioTheme.amber,
+            accent: StudioTheme.transportAccent,
             minHeight: minHeight,
             help: "Add FX"
         ) {
@@ -606,7 +603,7 @@ struct ScenesWorkspaceView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.vertical, 10)
                 .padding(.horizontal, 12)
-                .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
+                .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
                         .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
@@ -620,7 +617,7 @@ struct ScenesWorkspaceView: View {
             title: insert.name,
             subtitle: insert.kind.summary,
             iconName: iconName(for: insert.kind),
-            accent: StudioTheme.amber,
+            accent: StudioTheme.transportAccent,
             isSelected: insert.id == selectedInsertID,
             isBypassed: !insert.isEnabled,
             nameBinding: insertNameBinding(insert.id, fallback: insert.name),
@@ -648,7 +645,7 @@ struct ScenesWorkspaceView: View {
                 kindEditor(insert)
             }
             .padding(StudioMetrics.Spacing.roomy)
-            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
+            .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
                     .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
@@ -673,6 +670,9 @@ struct ScenesWorkspaceView: View {
                     .tracking(0.8)
                     .foregroundStyle(StudioTheme.mutedText)
                 Spacer()
+                Text("\(selectedScene.macroBindings.count) / \(MasterSceneMacroBinding.slotCount)")
+                    .studioText(.eyebrowBold)
+                    .foregroundStyle(StudioTheme.transportAccent)
             }
 
             ScrollView(.horizontal, showsIndicators: false) {
@@ -685,7 +685,7 @@ struct ScenesWorkspaceView: View {
                 .padding(.horizontal, 12)
             }
             .padding(.vertical, 12)
-            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+            .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
                     .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
@@ -705,7 +705,7 @@ struct ScenesWorkspaceView: View {
                 )
             },
             value: binding.flatMap { $0.value(in: selectedScene) },
-            accent: StudioTheme.cyan,
+            accent: StudioTheme.transportAccent,
             onAssign: {
                 sceneMacroTargetPickerRequest = SceneMacroTargetPickerRequest(sceneID: selectedScene.id, slotIndex: slotIndex)
             },
@@ -750,7 +750,7 @@ struct ScenesWorkspaceView: View {
                                     Label(target.label(in: scene), systemImage: "slider.horizontal.3")
                                 }
                                 .buttonStyle(.bordered)
-                                .tint(StudioTheme.cyan)
+                                .tint(StudioTheme.transportAccent)
                             }
                         }
                     }
@@ -769,19 +769,19 @@ struct ScenesWorkspaceView: View {
                                     Label(insert.name, systemImage: "slider.horizontal.3")
                                 }
                                 .buttonStyle(.bordered)
-                                .tint(StudioTheme.cyan)
+                                .tint(StudioTheme.transportAccent)
                             }
                         }
                     }
 
                     if nativeTargets.isEmpty, auCandidates.isEmpty {
-                        StudioPlaceholderTile(title: "No Assignable Targets", accent: StudioTheme.cyan)
+                        StudioPlaceholderTile(title: "No Assignable Targets", accent: StudioTheme.transportAccent)
                             .help("Add an insert to expose assignable targets")
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             } else {
-                StudioPlaceholderTile(title: "Scene Missing", accent: StudioTheme.cyan)
+                StudioPlaceholderTile(title: "Scene Missing", accent: StudioTheme.transportAccent)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
         }
@@ -822,7 +822,7 @@ struct ScenesWorkspaceView: View {
         case let .nativeBitcrusher(settings):
             NativeInsertParameterEditor.Bitcrusher(
                 settings: settings,
-                accent: StudioTheme.cyan,
+                accent: StudioTheme.transportAccent,
                 onBitDepthChange: { bitDepthBinding(insertID: insert.id, settings: settings).wrappedValue = $0 },
                 onRateChange: { bitRateBinding(insertID: insert.id, settings: settings).wrappedValue = $0 },
                 onDriveChange: { bitDriveBinding(insertID: insert.id, settings: settings).wrappedValue = $0 }
@@ -842,7 +842,7 @@ struct ScenesWorkspaceView: View {
 
         return NativeInsertParameterEditor.Filter(
             settings: settings,
-            accent: StudioTheme.cyan,
+            accent: StudioTheme.transportAccent,
             onModeChange: { modeBinding.wrappedValue = $0 },
             onCutoffChange: { cutoffBinding.wrappedValue = $0 },
             onResonanceChange: { resonanceBinding.wrappedValue = $0 }

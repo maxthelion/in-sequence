@@ -79,7 +79,7 @@ struct PhraseWorkspaceView: View {
     }
 
     private var activeLayerAccent: Color {
-        activeMatrixLayer.map { layerAccent($0.id) } ?? performanceLayerSelection.mode.selectorAccent
+        activeMatrixLayer.map { layerAccent($0.id) } ?? performanceLayerSelection.mode.phraseAccent
     }
 
     private var trackPageCount: Int {
@@ -311,7 +311,7 @@ struct PhraseWorkspaceView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+        .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
                 .stroke(phraseShellAccent.opacity(StudioOpacity.mediumStroke), lineWidth: StudioMetrics.borderWidth)
@@ -319,12 +319,7 @@ struct PhraseWorkspaceView: View {
         .accessibilityIdentifier("phrase-performance-shell")
     }
 
-    // Well strokes / container chrome carry ONLY the surface accent (tab
-    // unification DECISION + State-colour fence, 2026-07-03): perform-on is a
-    // STATE and lives in small solid elements (the amber Perform On pill,
-    // MOM/LATCH thumbs), never in the shell outline. The old perform-mode
-    // amber substitution here recoloured the whole well and fought the
-    // section accent on every LAYERS capture (design review 08/09/10/13).
+    // Well strokes / container chrome carry ONLY the phrase surface accent.
     private var phraseShellAccent: Color {
         phraseTab.accent
     }
@@ -343,7 +338,7 @@ struct PhraseWorkspaceView: View {
                 .foregroundStyle(session.workspaceMode == .perform ? StudioTheme.background : StudioTheme.text)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
-                .background(session.workspaceMode == .perform ? StudioTheme.amber : Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
+                .background(session.workspaceMode == .perform ? StudioTheme.phraseAccent : StudioTheme.subtleFill, in: Capsule())
                 .overlay(
                     Capsule()
                         .stroke(
@@ -368,7 +363,7 @@ struct PhraseWorkspaceView: View {
                         .tracking(0.8)
                         .foregroundStyle(phraseLatchMode == mode ? StudioTheme.background : StudioTheme.mutedText)
                         .frame(width: 58, height: 30)
-                        .background(phraseLatchMode == mode ? StudioTheme.amber : StudioTheme.inset, in: Capsule())
+                        .background(phraseLatchMode == mode ? StudioTheme.phraseAccent : StudioTheme.inset, in: Capsule())
                 }
                 .buttonStyle(.plain)
             }
@@ -381,10 +376,10 @@ struct PhraseWorkspaceView: View {
                     .tracking(0.8)
                     .foregroundStyle(phraseLatchMode == .latched ? StudioTheme.text : StudioTheme.mutedText)
                     .frame(width: 70, height: 30)
-                    .background(phraseLatchMode == .latched ? Color.white.opacity(StudioOpacity.subtleFill) : StudioTheme.inset, in: Capsule())
+                    .background(phraseLatchMode == .latched ? StudioTheme.subtleFill : StudioTheme.inset, in: Capsule())
                     .overlay(
                         Capsule()
-                            .stroke(phraseLatchMode == .latched ? StudioTheme.amber : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+                            .stroke(phraseLatchMode == .latched ? StudioTheme.phraseAccent : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
                     )
             }
             .buttonStyle(.plain)
@@ -399,10 +394,10 @@ struct PhraseWorkspaceView: View {
                     .tracking(0.8)
                     .foregroundStyle(phraseLatchMode == .latched ? StudioTheme.text : StudioTheme.mutedText)
                     .frame(width: 82, height: 30)
-                    .background(phraseLatchMode == .latched ? Color.white.opacity(StudioOpacity.subtleFill) : StudioTheme.inset, in: Capsule())
+                    .background(phraseLatchMode == .latched ? StudioTheme.subtleFill : StudioTheme.inset, in: Capsule())
                     .overlay(
                         Capsule()
-                            .stroke(phraseLatchMode == .latched && phraseLatchLengthBars != nil ? StudioTheme.amber : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+                            .stroke(phraseLatchMode == .latched && phraseLatchLengthBars != nil ? StudioTheme.phraseAccent : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
                     )
             }
             .buttonStyle(.plain)
@@ -410,7 +405,7 @@ struct PhraseWorkspaceView: View {
             .help(phraseLatchMode == .latched ? "Latch can hold until changed or apply for 1, 2, 4, or 8 bars" : "Momentary changes do not use latch length")
         }
         .padding(3)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
+        .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
                 .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
@@ -429,8 +424,8 @@ struct PhraseWorkspaceView: View {
     // while perform is on and share its capsule grammar (bug 20260620-135423).
     // The caller only renders this row when there's a live copy to act on
     // (perform on + staged changes, bug 20260623-130017), so these buttons are
-    // always actionable here. Capture is the primary action (solid green when
-    // live), Discard is the outline-only secondary.
+    // always actionable here. Capture is the primary phrase-accent action,
+    // Discard is the outline-only secondary.
     private var phraseCaptureActions: some View {
         let availability = phrasePerformActionAvailability
 
@@ -444,8 +439,8 @@ struct PhraseWorkspaceView: View {
                     .foregroundStyle(availability.canCapture ? StudioTheme.background : StudioTheme.mutedText)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
-                    .background(availability.canCapture ? StudioTheme.success : Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
-                    .overlay(Capsule().stroke(availability.canCapture ? StudioTheme.success : StudioTheme.border, lineWidth: StudioMetrics.borderWidth))
+                    .background(availability.canCapture ? StudioTheme.phraseAccent : StudioTheme.subtleFill, in: Capsule())
+                    .overlay(Capsule().stroke(availability.canCapture ? StudioTheme.phraseAccent : StudioTheme.border, lineWidth: StudioMetrics.borderWidth))
             }
             .buttonStyle(.plain)
             .disabled(!availability.canCapture)
@@ -455,16 +450,14 @@ struct PhraseWorkspaceView: View {
             Button {
                 session.revertPhrasePerformOverlay()
             } label: {
-                // Neutral chrome for the secondary action: green is fenced to
-                // small SOLID state elements (the Capture pill), never
-                // outlines (State-colour fence, design review 12/13/13a/13c).
+                // Neutral chrome for the secondary action.
                 Text("Discard")
                     .fixedSize()
                     .studioText(.labelBold)
                     .foregroundStyle(availability.canDiscard ? StudioTheme.text : StudioTheme.mutedText)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
-                    .background(Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
+                    .background(StudioTheme.subtleFill, in: Capsule())
                     .overlay(Capsule().stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth))
             }
             .buttonStyle(.plain)
@@ -498,7 +491,7 @@ struct PhraseWorkspaceView: View {
                     }
                     .foregroundStyle(phraseTab == tab ? StudioTheme.background : StudioTheme.text)
                     .frame(width: 148, height: 36)
-                    .background(phraseTab == tab ? tab.accent : Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
+                    .background(phraseTab == tab ? tab.accent : StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
                     .overlay(
                         RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
                             .stroke(phraseTab == tab ? tab.accent : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
@@ -525,7 +518,7 @@ struct PhraseWorkspaceView: View {
                 )
             },
             selection: phraseLayerEditMode,
-            accent: StudioTheme.violet,
+            accent: StudioTheme.phraseAccent,
             accessibilityIdentifier: "phrase-layer-edit-mode-control"
         ) { mode in
             phraseLayerEditMode = mode
@@ -538,7 +531,7 @@ struct PhraseWorkspaceView: View {
 
     // Macros | Slots switch for the SCENES tab: the SAME shared segmented
     // pill as the layer-mode switch, so every phrase-workspace mode switch
-    // shares one idiom. Amber accent matches the scenes surface.
+    // shares one idiom.
     private var phraseSceneViewModeControl: some View {
         StudioModeSegmentedPill(
             segments: PhraseSceneViewMode.allCases.map { mode in
@@ -551,7 +544,7 @@ struct PhraseWorkspaceView: View {
                 )
             },
             selection: phraseSceneViewMode,
-            accent: StudioTheme.amber,
+            accent: StudioTheme.phraseAccent,
             accessibilityIdentifier: "phrase-scene-view-mode-control"
         ) { mode in
             phraseSceneViewMode = mode
@@ -575,10 +568,10 @@ struct PhraseWorkspaceView: View {
             }
             .foregroundStyle(isPresentingGlobalApplyTrackSelector ? StudioTheme.background : StudioTheme.text)
             .frame(width: 148, height: 36)
-            .background(isPresentingGlobalApplyTrackSelector ? StudioTheme.amber : Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
+            .background(isPresentingGlobalApplyTrackSelector ? StudioTheme.phraseAccent : StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
-                    .stroke(isPresentingGlobalApplyTrackSelector ? StudioTheme.amber : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+                    .stroke(isPresentingGlobalApplyTrackSelector ? StudioTheme.phraseAccent : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
             )
         }
         .buttonStyle(.plain)
@@ -625,20 +618,38 @@ struct PhraseWorkspaceView: View {
         isDominant: Bool
     ) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("\(slot.shortTitle):\(sceneNumber(for: scene.id) ?? 0)")
-                .font(.system(size: 34, weight: .black, design: .rounded))
-                .monospacedDigit()
-                .foregroundStyle(StudioTheme.background)
-                .frame(maxWidth: .infinity, minHeight: 58, alignment: .center)
-                .background(slot.accent, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+            HStack(alignment: .top, spacing: 10) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(slot.title.uppercased())
+                        .studioText(.micro)
+                        .tracking(0.8)
+                        .foregroundStyle(StudioTheme.phraseAccent)
+
+                    Text(scene.name)
+                        .studioText(.title)
+                        .foregroundStyle(StudioTheme.text)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                }
+
+                Spacer(minLength: 8)
+
+                Text("\(slot.shortTitle):\(sceneNumber(for: scene.id) ?? 0)")
+                    .studioText(.labelBold)
+                    .monospacedDigit()
+                    .foregroundStyle(StudioTheme.background)
+                    .padding(.horizontal, 9)
+                    .frame(height: 26)
+                    .background(StudioTheme.phraseAccent, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+            }
             .padding(StudioMetrics.Spacing.comfortable)
             .background(
-                Color.white.opacity(StudioOpacity.subtleFill),
+                StudioTheme.subtleFill,
                 in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                    .stroke(isDominant ? slot.accent.opacity(StudioOpacity.mediumStroke) : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+                    .stroke(isDominant ? StudioTheme.phraseAccent.opacity(StudioOpacity.mediumStroke) : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
             )
             .contentShape(Rectangle())
             .onTapGesture {
@@ -656,7 +667,7 @@ struct PhraseWorkspaceView: View {
         .background(Color.clear, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                .stroke(slot.accent.opacity(StudioOpacity.hoverFill), lineWidth: StudioMetrics.borderWidth)
+                .stroke(StudioTheme.phraseAccent.opacity(StudioOpacity.hoverFill), lineWidth: StudioMetrics.borderWidth)
         )
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("phrase-scene-slot-\(slot.rawValue)")
@@ -672,7 +683,7 @@ struct PhraseWorkspaceView: View {
             }
         }
         .padding(StudioMetrics.Spacing.comfortable)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+        .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
                 .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
@@ -691,7 +702,7 @@ struct PhraseWorkspaceView: View {
                 )
             },
             value: macro.map { phraseSceneMacroValue($0, scene: scene) },
-            accent: StudioTheme.amber,
+            accent: StudioTheme.phraseAccent,
             emptyLabel: "",
             onAssign: {},
             onChange: { value in
@@ -711,13 +722,13 @@ struct PhraseWorkspaceView: View {
             Text("\(Int((value * 100).rounded()))%")
                 .studioText(.eyebrowBold)
                 .monospacedDigit()
-                .foregroundStyle(StudioTheme.amber)
+                .foregroundStyle(StudioTheme.phraseAccent)
                 .frame(width: 56, alignment: .center)
 
             HStack(spacing: 8) {
                 Text("A")
                     .studioText(.eyebrowBold)
-                    .foregroundStyle(StudioTheme.amber)
+                    .foregroundStyle(StudioTheme.phraseAccent)
                     .frame(width: 14, alignment: .leading)
 
                 PhraseSceneCrossfaderTrack(value: value) { nextValue in
@@ -727,13 +738,13 @@ struct PhraseWorkspaceView: View {
 
                 Text("B")
                     .studioText(.eyebrowBold)
-                    .foregroundStyle(StudioTheme.amber)
+                    .foregroundStyle(StudioTheme.phraseAccent)
                     .frame(width: 14, alignment: .trailing)
             }
         }
         .padding(StudioMetrics.Spacing.comfortable)
         .frame(maxWidth: .infinity)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
+        .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
                 .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
@@ -751,7 +762,7 @@ struct PhraseWorkspaceView: View {
                 if scenes.indices.contains(index) {
                     phraseSceneMatrixCell(scene: scenes[index], sceneNumber: index + 1, slot: slot)
                 } else {
-                    phraseSceneEmptyMatrixCell(sceneNumber: index + 1, accent: slot.accent)
+                    phraseSceneEmptyMatrixCell(sceneNumber: index + 1, accent: StudioTheme.phraseAccent)
                 }
             }
         }
@@ -778,10 +789,10 @@ struct PhraseWorkspaceView: View {
                 .foregroundStyle(selected ? StudioTheme.background : StudioTheme.text)
                 .frame(maxWidth: .infinity)
                 .frame(height: 56)
-                .background(selected ? slot.accent : Color.clear, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
+                .background(selected ? StudioTheme.phraseAccent : Color.clear, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-                        .stroke(selected ? slot.accent : StudioTheme.border, lineWidth: selected ? 2 : StudioMetrics.borderWidth)
+                        .stroke(selected ? StudioTheme.phraseAccent : StudioTheme.border, lineWidth: selected ? 2 : StudioMetrics.borderWidth)
                 )
         }
         .buttonStyle(.plain)
@@ -842,12 +853,12 @@ struct PhraseWorkspaceView: View {
                     Text("\(sceneNumber)")
                         .font(.system(size: 28, weight: .black, design: .rounded))
                         .monospacedDigit()
-                        .foregroundStyle(selected ? slot.accent : StudioTheme.text)
+                        .foregroundStyle(selected ? StudioTheme.phraseAccent : StudioTheme.text)
                     Spacer()
                     if selected {
                         Image(systemName: "checkmark")
                             .font(.system(size: 12, weight: .bold))
-                            .foregroundStyle(slot.accent)
+                            .foregroundStyle(StudioTheme.phraseAccent)
                     }
                 }
 
@@ -864,10 +875,10 @@ struct PhraseWorkspaceView: View {
             }
             .padding(StudioMetrics.Spacing.comfortable)
             .frame(maxWidth: .infinity, minHeight: 118, alignment: .topLeading)
-            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
+            .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                    .stroke(selected ? slot.accent.opacity(StudioOpacity.ghostStroke) : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+                    .stroke(selected ? StudioTheme.phraseAccent.opacity(StudioOpacity.ghostStroke) : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
             )
         }
         .buttonStyle(.plain)
@@ -972,7 +983,7 @@ struct PhraseWorkspaceView: View {
             .buttonStyle(.plain)
             .padding(.horizontal, 10)
             .padding(.vertical, 8)
-            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+            .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
                     .stroke(activeLayerAccent.opacity(StudioOpacity.subtleStroke), lineWidth: StudioMetrics.borderWidth)
@@ -998,7 +1009,7 @@ struct PhraseWorkspaceView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 10)
             .padding(.vertical, 8)
-            .background(phraseCellTool == tool ? activeLayerAccent : Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+            .background(phraseCellTool == tool ? activeLayerAccent : StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
                     .stroke(phraseCellTool == tool ? activeLayerAccent : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
@@ -1162,9 +1173,9 @@ struct PhraseWorkspaceView: View {
         }
 
         // QA: preselect the first N tracks into the global-apply scope so a
-        // capture shows amber-selected cells (the empty fixture scope = all
-        // tracks renders nothing selected). Drives the same scope the selector
-        // cells toggle.
+        // capture shows phrase-accent selected cells (the empty fixture scope =
+        // all tracks renders nothing selected). Drives the same scope the
+        // selector cells toggle.
         if command.hasPrefix("global-apply-select:"),
            let rawCount = command.split(separator: ":").last,
            let count = Int(rawCount) {
@@ -1511,7 +1522,7 @@ struct PhraseWorkspaceView: View {
         } label: {
             ZStack(alignment: .topTrailing) {
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                    .fill(Color.white.opacity(presentation.isEnabled ? StudioOpacity.subtleFill : 0.015))
+                    .fill(presentation.isEnabled ? StudioTheme.subtleFill : StudioTheme.disabledSubtleFill)
                     .overlay(
                         RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
                             .stroke(StudioTheme.border.opacity(presentation.isEnabled ? StudioOpacity.mediumStroke : StudioOpacity.ghostStroke), lineWidth: StudioMetrics.borderWidth)
@@ -1837,9 +1848,9 @@ struct PhraseWorkspaceView: View {
 
     // Bug 20260622-130446: each track is a single whole-cell toggle. The cell is
     // the control — tapping anywhere flips membership — and it reads its state
-    // from its FILL: an amber-filled cell is in the selection, a neutral cell is
-    // not. The standalone radio circle and the redundant "MONO" subtitle are
-    // gone (requirements 1 + 2).
+    // from its FILL: a phrase-accent cell is in the selection, a neutral cell
+    // is not. The standalone radio circle and the redundant "MONO" subtitle
+    // are gone (requirements 1 + 2).
     private var globalApplyTrackSelector: some View {
         LazyVGrid(columns: globalApplyColumns, alignment: .leading, spacing: 10) {
             ForEach(tracks, id: \.id) { track in
@@ -1861,10 +1872,10 @@ struct PhraseWorkspaceView: View {
                 .lineLimit(1)
                 .padding(StudioMetrics.Spacing.compact)
                 .frame(maxWidth: .infinity, minHeight: 56, maxHeight: 56, alignment: .topLeading)
-                .background(isSelected ? StudioTheme.amber : Color.clear, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
+                .background(isSelected ? StudioTheme.phraseAccent : Color.clear, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-                        .stroke(isSelected ? StudioTheme.amber : StudioTheme.border, lineWidth: isSelected ? 2 : StudioMetrics.borderWidth)
+                        .stroke(isSelected ? StudioTheme.phraseAccent : StudioTheme.border, lineWidth: isSelected ? 2 : StudioMetrics.borderWidth)
                 )
         }
         .buttonStyle(.plain)
@@ -1897,12 +1908,12 @@ struct PhraseWorkspaceView: View {
 
     // Bug 20260620-140815 / consistency pass: the global-apply card renders its
     // value with the SAME PhraseCellPreview the Layers matrix uses, so a mute
-    // value (red "Muted" / green "Live"), a pattern value (the 4×4 slot matrix)
-    // and a scalar value (the level well) look identical in both views. The card
-    // keeps its own framing — the layer NAME label on top and an amber border
-    // when the scoped tracks diverge ("mixed") — but the inner value cell is
-    // shared. Tapping the whole card cycles/toggles via applyGlobalOption, the
-    // same write path as before.
+    // value, a pattern value (the 4×4 slot matrix), and a scalar value (the
+    // level well) look identical in both views. The card keeps its own framing
+    // — the layer NAME label on top and a phrase-accent border when the scoped
+    // tracks diverge ("mixed") — but the inner value cell is shared. Tapping
+    // the whole card cycles/toggles via applyGlobalOption, the same write path
+    // as before.
     @ViewBuilder
     private func globalApplyInteractiveCell(
         _ option: PerformanceLayerOption,
@@ -1955,9 +1966,9 @@ struct PhraseWorkspaceView: View {
     }
 
     private func selectAllGlobalApplyTracks() {
-        // Explicitly select every track so the count + the coloured cells read as
-        // "all selected". (The apply path also treats empty as all, but selecting
-        // explicitly keeps the UI honest after a Clear.)
+        // Explicitly select every track so the count + selected cells read as
+        // "all selected". (The apply path also treats empty as all, but
+        // selecting explicitly keeps the UI honest after a Clear.)
         var next = TrackPerformSelectionState()
         for track in tracks {
             next.add(track.id)
@@ -2124,7 +2135,7 @@ struct SongWorkspaceView: View {
     }
 
     var body: some View {
-        StudioPanel(title: "Song", accent: StudioTheme.cyan, showsHeader: false, contentPadding: 0) {
+        StudioPanel(title: "Song", accent: StudioTheme.phraseAccent, showsHeader: false, contentPadding: 0) {
             VStack(alignment: .leading, spacing: 16) {
                 songHeader
                 phraseGrid
@@ -2141,7 +2152,7 @@ struct SongWorkspaceView: View {
             Text("SONG")
                 .studioText(.microEmphasis)
                 .tracking(0.9)
-                .foregroundStyle(StudioTheme.cyan)
+                .foregroundStyle(StudioTheme.phraseAccent)
 
             Spacer(minLength: 12)
 
@@ -2163,10 +2174,10 @@ struct SongWorkspaceView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+        .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                .stroke(StudioTheme.cyan.opacity(StudioOpacity.mediumStroke), lineWidth: StudioMetrics.borderWidth)
+                .stroke(StudioTheme.phraseAccent.opacity(StudioOpacity.mediumStroke), lineWidth: StudioMetrics.borderWidth)
         )
     }
 
@@ -2175,7 +2186,7 @@ struct SongWorkspaceView: View {
         // A track-header row sits on top of the body columns; the leading
         // phrase-label column lines up with the header's leading spacer.
         let activeLayer = matrixLayer
-        let accent = activeLayer.map { layerAccent($0.id) } ?? StudioTheme.cyan
+        let accent = activeLayer.map { layerAccent($0.id) } ?? StudioTheme.phraseAccent
         let defaults = inheritedDefaults
         let selectedPhraseID = session.store.selectedPhraseID
         let selectedTrackID = session.store.selectedTrackID
@@ -2195,7 +2206,7 @@ struct SongWorkspaceView: View {
                             PhraseMatrixTrackHeaderCell(
                                 track: track,
                                 isSelected: selectedTrackID == track.id,
-                                accent: track.groupID == nil ? accent : StudioTheme.success
+                                accent: accent
                             )
                         }
                         .buttonStyle(.plain)
@@ -2239,7 +2250,7 @@ struct SongWorkspaceView: View {
                                         phrase: displayedPhrase,
                                         track: track,
                                         isSelected: phrase.id == selectedPhraseID && track.id == selectedTrackID,
-                                        accent: track.groupID == nil ? accent : StudioTheme.success,
+                                        accent: accent,
                                         inherited: inherited,
                                         showsTrackName: false
                                     )
@@ -2284,7 +2295,7 @@ struct SongWorkspaceView: View {
             .foregroundStyle(disabled ? StudioTheme.mutedText.opacity(StudioOpacity.inheritedContent) : StudioTheme.text)
             .padding(.horizontal, 10)
             .frame(height: 34)
-            .background(Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
+            .background(StudioTheme.subtleFill, in: Capsule())
             .overlay(
                 Capsule()
                     .stroke(disabled ? StudioTheme.border.opacity(StudioOpacity.ghostStroke) : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
@@ -2321,7 +2332,7 @@ private struct SongEmptyPhraseCell: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .padding(StudioMetrics.Spacing.compact)
-            .background(StudioTheme.inset.opacity(0.35), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
+            .background(StudioTheme.inset, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
                     .stroke(StudioTheme.border.opacity(StudioOpacity.mediumStroke), style: StrokeStyle(lineWidth: StudioMetrics.borderWidth, dash: [5, 5]))
@@ -2465,9 +2476,9 @@ enum PhraseWorkspaceTab: String, CaseIterable, Identifiable {
     var accent: Color {
         switch self {
         case .layers:
-            return StudioTheme.violet
+            return StudioTheme.phraseAccent
         case .scenes:
-            return StudioTheme.amber
+            return StudioTheme.phraseAccent
         }
     }
 
@@ -2497,7 +2508,7 @@ private struct PhraseRowActions: View {
             StudioIconActionButton(systemImage: "trash", isDisabled: !canRemove, help: "Remove phrase", action: onRemove)
         }
         .padding(6)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+        .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
                 .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
@@ -2534,7 +2545,7 @@ private struct PhraseMatrixTrackHeaderCell: View {
         // Colour identifies, it never floods (ux-canon rule 12): outline-only
         // header cell — drawn border-grey line when idle, solid accent line
         // when selected, body on the neutral step.
-        .background((isSelected ? Color.white.opacity(StudioOpacity.subtleFill) : Color.clear), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
+        .background((isSelected ? StudioTheme.subtleFill : Color.clear), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
                 .stroke(isSelected ? accent : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
@@ -2568,22 +2579,22 @@ private struct PhraseSceneCrossfaderTrack: View {
 
             ZStack(alignment: .leading) {
                 Capsule()
-                    .fill(StudioTheme.border.opacity(0.8))
+                    .fill(StudioTheme.borderStrongFill)
                     .frame(height: 10)
                     .frame(maxWidth: .infinity)
                     .frame(maxHeight: .infinity)
 
                 Capsule()
-                    .fill(StudioTheme.amber)
+                    .fill(StudioTheme.phraseAccent)
                     .frame(width: thumbX, height: 10)
                     .frame(maxHeight: .infinity, alignment: .center)
 
                 Circle()
-                    .fill(StudioTheme.amber)
+                    .fill(StudioTheme.phraseAccent)
                     .frame(width: 28, height: 28)
                     .overlay(
                         Circle()
-                            .stroke(Color.white.opacity(StudioOpacity.ghostStroke), lineWidth: 2)
+                            .stroke(StudioTheme.ghostFill, lineWidth: 2)
                     )
                     .offset(x: min(max(thumbX - 14, 0), width - 28))
             }
@@ -2649,10 +2660,10 @@ private struct PhraseMatrixPhraseCell: View {
                     Spacer(minLength: 0)
 
                     if isPlaying {
-                        phraseBadge("Play", accent: StudioTheme.success)
+                        phraseBadge("Play", accent: StudioTheme.phraseAccent)
                     }
                     if isQueued {
-                        phraseBadge("Queue", accent: StudioTheme.amber)
+                        phraseBadge("Queue", accent: StudioTheme.phraseAccent)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .topLeading)
@@ -2701,21 +2712,20 @@ private struct PhraseMatrixPhraseCell: View {
         .accessibilityIdentifier("phrase-button-controls-\(phrase.id.uuidString)")
     }
 
-    /// Colour identifies, it never floods (ux-canon rule 12 + the State-colour
-    /// fence): green/amber are fenced to SMALL SOLID elements, so the
-    /// playing/queued states live ONLY in the solid Play/Queue badges — never
-    /// the card outline. The outline carries selection (surface accent) or
-    /// the neutral border; the fill stays on the neutral step. The unlimited
-    /// repeat is already stated once by the repeat field ("Unlimited").
+    /// Colour identifies, it never floods (ux-canon rule 12): playing/queued
+    /// states live ONLY in the solid Play/Queue badges — never the card
+    /// outline. The outline carries selection (surface accent) or the neutral
+    /// border; the fill stays on the neutral step. The unlimited repeat is
+    /// already stated once by the repeat field ("Unlimited").
     private var rowFill: Color {
         if phrase.loopEnabled || isSelected {
-            return Color.white.opacity(StudioOpacity.subtleFill)
+            return StudioTheme.subtleFill
         }
         return Color.clear
     }
 
     private var rowStroke: Color {
-        isSelected ? StudioTheme.violet : StudioTheme.border
+        isSelected ? StudioTheme.phraseAccent : StudioTheme.border
     }
 
     // Bold-flat pass: badges are solid accent blocks with dark text.
@@ -2752,7 +2762,7 @@ private struct PhrasePolicyStepperControl: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
                     .frame(maxWidth: .infinity, minHeight: 30)
-                    .background(Color.white.opacity(StudioOpacity.subtleFill))
+                    .background(StudioTheme.subtleFill)
 
                 stepButton(systemName: "plus", action: onIncrement, isDisabled: incrementDisabled)
             }
@@ -2781,7 +2791,7 @@ private struct PhrasePolicyStepperControl: View {
                 .font(.system(size: 10, weight: .bold))
                 .foregroundStyle(isDisabled ? StudioTheme.mutedText.opacity(StudioOpacity.ghostStroke) : StudioTheme.text)
                 .frame(width: 28, height: 30)
-                .background(Color.white.opacity(isDisabled ? 0.015 : StudioOpacity.subtleFill))
+                .background(isDisabled ? StudioTheme.disabledSubtleFill : StudioTheme.subtleFill)
         }
         .buttonStyle(.plain)
         .disabled(isDisabled)
@@ -2820,7 +2830,7 @@ private struct PhraseGridCell: View {
             if showsTrackName {
                 Text(track.name)
                     .studioText(.labelBold)
-                    .foregroundStyle(track.groupID == nil ? StudioTheme.text : StudioTheme.success)
+                    .foregroundStyle(StudioTheme.text)
                     .lineLimit(1)
                     .truncationMode(.tail)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -2924,7 +2934,7 @@ private struct PhrasePerformancePlaceholderCell: View {
         // Colour identifies, it never floods (ux-canon rule 12): outline-only
         // cell — border-grey line when idle, solid accent line when selected,
         // body on the neutral step.
-        .background((isSelected ? Color.white.opacity(StudioOpacity.subtleFill) : Color.clear), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
+        .background((isSelected ? StudioTheme.subtleFill : Color.clear), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
                 .stroke(isSelected ? accent : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)

@@ -2,14 +2,14 @@ import SwiftUI
 
 /// A By Value card. The INNER value is rendered with the same
 /// `PhraseCellPreview` the Layers matrix uses, so a given layer value looks
-/// identical in both views: mute → red "Muted" / green "Live"; pattern → the
-/// 4×4 slot matrix; scalar → the level well. The card adds only the framing
-/// the same-value picker legitimately needs on top of that shared cell:
+/// identical in both views: mute, pattern, and scalar values all reuse the
+/// same preview grammar. The card adds only the framing the same-value picker
+/// legitimately needs on top of that shared cell:
 ///
 ///   - the layer NAME label (the matrix names the active layer in its header
 ///     once; here each card stands alone, so it carries its own name), and
-///   - a divergence indicator: an amber border when the scoped tracks are not
-///     unanimous, with the shared preview showing "Mixed" inside.
+///   - a divergence indicator: a phrase-accent border when the scoped tracks
+///     are not unanimous, with the shared preview showing "Mixed" inside.
 ///
 /// Tapping the whole card cycles/toggles the value through `onApply`
 /// (applyGlobalOption → session.setPhraseCell / quantised arming), the same
@@ -22,10 +22,10 @@ struct GlobalApplyLayerCard: View {
     let summary: String
     let onApply: () -> Void
 
-    private var accent: Color { option.mode.selectorAccent }
+    private var accent: Color { option.mode.phraseAccent }
 
     private var borderColor: Color {
-        isDivergent ? StudioTheme.amber : StudioTheme.border
+        isDivergent ? accent : StudioTheme.border
     }
 
     var body: some View {

@@ -4,6 +4,7 @@ struct ClipPianoRollPreview: View {
     let lengthBars: Int
     let stepsPerBar: Int
     let notes: [ClipNote]
+    var accent: Color = StudioTheme.transportAccent
 
     private var totalSteps: Int { max(1, lengthBars * stepsPerBar) }
     private var pitchRange: ClosedRange<Int> {
@@ -19,12 +20,12 @@ struct ClipPianoRollPreview: View {
 
             ZStack(alignment: .topLeading) {
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                    .fill(Color.white.opacity(StudioOpacity.subtleFill))
+                    .fill(StudioTheme.subtleFill)
 
                 VStack(spacing: 0) {
                     ForEach(Array(pitchRange.reversed()), id: \.self) { _ in
                         Rectangle()
-                            .fill(Color.white.opacity(StudioOpacity.subtleFill))
+                            .fill(StudioTheme.subtleFill)
                             .frame(height: noteHeight)
                     }
                 }
@@ -33,7 +34,7 @@ struct ClipPianoRollPreview: View {
                 HStack(spacing: 0) {
                     ForEach(0..<totalSteps, id: \.self) { index in
                         Rectangle()
-                            .fill(index % stepsPerBar == 0 ? Color.white.opacity(StudioOpacity.borderFaint) : Color.white.opacity(StudioOpacity.subtleFill))
+                            .fill(index % stepsPerBar == 0 ? StudioTheme.borderFaintFill : StudioTheme.subtleFill)
                             .frame(width: stepWidth)
                     }
                 }
@@ -42,7 +43,7 @@ struct ClipPianoRollPreview: View {
                 ForEach(notes) { note in
                     let yIndex = pitchRange.upperBound - note.pitch
                     RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .fill(StudioTheme.violet)
+                        .fill(accent)
                         .frame(
                             width: max(stepWidth * CGFloat(note.lengthSteps) - 2, 6),
                             height: max(noteHeight - 3, 6)

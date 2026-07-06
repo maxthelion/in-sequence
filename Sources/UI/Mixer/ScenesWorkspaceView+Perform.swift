@@ -20,7 +20,7 @@ extension ScenesWorkspaceView {
         let sceneB = masterBus.scene(id: selection.sceneBID)
             ?? masterBus.scenes.first { $0.id != sceneA.id }
             ?? MasterBusScene.sceneB
-        StudioPanel(title: "", accent: StudioTheme.amber, showsHeader: false, contentPadding: 0) {
+        StudioPanel(title: "", accent: StudioTheme.transportAccent, showsHeader: false, contentPadding: 0) {
             HStack(alignment: .top, spacing: 0) {
                 performSlot(title: "Slot A", scene: sceneA, isA: true, isDominant: dominance.isADominant)
                     .frame(maxWidth: .infinity, alignment: .topLeading)
@@ -42,13 +42,13 @@ extension ScenesWorkspaceView {
             Text("\(Int((value * 100).rounded()))%")
                 .studioText(.eyebrowBold)
                 .monospacedDigit()
-                .foregroundStyle(StudioTheme.amber)
+                .foregroundStyle(StudioTheme.transportAccent)
                 .frame(width: 56, alignment: .center)
 
             HStack(spacing: 8) {
                 Text("A")
                     .studioText(.eyebrowBold)
-                    .foregroundStyle(StudioTheme.amber)
+                    .foregroundStyle(StudioTheme.transportAccent)
                     .frame(width: 14, alignment: .leading)
 
                 ScenePerformCrossfaderTrack(value: value) { nextValue in
@@ -58,13 +58,13 @@ extension ScenesWorkspaceView {
 
                 Text("B")
                     .studioText(.eyebrowBold)
-                    .foregroundStyle(StudioTheme.amber)
+                    .foregroundStyle(StudioTheme.transportAccent)
                     .frame(width: 14, alignment: .trailing)
             }
         }
         .padding(StudioMetrics.Spacing.comfortable)
         .frame(maxWidth: .infinity)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
+        .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
     }
 
     private func performSlot(title: String, scene: MasterBusScene, isA: Bool, isDominant: Bool) -> some View {
@@ -74,7 +74,7 @@ extension ScenesWorkspaceView {
                     Text(title.uppercased())
                         .studioText(.micro)
                         .tracking(0.8)
-                        .foregroundStyle(isDominant ? StudioTheme.amber : StudioTheme.mutedText)
+                        .foregroundStyle(isDominant ? StudioTheme.transportAccent : StudioTheme.mutedText)
                     Text(scene.name)
                         .studioText(.title)
                         .foregroundStyle(StudioTheme.text)
@@ -94,7 +94,7 @@ extension ScenesWorkspaceView {
                     .padding(.horizontal, 9)
                     .frame(height: 26)
                     .background(
-                        Color.white.opacity(StudioOpacity.subtleFill),
+                        StudioTheme.subtleFill,
                         in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
                     )
                     .overlay(
@@ -108,14 +108,14 @@ extension ScenesWorkspaceView {
             .padding(StudioMetrics.Spacing.comfortable)
             .contentShape(Rectangle())
             // Colour identifies, it never floods (ux-canon rule 12): dominance
-            // reads from the amber outline and amber slot label, not a wash.
+            // reads from the accent outline and slot label, not a wash.
             .background(
-                Color.white.opacity(StudioOpacity.subtleFill),
+                StudioTheme.subtleFill,
                 in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                    .stroke(isDominant ? StudioTheme.amber.opacity(StudioOpacity.mediumStroke) : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+                    .stroke(isDominant ? StudioTheme.transportAccent.opacity(StudioOpacity.mediumStroke) : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
             )
             .onTapGesture {
                 engineController.setLiveMasterCrossfader(isA ? 0 : 1)
@@ -132,10 +132,10 @@ extension ScenesWorkspaceView {
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
         .padding(StudioMetrics.Spacing.standard)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
+        .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                .stroke(StudioTheme.amber.opacity(StudioOpacity.hoverFill), lineWidth: StudioMetrics.borderWidth)
+                .stroke(StudioTheme.transportAccent.opacity(StudioOpacity.hoverFill), lineWidth: StudioMetrics.borderWidth)
         )
     }
 
@@ -150,7 +150,7 @@ extension ScenesWorkspaceView {
             }
         }
         .padding(StudioMetrics.Spacing.comfortable)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+        .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
                 .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
@@ -169,7 +169,7 @@ extension ScenesWorkspaceView {
                 )
             },
             value: macro.map { resolvedMacroValue($0, scene: scene) },
-            accent: StudioTheme.amber,
+            accent: StudioTheme.transportAccent,
             // The dashed "+" knob already reads as assign; repeating "Assign"
             // under every empty slot is noise (ux-canon rule 1).
             emptyLabel: "",
@@ -226,12 +226,12 @@ extension ScenesWorkspaceView {
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundStyle(selected ? StudioTheme.background : StudioTheme.text)
                         .frame(width: 26, height: 26)
-                        .background(selected ? StudioTheme.amber : Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+                        .background(selected ? StudioTheme.transportAccent : StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
                     Spacer()
                     if selected {
                         Image(systemName: "checkmark")
                             .font(.system(size: 12, weight: .bold))
-                            .foregroundStyle(StudioTheme.amber)
+                            .foregroundStyle(StudioTheme.transportAccent)
                     }
                 }
 
@@ -248,10 +248,10 @@ extension ScenesWorkspaceView {
             }
             .padding(StudioMetrics.Spacing.comfortable)
             .frame(maxWidth: .infinity, minHeight: 118, alignment: .topLeading)
-            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
+            .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                    .stroke(selected ? StudioTheme.amber.opacity(StudioOpacity.ghostStroke) : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+                    .stroke(selected ? StudioTheme.transportAccent.opacity(StudioOpacity.ghostStroke) : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
             )
         }
         .buttonStyle(.plain)
@@ -295,22 +295,22 @@ private struct ScenePerformCrossfaderTrack: View {
 
             ZStack(alignment: .leading) {
                 Capsule()
-                    .fill(StudioTheme.border.opacity(0.8))
+                    .fill(StudioTheme.borderStrongFill)
                     .frame(height: 10)
                     .frame(maxWidth: .infinity)
                     .frame(maxHeight: .infinity)
 
                 Capsule()
-                    .fill(StudioTheme.amber)
+                    .fill(StudioTheme.transportAccent)
                     .frame(width: thumbX, height: 10)
                     .frame(maxHeight: .infinity, alignment: .center)
 
                 Circle()
-                    .fill(StudioTheme.amber)
+                    .fill(StudioTheme.transportAccent)
                     .frame(width: 28, height: 28)
                     .overlay(
                         Circle()
-                            .stroke(Color.white.opacity(StudioOpacity.ghostStroke), lineWidth: 2)
+                            .stroke(StudioTheme.ghostFill, lineWidth: 2)
                     )
                     .offset(x: min(max(thumbX - 14, 0), width - 28))
             }

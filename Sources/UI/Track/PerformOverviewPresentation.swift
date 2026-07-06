@@ -43,6 +43,8 @@ struct PerformOverviewRowModel: Identifiable, Equatable {
     let title: String
     /// Track type for instrument/audio-in rows (identity accent); nil for kits.
     let trackType: TrackType?
+    /// Resolved row identity hue. Type does not choose colour.
+    let accentHex: String
     /// Every track this row's controls fan out to (kit = all members).
     let trackIDs: [UUID]
     /// Kit rows: the per-part on/off strip; empty for other kinds.
@@ -59,28 +61,8 @@ struct PerformOverviewRowModel: Identifiable, Equatable {
         }
     }
 
-    /// Kit rows render in the kit's ONE colour — violet family per
-    /// wireframes §1 — regardless of member part colours (ux-canon rule 12:
-    /// colour identifies, it never floods). Instrument/audio-in rows keep
-    /// their track-type identity accents from the cards.
     var accent: Color {
-        switch kind {
-        case .kit:
-            return StudioTheme.violet
-        case .instrument, .audioInput:
-            switch trackType {
-            case .monoMelodic:
-                return StudioTheme.cyan
-            case .polyMelodic:
-                return StudioTheme.amber
-            case .slice:
-                return StudioTheme.violet
-            case .audioInput:
-                return StudioTheme.success
-            case nil:
-                return StudioTheme.cyan
-            }
-        }
+        StudioTheme.color(hex: accentHex) ?? StudioTheme.transportAccent
     }
 
     /// Row order matches the setup matrix: ungrouped tracks first (project
@@ -95,6 +77,7 @@ struct PerformOverviewRowModel: Identifiable, Equatable {
                     kind: track.trackType == .audioInput ? .audioInput : .instrument,
                     title: track.name,
                     trackType: track.trackType,
+                    accentHex: TrackPalette.identityHex(for: track.id),
                     trackIDs: [track.id],
                     parts: []
                 )
@@ -110,6 +93,7 @@ struct PerformOverviewRowModel: Identifiable, Equatable {
                     kind: .kit,
                     title: group.name,
                     trackType: nil,
+                    accentHex: TrackPalette.isValidHex(group.color) ? group.color : TrackPalette.identityHex(for: group.id),
                     trackIDs: members.map(\.id),
                     parts: members.map { PerformOverviewPartModel(id: $0.id, name: $0.name) }
                 )

@@ -8,7 +8,7 @@ struct PerformanceLayerOptionCell: View {
     let isSelected: Bool
     let onTap: () -> Void
 
-    private var accent: Color { option.mode.selectorAccent }
+    private var accent: Color { option.mode.phraseAccent }
 
     var body: some View {
         Button(action: onTap) {
@@ -54,7 +54,7 @@ struct PerformanceLayerOptionCell: View {
             // reads from the solid accent outline and check badge, with the
             // cell body on the neutral step.
             .background(
-                isSelected ? Color.white.opacity(StudioOpacity.subtleFill) : Color.clear,
+                isSelected ? StudioTheme.subtleFill : Color.clear,
                 in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
             )
             .overlay(
@@ -71,22 +71,7 @@ struct PerformanceLayerOptionCell: View {
 }
 
 extension TrackPerformLayerMode {
-    var selectorAccent: Color {
-        switch self {
-        case .mute:
-            return StudioTheme.success
-        case .pattern:
-            return StudioTheme.violet
-        case .fill:
-            return StudioTheme.success
-        case .noteRepeat:
-            return StudioTheme.cyan
-        case .stepOrder:
-            return StudioTheme.amber
-        case .volume:
-            return StudioTheme.cyan
-        case .pan:
-            return StudioTheme.violet
-        }
+    var phraseAccent: Color {
+        StudioTheme.phraseAccent
     }
 }

@@ -47,7 +47,7 @@ struct TrackSourceClipHistoryTabContent: View {
                     .padding(.vertical, 8)
                     .padding(.horizontal, 12)
                     .background(
-                        (model.selectedPseudoClip == nil ? Color.white.opacity(StudioOpacity.subtleFill) : accent),
+                        (model.selectedPseudoClip == nil ? StudioTheme.subtleFill : accent),
                         in: Capsule()
                     )
                     .overlay(Capsule().stroke(model.selectedPseudoClip == nil ? StudioTheme.border : Color.clear, lineWidth: StudioMetrics.borderWidth))
@@ -74,7 +74,7 @@ struct TrackSourceClipHistoryTabContent: View {
                 if model.isAuditioning {
                     Text("Auditioning")
                         .studioText(.microEmphasis)
-                        .foregroundStyle(StudioTheme.success)
+                        .foregroundStyle(accent)
                 } else {
                     Text("Rolling")
                         .studioText(.microEmphasis)
@@ -95,7 +95,7 @@ struct TrackSourceClipHistoryTabContent: View {
             .frame(minHeight: 190)
         }
         .padding(StudioMetrics.Spacing.comfortable)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
+        .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
                 .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
@@ -181,7 +181,7 @@ struct TrackSourceClipHistoryTabContent: View {
             HStack(spacing: 10) {
                 Text(saveError)
                     .studioText(.label)
-                    .foregroundStyle(StudioTheme.amber)
+                    .foregroundStyle(StudioTheme.warning)
 
                 Spacer(minLength: 0)
             }
@@ -272,7 +272,7 @@ private struct ClipHistoryMinibarCell: View {
     /// Colour identifies, it never floods (ux-canon rule 12): region tiles
     /// stay neutral; selection/range reads from the accent border.
     private var backgroundFill: Color {
-        Color.white.opacity(StudioOpacity.subtleFill)
+        StudioTheme.subtleFill
     }
 
     private var borderFill: Color {
@@ -369,25 +369,25 @@ struct ClipHistoryPianoRollPreview: View {
 
             ZStack(alignment: .topLeading) {
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                    .fill(Color.white.opacity(StudioOpacity.subtleFill))
+                    .fill(StudioTheme.subtleFill)
 
                 ForEach(Array(pitchRange.reversed()), id: \.self) { pitch in
                     let rowOffset = laneHeight * CGFloat(pitchRange.upperBound - pitch)
                     if pitch % 12 == 0 {
                         Rectangle()
-                            .fill(Color.white.opacity(StudioOpacity.subtleFill))
+                            .fill(StudioTheme.subtleFill)
                             .frame(height: max(laneHeight, 1))
                             .offset(y: rowOffset)
                     }
                     Rectangle()
-                        .fill(Color.white.opacity(StudioOpacity.borderSubtle))
+                        .fill(StudioTheme.borderSubtleFill)
                         .frame(height: 1)
                         .offset(y: rowOffset)
                 }
 
                 ForEach(0..<resolvedLength, id: \.self) { step in
                     Rectangle()
-                        .fill(Color.white.opacity(stepDividerOpacity(layout.stepDivision(at: step))))
+                        .fill(stepDividerFill(layout.stepDivision(at: step)))
                         .frame(width: 1)
                         .offset(x: stepWidth * CGFloat(step))
                 }
@@ -397,7 +397,7 @@ struct ClipHistoryPianoRollPreview: View {
                     // the filled region is a neutral wash; the write head is a
                     // solid accent line.
                     Rectangle()
-                        .fill(Color.white.opacity(StudioOpacity.subtleFill))
+                        .fill(StudioTheme.subtleFill)
                         .frame(width: max(stepWidth * CGFloat(layout.clampedStep(liveFillStepIndex) + 1), 1))
 
                     Rectangle()
@@ -452,14 +452,14 @@ struct ClipHistoryPianoRollPreview: View {
         }
     }
 
-    private func stepDividerOpacity(_ division: ClipHistoryPreviewLayout.StepDivision) -> CGFloat {
+    private func stepDividerFill(_ division: ClipHistoryPreviewLayout.StepDivision) -> Color {
         switch division {
         case .bar:
-            return StudioOpacity.subtleStroke
+            return StudioTheme.dividerSubtleFill
         case .beat:
-            return StudioOpacity.faintStroke
+            return StudioTheme.dividerFaintFill
         case .step:
-            return StudioOpacity.borderSubtle
+            return StudioTheme.dividerLowFill
         }
     }
 }
@@ -480,12 +480,12 @@ private struct ClipHistoryMiniPianoThumbnail: View {
 
             ZStack(alignment: .topLeading) {
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                    .fill(Color.white.opacity(StudioOpacity.subtleFill))
+                    .fill(StudioTheme.subtleFill)
 
                 HStack(spacing: 0) {
                     ForEach(0..<4, id: \.self) { index in
                         Rectangle()
-                            .fill(index.isMultiple(of: 2) ? StudioTheme.border.opacity(0.25) : Color.clear)
+                            .fill(index.isMultiple(of: 2) ? StudioTheme.borderLowFill : Color.clear)
                             .frame(width: width / 4)
                     }
                 }

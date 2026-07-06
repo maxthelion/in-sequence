@@ -35,7 +35,7 @@ struct AddSliceTrackContent: View {
             if samples.isEmpty {
                 StudioPlaceholderTile(
                     title: "No Break Loops Found",
-                    accent: StudioTheme.violet
+                    accent: StudioTheme.transportAccent
                 )
                 .help("Add WAV loops to \(breaksFolderPath)")
             } else {
@@ -57,16 +57,16 @@ struct AddSliceTrackContent: View {
         }
     }
 
-    /// Recording buffers get the amber accent; factory breaks keep violet.
+    /// Creation flows use one fixed accent; category is label text, not hue.
     private func accent(for sample: AudioSample) -> Color {
-        sample.category == .recordings ? StudioTheme.amber : StudioTheme.violet
+        StudioTheme.transportAccent
     }
 
     private func sampleRow(_ sample: AudioSample) -> some View {
         let rowAccent = accent(for: sample)
         let isRecording = sample.category == .recordings
         return HStack(alignment: .center, spacing: 12) {
-            // Accent rail distinguishes recordings from factory breaks at a glance.
+            // Accent rail identifies the selectable row; category stays textual.
             RoundedRectangle(cornerRadius: 2, style: .continuous)
                 .fill(rowAccent)
                 .frame(width: 4, height: 36)
@@ -93,7 +93,7 @@ struct AddSliceTrackContent: View {
                         Text("IN PROJECT")
                             .studioText(.microEmphasis)
                             .tracking(0.6)
-                            .foregroundStyle(StudioTheme.success)
+                            .foregroundStyle(rowAccent)
                     }
                 }
             }
@@ -128,7 +128,7 @@ struct AddSliceTrackContent: View {
         .padding(.horizontal, StudioMetrics.Spacing.comfortable)
         .padding(.vertical, 10)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
+        .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
                 .stroke(StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)

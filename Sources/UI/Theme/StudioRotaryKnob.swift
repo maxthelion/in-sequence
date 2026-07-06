@@ -39,7 +39,7 @@ struct StudioRotaryKnob: View {
     let title: String
     let value: Double
     let range: ClosedRange<Double>
-    var accent: Color = StudioTheme.cyan
+    var accent: Color = StudioTheme.transportAccent
     var size: CGFloat = 44
     var format: (Double) -> String = { "\(Int($0.rounded()))" }
     let onChange: (Double) -> Void
@@ -59,7 +59,7 @@ struct StudioRotaryKnob: View {
         title: String,
         value: Double,
         range: ClosedRange<Double>,
-        accent: Color = StudioTheme.cyan,
+        accent: Color = StudioTheme.transportAccent,
         size: CGFloat = 44,
         format: @escaping (Double) -> String = { "\(Int($0.rounded()))" },
         onChange: @escaping (Double) -> Void,

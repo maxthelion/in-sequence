@@ -20,17 +20,20 @@ struct DrumGroupRoutingEditorSheet: View {
     @State private var draft: DrumGroupRoutingEditorDraft
     @State private var isPresentingDestinationPicker = false
 
+    let accent: Color
     let audioInstrumentChoices: [AudioInstrumentChoice]
     let onApply: (Project.DrumGroupRoutingDraft) -> Void
     let onCancel: () -> Void
 
     init(
         draft: DrumGroupRoutingEditorDraft,
+        accent: Color = StudioTheme.transportAccent,
         audioInstrumentChoices: [AudioInstrumentChoice],
         onApply: @escaping (Project.DrumGroupRoutingDraft) -> Void,
         onCancel: @escaping () -> Void
     ) {
         _draft = State(initialValue: draft)
+        self.accent = accent
         self.audioInstrumentChoices = audioInstrumentChoices
         self.onApply = onApply
         self.onCancel = onCancel
@@ -40,6 +43,7 @@ struct DrumGroupRoutingEditorSheet: View {
         StudioModal(
             title: "Edit Routing",
             subtitle: draft.groupName,
+            accent: accent,
             minWidth: 620,
             minHeight: 520,
             onClose: {
@@ -50,7 +54,7 @@ struct DrumGroupRoutingEditorSheet: View {
         ) {
             destinationSection
 
-            DrumGroupRoutingModeControl(selection: $draft.triggerMappingMode)
+            DrumGroupRoutingModeControl(selection: $draft.triggerMappingMode, accent: accent)
 
             warningsAndErrors
 
@@ -75,7 +79,7 @@ struct DrumGroupRoutingEditorSheet: View {
                     Text("Apply")
                         .studioText(.labelBold)
                 }
-                .buttonStyle(DrumGroupRoutingEditorButtonStyle(accent: StudioTheme.success, isProminent: true))
+                .buttonStyle(DrumGroupRoutingEditorButtonStyle(accent: accent, isProminent: true))
                 .disabled(!draft.canApply)
             }
         }
@@ -121,7 +125,7 @@ struct DrumGroupRoutingEditorSheet: View {
                             .padding(.horizontal, 7)
                             .padding(.vertical, 3)
                             .background(
-                                Color.white.opacity(StudioOpacity.subtleFill),
+                                StudioTheme.subtleFill,
                                 in: Capsule()
                             )
                             .overlay(
@@ -164,7 +168,7 @@ struct DrumGroupRoutingEditorSheet: View {
         }
         .padding(StudioMetrics.Spacing.standard)
         .background(
-            Color.white.opacity(storedForGroupedModesOnly ? 0.015 : StudioOpacity.subtleFill),
+            storedForGroupedModesOnly ? StudioTheme.disabledSubtleFill : StudioTheme.subtleFill,
             in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
         )
         .overlay(
@@ -182,13 +186,13 @@ struct DrumGroupRoutingEditorSheet: View {
             ForEach(draft.warnings, id: \.message) { warning in
                 Text(warning.message)
                     .studioText(.labelBold)
-                    .foregroundStyle(StudioTheme.amber)
+                    .foregroundStyle(StudioTheme.warning)
             }
 
             ForEach(draft.validationIssues.map(Self.validationMessage), id: \.self) { message in
                 Text(message)
                     .studioText(.labelBold)
-                    .foregroundStyle(StudioTheme.amber)
+                    .foregroundStyle(StudioTheme.warning)
             }
         }
     }
@@ -321,6 +325,7 @@ struct DrumGroupRoutingEditorSheet: View {
 
 private struct DrumGroupRoutingModeControl: View {
     @Binding var selection: DrumTriggerMappingMode
+    var accent: Color = StudioTheme.transportAccent
 
     private let modes: [(title: String, mode: DrumTriggerMappingMode)] = [
         ("Per Note", .perNote),
@@ -339,7 +344,7 @@ private struct DrumGroupRoutingModeControl: View {
                     accessibilityLabel: "Routing mode \(option.title)"
                 )
             },
-            accent: StudioTheme.cyan,
+            accent: accent,
             layout: StudioSegmentedControl.Layout(minHeight: 30, horizontalPadding: 10)
         )
     }
@@ -348,7 +353,7 @@ private struct DrumGroupRoutingModeControl: View {
 private struct DrumGroupRoutingEditorButtonStyle: ButtonStyle {
     @Environment(\.isEnabled) private var isEnabled
 
-    var accent: Color = StudioTheme.cyan
+    var accent: Color = StudioTheme.transportAccent
     var isProminent = false
 
     func makeBody(configuration: Configuration) -> some View {
@@ -372,7 +377,7 @@ private struct DrumGroupRoutingEditorButtonStyle: ButtonStyle {
         if isProminent {
             return accent.opacity(isPressed ? StudioOpacity.accentStroke : StudioOpacity.selectedFill)
         }
-        return Color.white.opacity(isPressed ? StudioOpacity.mutedFill : StudioOpacity.subtleFill)
+        return isPressed ? StudioTheme.mutedFill : StudioTheme.subtleFill
     }
 
     private var borderColor: Color {
@@ -440,7 +445,7 @@ private struct DrumGroupRoutingEditorRow: View {
             Spacer()
         }
         .padding(StudioMetrics.Spacing.comfortable)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+        .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
                 .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)

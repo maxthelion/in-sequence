@@ -78,7 +78,7 @@ struct StudioIconActionButton: View {
                 .font(.system(size: 11, weight: .bold))
                 .foregroundStyle(isDisabled ? StudioTheme.mutedText.opacity(StudioOpacity.inheritedContent) : StudioTheme.text)
                 .frame(width: 24, height: 24)
-                .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+                .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
         }
         .buttonStyle(.plain)
         .disabled(isDisabled)
@@ -110,7 +110,7 @@ struct StudioStepperButtons: View {
                 .font(.system(size: 8, weight: .black))
                 .foregroundStyle(StudioTheme.text)
                 .frame(width: 18, height: 13)
-                .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous))
+                .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous)
                         .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)

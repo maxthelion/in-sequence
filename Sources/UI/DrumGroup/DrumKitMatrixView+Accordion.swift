@@ -235,6 +235,7 @@ extension DrumKitMatrixView {
                 StepGridView(
                     stepStates: states,
                     indexOffset: pageOffset,
+                    accent: accent,
                     contentProvider: { index, _ in
                         expandedCellContent(steps: steps, index: index)
                     },
@@ -307,7 +308,7 @@ extension DrumKitMatrixView {
                         .foregroundStyle(StudioTheme.text)
                         .padding(.horizontal, 9)
                         .padding(.vertical, 4)
-                        .background(Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
+                        .background(StudioTheme.subtleFill, in: Capsule())
                     Button {
                         session.setPatternModifierGeneratorID(nil, for: row.memberID, slotIndex: row.patternSlotIndex)
                         postRenderedVisualState(isVisible: true)
@@ -328,7 +329,7 @@ extension DrumKitMatrixView {
                             .foregroundStyle(StudioTheme.text)
                             .padding(.horizontal, 9)
                             .padding(.vertical, 4)
-                            .background(Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
+                            .background(StudioTheme.subtleFill, in: Capsule())
                             .overlay(Capsule().stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth))
                     }
                     .buttonStyle(.plain)
@@ -419,7 +420,7 @@ extension DrumKitMatrixView {
         }
         .padding(StudioMetrics.Spacing.standard)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+        .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
                 .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
@@ -443,6 +444,7 @@ extension DrumKitMatrixView {
                 library: AudioSampleLibrary.shared,
                 sampleEngine: engineController.sampleEngineSink,
                 trackID: memberID,
+                accent: accent,
                 filterSettings: Binding(
                     get: { memberTrack(memberID)?.filter ?? .init() },
                     set: { session.setFilterSettings($0, for: memberID) }
@@ -541,7 +543,7 @@ extension DrumKitMatrixView {
                 .padding(.horizontal, 12)
                 .padding(.vertical, 9)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
+                .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
                         .stroke(StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
@@ -551,7 +553,7 @@ extension DrumKitMatrixView {
             .accessibilityIdentifier("kit-row-au-presets")
             .padding(StudioMetrics.Spacing.comfortable)
         }
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+        .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
                 .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)

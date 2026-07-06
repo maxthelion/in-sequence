@@ -13,7 +13,7 @@ struct MasterCrossfaderView: View {
     var body: some View {
         content
             .padding(StudioMetrics.Spacing.compact)
-            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
+            .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("master-crossfader")
     }
@@ -51,7 +51,7 @@ struct MasterCrossfaderView: View {
             ),
             in: 0...1
         )
-        .tint(StudioTheme.amber)
+        .tint(StudioTheme.transportAccent)
         .accessibilityLabel("Scene A B blend")
         .accessibilityValue("\(sceneAName) to \(sceneBName)")
         .accessibilityIdentifier("master-crossfader-slider")
@@ -73,7 +73,7 @@ struct MasterCrossfaderView: View {
                 Label("Save Blend", systemImage: "tray.and.arrow.down")
             }
             .buttonStyle(.borderedProminent)
-            .tint(StudioTheme.cyan)
+            .tint(StudioTheme.transportAccent)
             .disabled(!hasLiveOverride || onSave == nil)
         }
     }
@@ -88,7 +88,7 @@ struct MasterCrossfaderView: View {
     ) -> some View {
         Text(slot)
             .studioText(.eyebrowBold)
-            .foregroundStyle(StudioTheme.amber)
+            .foregroundStyle(StudioTheme.transportAccent)
         .frame(maxWidth: .infinity, alignment: frameAlignment)
     }
 }

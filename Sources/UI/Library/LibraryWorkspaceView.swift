@@ -53,7 +53,7 @@ struct LibraryWorkspaceView: View {
     // MARK: - Global library
 
     private var globalPanel: some View {
-        StudioPanel(title: "Global Library", accent: StudioTheme.violet) {
+        StudioPanel(title: "Global Library", accent: StudioTheme.transportAccent) {
             HStack(alignment: .top, spacing: StudioMetrics.Spacing.roomy) {
                 categoryList
                     .frame(width: 190)
@@ -117,20 +117,20 @@ struct LibraryWorkspaceView: View {
 
                 Text("\(count)")
                     .studioText(.micro)
-                    .foregroundStyle(isSelected ? StudioTheme.violet : (isEmpty ? dimmedMuted : StudioTheme.mutedText))
+                    .foregroundStyle(isSelected ? StudioTheme.transportAccent : (isEmpty ? dimmedMuted : StudioTheme.mutedText))
             }
             .padding(.horizontal, StudioMetrics.Spacing.compact)
             .padding(.vertical, StudioMetrics.Spacing.tight)
             // Colour identifies, it never floods (ux-canon rule 12): the
-            // selected row takes the neutral step; the violet count chip and
-            // bold label carry the selection.
+                // selected row takes the neutral step; the count chip and
+                // bold label carry the selection.
             .background(
-                isSelected ? Color.white.opacity(StudioOpacity.subtleFill) : Color.clear,
+                isSelected ? StudioTheme.subtleFill : Color.clear,
                 in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
-                    .stroke(isSelected ? StudioTheme.violet : Color.clear, lineWidth: StudioMetrics.borderWidth)
+                    .stroke(isSelected ? StudioTheme.transportAccent : Color.clear, lineWidth: StudioMetrics.borderWidth)
             )
         }
         .buttonStyle(.plain)
@@ -235,14 +235,14 @@ struct LibraryWorkspaceView: View {
             StudioCircleIconButton(
                 systemName: "plus",
                 size: StudioMetrics.ControlSize.small,
-                accent: StudioTheme.violet,
+                accent: StudioTheme.transportAccent,
                 help: createHelp,
                 action: onCreate
             )
         }
         .padding(StudioMetrics.Spacing.compact)
         .background(
-            Color.white.opacity(StudioOpacity.subtleFill),
+            StudioTheme.subtleFill,
             in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
         )
         .overlay(
@@ -263,7 +263,7 @@ struct LibraryWorkspaceView: View {
                     if entry.auditionURL != nil {
                         Image(systemName: isAuditioning ? "stop.fill" : "play.fill")
                             .font(.system(size: 9, weight: .bold))
-                            .foregroundStyle(isAuditioning ? StudioTheme.violet : StudioTheme.mutedText)
+                            .foregroundStyle(isAuditioning ? StudioTheme.transportAccent : StudioTheme.mutedText)
                             .frame(width: 14)
                     }
 
@@ -296,7 +296,7 @@ struct LibraryWorkspaceView: View {
                         .studioText(.microEmphasis)
                         .tracking(0.6)
                 }
-                .foregroundStyle(StudioTheme.success)
+                .foregroundStyle(StudioTheme.transportAccent)
             }
 
             // Create-track affordance for entries that can seed a track
@@ -307,7 +307,7 @@ struct LibraryWorkspaceView: View {
                 StudioCircleIconButton(
                     systemName: "music.note.list",
                     size: StudioMetrics.ControlSize.small,
-                    accent: StudioTheme.violet,
+                    accent: StudioTheme.transportAccent,
                     help: createHelp
                 ) {
                     createTrack(from: entry)
@@ -324,13 +324,13 @@ struct LibraryWorkspaceView: View {
         }
         .padding(StudioMetrics.Spacing.compact)
         .background(
-            Color.white.opacity(StudioOpacity.subtleFill),
+            StudioTheme.subtleFill,
             in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
         )
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
                 .stroke(
-                    isPooled ? StudioTheme.success.opacity(StudioOpacity.softStroke) : StudioTheme.border,
+                    isPooled ? StudioTheme.transportAccent : StudioTheme.border,
                     lineWidth: StudioMetrics.borderWidth
                 )
         )
@@ -345,9 +345,7 @@ struct LibraryWorkspaceView: View {
             return entries.isEmpty ? nil : (kind, entries)
         }
 
-        // One accent per surface (violet, the Library accent) — the old cyan
-        // header here made two accent systems on one page (design review 07).
-        return StudioPanel(title: "Project Pool", accent: StudioTheme.violet) {
+        return StudioPanel(title: "Project Pool", accent: StudioTheme.transportAccent) {
             ScrollView {
                 VStack(alignment: .leading, spacing: StudioMetrics.Spacing.comfortable) {
                     if grouped.isEmpty {
@@ -386,7 +384,7 @@ struct LibraryWorkspaceView: View {
                             Text("MISSING")
                                 .studioText(.microEmphasis)
                                 .tracking(0.6)
-                                .foregroundStyle(StudioTheme.amber)
+                                .foregroundStyle(StudioTheme.warning)
                         }
                     }
 
@@ -414,13 +412,13 @@ struct LibraryWorkspaceView: View {
         }
         .padding(StudioMetrics.Spacing.compact)
         .background(
-            Color.white.opacity(StudioOpacity.subtleFill),
+            StudioTheme.subtleFill,
             in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
         )
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
                 .stroke(
-                    entry.isMissing ? StudioTheme.amber.opacity(StudioOpacity.softStroke) : StudioTheme.border,
+                    entry.isMissing ? StudioTheme.warning : StudioTheme.border,
                     lineWidth: StudioMetrics.borderWidth
                 )
         )

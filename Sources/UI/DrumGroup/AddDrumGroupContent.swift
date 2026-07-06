@@ -76,7 +76,7 @@ struct AddDrumGroupContent: View {
     /// type card in the create flow). The old cyan/violet/green per-section
     /// roulette broke one-accent-per-surface, and green additionally misused
     /// a fenced state colour as a selection fill (design review 02d).
-    private static let surfaceAccent = StudioTheme.amber
+    private static let surfaceAccent = StudioTheme.transportAccent
 
     // Label purge (canon Rules 1/3, design review 02d): the step-descriptor
     // eyebrows and the "No parts yet" filler are gone — the section titles
@@ -110,7 +110,7 @@ struct AddDrumGroupContent: View {
                         .foregroundStyle(StudioTheme.text)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 7)
-                        .background(Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
+                        .background(StudioTheme.subtleFill, in: Capsule())
                         .overlay(Capsule().stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth))
                     }
                     .buttonStyle(.plain)
@@ -150,7 +150,7 @@ struct AddDrumGroupContent: View {
                 .padding(.horizontal, 12)
                 .padding(.vertical, 7)
                 .background(
-                    isSelected ? Self.surfaceAccent : Color.white.opacity(StudioOpacity.subtleFill),
+                    isSelected ? Self.surfaceAccent : StudioTheme.subtleFill,
                     in: Capsule()
                 )
                 .overlay(
@@ -273,7 +273,7 @@ struct AddDrumGroupContent: View {
         .padding(.horizontal, 8)
         .frame(minHeight: 26)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
+        .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
                 .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
@@ -346,7 +346,7 @@ struct AddDrumGroupContent: View {
                 .padding(.horizontal, 12)
                 .padding(.vertical, 7)
                 .background(
-                    isSelected ? Self.surfaceAccent : Color.white.opacity(StudioOpacity.subtleFill),
+                    isSelected ? Self.surfaceAccent : StudioTheme.subtleFill,
                     in: Capsule()
                 )
                 .overlay(
@@ -468,7 +468,7 @@ struct AddDrumGroupContent: View {
                 .padding(.horizontal, 12)
                 .padding(.vertical, 7)
                 .background(
-                    isSelected ? Self.surfaceAccent : Color.white.opacity(StudioOpacity.subtleFill),
+                    isSelected ? Self.surfaceAccent : StudioTheme.subtleFill,
                     in: Capsule()
                 )
                 .overlay(
@@ -494,7 +494,7 @@ struct AddDrumGroupContent: View {
 
         return HStack(spacing: 12) {
             Image(systemName: summary.iconName.isEmpty ? "dot.radiowaves.left.and.right" : summary.iconName)
-                .foregroundStyle(StudioTheme.cyan)
+                .foregroundStyle(Self.surfaceAccent)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(summary.typeLabel.isEmpty ? "Destination" : summary.typeLabel)
@@ -517,7 +517,7 @@ struct AddDrumGroupContent: View {
             .buttonStyle(.bordered)
         }
         .padding(StudioMetrics.Spacing.compact)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
+        .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
     }
 
     private var footer: some View {

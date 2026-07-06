@@ -56,14 +56,7 @@ struct TrackWorkspaceView: View {
     }
 
     private var sourceAccent: Color {
-        switch track.trackType {
-        case .monoMelodic, .polyMelodic:
-            return StudioTheme.cyan
-        case .slice:
-            return StudioTheme.violet
-        case .audioInput:
-            return StudioTheme.success
-        }
+        StudioTheme.trackAccent(for: track, groups: session.store.trackGroups)
     }
 
     private var isEditingSelectedTrackName: Bool {
@@ -170,7 +163,7 @@ struct TrackWorkspaceView: View {
                         StudioPanel(
                             title: "Project Routes",
                             eyebrow: "\(outboundRouteCount) outbound project route\(outboundRouteCount == 1 ? "" : "s")",
-                            accent: StudioTheme.violet
+                            accent: sourceAccent
                         ) {
                             RoutesListView(document: $document)
                         }
@@ -195,7 +188,7 @@ struct TrackWorkspaceView: View {
                 if track.trackType == .monoMelodic || track.trackType == .polyMelodic {
                     TrackFillPreviewControl(
                         presentation: fillPreviewPresentation,
-                        accent: StudioTheme.amber,
+                        accent: sourceAccent,
                         toggle: toggleFillPreview
                     )
 
@@ -204,12 +197,13 @@ struct TrackWorkspaceView: View {
 
                 deleteTrackButton
             }
-        } patternPalette: {
+        } patternSlotControls: {
             TrackPatternSlotPalette(
                 selectedSlot: selectedPatternIndexBinding,
                 occupiedSlots: occupiedPatternSlots,
                 bypassState: .notApplicable,
-                onBypassToggle: { _ in }
+                onBypassToggle: { _ in },
+                accent: sourceAccent
             )
         }
         .confirmationDialog(
@@ -244,7 +238,7 @@ struct TrackWorkspaceView: View {
                 .font(.system(size: 13, weight: .bold))
                 .foregroundStyle(StudioTheme.text)
                 .frame(width: 34, height: 34)
-                .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+                .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
                         .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
@@ -414,22 +408,22 @@ struct TrackPerformHeaderButton: View {
 /// (melodic track, slicer, audio input). Renders the track title, immediate
 /// controls, and pattern slots inside one rounded shell matching the drum-kit
 /// header grammar.
-struct CompactTrackDetailHeader<Title: View, Trailing: View, PatternPalette: View>: View {
+struct CompactTrackDetailHeader<Title: View, Trailing: View, PatternControls: View>: View {
     var accent: Color
     @ViewBuilder var title: () -> Title
     @ViewBuilder var trailing: () -> Trailing
-    @ViewBuilder var patternPalette: () -> PatternPalette
+    @ViewBuilder var patternSlotControls: () -> PatternControls
 
     init(
         accent: Color,
         @ViewBuilder title: @escaping () -> Title,
         @ViewBuilder trailing: @escaping () -> Trailing = { EmptyView() },
-        @ViewBuilder patternPalette: @escaping () -> PatternPalette = { EmptyView() }
+        @ViewBuilder patternSlotControls: @escaping () -> PatternControls = { EmptyView() }
     ) {
         self.accent = accent
         self.title = title
         self.trailing = trailing
-        self.patternPalette = patternPalette
+        self.patternSlotControls = patternSlotControls
     }
 
     var body: some View {
@@ -443,10 +437,10 @@ struct CompactTrackDetailHeader<Title: View, Trailing: View, PatternPalette: Vie
                 trailing()
             }
 
-            patternPalette()
+            patternSlotControls()
         }
         .padding(StudioMetrics.Spacing.standard)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.section, style: .continuous))
+        .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.section, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.section, style: .continuous)
                 .stroke(accent.opacity(StudioOpacity.hoverFill), lineWidth: StudioMetrics.borderWidth)
@@ -775,7 +769,7 @@ private struct AudioInputRuntimePanel: View {
                         .frame(minWidth: 112)
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(isArmedOrRecording ? StudioTheme.amber : accent)
+                .tint(isArmedOrRecording ? StudioTheme.warning : accent)
                 .disabled(!canArmInput && !isArmedOrRecording)
                 .help(armHelp)
             }
@@ -803,7 +797,7 @@ private struct AudioInputRuntimePanel: View {
         }
         .frame(maxHeight: .infinity, alignment: .top)
         .padding(StudioMetrics.Spacing.standard)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+        .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
                 .stroke(accent.opacity(StudioOpacity.borderSubtle), lineWidth: StudioMetrics.borderWidth)
@@ -827,7 +821,7 @@ private struct AudioInputRuntimePanel: View {
         }
         .frame(maxHeight: .infinity, alignment: .top)
         .padding(StudioMetrics.Spacing.standard)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+        .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
                 .stroke(accent.opacity(StudioOpacity.borderSubtle), lineWidth: StudioMetrics.borderWidth)
@@ -841,7 +835,7 @@ private struct AudioInputRuntimePanel: View {
                 .foregroundStyle(isEnabled ? StudioTheme.text : StudioTheme.mutedText.opacity(0.55))
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(10)
-                .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
+                .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
                         .stroke(isSelected ? accent : accent.opacity(StudioOpacity.borderSubtle), lineWidth: isSelected ? 1.5 : StudioMetrics.borderWidth)
@@ -946,7 +940,7 @@ private struct AudioInputRuntimePanel: View {
                 Text("MIC ACCESS DENIED")
                     .studioText(.microEmphasis)
                     .tracking(0.6)
-                    .foregroundStyle(StudioTheme.amber)
+                    .foregroundStyle(StudioTheme.warning)
                 Button("Open Settings") {
                     if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone") {
                         NSWorkspace.shared.open(url)
@@ -1055,7 +1049,7 @@ private struct AudioInputSignalPanel: View {
 
             ZStack(alignment: .bottomLeading) {
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                    .fill(Color.white.opacity(StudioOpacity.subtleFill))
+                    .fill(StudioTheme.subtleFill)
                     .overlay(
                         RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
                             .stroke(StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
@@ -1092,7 +1086,7 @@ private struct AudioInputSignalPanel: View {
                     GeometryReader { geo in
                         let progressWidth = geo.size.width * CGFloat(min(max(progress, 0), 1))
                         Rectangle()
-                            .fill(Color.white.opacity(StudioOpacity.subtleFill))
+                            .fill(StudioTheme.subtleFill)
                             .frame(width: progressWidth)
                             .frame(maxHeight: .infinity, alignment: .bottomLeading)
                             .overlay(alignment: .trailing) {
@@ -1141,7 +1135,7 @@ private struct AudioInputLevelMeters: View {
         VStack(spacing: 5) {
             ZStack(alignment: .bottom) {
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
-                    .fill(StudioTheme.border.opacity(0.35))
+                    .fill(StudioTheme.borderSubtleOverlayFill)
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
                     .fill(accent)
                     .frame(height: max(2, height * CGFloat(min(max(value, 0), 1))))

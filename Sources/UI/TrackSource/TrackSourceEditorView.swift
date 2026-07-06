@@ -323,7 +323,7 @@ struct TrackSourceEditorView: View {
                     .foregroundStyle(StudioTheme.background)
                     .padding(.vertical, 8)
                     .padding(.horizontal, 12)
-                    .background(StudioTheme.success, in: Capsule())
+                    .background(accent, in: Capsule())
                     .padding(StudioMetrics.Spacing.comfortable)
             }
         }
@@ -378,16 +378,17 @@ struct TrackSourceEditorView: View {
     @ViewBuilder
     private var clipHistoryDestinationPanel: some View {
         if clipHistoryDestinationMode {
-            StudioPanel(title: "Save Capture", accent: StudioTheme.success, showsHeader: false) {
+            StudioPanel(title: "Save Capture", accent: accent, showsHeader: false) {
                 VStack(alignment: .leading, spacing: 10) {
                     TrackPatternSlotPalette(
                         selectedSlot: selectedPatternIndexBinding,
                         occupiedSlots: occupiedPatternSlots,
                         bypassState: .notApplicable,
                         onBypassToggle: { _ in },
+                        accent: accent,
                         destinationMode: TrackPatternSlotPalette.DestinationMode(
                             pendingReplaceSlot: pendingClipHistoryReplaceSlot,
-                            accent: StudioTheme.success
+                            accent: accent
                         ),
                         onDestinationSelect: selectClipHistoryDestination
                     )
@@ -624,7 +625,7 @@ struct TrackSourceEditorView: View {
         } else if let clipHistoryModel {
             TrackSourceClipHistoryTabContent(
                 model: clipHistoryModel,
-                accent: StudioTheme.success,
+                accent: accent,
                 sourceSummary: clipHistorySourceSummary,
                 isDestinationMode: clipHistoryDestinationMode,
                 isTransportRunning: engineController.isRunning,
@@ -752,7 +753,7 @@ struct TrackSourceEditorView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.vertical, 9)
             .padding(.horizontal, 12)
-            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
+            .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
                     .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
@@ -822,7 +823,7 @@ struct TrackSourceEditorView: View {
                 if let pendingClipHistoryReplaceSlot {
                     Text("P\(pendingClipHistoryReplaceSlot + 1) occupied")
                         .studioText(.labelBold)
-                        .foregroundStyle(StudioTheme.amber)
+                        .foregroundStyle(StudioTheme.warning)
                     Spacer(minLength: 0)
                     Button("Replace") {
                         confirmClipHistoryReplace()
@@ -852,11 +853,11 @@ struct TrackSourceEditorView: View {
             .padding(.vertical, 8)
             .padding(.horizontal, 10)
             // Colour identifies, it never floods (ux-canon rule 12): the armed
-            // banner stays neutral; the green lives in its outline.
-            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
+            // banner stays neutral; the surface accent lives in its outline.
+            .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-                    .stroke(StudioTheme.success.opacity(StudioOpacity.ghostStroke), lineWidth: StudioMetrics.borderWidth)
+                    .stroke(accent.opacity(StudioOpacity.ghostStroke), lineWidth: StudioMetrics.borderWidth)
             )
         }
     }
@@ -1103,7 +1104,7 @@ struct ClipRandomizeSettingsPanel: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(StudioMetrics.Spacing.standard)
         .background(
-            Color.white.opacity(StudioOpacity.subtleFill),
+            StudioTheme.subtleFill,
             in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
         )
         .overlay(
@@ -1215,7 +1216,7 @@ struct ClipRandomizeSettingsPanel: View {
                         .foregroundStyle(StudioTheme.background)
                         .padding(.vertical, 3)
                         .padding(.horizontal, 7)
-                        .background(StudioTheme.success, in: Capsule())
+                        .background(accent, in: Capsule())
                 }
             }
 
@@ -1235,7 +1236,7 @@ struct ClipRandomizeSettingsPanel: View {
             .frame(height: 24)
             .frame(maxWidth: .infinity)
             .background(
-                note == nil ? Color.white.opacity(StudioOpacity.subtleFill) : accent,
+                note == nil ? StudioTheme.subtleFill : accent,
                 in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous)
             )
             .overlay(

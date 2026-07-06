@@ -1,13 +1,12 @@
 import CoreGraphics
 
-/// Bold-flat values: on the single near-black ground, fills are either the
-/// one allowed step above ground (`subtleFill`), a clearly-saturated state
-/// tint, or fully solid (`accentFill`); strokes read as drawn lines, not
-/// faint washes. Backgrounds are opaque, so a single tinted fill still
-/// composites to one flat colour.
+/// Alpha constants for non-structural opacity and for `StudioTheme` to
+/// precompose opaque neutral fill tokens. Call sites must not use these to
+/// draw grey fills directly; use `StudioTheme.subtleFill`,
+/// `borderSubtleFill`, and the other solid fill roles instead.
 enum StudioOpacity {
-    /// The single fill step a control may take above the ground; outline-only
-    /// (no fill) is the preferred idiom for inactive cells/pads/steps.
+    /// Theme input for the single fill step a control may take above the
+    /// ground. `StudioTheme.subtleFill` is the call-site token.
     static let subtleFill: CGFloat = 0.05
     static let mutedFill: CGFloat = 0.30
     static let softFill: CGFloat = 0.35

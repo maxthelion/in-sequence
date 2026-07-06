@@ -68,18 +68,18 @@ enum MasterMeterLevelScale {
         return clamp((dbFS - floorDBFS) / (ceilingDBFS - floorDBFS), to: 0...1)
     }
 
-    /// Bottom-to-top green/amber/red meter fill, shared by every vertical
+    /// Bottom-to-top success/warning/danger meter fill, shared by every vertical
     /// fader-meter (channel strips, send returns, master out) so the danger
     /// thresholds stay in lockstep with the scale above.
     static var meterGradient: LinearGradient {
         LinearGradient(
             stops: [
-                .init(color: StudioTheme.success, location: 0),
-                .init(color: StudioTheme.success, location: normalized(warningDBFS)),
-                .init(color: StudioTheme.amber, location: normalized(warningDBFS)),
-                .init(color: StudioTheme.amber, location: normalized(dangerDBFS)),
-                .init(color: Color.red, location: normalized(dangerDBFS)),
-                .init(color: Color.red, location: 1)
+                .init(color: StudioTheme.success, location: 0), // ux-canon-allow: audio meter safe level is semantic success
+                .init(color: StudioTheme.success, location: normalized(warningDBFS)), // ux-canon-allow: audio meter safe level is semantic success
+                .init(color: StudioTheme.warning, location: normalized(warningDBFS)),
+                .init(color: StudioTheme.warning, location: normalized(dangerDBFS)),
+                .init(color: StudioTheme.danger, location: normalized(dangerDBFS)), // ux-canon-allow: audio meter clip zone is semantic danger
+                .init(color: StudioTheme.danger, location: 1) // ux-canon-allow: audio meter clip zone is semantic danger
             ],
             startPoint: .bottom,
             endPoint: .top

@@ -75,6 +75,7 @@ enum TrackSourceContainedModifierPickerNavigation {
 struct TrackSourceContainedModifierPicker: View {
     let step: TrackSourceContainedModifierPickerStep
     let compatibleModifiers: [GeneratorPoolEntry]
+    let accent: Color
     let onBack: () -> Void
     let onCancel: () -> Void
     let onShowModifierPool: () -> Void
@@ -89,7 +90,7 @@ struct TrackSourceContainedModifierPicker: View {
     }
 
     var body: some View {
-        StudioPanel(title: step.title, eyebrow: step.eyebrow, accent: StudioTheme.violet) {
+        StudioPanel(title: step.title, eyebrow: step.eyebrow, accent: accent) {
             VStack(alignment: .leading, spacing: 16) {
                 switch step {
                 case .root:
@@ -108,7 +109,7 @@ struct TrackSourceContainedModifierPicker: View {
             pickerActionButton(
                 title: "New Blank Modifier",
                 detail: "Create a compatible modifier for this slot.",
-                accent: StudioTheme.violet,
+                accent: accent,
                 action: onCreateBlankModifier
             )
 
@@ -130,7 +131,7 @@ struct TrackSourceContainedModifierPicker: View {
 
                 TrackSourceActionButton(
                     title: "New Blank Modifier",
-                    accent: StudioTheme.violet,
+                    accent: accent,
                     action: onCreateBlankModifier
                 )
             } else {
@@ -140,7 +141,7 @@ struct TrackSourceContainedModifierPicker: View {
                             poolEntryButton(
                                 title: generator.name,
                                 detail: generator.kind.label,
-                                accent: StudioTheme.violet,
+                                accent: accent,
                                 action: { onSelectModifier(generator) }
                             )
                         }
@@ -182,7 +183,7 @@ struct TrackSourceContainedModifierPicker: View {
             // Colour identifies, it never floods (ux-canon rule 12): the
             // action tile stays neutral; its accent lives in the outline.
             .background(
-                Color.white.opacity(StudioOpacity.subtleFill),
+                StudioTheme.subtleFill,
                 in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
             )
             .overlay(
@@ -212,7 +213,7 @@ struct TrackSourceContainedModifierPicker: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(StudioMetrics.Spacing.comfortable)
             .background(
-                Color.white.opacity(StudioOpacity.subtleFill),
+                StudioTheme.subtleFill,
                 in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
             )
             .overlay(

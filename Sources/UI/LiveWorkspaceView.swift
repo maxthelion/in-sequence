@@ -69,19 +69,22 @@ struct LiveWorkspaceView: View {
                         title: group.name,
                         subtitle: "\(members.count) parts • \(group.sharedDestination?.kindLabel ?? "Own bus")",
                         trackIDs: members.map(\.id),
-                        accent: StudioTheme.success
+                        accent: StudioTheme.groupAccent(for: group)
                     )
                 )
                 continue
             }
 
             let subtitle: String
+            let laneAccent: Color
             if let groupID = track.groupID,
                let group = trackGroups.first(where: { $0.id == groupID })
             {
                 subtitle = "\(group.name) • \(track.trackType.shortLabel)"
+                laneAccent = StudioTheme.groupAccent(for: group)
             } else {
                 subtitle = "\(track.trackType.shortLabel) • \(track.destination.kindLabel)"
+                laneAccent = accent
             }
 
             scopes.append(
@@ -90,7 +93,7 @@ struct LiveWorkspaceView: View {
                     title: track.name,
                     subtitle: subtitle,
                     trackIDs: [track.id],
-                    accent: track.groupID == nil ? accent : StudioTheme.success
+                    accent: laneAccent
                 )
             )
         }
@@ -162,7 +165,7 @@ struct LiveWorkspaceView: View {
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
-            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+            .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
                     .stroke(accent.opacity(StudioOpacity.subtleStroke), lineWidth: StudioMetrics.borderWidth)
@@ -184,17 +187,17 @@ struct LiveWorkspaceView: View {
                     .foregroundStyle(StudioTheme.mutedText)
                 Text(editingPhrase.name)
                     .studioText(.labelBold)
-                    .foregroundStyle(StudioTheme.violet)
+                    .foregroundStyle(StudioTheme.phraseAccent)
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
             // Colour identifies, it never floods (ux-canon rule 12): the
             // basis-phrase chip stays neutral; violet lives in the outline
             // and the phrase name.
-            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+            .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                    .stroke(StudioTheme.violet.opacity(StudioOpacity.subtleStroke), lineWidth: StudioMetrics.borderWidth)
+                    .stroke(StudioTheme.phraseAccent, lineWidth: StudioMetrics.borderWidth)
             )
         }
     }
@@ -345,11 +348,11 @@ struct LiveWorkspaceView: View {
     private var accent: Color {
         switch selectedLayer.valueType {
         case .boolean:
-            return StudioTheme.success
+            return StudioTheme.phraseAccent
         case .patternIndex:
-            return StudioTheme.violet
+            return StudioTheme.phraseAccent
         case .scalar:
-            return StudioTheme.cyan
+            return StudioTheme.phraseAccent
         }
     }
 }
@@ -419,7 +422,7 @@ private struct LiveScopeCard: View {
                         .tracking(0.8)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 4)
-                        .background(Color.white.opacity(StudioOpacity.borderSubtle), in: Capsule())
+                        .background(StudioTheme.borderSubtleFill, in: Capsule())
                         .foregroundStyle(StudioTheme.mutedText)
                 }
             }
@@ -467,7 +470,7 @@ private struct LiveScopeCard: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(StudioMetrics.Spacing.standard)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
+        .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
                 .stroke(scope.accent.opacity(StudioOpacity.hoverFill), lineWidth: StudioMetrics.borderWidth)

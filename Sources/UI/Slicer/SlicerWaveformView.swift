@@ -5,12 +5,13 @@ struct SlicerWaveformView: View {
     let sliceSet: SliceSet
     let sampleLengthFrames: Int64
     let selectedMarkerID: UUID?
+    var accent: Color = StudioTheme.transportAccent
     let onBoundaryMove: ((UUID, Int64) -> Void)?
 
     var body: some View {
         GeometryReader { geo in
             ZStack(alignment: .leading) {
-                WaveformView(buckets: buckets, fillColor: StudioTheme.cyan, inactiveColor: StudioTheme.border.opacity(0.65))
+                WaveformView(buckets: buckets, fillColor: accent, inactiveColor: StudioTheme.border.opacity(0.65))
 
                 ForEach(sliceSet.markers) { marker in
                     boundaryLine(marker: marker, width: geo.size.width)
@@ -24,7 +25,7 @@ struct SlicerWaveformView: View {
     private func boundaryLine(marker: SliceMarker, width: CGFloat) -> some View {
         let x = xPosition(for: marker.startFrame, width: width)
         return Rectangle()
-            .fill(marker.id == selectedMarkerID ? StudioTheme.amber : StudioTheme.violet)
+            .fill(accent)
             .frame(width: marker.startFrame == 0 ? 2 : 1)
             .offset(x: x)
             .opacity(marker.startFrame == 0 ? 0.5 : 0.9)

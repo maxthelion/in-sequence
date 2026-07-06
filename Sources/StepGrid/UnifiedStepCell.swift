@@ -7,6 +7,7 @@ struct UnifiedStepCell: View {
     let isPlaying: Bool
     let isSelected: Bool
     let content: StepCellContent
+    let accent: Color
     let onTap: () -> Void
     let onDrag: ((Double) -> Void)?
     let onSelect: () -> Void
@@ -55,7 +56,8 @@ struct UnifiedStepCell: View {
             visualState: visualState,
             isPlaying: isPlaying,
             isSelected: isSelected,
-            content: content
+            content: content,
+            accent: accent
         )
     }
 
@@ -193,12 +195,12 @@ struct UnifiedStepCell: View {
         if isPlaying {
             backgroundShape
                 .inset(by: visualConfiguration.playingBorderInset)
-                .strokeBorder(StudioTheme.success.opacity(0.96), lineWidth: StudioMetrics.borderWidth)
+                .strokeBorder(accent.opacity(0.96), lineWidth: StudioMetrics.borderWidth)
         }
 
         if isSelected {
             backgroundShape
-                .strokeBorder(StudioTheme.amber.opacity(0.98), lineWidth: 2)
+                .strokeBorder(accent.opacity(0.98), lineWidth: 2)
         }
     }
 
@@ -287,7 +289,8 @@ struct UnifiedStepCellVisualConfiguration {
         visualState: StepVisualState,
         isPlaying: Bool,
         isSelected: Bool,
-        content: StepCellContent
+        content: StepCellContent,
+        accent: Color
     ) {
         let clampedValueFraction = Self.valueFraction(for: content)
         let isValueBarContent = clampedValueFraction != nil
@@ -315,22 +318,22 @@ struct UnifiedStepCellVisualConfiguration {
             outlineColor = StudioTheme.border
 
         case .on:
-            backgroundColor = isValueBarContent ? .clear : StudioTheme.cyan
-            valueBarColor = StudioTheme.cyan
+            backgroundColor = isValueBarContent ? .clear : accent
+            valueBarColor = accent
             primaryContentColor = StudioTheme.background
             secondaryContentColor = StudioTheme.background.opacity(0.72)
             toggleStrokeColor = StudioTheme.background.opacity(0.85)
             toggleFillColor = StudioTheme.background.opacity(0.85)
-            outlineColor = StudioTheme.cyan
+            outlineColor = accent
 
         case .accented:
-            backgroundColor = isValueBarContent ? .clear : StudioTheme.amber
-            valueBarColor = StudioTheme.amber
+            backgroundColor = isValueBarContent ? .clear : accent
+            valueBarColor = accent
             primaryContentColor = StudioTheme.background
             secondaryContentColor = StudioTheme.background.opacity(0.72)
             toggleStrokeColor = StudioTheme.background.opacity(0.9)
             toggleFillColor = StudioTheme.background.opacity(0.9)
-            outlineColor = StudioTheme.amber
+            outlineColor = accent
         }
     }
 
@@ -439,6 +442,7 @@ private struct UnifiedStepCellRightClickProbe: NSViewRepresentable {
             isPlaying: false,
             isSelected: true,
             content: .toggle,
+            accent: StudioTheme.transportAccent,
             onTap: {},
             onDrag: nil,
             onSelect: {}
@@ -448,6 +452,7 @@ private struct UnifiedStepCellRightClickProbe: NSViewRepresentable {
             isPlaying: true,
             isSelected: true,
             content: .valueBar(fraction: 0.7),
+            accent: StudioTheme.transportAccent,
             onTap: {},
             onDrag: { _ in },
             onSelect: {}
@@ -457,6 +462,7 @@ private struct UnifiedStepCellRightClickProbe: NSViewRepresentable {
             isPlaying: false,
             isSelected: false,
             content: .sliceLabel(index: 3, label: "S4"),
+            accent: StudioTheme.transportAccent,
             onTap: {},
             onDrag: nil,
             onSelect: {}
@@ -466,6 +472,7 @@ private struct UnifiedStepCellRightClickProbe: NSViewRepresentable {
             isPlaying: false,
             isSelected: false,
             content: .chordLabel(name: "Am7"),
+            accent: StudioTheme.transportAccent,
             onTap: {},
             onDrag: nil,
             onSelect: {}
@@ -475,6 +482,7 @@ private struct UnifiedStepCellRightClickProbe: NSViewRepresentable {
             isPlaying: true,
             isSelected: false,
             content: .optionLabel(text: "Run"),
+            accent: StudioTheme.transportAccent,
             onTap: {},
             onDrag: nil,
             onSelect: {}

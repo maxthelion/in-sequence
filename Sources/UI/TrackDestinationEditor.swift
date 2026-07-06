@@ -39,6 +39,10 @@ struct TrackDestinationEditor: View {
         DestinationSummary.make(for: editedDestination, in: session.store, trackID: track.id)
     }
 
+    private var accent: Color {
+        StudioTheme.trackAccent(for: track, groups: session.store.trackGroups)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             if editedDestination == .none {
@@ -93,7 +97,7 @@ struct TrackDestinationEditor: View {
     private var unsetState: some View {
         StudioAddCard(
             label: "Add Sound Source",
-            accent: StudioTheme.cyan,
+            accent: accent,
             minHeight: 72,
             help: "Choose this track's sound source"
         ) {
@@ -135,7 +139,7 @@ struct TrackDestinationEditor: View {
         HStack(alignment: .center, spacing: 12) {
             Image(systemName: destinationSummary.iconName)
                 .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(StudioTheme.success)
+                .foregroundStyle(accent)
                 .frame(width: 22)
 
             VStack(alignment: .leading, spacing: 3) {
@@ -156,7 +160,7 @@ struct TrackDestinationEditor: View {
             .buttonStyle(.bordered)
         }
         .padding(StudioMetrics.Spacing.standard)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+        .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
                 .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
@@ -167,7 +171,7 @@ struct TrackDestinationEditor: View {
         StudioPlaceholderTile(
             title: "Inherited from Group",
             detail: groupInheritanceDetail,
-            accent: StudioTheme.success
+            accent: accent
         )
     }
 
@@ -294,14 +298,14 @@ struct TrackDestinationEditor: View {
             if macroSlotFull {
                 Text("All macro slots are full")
                     .studioText(.label)
-                    .foregroundStyle(Color.orange.opacity(0.9))
+                    .foregroundStyle(StudioTheme.warning)
                     .padding(.horizontal, 12)
                     .padding(.bottom, 8)
                     .transition(.opacity)
             }
         }
         .animation(.easeInOut(duration: 0.2), value: macroSlotFull)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+        .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
                 .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
@@ -319,7 +323,7 @@ struct TrackDestinationEditor: View {
                     if presetLoadFailed {
                         Image(systemName: "exclamationmark.circle.fill")
                             .font(.system(size: 9, weight: .semibold))
-                            .foregroundStyle(Color.red.opacity(0.8))
+                            .foregroundStyle(StudioTheme.danger) // ux-canon-allow: preset load failure is a true danger/error state
                             .accessibilityLabel("Preset failed to load")
                     }
                 }
@@ -344,10 +348,10 @@ struct TrackDestinationEditor: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 9)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
+        .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
-                .stroke(presetLoadFailed ? Color.red.opacity(0.5) : StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
+                .stroke(presetLoadFailed ? StudioTheme.danger : StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth) // ux-canon-allow: preset load failure is a true danger/error state
         )
         .help(currentPresetSupportingText)
     }
@@ -363,7 +367,7 @@ struct TrackDestinationEditor: View {
                 .font(.system(size: 9, weight: .bold))
                 .foregroundStyle(canStepPreset(direction) ? StudioTheme.text : StudioTheme.mutedText.opacity(0.6))
                 .frame(width: 18, height: 12)
-                .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous))
+                .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous))
         }
         .buttonStyle(.plain)
         .disabled(!canStepPreset(direction) || presetStepInFlight)
@@ -581,6 +585,7 @@ struct TrackDestinationEditor: View {
             library: AudioSampleLibrary.shared,
             sampleEngine: engineController.sampleEngineSink,
             trackID: track.id,
+            accent: accent,
             filterSettings: Binding(
                 get: { session.store.tracks.first(where: { $0.id == track.id })?.filter ?? .init() },
                 set: { newFilter in
@@ -609,6 +614,7 @@ struct TrackDestinationEditor: View {
             library: AudioSampleLibrary.shared,
             sampleEngine: engineController.sampleEngineSink,
             trackID: track.id,
+            accent: accent,
             onInstallSliceSet: { sliceSet, settings in
                 session.setSlicerDestination(sliceSet: sliceSet, settings: settings, for: track.id)
             },
@@ -646,7 +652,7 @@ struct TrackDestinationEditor: View {
             StudioPlaceholderTile(
                 title: "Internal Sampler",
                 detail: "Not implemented yet",
-                accent: StudioTheme.amber
+                accent: accent
             )
             .help("This track defaults to the bundled internal sampler destination for its type; the audio-side sampler host is a later plan")
 
@@ -891,7 +897,7 @@ private struct DestinationField<Content: View>: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(StudioMetrics.Spacing.standard)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+        .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
                 .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)

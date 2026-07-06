@@ -10,7 +10,7 @@ struct WrapRow: View {
                     .studioText(.labelBold)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 8)
-                    .background(Color.white.opacity(StudioOpacity.subtleFill), in: Capsule())
+                    .background(StudioTheme.subtleFill, in: Capsule())
                     .foregroundStyle(StudioTheme.text)
             }
         }

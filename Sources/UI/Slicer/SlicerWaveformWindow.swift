@@ -4,6 +4,7 @@ import SwiftUI
 struct SlicerWaveformWindow: View {
     let sample: AudioSample
     let library: AudioSampleLibrary
+    var accent: Color = StudioTheme.transportAccent
     let onCommit: (SliceSet) -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -14,10 +15,12 @@ struct SlicerWaveformWindow: View {
         sliceSet: SliceSet,
         sample: AudioSample,
         library: AudioSampleLibrary,
+        accent: Color = StudioTheme.transportAccent,
         onCommit: @escaping (SliceSet) -> Void
     ) {
         self.sample = sample
         self.library = library
+        self.accent = accent
         self.onCommit = onCommit
         _draft = State(initialValue: sliceSet)
         _selectedMarkerID = State(initialValue: sliceSet.markers.dropFirst().first?.id ?? sliceSet.markers.first?.id)
@@ -42,7 +45,7 @@ struct SlicerWaveformWindow: View {
                     dismiss()
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(StudioTheme.success)
+                .tint(accent)
             }
 
             SlicerWaveformView(
@@ -50,11 +53,12 @@ struct SlicerWaveformWindow: View {
                 sliceSet: draft,
                 sampleLengthFrames: sampleLengthFrames,
                 selectedMarkerID: selectedMarkerID,
+                accent: accent,
                 onBoundaryMove: moveBoundary(markerID:to:)
             )
             .frame(height: 180)
             .padding(StudioMetrics.Spacing.comfortable)
-            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+            .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
                     .stroke(StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
@@ -68,13 +72,14 @@ struct SlicerWaveformWindow: View {
                     SliceInspectorView(
                         markerIndex: selection.index,
                         marker: selection.binding,
-                        sampleLengthFrames: sampleLengthFrames
+                        sampleLengthFrames: sampleLengthFrames,
+                        accent: accent
                     )
                     .onChange(of: draft) { _, _ in
                         normalizeAndCommit()
                     }
                 } else {
-                    StudioPlaceholderTile(title: "No Slice Selected", accent: StudioTheme.cyan)
+                    StudioPlaceholderTile(title: "No Slice Selected", accent: accent)
                         .help("Select a slice marker to edit its range and playback options.")
                 }
             }
@@ -114,11 +119,11 @@ struct SlicerWaveformWindow: View {
                             .padding(9)
                             // Colour identifies, it never floods (ux-canon
                             // rule 12): the selected row stays neutral; the
-                            // cyan lives in its outline.
-                            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+                            // accent lives in its outline.
+                            .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
                             .overlay(
                                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                                    .stroke(marker.id == selectedMarkerID ? StudioTheme.cyan : StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
+                                    .stroke(marker.id == selectedMarkerID ? accent : StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
                             )
                         }
                         .buttonStyle(.plain)
@@ -127,7 +132,7 @@ struct SlicerWaveformWindow: View {
             }
         }
         .padding(StudioMetrics.Spacing.comfortable)
-        .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+        .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
                 .stroke(StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)

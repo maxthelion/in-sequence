@@ -7,7 +7,7 @@ set -euo pipefail
 # tab-unification-and-canon-creep.md → DECISION).
 #
 # Usage:
-#   scripts/diagnostics/ux-canon-lint.sh              # scan Sources/UI
+#   scripts/diagnostics/ux-canon-lint.sh              # scan Sources/UI + Sources/StepGrid
 #   scripts/diagnostics/ux-canon-lint.sh <files...>   # scan specific files
 #
 # Rules enforced here:
@@ -20,7 +20,11 @@ set -euo pipefail
 #      .secondary|.gray)` / `Color.gray` / `.tertiary` in Sources/UI outside
 #      Theme/: system greys bypass the StudioTheme tokens and re-grow the
 #      wall of grey (the bold-flat pass).
-#   3. explainer-prose — a `Text("...")` literal that ends with a period and
+#   3. translucent-grey-fill — structural grey fills/backgrounds must use
+#      opaque StudioTheme fill tokens (`subtleFill`, `borderSubtleFill`, etc.).
+#      `Color.white.opacity(...)` and ground/border token opacity compound
+#      through nested chrome and recreate the drifting grey stack.
+#   4. explainer-prose — a `Text("...")` literal that ends with a period and
 #      exceeds 4 words (canon Rule 3: no explainer prose on working
 #      surfaces; any full sentence is a finding). Legitimate sentence slots
 #      (destructive-confirm messages) live in
@@ -31,6 +35,12 @@ set -euo pipefail
 #      literal lives in a presentation struct. Do not "fix" a Rule 3 hit by
 #      dropping the trailing period — move the instruction to `.help` or
 #      delete it.
+#   5. limited-color-role — on transport, phrase, track, slicer, track-source,
+#      and their shared step/drum-grid surfaces, raw cyan/violet/amber/success/
+#      danger category colours and pattern/layer colour helpers are banned.
+#      Use `StudioTheme.transportAccent`, `phraseAccent`, `warning`, dynamic
+#      track identity accent, or neutral chrome instead (canon Rule 12,
+#      limited-colour amendment).
 #
 # Every rule is opt-out via a `ux-canon-allow: <reason>` comment on the
 # offending line or the line above it. A bare annotation with no reason is
@@ -51,7 +61,7 @@ else
   files=()
   while IFS= read -r file; do
     files+=("$file")
-  done < <(find "$repo_root/Sources/UI" -name '*.swift' | LC_ALL=C sort)
+  done < <(find "$repo_root/Sources/UI" "$repo_root/Sources/StepGrid" -name '*.swift' | LC_ALL=C sort)
 fi
 
 violations="$(mktemp)"
@@ -66,10 +76,47 @@ for path in "${files[@]}"; do
     Sources/UI/Theme/*) in_theme=1 ;;
   esac
 
+  limited_color_scope=0
+  case "$display" in
+    Sources/UI/TransportBar.swift|\
+    Sources/UI/PhraseWorkspaceView.swift|\
+    Sources/UI/PhraseLaunchGrid.swift|\
+    Sources/UI/PhraseLayerPresentation.swift|\
+    Sources/UI/PerformanceLayerSelector.swift|\
+    Sources/UI/PhraseCells/*|\
+    Sources/UI/PhraseCellEditorSheet.swift|\
+    Sources/UI/PhraseCellEditors/*|\
+    Sources/UI/FX/*|\
+    Sources/UI/RouteEditorSheet.swift|\
+    Sources/UI/RoutesListView.swift|\
+    Sources/UI/Track/*|\
+    Sources/UI/TrackDestination/*|\
+    Sources/UI/TrackDestinationEditor.swift|\
+    Sources/UI/TracksMatrixView.swift|\
+    Sources/UI/SamplerDestinationWidget.swift|\
+    Sources/UI/Slicer/*|\
+    Sources/UI/TrackSource/*|\
+    Sources/UI/TrackSource/*/*|\
+    Sources/UI/StepGridView.swift|\
+    Sources/StepGrid/*|\
+    Sources/UI/DrumGroup/AddDrumGroupContent.swift|\
+    Sources/UI/DrumGroup/DrumGroupRoutingEditor.swift|\
+    Sources/UI/DrumGroup/DrumKitMatrixView.swift|\
+    Sources/UI/DrumGroup/DrumKitMatrixView+Capture.swift|\
+    Sources/UI/DrumGroup/DrumKitMatrixRowView.swift|\
+    Sources/UI/DrumGroup/DrumKitMatrixView+Accordion.swift|\
+    Sources/UI/DrumGroup/DrumKitMatrixView+Header.swift|\
+    Sources/UI/DrumGroup/DrumKitTemplateChooserSheet.swift|\
+    Sources/UI/Mixer/*.swift|\
+    Sources/UI/MixerView.swift)
+      limited_color_scope=1
+      ;;
+  esac
+
   # Rules 1 + 2 apply outside Theme/ (the theme layer is where tokens are
   # defined and may compose opacities); rule 3 + annotation hygiene apply
   # everywhere under Sources/UI.
-  awk -v file="$display" -v in_theme="$in_theme" -v allowfile="$allowlist" '
+  awk -v file="$display" -v in_theme="$in_theme" -v limited_color_scope="$limited_color_scope" -v allowfile="$allowlist" '
     function has_allow(line) {
       return line ~ /ux-canon-allow: .+/
     }
@@ -122,6 +169,27 @@ for path in "${files[@]}"; do
             printf "grey-escape|%s:%d: canon (bold-flat) violated: system grey bypasses StudioTheme tokens — use StudioTheme.mutedText/border or annotate `// ux-canon-allow: <reason>`: %s\n", file, NR, line
           }
         }
+
+        # Rule 3: translucent grey structural fills/backgrounds. Fixed
+        # neutral chrome must use opaque StudioTheme fill tokens so nesting
+        # cannot brighten itself through repeated alpha compositing.
+        if (line ~ /Color\.white\.opacity\(/) {
+          if (!has_allow(line) && !has_allow(previous)) {
+            printf "translucent-grey-fill|%s:%d: canon (bold-flat) violated: Color.white.opacity compounds through nested grey chrome — use an opaque StudioTheme fill token or annotate `// ux-canon-allow: <reason>`: %s\n", file, NR, line
+          }
+        }
+        if (line ~ /StudioTheme\.(background|panel|inset|border)\.opacity\(/ \
+            && (line ~ /\.fill\(|\.background\(|backgroundColor:/ || previous ~ /(\.fill\(|\.background\()[[:space:]]*$/)) {
+          if (!has_allow(line) && !has_allow(previous)) {
+            printf "translucent-grey-fill|%s:%d: canon (bold-flat) violated: ground/border opacity used as structural fill/background — use an opaque StudioTheme fill token: %s\n", file, NR, line
+          }
+        }
+      }
+
+      if (limited_color_scope && line ~ /StudioTheme\.(cyan|violet|amber|success|danger)|patternColor|patternPalette|selectorAccent/) {
+        if (!has_allow(line) && !has_allow(previous)) {
+          printf "limited-color-role|%s:%d: canon Rule 12 limited-colour violated: use transportAccent, phraseAccent, warning, dynamic track accent, or neutral chrome instead of raw category/pattern/layer colour: %s\n", file, NR, line
+        }
       }
 
       # Rule 3: explainer-prose Text literal (ends with a period, > 4 words).
@@ -151,14 +219,16 @@ count_rule() {
 
 fill_count="$(count_rule translucent-accent-fill)"
 grey_count="$(count_rule grey-escape)"
+grey_fill_count="$(count_rule translucent-grey-fill)"
 prose_count="$(count_rule explainer-prose)"
 annotation_count="$(count_rule bad-annotation)"
-total=$((fill_count + grey_count + prose_count + annotation_count))
+limited_color_count="$(count_rule limited-color-role)"
+total=$((fill_count + grey_count + grey_fill_count + prose_count + annotation_count + limited_color_count))
 
 sed 's/^[a-z-]*|//' "$violations" >&2
 
-printf 'ux-canon-lint: translucent-accent-fill=%d grey-escape=%d explainer-prose=%d bad-annotation=%d total=%d\n' \
-  "$fill_count" "$grey_count" "$prose_count" "$annotation_count" "$total"
+printf 'ux-canon-lint: translucent-accent-fill=%d grey-escape=%d translucent-grey-fill=%d explainer-prose=%d bad-annotation=%d limited-color-role=%d total=%d\n' \
+  "$fill_count" "$grey_count" "$grey_fill_count" "$prose_count" "$annotation_count" "$limited_color_count" "$total"
 
 if ((total > 0)); then
   printf 'ux-canon-lint: FAIL (%d violations; zero tolerance)\n' "$total"

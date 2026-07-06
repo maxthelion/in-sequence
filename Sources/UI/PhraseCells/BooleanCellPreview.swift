@@ -49,13 +49,9 @@ struct BooleanCellPreview: View {
         return StudioTheme.text
     }
 
-    /// Bold-flat pass: solid saturated block when on (success green for
-    /// "Live", danger red for "Muted", accent otherwise); the off state is
+    /// Bold-flat pass: solid accent block when on; the off state is
     /// outline-only on the ground — no in-between washes.
     var booleanFill: Color {
-        if layer.id == "mute" {
-            return booleanState ? StudioTheme.danger : StudioTheme.success
-        }
         return booleanState ? accent : Color.clear
     }
 
@@ -64,6 +60,6 @@ struct BooleanCellPreview: View {
     }
 
     private var isFilled: Bool {
-        layer.id == "mute" || booleanState
+        booleanState
     }
 }

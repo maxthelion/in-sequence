@@ -112,9 +112,9 @@ struct PresetBrowserSheet: View {
     private func errorToast(_ error: PresetLoadingError) -> some View {
         Text(message(for: error))
             .studioText(.label)
-            .foregroundStyle(StudioTheme.amber)
+            .foregroundStyle(StudioTheme.warning)
             .padding(StudioMetrics.Spacing.compact)
-            .background(Color.white.opacity(StudioOpacity.subtleFill), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+            .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
     }
 
     private func message(for error: PresetLoadingError) -> String {

@@ -203,11 +203,11 @@ struct GeneratorParamsEditorView: View {
             case let .mono(trigger, _, shape):
                 sourceEditorContainer(title: "Generator Source", eyebrow: stepDisplayLabel(trigger.stepStage)) {
                     VStack(alignment: .leading, spacing: 16) {
-                        StepAlgoEditor(stage: trigger.stepStage) { nextStage in
+                        StepAlgoEditor(stage: trigger.stepStage, accent: accent) { nextStage in
                             onUpdate(.mono(trigger: .native(nextStage), pitch: monoPitchStage, shape: shape))
                         }
 
-                        NoteShapeEditor(shape: shape) { nextShape in
+                        NoteShapeEditor(shape: shape, accent: accent) { nextShape in
                             onUpdate(.mono(trigger: trigger, pitch: monoPitchNode, shape: nextShape))
                         }
                     }
@@ -216,11 +216,11 @@ struct GeneratorParamsEditorView: View {
             case let .poly(trigger, _, shape):
                 sourceEditorContainer(title: "Generator Source", eyebrow: stepDisplayLabel(trigger.stepStage)) {
                     VStack(alignment: .leading, spacing: 16) {
-                        StepAlgoEditor(stage: trigger.stepStage) { nextStage in
+                        StepAlgoEditor(stage: trigger.stepStage, accent: accent) { nextStage in
                             onUpdate(.poly(trigger: .native(nextStage), pitches: polyPitchNodes, shape: shape))
                         }
 
-                        NoteShapeEditor(shape: shape) { nextShape in
+                        NoteShapeEditor(shape: shape, accent: accent) { nextShape in
                             onUpdate(.poly(trigger: trigger, pitches: polyPitchNodes, shape: nextShape))
                         }
                     }
@@ -237,7 +237,7 @@ struct GeneratorParamsEditorView: View {
             case let .slice(trigger, sliceIndexes):
                 sourceEditorContainer(title: "Generator Source", eyebrow: stepDisplayLabel(trigger.stepStage)) {
                     VStack(alignment: .leading, spacing: 16) {
-                        StepAlgoEditor(stage: trigger.stepStage) { nextStage in
+                        StepAlgoEditor(stage: trigger.stepStage, accent: accent) { nextStage in
                             onUpdate(.slice(trigger: .native(nextStage), sliceIndexes: sliceIndexes))
                         }
 

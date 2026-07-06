@@ -29,6 +29,7 @@ struct TrackSourceModifierTabContent: View {
             TrackSourceContainedModifierPicker(
                 step: modifierPickerStep,
                 compatibleModifiers: compatibleGenerators,
+                accent: accent,
                 onBack: onShowGeneratorPicker,
                 onCancel: onBackOutGeneratorPicker,
                 onShowModifierPool: onShowModifierPool,
