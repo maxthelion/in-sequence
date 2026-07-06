@@ -248,7 +248,16 @@ capture_window() {
   local pid="$1"
   local output="$2"
   local window_id
-  window_id="$(window_json "$pid" | jq -r '.data.windows[0].window_id')"
   mkdir -p "$(dirname "$output")"
-  screencapture -x -l "$window_id" "$output"
+  local attempt
+  for attempt in 1 2 3; do
+    window_id="$(window_json "$pid" | jq -r '.data.windows[0].window_id')"
+    if [ -n "$window_id" ] && [ "$window_id" != "null" ] &&
+       screencapture -x -l "$window_id" "$output"; then
+      return 0
+    fi
+    action_log "screencapture attempt ${attempt} failed for pid ${pid} window ${window_id:-unknown}; retrying"
+    sleep 0.7
+  done
+  return 1
 }
