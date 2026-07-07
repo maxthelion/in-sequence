@@ -167,6 +167,7 @@ struct ClipContentPreview: View {
     let randomizePanel: (() -> AnyView)?
     let onRandomize: (() -> Void)?
     let onToggleRandomizePanel: (() -> Void)?
+    let onRemoveSource: (() -> Void)?
     let playingStepIndex: Int?
 
     @State private var displayedContent: ClipContent
@@ -191,6 +192,7 @@ struct ClipContentPreview: View {
         randomizePanel: (() -> AnyView)? = nil,
         onRandomize: (() -> Void)? = nil,
         onToggleRandomizePanel: (() -> Void)? = nil,
+        onRemoveSource: (() -> Void)? = nil,
         playingStepIndex: Int? = nil
     ) {
         let normalizedContent = content.normalized
@@ -209,6 +211,7 @@ struct ClipContentPreview: View {
         self.randomizePanel = randomizePanel
         self.onRandomize = onRandomize
         self.onToggleRandomizePanel = onToggleRandomizePanel
+        self.onRemoveSource = onRemoveSource
         self.playingStepIndex = playingStepIndex
         self._displayedContent = State(initialValue: normalizedContent)
     }
@@ -680,10 +683,7 @@ struct ClipContentPreview: View {
 
             randomizeControls
 
-            Text("\(noteCount(in: steps)) notes")
-                .studioText(.labelBold)
-                .foregroundStyle(StudioTheme.mutedText)
-                .fixedSize()
+            removeSourceButton
 
             Spacer(minLength: 0)
         }
@@ -734,6 +734,29 @@ struct ClipContentPreview: View {
                 .accessibilityValue(hasSavedRandomizeSettings ? "Saved" : "Default")
             }
             .fixedSize()
+        }
+    }
+
+    @ViewBuilder
+    private var removeSourceButton: some View {
+        if let onRemoveSource {
+            Button(action: onRemoveSource) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 11, weight: .black))
+                    .foregroundStyle(StudioTheme.text)
+                    .frame(width: 30, height: 30)
+                    .background(
+                        StudioTheme.subtleFill,
+                        in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                            .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+                    )
+            }
+            .buttonStyle(.plain)
+            .help("Remove clip source")
+            .accessibilityLabel("Remove clip source")
         }
     }
 

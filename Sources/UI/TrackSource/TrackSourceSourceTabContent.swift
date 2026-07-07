@@ -53,8 +53,6 @@ struct TrackSourceSourceTabContent: View {
     var body: some View {
         switch displayState {
         case .occupiedClip:
-            sourceSection
-
             if sourcePickerStep == nil {
                 TrackSourceClipPanel(
                     previewClipContent: previewClipContent,
@@ -73,8 +71,11 @@ struct TrackSourceSourceTabContent: View {
                     hasSavedRandomizeSettings: hasSavedRandomizeSettings,
                     randomizePanel: randomizePanel,
                     onRandomizeClip: onRandomizeClip,
-                    onToggleRandomizePanel: onToggleRandomizePanel
+                    onToggleRandomizePanel: onToggleRandomizePanel,
+                    onRemoveSource: onRemoveSource
                 )
+            } else {
+                sourceSection
             }
 
         case .occupiedGenerator:
