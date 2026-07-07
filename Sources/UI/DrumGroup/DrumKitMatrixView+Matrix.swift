@@ -100,19 +100,39 @@ extension DrumKitMatrixView {
             .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
     }
 
-    var emptyRowsState: some View {
+    func emptyRowsState(_ model: DrumKitMatrixModel) -> some View {
         // Canon Rule 3: state title only — the explanation lives in the tooltip.
-        Text("No resolved parts")
-            .studioText(.bodyEmphasis)
-            .foregroundStyle(StudioTheme.text)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(StudioMetrics.Spacing.loose)
-            .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                    .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
-            )
-            .help("This kit has no current member tracks to display")
+        HStack(spacing: 12) {
+            Text("No resolved parts")
+                .studioText(.bodyEmphasis)
+                .foregroundStyle(StudioTheme.text)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            addPartButton(model)
+        }
+        .padding(StudioMetrics.Spacing.loose)
+        .background(Color.clear, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
+                .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+        )
+        .help("This kit has no current member tracks to display")
+    }
+
+    func addPartButton(_ model: DrumKitMatrixModel) -> some View {
+        Button {
+            _ = session.addDefaultDrumPart(groupID: model.groupID)
+        } label: {
+            Label("Add Part", systemImage: "plus")
+                .studioText(.labelBold)
+                .foregroundStyle(StudioTheme.background)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 7)
+                .background(accent, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .help("Add a drum part to \(model.groupName)")
+        .accessibilityIdentifier("kit-page-add-part")
     }
 
     func matrixRows(_ model: DrumKitMatrixModel) -> some View {

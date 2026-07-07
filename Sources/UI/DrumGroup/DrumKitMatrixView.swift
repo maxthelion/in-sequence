@@ -616,6 +616,8 @@ struct DrumKitMatrixView: View {
 
                 Spacer(minLength: 0)
 
+                addPartButton(model)
+
                 headerActionButton(title: "Apply Template…", systemImage: "square.grid.2x2") {
                     isPresentingTemplateChooser = true
                 }
@@ -627,7 +629,7 @@ struct DrumKitMatrixView: View {
             }
 
             if model.rows.isEmpty {
-                emptyRowsState
+                emptyRowsState(model)
             } else {
                 matrixRows(model)
             }

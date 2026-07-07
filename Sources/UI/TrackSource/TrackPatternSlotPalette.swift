@@ -21,6 +21,24 @@ struct TrackPatternSlotPalette: View {
 
     @State private var destinationPulse = false
 
+    init(
+        selectedSlot: Binding<Int>,
+        occupiedSlots: Set<Int>,
+        bypassState: BypassState,
+        onBypassToggle: @escaping (Int) -> Void,
+        accent: Color = StudioTheme.transportAccent,
+        destinationMode: DestinationMode? = nil,
+        onDestinationSelect: @escaping (Int) -> Void = { _ in }
+    ) {
+        self._selectedSlot = selectedSlot
+        self.occupiedSlots = occupiedSlots
+        self.bypassState = bypassState
+        self.onBypassToggle = onBypassToggle
+        self.accent = accent
+        self.destinationMode = destinationMode
+        self.onDestinationSelect = onDestinationSelect
+    }
+
     var body: some View {
         HStack(spacing: 6) {
             ForEach(0..<TrackPatternBank.slotCount, id: \.self) { slotIndex in

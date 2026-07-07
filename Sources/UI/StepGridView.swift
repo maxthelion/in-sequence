@@ -26,7 +26,7 @@ struct StepGridView: View {
         indexOffset: Int = 0,
         playingStepIndex: Int? = nil,
         selectedStepIndexes: Set<Int> = [],
-        accent: Color,
+        accent: Color = StudioTheme.transportAccent,
         contentProvider: @escaping (Int, StepVisualState) -> StepCellContent = { _, _ in .toggle },
         onValueDrag: ((Int, Double) -> Void)? = nil,
         onSelectStep: ((Int) -> Void)? = nil,

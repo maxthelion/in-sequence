@@ -89,6 +89,7 @@ final class SamplerDestinationWidgetTests: XCTestCase {
             library: lib,
             sampleEngine: spy,
             trackID: trackID,
+            accent: StudioTheme.transportAccent,
             filterSettings: Binding(get: { filterSettings }, set: { filterSettings = $0 })
         )
 

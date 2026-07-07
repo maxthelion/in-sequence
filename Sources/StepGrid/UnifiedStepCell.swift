@@ -18,6 +18,28 @@ struct UnifiedStepCell: View {
 
     @State private var hasActivatedDrag = false
 
+    init(
+        visualState: StepVisualState,
+        isPlaying: Bool,
+        isSelected: Bool,
+        content: StepCellContent,
+        accent: Color = StudioTheme.transportAccent,
+        onTap: @escaping () -> Void,
+        onDrag: ((Double) -> Void)?,
+        onSelect: @escaping () -> Void,
+        onOctaveTap: (() -> Void)? = nil
+    ) {
+        self.visualState = visualState
+        self.isPlaying = isPlaying
+        self.isSelected = isSelected
+        self.content = content
+        self.accent = accent
+        self.onTap = onTap
+        self.onDrag = onDrag
+        self.onSelect = onSelect
+        self.onOctaveTap = onOctaveTap
+    }
+
     private static let geometry = UnifiedStepCellGeometry()
     private static let cornerRadius: CGFloat = 6
     private static let valueBarInset: CGFloat = 3
@@ -290,7 +312,7 @@ struct UnifiedStepCellVisualConfiguration {
         isPlaying: Bool,
         isSelected: Bool,
         content: StepCellContent,
-        accent: Color
+        accent: Color = StudioTheme.transportAccent
     ) {
         let clampedValueFraction = Self.valueFraction(for: content)
         let isValueBarContent = clampedValueFraction != nil

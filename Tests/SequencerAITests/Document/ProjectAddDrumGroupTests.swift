@@ -14,18 +14,28 @@ final class ProjectAddDrumGroupTests: XCTestCase {
         try? FileManager.default.removeItem(at: libraryRoot)
     }
 
-    func test_empty_members_returns_nil_and_leaves_project_unchanged() {
+    func test_empty_members_creates_empty_kit_with_dedicated_bus() {
         var project = Project.empty
-        let snapshot = project
+        let busCountBefore = project.buses.count
+        let trackCountBefore = project.tracks.count
+        let clipCountBefore = project.clipPool.count
         var plan = DrumGroupPlan.blankDefault
         plan.members = []
+        plan.name = "Empty Kit"
 
         let result = project.addDrumGroup(plan: plan, library: testLibrary)
 
-        XCTAssertNil(result)
-        XCTAssertEqual(project.tracks, snapshot.tracks)
-        XCTAssertEqual(project.trackGroups, snapshot.trackGroups)
-        XCTAssertEqual(project.clipPool, snapshot.clipPool)
+        guard let result,
+              let group = project.trackGroups.first(where: { $0.id == result })
+        else {
+            return XCTFail("expected empty kit creation to create a group")
+        }
+        XCTAssertTrue(group.memberIDs.isEmpty)
+        XCTAssertEqual(group.name, "Empty Kit")
+        XCTAssertEqual(project.buses.count, busCountBefore + 1)
+        XCTAssertEqual(project.buses.last?.name, "Empty Kit")
+        XCTAssertEqual(project.tracks.count, trackCountBefore)
+        XCTAssertEqual(project.clipPool.count, clipCountBefore)
     }
 
     func test_blankDefault_creates_four_tracks_named_kick_snare_hat_clap() {
@@ -390,6 +400,30 @@ final class ProjectAddDrumGroupTests: XCTestCase {
         }
         XCTAssertNotNil(track.outputBusID, "the default routing is a dedicated bus, not Master")
         XCTAssertEqual(project.mixerBus(id: track.outputBusID!)?.name, "Drum Group")
+    }
+
+    func test_addDrumPart_to_empty_dedicatedBusGroup_routes_new_part_to_kitBus() {
+        var project = Project.empty
+        var plan = DrumGroupPlan.blankDefault
+        plan.members = []
+        plan.name = "Empty Kit"
+        let groupID = project.addDrumGroup(plan: plan, library: testLibrary)
+        let busID = project.buses.last?.id
+
+        let partID = groupID.flatMap { project.addDrumPart(groupID: $0, library: testLibrary) }
+
+        guard let groupID,
+              let busID,
+              let partID,
+              let group = project.trackGroups.first(where: { $0.id == groupID }),
+              let track = project.tracks.first(where: { $0.id == partID })
+        else {
+            return XCTFail("expected the Add Part path to create one kit member")
+        }
+        XCTAssertEqual(group.memberIDs, [partID])
+        XCTAssertEqual(track.groupID, groupID)
+        XCTAssertEqual(track.outputBusID, busID)
+        XCTAssertEqual(track.destination.kind, .sample)
     }
 
     private var testLibrary: AudioSampleLibrary {

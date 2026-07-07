@@ -9,12 +9,8 @@ import SwiftUI
 ///    populates the parts list. Parts stay editable after kit selection:
 ///    rename, add/remove, swap a part's sound from its tag's category pool.
 ///    "Blank" remains available as "no kit" — an empty parts list.
-/// 2. **Patterns** — optionally choose a global pattern template; the chooser
-///    previews the tag intersection with the current parts. None = blank
-///    patterns. Template application happens at creation through the same
-///    path as the kit matrix's Apply Template action.
-/// 3. **Routing** — unchanged: optional shared destination, per-member
-///    routes-to-shared.
+/// 2. Pattern templates live on the kit page after creation. New kits always
+///    start on their dedicated kit bus in this compact creation flow.
 struct AddDrumGroupContent: View {
     let auInstruments: [AudioInstrumentChoice]
     /// Project-pool kit IDs — pooled kits list before global ones.
@@ -23,15 +19,6 @@ struct AddDrumGroupContent: View {
 
     @State private var selectedKitID: UUID?
     @State private var plan = DrumGroupPlan(name: "Drum Group", color: "#8AA", members: [])
-    @State private var isPresentingDestinationPicker = false
-    @State private var destinationPickerDidCommit = false
-    @State private var destinationPickerTrigger: DestinationPickerTrigger = .initial
-
-    private enum DestinationPickerTrigger {
-        case initial
-        case repick
-    }
-
     private var assetLibrary: DrumAssetLibrary { .shared }
     private var sampleLibrary: AudioSampleLibrary { .shared }
 
@@ -54,20 +41,6 @@ struct AddDrumGroupContent: View {
             footer
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .sheet(
-            isPresented: $isPresentingDestinationPicker,
-            onDismiss: handleDestinationSheetDismiss
-        ) {
-            AddDestinationSheet(
-                trackHasGroup: false,
-                audioInstrumentChoices: auInstruments,
-                sampleLibrary: .shared
-            ) { destination in
-                destinationPickerDidCommit = true
-                plan.sharedDestination = destination
-            }
-            .presentationBackground(.clear)
-        }
     }
 
     // MARK: - Step 1: Sounds
@@ -185,20 +158,6 @@ struct AddDrumGroupContent: View {
 
             soundMenu(at: index)
 
-            if plan.sharedDestination != nil {
-                Toggle(
-                    "Routes to shared",
-                    isOn: Binding(
-                        get: { plan.members[safeIndex: index]?.routesToShared ?? false },
-                        set: { newValue in
-                            guard plan.members.indices.contains(index) else { return }
-                            plan.members[index].routesToShared = newValue
-                        }
-                    )
-                )
-                .toggleStyle(.checkbox)
-            }
-
             Spacer(minLength: 0)
 
             Button {
@@ -296,230 +255,6 @@ struct AddDrumGroupContent: View {
         return "No pool for tag"
     }
 
-    // MARK: - Step 2: Patterns
-
-    private var patternsSection: some View {
-        StudioPanel(
-            title: "Patterns",
-            accent: Self.surfaceAccent
-        ) {
-            VStack(alignment: .leading, spacing: StudioMetrics.Spacing.snug) {
-                HStack(spacing: StudioMetrics.Spacing.snug) {
-                    Text("TEMPLATE")
-                        .studioText(.eyebrow)
-                        .tracking(0.8)
-                        .foregroundStyle(StudioTheme.mutedText)
-                        .help("Optional template, applied into pattern slot 1")
-
-                    templateChip(title: "None", isSelected: plan.templateID == nil) {
-                        plan.templateID = nil
-                    }
-
-                    ForEach(assetLibrary.templates) { template in
-                        templateChip(title: template.name, isSelected: plan.templateID == template.id) {
-                            plan.templateID = template.id
-                        }
-                    }
-
-                    Spacer(minLength: 0)
-                }
-
-                // Only REAL state renders here: the tag-intersection preview
-                // for a chosen template. The "No template — …" and "Add parts
-                // to see…" explainer sentences were Rule 3 findings (02d);
-                // None speaks for itself.
-                if let preview = templatePreviewSummary {
-                    Text(preview)
-                        .studioText(.label)
-                        .foregroundStyle(StudioTheme.mutedText)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-            }
-        }
-    }
-
-    private func templateChip(title: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Text(title)
-                .studioText(.labelBold)
-                .foregroundStyle(isSelected ? StudioTheme.background : StudioTheme.mutedText)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 7)
-                .background(
-                    isSelected ? Self.surfaceAccent : StudioTheme.subtleFill,
-                    in: Capsule()
-                )
-                .overlay(
-                    Capsule()
-                        .stroke(
-                            isSelected ? Color.clear : StudioTheme.border,
-                            lineWidth: StudioMetrics.borderWidth
-                        )
-                )
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("Template \(title)")
-        .accessibilityValue(isSelected ? "Selected" : "Not selected")
-    }
-
-    /// The tag-intersection preview for the chosen template — nil when there
-    /// is nothing real to preview (no template picked, or no parts yet).
-    private var templatePreviewSummary: String? {
-        guard let templateID = plan.templateID,
-              let template = assetLibrary.template(id: templateID),
-              !plan.members.isEmpty
-        else {
-            return nil
-        }
-        let preview = PatternTemplateApplicationPreview(
-            template: template,
-            parts: plan.members.map { (tag: $0.tag, name: $0.trackName) }
-        )
-        return preview.summary
-    }
-
-    // MARK: - Step 3: Routing
-
-    private var routingSection: some View {
-        StudioPanel(
-            title: "Routing",
-            accent: Self.surfaceAccent
-        ) {
-            VStack(alignment: .leading, spacing: 12) {
-                busRoutingPicker
-
-                Divider().overlay(StudioTheme.border)
-
-                Toggle(
-                    "Add shared destination",
-                    isOn: Binding(
-                        get: { plan.sharedDestination != nil },
-                        set: { newValue in
-                            if newValue {
-                                destinationPickerTrigger = .initial
-                                destinationPickerDidCommit = false
-                                isPresentingDestinationPicker = true
-                            } else {
-                                plan.sharedDestination = nil
-                            }
-                        }
-                    )
-                )
-                .toggleStyle(.checkbox)
-
-                if let destination = plan.sharedDestination {
-                    destinationSummaryRow(for: destination)
-                }
-            }
-        }
-    }
-
-    /// Output-bus routing for the group. A new drum group routes to its own
-    /// dedicated bus (named after the group) by default; Master is offered as a
-    /// non-default alternative.
-    private var busRoutingPicker: some View {
-        let newBusTitle = "New bus: \(busNamePreview)"
-        let isDedicated = plan.busRouting == .dedicatedBus
-
-        return VStack(alignment: .leading, spacing: StudioMetrics.Spacing.snug) {
-            // The chip titles already state the routing ("New bus: …" /
-            // "Master"); the recommendation sentences were Rule 3 findings
-            // (02d) and now live in the chips' hover help.
-            HStack(spacing: StudioMetrics.Spacing.snug) {
-                Text("OUTPUT")
-                    .studioText(.eyebrow)
-                    .tracking(0.8)
-                    .foregroundStyle(StudioTheme.mutedText)
-
-                busRoutingChip(
-                    title: newBusTitle,
-                    isSelected: isDedicated,
-                    help: "The kit gets its own mixer bus you can process as one unit"
-                ) {
-                    plan.busRouting = .dedicatedBus
-                }
-
-                busRoutingChip(
-                    title: "Master",
-                    isSelected: !isDedicated,
-                    help: "Parts route straight to Master"
-                ) {
-                    plan.busRouting = .master
-                }
-
-                Spacer(minLength: 0)
-            }
-        }
-    }
-
-    /// The name the dedicated bus will take — the group name, falling back to a
-    /// stable label when the user has cleared it.
-    private var busNamePreview: String {
-        let trimmed = plan.name.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? "Drum Group" : trimmed
-    }
-
-    private func busRoutingChip(title: String, isSelected: Bool, help: String = "", action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Text(title)
-                .studioText(.labelBold)
-                .foregroundStyle(isSelected ? StudioTheme.background : StudioTheme.mutedText)
-                .lineLimit(1)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 7)
-                .background(
-                    isSelected ? Self.surfaceAccent : StudioTheme.subtleFill,
-                    in: Capsule()
-                )
-                .overlay(
-                    Capsule()
-                        .stroke(
-                            isSelected ? Color.clear : StudioTheme.border,
-                            lineWidth: StudioMetrics.borderWidth
-                        )
-                )
-        }
-        .buttonStyle(.plain)
-        .help(help)
-        .accessibilityLabel("Output \(title)")
-        .accessibilityValue(isSelected ? "Selected" : "Not selected")
-    }
-
-    private func destinationSummaryRow(for destination: Destination) -> some View {
-        let summary = DestinationSummary.make(
-            for: destination,
-            in: .empty,
-            trackID: Project.empty.selectedTrackID
-        )
-
-        return HStack(spacing: 12) {
-            Image(systemName: summary.iconName.isEmpty ? "dot.radiowaves.left.and.right" : summary.iconName)
-                .foregroundStyle(Self.surfaceAccent)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(summary.typeLabel.isEmpty ? "Destination" : summary.typeLabel)
-                    .studioText(.bodyBold)
-                    .foregroundStyle(StudioTheme.text)
-
-                Text(summary.detail.isEmpty ? destination.summary : summary.detail)
-                    .studioText(.label)
-                    .foregroundStyle(StudioTheme.mutedText)
-                    .lineLimit(1)
-            }
-
-            Spacer()
-
-            Button("Pick…") {
-                destinationPickerTrigger = .repick
-                destinationPickerDidCommit = false
-                isPresentingDestinationPicker = true
-            }
-            .buttonStyle(.bordered)
-        }
-        .padding(StudioMetrics.Spacing.compact)
-        .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
-    }
-
     private var footer: some View {
         HStack {
             Spacer()
@@ -527,6 +262,8 @@ struct AddDrumGroupContent: View {
             // Primary action carries the surface accent — success-green is a
             // fenced state colour, not an action fill.
             Button {
+                plan.busRouting = .dedicatedBus
+                plan.sharedDestination = nil
                 onCreate(plan)
             } label: {
                 HStack(spacing: 7) {
@@ -552,23 +289,12 @@ struct AddDrumGroupContent: View {
 
     // MARK: - Actions
 
-    private func handleDestinationSheetDismiss() {
-        guard !destinationPickerDidCommit else {
-            return
-        }
-        if destinationPickerTrigger == .initial {
-            plan.sharedDestination = nil
-        }
-    }
-
     /// Apply a kit pick: populate the parts list from the kit's parts (tag,
     /// name, sound), preserving routing choices. `nil` = Blank, an empty
     /// parts list. Parts remain fully editable afterwards.
     private func applyKit(_ kit: DrumKit?) {
         selectedKitID = kit?.id
-        let preservedSharedDestination = plan.sharedDestination
         let preservedTemplateID = plan.templateID
-        let preservedBusRouting = plan.busRouting
 
         if let kit {
             plan = DrumGroupPlan.from(kit: kit, templateID: preservedTemplateID)
@@ -580,8 +306,8 @@ struct AddDrumGroupContent: View {
                 templateID: preservedTemplateID
             )
         }
-        plan.sharedDestination = preservedSharedDestination
-        plan.busRouting = preservedBusRouting
+        plan.sharedDestination = nil
+        plan.busRouting = .dedicatedBus
     }
 
     private func appendBlankPart() {

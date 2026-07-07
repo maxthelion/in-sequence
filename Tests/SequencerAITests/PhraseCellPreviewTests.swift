@@ -90,19 +90,11 @@ final class PhraseCellPreviewTests: XCTestCase {
         )
 
         XCTAssertEqual(preview.activeIndex, 3)
-        // Bold-flat pass: the active slot is a fully solid identity colour.
+        // Bold-flat pass: the active slot is a fully solid phrase accent.
         XCTAssertEqual(
             String(describing: preview.slotFill(for: 3)),
-            String(describing: StudioTheme.patternColor(3))
+            String(describing: StudioTheme.violet)
         )
         XCTAssertNotEqual(String(describing: preview.slotFill(for: 2)), String(describing: preview.slotFill(for: 3)))
-    }
-
-    func test_pattern_palette_gives_each_slot_a_distinct_colour() {
-        XCTAssertEqual(StudioTheme.patternPalette.count, TrackPatternBank.slotCount)
-        XCTAssertEqual(
-            Set(StudioTheme.patternPalette.map { String(describing: $0) }).count,
-            TrackPatternBank.slotCount
-        )
     }
 }
