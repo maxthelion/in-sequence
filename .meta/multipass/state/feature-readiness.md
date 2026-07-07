@@ -1,5 +1,351 @@
 # Feature Readiness State
 
+## 2026-07-06T21:03Z Process-Fixer Addendum
+
+- source:
+  `.meta/multipass/runtime/loops/project/act/2026-07-06T21-03Z-drum-kit-matrix-sound-implementation-build-loop-setup.md`
+- `pm/drum-kit-matrix-sound-implementation-prep` is no longer unpromoted ready
+  PM supply. Its accepted `spec.md`, `plan.md`, and
+  `implementation-handoff.md` have been consumed by active ordinary build loop
+  `build/drum-kit-matrix-sound-implementation`.
+- Build-loop target:
+  `feature/drum-kit-matrix-sound-implementation` /
+  `.worktrees/drum-kit-matrix-sound-implementation`, based on local `main` at
+  `859b3193d637da0fc29c95caa0deb0d6e0f7e420`.
+- Initial builder request:
+  `.meta/multipass/runtime/inbox/pending/2026-07-06T210344696Z-drum-kit-matrix-sound-implementation-builder.md`.
+- The new implementation loop is distinct from complete seam-check loop
+  `build/drum-kit-matrix-sound-prep`; the older loop remains context only and
+  should not be treated as the active implementation container.
+- Remaining ready-for-promotion supply is not asserted by this process repair;
+  future readiness observers should rescan rather than reusing older
+  ready-buffer paragraphs. AU runtime safety, broad mixer/FX redesign,
+  slicer/header compression, Scenes IA, and Track/Phrase Perform interaction
+  remain separate.
+
+## 2026-07-06T20:30Z Process-Fixer Addendum
+
+- source:
+  `.meta/multipass/runtime/loops/project/act/2026-07-06T20-30Z-drum-kit-matrix-sound-implementation-pm-lane.md`
+- Created one current PM-supply recovery lane:
+  `pm/drum-kit-matrix-sound-implementation-prep`.
+- Scope: current bug-intake `G5: Drum Kit / Kit Matrix / Drum Part Sound`.
+- Initial PM artifact-author request:
+  `.meta/multipass/runtime/inbox/pending/2026-07-06T203045000Z-pm-artifact-author-drum-kit-matrix-sound-implementation-prep.md`.
+- This is active PM implementation prep, not a builder-ready handoff and not a
+  build-loop promotion. The earlier `pm/drum-kit-matrix-sound-prep` /
+  `build/drum-kit-matrix-sound-prep` evidence is context only: that build loop
+  closed as a read-only seam-check checkpoint, not as whole-feature
+  implementation.
+- Ready-for-promotion remains `none` until this PM lane writes accepted
+  `spec.md`, `plan.md`, and `implementation-handoff.md`. AU runtime safety,
+  broad mixer/FX redesign, slicer/header compression, Scenes IA, and
+  Track/Phrase Perform interaction remain separate.
+
+## 2026-07-06T16:22Z Process-Fixer Addendum
+
+- source:
+  `.meta/multipass/runtime/loops/project/act/2026-07-06T16-22Z-track-setup-surface-compression-pm-lane.md`
+- Created one current PM-supply recovery lane:
+  `pm/track-setup-surface-compression`.
+- Scope: bug-intake `G7: Slicer / Sample Player / Track Header Compression`
+  plus the fresh capture-backed clip-header visual-economy bug
+  `docs/bugs/20260706-113305-move-lane-length-layer-chooser-randomize`.
+- Initial PM artifact-author request:
+  `.meta/multipass/runtime/inbox/pending/2026-07-06T162149447Z-pm-artifact-author-track-setup-surface-compression.md`.
+- This is active PM artifact prep, not a builder-ready handoff and not a
+  build-loop promotion. `build-capacity.ts` reported one available ordinary
+  build slot, active ordinary build loop only `build/au-runtime-safety`, and
+  ready/unpromoted candidates `none` before setup.
+- Ready-for-promotion remains `none` until this PM lane writes an accepted
+  builder-facing handoff. AU runtime safety, mixer follow-up, Scenes IA,
+  Track/Phrase Perform interaction, and broad drum-kit matrix implementation
+  remain separate.
+
+## 2026-07-06T13:05Z Observation
+
+- source observation:
+  `.meta/multipass/runtime/loops/project/observe/2026-07-06T13-05Z-feature-readiness-observation.md`
+- request:
+  `.meta/multipass/runtime/inbox/claimed/2026-07-04T194619925Z-feature-readiness-observer-cadence.md`
+- scope: PM artifact readiness evidence for possible build-loop promotion.
+  Observation only. No promotion, scheduling, inbox write, request lifecycle
+  move, merge, rebase, worktree cleanup, product-code edit, product build/test,
+  visual capture, PM artifact action, build action, process repair, lock
+  clearing, or product-owner question performed.
+
+### ready-for-promotion
+
+- None observed as a current unpromoted PM/build candidate. Foreman
+  `build-capacity.ts` reports active ordinary build loops `2`, locked build
+  loops `2`, available ordinary slots `0`, ready candidates `none`, and
+  unpromoted ready candidates `none`.
+
+### not-ready
+
+- `scenes-in-phrases` / backlog item 22: locked PM evidence, not
+  builder-ready. Authoritative artifacts: `docs/roadmap/scenes-in-phrases/`.
+  PM evidence: `.meta/multipass/state/pm-loops/scenes-in-phrases.md` and
+  `.meta/multipass/config/loops/pm/scenes-in-phrases.yaml`. Pairing state:
+  selected/comparison prototypes exist; explicit product-owner approval plus
+  accepted `architecture.md`, `spec.md`, `plan.md`, and
+  `implementation-handoff.md` remain missing. Active state: PM loop locked.
+
+- `audio-looping` / backlog item 14: locked PM evidence, not builder-ready.
+  Authoritative artifacts: `docs/roadmap/audio-looping/`. PM evidence:
+  `.meta/multipass/state/pm-loops/audio-looping.md` and
+  `.meta/multipass/config/loops/pm/audio-looping.yaml`. Pairing state:
+  target-intent prototype, reconciliation artifacts, prototype-approval
+  packaging, and dependency/test guardrails exist; accepted full `spec.md`,
+  `plan.md`, and `implementation-handoff.md` remain absent while the
+  one-capable-track-now versus plural/shared-input scope lock remains. Active
+  state: PM loop locked.
+
+- Deferred/thin PM rows remain not-ready by existing evidence:
+  `drum-kit-group-view`, `whole-kit-fill`, `phrase-cells`, and
+  `selective-scene-inputs`. Evidence:
+  `.meta/multipass/state/pm-loop-feature-table.md` and matching roadmap rows.
+  No fresher accepted handoff or active build state was observed.
+
+### stale/already-handled
+
+- `drum-kit-matrix-sound-prep`: no longer unpromoted PM supply. Its accepted
+  `spec.md`, `plan.md`, and `implementation-handoff.md` are consumed by active
+  ordinary build loop `build/drum-kit-matrix-sound-prep`. Evidence:
+  `.meta/multipass/state/pm-loops/drum-kit-matrix-sound-prep.md`,
+  `.meta/multipass/state/build-loops/drum-kit-matrix-sound-prep.md`, and
+  `.meta/multipass/runtime/loops/project/act/2026-07-06T09-06Z-drum-kit-matrix-sound-prep-build-loop-setup.md`.
+
+- `july-4-phrase-layers-global-apply`: not a build-loop promotion candidate.
+  The PM lane is registry-active but supplied-and-superseded because its scoped
+  reports are already resolved on `main`. Evidence:
+  `.meta/multipass/state/pm-loops/july-4-phrase-layers-global-apply.md` and
+  `.meta/multipass/runtime/loops/pm/july-4-phrase-layers-global-apply/act/2026-07-04T21-02Z-pm-closeout-superseded.md`.
+
+- `track-phrase-perform-interaction-prep`: not unpromoted PM supply. Its
+  accepted Track Perform pattern mini-cell slice was already promoted, built,
+  and fast-forwarded into local `main` at `9c1744ba`. Evidence:
+  `.meta/multipass/state/pm-loops/track-phrase-perform-interaction-prep.md`,
+  `.meta/multipass/state/build-loops/track-phrase-perform-mini-cells.md`, and
+  `.meta/multipass/state/work/current-work.md`.
+
+- `au-runtime-safety`: active owner-bug build loop, not PM supply. Evidence:
+  `.meta/multipass/state/build-loops/au-runtime-safety.md` and
+  `.meta/multipass/config/loops/build/au-runtime-safety.yaml`. Current
+  checkpoint is held for human-present third-party AU validation.
+
+- `observability-log-issues` and `midi-interfaces`: PM readiness was already
+  consumed by locked build loops. Evidence:
+  `.meta/multipass/state/pm-loops/observability-log-issues.md`,
+  `.meta/multipass/config/loops/build/observability-log-issues.yaml`,
+  `.meta/multipass/state/pm-loops/midi-interfaces.md`, and
+  `.meta/multipass/config/loops/build/midi-interfaces.yaml`.
+
+- `routing-source-mixer-split` and `au-discovery-rescan`: terminal complete by
+  current-main supersession; preserved old branches are historical material,
+  not continuation targets and not PM supply. Evidence:
+  `.meta/multipass/state/build-loops/routing-source-mixer-split.md`,
+  `.meta/multipass/state/build-loops/au-discovery-rescan.md`, and matching
+  build-loop manifests.
+
+### evidence freshness
+
+- Foreman inventory reports active PM loops
+  `pm/july-4-phrase-layers-global-apply` and
+  `pm/track-phrase-perform-interaction-prep`; locked PM loops
+  `pm/scenes-in-phrases` and `pm/audio-looping`; active build loops
+  `build/au-runtime-safety` and `build/drum-kit-matrix-sound-prep`; locked
+  build loops `build/observability-log-issues` and `build/midi-interfaces`.
+- `scripts/multi-pass/inbox-status.sh` reports `14` pending, `3` claimed,
+  `714` blocked, and `5023` done requests, with no pending terminal-loop
+  residue.
+- Direct root check before writing: branch `main`, HEAD
+  `c8f368d5c3c5e31e666070c15625b466c441b5b6`, `18` ahead of `origin/main`,
+  with broad dirty/local-only coordination/state/visual-review changes already
+  present from other actors.
+- Coordinator CLIs still emit known Ruby `executable-hooks` / `gem-wrappers`
+  warning noise before useful output.
+
+## 2026-07-06T09:06Z Process-Fixer Addendum
+
+- source:
+  `.meta/multipass/runtime/loops/project/act/2026-07-06T09-06Z-drum-kit-matrix-sound-prep-build-loop-setup.md`
+- `pm/drum-kit-matrix-sound-prep` is no longer an unpromoted ready PM
+  candidate. Its accepted `spec.md`, `plan.md`, and `implementation-handoff.md`
+  have been consumed by active ordinary build loop
+  `build/drum-kit-matrix-sound-prep`.
+- Build-loop target:
+  `feature/drum-kit-matrix-sound-prep` /
+  `.worktrees/drum-kit-matrix-sound-prep`, based on local `main` at
+  `9c1744ba2247b9613909194710d9f1ba02da7ed7`.
+- Initial builder request:
+  `.meta/multipass/runtime/inbox/pending/2026-07-06T090608308Z-drum-kit-matrix-sound-prep-builder.md`.
+- Capacity before setup: active ordinary build loops were
+  `build/au-runtime-safety`; available ordinary slots were `1`.
+- Capacity after setup: active ordinary build loops are
+  `build/au-runtime-safety` and `build/drum-kit-matrix-sound-prep`; available
+  ordinary slots are `0`.
+- Remaining ready-for-promotion supply is not asserted by this process repair;
+  future readiness observers should rescan rather than reusing older paragraphs.
+
+## 2026-07-04T19:41Z Process-Fixer Addendum
+
+- source:
+  `.meta/multipass/runtime/loops/project/act/2026-07-04T19-41Z-pm-ready-buffer-recovery.md`
+- `pm/autoslice-algorithm` is stale as PM supply. Its accepted handoff was
+  consumed by `build/autoslice-algorithm`; Phase 0 is complete and locally
+  merged on `main` per
+  `.meta/multipass/state/build-loops/autoslice-algorithm.md`.
+- Created one current PM-supply recovery lane:
+  `pm/july-4-phrase-layers-global-apply`. It is active PM artifact work, not
+  builder-ready and not a build-loop promotion candidate yet.
+- Initial PM artifact-author request:
+  `.meta/multipass/runtime/inbox/pending/2026-07-04T194129389Z-pm-artifact-author-july-4-phrase-layers-global-apply.md`.
+- Ready-for-promotion remains `none` until that PM lane writes an accepted
+  builder-facing handoff. Active `build/au-runtime-safety` remains separate
+  and is not duplicated by this PM lane.
+
+## 2026-07-04T17:41Z Observation
+
+- source observation:
+  `.meta/multipass/runtime/loops/project/observe/2026-07-04T17-41Z-feature-readiness-observation.md`
+- request:
+  `.meta/multipass/runtime/inbox/claimed/2026-07-04T171510585Z-feature-readiness-observer-cadence.md`
+- scope: PM artifact readiness evidence for possible build-loop promotion.
+  Observation only. No promotion, scheduling, inbox message, request lifecycle
+  move, merge, rebase, worktree recreation, cleanup, product-code edit, product
+  build/test, visual capture, PM artifact action, or product-owner question
+  performed.
+
+### ready-for-promotion
+
+- None observed as a current unpromoted PM/build candidate. Live
+  `build-capacity.ts` reports active ordinary build loops `0`, locked build
+  loops `3`, available ordinary slots `2`, ready candidates `none`,
+  unpromoted ready candidates `none`, and no build inbox. This supersedes
+  older June 17 capacity paragraphs where they describe routing/AU as ordinary
+  active build-slot consumers.
+
+### not-ready
+
+- `scenes-in-phrases` / backlog item 22: still locked PM evidence, not
+  builder-ready. Authoritative artifacts: `docs/roadmap/scenes-in-phrases/`.
+  PM evidence:
+  `.meta/multipass/state/pm-loops/scenes-in-phrases.md` and
+  `.meta/multipass/config/loops/pm/scenes-in-phrases.yaml`. Pairing state:
+  selected/comparison prototypes exist; product-owner prototype approval and
+  accepted `architecture.md`, `spec.md`, `plan.md`, and
+  `implementation-handoff.md` remain missing. Active state: PM loop locked; no
+  build consumption.
+
+- `audio-looping` / backlog item 14: still locked PM evidence, not
+  builder-ready. Authoritative artifacts: `docs/roadmap/audio-looping/`. PM
+  evidence: `.meta/multipass/state/pm-loops/audio-looping.md` and
+  `.meta/multipass/config/loops/pm/audio-looping.yaml`. Pairing state:
+  target-intent prototype, open-question reconciliation, prototype-approval
+  packaging, and dependency/test guardrails exist; accepted full `spec.md`,
+  `plan.md`, and `implementation-handoff.md` remain absent while the
+  one-capable-track-now versus plural/shared-input scope lock remains. Active
+  state: PM loop locked; no build consumption.
+
+- Deferred/thin PM rows remain not-ready by existing evidence:
+  `drum-kit-group-view`, `whole-kit-fill`, `phrase-cells`, and
+  `selective-scene-inputs`. Evidence:
+  `.meta/multipass/state/pm-loop-feature-table.md` and matching
+  `docs/roadmap/*/README.md` files. No fresher accepted handoff or active
+  build state was observed.
+
+### stale/already-handled
+
+- `routing-source-mixer-split`: no longer a PM promotion candidate and no
+  longer process-locked build work. It is terminal `status: complete` by
+  supersession on current `main`, while preserved
+  `feature/routing-source-mixer-split` remains unmerged at `3938b6bc` with
+  stale two-well/test/capture work. Evidence:
+  `.meta/multipass/runtime/loops/project/act/2026-07-04T17-35Z-routing-source-mixer-split-reconciled.md`,
+  `.meta/multipass/state/build-loops/routing-source-mixer-split.md`, and
+  `.meta/multipass/config/loops/build/routing-source-mixer-split.yaml`.
+
+- `au-discovery-rescan`: not a PM promotion candidate. It is a process-locked
+  build lane outside ordinary capacity because its configured worktree is
+  absent; preserved branch `feature/au-discovery-rescan` exists at `754e210f`
+  and is ahead of current `main`. Evidence:
+  `.meta/multipass/runtime/loops/project/act/2026-07-04T17-20Z-stale-build-capacity-registry-repair.md`,
+  `.meta/multipass/state/build-loops/au-discovery-rescan.md`, and
+  `.meta/multipass/config/loops/build/au-discovery-rescan.yaml`. It needs
+  explicit decider reconstruction or closeout before continuation.
+
+- `observability-log-issues` and `midi-interfaces`: PM readiness was already
+  consumed by locked build loops. Evidence:
+  `.meta/multipass/state/pm-loops/observability-log-issues.md`,
+  `.meta/multipass/config/loops/build/observability-log-issues.yaml`,
+  `.meta/multipass/state/pm-loops/midi-interfaces.md`, and
+  `.meta/multipass/config/loops/build/midi-interfaces.yaml`. Observability is
+  human-locked for scope correction; MIDI is human-locked for Launchpad Mini
+  MK3 hardware acceptance.
+
+- Other consumed, terminal, stale, or deferred lanes remain unchanged from the
+  prior readiness scan unless fresh routed defect evidence appears.
+
+### evidence freshness
+
+- Foreman inventory and live capacity are fresher than inherited June 17
+  current-work/readiness paragraphs. Current root check during this observation:
+  branch `main`, HEAD `52129b6bd307a78aaf07ae7f9f4d875196f9e721`, with dirty
+  compact-state/coordinator artifacts already present from prior actors.
+- `scripts/multi-pass/inbox-status.sh` reports `16` pending, `1` claimed,
+  `707` blocked, and `4566` done requests; pending active-loop requests are
+  observer cadences plus one low-priority legacy/unrouteable orienter observe
+  request; no pending terminal-loop residue.
+- Coordinator CLIs still emit known Ruby `executable-hooks` / `gem-wrappers`
+  warning noise before useful output.
+
+## 2026-07-04 Process-Fixer Addendum
+
+- source:
+  `.meta/multipass/runtime/loops/project/act/2026-07-04T17-20Z-stale-build-capacity-registry-repair.md`
+- The prior capacity facts in this file are stale. The missing-worktree loops
+  `build/routing-source-mixer-split` and `build/au-discovery-rescan` are now
+  process-locked, not ordinary capacity-consuming active loops.
+- Current capacity after repair: active ordinary build loops `0`, locked build
+  loops `4`, available ordinary build slots `2`, ready candidates `none`, and
+  unpromoted ready candidates `none`.
+- This is not product readiness for routing or AU; it is only capacity registry
+  repair. The preserved branches need explicit decider reconciliation before
+  they can be continued or closed.
+
+## 2026-07-04 Routing Reconciliation Addendum
+
+- source:
+  `.meta/multipass/runtime/loops/project/act/2026-07-04T17-35Z-routing-source-mixer-split-reconciled.md`
+- `routing-source-mixer-split` is no longer ready/blocked/process-locked build
+  work. The loop manifest is terminal `status: complete` because current
+  `main` supersedes the old feature branch with separate Sound and Mixer tab
+  modes.
+- The old feature branch is intentionally preserved and unmerged at
+  `3938b6bc`; it contains stale side-by-side well/test/capture work, not a
+  continuation target. Any future reuse of a surviving test or fixture idea
+  needs a fresh current-main request.
+- AU discovery/rescan remains process-locked and unreconciled by this pass.
+
+## 2026-07-04 AU Discovery / Rescan Reconciliation Addendum
+
+- source:
+  `.meta/multipass/runtime/loops/project/act/2026-07-04T17-51Z-au-discovery-rescan-reconciled.md`
+- `au-discovery-rescan` is no longer ready/blocked/process-locked build work.
+  The loop manifests are terminal `status: complete` because current `main`
+  supersedes the old feature branch with reintegrated AU rescan behavior and
+  resolved bug evidence.
+- The old feature branch is intentionally preserved and unmerged at
+  `754e210f`; it contains useful historical AU cache/controller/test/fixture
+  work but is based on old `23c2715c` and is not a continuation target.
+- Current-main evidence includes `54d46ae7` AU rescan integration,
+  `9cd7cd13` shared picker header cleanup, the resolved
+  `docs/bugs/20260616-au-plugin-list-needs-rescan-without-relaunch/` report,
+  and `2c0d84ea` for the July 4 create-track AU ordering/rescan-row feedback.
+  Future runtime visual acceptance, if desired, should be a fresh current-main
+  evidence request.
+
 - updated: 2026-06-17T00:48Z
 - source observation:
   `.meta/multipass/runtime/loops/project/observe/2026-06-17T00-48Z-feature-readiness-observation.md`
@@ -14,12 +360,12 @@
 ## ready-for-promotion
 
 - None observed as a current unpromoted PM/build candidate. Live
-  `build-capacity.ts` reports max active build loops `2`, active ordinary
-  slots `2`, locked build loops `2`, available ordinary slots `0`, ready
+  `build-capacity.ts` now reports max active build loops `2`, active ordinary
+  slots `0`, locked build loops `3`, available ordinary slots `2`, ready
   candidates `none`, and unpromoted ready candidates `none`. Capacity-consuming
-  active loops are `build/routing-source-mixer-split` and
-  `build/au-discovery-rescan`; locked build loops are
-  `build/observability-log-issues` and `build/midi-interfaces`.
+  active loops are none; locked build loops are
+  `build/observability-log-issues`, `build/au-discovery-rescan`, and
+  `build/midi-interfaces`.
 
 - Fresh ready-buffer recovery evidence still reports no safe PM lane to
   advance:
@@ -73,22 +419,25 @@
 
 ## stale/already-handled
 
-- `routing-source-mixer-split`: not a PM promotion candidate. It is an active
-  owner-bug follow-up build loop consuming one ordinary build slot. Evidence:
+- `routing-source-mixer-split`: not a PM promotion candidate and no longer an
+  active/process-locked build lane. It is closed `complete` by supersession on
+  current `main`, while the old feature branch remains preserved but unmerged.
+  Evidence:
   `.meta/multipass/state/build-loops/routing-source-mixer-split.md`,
   `.meta/multipass/config/loops/build/routing-source-mixer-split.yaml`,
+  `.meta/multipass/runtime/loops/project/act/2026-07-04T17-35Z-routing-source-mixer-split-reconciled.md`,
+  `docs/bugs/20260615-tracks-routing-source-and-mixer-split/resolution.md`,
   `.meta/multipass/runtime/loops/build/routing-source-mixer-split/orient/2026-06-16T23-45Z-capture-environment-blocker-synthesis.md`,
   `.meta/multipass/runtime/loops/build/routing-source-mixer-split/act/2026-06-16T23-10Z-capture-environment-repair.md`,
   `.meta/multipass/runtime/loops/project/decide/2026-06-17T00-27Z-route-routing-capture-environment-recovery.md`,
   and process-fixer final
   `.meta/multipass/runtime/runs/actors/process-fixer/2026-06-17T002722079Z-routing-split-capture-environment-recovery.final.md`.
-  Pairing state: product repair is clean at
-  `0f29736752eeffad6e68726645c8a386e7f0ae19` with inherited focused source
-  vocabulary tests, but the exact sample/slicer routing-tab `Sound Source`
-  screenshots remain missing. Direct check during this observation:
-  worktree clean, `1` behind / `5` ahead of local `main`. Active state:
-  capture environment remains blocked; not review, critic, integration, or PM
-  promotion evidence.
+  Pairing state: current `main` separates source and mixer through Sound/Mixer
+  tab modes; `feature/routing-source-mixer-split` remains at `3938b6bc`,
+  uncontained, and should be treated as stale historical implementation/test/
+  capture evidence unless a future decider asks for a fresh current-main
+  cherry-pick. Active state: complete; not review, critic, integration,
+  process-lock, or PM promotion evidence.
 
 - `au-discovery-rescan`: not a PM promotion candidate. It is an active
   owner-bug follow-up build loop consuming one ordinary build slot. Evidence:

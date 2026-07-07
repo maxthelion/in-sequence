@@ -1,0 +1,90 @@
+id: pm/track-setup-surface-compression
+kind: pm
+status: active
+feature: track-setup-surface-compression
+source_intent:
+  - .meta/multipass/runtime/inbox/claimed/2026-07-06T161740750Z-process-fixer.md
+  - .meta/multipass/state/bug-intake.md
+  - .meta/multipass/state/holistic-status.md
+  - docs/bugs/20260706-113305-move-lane-length-layer-chooser-randomize
+  - docs/bugs/20260620-141119-the-sub-text-on-the-source-slice-etc-can
+  - docs/bugs/20260620-141300-there-s-some-grey-text-underneath-and-ab
+  - docs/bugs/20260620-141506-sample-present-is-uneccessary-the-white
+  - docs/bugs/20260620-173138-collaps-the-track-title-with-pattern-hea
+  - docs/bugs/20260620-173215-collapse-the-top-of-this-view-like-the-r
+  - docs/bugs/20260620-173308-collapse-the-vertical-space-around-the-t
+  - docs/bugs/20260620-191818-sound-source-above-the-well-is-not-neede
+  - docs/bugs/20260622-124303-let-s-put-clip-length-in-the-left-side-u
+  - docs/bugs/20260622-124537-the-start-length-etc-controls-can-sit-in
+  - docs/bugs/20260622-130913-lots-of-wasted-space-here-esp-under-use
+  - docs/bugs/20260622-131140-remove-duped-source-title
+  - docs/bugs/20260622-131801-take-out-grey-sub-heading-view-doesn-t-n
+  - docs/bugs/20260623-131354-there-isn-t-currently-a-way-to-choose-a
+  - docs/bugs/20260704-084704-can-we-take-out-the-little-pills-within
+  - docs/bugs/20260704-084929-randomize-is-a-feature-of-clips-the-butt
+  - docs/bugs/20260704-085114-the-blue-dot-on-the-4-pattern-button-is
+  - docs/bugs/20260704-090514-layer-button-should-go-on-same-line-as-l
+  - docs/bugs/20260704-090801-track-steps-are-too-busy-they-should-use
+  - docs/bugs/20260704-091011-very-grey-and-washed-out-the-rounded-cor
+  - docs/bugs/20260705-194854-this-would-be-a-more-useful-capture-if-i
+runtime:
+  root: .meta/multipass/runtime/loops/pm/track-setup-surface-compression
+  activity: activity.ndjson
+artifacts:
+  durable_summary: .meta/multipass/state/pm-loops/track-setup-surface-compression.md
+  product_docs: docs/roadmap/track-setup-surface-compression
+work:
+  branch: main
+  worktree: .
+phases:
+  observe: observe
+  orient: orient
+  decide: decide
+  act: act
+  evidence: evidence
+freshness:
+  output_state: PM lane setup for bug-intake G7 setup-surface compression and the fresh clip-header visual-economy bug, not product implementation.
+  stale_when:
+    - linked setup header, slicer, sample-player, or clip-header compression bug reports receive resolution evidence.
+    - docs/roadmap/track-setup-surface-compression artifacts change.
+    - active build-loop evidence already consumes this exact compact setup header / clip header control placement / slicer-sample-player visual economy scope.
+
+actors:
+  observe:
+    - actor: pm-readiness-observer
+      cadence: 2h
+      prompt: project/actors/pm-readiness-observer/prompt.md
+      actions: project/actors/pm-readiness-observer/actions.yaml
+      tick: >
+        Observe Track Setup Surface Compression PM readiness. Record existing
+        G7 bug evidence, capture-backed clip-header evidence, missing
+        readiness gates, product-owner decision needs, and whether one compact
+        setup-surface handoff can be promoted. Do not write inbox requests or
+        modify roadmap artifacts.
+  orient:
+    - actor: pm-orienter
+      cadence: 30m
+      prompt: project/actors/pm-orienter/prompt.md
+      actions: project/actors/pm-orienter/actions.yaml
+      tick: >
+        Interpret setup header, clip-header control placement, slicer, and
+        sample-player visual-economy observations against bug-intake G7, the
+        capture row 18-track-detail-steps-clip evidence, and boundaries with
+        AU runtime safety, mixer follow-up, Scenes IA, Track/Phrase Perform
+        interaction, and broad drum-kit matrix implementation. Identify the
+        next PM artifact gap or lock. Do not schedule build work.
+  decide:
+    - actor: pm-decider
+      cadence: 30m
+      prompt: project/actors/pm-decider/prompt.md
+      actions: project/actors/pm-decider/actions.yaml
+      tick: >
+        Decide one bounded PM-loop action for Track Setup Surface Compression
+        from the latest PM orientation. Route only PM artifact work or a
+        loop-local lock; do not promote a build loop.
+  act:
+    - actor: pm-artifact-author
+      cadence: on_inbox
+      prompt: project/actors/pm-artifact-author/prompt.md
+      actions: project/actors/pm-artifact-author/actions.yaml
+      resource_keys: mutate:pm:track-setup-surface-compression

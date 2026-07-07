@@ -1,9 +1,12 @@
 id: build/au-discovery-rescan
 kind: build
-status: active
+status: complete
 feature: au-discovery-rescan
 worktree: .worktrees/au-discovery-rescan
 branch: feature/au-discovery-rescan
+completion:
+  reason: "2026-07-04 reconciliation: current main supersedes the preserved feature branch via 54d46ae7/9cd7cd13 AU rescan integration and resolved owner-bug evidence; branch feature/au-discovery-rescan remains preserved but is not a continuation target."
+  evidence: .meta/multipass/runtime/loops/project/act/2026-07-04T17-51Z-au-discovery-rescan-reconciled.md
 actors:
   orient:
     - actor: build-orienter

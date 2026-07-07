@@ -1,0 +1,76 @@
+id: pm/drum-kit-matrix-sound-prep
+kind: pm
+status: active
+feature: drum-kit-matrix-sound-prep
+source_intent:
+  - .meta/multipass/runtime/inbox/claimed/2026-07-05T162105345Z-process-fixer.md
+  - .meta/multipass/state/bug-intake.md
+  - docs/bugs/20260618-135941-let-s-have-the-name-of-each-drum-part-to
+  - docs/bugs/20260618-140108-drum-kit-step-sequencer-should-be-limite
+  - docs/bugs/20260620-102115-patterns-and-kit-matrix-are-wasting-spac
+  - docs/bugs/20260620-102248-also-kick-inline-part-controls-and-open
+  - docs/bugs/20260620-203459-we-re-wasting-too-much-vertical-space-at
+  - docs/bugs/20260622-124324-the-add-drum-kit-modal-needs-to-be-part
+  - docs/bugs/20260624-161342-i-should-also-be-able-to-load-an-au-as-t
+  - docs/bugs/20260626-095529-on-the-tracks-page-make-kit-tracks-show
+  - docs/bugs/20260629-101345-drum-part-sound-source-empty-vs-none-and-load-au-affordance
+  - docs/bugs/20260704-153522-the-top-section-of-slicer-normal-track-k
+runtime:
+  root: .meta/multipass/runtime/loops/pm/drum-kit-matrix-sound-prep
+  activity: activity.ndjson
+artifacts:
+  durable_summary: .meta/multipass/state/pm-loops/drum-kit-matrix-sound-prep.md
+  product_docs: docs/roadmap/drum-kit-matrix-sound-prep
+work:
+  branch: main
+  worktree: .
+phases:
+  observe: observe
+  orient: orient
+  decide: decide
+  act: act
+  evidence: evidence
+freshness:
+  output_state: PM lane setup for bug-intake G6 Drum Kit / Kit Matrix / Drum Part Sound prep, not product implementation.
+  stale_when:
+    - linked G6 drum kit, kit matrix, or drum-part sound-source bug reports receive resolution evidence.
+    - docs/roadmap/drum-kit-matrix-sound-prep artifacts change.
+    - active build-loop evidence already consumes this exact kit-track matrix compression and drum-part sound-source scope.
+
+actors:
+  observe:
+    - actor: pm-readiness-observer
+      cadence: 2h
+      prompt: project/actors/pm-readiness-observer/prompt.md
+      actions: project/actors/pm-readiness-observer/actions.yaml
+      tick: >
+        Observe Drum Kit / Kit Matrix / Drum Part Sound prep readiness.
+        Record existing artifacts, missing readiness gates, product-owner
+        decision needs, and whether one builder-ready handoff can be promoted.
+        Do not write inbox requests or modify roadmap artifacts.
+  orient:
+    - actor: pm-orienter
+      cadence: 30m
+      prompt: project/actors/pm-orienter/prompt.md
+      actions: project/actors/pm-orienter/actions.yaml
+      tick: >
+        Interpret Drum Kit / Kit Matrix / Drum Part Sound observations against
+        bug-intake G6, the non-duplication boundary with slicer/header
+        compression, mixer, AU runtime safety, Scenes IA, and Track Perform
+        mini-cell work, and current readiness evidence. Identify the next PM
+        artifact gap or lock. Do not schedule work.
+  decide:
+    - actor: pm-decider
+      cadence: 30m
+      prompt: project/actors/pm-decider/prompt.md
+      actions: project/actors/pm-decider/actions.yaml
+      tick: >
+        Decide one bounded PM-loop action for Drum Kit / Kit Matrix / Drum
+        Part Sound prep from the latest PM orientation. Route only PM artifact
+        work or a loop-local lock; do not promote a build loop.
+  act:
+    - actor: pm-artifact-author
+      cadence: on_inbox
+      prompt: project/actors/pm-artifact-author/prompt.md
+      actions: project/actors/pm-artifact-author/actions.yaml
+      resource_keys: mutate:pm:drum-kit-matrix-sound-prep

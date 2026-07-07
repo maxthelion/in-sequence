@@ -3,6 +3,2929 @@
 Compact current-shape decision notes. Legacy coordinator logs are historical
 context only.
 
+## 2026-07-07T07:28Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-07T070744296Z-decider-cadence.md`
+using README, current OODA orientation, compact current-work,
+feature-readiness, flow status, prior decision log, live `build-capacity.ts`,
+and database-backed bug intake.
+
+Recorded combined compact orientation / no-duplicate decision artifact:
+`.meta/multipass/runtime/loops/project/decide/2026-07-07T07-28Z-no-duplicate-active-builds-full.md`.
+
+Decision reason: live capacity reports `2` active ordinary build loops
+(`build/drum-kit-matrix-sound-implementation` and `build/au-runtime-safety`),
+`0` available ordinary slots, and ready/unpromoted ready candidates `none`.
+The useful next product action is already pending as
+`.meta/multipass/runtime/inbox/pending/2026-07-06T210344696Z-drum-kit-matrix-sound-implementation-builder.md`.
+Fresh database-backed open bugs are UI polish reports and do not override the
+full-capacity/no-duplicate posture. AU runtime safety remains held on
+human-present third-party AU validation or explicit acceptance of that manual
+evidence gap.
+
+No actor request, PM promotion, build implementation, review scheduling,
+integration, merge, rebase, branch/worktree cleanup, product-code edit, visual
+automation, product test suite, lock clearing, request lifecycle move, or
+product-owner question was performed by this decider.
+
+## 2026-07-07T06:28Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-07T062727671Z-decider-cadence.md`
+using README, current OODA orientation, compact current-work,
+feature-readiness, flow status, prior decision log, live `build-capacity.ts`,
+markdown bug status, and database-backed bug intake.
+
+Recorded combined compact orientation / no-duplicate decision artifact:
+`.meta/multipass/runtime/loops/project/decide/2026-07-07T06-28Z-no-duplicate-active-builds-full.md`.
+
+Decision reason: live capacity reports `2` active ordinary build loops
+(`build/drum-kit-matrix-sound-implementation` and `build/au-runtime-safety`),
+`0` available ordinary slots, and ready/unpromoted ready candidates `none`.
+The useful next product action is already pending as
+`.meta/multipass/runtime/inbox/pending/2026-07-06T210344696Z-drum-kit-matrix-sound-implementation-builder.md`.
+Fresh database-backed open bugs are UI polish reports and do not override the
+full-capacity/no-duplicate posture. AU runtime safety remains held on
+human-present third-party AU validation or explicit acceptance of that manual
+evidence gap.
+
+No actor request, PM promotion, build implementation, review scheduling,
+integration, merge, rebase, branch/worktree cleanup, product-code edit, visual
+automation, product test suite, lock clearing, request lifecycle move, or
+product-owner question was performed by this decider.
+
+## 2026-07-07T06:13Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-07T060719343Z-decider-cadence.md`
+using README, current OODA orientation, compact current-work, feature-readiness,
+flow status, holistic status, prior decision log, live `build-capacity.ts`, and
+live `inventory.ts`.
+
+Recorded combined compact orientation / no-duplicate decision artifact:
+`.meta/multipass/runtime/loops/project/decide/2026-07-07T06-13Z-no-duplicate-active-builds-full.md`.
+
+Decision reason: live capacity reports `2` active ordinary build loops
+(`build/drum-kit-matrix-sound-implementation` and `build/au-runtime-safety`),
+`0` available ordinary slots, and ready/unpromoted ready candidates `none`.
+The useful next product action is already pending as
+`.meta/multipass/runtime/inbox/pending/2026-07-06T210344696Z-drum-kit-matrix-sound-implementation-builder.md`.
+AU runtime safety remains held on human-present third-party AU validation or
+explicit acceptance of that manual evidence gap.
+
+No actor request, PM promotion, build implementation, review scheduling,
+integration, merge, rebase, branch/worktree cleanup, product-code edit, visual
+automation, product test suite, lock clearing, request lifecycle move, or
+product-owner question was performed by this decider.
+
+## 2026-07-07T01:31Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-07T012520713Z-decider-cadence.md`
+using README, current OODA orientation, compact feature-readiness/current-work/
+flow state, active build-loop summaries, live `build-capacity.ts`, and live
+`inventory.ts`.
+
+Recorded combined compact orientation / no-duplicate decision artifact:
+`.meta/multipass/runtime/loops/project/decide/2026-07-07T01-31Z-no-duplicate-active-builds-full.md`.
+
+Decision reason: live capacity reports `2` active ordinary build loops
+(`build/drum-kit-matrix-sound-implementation` and `build/au-runtime-safety`),
+`0` available ordinary slots, and ready/unpromoted ready candidates `none`.
+The useful next project action is already pending as
+`.meta/multipass/runtime/inbox/pending/2026-07-06T210344696Z-drum-kit-matrix-sound-implementation-builder.md`.
+AU runtime safety remains held on human-present third-party AU validation or
+explicit acceptance of that manual evidence gap.
+
+No actor request, PM promotion, build implementation, review scheduling,
+integration, merge, rebase, branch/worktree cleanup, product-code edit, visual
+automation, product test suite, lock clearing, request lifecycle move, or
+product-owner question was performed by this decider.
+
+## 2026-07-07T00:55Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-07T005006314Z-decider-cadence.md`
+using README, stale June 16 orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, prior decision
+log, active build-loop summaries, live `build-capacity.ts`, and live
+`inventory.ts`.
+
+Recorded no-duplicate/no-action decision artifact:
+`.meta/multipass/runtime/loops/project/decide/2026-07-07T00-55Z-no-duplicate-active-builds-full.md`.
+
+Decision reason: live capacity reports `2` active ordinary build loops
+(`build/drum-kit-matrix-sound-implementation` and `build/au-runtime-safety`),
+`0` available ordinary slots, and ready/unpromoted ready candidates `none`.
+The useful next product action is already pending as
+`.meta/multipass/runtime/inbox/pending/2026-07-06T210344696Z-drum-kit-matrix-sound-implementation-builder.md`.
+AU runtime safety remains held on human-present third-party AU validation or
+explicit acceptance of that manual evidence gap.
+
+No actor request, PM promotion, build implementation, review scheduling,
+integration, merge, rebase, branch/worktree cleanup, product-code edit, visual
+automation, product test suite, lock clearing, request lifecycle move, or
+product-owner question was performed by this decider.
+
+## 2026-07-07T00:35Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-07T003459636Z-decider-cadence.md`
+using README, stale June 16 orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, prior decision
+log, active build-loop summaries, live `build-capacity.ts`, live
+`inventory.ts`, and inbox status.
+
+Recorded no-duplicate/no-action decision artifact:
+`.meta/multipass/runtime/loops/project/decide/2026-07-07T00-35Z-no-duplicate-active-builds-full.md`.
+
+Decision reason: live capacity reports `2` active ordinary build loops
+(`build/drum-kit-matrix-sound-implementation` and `build/au-runtime-safety`),
+`0` available ordinary slots, and ready/unpromoted ready candidates `none`.
+The useful next product action is already pending as
+`.meta/multipass/runtime/inbox/pending/2026-07-06T210344696Z-drum-kit-matrix-sound-implementation-builder.md`.
+AU runtime safety remains held on human-present third-party AU validation or
+explicit acceptance of that manual evidence gap.
+
+No actor request, PM promotion, build implementation, review scheduling,
+integration, merge, rebase, branch/worktree cleanup, product-code edit, visual
+automation, product test suite, lock clearing, request lifecycle move, or
+product-owner question was performed by this decider.
+
+## 2026-07-07T00:20Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-07T001451163Z-decider-cadence.md`
+using README, stale June 16 orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, prior decision
+log, active build-loop summaries, live `build-capacity.ts`, and live
+`inventory.ts`.
+
+Recorded no-duplicate/no-action decision artifact:
+`.meta/multipass/runtime/loops/project/decide/2026-07-07T00-20Z-no-duplicate-active-builds-full.md`.
+
+Decision reason: live capacity reports `2` active ordinary build loops
+(`build/drum-kit-matrix-sound-implementation` and `build/au-runtime-safety`),
+`0` available ordinary slots, and ready/unpromoted ready candidates `none`.
+The useful next product action is already pending as
+`.meta/multipass/runtime/inbox/pending/2026-07-06T210344696Z-drum-kit-matrix-sound-implementation-builder.md`.
+AU runtime safety remains held on human-present third-party AU validation or
+explicit acceptance of that manual evidence gap.
+
+No actor request, PM promotion, build implementation, review scheduling,
+integration, merge, rebase, branch/worktree cleanup, product-code edit, visual
+automation, product test suite, lock clearing, request lifecycle move, or
+product-owner question was performed by this decider.
+
+## 2026-07-06T23:25Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-06T232428417Z-decider-cadence.md`
+using README, stale June 16 orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, prior decision
+log, live `build-capacity.ts`, `inventory.ts`, inbox status, and active
+`drum-kit-matrix-sound-implementation` / `au-runtime-safety` summaries.
+
+Recorded no-duplicate/no-action decision artifact:
+`.meta/multipass/runtime/loops/project/decide/2026-07-06T23-25Z-no-duplicate-drum-kit-builder-pending.md`.
+
+Decision reason: live capacity reports `2` active ordinary build loops
+(`build/drum-kit-matrix-sound-implementation` and `build/au-runtime-safety`),
+`0` available ordinary slots, and ready/unpromoted ready candidates `none`.
+The useful next product action is already pending as
+`.meta/multipass/runtime/inbox/pending/2026-07-06T210344696Z-drum-kit-matrix-sound-implementation-builder.md`.
+AU runtime safety remains held on human-present third-party AU validation or
+explicit acceptance of that manual evidence gap.
+
+No actor request, PM promotion, build implementation, review scheduling,
+integration, merge, rebase, branch/worktree cleanup, product-code edit, visual
+automation, product test suite, lock clearing, request lifecycle move, or
+product-owner question was performed by this decider.
+
+## 2026-07-06T23:09Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-06T230419309Z-decider-cadence.md`
+using README, stale June 16 orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, prior decision
+log, live `build-capacity.ts`, and `inventory.ts`.
+
+Recorded no-duplicate/no-action decision artifact:
+`.meta/multipass/runtime/loops/project/decide/2026-07-06T23-09Z-no-duplicate-active-builds-full.md`.
+
+Decision reason: live capacity reports `2` active ordinary build loops
+(`build/drum-kit-matrix-sound-implementation` and `build/au-runtime-safety`),
+`0` available ordinary slots, and ready/unpromoted ready candidates `none`.
+The useful next product action is already pending as
+`.meta/multipass/runtime/inbox/pending/2026-07-06T210344696Z-drum-kit-matrix-sound-implementation-builder.md`.
+AU runtime safety remains held on human-present third-party AU validation or
+explicit acceptance of that manual evidence gap.
+
+No actor request, PM promotion, build implementation, review scheduling,
+integration, merge, rebase, branch/worktree cleanup, product-code edit, visual
+automation, product test suite, lock clearing, request lifecycle move, or
+product-owner question was performed by this decider.
+
+## 2026-07-06T22:56Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-06T224915578Z-decider-cadence.md`
+using README, stale June 16 orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, prior decision
+log, `drum-kit-matrix-sound-implementation` and `au-runtime-safety` summaries,
+live `build-capacity.ts`, and `inventory.ts`.
+
+Recorded no-duplicate/no-action decision artifact:
+`.meta/multipass/runtime/loops/project/decide/2026-07-06T22-56Z-no-duplicate-active-builds-full.md`.
+
+Decision reason: live capacity reports `2` active ordinary build loops
+(`build/drum-kit-matrix-sound-implementation` and `build/au-runtime-safety`),
+`0` available ordinary slots, and ready/unpromoted ready candidates `none`.
+The useful next product action is already pending as
+`.meta/multipass/runtime/inbox/pending/2026-07-06T210344696Z-drum-kit-matrix-sound-implementation-builder.md`.
+AU runtime safety remains held on human-present third-party AU validation or
+explicit acceptance of that manual evidence gap.
+
+No actor request, PM promotion, build implementation, review scheduling,
+integration, merge, rebase, branch/worktree cleanup, product-code edit, visual
+automation, product test suite, lock clearing, request lifecycle move, or
+product-owner question was performed by this decider.
+
+## 2026-07-06T22:44Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-06T222907127Z-decider-cadence.md`
+using README, stale June 16 orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, prior decision
+log, `drum-kit-matrix-sound-implementation`, `au-runtime-safety`, and
+`track-setup-surface-compression` summaries, live `build-capacity.ts`, and
+`inventory.ts`.
+
+Recorded no-duplicate/no-action decision artifact:
+`.meta/multipass/runtime/loops/project/decide/2026-07-06T22-44Z-no-duplicate-active-builds-full.md`.
+
+Decision reason: live capacity reports `2` active ordinary build loops
+(`build/drum-kit-matrix-sound-implementation` and `build/au-runtime-safety`),
+`0` available ordinary slots, and ready/unpromoted ready candidates `none`.
+The only live build inbox item is the already-pending drum-kit implementation
+builder request at
+`.meta/multipass/runtime/inbox/pending/2026-07-06T210344696Z-drum-kit-matrix-sound-implementation-builder.md`.
+AU runtime safety remains held on human-present third-party AU validation or
+explicit acceptance of that manual evidence gap.
+
+No actor request, PM promotion, build implementation, review scheduling,
+integration, merge, rebase, branch/worktree cleanup, product-code edit, visual
+automation, product test suite, lock clearing, request lifecycle move, or
+product-owner question was performed by this decider.
+
+## 2026-07-06T22:14Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-06T221357625Z-decider-cadence.md`
+using README, stale June 16 orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, prior decision
+log, `track-setup-surface-compression` and `au-runtime-safety` summaries, and
+live `build-capacity.ts`.
+
+Recorded no-duplicate/no-action decision artifact:
+`.meta/multipass/runtime/loops/project/decide/2026-07-06T22-14Z-no-duplicate-active-builds-full.md`.
+
+Decision reason: live capacity reports `2` active ordinary build loops
+(`build/drum-kit-matrix-sound-implementation` and `build/au-runtime-safety`),
+`0` available ordinary slots, and ready/unpromoted ready candidates `none`.
+The only live build inbox item is the already-pending drum-kit implementation
+builder request at
+`.meta/multipass/runtime/inbox/pending/2026-07-06T210344696Z-drum-kit-matrix-sound-implementation-builder.md`.
+AU runtime safety remains held on human-present third-party AU validation or
+explicit acceptance of that manual evidence gap.
+
+No actor request, PM promotion, build implementation, review scheduling,
+integration, merge, rebase, branch/worktree cleanup, product-code edit, visual
+automation, product test suite, lock clearing, request lifecycle move, or
+product-owner question was performed by this decider.
+
+## 2026-07-06T21:59Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-06T215349241Z-decider-cadence.md`
+using README, stale June 16 orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, prior decision
+log, `drum-kit-matrix-sound-implementation` and `au-runtime-safety` summaries,
+live `build-capacity.ts`, inbox status, and root git status.
+
+Recorded no-duplicate/no-action decision artifact:
+`.meta/multipass/runtime/loops/project/decide/2026-07-06T21-59Z-no-duplicate-active-build-capacity-full.md`.
+
+Decision reason: live capacity reports `2` active ordinary build loops
+(`build/drum-kit-matrix-sound-implementation` and `build/au-runtime-safety`),
+`0` available ordinary slots, and ready/unpromoted ready candidates `none`.
+The newly promoted drum-kit matrix sound implementation loop already has its
+initial builder request pending at
+`.meta/multipass/runtime/inbox/pending/2026-07-06T210344696Z-drum-kit-matrix-sound-implementation-builder.md`.
+AU runtime safety remains held on human-present third-party AU validation or
+explicit acceptance of that manual evidence gap.
+
+No actor request, PM promotion, build implementation, integration, merge,
+rebase, branch/worktree cleanup, product-code edit, visual automation, product
+test suite, lock clearing, request lifecycle move, or product-owner question
+was performed by this decider.
+
+## 2026-07-06T21:43Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-06T213842845Z-decider-cadence.md`
+using README, stale June 16 orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, prior decision
+log, `drum-kit-matrix-sound-implementation` and `au-runtime-safety` summaries,
+live `build-capacity.ts`, inbox status, and root git status.
+
+Recorded no-duplicate/no-action decision artifact:
+`.meta/multipass/runtime/loops/project/decide/2026-07-06T21-43Z-no-duplicate-drum-kit-builder-pending.md`.
+
+Decision reason: live capacity reports `2` active ordinary build loops
+(`build/drum-kit-matrix-sound-implementation` and `build/au-runtime-safety`),
+`0` available ordinary slots, and ready/unpromoted ready candidates `none`.
+The newly promoted drum-kit matrix sound implementation loop already has its
+initial builder request pending at
+`.meta/multipass/runtime/inbox/pending/2026-07-06T210344696Z-drum-kit-matrix-sound-implementation-builder.md`.
+AU runtime safety remains held on human-present third-party AU validation or
+explicit acceptance of that manual evidence gap.
+
+No actor request, PM promotion, build implementation, integration, merge,
+rebase, branch/worktree cleanup, product-code edit, visual automation, product
+test suite, lock clearing, request lifecycle move, or product-owner question
+was performed by this decider.
+
+## 2026-07-06T21:24Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-06T210831141Z-decider-cadence.md`
+using README, stale June 16 orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, bug intake,
+merge status, prior decision log, `drum-kit-matrix-sound-implementation` and
+`au-runtime-safety` summaries, live `build-capacity.ts`, inbox status, and root
+git status.
+
+Recorded no-duplicate/no-action decision artifact:
+`.meta/multipass/runtime/loops/project/decide/2026-07-06T21-24Z-no-duplicate-drum-kit-builder-pending.md`.
+
+Decision reason: live capacity reports `2` active ordinary build loops
+(`build/drum-kit-matrix-sound-implementation` and `build/au-runtime-safety`),
+`0` available ordinary slots, and ready/unpromoted ready candidates `none`.
+The newly promoted drum-kit matrix sound implementation loop already has its
+initial builder request pending at
+`.meta/multipass/runtime/inbox/pending/2026-07-06T210344696Z-drum-kit-matrix-sound-implementation-builder.md`.
+AU runtime safety remains held on human-present third-party AU validation or
+explicit acceptance of that manual evidence gap.
+
+No actor request, PM promotion, build implementation, integration, merge,
+rebase, branch/worktree cleanup, product-code edit, visual automation, product
+test suite, lock clearing, request lifecycle move, or product-owner question
+was performed by this decider.
+
+## 2026-07-06T20:54Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-06T203314419Z-decider-cadence.md`
+using README, stale June 16 orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, bug intake,
+decision log, `track-setup-surface-compression` and `au-runtime-safety`
+summaries, live `build-capacity.ts`, `inventory.ts`, inbox status, direct root
+git status, and the fresh PM result for
+`pm/drum-kit-matrix-sound-implementation-prep`.
+
+Recorded decision artifact:
+`.meta/multipass/runtime/loops/project/decide/2026-07-06T20-54Z-promote-drum-kit-matrix-sound-implementation.md`.
+
+Decision reason: live capacity now reports one available ordinary build slot,
+and the drum-kit matrix sound implementation PM lane completed during this
+cadence with accepted `spec.md`, `plan.md`, and `implementation-handoff.md`.
+Its PM decision marks it `ready-for-build-loop-promotion`, and current G5 Drum
+Kit / Kit Matrix / Drum Part Sound work is the clearest high-priority
+owner-visible package. Promoting it avoids opening another upstream PM lane
+while a ready handoff exists.
+
+Created process-fixer request:
+`.meta/multipass/runtime/inbox/pending/2026-07-06T205437344Z-process-fixer.md`.
+
+No product-code edit, merge, rebase, branch/worktree cleanup, visual
+automation, product test suite, lock clearing, or request lifecycle move was
+performed by this decider.
+
+## 2026-07-06T20:19Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-06T201807746Z-decider-cadence.md`
+using README, stale June 16 orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, bug intake,
+decision log, PM feature table, `au-runtime-safety` and
+`track-setup-surface-compression` summaries, live `build-capacity.ts`,
+`inventory.ts`, and inbox status.
+
+Recorded decision artifact:
+`.meta/multipass/runtime/loops/project/decide/2026-07-06T20-19Z-start-drum-kit-matrix-implementation-pm.md`.
+
+Decision reason: live capacity now reports one available ordinary build slot,
+but ready/unpromoted ready candidates remain `none`. The 20:04 project
+decision's Track/Phrase Perform PM request returned no-op / closeout
+preservation at 20:08 and 20:13, so it is not remaining PM supply. The smallest
+useful upstream action is to start PM prep for current high-priority bug-intake
+`G5: Drum Kit / Kit Matrix / Drum Part Sound`, using the closed
+`build/drum-kit-matrix-sound-prep` seam evidence as context without treating it
+as whole-feature implementation.
+
+Created process-fixer request to create that PM lane and initial PM
+artifact-author request if no equivalent active lane exists.
+
+No build-loop promotion, product-code edit, merge, rebase, branch/worktree
+cleanup, visual automation, product test suite, lock clearing, request
+lifecycle move, or product-owner question was performed by this decider.
+
+## 2026-07-06T20:04Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-06T195759438Z-decider-cadence.md`
+using README, stale June 16 orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, bug intake,
+decision log, PM feature table, `au-runtime-safety` and
+`track-setup-surface-compression` summaries, live `build-capacity.ts`,
+`inventory.ts`, and inbox status.
+
+Recorded decision artifact:
+`.meta/multipass/runtime/loops/project/decide/2026-07-06T20-04Z-advance-track-phrase-perform-pm.md`.
+
+Decision reason: live capacity now reports one available ordinary build slot,
+but ready/unpromoted ready candidates remain `none`. `build/track-setup-
+surface-compression` is complete and merged to local `main` as `859b3193`, and
+`build/au-runtime-safety` remains active but held on human-present AU
+validation. The smallest useful throughput action is to advance the existing
+`pm/track-phrase-perform-interaction-prep` lane against fresh high-priority
+bug-intake G6, while preserving the already-landed Track Perform mini-cell
+slice as consumed.
+
+Created PM-decider request:
+`.meta/multipass/runtime/inbox/pending/2026-07-06T200407601Z-pm-decider.md`.
+
+No build-loop promotion, product-code edit, merge, rebase, branch/worktree
+cleanup, visual automation, product test suite, lock clearing, request
+lifecycle move, or product-owner question was performed by this decider.
+
+## 2026-07-06T19:44Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-06T194253479Z-decider-cadence.md`
+using README, stale June 16 orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, decision log,
+the `track-setup-surface-compression` build-loop summary, live
+`build-capacity.ts`, `inventory.ts`, inbox status, and root git status.
+
+Recorded decision artifact:
+`.meta/multipass/runtime/loops/project/decide/2026-07-06T19-44Z-integrate-track-setup-surface-compression.md`.
+
+Decision reason: live capacity reports `2` active ordinary build loops
+(`build/au-runtime-safety` and `build/track-setup-surface-compression`), `0`
+available ordinary slots, and ready/unpromoted ready candidates `none`.
+`build/track-setup-surface-compression` is clean at `9517f954` with UX canon,
+`git diff --check`, macOS Debug build, architecture review, and testing review
+evidence paired. Its only unmet layer is exact-state screenshots; repeated
+visual-evidence attempts recorded `capture-permission-or-focus` because
+unattended visual automation was not explicitly permitted. The project loop
+accepted that screenshot gap as a preserved evidence risk for this small
+UI-only checkpoint instead of dispatching another duplicate visual retry.
+
+Created integrator request:
+`.meta/multipass/runtime/inbox/pending/2026-07-06T194400877Z-integrator.md`.
+
+No PM promotion, build implementation, merge, rebase, branch/worktree cleanup,
+product-code edit, visual automation, product test suite, lock clearing,
+request lifecycle move, or product-owner question was performed by this
+decider.
+
+## 2026-07-06T18:48Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-06T183226651Z-decider-cadence.md`
+using README, stale June 16 orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, decision log,
+the `track-setup-surface-compression` build-loop summary, the build-loop
+visual-evidence-hold decision, live `build-capacity.ts`, `inventory.ts`, inbox
+status, and root git status.
+
+Recorded a no-duplicate/no-action decision artifact:
+`.meta/multipass/runtime/loops/project/decide/2026-07-06T18-48Z-visual-evidence-hold-no-duplicate.md`.
+
+Decision reason: live capacity reports `2` active ordinary build loops
+(`build/au-runtime-safety` and `build/track-setup-surface-compression`), `0`
+available ordinary slots, and ready/unpromoted ready candidates `none`. The
+active track-setup checkpoint `9517f954` is held only for exact-state visual
+evidence; a focused builder already recorded `capture-permission-or-focus`, and
+unattended visual automation is not explicitly permitted in this invocation.
+Creating another actor request would duplicate active routing or add WIP
+without clearing the evidence gap.
+
+No actor request, PM promotion, build implementation, integration, merge,
+rebase, branch/worktree cleanup, product-code edit, visual automation, product
+test suite, lock clearing, request lifecycle move, or product-owner question
+was performed by this decider.
+
+## 2026-07-06T18:18Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-06T173203287Z-decider-cadence.md`
+using README, stale June 16 orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, decision log,
+the `track-setup-surface-compression` build-loop summary, live
+`build-capacity.ts`, `inventory.ts`, inbox status, and root git status.
+
+Recorded a no-duplicate/no-action decision artifact:
+`.meta/multipass/runtime/loops/project/decide/2026-07-06T18-18Z-no-duplicate-track-setup-builder-pending.md`.
+
+Decision reason: live capacity reports `2` active ordinary build loops
+(`build/au-runtime-safety` and `build/track-setup-surface-compression`), `0`
+available ordinary slots, and ready/unpromoted ready candidates `none`. The
+next useful bounded action is already queued as
+`.meta/multipass/runtime/inbox/pending/2026-07-06T175803809Z-builder.md` for
+`build/track-setup-surface-compression/builder`.
+
+No actor request, PM promotion, build implementation, integration, merge,
+rebase, branch/worktree cleanup, product-code edit, visual automation, product
+test suite, lock clearing, request lifecycle move, or product-owner question
+was performed by this decider.
+
+## 2026-07-06T17:17Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-06T170655843Z-decider-cadence.md`
+using README, stale June 16 orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, decision log,
+the PM and build-loop summaries for `track-setup-surface-compression`, live
+`build-capacity.ts`, `inventory.ts`, inbox status, and root git status.
+
+Recorded a no-duplicate/no-action decision artifact:
+`.meta/multipass/runtime/loops/project/decide/2026-07-06T17-17Z-no-duplicate-track-setup-builder-queued.md`.
+
+Decision reason: the 16:52Z project decision's process-fixer request has
+already been consumed. `build/track-setup-surface-compression` is now active,
+capacity is full again with `build/au-runtime-safety` plus
+`build/track-setup-surface-compression`, and the next useful bounded action is
+already queued as
+`.meta/multipass/runtime/inbox/pending/2026-07-06T170205828Z-track-setup-surface-compression-builder.md`.
+Creating another actor request would duplicate active routing or add WIP while
+ordinary capacity is full.
+
+No actor request, PM promotion, build implementation, integration, merge,
+rebase, branch/worktree cleanup, product-code edit, visual automation, product
+test suite, lock clearing, request lifecycle move, or product-owner question
+was performed by this decider.
+
+## 2026-07-06T16:52Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-06T163139915Z-decider-cadence.md`
+using README, stale June 16 orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, decision log,
+active build-loop summaries, live `build-capacity.ts`, `inventory.ts`, inbox
+status, and the new PM-loop summary for
+`pm/track-setup-surface-compression`.
+
+Recorded decision artifact:
+`.meta/multipass/runtime/loops/project/decide/2026-07-06T16-52Z-promote-track-setup-surface-compression.md`.
+
+Decision reason: live capacity now reports one available ordinary build slot
+after `build/drum-kit-matrix-sound-prep` was closed as non-capacity-consuming.
+The `track-setup-surface-compression` PM lane has produced a bounded
+builder-facing package under `docs/roadmap/track-setup-surface-compression/`,
+and its latest PM orientation/decision say no more PM artifact-author work is
+useful. This is the clearest current PM-ready package: G7 setup-surface visual
+economy plus the fresh capture-backed `18-track-detail-steps-clip`
+clip-header report.
+
+Created process-fixer request:
+`.meta/multipass/runtime/inbox/pending/2026-07-06T165301608Z-process-fixer.md`
+to create `build/track-setup-surface-compression` and seed its initial builder
+request.
+
+No product-code edit, merge, rebase, branch/worktree cleanup, visual
+automation, product test suite, lock clearing, request lifecycle move, or
+product-owner question was performed by this decider.
+
+## 2026-07-06T16:17Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-06T161633626Z-decider-cadence.md`
+using README, stale June 16 orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, bug intake,
+decision log, active build-loop summaries, live `build-capacity.ts`,
+`inventory.ts`, inbox status, and active PM-loop summaries.
+
+Recorded decision artifact:
+`.meta/multipass/runtime/loops/project/decide/2026-07-06T16-17Z-start-track-setup-surface-compression-pm.md`.
+
+Decision reason: the prior drum-kit seam loop closeout freed one ordinary build
+slot, but no unpromoted builder-ready PM candidate exists. The existing active
+PM lanes are no-op/superseded bookkeeping, AU runtime safety is held for
+human-present validation, and the fresh high-priority capture-backed G7
+Slicer/Sample Player/Track Header Compression cluster is the clearest upstream
+supply candidate.
+
+Created process-fixer request:
+`.meta/multipass/runtime/inbox/pending/2026-07-06T161740750Z-process-fixer.md`
+to create a `track-setup-surface-compression` PM prep lane and initial PM
+artifact-author request if lane creation succeeds.
+
+No PM promotion, build implementation, integration, merge, rebase,
+branch/worktree cleanup, product-code edit, visual automation, product test
+suite, lock clearing, request lifecycle move, or product-owner question was
+performed by this decider.
+
+## 2026-07-06T16:02Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-06T154118343Z-decider-cadence.md`
+using README, stale June 16 orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, decision log,
+active build-loop summaries, live `build-capacity.ts`, and inbox status.
+
+Recorded decision artifact:
+`.meta/multipass/runtime/loops/project/decide/2026-07-06T16-02Z-closeout-drum-kit-seam-loop.md`.
+
+Decision reason: live capacity still reports two active ordinary build loops
+and zero available slots, but the active `build/drum-kit-matrix-sound-prep`
+loop has now accepted its read-only seam-check checkpoint with
+`phase_checkpoint_accepted_no_next_builder` and the live build inbox is empty.
+The useful project-level action is to close out or otherwise mark that seam
+loop non-capacity-consuming, preserving `capture-permission-or-focus` for
+AC4/AC12 and avoiding product-code work or visual automation.
+
+Created process-fixer request:
+`.meta/multipass/runtime/inbox/pending/2026-07-06T160230409Z-process-fixer.md`.
+
+No PM promotion, build implementation, integration, merge, rebase,
+branch/worktree cleanup, product-code edit, visual automation, product test
+suite, lock clearing, request lifecycle move, or product-owner question was
+performed by this decider.
+
+## 2026-07-06T15:26Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-06T151106149Z-decider-cadence.md`
+using README, stale June 16 orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, decision log,
+active build-loop summaries, live `build-capacity.ts`, and inbox status.
+
+Recorded a no-duplicate/no-action decision artifact with compact orientation:
+`.meta/multipass/runtime/loops/project/decide/2026-07-06T15-26Z-no-duplicate-active-build-queued.md`.
+
+Decision reason: live capacity reports two active ordinary build loops
+(`build/au-runtime-safety` and `build/drum-kit-matrix-sound-prep`), zero
+available ordinary build slots, and no ready/unpromoted ready candidates. The
+older drum-kit testing-review request has been consumed; the active build-loop
+decider has already queued the next useful bounded action as
+`.meta/multipass/runtime/inbox/pending/2026-07-06T151229023Z-builder.md` for a
+visual-evidence builder pass. Creating another project request would duplicate
+active routing or add WIP while both ordinary slots remain occupied. The
+PM-starvation branch is not active because build capacity is not available.
+
+No actor request, PM promotion, build continuation, integration, merge, rebase,
+branch/worktree cleanup, product-code edit, visual automation, product test
+suite, lock clearing, request lifecycle move, or product-owner question was
+performed by this decider.
+
+## 2026-07-06T14:56Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-06T145559898Z-decider-cadence.md`
+using README, stale June 16 orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, decision log,
+active build-loop summaries, live `build-capacity.ts`, and the pending
+`drum-kit-matrix-sound-prep` testing-review request.
+
+Recorded a no-duplicate/no-action decision artifact with compact orientation:
+`.meta/multipass/runtime/loops/project/decide/2026-07-06T14-56Z-no-duplicate-full-capacity.md`.
+
+Decision reason: live capacity reports two active ordinary build loops
+(`build/au-runtime-safety` and `build/drum-kit-matrix-sound-prep`), zero
+available ordinary build slots, and no ready/unpromoted ready candidates. The
+next useful bounded action is already queued as
+`.meta/multipass/runtime/inbox/pending/2026-07-06T101720296Z-testing-review.md`
+for `build/drum-kit-matrix-sound-prep/testing-review`. Creating another
+request would duplicate active routing or add WIP while both ordinary slots
+remain occupied. The PM-starvation branch is not active because build capacity
+is not available.
+
+No actor request, PM promotion, build continuation, integration, merge, rebase,
+branch/worktree cleanup, product-code edit, visual automation, product test
+suite, lock clearing, request lifecycle move, or product-owner question was
+performed by this decider.
+
+## 2026-07-06T14:06Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-06T140037134Z-decider-cadence.md`
+using README, stale June 16 orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, decision log,
+active build-loop summaries, live `build-capacity.ts`, and the pending
+`drum-kit-matrix-sound-prep` testing-review request.
+
+Recorded a no-duplicate/no-action decision artifact with compact orientation:
+`.meta/multipass/runtime/loops/project/decide/2026-07-06T14-06Z-no-duplicate-full-capacity.md`.
+
+Decision reason: live capacity reports two active ordinary build loops
+(`build/au-runtime-safety` and `build/drum-kit-matrix-sound-prep`), zero
+available ordinary build slots, and no ready/unpromoted ready candidates. The
+next useful bounded action is already queued as
+`.meta/multipass/runtime/inbox/pending/2026-07-06T101720296Z-testing-review.md`
+for `build/drum-kit-matrix-sound-prep/testing-review`. Creating another
+request would duplicate active routing or add WIP while both ordinary slots
+remain occupied. The PM-starvation branch is not active because build capacity
+is not available.
+
+No actor request, PM promotion, build continuation, integration, merge, rebase,
+branch/worktree cleanup, product-code edit, visual automation, product test
+suite, lock clearing, request lifecycle move, or product-owner question was
+performed by this decider.
+
+## 2026-07-06T13:46Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-06T134530865Z-decider-cadence.md`
+using README, stale June 16 orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, decision log,
+active build-loop summaries, live `build-capacity.ts`, and the pending
+`drum-kit-matrix-sound-prep` testing-review request.
+
+Recorded a no-duplicate/no-action decision artifact with compact orientation:
+`.meta/multipass/runtime/loops/project/decide/2026-07-06T13-46Z-no-duplicate-full-capacity.md`.
+
+Decision reason: live capacity reports two active ordinary build loops
+(`build/au-runtime-safety` and `build/drum-kit-matrix-sound-prep`), zero
+available ordinary build slots, and no ready/unpromoted ready candidates. The
+next useful bounded action is already queued as
+`.meta/multipass/runtime/inbox/pending/2026-07-06T101720296Z-testing-review.md`
+for `build/drum-kit-matrix-sound-prep/testing-review`. Creating another
+request would duplicate active routing or add WIP while both ordinary slots
+remain occupied. The PM-starvation branch is not active because build capacity
+is not available.
+
+No actor request, PM promotion, build continuation, integration, merge, rebase,
+branch/worktree cleanup, product-code edit, visual automation, product test
+suite, lock clearing, request lifecycle move, or product-owner question was
+performed by this decider.
+
+## 2026-07-06T13:31Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-06T132523230Z-decider-cadence.md`
+using README, stale June 16 orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, decision log,
+active build-loop summaries, live `build-capacity.ts`, and the pending
+`drum-kit-matrix-sound-prep` testing-review request.
+
+Recorded a no-duplicate/no-action decision artifact with compact orientation:
+`.meta/multipass/runtime/loops/project/decide/2026-07-06T13-31Z-no-duplicate-full-capacity.md`.
+
+Decision reason: live capacity reports two active ordinary build loops
+(`build/au-runtime-safety` and `build/drum-kit-matrix-sound-prep`), zero
+available ordinary build slots, and no ready/unpromoted ready candidates. The
+next useful bounded action is already queued as
+`.meta/multipass/runtime/inbox/pending/2026-07-06T101720296Z-testing-review.md`
+for `build/drum-kit-matrix-sound-prep/testing-review`. Creating another
+request would duplicate active routing or add WIP while both ordinary slots are
+occupied. The PM-starvation branch is not active because build capacity is not
+available.
+
+No actor request, PM promotion, build continuation, integration, merge, rebase,
+branch/worktree cleanup, product-code edit, visual automation, product test
+suite, lock clearing, request lifecycle move, or product-owner question was
+performed by this decider.
+
+## 2026-07-06T13:18Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-06T131018448Z-decider-cadence.md`
+using README, stale June 16 orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, decision log,
+active build-loop summaries, live `build-capacity.ts`, and the pending
+`drum-kit-matrix-sound-prep` testing-review request.
+
+Recorded a no-duplicate/no-action decision artifact with compact orientation:
+`.meta/multipass/runtime/loops/project/decide/2026-07-06T13-18Z-no-duplicate-full-capacity.md`.
+
+Decision reason: live capacity reports two active ordinary build loops
+(`build/au-runtime-safety` and `build/drum-kit-matrix-sound-prep`), zero
+available ordinary build slots, and no ready/unpromoted ready candidates. The
+next useful bounded action is already queued as
+`.meta/multipass/runtime/inbox/pending/2026-07-06T101720296Z-testing-review.md`
+for `build/drum-kit-matrix-sound-prep/testing-review`. Creating another
+request would duplicate active routing or add WIP while both ordinary slots are
+occupied.
+
+No actor request, PM promotion, build continuation, integration, merge, rebase,
+branch/worktree cleanup, product-code edit, visual automation, product test
+suite, lock clearing, request lifecycle move, or product-owner question was
+performed by this decider.
+
+## 2026-07-06T12:39Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-06T123453779Z-decider-cadence.md`
+using README, stale June 16 orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, decision log,
+active build-loop summaries, live `build-capacity.ts`, and the pending
+`drum-kit-matrix-sound-prep` testing-review request.
+
+Recorded a no-duplicate/no-action decision artifact with compact orientation:
+`.meta/multipass/runtime/loops/project/decide/2026-07-06T12-39Z-no-duplicate-full-capacity.md`.
+
+Decision reason: live capacity reports two active ordinary build loops
+(`build/au-runtime-safety` and `build/drum-kit-matrix-sound-prep`), zero
+available ordinary build slots, and no ready/unpromoted ready candidates. The
+next useful bounded action is already queued as
+`.meta/multipass/runtime/inbox/pending/2026-07-06T101720296Z-testing-review.md`
+for `build/drum-kit-matrix-sound-prep/testing-review`. Creating another
+request would duplicate active routing or add WIP while the exact-state
+evidence gate remains pending.
+
+No actor request, PM promotion, build continuation, integration, merge, rebase,
+branch/worktree cleanup, product-code edit, visual automation, product test
+suite, lock clearing, request lifecycle move, or product-owner question was
+performed by this decider.
+
+## 2026-07-06T12:20Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-06T121448059Z-decider-cadence.md`
+using README, stale June 16 orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, decision log,
+active build-loop summaries, live `build-capacity.ts`, and the pending
+`drum-kit-matrix-sound-prep` testing-review request.
+
+Recorded a no-duplicate/no-action decision artifact with compact orientation:
+`.meta/multipass/runtime/loops/project/decide/2026-07-06T12-20Z-no-duplicate-full-capacity.md`.
+
+Decision reason: live capacity reports two active ordinary build loops
+(`build/au-runtime-safety` and `build/drum-kit-matrix-sound-prep`), zero
+available ordinary build slots, and no ready/unpromoted ready candidates. The
+next useful bounded action is already queued as
+`.meta/multipass/runtime/inbox/pending/2026-07-06T101720296Z-testing-review.md`
+for `build/drum-kit-matrix-sound-prep/testing-review`. Creating another request
+would duplicate active routing or add WIP while both ordinary slots remain
+occupied.
+
+No actor request, PM promotion, build continuation, integration, merge, rebase,
+branch/worktree cleanup, product-code edit, visual automation, product test
+suite, lock clearing, request lifecycle move, or product-owner question was
+performed by this decider.
+
+## 2026-07-06T12:00Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-06T115938682Z-decider-cadence.md`
+using README, stale June 16 orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, bug intake,
+decision log, active build-loop summaries, and live `build-capacity.ts`.
+
+Recorded a no-duplicate/no-action decision artifact with compact orientation:
+`.meta/multipass/runtime/loops/project/decide/2026-07-06T12-00Z-no-duplicate-full-capacity.md`.
+
+Decision reason: live capacity reports two active ordinary build loops
+(`build/au-runtime-safety` and `build/drum-kit-matrix-sound-prep`), zero
+available ordinary build slots, and no ready/unpromoted ready candidates. The
+next useful bounded action is already queued as
+`.meta/multipass/runtime/inbox/pending/2026-07-06T101720296Z-testing-review.md`
+for `build/drum-kit-matrix-sound-prep/testing-review`. Creating another
+request would duplicate active routing or add WIP while both ordinary build
+slots remain occupied.
+
+No actor request, PM promotion, build continuation, integration, merge, rebase,
+branch/worktree cleanup, product-code edit, visual automation, product test
+suite, lock clearing, request lifecycle move, or product-owner question was
+performed by this decider.
+
+## 2026-07-06T11:50Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-06T113822587Z-decider-cadence.md`
+using README, stale June 16 orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, decision log,
+active build-loop summaries, active PM summaries, live `build-capacity.ts`, and
+`inventory.ts`.
+
+Recorded a no-duplicate/no-action decision artifact with compact orientation:
+`.meta/multipass/runtime/loops/project/decide/2026-07-06T11-50Z-no-duplicate-full-capacity.md`.
+
+Decision reason: live capacity reports two active ordinary build loops
+(`build/au-runtime-safety` and `build/drum-kit-matrix-sound-prep`), zero
+available ordinary build slots, and no ready/unpromoted ready candidates. The
+next useful bounded action is already queued as
+`.meta/multipass/runtime/inbox/pending/2026-07-06T101720296Z-testing-review.md`
+for `build/drum-kit-matrix-sound-prep/testing-review`; inventory also shows an
+already pending PM decider cadence for `pm/track-phrase-perform-interaction-prep`.
+Creating another request would duplicate active routing or add WIP while the
+current evidence gate remains pending.
+
+No actor request, PM promotion, build continuation, integration, merge, rebase,
+branch/worktree cleanup, product-code edit, visual automation, product test
+suite, lock clearing, request lifecycle move, or product-owner question was
+performed by this decider.
+
+## 2026-07-06T11:34Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-06T112218779Z-decider-cadence.md`
+using README, stale June 16 orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, decision log,
+active build-loop summaries, live `build-capacity.ts`, `inventory.ts`, and the
+pending `drum-kit-matrix-sound-prep` testing-review request.
+
+Recorded a no-duplicate/no-action decision artifact with compact orientation:
+`.meta/multipass/runtime/loops/project/decide/2026-07-06T11-34Z-no-duplicate-full-capacity.md`.
+
+Decision reason: live capacity reports two active ordinary build loops
+(`build/au-runtime-safety` and `build/drum-kit-matrix-sound-prep`), zero
+available ordinary build slots, and no ready/unpromoted ready candidates. The
+next useful bounded action is already queued as
+`.meta/multipass/runtime/inbox/pending/2026-07-06T101720296Z-testing-review.md`
+for `build/drum-kit-matrix-sound-prep/testing-review`. Creating another request
+would duplicate active routing or add WIP while the exact-state evidence gate
+is pending.
+
+No actor request, PM promotion, build continuation, integration, merge, rebase,
+branch/worktree cleanup, product-code edit, visual automation, product test
+suite, lock clearing, request lifecycle move, or product-owner question was
+performed by this decider.
+
+## 2026-07-06T11:08Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-06T110205384Z-decider-cadence.md`
+using README, stale June 16 orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, decision log,
+active build-loop summaries, live `build-capacity.ts`, `inventory.ts`, and the
+pending `drum-kit-matrix-sound-prep` testing-review request.
+
+Recorded a no-duplicate/no-action decision artifact with compact orientation:
+`.meta/multipass/runtime/loops/project/decide/2026-07-06T11-08Z-no-duplicate-full-capacity.md`.
+
+Decision reason: live capacity reports two active ordinary build loops
+(`build/au-runtime-safety` and `build/drum-kit-matrix-sound-prep`), zero
+available ordinary build slots, and no ready/unpromoted ready candidates. The
+next useful bounded action is already queued as
+`.meta/multipass/runtime/inbox/pending/2026-07-06T101720296Z-testing-review.md`
+for `build/drum-kit-matrix-sound-prep/testing-review`. Creating another request
+would duplicate active routing or add WIP while the exact-state evidence gate is
+pending.
+
+No actor request, PM promotion, build continuation, integration, merge, rebase,
+branch/worktree cleanup, product-code edit, visual automation, product test
+suite, lock clearing, request lifecycle move, or product-owner question was
+performed by this decider.
+
+## 2026-07-06T10:40Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-06T101637962Z-decider-cadence.md`
+using README, stale project orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, bug intake,
+decision log, active build-loop summaries, live `build-capacity.ts`, and
+`inventory.ts`.
+
+Recorded a no-duplicate/no-action decision artifact with compact orientation:
+`.meta/multipass/runtime/loops/project/decide/2026-07-06T10-40Z-no-duplicate-full-capacity.md`.
+
+Decision reason: live capacity reports two active ordinary build loops
+(`build/au-runtime-safety` and `build/drum-kit-matrix-sound-prep`), zero
+available ordinary build slots, and no ready/unpromoted ready candidates. The
+next useful bounded action is already queued as
+`.meta/multipass/runtime/inbox/pending/2026-07-06T101720296Z-testing-review.md`
+for `build/drum-kit-matrix-sound-prep/testing-review`; inventory also shows a
+pending PM decider cadence for `pm/track-phrase-perform-interaction-prep`.
+Creating another request would duplicate active routing or add WIP while the
+current evidence gate remains pending.
+
+No actor request, PM promotion, build continuation, integration, merge, rebase,
+branch/worktree cleanup, product-code edit, visual automation, product test
+suite, lock clearing, request lifecycle move, or product-owner question was
+performed by this decider.
+
+## 2026-07-06T08:17Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-06T081134508Z-decider-cadence.md`
+using README, stale project orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, bug intake,
+decision log, live `build-capacity.ts`, `inventory.ts`, the refreshed ready PM
+summary for `pm/drum-kit-matrix-sound-prep`, the active
+`build/au-runtime-safety` summary, and the pending process-fixer request body.
+
+Recorded a no-duplicate/no-action decision artifact with compact orientation:
+`.meta/multipass/runtime/loops/project/decide/2026-07-06T08-17Z-no-duplicate-drum-kit-build-loop-setup.md`.
+
+Decision reason: live capacity reports `1` available ordinary build slot and no
+build inbox. `build/au-runtime-safety` remains active but human-validation
+bounded; locked Observability and MIDI remain outside ordinary capacity. The
+fresh PM package for `pm/drum-kit-matrix-sound-prep` remains ready for
+build-loop promotion, and the exact needed process-fixer request is still
+pending at
+`.meta/multipass/runtime/inbox/pending/2026-07-05T171559659Z-process-fixer.md`.
+Creating another request would duplicate active routing. Direct checkout check
+found branch `codex/july-5-ui-feedback-batch` at `9c1744ba` with `77`
+dirty/local paths, so the pending process-fixer's root-safety/block evidence
+requirement remains material.
+
+No actor request, second PM lane, ready-feature duplicate promotion,
+AU-runtime continuation, merge, rebase, branch/worktree deletion,
+product-code edit, visual automation, product test suite, lock clearing,
+request lifecycle move, or product-owner question was performed by this
+decider.
+
+## 2026-07-06T07:42Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-06T073619471Z-decider-cadence.md`
+using README, stale project orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, bug intake,
+decision log, live `build-capacity.ts`, `inventory.ts`, the refreshed ready PM
+summary for `pm/drum-kit-matrix-sound-prep`, the active
+`build/au-runtime-safety` summary, and the pending process-fixer request body.
+
+Recorded a no-duplicate/no-action decision artifact with compact orientation:
+`.meta/multipass/runtime/loops/project/decide/2026-07-06T07-42Z-no-duplicate-drum-kit-build-loop-setup.md`.
+
+Decision reason: live capacity reports `1` available ordinary build slot and no
+build inbox. `build/au-runtime-safety` remains active but human-validation
+bounded; locked Observability and MIDI remain outside ordinary capacity. The
+fresh PM package for `pm/drum-kit-matrix-sound-prep` remains ready for
+build-loop promotion, and the exact needed process-fixer request is still
+pending at
+`.meta/multipass/runtime/inbox/pending/2026-07-05T171559659Z-process-fixer.md`.
+Creating another request would duplicate active routing.
+
+No actor request, second PM lane, ready-feature duplicate promotion,
+AU-runtime continuation, merge, rebase, branch/worktree deletion,
+product-code edit, visual automation, product test suite, lock clearing,
+request lifecycle move, or product-owner question was performed by this
+decider.
+
+## 2026-07-06T07:22Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-06T072113607Z-decider-cadence.md`
+using README, stale project orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, decision log,
+live `build-capacity.ts`, `inventory.ts`, the refreshed ready PM summary for
+`pm/drum-kit-matrix-sound-prep`, the active `build/au-runtime-safety` summary,
+and the pending process-fixer request body.
+
+Recorded a no-duplicate/no-action decision artifact with compact orientation:
+`.meta/multipass/runtime/loops/project/decide/2026-07-06T07-22Z-no-duplicate-drum-kit-build-loop-setup.md`.
+
+Decision reason: live capacity reports `1` available ordinary build slot and no
+build inbox. `build/au-runtime-safety` remains active but human-validation
+bounded; locked Observability and MIDI remain outside ordinary capacity. The
+fresh PM package for `pm/drum-kit-matrix-sound-prep` remains ready for
+build-loop promotion, and the exact needed process-fixer request is still
+pending at
+`.meta/multipass/runtime/inbox/pending/2026-07-05T171559659Z-process-fixer.md`.
+Creating another request would duplicate active routing.
+
+No actor request, second PM lane, ready-feature duplicate promotion,
+AU-runtime continuation, merge, rebase, branch/worktree deletion,
+product-code edit, visual automation, product test suite, lock clearing,
+request lifecycle move, or product-owner question was performed by this
+decider.
+
+## 2026-07-06T07:07Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-06T070104986Z-decider-cadence.md`
+using README, stale project orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, decision log,
+live `build-capacity.ts`, the refreshed ready PM summary for
+`pm/drum-kit-matrix-sound-prep`, and the pending process-fixer request body.
+
+Recorded a no-duplicate/no-action decision artifact with compact orientation:
+`.meta/multipass/runtime/loops/project/decide/2026-07-06T07-07Z-no-duplicate-drum-kit-build-loop-setup.md`.
+
+Decision reason: live capacity reports `1` available ordinary build slot and no
+build inbox. `build/au-runtime-safety` remains active but human-validation
+bounded; locked Observability and MIDI remain outside ordinary capacity. The
+fresh PM package for `pm/drum-kit-matrix-sound-prep` remains ready for
+build-loop promotion, and the exact needed process-fixer request is still
+pending at
+`.meta/multipass/runtime/inbox/pending/2026-07-05T171559659Z-process-fixer.md`.
+Creating another request would duplicate active routing.
+
+No actor request, second PM lane, ready-feature duplicate promotion,
+AU-runtime continuation, merge, rebase, branch/worktree deletion,
+product-code edit, visual automation, product test suite, lock clearing,
+request lifecycle move, or product-owner question was performed by this
+decider.
+
+## 2026-07-06T06:46Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-06T064558179Z-decider-cadence.md`
+using README, stale project orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, decision log,
+live `build-capacity.ts`, the refreshed ready PM summary for
+`pm/drum-kit-matrix-sound-prep`, and the pending process-fixer request body.
+
+Recorded a no-duplicate/no-action decision artifact with compact orientation:
+`.meta/multipass/runtime/loops/project/decide/2026-07-06T06-46Z-no-duplicate-drum-kit-build-loop-setup.md`.
+
+Decision reason: live capacity reports `1` available ordinary build slot and no
+build inbox. `build/au-runtime-safety` remains active but human-validation
+bounded; locked Observability and MIDI remain outside ordinary capacity. The
+fresh PM package for `pm/drum-kit-matrix-sound-prep` remains ready for
+build-loop promotion, and the exact needed process-fixer request is still
+pending at
+`.meta/multipass/runtime/inbox/pending/2026-07-05T171559659Z-process-fixer.md`.
+Creating another request would duplicate active routing.
+
+No actor request, second PM lane, ready-feature duplicate promotion,
+AU-runtime continuation, merge, rebase, branch/worktree deletion,
+product-code edit, visual automation, product test suite, lock clearing,
+request lifecycle move, or product-owner question was performed by this
+decider.
+
+## 2026-07-06T06:31Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-06T062546529Z-decider-cadence.md`
+using README, stale project orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, bug intake,
+decision log, live `build-capacity.ts`, the active `build/au-runtime-safety`
+summary, the refreshed ready PM summary for
+`pm/drum-kit-matrix-sound-prep`, and the pending process-fixer request body.
+
+Recorded a no-duplicate/no-action decision artifact with compact orientation:
+`.meta/multipass/runtime/loops/project/decide/2026-07-06T06-31Z-no-duplicate-drum-kit-build-loop-setup.md`.
+
+Decision reason: live capacity reports `1` available ordinary build slot and no
+build inbox. `build/au-runtime-safety` remains active but human-validation
+bounded; locked Observability and MIDI remain outside ordinary capacity. The
+fresh PM package for `pm/drum-kit-matrix-sound-prep` remains ready for
+build-loop promotion, and the exact needed process-fixer request is still
+pending at
+`.meta/multipass/runtime/inbox/pending/2026-07-05T171559659Z-process-fixer.md`.
+Creating another request would duplicate active routing.
+
+No actor request, second PM lane, ready-feature duplicate promotion,
+AU-runtime continuation, merge, rebase, branch/worktree deletion,
+product-code edit, visual automation, product test suite, lock clearing,
+request lifecycle move, or product-owner question was performed by this
+decider.
+
+## 2026-07-06T05:01Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-06T050010355Z-decider-cadence.md`
+using README, stale project orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, bug intake,
+decision log, live `build-capacity.ts`, `inventory.ts`, the active
+`build/au-runtime-safety` summary, the refreshed ready PM summary for
+`pm/drum-kit-matrix-sound-prep`, and the pending process-fixer request body.
+
+Recorded a no-duplicate/no-action decision artifact with compact orientation:
+`.meta/multipass/runtime/loops/project/decide/2026-07-06T05-01Z-no-duplicate-drum-kit-build-loop-setup.md`.
+
+Decision reason: live capacity reports `1` available ordinary build slot and no
+build inbox. `build/au-runtime-safety` remains active but human-validation
+bounded; locked Observability and MIDI remain outside ordinary capacity. The
+fresh PM package for `pm/drum-kit-matrix-sound-prep` remains ready for
+build-loop promotion, and the exact needed process-fixer request is still
+pending at
+`.meta/multipass/runtime/inbox/pending/2026-07-05T171559659Z-process-fixer.md`.
+Creating another request would duplicate active routing.
+
+No actor request, second PM lane, ready-feature duplicate promotion,
+AU-runtime continuation, merge, rebase, branch/worktree deletion,
+product-code edit, visual automation, product test suite, lock clearing,
+request lifecycle move, or product-owner question was performed by this
+decider.
+
+## 2026-07-06T04:45Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-06T044001646Z-decider-cadence.md`
+using README, stale project orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, bug intake,
+decision log, live `build-capacity.ts`, `inventory.ts`, the active
+`build/au-runtime-safety` summary, the refreshed ready PM summary for
+`pm/drum-kit-matrix-sound-prep`, and the pending process-fixer request body.
+
+Recorded a no-duplicate/no-action decision artifact with compact orientation:
+`.meta/multipass/runtime/loops/project/decide/2026-07-06T04-45Z-no-duplicate-drum-kit-build-loop-setup.md`.
+
+Decision reason: live capacity reports `1` available ordinary build slot and no
+build inbox. `build/au-runtime-safety` remains active but human-validation
+bounded; locked Observability and MIDI remain outside ordinary capacity. The
+fresh PM package for `pm/drum-kit-matrix-sound-prep` remains ready for
+build-loop promotion, and the exact needed process-fixer request is still
+pending at
+`.meta/multipass/runtime/inbox/pending/2026-07-05T171559659Z-process-fixer.md`.
+Creating another request would duplicate active routing.
+
+No actor request, second PM lane, ready-feature duplicate promotion,
+AU-runtime continuation, merge, rebase, branch/worktree deletion,
+product-code edit, visual automation, product test suite, lock clearing,
+request lifecycle move, or product-owner question was performed by this
+decider.
+
+## 2026-07-06T04:25Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-06T042453071Z-decider-cadence.md`
+using README, stale project orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, decision log,
+live `build-capacity.ts`, `inventory.ts`, the active `build/au-runtime-safety`
+summary, the refreshed ready PM summary for `pm/drum-kit-matrix-sound-prep`,
+and the pending process-fixer request body.
+
+Recorded a no-duplicate/no-action decision artifact with compact orientation:
+`.meta/multipass/runtime/loops/project/decide/2026-07-06T04-25Z-no-duplicate-drum-kit-build-loop-setup.md`.
+
+Decision reason: live capacity reports `1` available ordinary build slot and no
+build inbox. `build/au-runtime-safety` remains active but human-validation
+bounded; locked Observability and MIDI remain outside ordinary capacity. The
+fresh PM package for `pm/drum-kit-matrix-sound-prep` remains ready for
+build-loop promotion, and the exact needed process-fixer request is still
+pending at
+`.meta/multipass/runtime/inbox/pending/2026-07-05T171559659Z-process-fixer.md`.
+Creating another request would duplicate active routing.
+
+No actor request, second PM lane, ready-feature duplicate promotion,
+AU-runtime continuation, merge, rebase, branch/worktree deletion,
+product-code edit, visual automation, product test suite, lock clearing,
+request lifecycle move, or product-owner question was performed by this
+decider.
+
+## 2026-07-06T03:35Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-06T032931031Z-decider-cadence.md`
+using README, stale project orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, bug intake,
+decision log, live `build-capacity.ts`, `inventory.ts`, the active
+`build/au-runtime-safety` summary, the ready PM summary for
+`pm/drum-kit-matrix-sound-prep`, and the pending process-fixer request body.
+
+Recorded a no-duplicate/no-action decision artifact with compact orientation:
+`.meta/multipass/runtime/loops/project/decide/2026-07-06T03-35Z-no-duplicate-drum-kit-build-loop-setup.md`.
+
+Decision reason: live capacity reports `1` available ordinary build slot and no
+build inbox. `build/au-runtime-safety` remains active but human-validation
+bounded; locked Observability and MIDI remain outside ordinary capacity. The
+fresh PM package for `pm/drum-kit-matrix-sound-prep` remains ready for
+build-loop promotion, and the exact needed process-fixer request is still
+pending at
+`.meta/multipass/runtime/inbox/pending/2026-07-05T171559659Z-process-fixer.md`.
+Creating another request would duplicate active routing.
+
+No actor request, second PM lane, ready-feature duplicate promotion,
+AU-runtime continuation, merge, rebase, branch/worktree deletion,
+product-code edit, visual automation, product test suite, lock clearing,
+request lifecycle move, or product-owner question was performed by this
+decider.
+
+## 2026-07-06T03:14Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-06T031424849Z-decider-cadence.md`
+using README, stale project orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, bug intake,
+decision log, live `build-capacity.ts`, `inventory.ts`, the ready PM summary
+for `pm/drum-kit-matrix-sound-prep`, and the pending process-fixer request
+body.
+
+Recorded a no-duplicate/no-action decision artifact with compact orientation:
+`.meta/multipass/runtime/loops/project/decide/2026-07-06T03-14Z-no-duplicate-drum-kit-build-loop-setup.md`.
+
+Decision reason: live capacity reports `1` available ordinary build slot and no
+build inbox. `build/au-runtime-safety` remains active but human-validation
+bounded; locked Observability and MIDI remain outside ordinary capacity. The
+fresh PM package for `pm/drum-kit-matrix-sound-prep` remains ready for
+build-loop promotion, and the exact needed process-fixer request is still
+pending at
+`.meta/multipass/runtime/inbox/pending/2026-07-05T171559659Z-process-fixer.md`.
+Creating another request would duplicate active routing.
+
+No actor request, second PM lane, ready-feature duplicate promotion,
+AU-runtime continuation, merge, rebase, branch/worktree deletion,
+product-code edit, visual automation, product test suite, lock clearing,
+request lifecycle move, or product-owner question was performed by this
+decider.
+
+## 2026-07-06T03:00Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-06T025416156Z-decider-cadence.md`
+using README, stale project orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, bug intake,
+decision log, live `build-capacity.ts`, `inventory.ts`, the ready PM summary
+for `pm/drum-kit-matrix-sound-prep`, and the pending process-fixer request
+body.
+
+Recorded a no-duplicate/no-action decision artifact with compact orientation:
+`.meta/multipass/runtime/loops/project/decide/2026-07-06T03-00Z-no-duplicate-drum-kit-build-loop-setup.md`.
+
+Decision reason: live capacity reports `1` available ordinary build slot and no
+build inbox. `build/au-runtime-safety` remains active but human-validation
+bounded; locked Observability and MIDI remain outside ordinary capacity. The
+fresh PM package for `pm/drum-kit-matrix-sound-prep` remains ready for
+build-loop promotion, and the exact needed process-fixer request is still
+pending at
+`.meta/multipass/runtime/inbox/pending/2026-07-05T171559659Z-process-fixer.md`.
+Creating another request would duplicate active routing.
+
+No actor request, second PM lane, ready-feature duplicate promotion,
+AU-runtime continuation, merge, rebase, branch/worktree deletion,
+product-code edit, visual automation, product test suite, lock clearing,
+request lifecycle move, or product-owner question was performed by this
+decider.
+
+## 2026-07-06T02:39Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-06T023910072Z-decider-cadence.md`
+using README, stale project orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, bug intake,
+decision log, live `build-capacity.ts`, `inventory.ts`, the ready PM summary
+for `pm/drum-kit-matrix-sound-prep`, and the pending process-fixer request
+body.
+
+Recorded a no-duplicate/no-action decision artifact with compact orientation:
+`.meta/multipass/runtime/loops/project/decide/2026-07-06T02-39Z-no-duplicate-drum-kit-build-loop-setup.md`.
+
+Decision reason: live capacity reports `1` available ordinary build slot and no
+build inbox. `build/au-runtime-safety` remains active but human-validation
+bounded; locked Observability and MIDI remain outside ordinary capacity. The
+fresh PM package for `pm/drum-kit-matrix-sound-prep` remains ready for
+build-loop promotion, and the exact needed process-fixer request is still
+pending at
+`.meta/multipass/runtime/inbox/pending/2026-07-05T171559659Z-process-fixer.md`.
+Creating another request would duplicate active routing.
+
+No actor request, second PM lane, ready-feature duplicate promotion,
+AU-runtime continuation, merge, rebase, branch/worktree deletion, product-code
+edit, visual automation, product test suite, lock clearing, request lifecycle
+move, or product-owner question was performed by this decider.
+
+## 2026-07-06T02:31Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-06T021900257Z-decider-cadence.md`
+using README, stale project orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, bug intake,
+decision log, live `build-capacity.ts`, `inventory.ts`, the active
+`build/au-runtime-safety` summary, the ready PM summary for
+`pm/drum-kit-matrix-sound-prep`, and the pending process-fixer request body.
+
+Recorded a no-duplicate/no-action decision artifact with compact orientation:
+`.meta/multipass/runtime/loops/project/decide/2026-07-06T02-31Z-no-duplicate-drum-kit-build-loop-setup.md`.
+
+Decision reason: live capacity reports `1` available ordinary build slot and no
+build inbox. `build/au-runtime-safety` remains active but human-validation
+bounded; locked Observability and MIDI remain outside ordinary capacity. The
+fresh PM package for `pm/drum-kit-matrix-sound-prep` remains ready for
+build-loop promotion, and the exact needed process-fixer request is still
+pending at
+`.meta/multipass/runtime/inbox/pending/2026-07-05T171559659Z-process-fixer.md`.
+Creating another request would duplicate active routing.
+
+No actor request, second PM lane, ready-feature duplicate promotion,
+AU-runtime continuation, merge, rebase, branch/worktree deletion, product-code
+edit, visual automation, product test suite, lock clearing, request lifecycle
+move, or product-owner question was performed by this decider.
+
+## 2026-07-06T01:50Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-06T014344662Z-decider-cadence.md`
+using README, stale project orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, bug intake,
+decision log, live `build-capacity.ts`, `inventory.ts`, the active
+`build/au-runtime-safety` summary, the ready PM summary for
+`pm/drum-kit-matrix-sound-prep`, and the pending process-fixer request body.
+
+Recorded a no-duplicate/no-action decision artifact with compact orientation:
+`.meta/multipass/runtime/loops/project/decide/2026-07-06T01-50Z-no-duplicate-drum-kit-build-loop-setup.md`.
+
+Decision reason: live capacity reports `1` available ordinary build slot and no
+build inbox. `build/au-runtime-safety` remains active but human-validation
+bounded; locked Observability and MIDI remain outside ordinary capacity. The
+fresh PM package for `pm/drum-kit-matrix-sound-prep` remains ready for
+build-loop promotion, and the exact needed process-fixer request is still
+pending at
+`.meta/multipass/runtime/inbox/pending/2026-07-05T171559659Z-process-fixer.md`.
+Creating another request would duplicate active routing.
+
+No actor request, second PM lane, ready-feature duplicate promotion,
+AU-runtime continuation, merge, rebase, branch/worktree deletion, product-code
+edit, visual automation, product test suite, lock clearing, request lifecycle
+move, or product-owner question was performed by this decider.
+
+## 2026-07-06T01:29Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-06T012839092Z-decider-cadence.md`
+using README, stale project orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, decision log,
+live `build-capacity.ts`, `inventory.ts`, the active
+`build/au-runtime-safety` summary, the ready PM summary for
+`pm/drum-kit-matrix-sound-prep`, and the pending process-fixer request body.
+
+Recorded a no-duplicate/no-action decision artifact with compact orientation:
+`.meta/multipass/runtime/loops/project/decide/2026-07-06T01-29Z-no-duplicate-drum-kit-build-loop-setup.md`.
+
+Decision reason: live capacity reports `1` available ordinary build slot and no
+build inbox. `build/au-runtime-safety` remains active but human-validation
+bounded; locked Observability and MIDI remain outside ordinary capacity. The
+fresh PM package for `pm/drum-kit-matrix-sound-prep` remains ready for
+build-loop promotion, and the exact needed process-fixer request is still
+pending at
+`.meta/multipass/runtime/inbox/pending/2026-07-05T171559659Z-process-fixer.md`.
+Creating another request would duplicate active routing.
+
+No actor request, second PM lane, ready-feature duplicate promotion,
+AU-runtime continuation, merge, rebase, branch/worktree deletion, product-code
+edit, visual automation, product test suite, lock clearing, request lifecycle
+move, or product-owner question was performed by this decider.
+
+## 2026-07-06T00:54Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-06T005323909Z-decider-cadence.md`
+using README, stale project orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, decision log,
+live `build-capacity.ts`, `inventory.ts`, the active
+`build/au-runtime-safety` summary, the ready PM summary for
+`pm/drum-kit-matrix-sound-prep`, and the pending process-fixer request body.
+
+Recorded a no-duplicate/no-action decision artifact with compact orientation:
+`.meta/multipass/runtime/loops/project/decide/2026-07-06T00-54Z-no-duplicate-drum-kit-build-loop-setup.md`.
+
+Decision reason: live capacity reports `1` available ordinary build slot and no
+build inbox. `build/au-runtime-safety` remains active but human-validation
+bounded; locked Observability and MIDI remain outside ordinary capacity. The
+fresh PM package for `pm/drum-kit-matrix-sound-prep` remains ready for
+build-loop promotion, and the exact needed process-fixer request is still
+pending at
+`.meta/multipass/runtime/inbox/pending/2026-07-05T171559659Z-process-fixer.md`.
+Creating another request would duplicate active routing.
+
+No actor request, second PM lane, ready-feature duplicate promotion,
+AU-runtime continuation, merge, rebase, branch/worktree deletion, product-code
+edit, visual automation, product test suite, lock clearing, request lifecycle
+move, or product-owner question was performed by this decider.
+
+## 2026-07-06T00:38Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-06T003315430Z-decider-cadence.md`
+using README, stale project orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, decision log,
+live `build-capacity.ts`, `inventory.ts`, the active
+`build/au-runtime-safety` summary, the ready PM summary for
+`pm/drum-kit-matrix-sound-prep`, and the pending process-fixer request body.
+
+Recorded a no-duplicate/no-action decision artifact with compact orientation:
+`.meta/multipass/runtime/loops/project/decide/2026-07-06T00-38Z-no-duplicate-drum-kit-build-loop-setup.md`.
+
+Decision reason: live capacity reports `1` available ordinary build slot and no
+build inbox. `build/au-runtime-safety` remains active but human-validation
+bounded; locked Observability and MIDI remain outside ordinary capacity. The
+fresh PM package for `pm/drum-kit-matrix-sound-prep` remains ready for
+build-loop promotion, and the exact needed process-fixer request is still
+pending at
+`.meta/multipass/runtime/inbox/pending/2026-07-05T171559659Z-process-fixer.md`.
+Creating another request would duplicate active routing.
+
+No actor request, second PM lane, ready-feature duplicate promotion,
+AU-runtime continuation, merge, rebase, branch/worktree deletion, product-code
+edit, visual automation, product test suite, lock clearing, request lifecycle
+move, or product-owner question was performed by this decider.
+
+## 2026-07-06T00:18Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-06T001808168Z-decider-cadence.md`
+using README, stale project orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, bug intake,
+decision log, live `build-capacity.ts`, `inventory.ts`, the active
+`build/au-runtime-safety` summary, the ready PM summary for
+`pm/drum-kit-matrix-sound-prep`, and the pending process-fixer request body.
+
+Recorded a no-duplicate/no-action decision artifact with compact orientation:
+`.meta/multipass/runtime/loops/project/decide/2026-07-06T00-18Z-no-duplicate-drum-kit-build-loop-setup.md`.
+
+Decision reason: live capacity reports `1` available ordinary build slot and no
+build inbox. `build/au-runtime-safety` remains active but human-validation
+bounded; locked Observability and MIDI remain outside ordinary capacity. The
+fresh PM package for `pm/drum-kit-matrix-sound-prep` remains ready for
+build-loop promotion, and the exact needed process-fixer request is still
+pending at
+`.meta/multipass/runtime/inbox/pending/2026-07-05T171559659Z-process-fixer.md`.
+Creating another request would duplicate active routing.
+
+No actor request, second PM lane, ready-feature duplicate promotion,
+AU-runtime continuation, merge, rebase, branch/worktree deletion, product-code
+edit, visual automation, product test suite, lock clearing, request lifecycle
+move, or product-owner question was performed by this decider.
+
+## 2026-07-05T23:43Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-05T234254212Z-decider-cadence.md`
+using README, stale project orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, bug intake,
+decision log, live `build-capacity.ts`, `inventory.ts`, the active
+`build/au-runtime-safety` summary, the ready PM summary for
+`pm/drum-kit-matrix-sound-prep`, and the pending process-fixer request body.
+
+Recorded a no-duplicate/no-action decision artifact:
+`.meta/multipass/runtime/loops/project/decide/2026-07-05T23-43Z-no-duplicate-drum-kit-build-loop-setup.md`.
+
+Decision reason: live capacity reports `1` available ordinary build slot and no
+build inbox. `build/au-runtime-safety` remains active but human-validation
+bounded; locked Observability and MIDI remain outside ordinary capacity. The
+fresh PM package for `pm/drum-kit-matrix-sound-prep` is ready for build-loop
+promotion, but the exact needed process-fixer request remains pending at
+`.meta/multipass/runtime/inbox/pending/2026-07-05T171559659Z-process-fixer.md`.
+Creating another request would duplicate active routing.
+
+No actor request, second PM lane, ready-feature duplicate promotion,
+AU-runtime continuation, merge, rebase, branch/worktree deletion, product-code
+edit, visual automation, product test suite, lock clearing, request lifecycle
+move, or product-owner question was performed by this decider.
+
+## 2026-07-05T23:28Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-05T232245569Z-decider-cadence.md`
+using README, stale project orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, bug intake,
+decision log, live `build-capacity.ts`, the active
+`build/au-runtime-safety` summary, the ready PM summary for
+`pm/drum-kit-matrix-sound-prep`, and the pending process-fixer request body.
+
+Recorded a no-duplicate/no-action decision artifact:
+`.meta/multipass/runtime/loops/project/decide/2026-07-05T23-28Z-no-duplicate-drum-kit-build-loop-setup.md`.
+
+Decision reason: live capacity reports `1` available ordinary build slot and no
+build inbox. `build/au-runtime-safety` remains active but human-validation
+bounded; locked Observability and MIDI remain outside ordinary capacity. The
+fresh PM package for `pm/drum-kit-matrix-sound-prep` is ready for build-loop
+promotion, but the exact needed process-fixer request remains pending at
+`.meta/multipass/runtime/inbox/pending/2026-07-05T171559659Z-process-fixer.md`.
+Creating another request would duplicate active routing.
+
+No actor request, second PM lane, ready-feature duplicate promotion,
+AU-runtime continuation, merge, rebase, branch/worktree deletion, product-code
+edit, visual automation, product test suite, lock clearing, request lifecycle
+move, or product-owner question was performed by this decider.
+
+## 2026-07-05T23:08Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-05T230738139Z-decider-cadence.md`
+using README, stale project orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, decision log,
+live `build-capacity.ts`, `inventory.ts`, the active `build/au-runtime-safety`
+summary, the ready PM summary for `pm/drum-kit-matrix-sound-prep`, and the
+pending process-fixer request body.
+
+Recorded a no-duplicate/no-action decision artifact:
+`.meta/multipass/runtime/loops/project/decide/2026-07-05T23-08Z-no-duplicate-drum-kit-build-loop-setup.md`.
+
+Decision reason: live capacity reports `1` available ordinary build slot and no
+build inbox. `build/au-runtime-safety` remains active but human-validation
+bounded; locked Observability and MIDI remain outside ordinary capacity. The
+fresh PM package for `pm/drum-kit-matrix-sound-prep` is ready for build-loop
+promotion, but the exact needed process-fixer request remains pending at
+`.meta/multipass/runtime/inbox/pending/2026-07-05T171559659Z-process-fixer.md`.
+Creating another request would duplicate active routing.
+
+No actor request, second PM lane, ready-feature duplicate promotion,
+AU-runtime continuation, merge, rebase, branch/worktree deletion, product-code
+edit, visual automation, product test suite, lock clearing, request lifecycle
+move, or product-owner question was performed by this decider.
+
+## 2026-07-05T22:33Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-05T223223832Z-decider-cadence.md`
+using README, stale project orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, decision log,
+live `build-capacity.ts`, `inventory.ts`, the active `build/au-runtime-safety`
+summary, the ready PM summary for `pm/drum-kit-matrix-sound-prep`, and the
+pending process-fixer request body.
+
+Recorded a no-duplicate/no-action decision artifact:
+`.meta/multipass/runtime/loops/project/decide/2026-07-05T22-33Z-no-duplicate-drum-kit-build-loop-setup.md`.
+
+Decision reason: live capacity reports `1` available ordinary build slot and no
+build inbox. `build/au-runtime-safety` remains active but human-validation
+bounded; locked Observability and MIDI remain outside ordinary capacity. The
+fresh PM package for `pm/drum-kit-matrix-sound-prep` is ready for build-loop
+promotion, but the exact needed process-fixer request remains pending at
+`.meta/multipass/runtime/inbox/pending/2026-07-05T171559659Z-process-fixer.md`.
+Creating another request would duplicate active routing.
+
+No actor request, second PM lane, ready-feature duplicate promotion,
+AU-runtime continuation, merge, rebase, branch/worktree deletion, product-code
+edit, visual automation, product test suite, lock clearing, request lifecycle
+move, or product-owner question was performed by this decider.
+
+## 2026-07-05T22:17Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-05T221214836Z-decider-cadence.md`
+using README, stale project orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, decision log,
+live `build-capacity.ts`, `inventory.ts`, the active `build/au-runtime-safety`
+summary, the ready PM summary for `pm/drum-kit-matrix-sound-prep`, and the
+pending process-fixer request body.
+
+Recorded a no-duplicate/no-action decision artifact:
+`.meta/multipass/runtime/loops/project/decide/2026-07-05T22-17Z-no-duplicate-drum-kit-build-loop-setup.md`.
+
+Decision reason: live capacity reports `1` available ordinary build slot and no
+build inbox. `build/au-runtime-safety` remains active but human-validation
+bounded; locked Observability and MIDI remain outside ordinary capacity. The
+fresh PM package for `pm/drum-kit-matrix-sound-prep` is ready for build-loop
+promotion, but the exact needed process-fixer request remains pending at
+`.meta/multipass/runtime/inbox/pending/2026-07-05T171559659Z-process-fixer.md`.
+Creating another request would duplicate active routing.
+
+No actor request, second PM lane, ready-feature duplicate promotion,
+AU-runtime continuation, merge, rebase, branch/worktree deletion, product-code
+edit, visual automation, product test suite, lock clearing, request lifecycle
+move, or product-owner question was performed by this decider.
+
+## 2026-07-05T21:57Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-05T215708892Z-decider-cadence.md`
+using README, stale project orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, bug intake,
+decision log, live `build-capacity.ts`, `inventory.ts`, the active
+`build/au-runtime-safety` summary, the ready PM summary for
+`pm/drum-kit-matrix-sound-prep`, and the pending process-fixer request body.
+
+Recorded a no-duplicate/no-action decision artifact:
+`.meta/multipass/runtime/loops/project/decide/2026-07-05T21-57Z-no-duplicate-drum-kit-build-loop-setup.md`.
+
+Decision reason: live capacity reports `1` available ordinary build slot and
+no build inbox. `build/au-runtime-safety` remains active but
+human-validation bounded; locked Observability and MIDI remain outside ordinary
+capacity. The fresh PM package for `pm/drum-kit-matrix-sound-prep` is ready for
+build-loop promotion, but the exact needed process-fixer request remains
+pending at
+`.meta/multipass/runtime/inbox/pending/2026-07-05T171559659Z-process-fixer.md`.
+Creating another request would duplicate active routing.
+
+No actor request, second PM lane, ready-feature duplicate promotion,
+AU-runtime continuation, merge, rebase, branch/worktree deletion, product-code
+edit, visual automation, product test suite, lock clearing, request lifecycle
+move, or product-owner question was performed by this decider.
+
+## 2026-07-05T21:42Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-05T213700757Z-decider-cadence.md`
+using README, stale project orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, decision log,
+live `build-capacity.ts`, `inventory.ts`, the active
+`build/au-runtime-safety` summary, the ready PM summary for
+`pm/drum-kit-matrix-sound-prep`, and the pending process-fixer request body.
+
+Recorded a no-duplicate/no-action decision artifact:
+`.meta/multipass/runtime/loops/project/decide/2026-07-05T21-42Z-no-duplicate-drum-kit-build-loop-setup.md`.
+
+Decision reason: live capacity reports `1` available ordinary build slot and
+no build inbox. `build/au-runtime-safety` remains active but
+human-validation bounded; locked Observability and MIDI remain outside ordinary
+capacity. The fresh PM package for `pm/drum-kit-matrix-sound-prep` is ready for
+build-loop promotion, but the exact needed process-fixer request remains
+pending at
+`.meta/multipass/runtime/inbox/pending/2026-07-05T171559659Z-process-fixer.md`.
+Creating another request would duplicate active routing.
+
+No actor request, second PM lane, ready-feature duplicate promotion,
+AU-runtime continuation, merge, rebase, branch/worktree deletion, product-code
+edit, visual automation, product test suite, lock clearing, request lifecycle
+move, or product-owner question was performed by this decider.
+
+## 2026-07-05T21:30Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-05T212153470Z-decider-cadence.md`
+using README, stale project orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, decision log,
+live `build-capacity.ts`, `inventory.ts`, the active
+`build/au-runtime-safety` summary, the ready PM summary for
+`pm/drum-kit-matrix-sound-prep`, and the pending process-fixer request body.
+
+Recorded a no-duplicate/no-action decision artifact:
+`.meta/multipass/runtime/loops/project/decide/2026-07-05T21-30Z-no-duplicate-drum-kit-build-loop-setup.md`.
+
+Decision reason: live capacity reports `1` available ordinary build slot and
+no build inbox. `build/au-runtime-safety` remains active but
+human-validation bounded; locked Observability and MIDI remain outside ordinary
+capacity. The fresh PM package for `pm/drum-kit-matrix-sound-prep` is ready for
+build-loop promotion, but the exact needed process-fixer request remains
+pending at
+`.meta/multipass/runtime/inbox/pending/2026-07-05T171559659Z-process-fixer.md`.
+Creating another request would duplicate active routing.
+
+No actor request, second PM lane, ready-feature duplicate promotion,
+AU-runtime continuation, merge, rebase, branch/worktree deletion, product-code
+edit, visual automation, product test suite, lock clearing, request lifecycle
+move, or product-owner question was performed by this decider.
+
+## 2026-07-05T21:07Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-05T210145235Z-decider-cadence.md`
+using README, stale project orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, decision log,
+live `build-capacity.ts`, `inventory.ts`, the active
+`build/au-runtime-safety` summary, the ready PM summary for
+`pm/drum-kit-matrix-sound-prep`, and the pending process-fixer request body.
+
+Recorded a no-duplicate/no-action decision artifact:
+`.meta/multipass/runtime/loops/project/decide/2026-07-05T21-07Z-no-duplicate-drum-kit-build-loop-setup.md`.
+
+Decision reason: live capacity reports `1` available ordinary build slot and
+no build inbox. `build/au-runtime-safety` remains active but human-validation
+bounded; locked Observability and MIDI remain outside ordinary capacity. The
+fresh PM package for `pm/drum-kit-matrix-sound-prep` is ready for build-loop
+promotion, but the exact needed process-fixer request remains pending at
+`.meta/multipass/runtime/inbox/pending/2026-07-05T171559659Z-process-fixer.md`.
+Creating another request would duplicate active routing.
+
+No actor request, second PM lane, ready-feature duplicate promotion,
+AU-runtime continuation, merge, rebase, branch/worktree deletion, product-code
+edit, visual automation, product test suite, lock clearing, request lifecycle
+move, or product-owner question was performed by this decider.
+
+## 2026-07-05T20:55Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-05T204637705Z-decider-cadence.md`
+using README, stale project orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, decision log,
+live `build-capacity.ts`, `inventory.ts`, the active
+`build/au-runtime-safety` summary, the ready PM summary for
+`pm/drum-kit-matrix-sound-prep`, and the pending process-fixer request body.
+
+Recorded a no-duplicate/no-action decision artifact:
+`.meta/multipass/runtime/loops/project/decide/2026-07-05T20-55Z-no-duplicate-drum-kit-build-loop-setup.md`.
+
+Decision reason: live capacity reports `1` available ordinary build slot and
+no build inbox. `build/au-runtime-safety` remains active but human-validation
+bounded; locked Observability and MIDI remain outside ordinary capacity. The
+fresh PM package for `pm/drum-kit-matrix-sound-prep` is ready for build-loop
+promotion, but the exact needed process-fixer request remains pending at
+`.meta/multipass/runtime/inbox/pending/2026-07-05T171559659Z-process-fixer.md`.
+Creating another request would duplicate active routing.
+
+No actor request, second PM lane, ready-feature duplicate promotion,
+AU-runtime continuation, merge, rebase, branch/worktree deletion, product-code
+edit, visual automation, product test suite, lock clearing, request lifecycle
+move, or product-owner question was performed by this decider.
+
+## 2026-07-05T20:17Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-05T201122327Z-decider-cadence.md`
+using README, stale project orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, bug intake,
+decision log, live `build-capacity.ts`, `inventory.ts`, the active
+`build/au-runtime-safety` summary, the ready PM summary for
+`pm/drum-kit-matrix-sound-prep`, and the pending process-fixer request body.
+
+Recorded a no-duplicate/no-action decision artifact:
+`.meta/multipass/runtime/loops/project/decide/2026-07-05T20-17Z-no-duplicate-drum-kit-build-loop-setup.md`.
+
+Decision reason: live capacity reports `1` available ordinary build slot and
+no build inbox. `build/au-runtime-safety` remains active but human-validation
+bounded; locked Observability and MIDI remain outside ordinary capacity. The
+fresh PM package for `pm/drum-kit-matrix-sound-prep` is ready for build-loop
+promotion, but the exact needed process-fixer request remains pending at
+`.meta/multipass/runtime/inbox/pending/2026-07-05T171559659Z-process-fixer.md`.
+Creating another request would duplicate active routing.
+
+No actor request, second PM lane, ready-feature duplicate promotion,
+AU-runtime continuation, merge, rebase, branch/worktree deletion, product-code
+edit, visual automation, product test suite, lock clearing, request lifecycle
+move, or product-owner question was performed by this decider.
+
+## 2026-07-05T19:57Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-05T195112825Z-decider-cadence.md`
+using README, stale project orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, bug intake,
+decision log, live `build-capacity.ts`, `inventory.ts`, the ready PM summary
+for `pm/drum-kit-matrix-sound-prep`, the active `build/au-runtime-safety`
+summary, and the pending process-fixer request body.
+
+Recorded a no-duplicate/no-action decision artifact:
+`.meta/multipass/runtime/loops/project/decide/2026-07-05T19-57Z-no-duplicate-drum-kit-build-loop-setup.md`.
+
+Decision reason: live capacity reports `1` available ordinary build slot and
+no build inbox. `build/au-runtime-safety` remains active but
+human-validation bounded; locked Observability and MIDI remain outside ordinary
+capacity. The fresh PM package for `pm/drum-kit-matrix-sound-prep` is ready for
+build-loop promotion, but the exact needed process-fixer request remains
+pending at
+`.meta/multipass/runtime/inbox/pending/2026-07-05T171559659Z-process-fixer.md`.
+Creating another request would duplicate active routing.
+
+No actor request, second PM lane, ready-feature duplicate promotion,
+AU-runtime continuation, merge, rebase, branch/worktree deletion, product-code
+edit, visual automation, product test suite, lock clearing, request lifecycle
+move, or product-owner question was performed by this decider.
+
+## 2026-07-05T19:36Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-05T193606113Z-decider-cadence.md`
+using README, stale project orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, bug intake,
+decision log, live `build-capacity.ts`, the ready PM summary for
+`pm/drum-kit-matrix-sound-prep`, the active `build/au-runtime-safety` summary,
+and the pending process-fixer request body.
+
+Recorded a no-duplicate/no-action decision artifact:
+`.meta/multipass/runtime/loops/project/decide/2026-07-05T19-36Z-no-duplicate-drum-kit-build-loop-setup.md`.
+
+Decision reason: live capacity reports `1` available ordinary build slot and
+no build inbox. `build/au-runtime-safety` remains active but
+human-validation bounded; locked Observability and MIDI remain outside ordinary
+capacity. The fresh PM package for `pm/drum-kit-matrix-sound-prep` is ready for
+build-loop promotion, but the exact needed process-fixer request remains
+pending at
+`.meta/multipass/runtime/inbox/pending/2026-07-05T171559659Z-process-fixer.md`.
+Creating another request would duplicate active routing.
+
+No actor request, second PM lane, ready-feature duplicate promotion,
+AU-runtime continuation, merge, rebase, branch/worktree deletion, product-code
+edit, visual automation, product test suite, lock clearing, request lifecycle
+move, or product-owner question was performed by this decider.
+
+## 2026-07-05T19:24Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-05T191557094Z-decider-cadence.md`
+using README, stale project orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, decision log,
+live `build-capacity.ts`, `scripts/multi-pass/inbox-status.sh`, the ready PM
+summary for `pm/drum-kit-matrix-sound-prep`, the pending process-fixer request,
+and the active `build/au-runtime-safety` summary.
+
+Recorded a no-duplicate/no-action decision artifact:
+`.meta/multipass/runtime/loops/project/decide/2026-07-05T19-24Z-no-duplicate-drum-kit-build-loop-setup.md`.
+
+Decision reason: live capacity reports `1` available ordinary build slot and no
+build inbox. `build/au-runtime-safety` remains active but human-validation
+bounded; locked Observability and MIDI remain outside ordinary capacity. The
+fresh PM package for `pm/drum-kit-matrix-sound-prep` is ready for build-loop
+promotion, but the exact needed process-fixer request remains pending at
+`.meta/multipass/runtime/inbox/pending/2026-07-05T171559659Z-process-fixer.md`.
+Creating another request would duplicate active routing.
+
+No actor request, second PM lane, ready-feature duplicate promotion,
+AU-runtime continuation, merge, rebase, branch/worktree deletion, product-code
+edit, visual automation, product test suite, lock clearing, or product-owner
+question was performed by this decider.
+
+## 2026-07-05T19:08Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-05T190052095Z-decider-cadence.md`
+using README, stale project orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, decision log,
+live `build-capacity.ts`, `scripts/multi-pass/inbox-status.sh`, the ready PM
+summary for `pm/drum-kit-matrix-sound-prep`, the pending process-fixer request,
+and the active `build/au-runtime-safety` summary.
+
+Recorded a no-duplicate/no-action decision artifact:
+`.meta/multipass/runtime/loops/project/decide/2026-07-05T19-08Z-no-duplicate-drum-kit-build-loop-setup.md`.
+
+Decision reason: live capacity reports `1` available ordinary build slot and no
+build inbox. `build/au-runtime-safety` remains active but human-validation
+bounded; locked Observability and MIDI remain outside ordinary capacity. The
+fresh PM package for `pm/drum-kit-matrix-sound-prep` is ready for build-loop
+promotion, but the exact needed process-fixer request remains pending at
+`.meta/multipass/runtime/inbox/pending/2026-07-05T171559659Z-process-fixer.md`.
+Creating another request would duplicate active routing.
+
+No actor request, second PM lane, ready-feature duplicate promotion,
+AU-runtime continuation, merge, rebase, branch/worktree deletion, product-code
+edit, visual automation, product test suite, lock clearing, or product-owner
+question was performed by this decider.
+
+## 2026-07-05T18:46Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-05T184043299Z-decider-cadence.md`
+using README, stale project orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, decision log,
+live `build-capacity.ts`, `scripts/multi-pass/inbox-status.sh`, the ready PM
+summary for `pm/drum-kit-matrix-sound-prep`, pending inbox state, and the
+active `build/au-runtime-safety` summary.
+
+Recorded a no-duplicate/no-action decision artifact:
+`.meta/multipass/runtime/loops/project/decide/2026-07-05T18-46Z-no-duplicate-drum-kit-build-loop-setup.md`.
+
+Decision reason: live capacity reports `1` available ordinary build slot and
+no build inbox. `build/au-runtime-safety` remains active but
+human-validation bounded; locked Observability and MIDI remain outside ordinary
+capacity. The fresh PM package for `pm/drum-kit-matrix-sound-prep` is ready for
+build-loop promotion, but the exact needed process-fixer request remains
+pending at
+`.meta/multipass/runtime/inbox/pending/2026-07-05T171559659Z-process-fixer.md`.
+Creating another request would duplicate active routing.
+
+No actor request, second PM lane, ready-feature duplicate promotion,
+AU-runtime continuation, merge, rebase, branch/worktree deletion,
+product-code edit, visual automation, product test suite, lock clearing, or
+product-owner question was performed by this decider.
+
+## 2026-07-05T18:25Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-05T182536640Z-decider-cadence.md`
+using README, stale project orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, bug intake,
+AU runtime-safety summary, live `build-capacity.ts`, the ready PM summary for
+`pm/drum-kit-matrix-sound-prep`, pending inbox state, and the pending
+process-fixer request.
+
+Recorded a no-duplicate/no-action decision artifact:
+`.meta/multipass/runtime/loops/project/decide/2026-07-05T18-25Z-no-duplicate-drum-kit-build-loop-setup.md`.
+
+Decision reason: live capacity reports `1` available ordinary build slot and
+no build inbox. `build/au-runtime-safety` remains active but
+human-validation bounded; locked Observability and MIDI remain outside ordinary
+capacity. The fresh PM package for `pm/drum-kit-matrix-sound-prep` is ready for
+build-loop promotion, but the exact needed process-fixer request is still
+pending at
+`.meta/multipass/runtime/inbox/pending/2026-07-05T171559659Z-process-fixer.md`.
+Creating another request would duplicate active routing.
+
+No actor request, second PM lane, ready-feature duplicate promotion,
+AU-runtime continuation, merge, rebase, branch/worktree deletion,
+product-code edit, visual automation, product test suite, lock clearing, or
+product-owner question was performed by this decider.
+
+## 2026-07-05T17:51Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-05T175022232Z-decider-cadence.md`
+using README, stale project orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, decision log,
+live `build-capacity.ts`, the ready PM summary for
+`pm/drum-kit-matrix-sound-prep`, and pending inbox state.
+
+Recorded a no-duplicate/no-action decision artifact:
+`.meta/multipass/runtime/loops/project/decide/2026-07-05T17-51Z-no-duplicate-drum-kit-build-loop-setup.md`.
+
+Decision reason: live capacity reports `1` available ordinary build slot and
+no build inbox. `build/au-runtime-safety` remains active but
+human-validation bounded; locked Observability and MIDI remain outside ordinary
+capacity. The fresh PM package for `pm/drum-kit-matrix-sound-prep` is ready for
+build-loop promotion, but the exact needed process-fixer request is still
+pending at
+`.meta/multipass/runtime/inbox/pending/2026-07-05T171559659Z-process-fixer.md`.
+Creating another request would duplicate active routing.
+
+No actor request, second PM lane, ready-feature duplicate promotion,
+AU-runtime continuation, merge, rebase, branch/worktree deletion,
+product-code edit, visual automation, product test suite, lock clearing, or
+product-owner question was performed by this decider.
+
+## 2026-07-05T17:35Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-05T173012404Z-decider-cadence.md`
+using README, stale project orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, bug intake,
+decision log, live `build-capacity.ts`, the ready PM summary for
+`pm/drum-kit-matrix-sound-prep`, and pending inbox state.
+
+Recorded a no-duplicate/no-action decision artifact:
+`.meta/multipass/runtime/loops/project/decide/2026-07-05T17-35Z-no-duplicate-drum-kit-build-loop-setup.md`.
+
+Decision reason: live capacity reports `1` available ordinary build slot and
+no build inbox. `build/au-runtime-safety` remains active but human-validation
+bounded; locked Observability and MIDI remain outside ordinary capacity. The
+fresh PM package for `pm/drum-kit-matrix-sound-prep` is ready for build-loop
+promotion, but the exact needed process-fixer request is already pending at
+`.meta/multipass/runtime/inbox/pending/2026-07-05T171559659Z-process-fixer.md`.
+Creating another request would duplicate active routing.
+
+No actor request, second PM lane, ready-feature duplicate promotion,
+AU-runtime continuation, merge, rebase, branch/worktree deletion,
+product-code edit, visual automation, product test suite, lock clearing, or
+product-owner question was performed by this decider.
+
+## 2026-07-05T17:16Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-05T171004875Z-decider-cadence.md`
+using README, stale project orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, bug intake,
+decision log, live `build-capacity.ts`, `inventory.ts`, and the newly
+ready PM package summary for `pm/drum-kit-matrix-sound-prep`.
+
+Recorded decision artifact:
+`.meta/multipass/runtime/loops/project/decide/2026-07-05T17-16Z-promote-drum-kit-matrix-sound-build-loop.md`.
+
+Decision reason: live capacity reports `1` available ordinary build slot and
+no build inbox. `build/au-runtime-safety` remains active but
+human-validation bounded; locked Observability and MIDI remain outside ordinary
+capacity. The generic readiness output still says no ready candidates, but the
+fresher PM summary for `pm/drum-kit-matrix-sound-prep` is explicitly
+`ready-for-build-loop-promotion` with accepted `spec.md`, `plan.md`, and
+`implementation-handoff.md`. The pending PM-decider cadence for that lane is
+not a duplicate because it is loop-local PM housekeeping and says not to
+promote a build loop.
+
+Queued process-fixer request:
+`.meta/multipass/runtime/inbox/pending/2026-07-05T171559659Z-process-fixer.md`.
+
+No other PM lane, ready-feature promotion, AU-runtime continuation, merge,
+rebase, branch/worktree deletion, product-code edit, visual automation,
+product test suite, lock clearing, or product-owner question was performed by
+this decider.
+
+## 2026-07-05T16:59Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-05T163447803Z-decider-cadence.md`
+using README, stale project orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, bug intake,
+decision log, live `build-capacity.ts`, `inventory.ts`, and the already-created
+`pm/drum-kit-matrix-sound-prep` manifest/pending artifact-author request.
+
+Recorded a no-duplicate/no-action decision artifact:
+`.meta/multipass/runtime/loops/project/decide/2026-07-05T16-59Z-no-duplicate-drum-kit-pm-prep.md`.
+
+Decision reason: live capacity reports `1` available ordinary build slot, but
+ready candidates and unpromoted ready candidates remain `none`.
+`build/au-runtime-safety` is the only active ordinary build lane and remains
+human-validation bounded. The upstream starvation action selected by the prior
+cadence is already queued:
+`.meta/multipass/runtime/inbox/pending/2026-07-05T163000000Z-pm-artifact-author-drum-kit-matrix-sound-prep.md`.
+Creating another PM lane or actor request would duplicate active PM supply work.
+
+No actor request, ready-feature promotion, PM lane, build-loop creation,
+AU-runtime continuation, merge, rebase, branch/worktree deletion, product-code
+edit, visual automation, product test suite, lock clearing, or product-owner
+question was performed by this decider.
+
+## 2026-07-05T16:21Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-05T161438962Z-decider-cadence.md`
+using README, stale project orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, bug intake,
+decision log, PM summary for `pm/track-phrase-perform-interaction-prep`, live
+`build-capacity.ts`, and `inventory.ts`.
+
+Recorded decision artifact:
+`.meta/multipass/runtime/loops/project/decide/2026-07-05T16-21Z-route-drum-kit-matrix-sound-pm-prep.md`.
+
+Decision reason: live capacity reports `1` available ordinary build slot, but
+ready candidates and unpromoted ready candidates are `none`.
+`build/track-phrase-perform-mini-cells` and `build/mixer-strip-followup` are
+already integrated and non-capacity-consuming; `build/au-runtime-safety`
+remains active and human-validation bounded; the current Track/Phrase PM lane
+has already been consumed by the landed mini-cell output. To address upstream
+starvation without duplicating active work, routed one process-fixer request to
+create a PM prep loop and initial PM artifact-author request for bug-intake
+`G6: Drum Kit / Kit Matrix / Drum Part Sound`.
+
+Queued request:
+`.meta/multipass/runtime/inbox/pending/2026-07-05T162105345Z-process-fixer.md`.
+
+No ready-feature promotion, build-loop creation, AU-runtime continuation,
+merge, rebase, branch/worktree deletion, product-code edit, visual automation,
+product test suite, lock clearing, or product-owner question was performed by
+this decider.
+
+## 2026-07-05T15:45Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-05T143419224Z-decider-cadence.md`
+using README, stale project orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, decision log,
+bug intake, active build-loop summaries for
+`build/track-phrase-perform-mini-cells` and `build/au-runtime-safety`, live
+`build-capacity.ts`, inbox status, and the pending process-fixer / duplicate
+integrator requests.
+
+Recorded a no-duplicate/no-action decision artifact:
+`.meta/multipass/runtime/loops/project/decide/2026-07-05T15-45Z-no-duplicate-mini-cell-closeout.md`.
+
+Decision reason: `build/track-phrase-perform-mini-cells` is already integrated
+into local `main` at `9c1744ba2247b9613909194710d9f1ba02da7ed7`, but live
+capacity still counts it active and reports `0` available ordinary slots with
+stale build inbox residue. The exact needed closeout remains already pending at
+`.meta/multipass/runtime/inbox/pending/2026-07-05T134500333Z-process-fixer.md`.
+`build/au-runtime-safety` remains active and human-validation bounded; ready
+candidates and unpromoted ready candidates remain `none`.
+
+No actor request, ready-feature promotion, PM lane, build-loop creation,
+AU-runtime continuation, merge, rebase, branch/worktree deletion, product-code
+edit, visual automation, product test suite, lock clearing, or product-owner
+question was performed by this decider.
+
+## 2026-07-05T14:19Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-05T141412831Z-decider-cadence.md`
+using README, stale project orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, decision log,
+bug intake, active build-loop summaries for
+`build/track-phrase-perform-mini-cells` and `build/au-runtime-safety`, live
+`build-capacity.ts`, inbox status, root git status, and the pending closeout /
+duplicate integration requests.
+
+Recorded a no-duplicate/no-action decision artifact:
+`.meta/multipass/runtime/loops/project/decide/2026-07-05T14-19Z-no-duplicate-mini-cell-closeout.md`.
+
+Decision reason: `build/track-phrase-perform-mini-cells` is already merged into
+local `main` at `9c1744ba2247b9613909194710d9f1ba02da7ed7`, but live capacity
+still counts it active and reports `0` available ordinary slots. The exact
+needed closeout remains already pending at
+`.meta/multipass/runtime/inbox/pending/2026-07-05T134500333Z-process-fixer.md`.
+That request covers completing the build-loop/capacity registry state and
+recording duplicate/superseded integration residue without moving
+runtime-owned request files. `build/au-runtime-safety` remains active and
+human-validation bounded; ready candidates and unpromoted ready candidates
+remain `none`.
+
+No actor request, ready-feature promotion, PM lane, build-loop creation,
+AU-runtime continuation, merge, rebase, branch/worktree deletion, product-code
+edit, visual automation, product test suite, lock clearing, or product-owner
+question was performed by this decider.
+
+## 2026-07-05T13:59Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-05T135907255Z-decider-cadence.md`
+using README, stale project orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, decision log,
+active build-loop summaries for `build/track-phrase-perform-mini-cells` and
+`build/au-runtime-safety`, live `build-capacity.ts`, inbox status, root git
+status, and the pending duplicate integration / process-fixer closeout
+requests.
+
+Recorded a no-duplicate/no-action decision artifact:
+`.meta/multipass/runtime/loops/project/decide/2026-07-05T13-59Z-no-duplicate-mini-cell-closeout.md`.
+
+Decision reason: `build/track-phrase-perform-mini-cells` has already been
+merged to local `main` at `9c1744ba2247b9613909194710d9f1ba02da7ed7`, but live
+capacity still counts it active. The exact needed closeout is already pending
+at `.meta/multipass/runtime/inbox/pending/2026-07-05T134500333Z-process-fixer.md`.
+That request covers completing the build-loop/capacity registry state and
+recording duplicate/superseded integration request residue without moving
+runtime-owned request files. `build/au-runtime-safety` remains active and
+human-validation bounded; ready candidates and unpromoted ready candidates
+remain `none`.
+
+No actor request, ready-feature promotion, PM lane, build-loop creation,
+AU-runtime continuation, merge, rebase, branch/worktree deletion, product-code
+edit, visual automation, product test suite, lock clearing, or product-owner
+question was performed by this decider.
+
+## 2026-07-05T11:38Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-05T113805847Z-decider-cadence.md`
+using README, stale project orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, decision log,
+active build-loop summaries for `build/track-phrase-perform-mini-cells` and
+`build/au-runtime-safety`, live `build-capacity.ts`, inbox status, and the
+pending mini-cell rework request.
+
+Recorded a no-duplicate/no-action decision artifact:
+`.meta/multipass/runtime/loops/project/decide/2026-07-05T11-38Z-no-duplicate-mini-cell-rework.md`.
+
+Decision reason: live capacity reports `2/2` active ordinary build loops and
+`0` available slots. `build/track-phrase-perform-mini-cells` already has the
+right pending rework request at
+`.meta/multipass/runtime/inbox/pending/2026-07-05T110838252Z-builder.md` after
+architecture review failed exact commit `42666648` for bypassing the
+established immediate-vs-quantized Track Perform pattern-change policy.
+`build/au-runtime-safety` remains active with full owner-bug closure held on
+human-present third-party AU validation or explicit acceptance of that evidence
+gap. Ready candidates and unpromoted ready candidates remain `none`.
+
+No actor request, ready-feature promotion, PM lane, build-loop creation, AU
+runtime-safety continuation, merge, rebase, branch/worktree deletion,
+product-code edit, visual automation, product test suite, lock clearing, or
+product-owner question was performed by this decider.
+
+## 2026-07-05T11:23Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-05T104744140Z-decider-cadence.md`
+using README, stale project orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, bug intake,
+active build-loop summaries for `build/track-phrase-perform-mini-cells` and
+`build/au-runtime-safety`, live `build-capacity.ts`, and the fresh pending
+mini-cell rework request.
+
+Recorded a no-duplicate/no-action decision artifact:
+`.meta/multipass/runtime/loops/project/decide/2026-07-05T11-23Z-no-duplicate-mini-cell-rework.md`.
+
+Decision reason: live capacity reports `2/2` active ordinary build loops and
+`0` available slots. `build/track-phrase-perform-mini-cells` already has the
+right rework builder request pending at
+`.meta/multipass/runtime/inbox/pending/2026-07-05T110838252Z-builder.md` after
+architecture review failed exact commit `42666648` for bypassing the established
+immediate-vs-quantized Track Perform pattern-change policy.
+`build/au-runtime-safety` remains active with full owner-bug closure held on
+human-present third-party AU validation or explicit acceptance of that evidence
+gap. Ready candidates and unpromoted ready candidates remain `none`.
+
+No actor request, ready-feature promotion, PM lane, build-loop creation, AU
+runtime-safety continuation, merge, rebase, branch/worktree deletion,
+product-code edit, visual automation, product test suite, lock clearing, or
+product-owner question was performed by this decider.
+
+## 2026-07-05T10:36Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-05T103238581Z-decider-cadence.md`
+using README, stale project orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, bug intake,
+decision log, active build-loop summaries for
+`build/track-phrase-perform-mini-cells` and `build/au-runtime-safety`, live
+`build-capacity.ts`, and the fresh pending mini-cell builder recovery request.
+
+Recorded a no-duplicate/no-action decision artifact:
+`.meta/multipass/runtime/loops/project/decide/2026-07-05T10-36Z-no-duplicate-active-builds-full.md`.
+
+Decision reason: live capacity reports `2/2` active ordinary build loops and
+`0` available slots. `build/track-phrase-perform-mini-cells` already has a
+fresh recovery builder request in flight at
+`.meta/multipass/runtime/inbox/pending/2026-07-05T100333201Z-builder.md` to
+recover scoped dirty partial output and produce exact build/test/lint evidence.
+`build/au-runtime-safety` remains active with full owner-bug closure held on
+human-present third-party AU validation or explicit acceptance of that evidence
+gap. Ready candidates and unpromoted ready candidates remain `none`.
+
+No actor request, ready-feature promotion, PM lane, build-loop creation, AU
+runtime-safety continuation, merge, rebase, branch/worktree deletion,
+product-code edit, visual automation, product test suite, lock clearing, or
+product-owner question was performed by this decider.
+
+## 2026-07-05T10:31Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-05T095723264Z-decider-cadence.md`
+using README, stale project orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, bug intake,
+decision log, active build-loop summaries for
+`build/track-phrase-perform-mini-cells` and `build/au-runtime-safety`, live
+`build-capacity.ts`, `inventory.ts`, and the fresh pending mini-cell builder
+recovery request.
+
+Recorded a no-duplicate/no-action decision artifact:
+`.meta/multipass/runtime/loops/project/decide/2026-07-05T10-31Z-no-duplicate-active-builds-full.md`.
+
+Decision reason: live capacity reports `2/2` active ordinary build loops and
+`0` available slots. `build/track-phrase-perform-mini-cells` already has a
+fresh recovery builder request in flight at
+`.meta/multipass/runtime/inbox/pending/2026-07-05T100333201Z-builder.md` to
+recover scoped dirty partial output and produce exact build/test/lint evidence.
+`build/au-runtime-safety` remains active with full owner-bug closure held on
+human-present third-party AU validation or explicit acceptance of that evidence
+gap. Ready candidates and unpromoted ready candidates remain `none`.
+
+No actor request, ready-feature promotion, PM lane, build-loop creation, AU
+runtime-safety continuation, merge, rebase, branch/worktree deletion,
+product-code edit, visual automation, product test suite, lock clearing, or
+product-owner question was performed by this decider.
+
+## 2026-07-05T09:37Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-05T090704925Z-decider-cadence.md`
+using README, stale project orientation as historical context, fresh compact
+current-work, feature-readiness, flow status, holistic status, bug intake,
+active build-loop summaries for `build/track-phrase-perform-mini-cells` and
+`build/au-runtime-safety`, live `build-capacity.ts`,
+`scripts/multi-pass/inbox-status.sh`, and root git status.
+
+Recorded a no-duplicate/no-action decision artifact:
+`.meta/multipass/runtime/loops/project/decide/2026-07-05T09-37Z-no-duplicate-active-builds-full.md`.
+
+Decision reason: live capacity reports `2/2` active ordinary build loops and
+`0` available slots. `build/track-phrase-perform-mini-cells` already has the
+right continuation request in flight at
+`.meta/multipass/runtime/inbox/pending/2026-07-05T091304306Z-builder.md` to
+fix the dirty partial compile blocker and produce exact evidence.
+`build/au-runtime-safety` remains active with full owner-bug closure held on
+human-present third-party AU validation or explicit acceptance of that evidence
+gap. Ready candidates and unpromoted ready candidates remain `none`.
+
+No actor request, ready-feature promotion, PM lane, build-loop creation, AU
+runtime-safety continuation, merge, rebase, branch/worktree deletion,
+product-code edit, visual automation, product test suite, lock clearing, or
+product-owner question was performed by this decider.
+
+## 2026-07-05T08:02Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-05T080137625Z-decider-cadence.md`
+using README, stale project orientation, fresh compact current-work,
+feature-readiness, flow status, holistic status, decision log,
+`build/track-phrase-perform-mini-cells` summary, `build/au-runtime-safety`
+summary, live `build-capacity.ts`, `scripts/multi-pass/inbox-status.sh`, and
+root git status.
+
+Recorded a no-duplicate/no-action decision artifact:
+`.meta/multipass/runtime/loops/project/decide/2026-07-05T08-02Z-no-duplicate-active-builds-full.md`.
+
+Decision reason: live capacity reports `2/2` active ordinary build loops and
+`0` available slots. `build/track-phrase-perform-mini-cells` is already active
+with pending builder request
+`.meta/multipass/runtime/inbox/pending/2026-07-05T072133184Z-track-phrase-perform-mini-cells-builder.md`,
+and `build/au-runtime-safety` remains active with full owner-bug closure held
+on human-present third-party AU validation. Ready candidates and unpromoted
+ready candidates remain `none`.
+
+No actor request, ready-feature promotion, PM lane, build-loop creation, AU
+runtime-safety continuation, merge, rebase, branch/worktree deletion,
+product-code edit, visual automation, product test suite, lock clearing, or
+product-owner question was performed by this decider.
+
+## 2026-07-05T07:46Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-05T074129145Z-decider-cadence.md`
+using README, stale project orientation, fresh compact current-work,
+feature-readiness, flow status, holistic status, bug intake, decision log,
+`pm/track-phrase-perform-interaction-prep` summary,
+`build/track-phrase-perform-mini-cells` summary, `build/au-runtime-safety`
+summary, live `build-capacity.ts`, `scripts/multi-pass/inbox-status.sh`, and
+root git status.
+
+Recorded a no-duplicate/no-action decision artifact:
+`.meta/multipass/runtime/loops/project/decide/2026-07-05T07-46Z-no-duplicate-mini-cells-builder-in-flight.md`.
+
+Decision reason: live capacity now reports `2/2` active ordinary build loops
+and `0` available slots. The prior Track / Phrase Perform PM promotion has
+already produced active `build/track-phrase-perform-mini-cells` plus pending
+builder request
+`.meta/multipass/runtime/inbox/pending/2026-07-05T072133184Z-track-phrase-perform-mini-cells-builder.md`.
+`build/au-runtime-safety` remains active and human-validation bounded. Ready
+candidates and unpromoted ready candidates remain `none`.
+
+No actor request, ready-feature promotion, PM lane, build-loop creation, AU
+runtime-safety continuation, merge, rebase, branch/worktree deletion,
+product-code edit, visual automation, product test suite, lock clearing, or
+product-owner question was performed by this decider.
+
+## 2026-07-05T06:52Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-05T065106792Z-decider-cadence.md`
+using README, stale project orientation, fresh compact current-work,
+feature-readiness, flow status, holistic status, bug intake, decision log,
+`build/au-runtime-safety` summary,
+`pm/track-phrase-perform-interaction-prep` summary and accepted PM handoff,
+live `build-capacity.ts`, `scripts/multi-pass/inbox-status.sh`, and root git
+status.
+
+Recorded decision artifact:
+`.meta/multipass/runtime/loops/project/decide/2026-07-05T06-52Z-route-track-perform-mini-cell-build-setup.md`.
+
+Routed one sparse project `process-fixer` act request:
+`.meta/multipass/runtime/inbox/pending/2026-07-05T065229112Z-process-fixer.md`.
+The request asks for the smallest build-loop container and initial builder
+request for the ready PM lane `pm/track-phrase-perform-interaction-prep`,
+scoped to Track Perform pattern mini-cell exact selection from the accepted
+handoff.
+
+Note: a prior malformed request was accidentally created at
+`.meta/multipass/runtime/inbox/pending/2026-07-05T065211832Z-process-fixer.md`
+because shell interpolation damaged the body. The corrected request explicitly
+supersedes it; this decider did not move, delete, or mark the malformed request
+handled because lifecycle belongs to the runtime.
+
+Decision reason: live capacity has one open ordinary build slot, no build
+inbox, and no generic ready/unpromoted candidates; the AU runtime-safety lane
+remains held on human-present validation. The PM starvation response from the
+previous cadence has now produced a builder-ready Track / Phrase Perform
+interaction handoff, making this the smallest useful promotion.
+
+No build implementation, merge, rebase, branch/worktree deletion, product-code
+edit, visual automation, product test suite, lock clearing, or product-owner
+question was performed by this decider.
+
+## 2026-07-05T06:36Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-05T062554095Z-decider-cadence.md`
+using README, stale project orientation, fresh compact current-work,
+feature-readiness, flow status, holistic status, bug intake, decision log,
+`build/au-runtime-safety` summary, live `build-capacity.ts`,
+`scripts/multi-pass/inbox-status.sh`, and the already-created Track / Phrase
+Perform PM setup/request artifacts.
+
+Recorded a no-duplicate/no-action decision artifact:
+`.meta/multipass/runtime/loops/project/decide/2026-07-05T06-36Z-no-duplicate-track-phrase-perform-pm-prep.md`.
+
+Decision reason: live capacity has one open ordinary build slot, but ready
+candidates and unpromoted ready candidates remain `none`. The active
+`build/au-runtime-safety` lane is held on human-present third-party AU
+validation. The prior 06:20Z cadence already routed the correct upstream
+starvation response, and the process-fixer instantiated
+`pm/track-phrase-perform-interaction-prep` with pending artifact-author and
+readiness-observer requests.
+
+No actor request, ready-feature promotion, build-loop creation, AU
+runtime-safety continuation, merge, rebase, branch/worktree deletion,
+product-code edit, visual automation, product test suite, lock clearing, or
+product-owner question was performed by this decider.
+
+## 2026-07-05T06:20Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-05T060546931Z-decider-cadence.md`
+using README, stale project orientation, fresh compact current-work,
+feature-readiness, flow status, holistic status, bug intake, decision log,
+`pm/july-4-phrase-layers-global-apply` summary/config,
+`build/au-runtime-safety` summary, live `build-capacity.ts`, `inventory.ts`,
+`scripts/multi-pass/inbox-status.sh`, and root git status.
+
+Recorded decision artifact:
+`.meta/multipass/runtime/loops/project/decide/2026-07-05T06-20Z-route-track-phrase-perform-pm-prep.md`.
+
+Routed one sparse project `process-fixer` act request:
+`.meta/multipass/runtime/inbox/pending/2026-07-05T061206934Z-process-fixer.md`.
+The request asks for the smallest PM loop container and initial
+PM artifact-author request for a Track / Phrase Perform interaction prep lane,
+scoped to bug-intake `G4` and explicitly excluding already-resolved July 4
+Phrase Layers / Global Apply work plus Scenes IA, mixer, kit, slicer/header,
+AU runtime safety, and audio-input lanes.
+
+Decision reason: live capacity now has one open ordinary build slot after
+`build/mixer-strip-followup` closeout, but ready candidates and unpromoted ready
+candidates remain `none`. The active `build/au-runtime-safety` lane is held on
+human-present third-party AU validation, not more unattended implementation.
+The active July 4 phrase/global-apply PM lane is superseded by resolved
+mainline evidence. Upstream PM starvation is therefore the current useful
+project-level problem, and Track / Phrase Perform interaction is the clearest
+high-priority owner-feedback cluster for PM slicing.
+
+No ready-feature promotion, build-loop creation, AU runtime-safety
+continuation, merge, rebase, branch/worktree deletion, product-code edit,
+visual automation, product test suite, lock clearing, or product-owner question
+was performed by the decider.
+
+## 2026-07-05T05:58Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-05T055040073Z-decider-cadence.md`
+using README, stale project orientation, fresh merge/holistic observations,
+compact current-work, feature-readiness, decision log, mixer integration
+evidence, mixer build-loop summary/config, live `build-capacity.ts`,
+`inventory.ts`, and `scripts/multi-pass/inbox-status.sh`.
+
+Recorded decision artifact:
+`.meta/multipass/runtime/loops/project/decide/2026-07-05T05-58Z-route-mixer-loop-closeout.md`.
+
+Routed one sparse project `process-fixer` act request:
+`.meta/multipass/runtime/inbox/pending/2026-07-05T055201446Z-process-fixer.md`.
+The request asks the process-fixer to reconcile
+`build/mixer-strip-followup` lifecycle/compact state now that
+`feature/mixer-strip-followup` is identical to local `main` at
+`04a0e0716b7cbc301c9cc91cf3c6972a6e163023` and integration evidence says local
+`main` was fast-forward merged.
+
+Decision reason: live capacity still reports `2/2` active ordinary build loops
+and `0` available slots because the already-merged mixer lane remains active in
+the registry. This is false capacity pressure and should be fixed before
+starting PM recovery or another owner-bug build lane. AU runtime-safety remains
+held on human-present AU validation, ready candidates are `none`, and
+`pm/july-4-phrase-layers-global-apply` is superseded registry residue.
+
+No ready-feature promotion, PM lane, AU runtime-safety continuation, merge,
+rebase, branch/worktree deletion, product-code edit, visual automation,
+product test suite, lock clearing, or product-owner question was performed by
+the decider.
+
+## 2026-07-05T05:36Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-05T053032526Z-decider-cadence.md`
+using README, stale project orientation, fresh compact current-work,
+feature-readiness, flow status, holistic status, decision log,
+`build/mixer-strip-followup` summary, the mixer integration-blocked artifact,
+the project-file overlap repair artifact, pending inbox checks, root/candidate
+project-file status, and live `build-capacity.ts`.
+
+Recorded decision artifact:
+`.meta/multipass/runtime/loops/project/decide/2026-07-05T05-36Z-route-mixer-strip-followup-integration.md`.
+
+Routed one sparse project `integrator` act request:
+`.meta/multipass/runtime/inbox/pending/2026-07-05T053631150Z-integrator.md`.
+The request asks the integrator to retry integration of
+`feature/mixer-strip-followup` from `.worktrees/mixer-strip-followup` at
+`04a0e0716b7cbc301c9cc91cf3c6972a6e163023`, now that the root
+`SequencerAI.xcodeproj/project.pbxproj` overlap has been isolated and cleared.
+
+Decision reason: the previous blocker was process hygiene, not a product
+question; fresh repair evidence proves the overlapping root project-file dirt
+is gone. Live capacity remains `2/2` active ordinary build loops with `0`
+available slots, ready candidates `none`, and unpromoted ready candidates
+`none`, so the next useful project-level action is integrating the
+merge-ready mixer candidate rather than starting PM or new build work.
+
+No ready-feature promotion, PM lane, AU runtime-safety continuation, merge,
+rebase, branch/worktree deletion, product-code edit, visual automation,
+product test suite, lock clearing, or product-owner question was performed by
+the decider.
+
+## 2026-07-05T05:15Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-05T051524636Z-decider-cadence.md`
+using README, stale project orientation, fresh compact current-work,
+feature-readiness, flow status, holistic status, decision log,
+`build/mixer-strip-followup` summary, the mixer integration-blocked artifact,
+pending inbox checks, root project-file status, and live `build-capacity.ts`.
+
+Recorded decision artifact:
+`.meta/multipass/runtime/loops/project/decide/2026-07-05T05-15Z-route-mixer-project-file-overlap-repair.md`.
+
+Routed one sparse project `process-fixer` act request to resolve or isolate
+only the root `SequencerAI.xcodeproj/project.pbxproj` dirty overlap that blocks
+integration of merge-ready `feature/mixer-strip-followup` at `04a0e071`.
+
+Decision reason: live capacity reports `2/2` active ordinary build loops,
+`0` available slots, ready candidates `none`, and unpromoted ready candidates
+`none`. The right-edge mixer candidate has paired focused tests and UX canon
+lint, but integration is blocked by a root generated-project-file overlap that
+is not a product question.
+
+No ready-feature promotion, PM lane, AU runtime-safety continuation, merge,
+rebase, branch/worktree deletion, product-code edit, visual automation,
+product test suite, lock clearing, or product-owner question was routed.
+
+## 2026-07-05T03:23Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-05T025424981Z-decider-cadence.md`
+using README, stale project orientation, fresh compact current-work,
+feature-readiness, flow status, holistic status, decision log,
+`build/mixer-strip-followup` and `build/au-runtime-safety` summaries, pending
+inbox checks, root status, and live `build-capacity.ts`.
+
+Recorded a no-duplicate/no-action decision artifact:
+`.meta/multipass/runtime/loops/project/decide/2026-07-05T03-23Z-no-duplicate-mixer-fx-continuation.md`.
+
+Decision reason: live capacity reports `2/2` active ordinary build loops,
+`0` available slots, ready candidates `none`, and unpromoted ready candidates
+`none`. The correct next useful action is already queued as
+`.meta/multipass/runtime/inbox/pending/2026-07-05T030016839Z-builder.md` for
+`build/mixer-strip-followup` to finish or discard the dirty FX strip grammar
+partial, reconcile `SequencerAI.xcodeproj/project.pbxproj`, run focused tests
+and UX canon lint, and provide exact evidence.
+
+No actor request, ready-feature promotion, PM lane, merge, rebase,
+branch/worktree deletion, product-code edit, visual automation, product test
+suite, lock clearing, or product-owner question was routed.
+
+## 2026-07-05T01:24Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-05T010334383Z-decider-cadence.md`
+using README, stale project orientation, fresh compact current-work,
+feature-readiness, flow status, holistic status, decision log,
+`build/mixer-strip-followup` and `build/au-runtime-safety` summaries,
+root status, and live `build-capacity.ts`.
+
+Recorded a no-duplicate/no-action decision artifact:
+`.meta/multipass/runtime/loops/project/decide/2026-07-05T01-24Z-no-duplicate-mixer-evidence-repair.md`.
+
+Decision reason: live capacity reports `2/2` active ordinary build loops,
+`0` available slots, ready candidates `none`, and unpromoted ready candidates
+`none`. The correct next useful action is already queued as
+`.meta/multipass/runtime/inbox/pending/2026-07-05T010923541Z-builder.md` for
+`build/mixer-strip-followup` evidence repair at committed candidate
+`db4bb94482926f16139d81da5ed8e9ee29481016`.
+
+No actor request, ready-feature promotion, PM lane, merge, rebase,
+branch/worktree deletion, product-code edit, visual automation, product test
+suite, lock clearing, or product-owner question was routed.
+
+## 2026-07-04T23:23Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-04T231748562Z-decider-cadence.md`
+using README, stale project orientation, fresh compact current-work,
+feature-readiness, flow status, holistic status, decision log,
+`build/mixer-strip-followup` and `build/au-runtime-safety` summaries, mixer
+setup evidence, pending inbox checks, and live `build-capacity.ts`.
+
+Recorded a no-duplicate/no-action decision artifact:
+`.meta/multipass/runtime/loops/project/decide/2026-07-04T23-23Z-no-duplicate-mixer-builder-in-flight.md`.
+
+Decision reason: the previous project cadence already filled the open ordinary
+slot by routing `build/mixer-strip-followup`, and the process-fixer created the
+pending builder request
+`.meta/multipass/runtime/inbox/pending/2026-07-04T231259802Z-mixer-strip-followup-builder.md`.
+Live capacity now reports `2/2` active ordinary build loops, `0` available
+slots, ready candidates `none`, and unpromoted ready candidates `none`.
+
+No actor request, ready-feature promotion, PM lane, merge, rebase,
+branch/worktree deletion, product-code edit, visual automation, product test
+suite, lock clearing, or new product-owner question was routed.
+
+## 2026-07-04T23:04Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-04T230251458Z-decider-cadence.md`
+using README, stale project orientation, fresh compact current-work,
+feature-readiness, flow status, holistic status, bug intake, decision log,
+`build/au-runtime-safety` summary,
+`pm/july-4-phrase-layers-global-apply` summary/evidence, pending inbox checks,
+and live `build-capacity.ts`.
+
+Recorded decision artifact:
+`.meta/multipass/runtime/loops/project/decide/2026-07-04T23-03Z-route-mixer-strip-followup-build-loop.md`.
+
+Routed one sparse project `process-fixer` act request:
+`.meta/multipass/runtime/inbox/pending/2026-07-04T230426283Z-process-fixer.md`.
+The request asks for the smallest build-loop container and initial builder
+request for `build/mixer-strip-followup` on `feature/mixer-strip-followup` /
+`.worktrees/mixer-strip-followup`, covering bug-intake group `G3` Mixer Strip
+Polish and Stopped Meters.
+
+Decision reason: live capacity has one open ordinary build slot and no ready or
+unpromoted PM/build candidates. The active `build/au-runtime-safety` lane is
+held on human-present AU validation, not further unattended implementation, and
+the July 4 phrase/global-apply PM lane is already superseded by resolved
+mainline repair evidence. The next useful project action is the highest-priority
+unrouted owner-bug group with concrete intake evidence: mixer strip polish and
+stopped-meter behavior.
+
+No ready-feature promotion, direct implementation, merge, rebase,
+branch/worktree deletion, product-code edit, visual automation, product test
+suite, lock clearing, or new product-owner question was performed.
+
+## 2026-07-04T22:39Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-04T220218661Z-decider-cadence.md`
+using README, stale project orientation, fresh compact current-work,
+feature-readiness, flow status, holistic status, decision log, bug intake,
+`build/au-runtime-safety` summary, `pm/july-4-phrase-layers-global-apply`
+summary/evidence, pending inbox checks, root git status, and live
+`build-capacity.ts`.
+
+Recorded a no-duplicate/no-action decision artifact:
+`.meta/multipass/runtime/loops/project/decide/2026-07-04T22-39Z-no-duplicate-au-validation-and-pm-closeout.md`.
+
+Decision reason: live capacity has one open ordinary build slot and no ready or
+unpromoted ready candidates. The active `build/au-runtime-safety` lane has
+paired deterministic evidence at `ead7586f` but now needs human-present AU
+validation, and a specific project-level decider request for that disposition
+is already pending at
+`.meta/multipass/runtime/inbox/pending/2026-07-04T222818364Z-decider.md`.
+The PM ready-buffer recovery lane
+`pm/july-4-phrase-layers-global-apply` has already closed as superseded by
+mainline repair evidence, so it is not a builder-ready supply candidate.
+
+No actor request, ready-feature promotion, direct bug-fix branch, PM lane,
+merge, rebase, branch/worktree deletion, product-code edit, visual automation,
+product test suite, lock clearing, or new product-owner question was routed.
+
+## 2026-07-04T21:47Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-04T211156735Z-decider-cadence.md`
+using README, stale project orientation, fresh compact current-work,
+feature-readiness, flow status, holistic status, decision log, bug intake,
+`build/au-runtime-safety` summary, pending/claimed inbox checks, root git
+status, and live `build-capacity.ts`.
+
+Recorded a no-duplicate/no-action decision artifact:
+`.meta/multipass/runtime/loops/project/decide/2026-07-04T21-47Z-no-duplicate-au-runtime-and-pm-recovery.md`.
+
+Decision reason: live capacity has one open ordinary build slot and no ready or
+unpromoted ready candidates. The urgent active `build/au-runtime-safety` lane
+already has a fresh pending builder continuation, and upstream PM starvation is
+already routed into `pm/july-4-phrase-layers-global-apply` with a pending
+PM-decider cadence. Starting another implementation lane or another PM lane
+would duplicate or bypass current evidence flow.
+
+No actor request, ready-feature promotion, direct bug-fix branch, merge, rebase,
+branch/worktree deletion, product-code edit, visual automation, product test
+suite, lock clearing, or product-owner question was routed. Product-owner
+attention is not needed.
+
+## 2026-07-04T20:57Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-04T203641717Z-decider-cadence.md`
+using README, stale project orientation, fresh compact current-work,
+feature-readiness, flow status, holistic status, decision log, bug intake,
+`build/au-runtime-safety` summary, pending/claimed inbox checks, root git
+status, and live `build-capacity.ts`.
+
+Recorded a no-duplicate/no-action decision artifact:
+`.meta/multipass/runtime/loops/project/decide/2026-07-04T20-57Z-no-duplicate-active-au-and-pm-lanes.md`.
+
+Decision reason: live capacity has one open ordinary build slot and no ready or
+unpromoted ready candidates, while the active `build/au-runtime-safety` lane
+already has a fresh pending builder continuation and the upstream PM starvation
+response is already pending as
+`.meta/multipass/runtime/inbox/pending/2026-07-04T194129389Z-pm-artifact-author-july-4-phrase-layers-global-apply.md`.
+Creating another PM lane, promoting a stale/thin feature, or starting an
+unrelated owner-bug branch would duplicate or bypass current evidence flow.
+
+No actor request, ready-feature promotion, direct bug-fix branch, merge, rebase,
+branch/worktree deletion, product-code edit, visual automation, product test
+suite, lock clearing, or product-owner question was routed. Product-owner
+attention is not needed.
+
+## 2026-07-04T19:57Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-04T195123364Z-decider-cadence.md`
+using README, stale project orientation, fresh compact current-work,
+feature-readiness, flow status, holistic status, decision log, bug intake,
+`build/au-runtime-safety` summary, pending/claimed inbox checks, and live
+`build-capacity.ts`.
+
+Recorded a no-duplicate/no-action decision artifact:
+`.meta/multipass/runtime/loops/project/decide/2026-07-04T19-57Z-no-duplicate-pm-lane-in-flight.md`.
+
+Decision reason: live capacity has one open ordinary build slot and no ready or
+unpromoted ready candidates, while the active `build/au-runtime-safety` lane
+already has a pending builder continuation and the upstream PM starvation
+response has already been routed as
+`.meta/multipass/runtime/inbox/pending/2026-07-04T194129389Z-pm-artifact-author-july-4-phrase-layers-global-apply.md`.
+Creating another PM lane, promoting a stale/thin feature, or starting an
+unrelated implementation branch would duplicate or bypass the current evidence.
+
+No actor request, ready-feature promotion, direct bug-fix branch, merge, rebase,
+branch/worktree deletion, product-code edit, visual automation, product test
+suite, lock clearing, or product-owner question was routed. Product-owner
+attention is not needed.
+
+## 2026-07-04T18:57Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-04T184553068Z-decider-cadence.md`
+using README, stale project orientation, fresh compact current-work,
+feature-readiness, flow status, holistic status, decision log, bug intake,
+PM-loop feature table, Autoslice PM summary, AU Runtime Safety build summary,
+pending/claimed inbox checks, and live `build-capacity.ts`.
+
+Routed one sparse project `process-fixer` act request:
+`.meta/multipass/runtime/inbox/pending/2026-07-04T185706787Z-process-fixer.md`.
+The request asks for PM ready-buffer recovery after the July 4 observer batch:
+reconcile stale PM readiness signals, especially Autoslice PM/build state and
+README statuses that disagree with durable loop state; create or refresh at
+most one real unlocked PM lane/request from current July 4 owner-feedback
+clustering if safe; otherwise write a compact no-candidate artifact.
+
+Decision reason: live capacity has one open ordinary build slot, but
+`build/au-runtime-safety` is already active with a pending builder continuation
+for its dirty partial, and live readiness still reports no ready or unpromoted
+ready candidates. Routing a second implementation branch directly would bypass
+the upstream starvation signal. The next useful project action is to repair or
+advance PM supply while avoiding duplication of the active AU runtime-safety
+lane.
+
+No ready feature promotion, direct mixer/perform/scenes/kit/slicer
+implementation branch, second AU builder request, merge, rebase, branch or
+worktree deletion, product-code edit, visual automation, product test suite,
+lock clearing, or product-owner question was routed. Product-owner attention is
+not needed.
+
+## 2026-07-04T18:01Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-04T180032709Z-decider-cadence.md`
+using README, stale project orientation, fresh compact current-work,
+feature-readiness, flow status, holistic status, decision log, bug intake, live
+`build-capacity.ts`, and direct pending/claimed inbox path checks.
+
+Routed one sparse project `process-fixer` act request:
+`.meta/multipass/runtime/inbox/pending/2026-07-04T180126534Z-process-fixer.md`.
+The request asks for the smallest build-loop container and initial builder
+request for the urgent AU runtime safety / preset behavior owner-bug group:
+`docs/bugs/20260624-165547-the-preset-picker-for-an-au-instrument-i`,
+`docs/bugs/20260629-101847-au-preset-no-change-during-playback-and-hung-note`,
+and `docs/bugs/20260629-121929-au-removal-while-playing-crash`.
+
+Decision reason: July 4 reconciliation closed routing source/mixer split and AU
+list/rescan as current-main superseded lanes, live capacity now has two open
+ordinary build slots, and feature-readiness still reports no ready/unpromoted
+PM candidate. Although upstream PM starvation is real, the unresolved AU
+runtime safety bug group is urgent and playback/crash-adjacent, so it outranks a
+speculative PM lane this tick.
+
+No PM lane, ready-feature promotion, mixer/perform/scenes/kit/slicer follow-up,
+merge, rebase, branch/worktree deletion, product-code edit, visual automation,
+product test suite, lock clearing, or product-owner question was routed.
+Product-owner attention is not needed.
+
+## 2026-07-04T17:46Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-04T174526058Z-decider-cadence.md`
+using README, the stale project orientation, compact current-work,
+feature-readiness, flow status, holistic status, decision log, bug intake, the
+AU build-loop summary/config, live `build-capacity.ts`, direct pending/claimed
+inbox check, root git/worktree checks, and branch refs.
+
+Routed one sparse project `process-fixer` act request:
+`.meta/multipass/runtime/inbox/pending/2026-07-04T174622545Z-process-fixer.md`.
+The request asks for coordination reconciliation of only
+`build/au-discovery-rescan` after its configured worktree disappeared: inspect
+preserved branch `feature/au-discovery-rescan` at `754e210f`, compare it to
+current `main`, determine whether current `main` supersedes the work or whether
+the lane should be reconstructed, and then repair only the coordination state
+needed for continuation or write a precise blocker.
+
+No PM lane was advanced even though `build-capacity.ts` reports two available
+ordinary slots, because ready/unpromoted ready candidates are still `none` and
+the AU owner-bug lane is already routed but process-locked. No mixer,
+Track/Phrase Perform, Scenes, kit/slicer, Observability, MIDI, merge, rebase,
+branch/worktree deletion, product-code edit, visual automation, product
+build/test, lock clearing, or product-owner question was routed. Product-owner
+attention is not needed.
+
+## 2026-07-04T17:31Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-04T173016381Z-decider-cadence.md`
+using README, stale project orientation, compact current-work,
+feature-readiness, flow status, bug intake, holistic status, the July 4 stale
+capacity process-fixer artifact, live `build-capacity.ts`, `inventory.ts`,
+`inbox-status.sh`, direct pending/claimed inbox check, and direct branch /
+worktree checks.
+
+Routed one sparse project `process-fixer` act request:
+`.meta/multipass/runtime/inbox/pending/2026-07-04T173129830Z-process-fixer.md`.
+The request asks for coordination-state reconciliation of only
+`build/routing-source-mixer-split` after its configured worktree disappeared:
+determine whether current `main` plus `integrate/routing-source-mixer-split`
+already contains the intended work, whether the uncontained
+`feature/routing-source-mixer-split` branch has residual product/evidence
+changes, and then either repair closeout state or write the exact blocker for
+reconstruction/continuation.
+
+No PM lane was advanced even though `build-capacity.ts` reports two available
+ordinary slots, because ready/unpromoted ready candidates are still `none` and
+the open capacity is downstream of stale active-work locks. No AU continuation,
+mixer/channel-strip builder, Track/Phrase Perform builder, merge, rebase,
+branch/worktree deletion, product-code edit, visual automation, product test
+suite, lock clearing, or product-owner question was routed. Product-owner
+attention is not needed.
+
+## 2026-07-04T17:16Z
+
+Handled decider cadence request
+`.meta/multipass/runtime/inbox/claimed/2026-07-04T171511021Z-decider-cadence.md`
+using README, stale project orientation, compact current-work,
+feature-readiness, flow, holistic status, bug-intake, build-loop summaries and
+configs, live `build-capacity.ts`, `inbox-status.sh`, direct main checkout
+status, and `git worktree list`.
+
+Routed one sparse project `process-fixer` act request:
+`.meta/multipass/runtime/inbox/pending/2026-07-04T171628894Z-process-fixer.md`.
+The request asks for coordination-state repair only: live capacity still counts
+`build/routing-source-mixer-split` and `build/au-discovery-rescan` as active
+ordinary build loops consuming both slots, but their configured worktree paths
+are absent and `git worktree list` does not list either worktree. The
+process-fixer should determine whether those loops were intentionally closed,
+renamed, integrated, or lost, then repair only the state needed for capacity /
+inventory to stop hiding real capacity, or write a compact blocker if evidence
+is insufficient.
+
+No PM promotion, mixer/channel-strip builder, routing/AU continuation,
+product-code edit, merge, rebase, visual capture, test suite, worktree
+deletion, lock clearing, or product-owner question was routed. Product-owner
+attention is not needed.
+
 ## 2026-06-17T03:27Z
 
 Handled high-priority decider request
@@ -3309,3 +6232,123 @@ passes, but runtime/manual `aufx` + `aumu` rescan acceptance and exact AU
 picker/menu screenshots remain missing. Capacity is still full, so no mixer
 follow-up or PM lane was promoted; routing split was not duplicate-routed while
 its `22d`/`22e` capture evidence blocker remains.
+
+## 2026-07-04T17:51Z
+
+Closed `build/au-discovery-rescan` as `complete` by current-main supersession,
+not by merging the preserved feature branch. Direct checks showed
+`feature/au-discovery-rescan` remains preserved at `754e210f`, based on old
+`23c2715c`, ahead of and uncontained in current `main`, with useful AU
+cache/controller/test/fixture work. Current `main` already contains the
+reintegrated product behavior and bug-resolution evidence via `54d46ae7`,
+`9cd7cd13`, and July 4 UI ordering cleanup `2c0d84ea`, so reconstructing the
+missing `.worktrees/au-discovery-rescan` lane would consume capacity for stale
+evidence. Future runtime visual acceptance should be requested against current
+main if needed.
+
+## 2026-07-04T22:47Z
+
+Held `build/au-runtime-safety` pending Max/human-present third-party AU
+validation. Checkpoint `ead7586f` is accepted as deterministic
+architecture/testing evidence for the preset browser command path, with paired
+builder, architecture, and testing artifacts, but it is not a full merge
+candidate for the owner-bug group. No unattended actor request was sent because
+the remaining gap is permission/human acoustic evidence: named AU/version and
+presets, stopped and playing preset sound-change checks, no transport
+pause/glitch, no old-patch tail or hung note, baseline note-off length, and
+tested commit `ead7586f` or later.
+
+## 2026-07-05T04:52Z
+
+Routed one project integrator request for the feature-complete
+`build/mixer-strip-followup` merge candidate:
+`.meta/multipass/runtime/inbox/pending/2026-07-05T045122872Z-integrator.md`.
+Accepted output is `feature/mixer-strip-followup` at
+`04a0e0716b7cbc301c9cc91cf3c6972a6e163023`, with exact build-loop architecture
+and testing passes plus focused tests/UX canon lint. Remaining visual evidence
+gap is `capture-permission-or-focus`. No PM promotion was scheduled because
+ordinary build capacity is full and PM supply remains non-promotable; no
+product-owner question was raised.
+
+## 2026-07-05T07:24Z
+
+Routed no duplicate request. Live capacity has one ordinary slot open
+(`build/au-runtime-safety` active; Observability and MIDI locked), but the
+fresh PM lane `pm/track-phrase-perform-interaction-prep` is already
+`ready-for-builder-request` and a corrected project `process-fixer` setup
+request is pending at
+`.meta/multipass/runtime/inbox/pending/2026-07-05T065229112Z-process-fixer.md`.
+That request supersedes malformed
+`.meta/multipass/runtime/inbox/pending/2026-07-05T065211832Z-process-fixer.md`.
+No AU continuation, PM lane, visual automation, or product-owner question was
+routed.
+
+## 2026-07-05T12:43Z
+
+Routed one project `integrator` request for the feature-complete
+`build/track-phrase-perform-mini-cells` merge candidate:
+`.meta/multipass/runtime/inbox/pending/2026-07-05T123513870Z-integrator.md`.
+Accepted output is `feature/track-phrase-perform-mini-cells` at `9c1744ba`,
+with build-loop architecture and testing passes, focused state tests, and UX
+canon lint paired. Live capacity is full with `build/track-phrase-perform-mini-cells`
+and `build/au-runtime-safety`; no PM lane or AU continuation was routed.
+Malformed earlier request
+`.meta/multipass/runtime/inbox/pending/2026-07-05T123450703Z-integrator.md`
+is superseded by the corrected request; runtime lifecycle was not touched.
+
+## 2026-07-05T12:49Z
+
+Confirmed the same `build/track-phrase-perform-mini-cells` integration decision
+from request `.meta/multipass/runtime/inbox/claimed/2026-07-05T121923707Z-decider.md`.
+The authoritative pending request remains
+`.meta/multipass/runtime/inbox/pending/2026-07-05T123513870Z-integrator.md`.
+This decider run accidentally created duplicate corrected request
+`.meta/multipass/runtime/inbox/pending/2026-07-05T124932787Z-integrator.md`
+before noticing the existing corrected request in this log; treat it as the
+same scope, not a second integration job. No lifecycle files were moved.
+
+## 2026-07-05T13:45Z
+
+Routed one project `process-fixer` request to close out
+`build/track-phrase-perform-mini-cells` capacity/lifecycle residue after the
+merged integration evidence:
+`.meta/multipass/runtime/inbox/pending/2026-07-05T134500333Z-process-fixer.md`.
+The decision artifact is
+`.meta/multipass/runtime/loops/project/decide/2026-07-05T13-45Z-track-phrase-mini-cells-closeout.md`.
+No new product build, PM lane, AU continuation, integration request, visual
+automation, or product-owner question was routed. Remaining risks are
+disk-exhausted post-merge checks, missing visual evidence, stale duplicate
+integrator requests, and stale capacity until the process-fixer completes.
+
+## 2026-07-06T01:26Z
+
+Routed no duplicate request. Live capacity has one ordinary slot open
+(`build/au-runtime-safety` active; Observability and MIDI locked), and the one
+current builder-ready PM package is `pm/drum-kit-matrix-sound-prep`. A project
+process-fixer request to create `build/drum-kit-matrix-sound-prep` is already
+pending at
+`.meta/multipass/runtime/inbox/pending/2026-07-05T171559659Z-process-fixer.md`.
+The decision artifact is
+`.meta/multipass/runtime/loops/project/decide/2026-07-06T01-26Z-decider-cadence.md`.
+No AU continuation, Track/Phrase residual build, new PM lane, visual automation,
+or product-owner question was routed.
+
+## 2026-07-06T14:21Z
+
+Routed no duplicate request. Live capacity is full with
+`build/au-runtime-safety` and `build/drum-kit-matrix-sound-prep` consuming both
+ordinary slots; `build-capacity.ts` reports zero available slots and no ready or
+unpromoted ready candidates. The next bounded build-loop action is already
+pending as
+`.meta/multipass/runtime/inbox/pending/2026-07-06T101720296Z-testing-review.md`.
+The decision artifact is
+`.meta/multipass/runtime/loops/project/decide/2026-07-06T14-21Z-no-duplicate-full-capacity.md`.
+No PM lane, new build work, AU continuation, visual automation, or
+product-owner question was routed.
+
+## 2026-07-06T18:54Z - Track setup surface compression visual evidence hold
+
+- Request: `.meta/multipass/runtime/inbox/claimed/2026-07-06T183322769Z-decider.md`
+- Decision: authorized one conditional exact-state visual-evidence pass for `build/track-setup-surface-compression` at `9517f95430acc78dd5ff930ca68371fbb7df5df1`.
+- Routed: `.meta/multipass/runtime/inbox/pending/2026-07-06T185344307Z-builder.md` to `builder` on `build/track-setup-surface-compression/act`.
+- Hold: do not merge this checkpoint until the requested visual evidence exists or the evidence gap is explicitly waived. If visual automation is not explicitly enabled in the actor invocation, record `capture-permission-or-focus` and stop without app control.

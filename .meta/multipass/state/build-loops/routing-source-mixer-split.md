@@ -1,7 +1,7 @@
 # routing-source-mixer-split
 
 - loop: `build/routing-source-mixer-split`
-- status: active
+- status: complete
 - branch: `feature/routing-source-mixer-split`
 - worktree: `.worktrees/routing-source-mixer-split`
 - created: 2026-06-16T13:37:01.450Z
@@ -18,6 +18,52 @@
 
 This is the durable build-loop summary. Transient inboxes, runs, and evidence
 live under `.meta/multipass/runtime/loops/build/routing-source-mixer-split/`.
+
+## 2026-07-04 Reconciliation Closeout
+
+2026-07-04T17:35Z process-fixer repair:
+`.meta/multipass/runtime/loops/project/act/2026-07-04T17-35Z-routing-source-mixer-split-reconciled.md`
+
+The lane is closed as `complete` by supersession on current `main`, not by
+feature-branch ancestry. Current `main` is `9062180d`; the configured worktree
+`.worktrees/routing-source-mixer-split` remains absent. Branch checks found:
+
+- `feature/routing-source-mixer-split` preserved at `3938b6bc`, not contained
+  in `main`;
+- `integrate/routing-source-mixer-split` at `54b265e1`, contained in `main`;
+- `feature/routing-source-mixer-split` not contained in the integrate branch.
+
+The feature branch still carries residual stale product/evidence changes: the
+old side-by-side two-well routing-tab implementation, source-vocabulary tests,
+QA rows, visual fixture work, and a branch-local resolution file. Current
+`main` resolves the owner bug through the later Track detail shape instead:
+the Sound tab owns source selection/editing with `Add Sound Source`, and the
+Mixer tab owns output, scene membership, and sends through
+`TrackRoutingTabContent(mode: .mixer)`. Reconstructing the old worktree would
+target a stale UI shape and should not consume build capacity.
+
+The build-loop manifest now reports terminal `status: complete`. Do not merge,
+delete, or recreate the preserved branch/worktree from this summary alone. If a
+future decider wants any surviving tests or capture-fixture ideas, it should
+route a fresh bounded request against current `main`, not reopen this lane.
+
+## Process Lock (Superseded)
+
+2026-07-04T17:20Z process-fixer repair:
+`.meta/multipass/runtime/loops/project/act/2026-07-04T17-20Z-stale-build-capacity-registry-repair.md`
+
+The configured worktree `.worktrees/routing-source-mixer-split` is absent from
+`git worktree list`, and there is no pending routing build-loop inbox work.
+The local branch `feature/routing-source-mixer-split` is preserved at
+`3938b6bc`, but it is not contained in current `main`. A later
+`integrate/routing-source-mixer-split` branch is contained in current `main`,
+so this loop needs explicit decider reconciliation before any continuation or
+closeout claim.
+
+Coordination state now marks the loop `locked` by `process` so it does not
+consume ordinary build capacity while the worktree is missing. Do not recreate
+the worktree, route builders, mark complete, merge, push, or delete branches
+from this summary alone.
 
 ## Compact Build Intent
 

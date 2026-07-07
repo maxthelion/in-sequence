@@ -1,0 +1,75 @@
+id: pm/track-phrase-perform-interaction-prep
+kind: pm
+status: active
+feature: track-phrase-perform-interaction-prep
+source_intent:
+  - .meta/multipass/runtime/loops/project/decide/2026-07-05T06-20Z-route-track-phrase-perform-pm-prep.md
+  - .meta/multipass/state/bug-intake.md
+  - docs/bugs/20260616-110235-the-behaviour-of-pattern-layer-in-a-cell
+  - docs/bugs/20260619-213241-there-are-too-many-levels-of-navigation
+  - docs/bugs/20260619-213713-the-cards-for-each-layer-should-be-inter
+  - docs/bugs/20260619-213834-it-should-switch-fully-when-in-track-sel
+  - docs/bugs/20260619-215229-tracks-perform-should-be-navigation-not-layers
+  - docs/bugs/20260620-112546-remove-unnecessary-text-in-the-new-nav-b
+  - docs/bugs/20260620-135925-choose-phrase-layer-is-unnecessary-text
+  - docs/bugs/20260622-130446-the-track-selector-has-several-issues-th
+  - docs/bugs/20260704-085618-the-layer-buttons-should-be-less-long-to
+  - docs/bugs/20260704-091036-layers-buttons-should-be-narrower
+runtime:
+  root: .meta/multipass/runtime/loops/pm/track-phrase-perform-interaction-prep
+  activity: activity.ndjson
+artifacts:
+  durable_summary: .meta/multipass/state/pm-loops/track-phrase-perform-interaction-prep.md
+  product_docs: docs/roadmap/track-phrase-perform-interaction-prep
+work:
+  branch: main
+  worktree: .
+phases:
+  observe: observe
+  orient: orient
+  decide: decide
+  act: act
+  evidence: evidence
+freshness:
+  output_state: PM lane setup for Track Perform / Phrase Perform navigation and layer interaction prep, not product implementation.
+  stale_when:
+    - linked Track Perform / Phrase Perform navigation bug reports receive resolution evidence.
+    - docs/roadmap/track-phrase-perform-interaction-prep artifacts change.
+    - active build-loop evidence already consumes this exact interaction scope.
+
+actors:
+  observe:
+    - actor: pm-readiness-observer
+      cadence: 2h
+      prompt: project/actors/pm-readiness-observer/prompt.md
+      actions: project/actors/pm-readiness-observer/actions.yaml
+      tick: >
+        Observe Track / Phrase Perform interaction prep readiness. Record
+        existing artifacts, missing readiness gates, product-owner decision
+        needs, and whether one builder-ready interaction handoff can be
+        promoted. Do not write inbox requests or modify roadmap artifacts.
+  orient:
+    - actor: pm-orienter
+      cadence: 30m
+      prompt: project/actors/pm-orienter/prompt.md
+      actions: project/actors/pm-orienter/actions.yaml
+      tick: >
+        Interpret Track / Phrase Perform navigation and layer interaction
+        observations against bug-intake G4, the non-duplication boundary with
+        July 4 Phrase Layers / Global Apply, and current readiness evidence.
+        Identify the next PM artifact gap or lock. Do not schedule work.
+  decide:
+    - actor: pm-decider
+      cadence: 30m
+      prompt: project/actors/pm-decider/prompt.md
+      actions: project/actors/pm-decider/actions.yaml
+      tick: >
+        Decide one bounded PM-loop action for Track / Phrase Perform
+        interaction prep from the latest PM orientation. Route only PM
+        artifact work or a loop-local lock; do not promote a build loop.
+  act:
+    - actor: pm-artifact-author
+      cadence: on_inbox
+      prompt: project/actors/pm-artifact-author/prompt.md
+      actions: project/actors/pm-artifact-author/actions.yaml
+      resource_keys: mutate:pm:track-phrase-perform-interaction-prep

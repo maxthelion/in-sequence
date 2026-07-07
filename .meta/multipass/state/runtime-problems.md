@@ -1,29 +1,29 @@
 # Runtime Problems
 
-- updated: 2026-06-17T08:00Z
+- updated: 2026-07-06T11:18Z
 - request:
-  `.meta/multipass/runtime/inbox/claimed/2026-06-17T075328073Z-log-observer-cadence.md`
+  `.meta/multipass/runtime/inbox/claimed/2026-07-04T171510672Z-log-observer-cadence.md`
 - scan window: 180 minutes
 - scan command: `scripts/multi-pass/runtime-log-scan.sh`
 - loop-local observation:
-  `.meta/multipass/runtime/loops/project/observe/2026-06-17T08-00Z-runtime-log-observation.md`
+  `.meta/multipass/runtime/loops/project/observe/2026-07-06T11-18Z-runtime-log-observation.md`
 - repo state at scan: root `main` at
-  `23c2715c3ed7db1f89cde5c7585d18bd4065c50f` with `318`
-  dirty/local-only paths. Active build-loop context observed directly:
-  `build/routing-source-mixer-split` clean at `0f297367`,
-  `build/au-discovery-rescan` clean at `4ce14c75`,
-  `build/observability-log-issues` dirty at `714fdb8`, and
-  `build/midi-interfaces` clean at `34d5c43`.
-- current scan result: no recent `SequencerAI` crash reports in the default
-  180-minute window. The current scan also returned no launch metadata rows and
-  no targeted fatal/audio rows. The prior `2026-06-17 00:52` unstamped
-  XCTest/CoreAudio abort remains unresolved historical evidence risk, but it
-  did not recur in this scan and is now outside the default window.
+  `0f87e2da809a06d9abcc7bddb4aca905629c991b` with broad dirty/local-only
+  coordination and visual-review state. Active build-loop context from compact
+  state: `build/au-runtime-safety` active at deterministic checkpoint
+  `ead7586f` and held for human-present third-party AU validation;
+  `build/mixer-strip-followup` complete/merged at `04a0e071`.
+- current scan result: one fresh `SequencerAI` crash report in the default
+  180-minute window, plus many unstamped launches. The crash is an AVFAudio
+  `playerTime.sampleTimeValid` abort during sample playback / routing-stress
+  status activity, but the launched app reported unknown commit/branch/dirty
+  state and had no build-attribution manifest.
 
 ## Problems
 
 | Observed time | Source log/report path | App commit or branch | Crash/error signature | Likely user-facing action affected | Severity | Routing suggestion | Status |
 | --- | --- | --- | --- | --- | --- | --- | --- |
+| `2026-07-06 11:39:53-11:39:56 +0100` | `/Users/maxwilliams/Library/Logs/DiagnosticReports/SequencerAI-2026-07-06-114016.ips`; narrowed unified-log query for PID `46747` around `2026-07-06 11:39:40-11:40:05 +0100`; deterministic scan output from `scripts/multi-pass/runtime-log-scan.sh` | Launch row reported `build=1`, `gitCommit=unknown`, `gitBranch=unknown`, `gitDirty=unknown`, `attributionID=unknown`, and `attributionVersion=unknown`; no build-attribution manifest was found. Process path was a DerivedData debug app, parent `bash`, responsible process `Codex`. Root scan context was dirty `main` at `0f87e2da`. Active compact context included `build/au-runtime-safety` held at `ead7586f` and completed `build/mixer-strip-followup` merged at `04a0e071`, but the crash itself is unstamped. | `EXC_CRASH` / `SIGABRT` / `Abort trap: 6`; uncaught `com.apple.coreaudio.avfaudio` exception: `AVAudioPlayerNode.mm:992:ResolveToPlayerSampleTime: required condition is false: playerTime && playerTime.sampleTimeValid`. Last exception backtrace is `AVAudioPlayerNodeImpl::BufferCommand::Perform`. Crash threads show `SamplePlaybackEngine.playPreparedBusSample` / `playPreparedSample` / `play` from `EngineController.dispatchTick()` and `processLiveLookAheadPumpMarked(now:)`, plus `SamplePlaybackEngine.trackOutputGainForTesting` via `VisualScenarioCommandRunner.routingStressStatusLines`. | Sample playback or bus sample playback during transport, especially under command-file routing-stress/status polling. If interactive, the user-facing equivalent is playback crash while sample-backed tracks are scheduled and routing/status evidence is read. Current evidence is harness/runtime adjacent because `VisualScenarioCommandRunner` is on stack and the launch came from Codex/bash. | High | Reproduce on a fresh stamped current build with commit/branch/dirty metadata. If the signature repeats, prefer a focused command-file/routing-stress reproduction and route as runtime-regression audio graph/sample playback work unless a stamped feature branch is identified. Do not assign to `au-runtime-safety`, `mixer-strip-followup`, or `main` from this unstamped row alone. | Active unattributed runtime problem. Should influence orientation as a high-severity merge/evidence risk. No product-owner attention from current evidence. |
 | `2026-06-17 00:52:36-00:52:39 +0100` | `/Users/maxwilliams/Library/Logs/DiagnosticReports/SequencerAI-2026-06-17-005257.ips`; narrowed unified-log query for PID `23066` around `2026-06-17 00:52:35-00:52:40 +0100`; prior deterministic scan output from `scripts/multi-pass/runtime-log-scan.sh 480` | Launch row reported `build=1`, `gitCommit=unknown`, `gitBranch=unknown`, `gitDirty=unknown`, `attributionID=unknown`, and `attributionVersion=unknown`. No build-attribution manifest exists for bundle build `1`. Nearby active context included AU evidence repair and routing capture repair, but the crash itself was unstamped. | `EXC_CRASH` / `SIGABRT` / `abort() called`. Triggered main thread stack was `swift_Concurrency_fatalError` / `swift_task_dealloc_specific` through `XCTSwiftErrorObservation`, `XCTestCase`, `XCTestDriver`, and `_XCTestMain`. Prior narrowed log showed XCTest daemon readiness rows, the unknown-build launch row, and `AVAudioEngineGraph.mm:1322:Initialize: (inputNode != nullptr || outputNode != nullptr)`. | App-hosted XCTest or runtime launch can abort during CoreAudio graph initialization when no input/output node is available. User-facing equivalent could be app launch or audio-engine startup failure, but current evidence is test-harness/HAL adjacent rather than a confirmed interactive DAW workflow. | High impact if reproducible; attribution currently unknown | Reproduce on a fresh stamped current build after CoreAudio/HAL state is healthy. If it repeats with branch/commit metadata, route to the owning build loop or configured runtime-regression lane. Until then, do not assign to `au-discovery-rescan`, `routing-source-mixer-split`, Observability, MIDI, or `main` from this row alone. | Active unattributed runtime problem. Not repeated in the `2026-06-17T08:00Z` 180-minute scan; no product-owner attention. Should influence orientation as an evidence/gate risk and possible machine-state blocker if app-hosted tests or audio startup remain unstable. |
 | `2026-06-17T03:37:53Z` scan; stamped launches through `2026-06-17 01:42:46 +0100`; unknown launches through `2026-06-17 03:42:44 +0100` local log time | `scripts/multi-pass/runtime-log-scan.sh`; launch metadata rows in unified log | Recent stamped launch: `gitCommit=4ce14c75` on `feature/au-discovery-rescan`. Prior stamped launches also included `69227d3e` and `0f297367` on `feature/routing-source-mixer-split`, and `80be3f56` on `feature/au-discovery-rescan`. Newer launch rows at `03:22:57` and `03:42:44` still report `gitCommit=unknown`, `gitBranch=unknown`, `gitDirty=unknown`, `attributionID=unknown`, and `attributionVersion=unknown`. | Partial build identity/attribution. Current scan found no crash reports and no targeted fatal/audio row tied directly to the stamped `routing-source-mixer-split` or `au-discovery-rescan` launches. Fatal/audio rows were only LaunchServices timeout invalidations. | Runtime regression ownership can be ambiguous when a failed launch lacks branch/commit metadata; future crash ownership may be misassigned without fresh stamped reproduction. | Medium evidence risk | Keep monitoring. Reproduce visible runtime failures with fresh commit/branch/dirty-state logging and action/file context before assigning feature ownership. Do not hold either active feature solely from the attribution-risk row. | Active evidence risk; no product-owner attention. |
 | `2026-06-16 17:18:14 +0100` | Prior scan and narrowed unified-log query for PID `44295` around `2026-06-16 17:18:10-17:18:20 +0100` | Launch row reported `build=1`, `gitCommit=unknown`, `gitBranch=unknown`, `gitDirty=unknown`, `attributionID=unknown`, and `attributionVersion=unknown`. | XCTest serialization row: `NSInvalidUnarchiveOperationException: The data couldn't be read because it isn't in the correct format.` Narrowed context showed `com.apple.dt.xctest` / `com.apple.testmanagerd`, an `NSOpenPanel`, immediate CoreAnalytics exit-handler rows, and no crash report. | Likely visual/test harness or XCTest-launched app flow, not a confirmed in-app DAW workflow. | Low evidence noise | Monitor only. If paired with failed screenshot/capture/test evidence, route as tooling or evidence-harness investigation. Do not assign product runtime or feature ownership from this row alone. | Carried low-severity monitoring row; no product-owner attention. |
@@ -34,18 +34,18 @@
 
 ## Evidence Risk
 
-- The current `2026-06-17T08:00Z` 180-minute scan found no fresh SequencerAI
-  crash reports, launch metadata rows, or targeted fatal/audio rows.
-- The prior `2026-06-17 00:52` app-hosted XCTest / CoreAudio
-  graph-initialization crash remains high-impact but unstamped and is now
-  outside the default 180-minute window; do not assign feature ownership without
-  a fresh stamped reproduction.
-- No current scan row implicates `feature/routing-source-mixer-split`,
-  `feature/au-discovery-rescan`, Observability, MIDI, or root `main`.
-- Recent `routing-source-mixer-split` and `au-discovery-rescan` launches have
-  embedded branch/commit metadata at times, but newer launches still report
-  unknown commit/branch and all rows still lack useful dirty-state,
-  attribution ID, and attribution version fields.
+- The current `2026-07-06T11:18Z` scan found a fresh high-severity
+  `AVAudioPlayerNode` sample-time crash, but the launch was unstamped and had
+  no attribution manifest.
+- The crash stack includes `VisualScenarioCommandRunner.routingStressStatusLines`
+  and sample playback tick-path frames, so routing-stress/status polling is a
+  plausible reproduction path. This is an inference from the crash report, not
+  a proven user action.
+- No current scan row proves ownership by `build/au-runtime-safety`,
+  `build/mixer-strip-followup`, or any other active build loop.
+- Missing commit metadata remains a live evidence problem: recent launches
+  still report unknown commit/branch/dirty state and lack useful attribution ID
+  and version fields.
 - Nearby build-attribution manifests are circumstantial only when the launched
   app logs build `1` and unknown git fields.
 - The scan covers the current macOS user's visible unified logs and
