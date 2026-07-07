@@ -2,7 +2,7 @@
 
 Date: 2026-07-07
 Author: Codex
-Status: investigation findings, not yet fixed
+Status: implemented in generator source/bake repair, 2026-07-07
 
 ## Summary
 
@@ -15,6 +15,26 @@ The user-visible symptom matches the code path:
 - The preview/result strip may still show pitch-stage output, which makes the issue more confusing because preview and live playback can diverge.
 
 The likely primary bug family is the source/modifier model around `.generator(...)` slots. The engine source path calls `GeneratedSourceEvaluator.evaluateSourceStep(...)`, which emits trigger seeds with `StepStage.basePitch`, then relies on `modifierGeneratorID` to run pitch processing. In many authored slots `SourceRef.generator(id)` sets `modifierGeneratorID` to that same generator id, so pitch can appear to work only because the source generator is also installed as its own modifier. If that retained modifier link is missing, bypassed, stale, or carried into a baked clip at the wrong time, pitch and bake behavior diverge from what the UI implies.
+
+## Outcome
+
+The repair changed generator-source playback to evaluate the full source
+pipeline directly with `GeneratedSourceEvaluator.evaluateStep(...)`. The source
+generator's Pitch tab is now audible without depending on
+`modifierGeneratorID == generatorID`, and the legacy self-modifier link is
+treated as compatibility state rather than a second processing pass.
+
+Bake now uses a dedicated document conversion helper. The baked slot switches to
+clip mode, points at the new concrete clip, retains the generator id for
+switch-back/reuse, and clears an accidental self-modifier relationship while
+preserving bypassed separate modifiers. Active separate modifiers are consumed
+into the baked notes and not left live on the baked clip, avoiding a second
+post-bake processing pass.
+
+`GeneratedSourceEvaluationState` now carries role-scoped pitch memory for
+generator source and generator modifier roles, keyed by pattern slot and
+generator id. Source state is mirrored into the legacy lane for existing
+precompute/fallback continuity rails; modifier state does not share that lane.
 
 ## Additional User Finding: Baked Clip Does Not Play
 

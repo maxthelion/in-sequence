@@ -3692,14 +3692,19 @@ final class EngineController: RouterDispatcher {
             guard let generator = playbackSnapshot.generatorEntry(id: generatorID) else {
                 return []
             }
-            let sourceNotes = GeneratedSourceEvaluator.evaluateSourceStep(
+            let sourceNotes = GeneratedSourceEvaluator.evaluateStep(
                 for: generator.params,
                 stepIndex: resolved.sourceStepIndex,
                 clipChoices: playbackSnapshot.clipPool,
+                chordContext: chordContext,
+                state: &state,
+                stateScope: .generatorSource(slotIndex: effectiveSlotIndex, generatorID: generatorID),
                 rng: &rng
             )
 
             guard !modifierBypassed,
+                  modifierGeneratorID != generatorID,
+                  let modifierGeneratorID,
                   let processor = playbackSnapshot.generatorEntry(id: modifierGeneratorID)
             else {
                 return applyingGeneratorDensity(
@@ -3719,6 +3724,7 @@ final class EngineController: RouterDispatcher {
                 clipChoices: playbackSnapshot.clipPool,
                 chordContext: chordContext,
                 state: &state,
+                stateScope: .generatorModifier(slotIndex: effectiveSlotIndex, generatorID: modifierGeneratorID),
                 rng: &rng
             )
             return applyingGeneratorDensity(
@@ -3747,6 +3753,7 @@ final class EngineController: RouterDispatcher {
             )
 
             guard !modifierBypassed,
+                  let modifierGeneratorID,
                   let processor = playbackSnapshot.generatorEntry(id: modifierGeneratorID)
             else {
                 return applyingClipDensity(
@@ -3766,6 +3773,7 @@ final class EngineController: RouterDispatcher {
                 clipChoices: playbackSnapshot.clipPool,
                 chordContext: chordContext,
                 state: &state,
+                stateScope: .generatorModifier(slotIndex: effectiveSlotIndex, generatorID: modifierGeneratorID),
                 rng: &rng
             )
             return applyingClipDensity(

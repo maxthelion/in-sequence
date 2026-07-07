@@ -48,6 +48,7 @@ enum GeneratedSourceEvaluator {
         clipChoices: [ClipPoolEntry],
         chordContext: Chord?,
         state: inout GeneratedSourceEvaluationState,
+        stateScope: GeneratedSourceEvaluationScope = .primary,
         rng: inout R
     ) -> [GeneratedNote] {
         let sourceNotes = evaluateSourceStep(
@@ -64,6 +65,7 @@ enum GeneratedSourceEvaluator {
             clipChoices: clipChoices,
             chordContext: chordContext,
             state: &state,
+            stateScope: stateScope,
             rng: &rng
         )
     }
@@ -172,6 +174,7 @@ enum GeneratedSourceEvaluator {
         clipChoices: [ClipPoolEntry],
         chordContext: Chord?,
         state: inout GeneratedSourceEvaluationState,
+        stateScope: GeneratedSourceEvaluationScope = .primary,
         rng: inout R
     ) -> [GeneratedNote] {
         switch pipeline.content {
@@ -199,6 +202,7 @@ enum GeneratedSourceEvaluator {
                         laneIndex: laneIndex,
                         shape: shape,
                         state: &state,
+                        stateScope: stateScope,
                         rng: &rng
                     )
                 }
@@ -524,6 +528,7 @@ enum GeneratedSourceEvaluator {
         clipChoices: [ClipPoolEntry],
         chordContext: Chord?,
         state: inout GeneratedSourceEvaluationState,
+        stateScope: GeneratedSourceEvaluationScope = .primary,
         rng: inout R
     ) -> [GeneratedNote] {
         guard !notes.isEmpty else {
@@ -540,6 +545,7 @@ enum GeneratedSourceEvaluator {
                     clipChoices: clipChoices,
                     chordContext: chordContext,
                     state: &state,
+                    stateScope: stateScope,
                     rng: &rng
                 )
             }
@@ -552,6 +558,7 @@ enum GeneratedSourceEvaluator {
                     clipChoices: clipChoices,
                     chordContext: chordContext,
                     state: &state,
+                    stateScope: stateScope,
                     rng: &rng
                 )
             }
@@ -597,9 +604,10 @@ enum GeneratedSourceEvaluator {
         laneIndex: Int,
         shape: NoteShape,
         state: inout GeneratedSourceEvaluationState,
+        stateScope: GeneratedSourceEvaluationScope,
         rng: inout R
     ) -> [GeneratedNote] {
-        let lastPitch = state.lastPitch(for: laneIndex)
+        let lastPitch = state.lastPitch(for: laneIndex, scope: stateScope)
         let pitches = transformedPitches(
             for: pitchNode.pitchStage,
             seed: seed,
@@ -610,7 +618,7 @@ enum GeneratedSourceEvaluator {
             rng: &rng
         )
         if let last = pitches.last {
-            state.setLastPitch(last, for: laneIndex)
+            state.setLastPitch(last, for: laneIndex, scope: stateScope)
         }
         return pitches.map { pitch in
             GeneratedNote(
@@ -629,11 +637,12 @@ enum GeneratedSourceEvaluator {
         clipChoices: [ClipPoolEntry],
         chordContext: Chord?,
         state: inout GeneratedSourceEvaluationState,
+        stateScope: GeneratedSourceEvaluationScope,
         rng: inout R
     ) -> [GeneratedNote] {
         let seed = NoteSeed(pitch: sourceNote.pitch, voiceTag: sourceNote.voiceTag)
         return pitches.enumerated().flatMap { laneIndex, pitchNode in
-            let lastPitch = state.lastPitch(for: laneIndex)
+            let lastPitch = state.lastPitch(for: laneIndex, scope: stateScope)
             let resolvedPitches = transformedPitches(
                 for: pitchNode.pitchStage,
                 seed: seed,
@@ -644,7 +653,7 @@ enum GeneratedSourceEvaluator {
                 rng: &rng
             )
             if let last = resolvedPitches.last {
-                state.setLastPitch(last, for: laneIndex)
+                state.setLastPitch(last, for: laneIndex, scope: stateScope)
             }
             return resolvedPitches.map { pitch in
                 GeneratedNote(

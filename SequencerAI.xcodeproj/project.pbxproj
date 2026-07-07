@@ -481,6 +481,8 @@
 		CCDD8565324F4AABBC097EE0 /* LiveWorkspaceViewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8902AAA59D7978EEAC717F95 /* LiveWorkspaceViewTests.swift */; };
 		CD0C1F7851FB83AACCBB1CA7 /* PhrasePerformTimingPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 504C02764C11DD2D00AF554C /* PhrasePerformTimingPolicyTests.swift */; };
 		CD365053A22AE3B4D897BA9D /* GeneratorPoolEntryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79348F939FFFE4ADE1B1EC55 /* GeneratorPoolEntryTests.swift */; };
+		2EC6A0247BF2413458969BF8 /* GeneratorBakeSessionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AEE5BB6510E7B6DE124C62B2 /* GeneratorBakeSessionTests.swift */; };
+		62E1EEC73A7A51258A7EB055 /* GeneratorSourcePlaybackTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E38242C737D1813C38EF8B5E /* GeneratorSourcePlaybackTests.swift */; };
 		CDA543F2C9A473C71669754A /* PlaybackSnapshotConcurrencyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82E7BD2488E628F87C0B2076 /* PlaybackSnapshotConcurrencyTests.swift */; };
 		CE34B437807535F6DEA1A282 /* TickPathMainIsolationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A2348DB30E7A749D42C0808 /* TickPathMainIsolationTests.swift */; };
 		CEF1609FC7E9118E3472281B /* DrumKitMatrixView+VisualCommand.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C5BDEE837E0162DBD86D93B /* DrumKitMatrixView+VisualCommand.swift */; };
@@ -1445,6 +1447,8 @@
 		77D11F71ABB051CFFD598829 /* report.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = report.md; sourceTree = "<group>"; };
 		78A63BEBD50EAE4CED2977DC /* 29-drum-kit-matrix.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "29-drum-kit-matrix.png"; sourceTree = "<group>"; };
 		79348F939FFFE4ADE1B1EC55 /* GeneratorPoolEntryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneratorPoolEntryTests.swift; sourceTree = "<group>"; };
+		AEE5BB6510E7B6DE124C62B2 /* GeneratorBakeSessionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneratorBakeSessionTests.swift; sourceTree = "<group>"; };
+		E38242C737D1813C38EF8B5E /* GeneratorSourcePlaybackTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneratorSourcePlaybackTests.swift; sourceTree = "<group>"; };
 		79531E0718A4BA61A7489987 /* 2026-06-30-precompute-lookahead-recording.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2026-06-30-precompute-lookahead-recording.md"; sourceTree = "<group>"; };
 		79614491F41AC490C5796D94 /* .gitkeep */ = {isa = PBXFileReference; path = .gitkeep; sourceTree = "<group>"; };
 		797F813349660110E2DFF938 /* note.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = note.md; sourceTree = "<group>"; };
@@ -3644,6 +3648,7 @@
 				3DDAA6824E1F4946747BDDCC /* AuthorityCompletionTests.swift */,
 				F344B6D0C7393DE8DC4A2A8F /* CreateTrackWithSoundTests.swift */,
 				8F38EED0B80F1F92C5BF183C /* DebounceSemanticsTests.swift */,
+				AEE5BB6510E7B6DE124C62B2 /* GeneratorBakeSessionTests.swift */,
 				A02F5350AA667365216279FB /* MultiDocumentEngineIsolationTests.swift */,
 				23F9EB8F54530FD81E909628 /* PhrasePerformOverlaySessionTests.swift */,
 				584CF73F2705DE9B5920B4BC /* PhrasePolicySessionTests.swift */,
@@ -5872,6 +5877,7 @@
 				8A1D6C2D35F42C345DCC7F51 /* MidiOutUnifiedClockTimingTests.swift */,
 				6E54B81F6B860472FC5758B3 /* MIDIRouterTests.swift */,
 				17AFDD17CEEB433DD0D6A6EE /* NoteGeneratorTests.swift */,
+				E38242C737D1813C38EF8B5E /* GeneratorSourcePlaybackTests.swift */,
 				2111A4CE671E23A6861FF546 /* PlaybackSnapshotBuffersOnlyTests.swift */,
 				82E7BD2488E628F87C0B2076 /* PlaybackSnapshotConcurrencyTests.swift */,
 				53EA1AA72F374E62F1C32220 /* PrecomputeStateContinuityTests.swift */,
@@ -7310,6 +7316,8 @@
 				A774C3BBDA61DB4184D82E12 /* GeneratorKindTests.swift in Sources */,
 				7B70BA36F34D54C9B7F6595E /* GeneratorParamsTests.swift in Sources */,
 				CD365053A22AE3B4D897BA9D /* GeneratorPoolEntryTests.swift in Sources */,
+				2EC6A0247BF2413458969BF8 /* GeneratorBakeSessionTests.swift in Sources */,
+				62E1EEC73A7A51258A7EB055 /* GeneratorSourcePlaybackTests.swift in Sources */,
 				179E048E5B612BD2806E1F4A /* GeneratorVocabAcceptanceTests.swift in Sources */,
 				0B11AE0AB6086DAE708E4529 /* GridEditorTests.swift in Sources */,
 				E5DED0443CBBFBB090BFA6DF /* IncrementalCompileEquivalenceTests.swift in Sources */,

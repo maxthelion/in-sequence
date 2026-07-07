@@ -98,6 +98,52 @@ extension Project {
         return newClip.id
     }
 
+    @discardableResult
+    mutating func bakeGeneratorSourceToClip(
+        trackID: UUID,
+        slotIndex: Int,
+        name: String,
+        content: ClipContent,
+        preserveSeparateModifier: Bool = false
+    ) -> UUID? {
+        guard let track = tracks.first(where: { $0.id == trackID }),
+              let bankIndex = patternBanks.firstIndex(where: { $0.trackID == trackID })
+        else {
+            return nil
+        }
+        guard track.trackType != .audioInput else {
+            return nil
+        }
+
+        let slot = patternBanks[bankIndex].slot(at: slotIndex)
+        guard slot.sourceRef.mode == .generator,
+              let generatorID = slot.sourceRef.generatorID
+        else {
+            return nil
+        }
+
+        let bakedClip = ClipPoolEntry(
+            id: UUID(),
+            name: name,
+            trackType: track.trackType,
+            content: content.normalized
+        )
+        clipPool.append(bakedClip)
+
+        let retainedModifierID = !preserveSeparateModifier || slot.sourceRef.modifierGeneratorID == generatorID
+            ? nil
+            : slot.sourceRef.modifierGeneratorID
+        let bakedRef = SourceRef(
+            mode: .clip,
+            generatorID: generatorID,
+            clipID: bakedClip.id,
+            modifierGeneratorID: retainedModifierID,
+            modifierBypassed: retainedModifierID == nil ? false : slot.sourceRef.modifierBypassed
+        )
+        setPatternSourceRef(bakedRef, for: trackID, slotIndex: slotIndex)
+        return bakedClip.id
+    }
+
     mutating func setPatternSourceRef(_ sourceRef: SourceRef, for trackID: UUID, slotIndex: Int) {
         setPatternSourceRef(sourceRef, at: PatternSlotAddress(trackID: trackID, slotIndex: slotIndex))
     }

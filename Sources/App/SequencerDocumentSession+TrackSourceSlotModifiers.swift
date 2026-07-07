@@ -230,20 +230,33 @@ extension SequencerDocumentSession {
     /// WS4 header dice: bake the slot's generator into a NEW clip and point
     /// the slot at it — the synthesis doc's one-way conversion primitive
     /// `bake(source, seed) -> clip content` applied to a generator source.
-    /// The realized bar is the SAME preview evaluation the result strip
-    /// renders, so what the user saw is what gets frozen.
+    /// The generator recipe is retained on the slot for later switch-back, but
+    /// legacy source-as-modifier state is not left active on the baked clip.
     @discardableResult
-    func bakeGeneratorToClip(trackID: UUID, slotIndex: Int) -> UUID? {
+    func bakeGeneratorToClip(trackID: UUID, slotIndex: Int, chordContext: Chord? = nil) -> UUID? {
         let slot = store.patternBank(for: trackID).slot(at: slotIndex)
-        guard let generator = store.generatorEntry(id: slot.sourceRef.generatorID) else {
+        guard slot.sourceRef.mode == .generator,
+              let generator = store.generatorEntry(id: slot.sourceRef.generatorID)
+        else {
             return nil
         }
 
-        let notesByStep = GeneratedSourceEvaluator.previewNotes(
-            for: generator.params,
-            clipChoices: store.generatedSourceInputClips(),
-            count: 16
-        )
+        let snapshot = SequencerSnapshotCompiler.compile(state: store.compileInput())
+        let effectiveChordContext = chordContext ?? engineController.chordContextByLane["default"]
+        var state = GeneratedSourceEvaluationState()
+        var rng = PreviewRNG()
+        let notesByStep = (0..<16).map { stepIndex in
+            EngineController.resolvedStepNotes(
+                for: trackID,
+                in: snapshot,
+                phraseID: snapshot.selectedPhraseID,
+                stepIndex: stepIndex,
+                chordContext: effectiveChordContext,
+                quantisedPatternSlotOverrides: [trackID: slotIndex],
+                state: &state,
+                rng: &rng
+            )
+        }
         let steps = notesByStep.map { notes -> ClipStep in
             guard !notes.isEmpty else { return .empty }
             return ClipStep(
@@ -260,14 +273,30 @@ extension SequencerDocumentSession {
                 fill: nil
             )
         }
+        let content = ClipContent.noteGrid(lengthSteps: steps.count, steps: steps).normalized
 
-        guard let clipID = createBlankClipSource(trackID: trackID, slotIndex: slotIndex) else {
-            return nil
+        var bakedClipID: UUID?
+        batch(impact: .snapshotOnly, changed: .full) { store in
+            var project = store.exportToProject()
+            let existingClipIDs = Set(store.clipPool.map(\.id))
+            bakedClipID = project.bakeGeneratorSourceToClip(
+                trackID: trackID,
+                slotIndex: slotIndex,
+                name: "\(generator.name) Bake",
+                content: content,
+                preserveSeparateModifier: slot.sourceRef.modifierBypassed
+            )
+            guard bakedClipID != nil else {
+                return
+            }
+            for clip in project.clipPool where !existingClipIDs.contains(clip.id) {
+                store.appendClip(clip)
+            }
+            guard let bank = project.patternBanks.first(where: { $0.trackID == trackID }) else {
+                return
+            }
+            store.setPatternBank(trackID: trackID, bank: bank)
         }
-        _ = mutateClip(id: clipID) { entry in
-            entry.name = "\(generator.name) Bake"
-            entry.content = ClipContent.noteGrid(lengthSteps: steps.count, steps: steps).normalized
-        }
-        return clipID
+        return bakedClipID
     }
 }

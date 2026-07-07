@@ -146,6 +146,19 @@ This evaluator is used by both:
 - preview UI
 - `EngineController` playback preparation
 
+Generator-source slots run this full pipeline directly. A modifier generator is
+an optional second pass over already-realized source notes, not the mechanism
+that makes the source generator's Pitch tab audible. When a generator is baked
+to a clip, the resulting clip stores the live-resolved notes while the slot
+retains the generator id as an inactive recipe for switching back to live
+generation.
+
+Stateful pitch stages use role- and slot-scoped `GeneratedSourceEvaluationState`
+lanes: source-generator memory is separate from modifier-generator memory, and
+two pattern slots reusing the same generator do not share scoped pitch memory.
+Source state is mirrored into the legacy lane for precompute/fallback
+continuity, but modifier state does not leak into that lane.
+
 The following are still intentionally deferred:
 
 - AU-backed trigger or pitch stages
