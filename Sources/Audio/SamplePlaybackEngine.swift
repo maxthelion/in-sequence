@@ -1143,7 +1143,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
 
             switch branch {
             case let .prepareBus(busID):
-                prepareBusVoicePool(trackID: trackID, busID: busID)
+                prepareBusVoicePool(trackID: trackID, busID: busID, liveRouteSwitch: true)
                 if let pool = withLifecycleLock({ busVoicePools[trackID] }) {
                     publishBusTrackFastPathIfConnected(trackID: trackID, busID: busID, pool: pool)
                 }
@@ -1169,7 +1169,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
                 // "defer only the teardown, rebuild now" regression
                 // (route-to-master → silence) is avoided.
                 DevActivity.trace(DevActivity.audioGraph, "route-to-master teardownBus start track=\(trackID.uuidString)")
-                rampOutgoingThenSwitch(outgoing: [pool.trackSumMixer]) { [self] in
+                rampOutgoingThenSwitch(outgoing: [pool.trackSumMixer], liveRouteSwitch: true) { [self] in
                     teardownBusVoicePool(pool)
                     prepareTrack(trackID: trackID)
                     // Bring the new MASTER route's chokepoint (the track mixer) up
@@ -1360,6 +1360,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
     @MainActor
     private func rampOutgoingThenSwitch(
         outgoing chokepoints: [AVAudioMixerNode],
+        liveRouteSwitch: Bool = false,
         switchAndBringUp: @escaping @MainActor () -> Void
     ) {
         // Mirror MainAudioGraph.connectTrackOutput's gate: a chokepoint can only
@@ -1369,11 +1370,12 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         // / setup / repair (no input or no output edge yet) is silent, so the
         // switch runs synchronously (no dip, deterministic post-state) — that
         // keeps pure-setup paths and offline render unchanged.
+        let playbackStarted = withLifecycleLock { isStarted }
         let sounding = chokepoints.filter { node in
-            node.engine === audioGraph.engine
-                && audioGraph.engine.isRunning
-                && audioGraph.engine.inputConnectionPoint(for: node, inputBus: 0) != nil
-                && !audioGraph.engine.outputConnectionPoints(for: node, outputBus: 0).isEmpty
+            liveRouteSwitch
+                && node.engine === audioGraph.engine
+                && playbackStarted
+                && (nodeHasAnyInputConnection(node) || node.outputVolume > 0.001)
         }
         guard !sounding.isEmpty else {
             // Nothing currently passing audio to fade — run the switch now.
@@ -1391,6 +1393,16 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         group.notify(queue: .main) {
             MainActor.assumeIsolated { switchAndBringUp() }
         }
+    }
+
+    @MainActor
+    private func nodeHasAnyInputConnection(_ node: AVAudioNode) -> Bool {
+        for bus in AVAudioNodeBus(0)..<AVAudioNodeBus(32) {
+            if audioGraph.engine.inputConnectionPoint(for: node, inputBus: bus) != nil {
+                return true
+            }
+        }
+        return false
     }
 
     /// Bring a freshly-built route's chokepoint up from silence to its configured
@@ -1469,7 +1481,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
     /// `@MainActor`; takes the lock internally only for the dictionary
     /// snapshot/publish points, never across the graph mutation.
     @MainActor
-    private func prepareBusVoicePool(trackID: UUID, busID: UUID) {
+    private func prepareBusVoicePool(trackID: UUID, busID: UUID, liveRouteSwitch: Bool = false) {
         // Snapshot existing state and tear down any stale track-route nodes
         // under the lock; drop the track from the fast-path so the tick path
         // can't touch the pool while we rebuild it.
@@ -1598,7 +1610,11 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
             publishBusTrackFastPathIfConnected(trackID: trackID, busID: busID, pool: pool)
         }
 
-        rampOutgoingThenSwitch(outgoing: outgoingChokepoints, switchAndBringUp: buildBusRoute)
+        rampOutgoingThenSwitch(
+            outgoing: outgoingChokepoints,
+            liveRouteSwitch: liveRouteSwitch,
+            switchAndBringUp: buildBusRoute
+        )
     }
 
     @MainActor

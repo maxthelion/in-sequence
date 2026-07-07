@@ -5,3 +5,7 @@ Screenshots:
 
 Capture references:
 - 22g-track-generator-chord-instrument.png (in-sequence/qa-generator-bugfixes; main @ edf0ce13; run 20260707-125042-in-sequence-qa-generator-bugfixes-main-edf0ce13; 6824750313c45762332225b71e463577)
+
+2026-07-07 triage: left OPEN intentionally. This is a dedicated chord-track
+MVP, not a cosmetic rename of the poly generator surface. Split plan:
+`docs/plans/2026-07-07-chord-track-mvp-architecture.md`.

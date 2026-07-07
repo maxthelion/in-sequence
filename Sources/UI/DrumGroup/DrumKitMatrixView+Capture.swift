@@ -10,6 +10,9 @@ extension DrumKitMatrixView {
 
     /// One 16-step bar = the scrubber's quantum.
     static let historyStepsPerBar = 16
+    /// The kit capture navigator mirrors the 16-slot pattern row: one compact
+    /// bar cell for each whole bar of reachable history.
+    static let historyNavigationCellCount = 16
     /// ½ / 1 / 2 / 4 bars, the shared selection-length options (AC16). Reuses
     /// the single-track clip-history length set so the windows match.
     static let historyLengthOptions = PseudoClipState.supportedLengthSteps
@@ -128,25 +131,26 @@ extension DrumKitMatrixView {
         _ model: DrumKitMatrixModel,
         snapshots: [UUID: CaptureSnapshot]
     ) -> some View {
-        let maxBack = historyMaxBarsBack(model, snapshots: snapshots)
+        let availableMaxBack = historyMaxBarsBack(model, snapshots: snapshots)
+        let maxBack = Self.historyNavigationCellCount - 1
         let selectedBack = min(historyBarsBack, maxBack)
-        let cellCount = maxBack + 1
+        let cellCount = Self.historyNavigationCellCount
         let selectedIndex = maxBack - selectedBack
         let coveredCells = max(1, Int(ceil(Double(historyLengthSteps) / Double(Self.historyStepsPerBar))))
-        let lengthLabel = ClipHistoryTransferViewModel.lengthLabel(for: historyLengthSteps)
         let columns = Array(repeating: GridItem(.flexible(minimum: 48), spacing: 4), count: cellCount)
 
         return LazyVGrid(columns: columns, spacing: 0) {
             ForEach(0..<cellCount, id: \.self) { index in
                 let back = maxBack - index
-                let states = kitHistoryCellStepStates(model, snapshots: snapshots, barsBack: back)
-                let isSelectable = states.contains(true)
+                let partStates = kitHistoryCellPartStepStates(model, snapshots: snapshots, barsBack: back)
+                let isAvailable = back <= availableMaxBack
+                let isSelectable = isAvailable && partStates.contains { $0.contains(true) }
                 KitHistoryMinibarCell(
                     index: index,
-                    lengthLabel: isSelectable ? lengthLabel : "empty",
-                    stepStates: states,
+                    partStepStates: partStates,
                     isSelected: index == selectedIndex,
                     isInRange: index >= selectedIndex && index < selectedIndex + coveredCells,
+                    isAvailable: isAvailable,
                     accent: accent
                 ) {
                     historyBarsBack = back
@@ -407,21 +411,46 @@ extension DrumKitMatrixView {
         snapshots: [UUID: CaptureSnapshot],
         barsBack: Int
     ) -> [Bool] {
-        var states = Array(repeating: false, count: historyLengthSteps)
-        for row in model.rows {
+        let rowStates = kitHistoryCellPartStepStates(model, snapshots: snapshots, barsBack: barsBack)
+        return rowStates.reduce(Array(repeating: false, count: Self.historyStepsPerBar)) { combined, row in
+            var next = combined
+            for (index, value) in row.enumerated() where index < next.count && value {
+                next[index] = true
+            }
+            return next
+        }
+    }
+
+    func kitHistoryCellPartStepStates(
+        _ model: DrumKitMatrixModel,
+        snapshots: [UUID: CaptureSnapshot],
+        barsBack: Int
+    ) -> [[Bool]] {
+        model.rows.map { row in
             let snapshot = snapshots[row.memberID] ?? captureSnapshot(memberID: row.memberID)
-            guard !snapshot.isEmpty else { continue }
-            let content = PseudoClipState.materialize(
-                sourceTrackID: row.memberID,
-                from: snapshot,
-                startStep: historyWindowStartOffset(maxSteps: snapshot.maxSteps, barsBack: barsBack),
-                lengthSteps: historyLengthSteps
-            ).noteGrid
-            guard case let .noteGrid(_, steps) = content else { continue }
-            for (index, step) in steps.enumerated() where index < states.count {
-                if !step.isEmpty {
-                    states[index] = true
-                }
+            return kitHistoryCellStepStates(row: row, snapshot: snapshot, barsBack: barsBack)
+        }
+    }
+
+    private func kitHistoryCellStepStates(
+        row: DrumKitMatrixModel.Row,
+        snapshot: CaptureSnapshot,
+        barsBack: Int
+    ) -> [Bool] {
+        var states = Array(repeating: false, count: Self.historyStepsPerBar)
+        guard !snapshot.isEmpty else { return Array(repeating: false, count: Self.historyStepsPerBar) }
+        let content = PseudoClipState.materialize(
+            sourceTrackID: row.memberID,
+            from: snapshot,
+            startStep: historyWindowStartOffset(maxSteps: snapshot.maxSteps, barsBack: barsBack),
+            lengthSteps: Self.historyStepsPerBar
+        ).noteGrid
+        guard case let .noteGrid(_, steps) = content else {
+            return Array(repeating: false, count: Self.historyStepsPerBar)
+        }
+        for (index, step) in steps.enumerated() where index < states.count {
+            if !step.isEmpty {
+                states[index] = true
             }
         }
         return states
@@ -657,20 +686,24 @@ extension DrumKitMatrixView {
 
     func seedVisualCaptureHistory(_ model: DrumKitMatrixModel) {
         let patterns: [[Int]] = [
-            [0, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 60],
-            [4, 12, 20, 28, 36, 44, 52, 60],
-            [2, 6, 10, 14, 18, 22, 26, 30, 34, 38, 42, 46, 50, 54, 58, 62],
-            [6, 14, 22, 30, 38, 46, 54, 62],
-            [3, 11, 19, 27, 35, 43, 51, 59],
-            [2, 10, 18, 26, 34, 42, 50, 58],
-            [0, 7, 12, 23, 32, 39, 44, 55],
-            [5, 13, 21, 29, 37, 45, 53, 61],
+            [0, 4, 8, 12],
+            [4, 12],
+            [2, 6, 10, 14],
+            [6, 14],
+            [3, 11],
+            [2, 10],
+            [0, 7, 12],
+            [5, 13],
         ]
         var snapshots: [UUID: CaptureSnapshot] = [:]
         snapshots.reserveCapacity(model.rows.count)
         for (rowIndex, row) in model.rows.enumerated() {
-            let activeSteps = patterns[rowIndex % patterns.count]
-            var steps = activeSteps.map { step in
+            let activeOffsets = patterns[rowIndex % patterns.count]
+            var steps = (0..<Self.historyNavigationCellCount).flatMap { barIndex in
+                activeOffsets.map { offset in
+                    barIndex * Self.historyStepsPerBar + offset
+                }
+            }.map { step in
                 CaptureSnapshot.Step(
                     absoluteStep: step,
                     notes: [
@@ -683,8 +716,8 @@ extension DrumKitMatrixView {
                     ]
                 )
             }
-            steps.append(CaptureSnapshot.Step(absoluteStep: 63, notes: []))
-            snapshots[row.memberID] = CaptureSnapshot(maxSteps: 64, steps: steps)
+            steps.append(CaptureSnapshot.Step(absoluteStep: Self.historyNavigationCellCount * Self.historyStepsPerBar - 1, notes: []))
+            snapshots[row.memberID] = CaptureSnapshot(maxSteps: Self.historyNavigationCellCount * Self.historyStepsPerBar, steps: steps)
         }
         visualCaptureSnapshots = snapshots
         historyBarsBack = 0
@@ -702,32 +735,17 @@ extension DrumKitMatrixView {
 
 private struct KitHistoryMinibarCell: View {
     let index: Int
-    let lengthLabel: String
-    let stepStates: [Bool]
+    let partStepStates: [[Bool]]
     let isSelected: Bool
     let isInRange: Bool
+    let isAvailable: Bool
     let accent: Color
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 3) {
-                    Text("\(index + 1)")
-                        .studioText(.microEmphasis)
-                        .foregroundStyle(StudioTheme.text)
-                    Spacer(minLength: 0)
-                    Text(lengthLabel)
-                        .studioText(.micro)
-                        .foregroundStyle(isEmpty ? StudioTheme.mutedText : StudioTheme.text)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.55)
-                }
-
-                KitHistoryMiniStepThumbnail(stepStates: stepStates, accent: accent)
-                    .frame(height: 28)
-            }
-            .frame(maxWidth: .infinity, minHeight: 58, alignment: .leading)
+            KitHistoryMiniStepThumbnail(partStepStates: partStepStates, accent: accent, isAvailable: isAvailable)
+                .frame(maxWidth: .infinity, minHeight: 48, maxHeight: 48)
             .padding(5)
             .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
             .overlay(
@@ -740,7 +758,7 @@ private struct KitHistoryMinibarCell: View {
     }
 
     private var isEmpty: Bool {
-        !stepStates.contains(true)
+        !partStepStates.contains { $0.contains(true) }
     }
 
     private var borderFill: Color {
@@ -751,26 +769,31 @@ private struct KitHistoryMinibarCell: View {
     }
 
     private var accessibilityLabel: String {
-        if isEmpty {
+        if !isAvailable || isEmpty {
             return "Kit history region \(index + 1), empty"
         }
-        return "Kit history region \(index + 1), \(lengthLabel)"
+        return "Kit history region \(index + 1)"
     }
 }
 
 private struct KitHistoryMiniStepThumbnail: View {
-    let stepStates: [Bool]
+    let partStepStates: [[Bool]]
     let accent: Color
+    let isAvailable: Bool
 
     var body: some View {
         GeometryReader { geometry in
             let width = max(geometry.size.width, 1)
-            let stepCount = max(stepStates.count, 1)
+            let height = max(geometry.size.height, 1)
+            let stepCount = max(partStepStates.map(\.count).max() ?? 1, 1)
+            let rowCount = max(partStepStates.count, 1)
             let stepWidth = width / CGFloat(stepCount)
+            let rowGap: CGFloat = 2
+            let rowHeight = max(2, (height - rowGap * CGFloat(max(0, rowCount - 1))) / CGFloat(rowCount))
 
             ZStack(alignment: .topLeading) {
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                    .fill(StudioTheme.subtleFill)
+                    .fill(isAvailable ? StudioTheme.subtleFill : StudioTheme.panelFill)
 
                 HStack(spacing: 0) {
                     ForEach(0..<4, id: \.self) { index in
@@ -780,12 +803,15 @@ private struct KitHistoryMiniStepThumbnail: View {
                     }
                 }
 
-                ForEach(Array(stepStates.enumerated()), id: \.offset) { index, isTriggered in
-                    if isTriggered {
-                        RoundedRectangle(cornerRadius: 2, style: .continuous)
-                            .fill(accent)
-                            .frame(width: max(stepWidth, 2), height: 5)
-                            .offset(x: stepWidth * CGFloat(index), y: 18)
+                VStack(spacing: rowGap) {
+                    ForEach(Array(partStepStates.enumerated()), id: \.offset) { _, rowStates in
+                        HStack(spacing: 0) {
+                            ForEach(Array(rowStates.enumerated()), id: \.offset) { _, isTriggered in
+                                RoundedRectangle(cornerRadius: 1.5, style: .continuous)
+                                    .fill(isTriggered && isAvailable ? accent : Color.clear)
+                                    .frame(width: max(stepWidth, 2), height: rowHeight)
+                            }
+                        }
                     }
                 }
             }

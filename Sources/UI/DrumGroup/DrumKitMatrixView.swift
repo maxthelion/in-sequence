@@ -531,6 +531,7 @@ struct DrumKitMatrixView: View {
                 : "none",
             historyAuditioning: isVisible && isCaptureOpen && isAuditioningCapture,
             historySaveSlotPickerVisible: isVisible && isCaptureOpen && isSelectingCaptureSaveSlot,
+            historyCellCount: isVisible && isCaptureOpen ? Self.historyNavigationCellCount : 0,
             expandedPartIndex: isVisible ? expandedIndex : nil,
             expandedRowTab: isVisible && expandedIndex != nil ? expandedRowTab.rawValue : "none",
             expandedSourceMode: expandedSourceMode
@@ -729,6 +730,7 @@ struct DrumKitRenderedVisualState: Equatable, Sendable {
     var historyWindow: String
     var historyAuditioning: Bool
     var historySaveSlotPickerVisible: Bool
+    var historyCellCount: Int
     /// `nil` means "no expanded part". On the wire this encodes as `-1`.
     var expandedPartIndex: Int?
     var expandedRowTab: String
@@ -763,6 +765,7 @@ struct DrumKitRenderedVisualState: Equatable, Sendable {
             "historyWindow": historyWindow,
             "historyAuditioning": historyAuditioning,
             "historySaveSlotPickerVisible": historySaveSlotPickerVisible,
+            "historyCellCount": historyCellCount,
             "rowExpanded": rowExpanded,
             "expandedPartIndex": expandedPartIndex ?? -1,
             "expandedRowTab": expandedRowTab,

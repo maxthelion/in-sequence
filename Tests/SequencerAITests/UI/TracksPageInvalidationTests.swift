@@ -778,10 +778,15 @@ final class TracksPageInvalidationTests: XCTestCase {
         )
         XCTAssertTrue(
             cellStrip.contains("KitHistoryMinibarCell") &&
-                cellStrip.contains("kitHistoryCellStepStates") &&
+                cellStrip.contains("historyNavigationCellCount") &&
+                cellStrip.contains("kitHistoryCellPartStepStates") &&
                 cellStrip.contains("historyBarsBack = back") &&
                 cellStrip.contains("kit-history-cell-\\(index)"),
-            "Selecting a numbered kit history cell should change the displayed history window."
+            "Selecting a kit history cell should change the displayed history window across the 16-cell part matrix."
+        )
+        XCTAssertFalse(
+            capture.slice(from: "private struct KitHistoryMinibarCell", to: "private struct KitHistoryMiniStepThumbnail")?.contains("Text(") ?? true,
+            "Kit history cells should render as text-free mini part matrices."
         )
         XCTAssertTrue(
             bar.contains("isSelectingCaptureSaveSlot = true"),

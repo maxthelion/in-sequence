@@ -24,6 +24,7 @@ enum VisualScenarioCommandRunner {
     private static var drumKitMatrixRenderedCaptureOpen = false
     private static var drumKitMatrixRenderedKitFXChooserVisible = false
     private static var drumKitMatrixRenderedSaveSlotPickerVisible = false
+    private static var drumKitMatrixRenderedHistoryCellCount = 0
     private static var drumKitMatrixRenderedRowExpanded = false
     private static var drumKitMatrixRenderedExpandedPartIndex = -1
     private static var drumKitMatrixRenderedExpandedRowTab = "none"
@@ -237,6 +238,7 @@ enum VisualScenarioCommandRunner {
                 drumKitMatrixRenderedCaptureOpen = userInfo["captureOpen"] as? Bool ?? false
                 drumKitMatrixRenderedKitFXChooserVisible = userInfo["kitFXChooserVisible"] as? Bool ?? false
                 drumKitMatrixRenderedSaveSlotPickerVisible = userInfo["historySaveSlotPickerVisible"] as? Bool ?? false
+                drumKitMatrixRenderedHistoryCellCount = userInfo["historyCellCount"] as? Int ?? 0
                 drumKitMatrixRenderedRowExpanded = userInfo["rowExpanded"] as? Bool ?? false
                 drumKitMatrixRenderedExpandedPartIndex = userInfo["expandedPartIndex"] as? Int ?? -1
                 drumKitMatrixRenderedExpandedRowTab = userInfo["expandedRowTab"] as? String ?? "none"
@@ -1216,6 +1218,7 @@ enum VisualScenarioCommandRunner {
         drumKitMatrixRenderedCaptureOpen=\(drumKitMatrixRenderedCaptureOpen)
         drumKitMatrixRenderedKitFXChooserVisible=\(drumKitMatrixRenderedKitFXChooserVisible)
         drumKitMatrixRenderedSaveSlotPickerVisible=\(drumKitMatrixRenderedSaveSlotPickerVisible)
+        drumKitMatrixRenderedHistoryCellCount=\(drumKitMatrixRenderedHistoryCellCount)
         drumKitMatrixRenderedRowExpanded=\(drumKitMatrixRenderedRowExpanded)
         drumKitMatrixRenderedExpandedPartIndex=\(drumKitMatrixRenderedExpandedPartIndex)
         drumKitMatrixRenderedExpandedRowTab=\(drumKitMatrixRenderedExpandedRowTab)
@@ -2132,6 +2135,7 @@ enum VisualScenarioCommandRunner {
             drumKitMatrixRenderedKitFXChooserVisible = false
             drumKitMatrixRenderedCaptureOpen = false
             drumKitMatrixRenderedSaveSlotPickerVisible = false
+            drumKitMatrixRenderedHistoryCellCount = 0
             drumKitMatrixRenderedRowExpanded = false
             drumKitMatrixRenderedExpandedRowTab = "none"
             drumKitMatrixRenderedExpandedSourceMode = "none"

@@ -1,6 +1,6 @@
 # Crash: QA capture track sound-source transition detaches track send nodes
 
-Status: OPEN
+Status: RESOLVED (verified in `20260707-215434-in-sequence-qa-surface-coverage-main-53e42ea6`)
 Filed: 2026-07-07
 Source: full QA surface capture run on `main` at `044f728c`
 
@@ -117,3 +117,17 @@ sounding path without ramping to silence first.
 - `scripts/diagnostics/runtime-ownership-lint.sh` passes.
 - `scripts/visual-scenarios/routing-stress.sh` passes, or the plan records a
   precise reason it cannot be run in the current environment.
+
+## RESOLVED
+
+Fixed by retiring and reusing track send fanout/send nodes instead of detaching
+them inline during track output teardown. Verified with:
+
+- `MainAudioGraphTests/test_trackSendNodesAreRetiredAndReusedInsteadOfDetachedOnTrackRemoval`
+- route-switch tests for bus/master reassignment while sounding
+- `scripts/diagnostics/realtime-path-lint.sh`
+- `scripts/diagnostics/runtime-ownership-lint.sh`
+- `scripts/visual-scenarios/routing-stress.sh`
+- full `qa-surface-coverage.sh` run
+  `20260707-215434-in-sequence-qa-surface-coverage-main-53e42ea6`, which
+  completed and absorbed 76 screenshots without the AVAudioEngine detach crash
