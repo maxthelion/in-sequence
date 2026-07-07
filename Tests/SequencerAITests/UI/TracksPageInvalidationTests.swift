@@ -518,6 +518,88 @@ final class TracksPageInvalidationTests: XCTestCase {
             "The standard QA surface pass should include the clip history state."
         )
     }
+
+    func test_samplerSoundPageRemovesStaleControlsAndCapturesRealWaveformState() throws {
+        let samplerWidget = try String(
+            contentsOf: repoRoot.appendingPathComponent("Sources/UI/SamplerDestinationWidget.swift"),
+            encoding: .utf8
+        )
+        let drumAccordion = try String(
+            contentsOf: repoRoot.appendingPathComponent("Sources/UI/DrumGroup/DrumKitMatrixView+Accordion.swift"),
+            encoding: .utf8
+        )
+        let chooserPanel = try XCTUnwrap(
+            drumAccordion.slice(from: "func expandedSoundChooserPanel", to: "func expandedSoundSamplerPanel"),
+            "Drum-part empty sound chooser should be present"
+        )
+        let samplerPanel = try XCTUnwrap(
+            drumAccordion.slice(from: "func expandedSoundSamplerPanel", to: "func expandedSoundAUPanel"),
+            "Drum-part sampler sound panel should be present"
+        )
+        let qaScript = try String(
+            contentsOf: repoRoot.appendingPathComponent("scripts/visual-scenarios/qa-surface-coverage.sh"),
+            encoding: .utf8
+        )
+        let visualRunner = try String(
+            contentsOf: repoRoot.appendingPathComponent("Sources/UI/VisualScenarioCommandRunner.swift"),
+            encoding: .utf8
+        )
+
+        XCTAssertTrue(
+            samplerWidget.contains("WaveformView(buckets: buckets, fillColor: accent)"),
+            "Sampler sound pages must keep the actual waveform renderer in the populated sample card."
+        )
+        XCTAssertFalse(
+            samplerWidget.contains("View built-in sampler macros"),
+            "The sampler header must not keep the old config/macro button beside Play."
+        )
+        XCTAssertFalse(
+            samplerWidget.contains("systemName: \"slider.horizontal.3\""),
+            "The sampler header must not render the old config/macro icon."
+        )
+        XCTAssertTrue(
+            chooserPanel.contains("HStack(alignment: .top"),
+            "Empty drum-part sound state should place the two add choices side by side."
+        )
+        XCTAssertEqual(
+            chooserPanel.components(separatedBy: "StudioAddCard(").count - 1,
+            2,
+            "Empty drum-part sound state should offer two dashed plus boxes."
+        )
+        XCTAssertFalse(
+            chooserPanel.contains("No sound source"),
+            "The empty drum-part sound state should not show the old text label."
+        )
+        XCTAssertFalse(
+            samplerPanel.contains("Load AU instrument"),
+            "Sampler parts should not keep the bottom Load AU instrument button."
+        )
+        XCTAssertFalse(
+            samplerPanel.contains("kit-row-load-au"),
+            "The removed bottom Load AU button should not leave an accessibility target behind."
+        )
+        XCTAssertTrue(
+            qaScript.contains("SEQUENCER_AI_MATERIALIZE_FIXTURE_SAMPLES"),
+            "QA captures must materialize audio-rich fixture WAVs so sampler waveforms draw non-zero buckets."
+        )
+        XCTAssertTrue(
+            qaScript.contains("19-track-sampler-sound-populated") &&
+                qaScript.contains("selectedTrackSoundDestinationKind=sample") &&
+                qaScript.contains("trackSoundSource=sample"),
+            "QA coverage should include a populated sampler sound page, not a generator sound page."
+        )
+        XCTAssertTrue(
+            qaScript.contains("19a-track-sound-empty") &&
+                qaScript.contains("selectedTrackSoundDestinationKind=none") &&
+                qaScript.contains("trackSoundSource=empty"),
+            "QA coverage should include the empty sound-source chooser state."
+        )
+        XCTAssertTrue(
+            visualRunner.contains("case \"sample\", \"sampler\":") &&
+                visualRunner.contains(".sample(sampleID: sample.id, settings: .default)"),
+            "The visual command runner should be able to drive the sampler sound capture state directly."
+        )
+    }
 }
 
 private extension String {

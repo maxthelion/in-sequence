@@ -2147,6 +2147,11 @@ enum VisualScenarioCommandRunner {
         switch rawState {
         case "empty", "none", "unset":
             session.setEditedDestination(.none, for: trackID)
+        case "sample", "sampler":
+            if let sample = AudioSampleLibrary.shared.firstSample(in: .kick)
+                ?? AudioSampleLibrary.shared.samples.first {
+                session.setEditedDestination(.sample(sampleID: sample.id, settings: .default), for: trackID)
+            }
         default:
             break
         }

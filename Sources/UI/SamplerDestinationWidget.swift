@@ -122,13 +122,6 @@ struct SamplerDestinationWidget: View {
             Spacer(minLength: 8)
 
             StudioCircleIconButton(
-                systemName: "slider.horizontal.3",
-                size: StudioMetrics.ControlSize.medium,
-                help: "View built-in sampler macros",
-                action: onManageMacros
-            )
-
-            StudioCircleIconButton(
                 systemName: isAuditioning ? "stop.fill" : "play.fill",
                 size: StudioMetrics.ControlSize.medium,
                 help: isAuditioning ? "Stop audition" : "Audition sample"

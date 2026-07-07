@@ -389,22 +389,21 @@ extension DrumKitMatrixView {
         }
     }
 
-    /// Neutral "no sound source" empty state for a part with `.none` destination.
-    /// Offers the two source choices as equal, compact, clickable rows — distinct
-    /// from a sampler that lost its sample (which keeps its own recovery card).
+    /// Empty sound source state for a part with `.none` destination. Offers the
+    /// two source choices as equal dashed add tiles — distinct from a sampler
+    /// that lost its sample (which keeps its own recovery card).
     /// Choosing Sample assigns the first library sample so the sampler card opens
     /// populated; choosing AU opens the same instrument chooser as the per-track
     /// editor (bug 20260629-101345).
     @ViewBuilder
     func expandedSoundChooserPanel(memberID: UUID) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            // Canon Rule 3: state title only — the two option rows below are
-            // the affordance; no explainer prose.
-            Text("No sound source")
-                .studioText(.subtitle)
-                .foregroundStyle(StudioTheme.text)
-
-            StudioFXOptionRow(title: "Sample", systemImage: "waveform") {
+        HStack(alignment: .top, spacing: StudioMetrics.Spacing.standard) {
+            StudioAddCard(
+                label: "Sample",
+                accent: accent,
+                minHeight: 92,
+                help: "Add a sample sound source"
+            ) {
                 guard let first = AudioSampleLibrary.shared.samples.first else { return }
                 applyMemberSoundDestination(
                     .sample(sampleID: first.id, settings: .default),
@@ -413,7 +412,12 @@ extension DrumKitMatrixView {
             }
             .accessibilityIdentifier("kit-row-choose-sample")
 
-            StudioFXOptionRow(title: "AU instrument", systemImage: "pianokeys") {
+            StudioAddCard(
+                label: "AU Instrument",
+                accent: accent,
+                minHeight: 92,
+                help: "Add an AU instrument sound source"
+            ) {
                 expandedSoundAUTarget = ExpandedSoundAUTarget(memberID: memberID)
             }
             .accessibilityIdentifier("kit-row-choose-au")
@@ -428,59 +432,40 @@ extension DrumKitMatrixView {
     }
 
     /// Sampler sound source for the member: today's `SamplerDestinationWidget`
-    /// (mini sampler + the in-sampler filter) PLUS a compact "Load AU instrument"
-    /// button that swaps the part's sound to an AU. Used for `.sample` (incl. the
-    /// missing-sample recovery card) and `.inheritGroup`. A `.none` part routes to
-    /// `expandedSoundChooserPanel` instead, so clearing the sample (X → `.none`)
-    /// lands on the neutral chooser, not the sampler's missing-sample card.
+    /// (mini sampler + the in-sampler filter). Used for `.sample` (incl. the
+    /// missing-sample recovery card) and `.inheritGroup`. A `.none` part routes
+    /// to `expandedSoundChooserPanel` instead, so clearing the sample (X →
+    /// `.none`) lands on the neutral chooser, not the sampler's missing-sample
+    /// card.
     @ViewBuilder
     func expandedSoundSamplerPanel(memberID: UUID) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            SamplerDestinationWidget(
-                destination: Binding(
-                    get: { memberTrack(memberID)?.destination ?? .none },
-                    set: { session.setEditedDestination($0, for: memberID) }
-                ),
-                library: AudioSampleLibrary.shared,
-                sampleEngine: engineController.sampleEngineSink,
-                trackID: memberID,
-                accent: accent,
-                filterSettings: Binding(
-                    get: { memberTrack(memberID)?.filter ?? .init() },
-                    set: { session.setFilterSettings($0, for: memberID) }
-                ),
-                onManageMacros: {
-                    expandedRowTab = .macros
-                    postRenderedVisualState(isVisible: true)
-                },
-                // Clear the member part's sound through the normal undoable document
-                // edit path (mirrors TrackDestinationEditor.clearDestination). The
-                // `.none` change ramp-removes the live sample voice via
-                // setEditedDestination → .fullEngineApply → syncSampleMixers; it does
-                // NOT write a transient "empty" capture into the .seqai document.
-                onRemove: {
-                    session.setEditedDestination(.none, for: memberID)
-                    postRenderedVisualState(isVisible: true)
-                }
-            )
-
-            // Compact "swap to an AU instrument" affordance — a real button, not
-            // the old always-on descriptive strip (bug 20260629-101345). Reuses
-            // the per-track AU chooser sheet; on selection it calls
-            // setEditedDestination(.auInstrument(...)) (see applyMemberSoundDestination).
-            Button {
-                expandedSoundAUTarget = ExpandedSoundAUTarget(memberID: memberID)
-            } label: {
-                Label("Load AU instrument", systemImage: "pianokeys")
-                    .studioText(.label)
+        SamplerDestinationWidget(
+            destination: Binding(
+                get: { memberTrack(memberID)?.destination ?? .none },
+                set: { session.setEditedDestination($0, for: memberID) }
+            ),
+            library: AudioSampleLibrary.shared,
+            sampleEngine: engineController.sampleEngineSink,
+            trackID: memberID,
+            accent: accent,
+            filterSettings: Binding(
+                get: { memberTrack(memberID)?.filter ?? .init() },
+                set: { session.setFilterSettings($0, for: memberID) }
+            ),
+            onManageMacros: {
+                expandedRowTab = .macros
+                postRenderedVisualState(isVisible: true)
+            },
+            // Clear the member part's sound through the normal undoable document
+            // edit path (mirrors TrackDestinationEditor.clearDestination). The
+            // `.none` change ramp-removes the live sample voice via
+            // setEditedDestination -> .fullEngineApply -> syncSampleMixers; it does
+            // NOT write a transient "empty" capture into the .seqai document.
+            onRemove: {
+                session.setEditedDestination(.none, for: memberID)
+                postRenderedVisualState(isVisible: true)
             }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
-            // One chrome accent per surface (locked grammar): the kit group
-            // colour, not a second cyan chrome accent on the part row.
-            .tint(accent)
-            .accessibilityIdentifier("kit-row-load-au")
-        }
+        )
     }
 
     /// AU instrument sound source for the member. Reuses the per-track AU flow

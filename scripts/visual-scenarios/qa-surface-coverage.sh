@@ -134,9 +134,8 @@ CAPTURES=$(cat <<'TABLE'
 # (covered by the phrase-perform rows 08-13b). The trackPerformLayer* status
 # fields no longer exist.
 18-track-detail-steps-clip|workspace=track|trackFillSource=clip;trackSourceTab=steps-clip;transport=stop
-19-track-detail-sound|workspace=track|trackFillSource=generator;trackSourceTab=sound;transport=stop
-# 19a RETIRED: `trackSoundSource=empty` now renders the same Sound tab state as
-# row 19. Keep one honest Sound-tab capture rather than publishing duplicates.
+19-track-sampler-sound-populated|workspace=track,trackSourceTab=sound,selectedTrackSoundDestinationKind=sample|trackSoundSource=sample;trackSourceTab=sound;transport=stop
+19a-track-sound-empty|workspace=track,trackSourceTab=sound,selectedTrackSoundDestinationKind=none|trackSoundSource=empty;trackSourceTab=sound;transport=stop
 20-track-fill-preview-active|workspace=track,trackSourceTab=steps-clip,selectedTrackFillPreviewActive=true|trackFillSource=clip;trackFillPreview=on;trackSourceTab=steps-clip;transport=stop
 # 20a RETIRED: the old `trackFillEngaged` visual command no longer reaches a
 # strict `selectedTrackFillEngaged=true` state in the current track detail flow.
@@ -506,10 +505,12 @@ cp "$fixture_source_path" "$runtime_fixture_path"
 if [ "$command_file_from_env" != true ]; then
   launchctl setenv SEQUENCER_AI_VISUAL_COMMAND_FILE "$command_file" >/dev/null
   launchctl setenv SEQUENCER_AI_NEW_DOCUMENT_FIXTURE "$runtime_fixture_path" >/dev/null
+  launchctl setenv SEQUENCER_AI_MATERIALIZE_FIXTURE_SAMPLES 1 >/dev/null
   defaults write "$bundle_id" VisualScenarioCommandFile "$command_file"
 fi
 export SEQUENCER_AI_VISUAL_COMMAND_FILE="$command_file"
 export SEQUENCER_AI_NEW_DOCUMENT_FIXTURE="$runtime_fixture_path"
+export SEQUENCER_AI_MATERIALIZE_FIXTURE_SAMPLES=1
 
 app_path="$(
   cd "$REPO_ROOT"
