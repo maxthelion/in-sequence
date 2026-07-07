@@ -99,3 +99,33 @@ exists yet for this implementation loop.
   an explicit `capture-permission-or-focus` / missing-runtime-state gap, and
   confirm no AU runtime/acoustic claim was made.
 - no merge, review batch, or product-owner escalation is warranted yet.
+
+## Latest Orientation - 2026-07-07T08:29:25Z
+
+- orientation:
+  `.meta/multipass/runtime/loops/build/drum-kit-matrix-sound-implementation/orient/2026-07-07T08-29-25Z-builder-progress-orientation.md`
+- current output: clean committed builder output at `80a1c634` (`Finish kit
+  matrix sound implementation slice`) in
+  `.worktrees/drum-kit-matrix-sound-implementation`.
+- builder outcome: continuation completed. The previous dirty partial output at
+  `859b3193` is superseded.
+- implemented/classified scope: kit-local DrumGroup UI work, compact add-kit
+  modal cleanup, kit-page `Add Part`, empty-kit dedicated-bus behavior coverage,
+  matrix/part-row compression, preservation of distinct Sound states, existing
+  kit FX/Macros/Mixer surfaces, and stale baseline `accent` API caller/test
+  repairs in shared step-grid/pattern/slicer areas.
+- paired checks: `xcodebuild build-for-testing -scheme SequencerAI -destination
+  'platform=macOS'` passed; focused `ProjectAddDrumGroupTests` and
+  `SamplerDestinationWidgetTests` passed 26/0; `scripts/diagnostics/ux-canon-lint.sh`
+  passed; `git diff --check` passed.
+- evidence gaps: no architecture-review or testing-review observer gate has
+  reviewed exact commit `80a1c634`; no screenshots/visual-economy evidence is
+  paired. Builder recorded `capture-permission-or-focus` because unattended
+  visual automation was not enabled.
+- lowest unmet pyramid layer: exact-state review/evidence pairing.
+- architecture risk: caution until observers inspect the exact committed diff,
+  especially the shared non-DrumGroup caller/test drift repairs.
+- next action kind: review/evidence repair. Schedule architecture/testing gates
+  for `80a1c634` and gather visual evidence when capture permission/focus is
+  available, or preserve the explicit capture gap.
+- no product-owner attention is needed.
