@@ -34,6 +34,8 @@ struct StudioModal<Content: View, HeaderAccessory: View>: View {
                     Text(title)
                         .font(.system(size: 22, weight: .bold, design: .rounded))
                         .foregroundStyle(StudioTheme.text)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
 
                     if showsTitleRule {
                         Rectangle()
@@ -46,16 +48,21 @@ struct StudioModal<Content: View, HeaderAccessory: View>: View {
                     Text(subtitle)
                         .studioText(.body)
                         .foregroundStyle(StudioTheme.mutedText)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             Spacer(minLength: 12)
 
             // Optional title-bar accessory (e.g. a Normalize button) sits to the
             // left of the close affordance.
             headerAccessory
+                .fixedSize()
 
             StudioModalCloseButton(action: onClose)
+                .fixedSize()
         }
     }
 }

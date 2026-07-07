@@ -36,7 +36,7 @@ struct FXInsertEditorSheet: View {
             title: name,
             subtitle: kind.summary,
             accent: accent,
-            minWidth: 460,
+            minWidth: 560,
             onClose: onClose,
             headerAccessory: {
                 Toggle("Enabled", isOn: isEnabled)
