@@ -27,6 +27,7 @@ enum VisualScenarioCommandRunner {
     private static var drumKitMatrixRenderedRowExpanded = false
     private static var drumKitMatrixRenderedExpandedPartIndex = -1
     private static var drumKitMatrixRenderedExpandedRowTab = "none"
+    private static var drumKitMatrixRenderedExpandedSourceMode = "none"
     private static var phraseMatrixRenderedVisible = false
     private static var phraseMatrixPageIndex = 0
     private static var phraseMatrixPageCount = 0
@@ -232,6 +233,7 @@ enum VisualScenarioCommandRunner {
                 drumKitMatrixRenderedRowExpanded = userInfo["rowExpanded"] as? Bool ?? false
                 drumKitMatrixRenderedExpandedPartIndex = userInfo["expandedPartIndex"] as? Int ?? -1
                 drumKitMatrixRenderedExpandedRowTab = userInfo["expandedRowTab"] as? String ?? "none"
+                drumKitMatrixRenderedExpandedSourceMode = userInfo["expandedSourceMode"] as? String ?? "none"
             }
         }
         NotificationCenter.default.addObserver(
@@ -1185,6 +1187,7 @@ enum VisualScenarioCommandRunner {
         drumKitMatrixRenderedRowExpanded=\(drumKitMatrixRenderedRowExpanded)
         drumKitMatrixRenderedExpandedPartIndex=\(drumKitMatrixRenderedExpandedPartIndex)
         drumKitMatrixRenderedExpandedRowTab=\(drumKitMatrixRenderedExpandedRowTab)
+        drumKitMatrixRenderedExpandedSourceMode=\(drumKitMatrixRenderedExpandedSourceMode)
         drumGroupRoutingEditorRenderedVisible=\(drumGroupRoutingEditorRenderedState)
         drumGroupRoutingEditorMode=\(drumGroupRoutingEditorMode)
         drumGroupRoutingEditorCanApply=\(drumGroupRoutingEditorCanApply)
@@ -2099,6 +2102,7 @@ enum VisualScenarioCommandRunner {
             drumKitMatrixRenderedSaveSlotPickerVisible = false
             drumKitMatrixRenderedRowExpanded = false
             drumKitMatrixRenderedExpandedRowTab = "none"
+            drumKitMatrixRenderedExpandedSourceMode = "none"
             drumKitMatrixRenderedKitTab = "none"
             let model = DrumPartWorkspaceHeaderModel(
                 selectedTrack: session.store.selectedTrack,

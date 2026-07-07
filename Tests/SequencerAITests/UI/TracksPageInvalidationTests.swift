@@ -628,6 +628,55 @@ final class TracksPageInvalidationTests: XCTestCase {
             "The removed clip-length subtext should not leave an accessibility target behind."
         )
     }
+
+    func test_drumKitGeneratorModeUsesSharedGeneratorEditorAndHasCaptureRow() throws {
+        let accordion = try String(
+            contentsOf: repoRoot.appendingPathComponent("Sources/UI/DrumGroup/DrumKitMatrixView+Accordion.swift"),
+            encoding: .utf8
+        )
+        let sourceSwitch = try XCTUnwrap(
+            accordion.slice(from: "func sourceModeSwitch", to: "func setMemberSourceMode"),
+            "Drum-kit source mode switch should be present"
+        )
+        let generatorBody = try XCTUnwrap(
+            accordion.slice(from: "func expandedGeneratorBody", to: "func memberSourceGenerator"),
+            "Drum-kit expanded generator body should be present"
+        )
+        let qaScript = try String(
+            contentsOf: repoRoot.appendingPathComponent("scripts/visual-scenarios/qa-surface-coverage.sh"),
+            encoding: .utf8
+        )
+        let visualRunner = try String(
+            contentsOf: repoRoot.appendingPathComponent("Sources/UI/VisualScenarioCommandRunner.swift"),
+            encoding: .utf8
+        )
+
+        XCTAssertFalse(
+            sourceSwitch.contains("Text(\"SOURCE\")"),
+            "The drum-part Clip/Generator switch should not show the old Source label."
+        )
+        XCTAssertTrue(
+            generatorBody.contains("GeneratorParamsEditorView(") &&
+                generatorBody.contains("layout: .sourceContained"),
+            "Drum-part generator mode should reuse the shared mono-track generator controls."
+        )
+        XCTAssertFalse(
+            generatorBody.contains("MODIFIER") ||
+                generatorBody.contains("Add modifier") ||
+                generatorBody.contains("kit-row-add-modifier"),
+            "The drum-part generator row should not expose modifier controls in this slice."
+        )
+        XCTAssertTrue(
+            qaScript.contains("29d-drum-kit-expanded-generator") &&
+                qaScript.contains("drumKitMatrixRenderedExpandedSourceMode=generator") &&
+                qaScript.contains("drumKitMatrixCommands=expand-part:0,row-tab-steps,source-generator"),
+            "QA coverage should include the expanded drum-part generator mode with strict status waits."
+        )
+        XCTAssertTrue(
+            visualRunner.contains("drumKitMatrixRenderedExpandedSourceMode"),
+            "The visual status file should publish expanded source mode for the generator capture wait."
+        )
+    }
 }
 
 private extension String {

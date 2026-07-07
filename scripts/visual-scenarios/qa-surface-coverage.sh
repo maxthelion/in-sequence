@@ -185,9 +185,10 @@ CAPTURES=$(cat <<'TABLE'
 29a-drum-kit-fx-tab|workspace=track,drumKitMatrixRenderedKitTab=fx|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixCommand=tab-fx;transport=stop
 29b-drum-kit-macros-tab|workspace=track,drumKitMatrixRenderedKitTab=macros|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixCommand=tab-macros;transport=stop
 29c-drum-kit-mixer-tab|workspace=track,drumKitMatrixRenderedKitTab=mixer|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixCommand=tab-mixer;drumKitSceneMembership=sceneA;transport=stop
-# 29d/29e/29g RETIRED: chooser and expanded-row sub-surfaces are still useful
-# targets, but the current full-suite command channel does not reach their
-# strict rendered status reliably. Do not publish timeout-forced evidence.
+# 29e/29g RETIRED: chooser sub-surfaces are still useful targets, but the
+# current full-suite command channel does not reach their strict rendered
+# status reliably. Keep 29d as the generator-mode expanded-row coverage.
+29d-drum-kit-expanded-generator|workspace=track,drumKitMatrixRenderedRowExpanded=true,drumKitMatrixRenderedExpandedPartIndex=0,drumKitMatrixRenderedExpandedRowTab=stepsClip,drumKitMatrixRenderedExpandedSourceMode=generator|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixCommands=expand-part:0,row-tab-steps,source-generator;transport=stop
 29f-drum-kit-capture-save-slot|workspace=track,drumKitMatrixRenderedCaptureOpen=true,drumKitMatrixRenderedSaveSlotPickerVisible=true|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixCommands=open-capture,history-fixture,history-audition-on,history-save-open;transport=stop
 35-drum-kit-matrix-velocity-layer|workspace=track,drumKitMatrixRenderedLayer=velocity|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixLayer=velocity;transport=stop
 36-drum-kit-matrix-chance-layer|workspace=track,drumKitMatrixRenderedLayer=chance|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixLayer=chance;transport=stop

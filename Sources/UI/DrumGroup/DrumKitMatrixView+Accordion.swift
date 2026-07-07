@@ -164,11 +164,6 @@ extension DrumKitMatrixView {
 
     func sourceModeSwitch(_ row: DrumKitMatrixModel.Row) -> some View {
         HStack(spacing: 8) {
-            Text("SOURCE")
-                .studioText(.eyebrow)
-                .tracking(0.8)
-                .foregroundStyle(StudioTheme.mutedText)
-
             StudioSegmentedControl(
                 title: nil,
                 selection: Binding(
@@ -277,90 +272,38 @@ extension DrumKitMatrixView {
 
     @ViewBuilder
     func expandedGeneratorBody(_ row: DrumKitMatrixModel.Row) -> some View {
-        let detail: String = {
-            if case let .generator(d) = row.content { return d }
-            return "Generator"
-        }()
-        let modifierName = memberModifierName(row.memberID)
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
-                Text(detail)
-                    .studioText(.labelBold)
-                    .foregroundStyle(StudioTheme.background)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
-                    .background(accent, in: Capsule())
-                Text("generator")
-                    .studioText(.label)
-                    .foregroundStyle(StudioTheme.mutedText)
-                Spacer(minLength: 0)
-            }
-
-            HStack(spacing: 8) {
-                Text("MODIFIER")
-                    .studioText(.eyebrow)
-                    .tracking(0.8)
-                    .foregroundStyle(StudioTheme.mutedText)
-
-                if let modifierName {
-                    Text(modifierName)
-                        .studioText(.label)
-                        .foregroundStyle(StudioTheme.text)
-                        .padding(.horizontal, 9)
-                        .padding(.vertical, 4)
-                        .background(StudioTheme.subtleFill, in: Capsule())
-                    Button {
-                        session.setPatternModifierGeneratorID(nil, for: row.memberID, slotIndex: row.patternSlotIndex)
-                        postRenderedVisualState(isVisible: true)
-                    } label: {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundStyle(StudioTheme.mutedText)
+        if let generator = memberSourceGenerator(row) {
+            GeneratorParamsEditorView(
+                generator: generator,
+                inputClipChoices: session.store.clipPool,
+                harmonicSidechainClipChoices: session.store.clipPool,
+                sourceMode: .generator,
+                accent: accent,
+                layout: .sourceContained,
+                onUpdate: { updated in
+                    session.mutateGenerator(id: generator.id) { entry in
+                        entry.params = updated
                     }
-                    .buttonStyle(.plain)
-                    .help("Remove modifier")
-                    .accessibilityLabel("Remove modifier")
-                } else {
-                    Button {
-                        addMemberModifier(row)
-                    } label: {
-                        Label("Add modifier", systemImage: "plus")
-                            .studioText(.label)
-                            .foregroundStyle(StudioTheme.text)
-                            .padding(.horizontal, 9)
-                            .padding(.vertical, 4)
-                            .background(StudioTheme.subtleFill, in: Capsule())
-                            .overlay(Capsule().stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth))
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("kit-row-add-modifier")
-                    .accessibilityLabel("Add generator modifier")
+                    postRenderedVisualState(isVisible: true)
+                },
+                onSwitchKind: { kind in
+                    _ = session.switchGeneratorKind(id: generator.id, to: kind)
+                    postRenderedVisualState(isVisible: true)
                 }
-
-                Spacer(minLength: 0)
-            }
+            )
+        } else {
+            Text("Generator unavailable")
+                .studioText(.body)
+                .foregroundStyle(StudioTheme.mutedText)
         }
     }
 
-    func memberModifierName(_ memberID: UUID) -> String? {
-        guard let bank = session.store.patternBanksByTrackID[memberID],
-              let track = memberTrack(memberID) else { return nil }
-        let slotIndex = session.store.selectedPhrase.patternIndex(for: track.id, layers: session.store.layers)
-        guard let modifierID = bank.slot(at: slotIndex).sourceRef.modifierGeneratorID,
-              let generator = session.store.generatorPool.first(where: { $0.id == modifierID })
-        else { return nil }
-        return generator.name
-    }
-
-    /// Attach the first modifier-capable generator as a modifier on the member's
-    /// active slot (AC21: the generator can carry a modifier).
-    func addMemberModifier(_ row: DrumKitMatrixModel.Row) {
-        guard let track = memberTrack(row.memberID) else { return }
-        let candidate = session.store.generatorPool.first { $0.trackType == track.trackType }
-            ?? session.store.generatorPool.first
-        guard let modifier = candidate else { return }
-        session.setPatternModifierGeneratorID(modifier.id, for: row.memberID, slotIndex: row.patternSlotIndex)
-        postRenderedVisualState(isVisible: true)
+    func memberSourceGenerator(_ row: DrumKitMatrixModel.Row) -> GeneratorPoolEntry? {
+        guard let bank = session.store.patternBanksByTrackID[row.memberID] else {
+            return nil
+        }
+        let sourceID = bank.slot(at: row.patternSlotIndex).sourceRef.generatorID
+        return session.store.generatorPool.first { $0.id == sourceID }
     }
 
     // MARK: Sound mini-tab (sampler + in-sampler filter OR AU instrument)
