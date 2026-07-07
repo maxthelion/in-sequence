@@ -1,6 +1,6 @@
 Crash dragging scene filter cutoff triggers tick-path main-sync assertion
 
-Status: OPEN
+Status: RESOLVED
 Filed: 2026-07-07
 Source: pasted macOS crash report
 
@@ -104,3 +104,29 @@ Relevant files from the stack:
 - `Sources/Audio/MainAudioGraph.swift`
 - `Sources/Audio/MixerBusHost.swift`
 - `Sources/App/SequencerDocumentSession.swift`
+
+## ROOT CAUSE + FIX
+
+This shared the same underlying failure mode as the master-output insert crash.
+Dragging a scene FX parameter legitimately applies master-bus changes on the
+main/control side, but live phrase-scene playback was also applying master-bus
+state from the tick/lookahead path. When those paths overlapped, the tick path
+could enter scene-membership and sample-mixer refresh code that prepares sample
+tracks and synchronously consults main-thread graph state.
+
+The fix makes phrase-scene A/B selection a live performance overlay rather than
+a document/master-bus apply. The tick path now records only the desired
+selection and publishes an async overlay update. Scene-membership gain refresh
+and `MasterBusHost` overlay resolution happen on the main/control side, so
+Scene FX edits can continue to use the document apply path without tick-path
+graph/sample-prep work.
+
+Verification:
+
+- `EngineControllerPhraseNavigationTests.test_phraseSceneBoundaryDoesNotSynchronouslyHopToMainFromTickPath`
+- `EngineControllerPhraseNavigationTests`
+- `TickPathMainIsolationTests`
+- `SequencerDocumentSessionMasterBusTests`
+- `MasterBusHostTests`
+- `scripts/diagnostics/realtime-path-lint.sh`
+- `scripts/diagnostics/runtime-ownership-lint.sh`

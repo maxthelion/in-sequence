@@ -545,6 +545,9 @@ final class EngineController: RouterDispatcher {
     @ObservationIgnored
     private var macroLayerDefaultOverrides: [UUID: [UUID: Double]] = [:]
 
+    @ObservationIgnored
+    private var phraseSceneSelectionOverride: MasterBusABSelection?
+
     private(set) var currentPhraseID: UUID?
     private(set) var queuedPhraseID: UUID?
     private(set) var basisPhraseID: UUID?
@@ -877,16 +880,44 @@ final class EngineController: RouterDispatcher {
     }
 
     private func applyPhraseSceneState(phraseID: UUID?, snapshot: PlaybackSnapshot) {
-        guard let phraseID else { return }
-        var masterBus = currentDocumentModel.masterBus
+        guard let phraseID else {
+            installPhraseSceneSelectionOverrideIfNeeded(nil)
+            return
+        }
+        let selection: MasterBusABSelection?
         if let sceneState = snapshot.phraseBuffer(for: phraseID)?.sceneState {
-            masterBus.setABSelection(MasterBusABSelection(
+            selection = MasterBusABSelection(
                 sceneAID: sceneState.sceneAID,
                 sceneBID: sceneState.sceneBID,
                 crossfader: sceneState.crossfader
-            ))
+            )
+        } else {
+            selection = nil
         }
-        applyMasterBusIfChanged(masterBus)
+        installPhraseSceneSelectionOverrideIfNeeded(selection)
+    }
+
+    private func installPhraseSceneSelectionOverrideIfNeeded(_ selection: MasterBusABSelection?) {
+        let normalized = selection?.normalized()
+        let shouldPublish = withStateLock {
+            guard phraseSceneSelectionOverride != normalized else { return false }
+            phraseSceneSelectionOverride = normalized
+            return true
+        }
+        guard shouldPublish else { return }
+
+        publishToMain { [weak self] in
+            guard let self else { return }
+            guard self.withStateLock({ self.phraseSceneSelectionOverride == normalized }) else { return }
+            self.applyPhraseSceneSelectionOverlay(normalized)
+        }
+    }
+
+    private func applyPhraseSceneSelectionOverlay(_ selection: MasterBusABSelection?) {
+        masterBusPerformanceOverlay.abSelectionOverride = selection
+        masterBusPerformanceOverlay = masterBusPerformanceOverlay.normalized(for: currentDocumentModel.masterBus)
+        masterBusHost.setPerformanceOverlay(masterBusPerformanceOverlay)
+        refreshSceneMembershipGainsForCurrentDocument()
     }
 
     private func initializePhraseNavigationForPlaybackStart(snapshot: PlaybackSnapshot, cycleStartTick: UInt64) {
@@ -1982,6 +2013,7 @@ final class EngineController: RouterDispatcher {
 
     var effectiveCrossfader: Double {
         masterBusPerformanceOverlay.crossfaderOverride
+            ?? masterBusPerformanceOverlay.abSelectionOverride?.crossfader
             ?? currentDocumentModel.masterBus.abSelection?.crossfader
             ?? 0
     }
@@ -2035,6 +2067,9 @@ final class EngineController: RouterDispatcher {
 
     func clearMasterBusPerformanceOverlay() {
         masterBusPerformanceOverlay.clearAll()
+        withStateLock {
+            phraseSceneSelectionOverride = nil
+        }
         masterBusHost.clearPerformanceOverlay()
     }
 
@@ -4034,6 +4069,9 @@ final class EngineController: RouterDispatcher {
         let normalizedOverlay = masterBusPerformanceOverlay.normalized(for: masterBus)
         if normalizedOverlay != masterBusPerformanceOverlay {
             masterBusPerformanceOverlay = normalizedOverlay
+        }
+        withStateLock {
+            phraseSceneSelectionOverride = normalizedOverlay.abSelectionOverride
         }
     }
 

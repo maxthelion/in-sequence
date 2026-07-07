@@ -1,6 +1,6 @@
 Crash adding master output insert triggers tick-path main-sync assertion
 
-Status: OPEN
+Status: RESOLVED
 Filed: 2026-07-07
 Source: pasted macOS crash report
 
@@ -88,3 +88,29 @@ Relevant files from the stack:
 - `Sources/Audio/MasterBusHost.swift`
 - `Sources/Audio/MainAudioGraph.swift`
 - `Sources/UI/Mixer/MasterOutputColumnView.swift`
+
+## ROOT CAUSE + FIX
+
+The crash was caused by phrase-scene playback applying a full master-bus state
+from the live tick/lookahead path. That document-style apply refreshed scene
+membership and sample mixer state, which can prepare sample tracks and
+synchronously consult main-thread audio graph state. The
+`TickPathMainSyncGuard` trap was correct: the tick path had reached a
+main-bound graph/sample-prep path.
+
+The fix moves phrase-scene A/B selection out of authored `MasterBusState` and
+into a live `MasterBusPerformanceOverlayState.abSelectionOverride`. Tick
+processing now only records the desired phrase-scene selection under the state
+lock and publishes an async control/main update. The main/control side installs
+the overlay, refreshes scene membership gains, and lets `MasterBusHost` resolve
+the live state without rewriting the persisted master bus.
+
+Verification:
+
+- `EngineControllerPhraseNavigationTests.test_phraseSceneBoundaryDoesNotSynchronouslyHopToMainFromTickPath`
+- `EngineControllerPhraseNavigationTests`
+- `TickPathMainIsolationTests`
+- `SequencerDocumentSessionMasterBusTests`
+- `MasterBusHostTests`
+- `scripts/diagnostics/realtime-path-lint.sh`
+- `scripts/diagnostics/runtime-ownership-lint.sh`

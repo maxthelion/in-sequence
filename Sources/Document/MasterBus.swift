@@ -249,6 +249,9 @@ struct MasterBusState: Codable, Equatable, Sendable {
                 copy.setMacroValue(sceneID: sceneID, macroID: macroID, value: value)
             }
         }
+        if let selection = overlay.abSelectionOverride {
+            copy.setABSelection(selection)
+        }
         if let crossfader = overlay.crossfaderOverride {
             copy.setCrossfader(crossfader)
         }
@@ -745,10 +748,11 @@ enum MasterSceneMacroTarget: Codable, Equatable, Sendable {
 
 struct MasterBusPerformanceOverlayState: Equatable, Sendable {
     var sceneMacroOverrides: [UUID: [UUID: Double]] = [:]
+    var abSelectionOverride: MasterBusABSelection?
     var crossfaderOverride: Double?
 
     var isActive: Bool {
-        !sceneMacroOverrides.isEmpty || crossfaderOverride != nil
+        !sceneMacroOverrides.isEmpty || abSelectionOverride != nil || crossfaderOverride != nil
     }
 
     func macroOverride(sceneID: UUID, macroID: UUID) -> Double? {
@@ -773,6 +777,7 @@ struct MasterBusPerformanceOverlayState: Equatable, Sendable {
 
     mutating func clearAll() {
         sceneMacroOverrides = [:]
+        abSelectionOverride = nil
         crossfaderOverride = nil
     }
 
@@ -787,8 +792,20 @@ struct MasterBusPerformanceOverlayState: Equatable, Sendable {
             }
         }
 
+        let normalizedSelection: MasterBusABSelection?
+        if let selection = abSelectionOverride?.normalized(),
+           masterBus.scenes.contains(where: { $0.id == selection.sceneAID }),
+           masterBus.scenes.contains(where: { $0.id == selection.sceneBID }),
+           selection.sceneAID != selection.sceneBID
+        {
+            normalizedSelection = selection
+        } else {
+            normalizedSelection = nil
+        }
+
         return MasterBusPerformanceOverlayState(
             sceneMacroOverrides: normalizedOverrides,
+            abSelectionOverride: normalizedSelection,
             crossfaderOverride: crossfaderOverride?.clamped(to: 0...1)
         )
     }

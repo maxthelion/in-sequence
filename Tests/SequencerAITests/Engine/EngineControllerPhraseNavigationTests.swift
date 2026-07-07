@@ -85,7 +85,7 @@ final class EngineControllerPhraseNavigationTests: XCTestCase {
         fixture.controller.stop()
     }
 
-    func test_playbackStartAppliesCurrentPhraseSceneStateToMasterBus() throws {
+    func test_playbackStartAppliesCurrentPhraseSceneStateAsLiveOverlay() throws {
         let scenes = phraseNavigationScenes()
         let fixture = makePhraseNavigationFixture(
             masterBus: scenes.masterBus
@@ -101,13 +101,18 @@ final class EngineControllerPhraseNavigationTests: XCTestCase {
 
         XCTAssertEqual(
             fixture.controller.masterBusState.abSelection,
+            scenes.masterBus.abSelection,
+            "Phrase playback must not rewrite the authored master bus."
+        )
+        XCTAssertEqual(
+            fixture.controller.resolvedMasterBusState.abSelection,
             MasterBusABSelection(sceneAID: scenes.a.id, sceneBID: scenes.b.id, crossfader: 0.31)
         )
 
         fixture.controller.stop()
     }
 
-    func test_queuedPhraseBoundaryAppliesNextPhraseSceneStateToMasterBus() throws {
+    func test_queuedPhraseBoundaryAppliesNextPhraseSceneStateAsLiveOverlay() throws {
         let scenes = phraseNavigationScenes()
         let fixture = makePhraseNavigationFixture(
             masterBus: scenes.masterBus
@@ -129,6 +134,11 @@ final class EngineControllerPhraseNavigationTests: XCTestCase {
         fixture.controller.processTick(tickIndex: 0, now: 0)
         XCTAssertEqual(
             fixture.controller.masterBusState.abSelection,
+            scenes.masterBus.abSelection,
+            "Phrase playback must keep the persisted master bus selection stable."
+        )
+        XCTAssertEqual(
+            fixture.controller.resolvedMasterBusState.abSelection,
             MasterBusABSelection(sceneAID: scenes.a.id, sceneBID: scenes.b.id, crossfader: 0.15)
         )
 
@@ -137,7 +147,58 @@ final class EngineControllerPhraseNavigationTests: XCTestCase {
         XCTAssertEqual(fixture.controller.currentPhraseID, fixture.phrases[1].id)
         XCTAssertEqual(
             fixture.controller.masterBusState.abSelection,
+            scenes.masterBus.abSelection,
+            "Queued phrase promotion should still leave authored master-bus state untouched."
+        )
+        XCTAssertEqual(
+            fixture.controller.resolvedMasterBusState.abSelection,
             MasterBusABSelection(sceneAID: scenes.b.id, sceneBID: scenes.c.id, crossfader: 0.82)
+        )
+
+        fixture.controller.stop()
+    }
+
+    func test_phraseSceneBoundaryDoesNotSynchronouslyHopToMainFromTickPath() throws {
+        let scenes = phraseNavigationScenes()
+        let fixture = makePhraseNavigationFixture(
+            masterBus: scenes.masterBus
+        ) { phrases in
+            phrases[0].sceneState = PhraseSceneState(
+                sceneAID: scenes.a.id,
+                sceneBID: scenes.b.id,
+                crossfader: 0.15
+            )
+            phrases[1].sceneState = PhraseSceneState(
+                sceneAID: scenes.b.id,
+                sceneBID: scenes.c.id,
+                crossfader: 0.82
+            )
+        }
+        startEngineForManualTicks(fixture.controller)
+        XCTAssertTrue(fixture.controller.queuePhrase(fixture.phrases[1].id))
+
+        let violations = LockedValues<String>()
+        TickPathMainSyncGuard.violationHandlerForTesting = { violations.append($0) }
+        defer { TickPathMainSyncGuard.violationHandlerForTesting = nil }
+
+        let tickQueue = DispatchQueue(label: "test.phrase-scene-boundary.tick")
+        tickQueue.sync {
+            fixture.controller.processTick(tickIndex: 0, now: 0)
+            fixture.controller.processTick(tickIndex: 1, now: 0.1)
+        }
+
+        XCTAssertEqual(
+            violations.values, [],
+            "Phrase scene boundary must not call synchronous main-bound graph/sample prep from the tick path."
+        )
+        waitForMainQueue()
+        XCTAssertEqual(
+            fixture.controller.resolvedMasterBusState.abSelection,
+            MasterBusABSelection(sceneAID: scenes.b.id, sceneBID: scenes.c.id, crossfader: 0.82)
+        )
+        XCTAssertEqual(
+            fixture.controller.masterBusState.abSelection,
+            scenes.masterBus.abSelection
         )
 
         fixture.controller.stop()
@@ -808,6 +869,14 @@ private func startEngineForManualTicks(_ controller: EngineController) {
     controller.clock.stop()
 }
 
+private func waitForMainQueue() {
+    let expectation = XCTestExpectation(description: "main queue drained")
+    DispatchQueue.main.async {
+        expectation.fulfill()
+    }
+    XCTWaiter().wait(for: [expectation], timeout: 2)
+}
+
 private func processTicks(_ controller: EngineController, through finalTickIndex: UInt64) {
     for tickIndex in 0...finalTickIndex {
         controller.processTick(tickIndex: tickIndex, now: TimeInterval(tickIndex) / 10)
@@ -918,5 +987,22 @@ private final class PhraseNavigationAudioSink: TrackPlaybackSink {
     }
     func reset() {
         playedEvents.removeAll()
+    }
+}
+
+private final class LockedValues<Value>: @unchecked Sendable {
+    private let lock = NSLock()
+    private var storage: [Value] = []
+
+    var values: [Value] {
+        lock.lock()
+        defer { lock.unlock() }
+        return storage
+    }
+
+    func append(_ value: Value) {
+        lock.lock()
+        storage.append(value)
+        lock.unlock()
     }
 }
