@@ -19,6 +19,7 @@ struct TrackSourceClipPanel: View {
     let hasSavedRandomizeSettings: Bool
     let randomizePanel: () -> AnyView
     let onRandomizeClip: () -> Void
+    let onOpenHistory: () -> Void
     let onToggleRandomizePanel: () -> Void
     let onRemoveSource: () -> Void
 
@@ -38,6 +39,7 @@ struct TrackSourceClipPanel: View {
             hasSavedRandomizeSettings: hasSavedRandomizeSettings,
             randomizePanel: randomizePanel,
             onRandomize: onRandomizeClip,
+            onOpenHistory: onOpenHistory,
             onToggleRandomizePanel: onToggleRandomizePanel,
             onRemoveSource: onRemoveSource,
             playingStepIndex: playingStepIndex

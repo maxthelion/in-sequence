@@ -25,6 +25,7 @@ struct TrackSourceSourceTabContent: View {
     let hasSavedRandomizeSettings: Bool
     let randomizePanel: () -> AnyView
     let onRandomizeClip: () -> Void
+    let onOpenHistory: () -> Void
     let onToggleRandomizePanel: () -> Void
     let onShowSourcePicker: () -> Void
     let onBackOutSourcePicker: () -> Void
@@ -71,6 +72,7 @@ struct TrackSourceSourceTabContent: View {
                     hasSavedRandomizeSettings: hasSavedRandomizeSettings,
                     randomizePanel: randomizePanel,
                     onRandomizeClip: onRandomizeClip,
+                    onOpenHistory: onOpenHistory,
                     onToggleRandomizePanel: onToggleRandomizePanel,
                     onRemoveSource: onRemoveSource
                 )

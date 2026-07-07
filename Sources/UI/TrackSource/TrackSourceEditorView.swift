@@ -3,6 +3,7 @@ import SwiftUI
 
 enum TrackSourceEditorTab: String, CaseIterable, Identifiable {
     case stepsClip = "steps-clip"
+    case history
     case sound
     case fx
     case macros
@@ -14,6 +15,8 @@ enum TrackSourceEditorTab: String, CaseIterable, Identifiable {
         switch self {
         case .stepsClip:
             return "Steps/Clip"
+        case .history:
+            return "History"
         case .sound:
             return "Sound"
         case .fx:
@@ -289,6 +292,8 @@ struct TrackSourceEditorView: View {
                     switch selectedTab {
                     case .stepsClip:
                         sourceTab
+                    case .history:
+                        clipHistoryTab
                     case .sound:
                         soundTab
                     case .fx:
@@ -530,6 +535,7 @@ struct TrackSourceEditorView: View {
                 )
             },
             onRandomizeClip: randomizeSelectedClipNow,
+            onOpenHistory: openClipHistory,
             onToggleRandomizePanel: {
                 if isRandomizePanelVisible {
                     closeRandomizePanel()
@@ -550,6 +556,11 @@ struct TrackSourceEditorView: View {
             onSwitchGeneratorKind: switchGeneratorKind,
             onBakeGeneratorToClip: bakeGeneratorToClip
         )
+    }
+
+    private func openClipHistory() {
+        selectedTab = .history
+        updateClipHistoryLiveSnapshot()
     }
 
     /// Mirrors the slicer workspace: the shared step-grid coordinator follows

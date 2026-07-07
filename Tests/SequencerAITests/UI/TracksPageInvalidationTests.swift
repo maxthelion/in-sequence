@@ -478,6 +478,46 @@ final class TracksPageInvalidationTests: XCTestCase {
             "The visual command status file should publish the Add Source visibility key."
         )
     }
+
+    func test_clipCaptureHistoryIsReachableFromToolbarAndCaptureRow() throws {
+        let editor = try String(
+            contentsOf: repoRoot.appendingPathComponent("Sources/UI/TrackSource/TrackSourceEditorView.swift"),
+            encoding: .utf8
+        )
+        let pills = try String(
+            contentsOf: repoRoot.appendingPathComponent("Sources/UI/TrackSource/TrackSourceSlotWellTabBar.swift"),
+            encoding: .utf8
+        )
+        let clipPreview = try String(
+            contentsOf: repoRoot.appendingPathComponent("Sources/UI/TrackSource/Clip/ClipContentPreview.swift"),
+            encoding: .utf8
+        )
+        let qaScript = try String(
+            contentsOf: repoRoot.appendingPathComponent("scripts/visual-scenarios/qa-surface-coverage.sh"),
+            encoding: .utf8
+        )
+
+        XCTAssertTrue(
+            editor.contains("case history") && editor.contains("case .history:\n                        clipHistoryTab"),
+            "The implemented clip history view should be reachable through TrackSourceEditorTab.history."
+        )
+        XCTAssertTrue(
+            pills.contains("track-detail-tab-history"),
+            "History should be a visible track-detail section pill."
+        )
+        XCTAssertTrue(
+            clipPreview.contains("Label(\"Capture\", systemImage: \"waveform.path.ecg\")"),
+            "The clip toolbar should expose a Capture button that opens history."
+        )
+        XCTAssertFalse(
+            clipPreview.contains("Label(\"Assign Macro\""),
+            "The old inline Assign Macro button should not remain in the clip grid area."
+        )
+        XCTAssertTrue(
+            qaScript.contains("22aa-track-clip-history"),
+            "The standard QA surface pass should include the clip history state."
+        )
+    }
 }
 
 private extension String {

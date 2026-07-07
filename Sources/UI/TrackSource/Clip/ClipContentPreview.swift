@@ -166,6 +166,7 @@ struct ClipContentPreview: View {
     let hasSavedRandomizeSettings: Bool
     let randomizePanel: (() -> AnyView)?
     let onRandomize: (() -> Void)?
+    let onOpenHistory: (() -> Void)?
     let onToggleRandomizePanel: (() -> Void)?
     let onRemoveSource: (() -> Void)?
     let playingStepIndex: Int?
@@ -191,6 +192,7 @@ struct ClipContentPreview: View {
         hasSavedRandomizeSettings: Bool = false,
         randomizePanel: (() -> AnyView)? = nil,
         onRandomize: (() -> Void)? = nil,
+        onOpenHistory: (() -> Void)? = nil,
         onToggleRandomizePanel: (() -> Void)? = nil,
         onRemoveSource: (() -> Void)? = nil,
         playingStepIndex: Int? = nil
@@ -210,6 +212,7 @@ struct ClipContentPreview: View {
         self.hasSavedRandomizeSettings = hasSavedRandomizeSettings
         self.randomizePanel = randomizePanel
         self.onRandomize = onRandomize
+        self.onOpenHistory = onOpenHistory
         self.onToggleRandomizePanel = onToggleRandomizePanel
         self.onRemoveSource = onRemoveSource
         self.playingStepIndex = playingStepIndex
@@ -683,9 +686,36 @@ struct ClipContentPreview: View {
 
             randomizeControls
 
+            historyButton
+
             removeSourceButton
 
             Spacer(minLength: 0)
+        }
+    }
+
+    @ViewBuilder
+    private var historyButton: some View {
+        if let onOpenHistory {
+            Button(action: onOpenHistory) {
+                Label("Capture", systemImage: "waveform.path.ecg")
+                    .studioText(.labelBold)
+                    .foregroundStyle(StudioTheme.text)
+                    .lineLimit(1)
+                    .padding(.vertical, 7)
+                    .padding(.horizontal, 10)
+                    .background(
+                        StudioTheme.subtleFill,
+                        in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                            .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+                    )
+            }
+            .buttonStyle(.plain)
+            .help("Open capture history")
+            .accessibilityLabel("Open capture history")
         }
     }
 
@@ -813,21 +843,7 @@ struct ClipContentPreview: View {
 
     @ViewBuilder
     private var assignMacroButtonRow: some View {
-        if let firstUnassignedSlot = macroSlots.first(where: { $0.binding == nil }),
-           onAssignMacroSlot != nil {
-            HStack {
-                Spacer(minLength: 0)
-                Button {
-                    onAssignMacroSlot?(firstUnassignedSlot.slotIndex)
-                } label: {
-                    Label("Assign Macro", systemImage: "plus")
-                        .studioText(.micro)
-                        .foregroundStyle(StudioTheme.mutedText)
-                }
-                .buttonStyle(.plain)
-                .help("Assign macro M\(firstUnassignedSlot.slotIndex + 1)")
-            }
-        }
+        EmptyView()
     }
 
     private var layerQuickSwitchOptions: [StepLayerQuickSwitchOption<ClipEditorLayer>] {
