@@ -15,7 +15,7 @@ struct TrackPatternSlotPalette: View {
     let occupiedSlots: Set<Int>
     let bypassState: BypassState
     let onBypassToggle: (Int) -> Void
-    let accent: Color
+    var accent: Color = StudioTheme.transportAccent
     var destinationMode: DestinationMode?
     var onDestinationSelect: (Int) -> Void = { _ in }
 

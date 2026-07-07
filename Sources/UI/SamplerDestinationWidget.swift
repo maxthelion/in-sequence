@@ -7,7 +7,7 @@ struct SamplerDestinationWidget: View {
     /// binding so the session can dispatch to the engine via `.scopedRuntime(.filter(...))`.
     let sampleEngine: SamplePlaybackSink
     let trackID: UUID
-    let accent: Color
+    var accent: Color = StudioTheme.transportAccent
     @Binding var filterSettings: SamplerFilterSettings
     var onManageMacros: () -> Void = {}
     var onRemove: () -> Void = {}

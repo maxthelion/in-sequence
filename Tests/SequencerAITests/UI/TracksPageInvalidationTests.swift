@@ -409,13 +409,25 @@ final class TracksPageInvalidationTests: XCTestCase {
         XCTAssertOrdered(
             [
                 "PitchPoolKeyboardStrip(",
+                "scaleControl(scale)",
                 "title: \"Root\"",
                 "title: \"Spread\"",
-                "title: \"Selection\"",
-                "scaleMenu(scale)"
+                "title: \"Selection\""
             ],
             in: source,
-            message: "Pitch editing should start with the piano strip, followed by the primary numeric controls and scale menu."
+            message: "Pitch editing should start with the piano strip, put Scale on its own row, then render the numeric controls."
+        )
+        XCTAssertTrue(
+            source.contains("LazyVGrid(columns: pitchColumns") &&
+                source.contains("count: 8"),
+            "Pitch rotaries should use an eight-column grid grammar instead of cramped rows."
+        )
+        XCTAssertTrue(
+            source.contains("GeometryReader") &&
+                source.contains("whiteKeyClasses") &&
+                source.contains("blackKeySpecs") &&
+                source.contains(".offset(x: whiteWidth * spec.boundary - blackWidth / 2)"),
+            "The pitch keyboard should be full-width piano geometry with shorter black keys aligned to white-key boundaries."
         )
     }
 
@@ -448,6 +460,10 @@ final class TracksPageInvalidationTests: XCTestCase {
         XCTAssertTrue(
             header.contains("generatorStageSelector"),
             "The shared generator header should contain the Trigger/Pitch stage selector."
+        )
+        XCTAssertFalse(
+            source.contains("generatorKindMenu"),
+            "Generator kind names should not render as a dropdown in the working generator surface."
         )
         XCTAssertTrue(
             header.contains("Label(\"Bake\""),
@@ -523,11 +539,11 @@ final class TracksPageInvalidationTests: XCTestCase {
 
         XCTAssertTrue(
             editor.contains("case history") && editor.contains("case .history:\n                        clipHistoryTab"),
-            "The implemented clip history view should be reachable through TrackSourceEditorTab.history."
+            "The implemented clip history view should remain reachable as the Capture button destination."
         )
-        XCTAssertTrue(
+        XCTAssertFalse(
             pills.contains("track-detail-tab-history"),
-            "History should be a visible track-detail section pill."
+            "History should not remain a visible peer tab; Capture opens it as a workflow surface."
         )
         XCTAssertTrue(
             clipPreview.contains("Label(\"Capture\", systemImage: \"waveform.path.ecg\")"),
@@ -544,6 +560,10 @@ final class TracksPageInvalidationTests: XCTestCase {
         XCTAssertTrue(
             qaScript.contains("22aa-track-clip-history|workspace=track,trackSourceTab=history,trackSourceEditorRenderedVisible=true,trackSourceEditorRenderedTab=history"),
             "The history capture row should wait for the history tab to render, not just for selected-tab command state."
+        )
+        XCTAssertTrue(
+            qaScript.contains("trackClipHistoryFixture=selected"),
+            "The history capture row should drive a selected populated history cell, not an empty tab."
         )
     }
 
@@ -728,9 +748,9 @@ final class TracksPageInvalidationTests: XCTestCase {
             capture.slice(from: "func captureHistoryBar", to: "func captureHistoryMiniBar"),
             "Drum-kit capture bar should be present"
         )
-        let miniBar = try XCTUnwrap(
-            capture.slice(from: "func captureHistoryMiniBar", to: "    /// Shared Preview/Audition toggle"),
-            "Drum-kit capture mini history bar should be present"
+        let cellStrip = try XCTUnwrap(
+            capture.slice(from: "func captureHistoryCellStrip", to: "    /// Shared Preview/Audition toggle"),
+            "Drum-kit capture cell strip should be present"
         )
         let qaScript = try String(
             contentsOf: repoRoot.appendingPathComponent("scripts/visual-scenarios/qa-surface-coverage.sh"),
@@ -746,21 +766,22 @@ final class TracksPageInvalidationTests: XCTestCase {
             "The old separate header/scrubber rows should not be part of the visible capture body."
         )
         XCTAssertTrue(
-            bar.contains("captureHistoryMiniBar(model, snapshots: snapshots)") &&
+            bar.contains("captureHistoryCellStrip(model, snapshots: snapshots)") &&
                 bar.contains("historyLengthControl") &&
-                bar.contains("Label(isSelectingCaptureSaveSlot ? \"Choose slot\" : \"Save capture\"") &&
+                bar.contains("Label(isSelectingCaptureSaveSlot ? \"Choose slot\" : \"Save\"") &&
                 bar.contains("systemName: \"xmark\""),
-            "The single capture bar should contain history navigation, length, save, and the close cross."
+            "The single capture bar should contain track-style history cells, length, save, and the close cross."
         )
         XCTAssertFalse(
             bar.contains("Audition") || bar.contains("Live"),
             "Audition and Live controls should not be visible in the active capture bar."
         )
         XCTAssertTrue(
-            miniBar.contains("ForEach(options, id: \\.self)") &&
-                miniBar.contains("historyBarsBack = back") &&
-                miniBar.contains("kit-history-cell-\\(back)"),
-            "Selecting a mini history cell should change the displayed history window."
+            cellStrip.contains("KitHistoryMinibarCell") &&
+                cellStrip.contains("kitHistoryCellStepStates") &&
+                cellStrip.contains("historyBarsBack = back") &&
+                cellStrip.contains("kit-history-cell-\\(index)"),
+            "Selecting a numbered kit history cell should change the displayed history window."
         )
         XCTAssertTrue(
             bar.contains("isSelectingCaptureSaveSlot = true"),

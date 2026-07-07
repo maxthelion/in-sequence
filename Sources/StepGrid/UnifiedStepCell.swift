@@ -7,7 +7,7 @@ struct UnifiedStepCell: View {
     let isPlaying: Bool
     let isSelected: Bool
     let content: StepCellContent
-    let accent: Color
+    var accent: Color = StudioTheme.transportAccent
     let onTap: () -> Void
     let onDrag: ((Double) -> Void)?
     let onSelect: () -> Void
@@ -290,7 +290,7 @@ struct UnifiedStepCellVisualConfiguration {
         isPlaying: Bool,
         isSelected: Bool,
         content: StepCellContent,
-        accent: Color
+        accent: Color = StudioTheme.transportAccent
     ) {
         let clampedValueFraction = Self.valueFraction(for: content)
         let isValueBarContent = clampedValueFraction != nil

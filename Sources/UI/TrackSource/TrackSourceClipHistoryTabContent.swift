@@ -11,10 +11,10 @@ struct TrackSourceClipHistoryTabContent: View {
     // Renders inside the editor's `StudioTabWell` (unified tab grammar,
     // Variant D), which owns the outline + content inset.
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            header
-            virtualClipPreview
+        VStack(alignment: .leading, spacing: 12) {
+            captureToolbar
             historyStrip
+            virtualClipPreview
             footer
         }
         .onDisappear {
@@ -22,26 +22,14 @@ struct TrackSourceClipHistoryTabContent: View {
         }
     }
 
-    private var header: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 12) {
-            VStack(alignment: .leading, spacing: 3) {
-                Text("History")
-                    .studioText(.bodyBold)
-                    .foregroundStyle(StudioTheme.text)
-
-                Text(sourceSummary)
-                    .studioText(.label)
-                    .foregroundStyle(StudioTheme.mutedText)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.75)
-            }
-
+    private var captureToolbar: some View {
+        HStack(alignment: .center, spacing: 12) {
+            selectionLengthPicker
             Spacer(minLength: 0)
-
             Button {
                 onSaveClip()
             } label: {
-                Text(isDestinationMode ? "Choose Slot" : "Save Clip")
+                Text(isDestinationMode ? "Choose slot" : "Save")
                     .studioText(.labelBold)
                     .foregroundStyle(model.selectedPseudoClip == nil ? StudioTheme.mutedText : StudioTheme.background)
                     .padding(.vertical, 8)
@@ -59,32 +47,6 @@ struct TrackSourceClipHistoryTabContent: View {
 
     private var virtualClipPreview: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .center, spacing: 10) {
-                Text("Live Buffer")
-                    .studioText(.labelBold)
-                    .foregroundStyle(StudioTheme.text)
-
-                Text(model.previewLengthLabel)
-                    .studioText(.microEmphasis)
-                    .foregroundStyle(StudioTheme.background)
-                    .padding(.vertical, 4)
-                    .padding(.horizontal, 8)
-                    .background(accent, in: Capsule())
-
-                if model.isAuditioning {
-                    Text("Auditioning")
-                        .studioText(.microEmphasis)
-                        .foregroundStyle(accent)
-                } else {
-                    Text("Rolling")
-                        .studioText(.microEmphasis)
-                        .foregroundStyle(StudioTheme.mutedText)
-                }
-
-                Spacer(minLength: 0)
-                selectionLengthPicker
-            }
-
             ClipHistoryPianoRollPreview(
                 content: model.previewContent,
                 gridSteps: model.previewGridSteps,
@@ -104,7 +66,7 @@ struct TrackSourceClipHistoryTabContent: View {
 
     private var selectionLengthPicker: some View {
         HStack(alignment: .center, spacing: 8) {
-            Text("Selection Length")
+            Text("Length")
                 .studioText(.microEmphasis)
                 .foregroundStyle(StudioTheme.mutedText)
 
@@ -145,16 +107,6 @@ struct TrackSourceClipHistoryTabContent: View {
 
     private var historyStrip: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text("Recent Output")
-                    .studioText(.labelBold)
-                    .foregroundStyle(StudioTheme.text)
-                Spacer()
-            }
-            // Canon Rule 3: instruction lives in the tooltip, not on the
-            // surface.
-            .help("Tap a region to loop it; tap again to clear")
-
             LazyVGrid(columns: historyColumns, spacing: 0) {
                 ForEach(model.sourceCells) { cell in
                     ClipHistoryMinibarCell(
@@ -170,6 +122,7 @@ struct TrackSourceClipHistoryTabContent: View {
                 }
             }
             .frame(maxWidth: .infinity)
+            .help("Tap a region to loop it; tap again to clear")
         }
     }
 

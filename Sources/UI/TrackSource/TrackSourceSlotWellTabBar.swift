@@ -54,11 +54,6 @@ struct TrackSourceSectionPills: View {
                     accessibilityIdentifier: "track-detail-tab-steps-clip"
                 ),
                 StudioSectionPill(
-                    section: TrackSourceEditorTab.history,
-                    title: TrackSourceEditorTab.history.title,
-                    accessibilityIdentifier: "track-detail-tab-history"
-                ),
-                StudioSectionPill(
                     section: TrackSourceEditorTab.sound,
                     title: TrackSourceEditorTab.sound.title,
                     accessibilityIdentifier: "track-detail-tab-sound"

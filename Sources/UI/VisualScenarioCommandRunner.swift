@@ -2312,6 +2312,17 @@ enum VisualScenarioCommandRunner {
             postRepeatedVisualCommand(name: .trackSourceEditorVisualCommand, object: "select-tab:mixer")
         }
 
+        if let rawHistoryFixture = command["trackClipHistoryFixture"] {
+            section.wrappedValue = .track
+            trackSourceTabState = "history"
+            let tabCommand = "select-tab:history"
+            let fixtureCommand = "clip-history-fixture:\(rawHistoryFixture)"
+            queuePendingTrackSourceEditorCommand(tabCommand)
+            queuePendingTrackSourceEditorCommand(fixtureCommand)
+            postRepeatedVisualCommand(name: .trackSourceEditorVisualCommand, object: tabCommand)
+            postRepeatedVisualCommand(name: .trackSourceEditorVisualCommand, object: fixtureCommand)
+        }
+
         guard let rawTab = command["trackSourceTab"],
               TrackSourceEditorTab.tab(forVisualCommand: rawTab) != nil
         else { return }

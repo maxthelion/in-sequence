@@ -1,13 +1,21 @@
 import Foundation
 import SwiftUI
 
-enum TrackSourceEditorTab: String, CaseIterable, Identifiable {
+enum TrackSourceEditorTab: String, Identifiable {
     case stepsClip = "steps-clip"
     case history
     case sound
     case fx
     case macros
     case mixer
+
+    static let allCases: [TrackSourceEditorTab] = [
+        .stepsClip,
+        .sound,
+        .fx,
+        .macros,
+        .mixer
+    ]
 
     var id: String { rawValue }
 
@@ -435,6 +443,13 @@ struct TrackSourceEditorView: View {
             return
         }
 
+        if command.hasPrefix("clip-history-fixture:") {
+            let rawMode = String(command.dropFirst("clip-history-fixture:".count))
+            let selectedIndex = rawMode == "selected" ? 10 : nil
+            applyVisualClipHistoryFixture(selectedSourceIndex: selectedIndex)
+            return
+        }
+
         // QA: select a step in the Steps/Clip grid so the shared step-edit
         // rotary cluster (StepLayerRotaryRow / StepLayerRotaryDial) renders
         // in ClipContentPreview. Mirrors tapping a step.
@@ -642,9 +657,6 @@ struct TrackSourceEditorView: View {
     private var clipHistoryTab: some View {
         if !historyDisplayState.isAvailable {
             VStack(alignment: .leading, spacing: 8) {
-                Text("History")
-                    .studioText(.bodyBold)
-                    .foregroundStyle(StudioTheme.text)
                 Text(clipHistoryUnavailableReason)
                     .studioText(.body)
                     .foregroundStyle(StudioTheme.mutedText)
@@ -668,9 +680,8 @@ struct TrackSourceEditorView: View {
                 }
             }
         } else {
-            Text("History")
-                .studioText(.bodyBold)
-                .foregroundStyle(StudioTheme.text)
+            ProgressView()
+                .controlSize(.small)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .onAppear(perform: refreshClipHistoryModel)
         }
@@ -963,6 +974,71 @@ struct TrackSourceEditorView: View {
             }
         )
         resetClipHistoryDestinationMode()
+    }
+
+    private func applyVisualClipHistoryFixture(selectedSourceIndex: Int?) {
+        let trackID = track.id
+        let frozenBank = session.store.patternBank(for: trackID)
+        clipHistoryModel?.stopAudition()
+        let model = ClipHistoryTransferViewModel(
+            trackID: trackID,
+            snapshot: Self.visualClipHistorySnapshot(),
+            destinationSlots: ClipHistoryTransferViewModel.destinationSlots(
+                from: frozenBank,
+                clipName: { clipID in session.store.clipEntry(id: clipID)?.name }
+            ),
+            setAuditionOverride: { state in
+                engineController.setAuditionOverride(state, for: trackID)
+            }
+        )
+        clipHistoryModel = model
+        selectedTab = .history
+        if let selectedSourceIndex {
+            model.selectSource(selectedSourceIndex)
+        }
+        postRenderedVisualState(tab: .history)
+    }
+
+    private static func visualClipHistorySnapshot() -> CaptureSnapshot {
+        let patterns: [(Int, [Int])] = [
+            (0, [60, 67]),
+            (1, [62]),
+            (3, [64, 71]),
+            (5, [65]),
+            (7, [67, 72]),
+            (10, [60, 64, 67]),
+            (12, [69]),
+            (14, [72, 76]),
+        ]
+        var steps: [CaptureSnapshot.Step] = []
+        for (cellIndex, pitches) in patterns {
+            let baseStep = cellIndex * ClipHistoryTransferViewModel.stepsPerCell
+            for (noteIndex, pitch) in pitches.enumerated() {
+                steps.append(
+                    CaptureSnapshot.Step(
+                        absoluteStep: baseStep + noteIndex * 4,
+                        notes: [
+                            CaptureSnapshot.Note(
+                                pitch: pitch,
+                                velocity: 96,
+                                lengthSteps: 3,
+                                voiceTag: nil
+                            ),
+                        ]
+                    )
+                )
+            }
+        }
+        steps.append(
+            CaptureSnapshot.Step(
+                absoluteStep: ClipHistoryTransferViewModel.sourceCellCount * ClipHistoryTransferViewModel.stepsPerCell - 1,
+                notes: []
+            )
+        )
+        return CaptureSnapshot(
+            maxSteps: ClipHistoryTransferViewModel.sourceCellCount * ClipHistoryTransferViewModel.stepsPerCell,
+            steps: steps
+        )
     }
 
     private func updateClipHistoryLiveSnapshot() {

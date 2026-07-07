@@ -74,6 +74,199 @@ row actually drives the intended state and waits on an honest status key. Do not
 accept a UI cleanup if the old action is still reachable through the visible
 surface unless the spec explicitly says it should remain.
 
+## Correction From 2026-07-07 Visual Review
+
+This correction is binding. The screenshot run
+`20260707-114646-in-sequence-qa-surface-coverage-HEAD-edf0ce13` showed that at
+least two items were marked effectively complete while missing the product
+intent. Treat these as reopened acceptance, not polish.
+
+### Reopened: Generator Top-Line Chrome
+
+The current implementation moved the generator kind picker, Trigger/Pitch stage
+selector, and Bake button into `GeneratorParamsEditorView.generatorHeader`, but
+that header is rendered inside the editor body. The visible outer top line still
+shows the old source well: `Gen`, a generated/redundant generator title, the
+`Mono Generator` subtitle, and the close button. This fails the intended
+"single compact top-line grammar" even though a source search can find a
+`generatorHeader`.
+
+Corrected requirements:
+
+- Generator source mode has one visible top line, not an outer source-well header
+  plus a second inner generator toolbar.
+- That top line contains the meaningful generator kind/name control,
+  Trigger/Pitch stage selector when applicable, Bake, and close/cross action.
+- Bake is visually adjacent to the close/action cluster; it is not stranded on a
+  second row below a divider.
+- Remove visible redundant text such as `Gen` plus `Mono Generator` plus `Mono
+  Generator` subtitle. If a name is generated from the kind plus ordinal, show
+  the meaningful kind once, not the pool ordinal.
+- The editor body begins with the active stage controls/result strip, not another
+  decorative header or disclosure label.
+
+Corrected acceptance:
+
+- Fresh trigger and pitch screenshots show a single generator top line.
+- The screenshot must not contain the old stacked pattern of `Gen`/generator
+  name/subtitle on one row and Trigger/Pitch/Bake on a second row.
+- A source/code review must confirm the stage selector and Bake are rendered by
+  the same chrome that owns close/cross for the visible generator source card,
+  not by a nested body-only header.
+- Minimum-width capture or inspection confirms the top line wraps/compacts
+  intentionally without clipping control text.
+
+### Reopened: Pitch Generator Editor Visual Grammar
+
+The current pitch capture misses the product intent beyond the shared top-line
+chrome issue. It still shows an unnecessary dark/native-looking `Mono Generator`
+disclosure/dropdown crumb in the body, the piano-key selector is visually
+squashed and does not read like a keyboard, pitch rotaries are crowded into the
+left side, and the Scale dropdown is too low-contrast to be discoverable.
+
+Corrected requirements:
+
+- The pitch editor inherits the corrected generator top line: kind/name,
+  Trigger/Pitch selector, Bake, and close/cross all live in the same visible top
+  chrome.
+- Remove the body-level `Mono Generator` disclosure/dropdown/crumb. Generator
+  kind selection belongs in the top line, not repeated as black text in the body.
+- The pitch-class selector must read as a piano-style keyboard:
+  - sufficient key width/height to avoid a compressed barcode look;
+  - recognizable white/black key relationship or an equivalently musical key
+    strip;
+  - selected/active notes are legible without relying on tiny dots alone;
+  - labels fit inside their keys at the minimum supported width.
+- Pitch rotaries are arranged as a balanced control group with enough spacing
+  for values and labels. Labels must not truncate awkwardly (`ACCIDENT...` is a
+  failure unless the control is deliberately renamed to a short term).
+- Scale is a visible, styled dropdown/menu using the app's control grammar. It
+  must not appear as dim black text floating beside the rotaries.
+- The pitch body should prioritize musical editing controls, not implementation
+  labels or hidden native controls.
+
+Corrected acceptance:
+
+- Fresh pitch screenshot shows no body-level `Mono Generator` crumb/dropdown.
+- The keyboard is visibly keyboard-like and not squeezed into a tiny row of
+  identical boxes.
+- Root, Spread, Selection, Accidentals, Octaves, and Leading controls have
+  readable labels and values with clear spacing.
+- Scale is visibly a selectable control and passes contrast/readability review.
+- The pitch screenshot shares the same corrected top-line structure as the
+  trigger screenshot, including Bake in the top line.
+
+### Reopened: Drum-Part And Trigger Generator Parity
+
+The kit/drum-part generator capture shows the same body-level `Mono Generator`
+crumb and a second-row Trigger/Pitch/Bake layout. It also shows Euclidean
+rotaries at inconsistent physical sizes: the bottom-row Velocity/Gate controls
+are visibly smaller than Pulses/Steps/Offset/Pitch. This fails the requirement
+that drum-part generator controls mirror the mono track generator grammar.
+
+Corrected requirements:
+
+- Remove the body-level `Mono Generator` text/crumb/dropdown from all generator
+  editor contexts, including mono track generators and drum-part generators.
+- Drum-part generator mode uses the same corrected top-line chrome as mono
+  generator editing: kind/name, Trigger/Pitch selector, Bake when applicable,
+  and close/cross where the surface owns one.
+- Euclidean trigger rotaries are one consistent control size within the same
+  control group. Velocity and Gate must not render as smaller secondary knobs
+  unless the product explicitly defines a separate secondary-control grammar.
+- The Euclidean control group should be arranged as a balanced grid that keeps
+  labels and values readable; controls should not bunch up on the left while
+  leaving most of the panel empty.
+- Disabled Bake states must still occupy the same top-line grammar if Bake is
+  shown, not float separately at the far right of a body row.
+
+Corrected acceptance:
+
+- Fresh drum-part generator screenshot contains no body-level `Mono Generator`
+  text.
+- Trigger/Pitch and Bake appear in the corrected top-line structure, not below
+  a crumb row.
+- Pulses, Steps, Offset, Pitch, Velocity, and Gate rotaries render at the same
+  diameter, with readable labels and values.
+- The drum-part trigger screenshot visually matches the mono trigger grammar
+  except for intentionally disabled actions or drum-part-specific context.
+
+### Reopened: Mono Track Capture History Spirit
+
+The mono clip history task was satisfied too literally as "add a Capture button
+that opens a History tab." The product intent was a compact capture/history
+workflow for a mono track, taking the same working grammar as the kit capture
+bar and the older track history concept. A separate text-heavy History tab with
+labels such as `History`, `Live Buffer`, `Recent Output`, and source-summary
+prose misses that spirit.
+
+Corrected requirements:
+
+- Mono track capture/history is a working capture surface, not a documentation
+  page. Prefer a compact bar/strip grammar over a new page full of labels.
+- The clip editor still needs an obvious Capture/History entry point, but the
+  opened state should feel like a capture overlay/bar for the current mono
+  track, not a separate mode explaining history.
+- The visible history chooser is a mini strip/bar of captured regions. Selecting
+  a cell changes the displayed capture immediately.
+- Capture length and Save are part of the same compact capture workflow.
+- Save arms the pattern slot row; choosing a slot writes the selected capture and
+  clears the pending state.
+- Remove non-essential prose and section labels from the mono history surface.
+  Keep only labels that identify controls or actual error states.
+- Do not expose Audition/Live-style secondary concepts unless the product owner
+  explicitly re-approves them for mono history.
+
+Corrected acceptance:
+
+- The mono clip normal screenshot shows Capture/History as a compact action in
+  the clip control row.
+- The mono history-open screenshot shows a compact capture/history workflow with
+  a mini history strip, selected cell, displayed capture, length, Save, and a
+  clear close/back affordance.
+- The screenshot does not read as a separate explanatory `History` page with
+  redundant headings and grey prose.
+- Behavior evidence proves selecting a history cell changes the displayed
+  capture and saving to a pattern slot clears the pending state without mutating
+  the displayed capture unexpectedly.
+- Visual capture coverage must drive the selected-history-cell state, not only
+  open an empty History tab.
+
+### Reopened: Kit Capture Bar And Preview Layout
+
+The kit capture screenshot shows the capture concept moving in the right
+direction, but the details miss the workflow grammar. The preview grid appears
+cut off at the bottom, the `1 bar -> P1` transfer text is unnecessary, `Length`
+is stacked vertically, and the history minibar is too short/opaque to be useful.
+
+Corrected requirements:
+
+- The capture preview must fully contain every visible note row; no row, cell,
+  label, or bottom border may be clipped at the panel edge.
+- Remove redundant transfer text such as `1 bar -> P1`. The selected length,
+  selected history region, armed save state, and destination slot should be
+  carried by controls/highlights, not a separate prose label.
+- `Length` must read horizontally with its segmented control. Do not stack the
+  letters vertically to solve spacing.
+- The history scrubber/minibar should be useful as a navigation/control object:
+  extend it across the available bar width, or place it as a full-width strip
+  underneath the other capture-bar controls.
+- The selected history region must be visually obvious in the minibar and match
+  the previewed capture below.
+- The capture bar should keep a compact top workflow: history strip, length,
+  save/choose-slot, close. It should not create a second explanatory header.
+
+Corrected acceptance:
+
+- Fresh kit capture screenshot shows the full preview grid with no clipped note
+  row at the bottom.
+- No `1 bar -> P1`-style text is visible.
+- `Length` is horizontal and aligned with the length segmented control.
+- The history minibar spans enough width to communicate multiple captured
+  regions and the selected region.
+- If the minibar moves underneath the buttons, it uses the full available width
+  and remains visually tied to the capture bar.
+
 ## Product Canon Applied
 
 Use `docs/ux-canon.md` as the taste baseline, especially:
@@ -677,4 +870,3 @@ asking the product owner unless the code truly cannot infer the answer:
 
 If an answer changes product behavior materially, record the decision in the
 implementation notes before coding past it.
-

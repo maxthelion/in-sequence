@@ -81,8 +81,6 @@ struct TrackSourceSourceTabContent: View {
             }
 
         case .occupiedGenerator:
-            sourceSection
-
             if sourcePickerStep == nil, let selectedGenerator {
                 // WS4 supersedes the WS3 interim GENERATED/READ-ONLY badge:
                 // the always-visible RESULT STRIP + Bake dice in the editor
@@ -98,8 +96,11 @@ struct TrackSourceSourceTabContent: View {
                     layout: .sourceContained,
                     onUpdate: onUpdateGeneratorParams,
                     onSwitchKind: { onSwitchGeneratorKind(selectedGenerator, $0) },
-                    onBakeToClip: onBakeGeneratorToClip
+                    onBakeToClip: onBakeGeneratorToClip,
+                    onRemoveSource: onRemoveSource
                 )
+            } else {
+                sourceSection
             }
 
         case .empty:

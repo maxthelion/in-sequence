@@ -3,6 +3,7 @@ import SwiftUI
 struct StepAlgoEditor: View {
     let stage: StepStage
     var accent: Color = StudioTheme.transportAccent
+    var maximumControlColumns = 4
     let onChange: (StepStage) -> Void
 
     private var visibleStage: StepStage {
@@ -48,7 +49,7 @@ struct StepAlgoEditor: View {
             LazyVGrid(
                 columns: Array(
                     repeating: GridItem(.flexible(minimum: 56, maximum: 96), spacing: 12, alignment: .top),
-                    count: 4
+                    count: maximumControlColumns
                 ),
                 alignment: .leading,
                 spacing: 12

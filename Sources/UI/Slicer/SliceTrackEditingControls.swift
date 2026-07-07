@@ -450,7 +450,7 @@ struct SliceStepStrip: View {
         selectedStepIndex: Int,
         selectedStepIndexes: Set<Int>,
         activeLayer: SliceTrackClipLayer,
-        accent: Color,
+        accent: Color = StudioTheme.transportAccent,
         contentProvider: @escaping (Int, State) -> StepCellContent,
         onValueDrag: ((Int, Double) -> Void)?,
         onBackgroundTap: (() -> Void)? = nil,

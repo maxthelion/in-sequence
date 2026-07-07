@@ -62,50 +62,52 @@ extension DrumKitMatrixView {
         _ model: DrumKitMatrixModel,
         snapshots: [UUID: CaptureSnapshot]
     ) -> some View {
-        HStack(spacing: 12) {
-            captureHistoryMiniBar(model, snapshots: snapshots)
-                .frame(minWidth: 160, maxWidth: 300)
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 12) {
+                historyLengthControl
 
-            historyLengthControl
+                if let historySaveMessage {
+                    Text(historySaveMessage)
+                        .studioText(.label)
+                        .foregroundStyle(accent)
+                        .lineLimit(1)
+                }
 
-            if let historySaveMessage {
-                Text(historySaveMessage)
-                    .studioText(.label)
-                    .foregroundStyle(accent)
-                    .lineLimit(1)
+                Spacer(minLength: 0)
+
+                Button {
+                    isSelectingCaptureSaveSlot = true
+                    historySaveMessage = nil
+                    postRenderedVisualState(isVisible: true)
+                } label: {
+                    Label(isSelectingCaptureSaveSlot ? "Choose slot" : "Save", systemImage: "tray.and.arrow.down")
+                        .studioText(.labelBold)
+                        .foregroundStyle(StudioTheme.background)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(accent, in: Capsule())
+                }
+                .buttonStyle(.plain)
+                .help("Choose a pattern slot above to save each part's selected history window")
+                .accessibilityIdentifier("kit-history-save")
+                .accessibilityLabel("Save kit capture")
+
+                StudioCircleIconButton(
+                    systemName: "xmark",
+                    size: StudioMetrics.ControlSize.medium,
+                    help: "Close capture"
+                ) {
+                    isCaptureOpen = false
+                    isSelectingCaptureSaveSlot = false
+                    visualCaptureSnapshots = [:]
+                    postRenderedVisualState(isVisible: true)
+                }
+                .accessibilityIdentifier("kit-capture-close")
+                .accessibilityLabel("Close capture")
             }
 
-            Spacer(minLength: 0)
-
-            Button {
-                isSelectingCaptureSaveSlot = true
-                historySaveMessage = nil
-                postRenderedVisualState(isVisible: true)
-            } label: {
-                Label(isSelectingCaptureSaveSlot ? "Choose slot" : "Save capture", systemImage: "tray.and.arrow.down")
-                    .studioText(.labelBold)
-                    .foregroundStyle(StudioTheme.background)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(accent, in: Capsule())
-            }
-            .buttonStyle(.plain)
-            .help("Choose a pattern slot above to save each part's selected history window")
-            .accessibilityIdentifier("kit-history-save")
-            .accessibilityLabel("Save kit capture")
-
-            StudioCircleIconButton(
-                systemName: "xmark",
-                size: StudioMetrics.ControlSize.medium,
-                help: "Close capture"
-            ) {
-                isCaptureOpen = false
-                isSelectingCaptureSaveSlot = false
-                visualCaptureSnapshots = [:]
-                postRenderedVisualState(isVisible: true)
-            }
-            .accessibilityIdentifier("kit-capture-close")
-            .accessibilityLabel("Close capture")
+            captureHistoryCellStrip(model, snapshots: snapshots)
+                .frame(maxWidth: .infinity)
         }
         .padding(StudioMetrics.Spacing.compact)
         .background(Color.clear, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
@@ -119,29 +121,42 @@ extension DrumKitMatrixView {
         _ model: DrumKitMatrixModel,
         snapshots: [UUID: CaptureSnapshot]
     ) -> some View {
+        captureHistoryCellStrip(model, snapshots: snapshots)
+    }
+
+    func captureHistoryCellStrip(
+        _ model: DrumKitMatrixModel,
+        snapshots: [UUID: CaptureSnapshot]
+    ) -> some View {
         let maxBack = historyMaxBarsBack(model, snapshots: snapshots)
-        let options = Array(0...maxBack)
         let selectedBack = min(historyBarsBack, maxBack)
-        return HStack(spacing: 4) {
-            ForEach(options, id: \.self) { back in
-                Button {
+        let cellCount = maxBack + 1
+        let selectedIndex = maxBack - selectedBack
+        let coveredCells = max(1, Int(ceil(Double(historyLengthSteps) / Double(Self.historyStepsPerBar))))
+        let lengthLabel = ClipHistoryTransferViewModel.lengthLabel(for: historyLengthSteps)
+        let columns = Array(repeating: GridItem(.flexible(minimum: 48), spacing: 4), count: cellCount)
+
+        return LazyVGrid(columns: columns, spacing: 0) {
+            ForEach(0..<cellCount, id: \.self) { index in
+                let back = maxBack - index
+                let states = kitHistoryCellStepStates(model, snapshots: snapshots, barsBack: back)
+                let isSelectable = states.contains(true)
+                KitHistoryMinibarCell(
+                    index: index,
+                    lengthLabel: isSelectable ? lengthLabel : "empty",
+                    stepStates: states,
+                    isSelected: index == selectedIndex,
+                    isInRange: index >= selectedIndex && index < selectedIndex + coveredCells,
+                    accent: accent
+                ) {
                     historyBarsBack = back
                     historySaveMessage = nil
                     refreshKitAuditionIfActive()
                     postRenderedVisualState(isVisible: true)
-                } label: {
-                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous)
-                        .fill(back == selectedBack ? accent : StudioTheme.subtleFill)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous)
-                                .stroke(back == selectedBack ? accent : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
-                        )
-                        .frame(height: 26)
                 }
-                .buttonStyle(.plain)
+                .disabled(!isSelectable)
                 .help(back == 0 ? "Most recent capture window" : "\(back) bar\(back == 1 ? "" : "s") back")
-                .accessibilityIdentifier("kit-history-cell-\(back)")
-                .accessibilityLabel(back == 0 ? "Most recent capture window" : "\(back) bars back")
+                .accessibilityIdentifier("kit-history-cell-\(index)")
             }
         }
     }
@@ -180,9 +195,8 @@ extension DrumKitMatrixView {
     /// member's window at once.
     var historyLengthControl: some View {
         HStack(spacing: 8) {
-            Text("LENGTH")
-                .studioText(.eyebrow)
-                .tracking(0.8)
+            Text("Length")
+                .studioText(.microEmphasis)
                 .foregroundStyle(StudioTheme.mutedText)
 
             StudioSegmentedControl(
@@ -324,15 +338,8 @@ extension DrumKitMatrixView {
     ) -> some View {
         let targetSlot = historyTargetSlotIndex(model)
         let lengthLabel = ClipHistoryTransferViewModel.lengthLabel(for: historyLengthSteps)
+        let previewHeight = min(max(CGFloat(model.rows.count) * 40, 160), 260)
         return VStack(alignment: .leading, spacing: 8) {
-            // Canon Rule 3: real state only — the window length and target
-            // slot ARE the state; the explanation lives in the tooltip.
-            Text("\(lengthLabel.uppercased()) → P\(targetSlot + 1)")
-                .studioText(.eyebrow)
-                .tracking(0.8)
-                .foregroundStyle(isSelectingCaptureSaveSlot ? accent : StudioTheme.mutedText)
-                .help("The \(lengthLabel) window Save writes into pattern slot P\(targetSlot + 1)")
-
             ScrollView(.vertical) {
                 VStack(alignment: .leading, spacing: 8) {
                     ForEach(model.rows) { row in
@@ -343,8 +350,9 @@ extension DrumKitMatrixView {
                     }
                 }
             }
-            .frame(maxHeight: 180)
+            .frame(minHeight: previewHeight, maxHeight: previewHeight)
             .scrollIndicators(.never)
+            .help("The \(lengthLabel) window Save writes into pattern slot P\(targetSlot + 1)")
         }
     }
 
@@ -394,6 +402,31 @@ extension DrumKitMatrixView {
         }
     }
 
+    func kitHistoryCellStepStates(
+        _ model: DrumKitMatrixModel,
+        snapshots: [UUID: CaptureSnapshot],
+        barsBack: Int
+    ) -> [Bool] {
+        var states = Array(repeating: false, count: historyLengthSteps)
+        for row in model.rows {
+            let snapshot = snapshots[row.memberID] ?? captureSnapshot(memberID: row.memberID)
+            guard !snapshot.isEmpty else { continue }
+            let content = PseudoClipState.materialize(
+                sourceTrackID: row.memberID,
+                from: snapshot,
+                startStep: historyWindowStartOffset(maxSteps: snapshot.maxSteps, barsBack: barsBack),
+                lengthSteps: historyLengthSteps
+            ).noteGrid
+            guard case let .noteGrid(_, steps) = content else { continue }
+            for (index, step) in steps.enumerated() where index < states.count {
+                if !step.isEmpty {
+                    states[index] = true
+                }
+            }
+        }
+        return states
+    }
+
     // MARK: - Kit history window math + save (AC15/AC16)
 
     /// The slot a coordinated save targets: the shared group slot when members
@@ -430,8 +463,12 @@ extension DrumKitMatrixView {
     /// is the buffer's oldest step; the live edge is `maxSteps - length`, and
     /// each bar back subtracts one bar. Clamped so it never underflows.
     func historyWindowStartOffset(maxSteps: Int) -> Int {
+        historyWindowStartOffset(maxSteps: maxSteps, barsBack: historyBarsBack)
+    }
+
+    func historyWindowStartOffset(maxSteps: Int, barsBack: Int) -> Int {
         let liveStart = max(0, maxSteps - historyLengthSteps)
-        let back = min(historyBarsBack, historyMaxBarsBackForSteps(maxSteps))
+        let back = min(barsBack, historyMaxBarsBackForSteps(maxSteps))
         return max(0, liveStart - back * Self.historyStepsPerBar)
     }
 
@@ -459,7 +496,7 @@ extension DrumKitMatrixView {
 
     /// How many steps of a member's rolling buffer to display behind the
     /// selection window — the longer history. Capped so the row stays readable;
-    /// matched to what the single-track Recent Output covers (8 cells × the
+    /// matched to what the single-track history strip covers (8 cells × the
     /// per-cell step count).
     static let historyDisplayedBufferCap =
         ClipHistoryTransferViewModel.sourceCellCount * ClipHistoryTransferViewModel.stepsPerCell
@@ -660,5 +697,99 @@ extension DrumKitMatrixView {
         visualCaptureSnapshots = [:]
         refreshKitAuditionIfActive()
         postRenderedVisualState(isVisible: true)
+    }
+}
+
+private struct KitHistoryMinibarCell: View {
+    let index: Int
+    let lengthLabel: String
+    let stepStates: [Bool]
+    let isSelected: Bool
+    let isInRange: Bool
+    let accent: Color
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 3) {
+                    Text("\(index + 1)")
+                        .studioText(.microEmphasis)
+                        .foregroundStyle(StudioTheme.text)
+                    Spacer(minLength: 0)
+                    Text(lengthLabel)
+                        .studioText(.micro)
+                        .foregroundStyle(isEmpty ? StudioTheme.mutedText : StudioTheme.text)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.55)
+                }
+
+                KitHistoryMiniStepThumbnail(stepStates: stepStates, accent: accent)
+                    .frame(height: 28)
+            }
+            .frame(maxWidth: .infinity, minHeight: 58, alignment: .leading)
+            .padding(5)
+            .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                    .stroke(borderFill, style: StrokeStyle(lineWidth: isSelected ? 2 : 1, dash: isEmpty ? [4, 4] : []))
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(accessibilityLabel)
+    }
+
+    private var isEmpty: Bool {
+        !stepStates.contains(true)
+    }
+
+    private var borderFill: Color {
+        if isSelected || isInRange {
+            return accent
+        }
+        return StudioTheme.border
+    }
+
+    private var accessibilityLabel: String {
+        if isEmpty {
+            return "Kit history region \(index + 1), empty"
+        }
+        return "Kit history region \(index + 1), \(lengthLabel)"
+    }
+}
+
+private struct KitHistoryMiniStepThumbnail: View {
+    let stepStates: [Bool]
+    let accent: Color
+
+    var body: some View {
+        GeometryReader { geometry in
+            let width = max(geometry.size.width, 1)
+            let stepCount = max(stepStates.count, 1)
+            let stepWidth = width / CGFloat(stepCount)
+
+            ZStack(alignment: .topLeading) {
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                    .fill(StudioTheme.subtleFill)
+
+                HStack(spacing: 0) {
+                    ForEach(0..<4, id: \.self) { index in
+                        Rectangle()
+                            .fill(index.isMultiple(of: 2) ? StudioTheme.borderLowFill : Color.clear)
+                            .frame(width: width / 4)
+                    }
+                }
+
+                ForEach(Array(stepStates.enumerated()), id: \.offset) { index, isTriggered in
+                    if isTriggered {
+                        RoundedRectangle(cornerRadius: 2, style: .continuous)
+                            .fill(accent)
+                            .frame(width: max(stepWidth, 2), height: 5)
+                            .offset(x: stepWidth * CGFloat(index), y: 18)
+                    }
+                }
+            }
+            .clipShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+        }
     }
 }

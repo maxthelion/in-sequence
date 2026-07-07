@@ -8,6 +8,12 @@ struct PitchAlgoEditor: View {
     var accent: Color = StudioTheme.transportAccent
     let onChange: (PitchStage) -> Void
 
+    private let pitchKnobSize: CGFloat = 64
+    private let pitchColumns = Array(
+        repeating: GridItem(.flexible(minimum: 64, maximum: 96), spacing: 14, alignment: .top),
+        count: 8
+    )
+
     private var poolStage: PitchStage {
         PitchStage(
             algo: stage.algo.normalizedForPitchGrammar,
@@ -20,19 +26,32 @@ struct PitchAlgoEditor: View {
             let normalizedSelection = selection.normalized
             let normalizedDeviation = deviation.normalized
 
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 18) {
                 PitchPoolKeyboardStrip(
                     availablePitchClasses: pitchPoolClasses(root: root, scale: scale, spread: spread),
                     accent: accent
                 )
 
-                HStack(alignment: .top, spacing: 18) {
+                scaleControl(scale) {
+                    onChange(PitchStage(
+                        algo: .pool(
+                            root: root,
+                            scale: $0,
+                            spread: spread,
+                            selection: normalizedSelection,
+                            deviation: normalizedDeviation
+                        ),
+                        harmonicSidechain: poolStage.harmonicSidechain
+                    ))
+                }
+
+                LazyVGrid(columns: pitchColumns, alignment: .leading, spacing: 16) {
                     StudioRotaryKnob(
                         title: "Root",
                         value: Double(root),
                         range: 0...127,
                         accent: accent,
-                        size: 56
+                        size: pitchKnobSize
                     ) {
                         onChange(PitchStage(
                             algo: .pool(
@@ -51,7 +70,7 @@ struct PitchAlgoEditor: View {
                         value: Double(spread),
                         range: 0...36,
                         accent: accent,
-                        size: 56
+                        size: pitchKnobSize
                     ) {
                         onChange(PitchStage(
                             algo: .pool(
@@ -70,7 +89,7 @@ struct PitchAlgoEditor: View {
                         value: (normalizedSelection.memory + 1) * 50,
                         range: 0...100,
                         accent: accent,
-                        size: 56
+                        size: pitchKnobSize
                     ) {
                         onChange(PitchStage(
                             algo: .pool(
@@ -84,29 +103,12 @@ struct PitchAlgoEditor: View {
                         ))
                     }
 
-                    scaleMenu(scale) {
-                        onChange(PitchStage(
-                            algo: .pool(
-                                root: root,
-                                scale: $0,
-                                spread: spread,
-                                selection: normalizedSelection,
-                                deviation: normalizedDeviation
-                            ),
-                            harmonicSidechain: poolStage.harmonicSidechain
-                        ))
-                    }
-
-                    Spacer(minLength: 0)
-                }
-
-                HStack(alignment: .top, spacing: 18) {
                     StudioRotaryKnob(
                         title: "Accidentals",
                         value: normalizedDeviation.accidentalChance * 100,
                         range: 0...100,
                         accent: accent,
-                        size: 56
+                        size: pitchKnobSize
                     ) {
                         onChange(PitchStage(
                             algo: .pool(
@@ -129,7 +131,7 @@ struct PitchAlgoEditor: View {
                         value: Double(normalizedDeviation.octaveSpan),
                         range: 0...3,
                         accent: accent,
-                        size: 56
+                        size: pitchKnobSize
                     ) {
                         onChange(PitchStage(
                             algo: .pool(
@@ -152,7 +154,7 @@ struct PitchAlgoEditor: View {
                         value: normalizedDeviation.leadingChance * 100,
                         range: 0...100,
                         accent: accent,
-                        size: 56
+                        size: pitchKnobSize
                     ) {
                         onChange(PitchStage(
                             algo: .pool(
@@ -175,13 +177,56 @@ struct PitchAlgoEditor: View {
     }
 
     /// Shared themed Scale menu (four algo cases carry one).
-    private func scaleMenu(_ scale: ScaleID, onSelect: @escaping (ScaleID) -> Void) -> some View {
-        StudioMenuPicker(
-            title: "Scale",
-            selection: Binding(get: { scale }, set: onSelect),
-            options: ScaleID.allCases.map { StudioMenuPickerOption(label: $0.displayName, value: $0) },
-            help: "Scale"
-        )
+    private func scaleControl(_ scale: ScaleID, onSelect: @escaping (ScaleID) -> Void) -> some View {
+        HStack(alignment: .center, spacing: 10) {
+            Text("Scale")
+                .studioText(.labelBold)
+                .foregroundStyle(StudioTheme.mutedText)
+                .frame(width: 52, alignment: .leading)
+
+            ZStack {
+                Menu {
+                    ForEach(ScaleID.allCases, id: \.self) { option in
+                        Button(option.displayName) {
+                            onSelect(option)
+                        }
+                    }
+                } label: {
+                    Color.clear
+                        .frame(height: 32)
+                        .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
+                }
+                .menuStyle(.borderlessButton)
+                .menuIndicator(.hidden)
+
+                HStack(spacing: 6) {
+                    Text(scale.displayName)
+                        .studioText(.labelBold)
+                        .foregroundStyle(StudioTheme.text)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 8, weight: .bold))
+                        .foregroundStyle(StudioTheme.mutedText)
+                }
+                .padding(.horizontal, 10)
+                .frame(maxWidth: .infinity, minHeight: 32)
+                .background(
+                    StudioTheme.subtleFill,
+                    in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
+                        .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+                )
+                .allowsHitTesting(false)
+            }
+            .help("Scale")
+
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func pitchPoolClasses(root: Int, scale: ScaleID, spread: Int) -> Set<Int> {
@@ -207,41 +252,121 @@ private struct PitchPoolKeyboardStrip: View {
     let availablePitchClasses: Set<Int>
     let accent: Color
 
-    private let pitchClasses = Array(0..<12)
     private let labels = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
-    private let blackKeyClasses: Set<Int> = [1, 3, 6, 8, 10]
+    private let whiteKeyClasses = [0, 2, 4, 5, 7, 9, 11]
+    private let blackKeySpecs: [(pitchClass: Int, boundary: CGFloat)] = [
+        (1, 1),
+        (3, 2),
+        (6, 4),
+        (8, 5),
+        (10, 6)
+    ]
 
     var body: some View {
-        HStack(alignment: .bottom, spacing: 3) {
-            ForEach(pitchClasses, id: \.self) { pitchClass in
-                key(for: pitchClass)
+        GeometryReader { geometry in
+            let whiteWidth = geometry.size.width / CGFloat(whiteKeyClasses.count)
+            let blackWidth = min(52, max(32, whiteWidth * 0.72))
+
+            ZStack(alignment: .topLeading) {
+                HStack(alignment: .bottom, spacing: 0) {
+                    ForEach(whiteKeyClasses, id: \.self) { pitchClass in
+                        whiteKey(for: pitchClass)
+                            .frame(width: whiteWidth, height: 82)
+                    }
+                }
+
+                ForEach(blackKeySpecs, id: \.pitchClass) { spec in
+                    blackKey(for: spec.pitchClass)
+                        .frame(width: blackWidth, height: 54)
+                        .offset(x: whiteWidth * spec.boundary - blackWidth / 2)
+                }
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, minHeight: 82, maxHeight: 82)
         .accessibilityLabel("Pitch pool keyboard")
         .accessibilityIdentifier("pitch-pool-keyboard")
     }
 
-    private func key(for pitchClass: Int) -> some View {
-        let isBlackKey = blackKeyClasses.contains(pitchClass)
+    private func whiteKey(for pitchClass: Int) -> some View {
         let isAvailable = availablePitchClasses.contains(pitchClass)
 
-        return VStack(spacing: 4) {
-            Circle()
-                .fill(isAvailable ? accent : StudioTheme.border)
-                .frame(width: isAvailable ? 6 : 3, height: isAvailable ? 6 : 3)
+        return VStack(spacing: 0) {
+            RoundedRectangle(cornerRadius: 2, style: .continuous)
+                .fill(isAvailable ? accent : Color.clear)
+                .frame(height: 7)
+                .padding(.horizontal, 12)
+                .padding(.top, 5)
+                .padding(.bottom, 8)
 
+            Spacer(minLength: 0)
             Text(labels[pitchClass])
-                .studioText(.micro)
+                .font(.system(size: 11, weight: .black, design: .rounded))
                 .foregroundStyle(isAvailable ? StudioTheme.text : StudioTheme.mutedText)
                 .lineLimit(1)
-                .minimumScaleFactor(0.7)
+                .minimumScaleFactor(0.85)
+                .padding(.bottom, 8)
         }
-        .frame(width: 24, height: isBlackKey ? 34 : 46)
-        .background(isBlackKey ? StudioTheme.inset : StudioTheme.background)
+        .background(isAvailable ? StudioTheme.subtleFill : StudioTheme.background)
         .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous)
-                .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+            UnevenRoundedRectangle(
+                topLeadingRadius: 5,
+                bottomLeadingRadius: 7,
+                bottomTrailingRadius: 7,
+                topTrailingRadius: 5,
+                style: .continuous
+            )
+                .stroke(isAvailable ? accent : StudioTheme.border, lineWidth: isAvailable ? 2 : StudioMetrics.borderWidth)
+        )
+        .clipShape(
+            UnevenRoundedRectangle(
+                topLeadingRadius: 5,
+                bottomLeadingRadius: 7,
+                bottomTrailingRadius: 7,
+                topTrailingRadius: 5,
+                style: .continuous
+            )
+        )
+        .accessibilityLabel(labels[pitchClass])
+    }
+
+    private func blackKey(for pitchClass: Int) -> some View {
+        let isAvailable = availablePitchClasses.contains(pitchClass)
+
+        return VStack(spacing: 0) {
+            RoundedRectangle(cornerRadius: 2, style: .continuous)
+                .fill(isAvailable ? accent : Color.clear)
+                .frame(height: 6)
+                .padding(.horizontal, 5)
+                .padding(.top, 5)
+                .padding(.bottom, 5)
+
+            Spacer(minLength: 0)
+            Text(labels[pitchClass])
+                .font(.system(size: 9, weight: .black, design: .rounded))
+                .foregroundStyle(isAvailable ? StudioTheme.text : StudioTheme.mutedText)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+                .padding(.bottom, 6)
+        }
+        .background(isAvailable ? StudioTheme.inset : StudioTheme.background)
+        .overlay(
+            UnevenRoundedRectangle(
+                topLeadingRadius: 4,
+                bottomLeadingRadius: 5,
+                bottomTrailingRadius: 5,
+                topTrailingRadius: 4,
+                style: .continuous
+            )
+                .stroke(isAvailable ? accent : StudioTheme.border, lineWidth: isAvailable ? 2 : StudioMetrics.borderWidth)
+        )
+        .clipShape(
+            UnevenRoundedRectangle(
+                topLeadingRadius: 4,
+                bottomLeadingRadius: 5,
+                bottomTrailingRadius: 5,
+                topTrailingRadius: 4,
+                style: .continuous
+            )
         )
         .accessibilityLabel(labels[pitchClass])
     }
