@@ -28,8 +28,7 @@ extension DrumKitMatrixView {
         // map down collapses that to one snapshot per member per render.
         let snapshots = captureSnapshots(model)
         VStack(alignment: .leading, spacing: 14) {
-            captureHistoryHeader(model)
-            captureHistoryScrubber(model, snapshots: snapshots)
+            captureHistoryBar(model, snapshots: snapshots)
             VStack(alignment: .leading, spacing: 12) {
                 captureHistoryParts(model, snapshots: snapshots)
             }
@@ -59,38 +58,31 @@ extension DrumKitMatrixView {
         visualCaptureSnapshots[memberID] ?? engineController.captureSnapshot(trackID: memberID)
     }
 
-    func captureHistoryHeader(_ model: DrumKitMatrixModel) -> some View {
-        HStack(spacing: 10) {
-            Button {
-                isCaptureOpen = false
-            } label: {
-                Label("Close capture", systemImage: "chevron.left")
-                    .studioText(.labelBold)
-                    .foregroundStyle(StudioTheme.text)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                            .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
-                    )
-            }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("kit-capture-close")
-            .accessibilityLabel("Close capture")
-
-            Spacer(minLength: 0)
-
-            captureAuditionButton(model)
+    func captureHistoryBar(
+        _ model: DrumKitMatrixModel,
+        snapshots: [UUID: CaptureSnapshot]
+    ) -> some View {
+        HStack(spacing: 12) {
+            captureHistoryMiniBar(model, snapshots: snapshots)
+                .frame(minWidth: 160, maxWidth: 300)
 
             historyLengthControl
 
+            if let historySaveMessage {
+                Text(historySaveMessage)
+                    .studioText(.label)
+                    .foregroundStyle(accent)
+                    .lineLimit(1)
+            }
+
+            Spacer(minLength: 0)
+
             Button {
-                isSelectingCaptureSaveSlot.toggle()
+                isSelectingCaptureSaveSlot = true
                 historySaveMessage = nil
                 postRenderedVisualState(isVisible: true)
             } label: {
-                Label(isSelectingCaptureSaveSlot ? "Slot target" : "Save capture", systemImage: "tray.and.arrow.down")
+                Label(isSelectingCaptureSaveSlot ? "Choose slot" : "Save capture", systemImage: "tray.and.arrow.down")
                     .studioText(.labelBold)
                     .foregroundStyle(StudioTheme.background)
                     .padding(.horizontal, 12)
@@ -98,9 +90,59 @@ extension DrumKitMatrixView {
                     .background(accent, in: Capsule())
             }
             .buttonStyle(.plain)
-            .help("Use the pattern numbers above to save each part's windowed selection as one coordinated clip set")
+            .help("Choose a pattern slot above to save each part's selected history window")
             .accessibilityIdentifier("kit-history-save")
             .accessibilityLabel("Save kit capture")
+
+            StudioCircleIconButton(
+                systemName: "xmark",
+                size: StudioMetrics.ControlSize.medium,
+                help: "Close capture"
+            ) {
+                isCaptureOpen = false
+                isSelectingCaptureSaveSlot = false
+                visualCaptureSnapshots = [:]
+                postRenderedVisualState(isVisible: true)
+            }
+            .accessibilityIdentifier("kit-capture-close")
+            .accessibilityLabel("Close capture")
+        }
+        .padding(StudioMetrics.Spacing.compact)
+        .background(Color.clear, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
+                .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+        )
+    }
+
+    func captureHistoryMiniBar(
+        _ model: DrumKitMatrixModel,
+        snapshots: [UUID: CaptureSnapshot]
+    ) -> some View {
+        let maxBack = historyMaxBarsBack(model, snapshots: snapshots)
+        let options = Array(0...maxBack)
+        let selectedBack = min(historyBarsBack, maxBack)
+        return HStack(spacing: 4) {
+            ForEach(options, id: \.self) { back in
+                Button {
+                    historyBarsBack = back
+                    historySaveMessage = nil
+                    refreshKitAuditionIfActive()
+                    postRenderedVisualState(isVisible: true)
+                } label: {
+                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous)
+                        .fill(back == selectedBack ? accent : StudioTheme.subtleFill)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous)
+                                .stroke(back == selectedBack ? accent : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+                        )
+                        .frame(height: 26)
+                }
+                .buttonStyle(.plain)
+                .help(back == 0 ? "Most recent capture window" : "\(back) bar\(back == 1 ? "" : "s") back")
+                .accessibilityIdentifier("kit-history-cell-\(back)")
+                .accessibilityLabel(back == 0 ? "Most recent capture window" : "\(back) bars back")
+            }
         }
     }
 

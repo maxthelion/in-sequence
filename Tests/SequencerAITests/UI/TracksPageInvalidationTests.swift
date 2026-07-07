@@ -677,6 +677,65 @@ final class TracksPageInvalidationTests: XCTestCase {
             "The visual status file should publish expanded source mode for the generator capture wait."
         )
     }
+
+    func test_drumKitCaptureUsesSingleHistoryBarWithoutAuditionOrLive() throws {
+        let capture = try String(
+            contentsOf: repoRoot.appendingPathComponent("Sources/UI/DrumGroup/DrumKitMatrixView+Capture.swift"),
+            encoding: .utf8
+        )
+        let body = try XCTUnwrap(
+            capture.slice(from: "func captureHistoryBody", to: "func captureSnapshots"),
+            "Drum-kit capture body should be present"
+        )
+        let bar = try XCTUnwrap(
+            capture.slice(from: "func captureHistoryBar", to: "func captureHistoryMiniBar"),
+            "Drum-kit capture bar should be present"
+        )
+        let miniBar = try XCTUnwrap(
+            capture.slice(from: "func captureHistoryMiniBar", to: "    /// Shared Preview/Audition toggle"),
+            "Drum-kit capture mini history bar should be present"
+        )
+        let qaScript = try String(
+            contentsOf: repoRoot.appendingPathComponent("scripts/visual-scenarios/qa-surface-coverage.sh"),
+            encoding: .utf8
+        )
+
+        XCTAssertTrue(
+            body.contains("captureHistoryBar(model, snapshots: snapshots)"),
+            "The capture surface should render one combined capture bar."
+        )
+        XCTAssertFalse(
+            body.contains("captureHistoryHeader") || body.contains("captureHistoryScrubber"),
+            "The old separate header/scrubber rows should not be part of the visible capture body."
+        )
+        XCTAssertTrue(
+            bar.contains("captureHistoryMiniBar(model, snapshots: snapshots)") &&
+                bar.contains("historyLengthControl") &&
+                bar.contains("Label(isSelectingCaptureSaveSlot ? \"Choose slot\" : \"Save capture\"") &&
+                bar.contains("systemName: \"xmark\""),
+            "The single capture bar should contain history navigation, length, save, and the close cross."
+        )
+        XCTAssertFalse(
+            bar.contains("Audition") || bar.contains("Live"),
+            "Audition and Live controls should not be visible in the active capture bar."
+        )
+        XCTAssertTrue(
+            miniBar.contains("ForEach(options, id: \\.self)") &&
+                miniBar.contains("historyBarsBack = back") &&
+                miniBar.contains("kit-history-cell-\\(back)"),
+            "Selecting a mini history cell should change the displayed history window."
+        )
+        XCTAssertTrue(
+            bar.contains("isSelectingCaptureSaveSlot = true"),
+            "Save should arm pattern-slot targeting instead of toggling it off on a second click."
+        )
+        XCTAssertTrue(
+            qaScript.contains("29f-drum-kit-capture-save-slot") &&
+                qaScript.contains("history-save-open") &&
+                !qaScript.contains("29f-drum-kit-capture-save-slot|workspace=track,drumKitMatrixRenderedCaptureOpen=true,drumKitMatrixRenderedSaveSlotPickerVisible=true|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixCommands=open-capture,history-fixture,history-audition-on"),
+            "The QA capture row should cover save-slot targeting without opening the removed audition state."
+        )
+    }
 }
 
 private extension String {

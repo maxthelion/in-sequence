@@ -189,7 +189,7 @@ CAPTURES=$(cat <<'TABLE'
 # current full-suite command channel does not reach their strict rendered
 # status reliably. Keep 29d as the generator-mode expanded-row coverage.
 29d-drum-kit-expanded-generator|workspace=track,drumKitMatrixRenderedRowExpanded=true,drumKitMatrixRenderedExpandedPartIndex=0,drumKitMatrixRenderedExpandedRowTab=stepsClip,drumKitMatrixRenderedExpandedSourceMode=generator|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixCommands=expand-part:0,row-tab-steps,source-generator;transport=stop
-29f-drum-kit-capture-save-slot|workspace=track,drumKitMatrixRenderedCaptureOpen=true,drumKitMatrixRenderedSaveSlotPickerVisible=true|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixCommands=open-capture,history-fixture,history-audition-on,history-save-open;transport=stop
+29f-drum-kit-capture-save-slot|workspace=track,drumKitMatrixRenderedCaptureOpen=true,drumKitMatrixRenderedSaveSlotPickerVisible=true|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixCommands=open-capture,history-fixture,history-save-open;transport=stop
 35-drum-kit-matrix-velocity-layer|workspace=track,drumKitMatrixRenderedLayer=velocity|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixLayer=velocity;transport=stop
 36-drum-kit-matrix-chance-layer|workspace=track,drumKitMatrixRenderedLayer=chance|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixLayer=chance;transport=stop
 # 37 RETIRED: the pattern-realign command no longer reaches slot 2 in a strict
