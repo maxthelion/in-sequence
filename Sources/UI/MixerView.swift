@@ -56,7 +56,6 @@ struct MixerView<TrailingContent: View>: View {
     var body: some View {
         let tracks = session.store.tracks
         let buses = session.store.buses
-        let selectedTrackID = session.store.selectedTrackID
         let muteState = EngineController.effectiveMixerMuteState(tracks: tracks, buses: buses)
 
         // Solo state never injects a banner above the strips — that shifts
@@ -68,10 +67,10 @@ struct MixerView<TrailingContent: View>: View {
                 ForEach(tracks, id: \.id) { track in
                     MixerChannelStrip(
                         track: track,
+                        accent: StudioTheme.trackAccent(for: track, groups: session.store.trackGroups),
                         destinationLabel: destinationLabel(for: track),
                         outputTitle: MixerRoutingDisplayModel.outputTitle(for: track, buses: buses),
                         buses: buses,
-                        isSelected: track.id == selectedTrackID,
                         isEffectivelyMuted: muteState.mutedTrackIDs.contains(track.id),
                         isRoutingApplying: routingTrackIDs.contains(track.id),
                         engineController: engineController,
@@ -246,10 +245,10 @@ private struct MixerChannelStrip: View {
     }
 
     let track: StepSequenceTrack
+    let accent: Color
     let destinationLabel: String
     let outputTitle: String
     let buses: [MixerBus]
-    let isSelected: Bool
     let isEffectivelyMuted: Bool
     let isRoutingApplying: Bool
     let engineController: EngineController
@@ -266,8 +265,7 @@ private struct MixerChannelStrip: View {
 
     var body: some View {
         StudioMixerStrip(
-            accent: StudioTheme.transportAccent,
-            isHighlighted: isSelected,
+            accent: accent,
             dimsContent: isEffectivelyMuted && !track.mix.isMuted
         ) {
             // Configure is folded into the title: tapping the channel name
