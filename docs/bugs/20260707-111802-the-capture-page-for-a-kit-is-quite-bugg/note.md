@@ -1,0 +1,3 @@
+The capture page for a kit is quite buggy. The capture bar should have a mini bar of the clip history, not the arrows that it currently shows. Selecting cells in the history should change what is being displayed. The UI should be a single bar that contains the history navigation, length of capture and save button. Auditon is not needed. Live is not needed. Close should be a cross top right of the navigation. The save capture mechanism is quite buggy. It leaves the pattern bar flashing. Clicking it should pulse the pattern bar. Selecting a pattern should write to that clip slot and stop the pulsing. Currently, pressing the pattern buttons does something weird to the capture output.
+
+Status: RESOLVED 24fa9bc1
