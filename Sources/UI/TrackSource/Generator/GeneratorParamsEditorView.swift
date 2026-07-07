@@ -123,7 +123,26 @@ struct GeneratorParamsEditorView: View {
             default:
                 break
             }
+            postRenderedGeneratorVisualState()
         }
+        .onAppear {
+            postRenderedGeneratorVisualState()
+        }
+        .onChange(of: selectedStageTab) { _, _ in
+            postRenderedGeneratorVisualState()
+        }
+    }
+
+    private func postRenderedGeneratorVisualState() {
+        NotificationCenter.default.post(
+            name: .trackSourceGeneratorRenderedVisualState,
+            object: nil,
+            userInfo: [
+                "stage": selectedStageTab.rawValue,
+                "kind": generator.kind.rawValue,
+                "sourceMode": "\(sourceMode)"
+            ]
+        )
     }
 
     private var generatorHeader: some View {

@@ -55,6 +55,9 @@ enum VisualScenarioCommandRunner {
     private static var tracksTrackSoundModalVisible = false
     private static var stepOrderFixtureState = "none"
     private static var trackSourceTabState = "none"
+    private static var trackSourceEditorRenderedVisible = false
+    private static var trackSourceEditorRenderedTab = "none"
+    private static var trackSourceGeneratorRenderedStage = "none"
     private static var trackClipLayerState = "trigger"
     private static var trackClipLayerSwitcherState = "closed"
     private static var trackGeneratorStageState = "trigger"
@@ -182,6 +185,10 @@ enum VisualScenarioCommandRunner {
         observeRenderedMatrixState()
 
         while !Task.isCancelled {
+            if commandChannelWindow == nil {
+                commandChannelWindow = owningWindow()
+            }
+
             if let payload = try? String(contentsOf: commandURL), payload != lastPayload {
                 lastPayload = payload
                 let command = parse(payload)
@@ -252,6 +259,27 @@ enum VisualScenarioCommandRunner {
                 drumGroupRoutingEditorRowInheritance = userInfo["rowInheritance"] as? String ?? "none"
                 drumGroupRoutingEditorNoteInputs = userInfo["noteInputs"] as? String ?? "none"
                 drumGroupRoutingEditorChannelInputs = userInfo["channelInputs"] as? String ?? "none"
+            }
+        }
+        NotificationCenter.default.addObserver(
+            forName: .trackSourceEditorRenderedVisualState,
+            object: nil,
+            queue: .main
+        ) { notification in
+            guard let userInfo = notification.userInfo else { return }
+            Task { @MainActor in
+                trackSourceEditorRenderedVisible = userInfo["visible"] as? Bool ?? false
+                trackSourceEditorRenderedTab = userInfo["tab"] as? String ?? "none"
+            }
+        }
+        NotificationCenter.default.addObserver(
+            forName: .trackSourceGeneratorRenderedVisualState,
+            object: nil,
+            queue: .main
+        ) { notification in
+            guard let userInfo = notification.userInfo else { return }
+            Task { @MainActor in
+                trackSourceGeneratorRenderedStage = userInfo["stage"] as? String ?? "none"
             }
         }
         NotificationCenter.default.addObserver(
@@ -1070,6 +1098,7 @@ enum VisualScenarioCommandRunner {
             : session.workspaceMode.scenesModeValue
         let status: String = """
         visualCommandID=\(lastAppliedVisualCommandID)
+        visualCommandWindowNumber=\(commandChannelWindow?.windowNumber ?? -1)
         workspace=\(section.rawValue)
         workspaceMode=\(session.workspaceMode.rawValue)
         tracksMode=\(session.workspaceMode.tracksModeValue.rawValue)
@@ -1093,6 +1122,9 @@ enum VisualScenarioCommandRunner {
         stepOrderPendingToggle=\(stepOrderStatus.pendingToggle)
         stepOrderFixtureState=\(stepOrderFixtureState)
         trackSourceTab=\(trackSourceTabState)
+        trackSourceEditorRenderedVisible=\(trackSourceEditorRenderedVisible)
+        trackSourceEditorRenderedTab=\(trackSourceEditorRenderedTab)
+        trackSourceGeneratorRenderedStage=\(trackSourceGeneratorRenderedStage)
         trackClipLayer=\(trackClipLayerState)
         trackClipLayerSwitcher=\(trackClipLayerSwitcherState)
         trackGeneratorStage=\(trackGeneratorStageState)

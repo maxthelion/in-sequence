@@ -134,8 +134,8 @@ CAPTURES=$(cat <<'TABLE'
 # (covered by the phrase-perform rows 08-13b). The trackPerformLayer* status
 # fields no longer exist.
 18-track-detail-steps-clip|workspace=track|trackFillSource=clip;trackSourceTab=steps-clip;transport=stop
-19-track-sampler-sound-populated|workspace=track,trackSourceTab=sound,selectedTrackSoundDestinationKind=sample|trackSoundSource=sample;trackSourceTab=sound;transport=stop
-19a-track-sound-empty|workspace=track,trackSourceTab=sound,selectedTrackSoundDestinationKind=none|trackSoundSource=empty;trackSourceTab=sound;transport=stop
+19-track-sampler-sound-populated|workspace=track,trackSourceTab=sound,trackSourceEditorRenderedVisible=true,trackSourceEditorRenderedTab=sound,selectedTrackSoundDestinationKind=sample|trackSoundSource=sample;trackSourceTab=sound;transport=stop
+19a-track-sound-empty|workspace=track,trackSourceTab=sound,trackSourceEditorRenderedVisible=true,trackSourceEditorRenderedTab=sound,selectedTrackSoundDestinationKind=none|trackSoundSource=empty;trackSourceTab=sound;transport=stop
 20-track-fill-preview-active|workspace=track,trackSourceTab=steps-clip,selectedTrackFillPreviewActive=true|trackFillSource=clip;trackFillPreview=on;trackSourceTab=steps-clip;transport=stop
 # 20a RETIRED: the old `trackFillEngaged` visual command no longer reaches a
 # strict `selectedTrackFillEngaged=true` state in the current track detail flow.
@@ -144,14 +144,14 @@ CAPTURES=$(cat <<'TABLE'
 20c-track-randomize-rolled|workspace=track,selectedTrackRandomizePersisted=true|trackFillSource=clip;trackSourceTab=source;trackRandomizeRoll=on;transport=stop
 21-track-macros-tab|workspace=track,trackSourceTab=macros|trackRandomizeSheet=closed;trackFillSource=clip;trackFillPreview=off;trackSourceTab=macros;transport=stop
 22-track-detail-fx|workspace=track,trackSourceTab=fx|trackFillSource=generator;trackSourceTab=fx;transport=stop
-22a-track-add-source-empty|workspace=track,trackSourceTab=source,trackSourceAddSourceVisible=true,selectedPatternSourceMode=clip,selectedPatternHasClip=false|trackFillSource=empty;trackSourceTab=source;transport=stop
-22aa-track-clip-history|workspace=track,trackSourceTab=history|trackFillSource=clip;trackSourceTab=history;transport=stop
+22a-track-add-source-empty|workspace=track,trackSourceTab=source,trackSourceEditorRenderedVisible=true,trackSourceEditorRenderedTab=steps-clip,trackSourceAddSourceVisible=true,selectedPatternSourceMode=clip,selectedPatternHasClip=false|trackFillSource=empty;trackSourceTab=source;transport=stop
+22aa-track-clip-history|workspace=track,trackSourceTab=history,trackSourceEditorRenderedVisible=true,trackSourceEditorRenderedTab=history|trackFillSource=clip;trackSourceTab=history;transport=stop
 22b-track-detail-mixer|workspace=track,trackSourceTab=mixer|trackFillSource=clip;trackSourceTab=mixer;workspaceMode=setup;transport=stop
 22ba-track-routing-scene-selector|workspace=track,trackSourceTab=mixer,selectedTrackSceneMembership=sceneA|trackFillSource=clip;trackSourceTab=mixer;trackSceneMembership=sceneA;workspaceMode=setup;transport=stop
 22c-track-pitch-layer|workspace=track,trackSourceTab=steps-clip,trackClipLayer=pitch|trackFillSource=clip;trackSourceTab=steps-clip;trackClipLayer=pitch;transport=stop
 22d-track-layer-quick-switch|workspace=track,trackClipLayerSwitcher=open|trackFillSource=clip;trackSourceTab=steps-clip;trackClipLayerSwitcher=open;transport=stop
-22e-track-generator-trigger-tab|workspace=track,trackSourceTab=source,trackGeneratorStage=trigger|trackFillSource=generator;trackSourceTab=source;trackGeneratorStage=trigger;transport=stop
-22f-track-generator-pitch-tab|workspace=track,trackSourceTab=source,trackGeneratorStage=pitch|trackFillSource=generator;trackSourceTab=source;trackGeneratorStage=pitch;transport=stop
+22e-track-generator-trigger-tab|workspace=track,trackSourceTab=source,trackSourceEditorRenderedVisible=true,trackSourceEditorRenderedTab=steps-clip,trackGeneratorStage=trigger,trackSourceGeneratorRenderedStage=trigger|trackFillSource=generator;trackSourceTab=source;trackGeneratorStage=trigger;transport=stop
+22f-track-generator-pitch-tab|workspace=track,trackSourceTab=source,trackSourceEditorRenderedVisible=true,trackSourceEditorRenderedTab=steps-clip,trackGeneratorStage=pitch,trackSourceGeneratorRenderedStage=pitch|trackFillSource=generator;trackSourceTab=source;trackGeneratorStage=pitch;transport=stop
 22g-track-generator-chord-instrument|workspace=track,trackSourceTab=source,trackGeneratorKind=progressionChordGenerator|addTrack=polyMelodic;trackFillSource=generator;trackGeneratorKind=progressionChordGenerator;trackSourceTab=source;transport=stop
 # 22h RETIRED: the chord-following command currently mutates generator state but
 # does not expose a distinct visual from 22g in the Source tab.
@@ -188,7 +188,7 @@ CAPTURES=$(cat <<'TABLE'
 # 29e/29g RETIRED: chooser sub-surfaces are still useful targets, but the
 # current full-suite command channel does not reach their strict rendered
 # status reliably. Keep 29d as the generator-mode expanded-row coverage.
-29d-drum-kit-expanded-generator|workspace=track,drumKitMatrixRenderedRowExpanded=true,drumKitMatrixRenderedExpandedPartIndex=0,drumKitMatrixRenderedExpandedRowTab=stepsClip,drumKitMatrixRenderedExpandedSourceMode=generator|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixCommands=expand-part:0,row-tab-steps,source-generator;transport=stop
+29d-drum-kit-expanded-generator|workspace=track,drumKitMatrixRenderedVisible=true,drumKitMatrixRenderedRowExpanded=true,drumKitMatrixRenderedExpandedPartIndex=0,drumKitMatrixRenderedExpandedRowTab=stepsClip,drumKitMatrixRenderedExpandedSourceMode=generator|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixCommands=expand-part:0,row-tab-steps,source-generator;transport=stop
 29f-drum-kit-capture-save-slot|workspace=track,drumKitMatrixRenderedCaptureOpen=true,drumKitMatrixRenderedSaveSlotPickerVisible=true|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixCommands=open-capture,history-fixture,history-save-open;transport=stop
 35-drum-kit-matrix-velocity-layer|workspace=track,drumKitMatrixRenderedLayer=velocity|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixLayer=velocity;transport=stop
 36-drum-kit-matrix-chance-layer|workspace=track,drumKitMatrixRenderedLayer=chance|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixLayer=chance;transport=stop
@@ -281,8 +281,18 @@ skip_capture_state() {
 capture_state() {
   local pid="$1"
   local name="$2"
+  local output="$output_dir/${name}.png"
+  local window_number=""
   copy_row_evidence "$name"
-  if capture_window "$pid" "$output_dir/${name}.png"; then
+  window_number="$(status_value "visualCommandWindowNumber" 2>/dev/null || true)"
+  if [ -n "$window_number" ] && [ "$window_number" != "-1" ] && [ "$window_number" != "0" ] &&
+     screencapture -x -l "$window_number" "$output"; then
+    captured_count=$((captured_count + 1))
+    action_log "Captured ${name}.png (${captured_count}) from command window ${window_number}"
+    scenario_status="captured ${name}"
+    return 0
+  fi
+  if capture_window "$pid" "$output"; then
     captured_count=$((captured_count + 1))
     action_log "Captured ${name}.png (${captured_count})"
     scenario_status="captured ${name}"
@@ -385,6 +395,7 @@ $payload"
   local settle=0.8
   case "$name" in
     01-*|01a-*|01b-*|02-*|02a-*|02b-*) settle=3.5 ;;
+    19-*|19a-*|22a-*|22e-*|22f-*|29d-*) settle=3.5 ;;
     29g-*) settle=2.8 ;;
   esac
   sleep "$settle"
@@ -513,10 +524,16 @@ export SEQUENCER_AI_VISUAL_COMMAND_FILE="$command_file"
 export SEQUENCER_AI_NEW_DOCUMENT_FIXTURE="$runtime_fixture_path"
 export SEQUENCER_AI_MATERIALIZE_FIXTURE_SAMPLES=1
 
-app_path="$(
-  cd "$REPO_ROOT"
-  scripts/open-latest-build.sh --print 2>"$output_dir/app-open.log"
-)"
+if [ -n "${SEQUENCER_AI_VISUAL_APP_PATH:-}" ]; then
+  app_path="$SEQUENCER_AI_VISUAL_APP_PATH"
+  : >"$output_dir/app-open.log"
+  printf 'using SEQUENCER_AI_VISUAL_APP_PATH=%s\n' "$app_path" >>"$output_dir/app-open.log"
+else
+  app_path="$(
+    cd "$REPO_ROOT"
+    scripts/open-latest-build.sh --print 2>"$output_dir/app-open.log"
+  )"
+fi
 printf 'app_path=%s\n' "$app_path" >>"$output_dir/app-open.log"
 app_executable="$app_path/Contents/MacOS/$APP_NAME"
 if [ ! -x "$app_executable" ]; then

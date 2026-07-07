@@ -424,6 +424,14 @@ final class TracksPageInvalidationTests: XCTestCase {
             contentsOf: repoRoot.appendingPathComponent("Sources/UI/TrackSource/Generator/GeneratorParamsEditorView.swift"),
             encoding: .utf8
         )
+        let qaScript = try String(
+            contentsOf: repoRoot.appendingPathComponent("scripts/visual-scenarios/qa-surface-coverage.sh"),
+            encoding: .utf8
+        )
+        let visualRunner = try String(
+            contentsOf: repoRoot.appendingPathComponent("Sources/UI/VisualScenarioCommandRunner.swift"),
+            encoding: .utf8
+        )
         let shell = try XCTUnwrap(
             source.slice(from: "private var foundationEditorShell", to: "private var generatorHeader"),
             "Generator shell source should be present"
@@ -444,6 +452,18 @@ final class TracksPageInvalidationTests: XCTestCase {
         XCTAssertTrue(
             header.contains("Label(\"Bake\""),
             "Bake should remain in the same generator header grammar."
+        )
+        XCTAssertTrue(
+            qaScript.contains("22e-track-generator-trigger-tab|workspace=track,trackSourceTab=source,trackSourceEditorRenderedVisible=true,trackSourceEditorRenderedTab=steps-clip,trackGeneratorStage=trigger,trackSourceGeneratorRenderedStage=trigger"),
+            "The trigger generator capture must wait for the rendered generator editor, not only selected command state."
+        )
+        XCTAssertTrue(
+            qaScript.contains("22f-track-generator-pitch-tab|workspace=track,trackSourceTab=source,trackSourceEditorRenderedVisible=true,trackSourceEditorRenderedTab=steps-clip,trackGeneratorStage=pitch,trackSourceGeneratorRenderedStage=pitch"),
+            "The pitch generator capture must wait for the rendered generator editor, not only selected command state."
+        )
+        XCTAssertTrue(
+            visualRunner.contains("trackSourceGeneratorRenderedStage=\\("),
+            "The visual status file should publish the rendered generator stage used by the QA waits."
         )
     }
 
@@ -468,6 +488,10 @@ final class TracksPageInvalidationTests: XCTestCase {
         XCTAssertTrue(
             qaScript.contains("22a-track-add-source-empty"),
             "The standard QA surface pass should include the inline Add Source empty-slot state."
+        )
+        XCTAssertTrue(
+            qaScript.contains("22a-track-add-source-empty|workspace=track,trackSourceTab=source,trackSourceEditorRenderedVisible=true,trackSourceEditorRenderedTab=steps-clip"),
+            "The Add Source capture row should wait for the track source editor to render, not just for command state."
         )
         XCTAssertTrue(
             qaScript.contains("trackSourceAddSourceVisible=true"),
@@ -517,6 +541,10 @@ final class TracksPageInvalidationTests: XCTestCase {
             qaScript.contains("22aa-track-clip-history"),
             "The standard QA surface pass should include the clip history state."
         )
+        XCTAssertTrue(
+            qaScript.contains("22aa-track-clip-history|workspace=track,trackSourceTab=history,trackSourceEditorRenderedVisible=true,trackSourceEditorRenderedTab=history"),
+            "The history capture row should wait for the history tab to render, not just for selected-tab command state."
+        )
     }
 
     func test_samplerSoundPageRemovesStaleControlsAndCapturesRealWaveformState() throws {
@@ -548,6 +576,10 @@ final class TracksPageInvalidationTests: XCTestCase {
         XCTAssertTrue(
             samplerWidget.contains("WaveformView(buckets: buckets, fillColor: accent)"),
             "Sampler sound pages must keep the actual waveform renderer in the populated sample card."
+        )
+        XCTAssertFalse(
+            samplerWidget.contains(".fill(StudioTheme.subtleFill)\n                    .frame(width: max(0, stopX - startX), height: height)"),
+            "The start/length overlay must not paint an opaque region over the sampler waveform."
         )
         XCTAssertFalse(
             samplerWidget.contains("View built-in sampler macros"),
@@ -584,12 +616,16 @@ final class TracksPageInvalidationTests: XCTestCase {
         )
         XCTAssertTrue(
             qaScript.contains("19-track-sampler-sound-populated") &&
+                qaScript.contains("trackSourceEditorRenderedVisible=true") &&
+                qaScript.contains("trackSourceEditorRenderedTab=sound") &&
                 qaScript.contains("selectedTrackSoundDestinationKind=sample") &&
                 qaScript.contains("trackSoundSource=sample"),
             "QA coverage should include a populated sampler sound page, not a generator sound page."
         )
         XCTAssertTrue(
             qaScript.contains("19a-track-sound-empty") &&
+                qaScript.contains("trackSourceEditorRenderedVisible=true") &&
+                qaScript.contains("trackSourceEditorRenderedTab=sound") &&
                 qaScript.contains("selectedTrackSoundDestinationKind=none") &&
                 qaScript.contains("trackSoundSource=empty"),
             "QA coverage should include the empty sound-source chooser state."
@@ -668,6 +704,7 @@ final class TracksPageInvalidationTests: XCTestCase {
         )
         XCTAssertTrue(
             qaScript.contains("29d-drum-kit-expanded-generator") &&
+                qaScript.contains("drumKitMatrixRenderedVisible=true") &&
                 qaScript.contains("drumKitMatrixRenderedExpandedSourceMode=generator") &&
                 qaScript.contains("drumKitMatrixCommands=expand-part:0,row-tab-steps,source-generator"),
             "QA coverage should include the expanded drum-part generator mode with strict status waits."

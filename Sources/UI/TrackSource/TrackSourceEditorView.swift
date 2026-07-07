@@ -346,10 +346,12 @@ struct TrackSourceEditorView: View {
                 modifierPickerStep = nil
             }
             resetClipHistoryModel()
+            postRenderedVisualState()
         }
         .onChange(of: track.id) { _, _ in
             session.clearTrackFillPreview(reason: .selectedTrackChanged)
             closeRandomizePanel()
+            postRenderedVisualState()
         }
         .onAppear {
             syncStepGridCoordinator()
@@ -361,6 +363,7 @@ struct TrackSourceEditorView: View {
             {
                 handleTrackSourceEditorVisualCommand(command)
             }
+            postRenderedVisualState()
         }
         .onChange(of: currentClip?.id) { _, _ in
             syncStepGridCoordinator()
@@ -368,6 +371,7 @@ struct TrackSourceEditorView: View {
         .onDisappear {
             session.clearTrackFillPreview(reason: .editorClosed)
             closeRandomizePanel()
+            postRenderedVisualState(isVisible: false)
         }
         .onChange(of: session.workspaceMode) { _, newMode in
             if !selectedTab.isAvailable(in: newMode) {
@@ -416,6 +420,7 @@ struct TrackSourceEditorView: View {
                   tab.isAvailable(in: session.workspaceMode)
             else { return }
             selectedTab = tab
+            postRenderedVisualState(tab: tab)
             return
         }
 
@@ -441,6 +446,21 @@ struct TrackSourceEditorView: View {
             stepGridWorkspaceModel.coordinator?.toggleSelection(at: max(0, stepIndex))
             return
         }
+    }
+
+    private func postRenderedVisualState(
+        isVisible: Bool = true,
+        tab explicitTab: TrackSourceEditorTab? = nil
+    ) {
+        NotificationCenter.default.post(
+            name: .trackSourceEditorRenderedVisualState,
+            object: nil,
+            userInfo: [
+                "visible": isVisible,
+                "tab": (explicitTab ?? selectedTab).rawValue,
+                "trackID": track.id.uuidString
+            ]
+        )
     }
 
     private func randomizeSelectedClipNow() {

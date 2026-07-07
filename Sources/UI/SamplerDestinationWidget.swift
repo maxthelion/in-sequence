@@ -665,12 +665,6 @@ private struct WaveformRegionMarkers: View {
             let stopX = CGFloat(min(max(stop, 0), 1)) * width
 
             ZStack(alignment: .topLeading) {
-                // Shaded active region between start and stop.
-                Rectangle()
-                    .fill(StudioTheme.subtleFill)
-                    .frame(width: max(0, stopX - startX), height: height)
-                    .offset(x: startX)
-
                 marker(at: startX, height: height)
                 marker(at: stopX, height: height)
             }
