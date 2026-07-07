@@ -354,6 +354,98 @@ final class TracksPageInvalidationTests: XCTestCase {
             "Kit cards must not open the old Select/Copy/Expand menu on secondary click."
         )
     }
+
+    func test_generatorTriggerEditorExposesEuclideanControlsWithoutManualOrDisclosure() throws {
+        let source = try String(
+            contentsOf: repoRoot.appendingPathComponent("Sources/UI/TrackSource/Generator/StepAlgoEditor.swift"),
+            encoding: .utf8
+        )
+        let euclideanSection = try XCTUnwrap(
+            source.slice(from: "case let .euclidean", to: "case let .manual"),
+            "Euclidean trigger section should be present"
+        )
+
+        XCTAssertFalse(
+            source.contains("showsSecondaryParameters"),
+            "Euclidean Steps/Offset/Pitch must not be hidden behind disclosure state."
+        )
+        XCTAssertFalse(
+            source.contains("StudioCircleIconButton"),
+            "Trigger generator must not expose the old ellipsis/chevron parameter disclosure."
+        )
+        XCTAssertFalse(
+            source.contains("title: \"Source\""),
+            "The trigger algorithm chooser should not surface implementation wording as a Source label."
+        )
+        XCTAssertTrue(
+            source.contains("private var visibleStepAlgoKinds: [StepAlgoKind] { [.euclidean, .weighted] }"),
+            "Manual trigger controls are intentionally not part of this visible generator slice."
+        )
+        XCTAssertOrdered(
+            ["title: \"Pulses\"", "title: \"Steps\"", "title: \"Offset\"", "title: \"Pitch\""],
+            in: euclideanSection,
+            message: "Euclidean trigger controls should render as the visible four-control set."
+        )
+    }
+
+    func test_generatorPitchEditorStartsWithKeyboardThenUsesRotariesAndScaleMenu() throws {
+        let source = try String(
+            contentsOf: repoRoot.appendingPathComponent("Sources/UI/TrackSource/Generator/PitchAlgoEditor.swift"),
+            encoding: .utf8
+        )
+
+        XCTAssertFalse(
+            source.contains("SourceParameterStepperRow(title: \"Root\""),
+            "Pitch Root should be a rotary, not the old stepper row."
+        )
+        XCTAssertFalse(
+            source.contains("SourceParameterStepperRow(title: \"Spread\""),
+            "Pitch Spread should be a rotary, not the old stepper row."
+        )
+        XCTAssertFalse(
+            source.contains("SourceParameterSliderRow(title: \"Selection\""),
+            "Pitch Selection should be a rotary, not the old slider row."
+        )
+        XCTAssertOrdered(
+            [
+                "PitchPoolKeyboardStrip(",
+                "title: \"Root\"",
+                "title: \"Spread\"",
+                "title: \"Selection\"",
+                "scaleMenu(scale)"
+            ],
+            in: source,
+            message: "Pitch editing should start with the piano strip, followed by the primary numeric controls and scale menu."
+        )
+    }
+
+    func test_generatorStageSelectorLivesInHeaderWithBake() throws {
+        let source = try String(
+            contentsOf: repoRoot.appendingPathComponent("Sources/UI/TrackSource/Generator/GeneratorParamsEditorView.swift"),
+            encoding: .utf8
+        )
+        let shell = try XCTUnwrap(
+            source.slice(from: "private var foundationEditorShell", to: "private var generatorHeader"),
+            "Generator shell source should be present"
+        )
+        let header = try XCTUnwrap(
+            source.slice(from: "private var generatorHeader", to: "private var generatorStageSelector"),
+            "Generator header source should be present"
+        )
+
+        XCTAssertFalse(
+            shell.contains("StudioSegmentedControl("),
+            "Trigger/Pitch switching should not render as a separate row below the generator header."
+        )
+        XCTAssertTrue(
+            header.contains("generatorStageSelector"),
+            "The shared generator header should contain the Trigger/Pitch stage selector."
+        )
+        XCTAssertTrue(
+            header.contains("Label(\"Bake\""),
+            "Bake should remain in the same generator header grammar."
+        )
+    }
 }
 
 private extension String {
@@ -364,5 +456,22 @@ private extension String {
             return nil
         }
         return String(self[startRange.lowerBound..<endRange.lowerBound])
+    }
+}
+
+private func XCTAssertOrdered(
+    _ needles: [String],
+    in haystack: String,
+    message: String,
+    file: StaticString = #filePath,
+    line: UInt = #line
+) {
+    var lowerBound = haystack.startIndex
+    for needle in needles {
+        guard let range = haystack.range(of: needle, range: lowerBound..<haystack.endIndex) else {
+            XCTFail("\(message) Missing ordered token: \(needle)", file: file, line: line)
+            return
+        }
+        lowerBound = range.upperBound
     }
 }

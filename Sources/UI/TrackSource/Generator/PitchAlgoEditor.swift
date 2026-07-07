@@ -21,41 +21,83 @@ struct PitchAlgoEditor: View {
             let normalizedDeviation = deviation.normalized
 
             VStack(alignment: .leading, spacing: 12) {
-                SourceParameterStepperRow(title: "Root", value: root, range: 0...127) {
-                    onChange(PitchStage(
-                        algo: .pool(root: $0, scale: scale, spread: spread, selection: normalizedSelection, deviation: normalizedDeviation),
-                        harmonicSidechain: poolStage.harmonicSidechain
-                    ))
-                }
-                scaleMenu(scale) {
-                    onChange(PitchStage(
-                        algo: .pool(root: root, scale: $0, spread: spread, selection: normalizedSelection, deviation: normalizedDeviation),
-                        harmonicSidechain: poolStage.harmonicSidechain
-                    ))
-                }
-                SourceParameterStepperRow(title: "Spread", value: spread, range: 0...36) {
-                    onChange(PitchStage(
-                        algo: .pool(root: root, scale: scale, spread: $0, selection: normalizedSelection, deviation: normalizedDeviation),
-                        harmonicSidechain: poolStage.harmonicSidechain
-                    ))
-                }
-
                 PitchPoolKeyboardStrip(
                     availablePitchClasses: pitchPoolClasses(root: root, scale: scale, spread: spread),
                     accent: accent
                 )
 
-                SourceParameterSliderRow(title: "Selection", value: (normalizedSelection.memory + 1) * 50, range: 0...100, accent: accent) {
-                    onChange(PitchStage(
-                        algo: .pool(
-                            root: root,
-                            scale: scale,
-                            spread: spread,
-                            selection: PitchSelectionSettings(memory: ($0 / 50) - 1).normalized,
-                            deviation: normalizedDeviation
-                        ),
-                        harmonicSidechain: poolStage.harmonicSidechain
-                    ))
+                HStack(alignment: .top, spacing: 18) {
+                    StudioRotaryKnob(
+                        title: "Root",
+                        value: Double(root),
+                        range: 0...127,
+                        accent: accent,
+                        size: 56
+                    ) {
+                        onChange(PitchStage(
+                            algo: .pool(
+                                root: Int($0.rounded()),
+                                scale: scale,
+                                spread: spread,
+                                selection: normalizedSelection,
+                                deviation: normalizedDeviation
+                            ),
+                            harmonicSidechain: poolStage.harmonicSidechain
+                        ))
+                    }
+
+                    StudioRotaryKnob(
+                        title: "Spread",
+                        value: Double(spread),
+                        range: 0...36,
+                        accent: accent,
+                        size: 56
+                    ) {
+                        onChange(PitchStage(
+                            algo: .pool(
+                                root: root,
+                                scale: scale,
+                                spread: Int($0.rounded()),
+                                selection: normalizedSelection,
+                                deviation: normalizedDeviation
+                            ),
+                            harmonicSidechain: poolStage.harmonicSidechain
+                        ))
+                    }
+
+                    StudioRotaryKnob(
+                        title: "Selection",
+                        value: (normalizedSelection.memory + 1) * 50,
+                        range: 0...100,
+                        accent: accent,
+                        size: 56
+                    ) {
+                        onChange(PitchStage(
+                            algo: .pool(
+                                root: root,
+                                scale: scale,
+                                spread: spread,
+                                selection: PitchSelectionSettings(memory: ($0 / 50) - 1).normalized,
+                                deviation: normalizedDeviation
+                            ),
+                            harmonicSidechain: poolStage.harmonicSidechain
+                        ))
+                    }
+
+                    scaleMenu(scale) {
+                        onChange(PitchStage(
+                            algo: .pool(
+                                root: root,
+                                scale: $0,
+                                spread: spread,
+                                selection: normalizedSelection,
+                                deviation: normalizedDeviation
+                            ),
+                            harmonicSidechain: poolStage.harmonicSidechain
+                        ))
+                    }
+
+                    Spacer(minLength: 0)
                 }
 
                 HStack(alignment: .top, spacing: 18) {

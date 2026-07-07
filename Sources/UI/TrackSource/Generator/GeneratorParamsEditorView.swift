@@ -103,21 +103,6 @@ struct GeneratorParamsEditorView: View {
             if generator.kind == .progressionChordGenerator {
                 sourceSection
             } else {
-                // TRIGGER | PITCH stage tabs (prototype 14b) in the inset-track
-                // solid-thumb family — never a native segmented picker.
-                StudioSegmentedControl(
-                    title: nil,
-                    selection: $selectedStageTab,
-                    segments: StageTab.allCases.map { tab in
-                        StudioSegment(
-                            title: tab.title,
-                            value: tab,
-                            accessibilityIdentifier: "generator-stage-\(tab.rawValue)"
-                        )
-                    },
-                    accent: accent
-                )
-
                 switch selectedStageTab {
                 case .trigger:
                     sourceSection
@@ -158,6 +143,10 @@ struct GeneratorParamsEditorView: View {
             )
             .disabled(onSwitchKind == nil)
 
+            if generator.kind != .progressionChordGenerator {
+                generatorStageSelector
+            }
+
             if let followingChipValue {
                 GeneratorHeaderChip(title: "FOLLOWING", value: followingChipValue, accent: accent)
             }
@@ -181,6 +170,27 @@ struct GeneratorParamsEditorView: View {
             .disabled(onBakeToClip == nil)
             .help("Bake generator result to clip")
         }
+    }
+
+    private var generatorStageSelector: some View {
+        StudioSegmentedControl(
+            title: nil,
+            selection: $selectedStageTab,
+            segments: StageTab.allCases.map { tab in
+                StudioSegment(
+                    title: tab.title,
+                    value: tab,
+                    accessibilityIdentifier: "generator-stage-\(tab.rawValue)"
+                )
+            },
+            accent: accent,
+            layout: StudioSegmentedControl.Layout(
+                fillsWidth: false,
+                minWidth: 64,
+                minHeight: 28,
+                horizontalPadding: 10
+            )
+        )
     }
 
     private var followingChipValue: String? {

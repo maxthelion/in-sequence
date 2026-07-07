@@ -5,20 +5,27 @@ struct StepAlgoEditor: View {
     var accent: Color = StudioTheme.transportAccent
     let onChange: (StepStage) -> Void
 
-    @State private var showsSecondaryParameters = false
+    private var visibleStage: StepStage {
+        if case .manual = stage.algo {
+            return StepStage(
+                algo: StepAlgoKind.euclidean.defaultAlgo(current: stage.algo),
+                basePitch: stage.basePitch
+            )
+        }
+        return stage
+    }
+
+    private var visibleStepAlgoKinds: [StepAlgoKind] { [.euclidean, .weighted] }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            // Trigger SOURCE selector (prototype 14b): Euclidean | Weighted |
-            // Manual in the inset-track solid-thumb family, never a native
-            // segmented picker.
             StudioSegmentedControl(
-                title: "Source",
+                title: nil,
                 selection: Binding(
-                    get: { stage.algo.kind },
-                    set: { onChange(StepStage(algo: $0.defaultAlgo(current: stage.algo), basePitch: stage.basePitch)) }
+                    get: { visibleStage.algo.kind },
+                    set: { onChange(StepStage(algo: $0.defaultAlgo(current: visibleStage.algo), basePitch: visibleStage.basePitch)) }
                 ),
-                segments: StepAlgoKind.allCases.map { kind in
+                segments: visibleStepAlgoKinds.map { kind in
                     StudioSegment(
                         title: kind.title,
                         value: kind,
@@ -34,60 +41,57 @@ struct StepAlgoEditor: View {
 
     @ViewBuilder
     private var stageControls: some View {
-        switch stage.algo {
+        switch visibleStage.algo {
         case let .euclidean(pulses, steps, offset):
-            VStack(alignment: .leading, spacing: 14) {
-                HStack(alignment: .top, spacing: 18) {
-                    StudioRotaryKnob(
-                        title: "Pulses",
-                        value: Double(pulses),
-                        range: 0...Double(steps),
-                        accent: accent,
-                        size: 56
-                    ) {
-                        onChange(StepStage(algo: .euclidean(pulses: Int($0.rounded()), steps: steps, offset: offset), basePitch: stage.basePitch))
-                    }
+            let safeSteps = max(1, steps)
+            let safePulses = min(max(0, pulses), safeSteps)
+            LazyVGrid(
+                columns: Array(
+                    repeating: GridItem(.flexible(minimum: 56, maximum: 96), spacing: 12, alignment: .top),
+                    count: 4
+                ),
+                alignment: .leading,
+                spacing: 12
+            ) {
+                StudioRotaryKnob(
+                    title: "Pulses",
+                    value: Double(safePulses),
+                    range: 0...Double(safeSteps),
+                    accent: accent,
+                    size: 56
+                ) {
+                    onChange(StepStage(algo: .euclidean(pulses: Int($0.rounded()), steps: safeSteps, offset: offset), basePitch: visibleStage.basePitch))
+                }
 
-                    if showsSecondaryParameters {
-                        StudioRotaryKnob(
-                            title: "Steps",
-                            value: Double(steps),
-                            range: 1...32,
-                            accent: accent
-                        ) { newValue in
-                            let nextSteps = Int(newValue.rounded())
-                            onChange(StepStage(algo: .euclidean(pulses: min(pulses, nextSteps), steps: nextSteps, offset: offset), basePitch: stage.basePitch))
-                        }
+                StudioRotaryKnob(
+                    title: "Steps",
+                    value: Double(safeSteps),
+                    range: 1...32,
+                    accent: accent,
+                    size: 56
+                ) { newValue in
+                    let nextSteps = Int(newValue.rounded())
+                    onChange(StepStage(algo: .euclidean(pulses: min(safePulses, nextSteps), steps: nextSteps, offset: offset), basePitch: visibleStage.basePitch))
+                }
 
-                        StudioRotaryKnob(
-                            title: "Offset",
-                            value: Double(offset),
-                            range: -32...32,
-                            accent: accent
-                        ) {
-                            onChange(StepStage(algo: .euclidean(pulses: pulses, steps: steps, offset: Int($0.rounded())), basePitch: stage.basePitch))
-                        }
+                StudioRotaryKnob(
+                    title: "Offset",
+                    value: Double(offset),
+                    range: -32...32,
+                    accent: accent,
+                    size: 56
+                ) {
+                    onChange(StepStage(algo: .euclidean(pulses: safePulses, steps: safeSteps, offset: Int($0.rounded())), basePitch: visibleStage.basePitch))
+                }
 
-                        StudioRotaryKnob(
-                            title: "Pitch",
-                            value: Double(stage.basePitch),
-                            range: 0...127,
-                            accent: accent
-                        ) {
-                            onChange(StepStage(algo: stage.algo, basePitch: Int($0.rounded())))
-                        }
-                    }
-
-                    Spacer(minLength: 0)
-
-                    StudioCircleIconButton(
-                        systemName: showsSecondaryParameters ? "chevron.left.2" : "ellipsis",
-                        help: showsSecondaryParameters ? "Hide extra parameters" : "Show steps, offset, and pitch"
-                    ) {
-                        withAnimation(.easeInOut(duration: 0.15)) {
-                            showsSecondaryParameters.toggle()
-                        }
-                    }
+                StudioRotaryKnob(
+                    title: "Pitch",
+                    value: Double(visibleStage.basePitch),
+                    range: 0...127,
+                    accent: accent,
+                    size: 56
+                ) {
+                    onChange(StepStage(algo: visibleStage.algo, basePitch: Int($0.rounded())))
                 }
             }
         case let .manual(pattern):
@@ -102,12 +106,12 @@ struct StepAlgoEditor: View {
 
                 StudioRotaryKnob(
                     title: "Pitch",
-                    value: Double(stage.basePitch),
+                    value: Double(visibleStage.basePitch),
                     range: 0...127,
                     accent: accent,
                     size: 56
                 ) {
-                    onChange(StepStage(algo: stage.algo, basePitch: Int($0.rounded())))
+                    onChange(StepStage(algo: visibleStage.algo, basePitch: Int($0.rounded())))
                 }
             }
         case let .weighted(weights, steps, cluster):
@@ -126,7 +130,7 @@ struct StepAlgoEditor: View {
                     ) { newValue in
                         let nextSteps = Int(newValue.rounded())
                         let nextWeights = Array(weights.prefix(nextSteps)) + Array(repeating: 0, count: max(0, nextSteps - weights.count))
-                        onChange(StepStage(algo: .weighted(weights: nextWeights, steps: nextSteps, cluster: cluster), basePitch: stage.basePitch))
+                        onChange(StepStage(algo: .weighted(weights: nextWeights, steps: nextSteps, cluster: cluster), basePitch: visibleStage.basePitch))
                     }
 
                     StudioRotaryKnob(
@@ -136,17 +140,17 @@ struct StepAlgoEditor: View {
                         accent: accent,
                         size: 56
                     ) {
-                        onChange(StepStage(algo: .weighted(weights: weights, steps: steps, cluster: $0), basePitch: stage.basePitch))
+                        onChange(StepStage(algo: .weighted(weights: weights, steps: steps, cluster: $0), basePitch: visibleStage.basePitch))
                     }
 
                     StudioRotaryKnob(
                         title: "Pitch",
-                        value: Double(stage.basePitch),
+                        value: Double(visibleStage.basePitch),
                         range: 0...127,
                         accent: accent,
                         size: 56
                     ) {
-                        onChange(StepStage(algo: stage.algo, basePitch: Int($0.rounded())))
+                        onChange(StepStage(algo: visibleStage.algo, basePitch: Int($0.rounded())))
                     }
                 }
             }
