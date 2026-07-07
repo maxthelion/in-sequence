@@ -17,6 +17,13 @@ import XCTest
 // (DEBUG only).
 @MainActor
 final class TracksPageInvalidationTests: XCTestCase {
+    private var repoRoot: URL {
+        URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+    }
 
     // MARK: - Fixture
 
@@ -314,5 +321,48 @@ final class TracksPageInvalidationTests: XCTestCase {
             "reach no tracks-page leaf (\(leafEvaluations) leaf evaluations for " +
             "\(tickCount) ticks)."
         )
+    }
+
+    func test_trackNavigatorCards_selectOnRightClickWithoutContextMenus() throws {
+        let source = try String(
+            contentsOf: repoRoot.appendingPathComponent("Sources/UI/TracksMatrixView.swift"),
+            encoding: .utf8
+        )
+        let trackCard = try XCTUnwrap(
+            source.slice(from: "private struct TrackMatrixCard", to: "    private var strokeColor"),
+            "TrackMatrixCard source should be present"
+        )
+        let kitCard = try XCTUnwrap(
+            source.slice(from: "private struct KitMatrixCard", to: "struct TrackPerformRuntimeControlState"),
+            "KitMatrixCard source should be present"
+        )
+
+        XCTAssertTrue(
+            trackCard.contains(".studioSelectOnRightClick"),
+            "Track cards should still select on secondary click."
+        )
+        XCTAssertFalse(
+            trackCard.contains(".contextMenu"),
+            "Track cards must not open the old Select/Copy/Mute menu on secondary click."
+        )
+        XCTAssertTrue(
+            kitCard.contains(".studioSelectOnRightClick"),
+            "Kit cards should still select on secondary click."
+        )
+        XCTAssertFalse(
+            kitCard.contains(".contextMenu"),
+            "Kit cards must not open the old Select/Copy/Expand menu on secondary click."
+        )
+    }
+}
+
+private extension String {
+    func slice(from start: String, to end: String) -> String? {
+        guard let startRange = range(of: start),
+              let endRange = range(of: end, range: startRange.upperBound..<endIndex)
+        else {
+            return nil
+        }
+        return String(self[startRange.lowerBound..<endRange.lowerBound])
     }
 }

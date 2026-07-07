@@ -530,9 +530,6 @@ struct TracksMatrixView: View {
             onSelectKit: {
                 selectTracksForActions(memberIDs, additive: kitSelected)
             },
-            onCopyKit: {
-                copiedTrackIDs = Set(memberIDs)
-            },
             onAddPart: {
                 if let createdID = session.addDefaultDrumPart(groupID: section.group.id) {
                     session.setSelectedTrackID(createdID)
@@ -568,14 +565,8 @@ struct TracksMatrixView: View {
             isFocused: track.id == selectedTrackID,
             isSelectionMode: session.tracksSelectionMode,
             isSelected: session.tracksSelection.contains(track.id),
-            onToggleMute: {
-                session.toggleTrackMute(trackID: track.id)
-            },
             onContextSelect: {
                 selectTrackForActions(track.id, additive: session.tracksSelection.contains(track.id))
-            },
-            onContextCopy: {
-                copySingleTrack(track.id)
             }
         ) {
             if session.tracksSelectionMode {
@@ -633,7 +624,6 @@ private struct KitMatrixCard: View {
     var isSelectionMode: Bool = false
     var isSelected: Bool = false
     let onSelectKit: () -> Void
-    let onCopyKit: () -> Void
     let onAddPart: () -> Void
     let onOpenKit: () -> Void
     let onToggleExpand: () -> Void
@@ -741,23 +731,6 @@ private struct KitMatrixCard: View {
         .onTapGesture(perform: onOpenKit)
         .studioSelectOnRightClick {
             onSelectKit()
-        }
-        .contextMenu {
-            Button("Select") {
-                onSelectKit()
-            }
-            Button("Copy") {
-                onCopyKit()
-            }
-            if partNames.isEmpty {
-                Button("Add Part") {
-                    onAddPart()
-                }
-            }
-            Divider()
-            Button(isCollapsed ? "Expand" : "Collapse") {
-                onToggleExpand()
-            }
         }
         .accessibilityIdentifier("kit-collapsed-cell")
     }
@@ -961,9 +934,7 @@ private struct TrackMatrixCard: View {
     let isFocused: Bool
     var isSelectionMode: Bool = false
     var isSelected: Bool = false
-    let onToggleMute: () -> Void
     let onContextSelect: () -> Void
-    let onContextCopy: () -> Void
     let onTap: () -> Void
 
     // Identity hue (bug 20260629-100436): a grouped part shares its kit's hue so
@@ -1042,18 +1013,6 @@ private struct TrackMatrixCard: View {
         }
         .studioSelectOnRightClick {
             onContextSelect()
-        }
-        .contextMenu {
-            Button("Select") {
-                onContextSelect()
-            }
-            Button("Copy") {
-                onContextCopy()
-            }
-            Divider()
-            Button(isMuted ? "Unmute" : "Mute") {
-                onToggleMute()
-            }
         }
     }
 
