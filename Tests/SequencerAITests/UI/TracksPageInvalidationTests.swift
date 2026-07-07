@@ -600,6 +600,34 @@ final class TracksPageInvalidationTests: XCTestCase {
             "The visual command runner should be able to drive the sampler sound capture state directly."
         )
     }
+
+    func test_drumKitRowHeaderKeepsPartNameTopAlignedAndRemovesLengthSubtext() throws {
+        let source = try String(
+            contentsOf: repoRoot.appendingPathComponent("Sources/UI/DrumGroup/DrumKitMatrixRowView.swift"),
+            encoding: .utf8
+        )
+        let nameColumn = try XCTUnwrap(
+            source.slice(from: "private var nameColumn", to: "@ViewBuilder\n    private var readOnlyBadge"),
+            "Drum-kit row name column should be present"
+        )
+
+        XCTAssertTrue(
+            source.contains("HStack(alignment: .top, spacing: 10)"),
+            "The drum-part name column should stay top-aligned in both compact and expanded rows."
+        )
+        XCTAssertTrue(
+            nameColumn.contains("Text(row.partName)\n                        .studioText(.subtitle)"),
+            "The drum-part name should be larger than the old compact label text."
+        )
+        XCTAssertFalse(
+            nameColumn.contains("clipLengthLabel"),
+            "The compact grey clip-length subtext should not render beneath the drum-part name."
+        )
+        XCTAssertFalse(
+            nameColumn.contains("kit-row-clip-length"),
+            "The removed clip-length subtext should not leave an accessibility target behind."
+        )
+    }
 }
 
 private extension String {
