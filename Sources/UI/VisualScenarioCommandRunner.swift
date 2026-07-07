@@ -1095,6 +1095,7 @@ enum VisualScenarioCommandRunner {
         trackClipLayerSwitcher=\(trackClipLayerSwitcherState)
         trackGeneratorStage=\(trackGeneratorStageState)
         trackGeneratorKind=\(trackGeneratorKindState)
+        trackSourceAddSourceVisible=\(trackSourceAddSourceVisible(selectedPattern: selectedPattern, session: session))
         selectedTrackSceneMembership=\(session.store.selectedTrack.mix.sceneMembership.rawValue)
         selectedTrackSoundDestinationKind=\(selectedTrackSoundDestinationKind(session: session))
         slicerFixture=\(slicerFixtureState)
@@ -2160,6 +2161,18 @@ enum VisualScenarioCommandRunner {
         case .sample: return "sample"
         case .slicer: return "slicer"
         case .inheritGroup: return "inheritGroup"
+        }
+    }
+
+    private static func trackSourceAddSourceVisible(
+        selectedPattern: TrackPatternSlot,
+        session: SequencerDocumentSession
+    ) -> String {
+        switch selectedPattern.sourceRef.mode {
+        case .clip:
+            return session.store.clipEntry(id: selectedPattern.sourceRef.clipID) == nil ? "true" : "false"
+        case .generator:
+            return session.store.generatorEntry(id: selectedPattern.sourceRef.generatorID) == nil ? "true" : "false"
         }
     }
 

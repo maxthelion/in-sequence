@@ -446,6 +446,38 @@ final class TracksPageInvalidationTests: XCTestCase {
             "Bake should remain in the same generator header grammar."
         )
     }
+
+    func test_emptyTrackSourceRendersInlineAddSourceAndHasCaptureRow() throws {
+        let sourceTab = try String(
+            contentsOf: repoRoot.appendingPathComponent("Sources/UI/TrackSource/TrackSourceSourceTabContent.swift"),
+            encoding: .utf8
+        )
+        let qaScript = try String(
+            contentsOf: repoRoot.appendingPathComponent("scripts/visual-scenarios/qa-surface-coverage.sh"),
+            encoding: .utf8
+        )
+        let visualRunner = try String(
+            contentsOf: repoRoot.appendingPathComponent("Sources/UI/VisualScenarioCommandRunner.swift"),
+            encoding: .utf8
+        )
+
+        XCTAssertTrue(
+            sourceTab.contains("case .empty:\n            addSourcePicker(step: sourcePickerStep ?? .root)"),
+            "Empty source slots should render the Add Source chooser inline, not an intermediate empty well."
+        )
+        XCTAssertTrue(
+            qaScript.contains("22a-track-add-source-empty"),
+            "The standard QA surface pass should include the inline Add Source empty-slot state."
+        )
+        XCTAssertTrue(
+            qaScript.contains("trackSourceAddSourceVisible=true"),
+            "The Add Source capture row should wait on a status key that proves the intended state."
+        )
+        XCTAssertTrue(
+            visualRunner.contains("trackSourceAddSourceVisible=\\("),
+            "The visual command status file should publish the Add Source visibility key."
+        )
+    }
 }
 
 private extension String {

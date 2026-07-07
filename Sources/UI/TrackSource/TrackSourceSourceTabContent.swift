@@ -101,27 +101,14 @@ struct TrackSourceSourceTabContent: View {
             }
 
         case .empty:
-            sourceSection
+            addSourcePicker(step: sourcePickerStep ?? .root)
         }
     }
 
     @ViewBuilder
     private var sourceSection: some View {
         if let sourcePickerStep {
-            TrackSourceContainedSourcePicker(
-                step: sourcePickerStep,
-                accent: accent,
-                compatibleGenerators: compatibleGenerators,
-                compatibleClips: compatibleClips,
-                onBack: handlePickerBack,
-                onCancel: onBackOutSourcePicker,
-                onShowGeneratorPool: onShowSourceGeneratorPool,
-                onShowClipPool: onShowSourceClipPool,
-                onCreateBlankGenerator: onCreateBlankGeneratorSource,
-                onSelectGenerator: onAssignGeneratorSource,
-                onCreateBlankClip: onCreateBlankClipSource,
-                onSelectClip: onAssignClipSource
-            )
+            addSourcePicker(step: sourcePickerStep)
         } else {
             TrackSourceSourceWell(
                 sourceMode: sourceMode,
@@ -132,6 +119,23 @@ struct TrackSourceSourceTabContent: View {
                 onRemoveSource: onRemoveSource
             )
         }
+    }
+
+    private func addSourcePicker(step: TrackSourceContainedSourcePickerStep) -> some View {
+        TrackSourceContainedSourcePicker(
+            step: step,
+            accent: accent,
+            compatibleGenerators: compatibleGenerators,
+            compatibleClips: compatibleClips,
+            onBack: handlePickerBack,
+            onCancel: onBackOutSourcePicker,
+            onShowGeneratorPool: onShowSourceGeneratorPool,
+            onShowClipPool: onShowSourceClipPool,
+            onCreateBlankGenerator: onCreateBlankGeneratorSource,
+            onSelectGenerator: onAssignGeneratorSource,
+            onCreateBlankClip: onCreateBlankClipSource,
+            onSelectClip: onAssignClipSource
+        )
     }
 
     private func handlePickerBack() {
