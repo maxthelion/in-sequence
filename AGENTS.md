@@ -65,6 +65,8 @@ summaries live under `.meta/multipass/state/`.
 - `.meta/multipass/state/` holds compact current-state summaries.
 - `/Users/maxwilliams/dev/foreman-coordinator/actors/` holds central actor prompts.
 - `scripts/visual-scenarios/` holds project-local Peekaboo visual evidence scripts.
+- `scripts/package-developer-id.sh` is the command-line Developer ID packaging
+  path for distribution builds; see `wiki/pages/developer-id-distribution.md`.
 
 ## Visual Capture Map
 
@@ -160,6 +162,19 @@ prefer the opt-in `sample-trigger` category for per-step playback probes.
 
 **Full reference: [`wiki/pages/runtime-observability.md`](wiki/pages/runtime-observability.md)** —
 read it before adding runtime logging or chasing an engine/playback bug.
+
+## Developer ID Distribution
+
+For distributable macOS builds, use `scripts/package-developer-id.sh` from a
+clean checkout or temporary clean worktree. Do not rely on Xcode's Organizer or
+export UI for the normal release path: it can rewrite
+`SequencerAI.xcodeproj/project.pbxproj` even when no intentional project setting
+changed.
+
+The runbook is [`wiki/pages/developer-id-distribution.md`](wiki/pages/developer-id-distribution.md).
+It covers the `seqai-notary` keychain profile, Developer ID signing,
+notarization, stapling, Gatekeeper verification, and the expected `In Sequence`
+distributed bundle name.
 
 ## Audio Engine Hard Rules
 
