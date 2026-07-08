@@ -31,7 +31,7 @@ extension DrumKitMatrixView {
                         .fill(accent)
                         .frame(width: 10, height: 10)
                     Text(model?.groupName ?? "Kit")
-                        .studioText(.display)
+                        .studioText(.title)
                         .foregroundStyle(StudioTheme.text)
                         .lineLimit(1)
                         .truncationMode(.tail)
@@ -63,25 +63,33 @@ extension DrumKitMatrixView {
     /// The 1–16 kit-level pattern pills, now living inside the header box. The
     /// kit supports only KIT-level patterns, so the former Linked / MIXED /
     /// Re-link controls are gone — selecting a slot applies it across the kit.
-    /// The Apply Template… action lives in the matrix well's selector row
-    /// (prototype 09 kit-matrix render).
+    /// Apply Template lives beside the persistent pattern/routing controls.
     func headerPatternPalette(_ model: DrumKitMatrixModel) -> some View {
-        TrackPatternSlotPalette(
-            selectedSlot: groupPatternSlotBinding(model),
-            occupiedSlots: model.occupiedSlotIndexes,
-            bypassState: .notApplicable,
-            onBypassToggle: { _ in },
-            accent: accent,
-            destinationMode: isCaptureOpen && isSelectingCaptureSaveSlot
-                ? TrackPatternSlotPalette.DestinationMode(
-                    pendingReplaceSlot: historyTargetSlotIndex(model),
-                    accent: accent
-                )
-                : nil,
-            onDestinationSelect: { slotIndex in
-                saveKitHistoryClipSet(model, slotIndex: slotIndex)
+        HStack(spacing: 10) {
+            TrackPatternSlotPalette(
+                selectedSlot: groupPatternSlotBinding(model),
+                occupiedSlots: model.occupiedSlotIndexes,
+                bypassState: .notApplicable,
+                onBypassToggle: { _ in },
+                accent: accent,
+                destinationMode: isCaptureOpen && isSelectingCaptureSaveSlot
+                    ? TrackPatternSlotPalette.DestinationMode(
+                        pendingReplaceSlot: historyTargetSlotIndex(model),
+                        accent: accent
+                    )
+                    : nil,
+                onDestinationSelect: { slotIndex in
+                    saveKitHistoryClipSet(model, slotIndex: slotIndex)
+                }
+            )
+
+            Spacer(minLength: 0)
+
+            headerActionButton(title: "Apply Template", systemImage: "square.grid.2x2") {
+                isPresentingTemplateChooser = true
             }
-        )
+            .help("Apply a pattern template into pattern slot P\((model.groupSelectedSlotIndex ?? 0) + 1)")
+        }
     }
 
     func headerActionButton(

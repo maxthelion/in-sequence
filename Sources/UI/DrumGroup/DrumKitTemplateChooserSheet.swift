@@ -46,7 +46,6 @@ struct DrumKitTemplateChooserSheet: View {
     var body: some View {
         StudioModal(
             title: "Apply Template",
-            subtitle: "\(groupName) — into pattern slot P\(targetSlotIndex + 1)",
             accent: accent,
             minWidth: 560,
             minHeight: 460,
@@ -95,11 +94,9 @@ struct DrumKitTemplateChooserSheet: View {
             HStack {
                 Spacer()
 
-                Button("Apply") {
+                TrackSourceActionButton(title: "Apply", accent: accent) {
                     requestApply()
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(accent)
                 .disabled(selectedTemplate == nil || selectedPreview?.filledPartNames.isEmpty != false)
                 .help(applyHelp)
             }
@@ -123,29 +120,16 @@ struct DrumKitTemplateChooserSheet: View {
         return Button {
             selectedTemplateID = template.id
         } label: {
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 8) {
                     Text(template.name)
                         .studioText(.bodyBold)
                         .foregroundStyle(StudioTheme.text)
 
-                    if preview.requiresOverwriteConfirmation {
-                        Text("OVERWRITES")
-                            .studioText(.microEmphasis)
-                            .tracking(0.6)
-                            .foregroundStyle(StudioTheme.background)
-                            .padding(.horizontal, 7)
-                            .padding(.vertical, 3)
-                            .background(StudioTheme.warning, in: Capsule())
-                    }
-
                     Spacer(minLength: 0)
                 }
 
-                Text(preview.summary)
-                    .studioText(.label)
-                    .foregroundStyle(StudioTheme.mutedText)
-                    .lineLimit(2)
+                templatePatternPreview(template)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(StudioMetrics.Spacing.compact)
@@ -165,8 +149,44 @@ struct DrumKitTemplateChooserSheet: View {
             .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
         }
         .buttonStyle(.plain)
+        .help(preview.summary)
         .accessibilityLabel("Template \(template.name)")
         .accessibilityValue(isSelected ? "Selected" : "Not selected")
+    }
+
+    private func templatePatternPreview(_ template: PatternTemplate) -> some View {
+        let rows = template.patterns
+            .keys
+            .sorted()
+            .prefix(3)
+            .compactMap { tag -> (String, [Bool])? in
+                guard let pattern = template.patterns[tag] else { return nil }
+                return (PatternTemplateApplicationPreview.tagLabel(tag), Array(pattern.prefix(PatternTemplate.stepCount)))
+            }
+
+        return VStack(alignment: .leading, spacing: 4) {
+            ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
+                HStack(spacing: 5) {
+                    Text(row.0)
+                        .studioText(.microEmphasis)
+                        .foregroundStyle(StudioTheme.text)
+                        .frame(width: 54, alignment: .leading)
+                        .lineLimit(1)
+
+                    HStack(spacing: 2) {
+                        ForEach(Array(row.1.enumerated()), id: \.offset) { _, isOn in
+                            RoundedRectangle(cornerRadius: 1.5, style: .continuous)
+                                .fill(isOn ? accent : StudioTheme.inset)
+                                .frame(width: 8, height: 8)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 1.5, style: .continuous)
+                                        .stroke(StudioTheme.border.opacity(0.75), lineWidth: 0.5)
+                                )
+                        }
+                    }
+                }
+            }
+        }
     }
 
     private func requestApply() {

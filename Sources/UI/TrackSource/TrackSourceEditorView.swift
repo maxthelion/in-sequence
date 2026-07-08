@@ -416,12 +416,6 @@ struct TrackSourceEditorView: View {
         }
     }
 
-    private var randomizePreviewContent: ClipContent? {
-        guard let currentClip else { return nil }
-        let seed = randomizeAuditionSeed ?? currentClip.randomizeSettings?.lastSeed ?? 0
-        return ClipRandomizeBaker.bake(source: currentClip.content, settings: randomizeDraft, seed: seed)
-    }
-
     private func handleTrackSourceEditorVisualCommand(_ command: String) {
         if command.hasPrefix("select-tab:") {
             guard let tab = TrackSourceEditorTab.tab(forVisualCommand: String(command.dropFirst("select-tab:".count))),
@@ -479,43 +473,36 @@ struct TrackSourceEditorView: View {
     }
 
     private func randomizeSelectedClipNow() {
-        guard canRandomizeSelectedClip else { return }
-        let settings = currentClip?.randomizeSettings ?? ClipRandomizeSettings()
-        let seed = nextRandomizeSeed()
-        _ = session.bakeRandomizedSelectedClip(trackID: track.id, settings: settings, seed: seed)
+        presentRandomizePanel(rollImmediately: true)
     }
 
-    private func presentRandomizePanel() {
+    private func presentRandomizePanel(rollImmediately: Bool = true) {
         guard canRandomizeSelectedClip else { return }
         randomizeDraft = currentClip?.randomizeSettings ?? ClipRandomizeSettings()
-        randomizeAuditionSeed = nil
         isRandomizePanelVisible = true
+        if rollImmediately {
+            commitRandomizeDraft(keepPanelOpen: true)
+        }
     }
 
     private func auditionRandomizeDraft() {
+        commitRandomizeDraft(keepPanelOpen: true)
+    }
+
+    private func commitRandomizeDraft(keepPanelOpen: Bool) {
         guard canRandomizeSelectedClip else { return }
         let seed = nextRandomizeSeed()
         randomizeAuditionSeed = seed
         var persisted = randomizeDraft.normalized
         persisted.lastSeed = seed
         randomizeDraft = persisted
-        _ = session.auditionRandomizedSelectedClip(trackID: track.id, settings: persisted, seed: seed)
-    }
-
-    private func bakeRandomizeDraft() {
-        guard canRandomizeSelectedClip else { return }
-        let seed = randomizeAuditionSeed ?? nextRandomizeSeed()
-        var persisted = randomizeDraft.normalized
-        persisted.lastSeed = seed
         _ = session.bakeRandomizedSelectedClip(trackID: track.id, settings: persisted, seed: seed)
         session.clearRandomizeAudition(trackID: track.id)
-        randomizeAuditionSeed = nil
-        isRandomizePanelVisible = false
+        isRandomizePanelVisible = keepPanelOpen
     }
 
     private func closeRandomizePanel() {
         session.clearRandomizeAudition(trackID: track.id)
-        randomizeAuditionSeed = nil
         isRandomizePanelVisible = false
     }
 
@@ -561,10 +548,7 @@ struct TrackSourceEditorView: View {
                     ClipRandomizeSettingsPanel(
                         settings: $randomizeDraft,
                         accent: accent,
-                        isAuditioning: randomizeAuditionSeed != nil,
-                        previewContent: randomizePreviewContent,
                         onReRoll: auditionRandomizeDraft,
-                        onBake: bakeRandomizeDraft,
                         onClose: closeRandomizePanel
                     )
                 )
@@ -575,7 +559,7 @@ struct TrackSourceEditorView: View {
                 if isRandomizePanelVisible {
                     closeRandomizePanel()
                 } else {
-                    presentRandomizePanel()
+                    presentRandomizePanel(rollImmediately: true)
                 }
             },
             onShowSourcePicker: { updateSourcePickerStep(.showRoot) },
@@ -1196,16 +1180,12 @@ struct TrackSourceEditorView: View {
 struct ClipRandomizeSettingsPanel: View {
     @Binding var settings: ClipRandomizeSettings
     let accent: Color
-    let isAuditioning: Bool
-    let previewContent: ClipContent?
     let onReRoll: () -> Void
-    let onBake: () -> Void
     let onClose: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             controls
-            previewStrip
             actionRow
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -1309,49 +1289,6 @@ struct ClipRandomizeSettingsPanel: View {
         }
     }
 
-    private var previewStrip: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
-                Text("AUDITION")
-                    .studioText(.eyebrow)
-                    .tracking(0.8)
-                    .foregroundStyle(StudioTheme.mutedText)
-
-                if isAuditioning {
-                    Text("Playing")
-                        .studioText(.micro)
-                        .foregroundStyle(StudioTheme.background)
-                        .padding(.vertical, 3)
-                        .padding(.horizontal, 7)
-                        .background(accent, in: Capsule())
-                }
-            }
-
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: 16), spacing: 4) {
-                ForEach(0..<16, id: \.self) { index in
-                    previewCell(at: index)
-                }
-            }
-        }
-    }
-
-    private func previewCell(at index: Int) -> some View {
-        let note = previewStep(at: index)?.main?.notes.first
-        return Text(note.map { "\($0.pitch)" } ?? "")
-            .font(.system(size: 9, weight: .bold, design: .rounded))
-            .foregroundStyle(note == nil ? StudioTheme.mutedText : StudioTheme.background)
-            .frame(height: 24)
-            .frame(maxWidth: .infinity)
-            .background(
-                note == nil ? StudioTheme.subtleFill : accent,
-                in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous)
-                    .stroke(note == nil ? StudioTheme.border : Color.clear, lineWidth: StudioMetrics.borderWidth)
-            )
-    }
-
     private var actionRow: some View {
         HStack(spacing: 10) {
             Button(action: onReRoll) {
@@ -1370,18 +1307,6 @@ struct ClipRandomizeSettingsPanel: View {
                 .buttonStyle(.plain)
                 .studioText(.labelBold)
                 .foregroundStyle(StudioTheme.mutedText)
-
-            // Accent, not success-green: green is a fenced STATE colour
-            // (capturing/live) and never an action fill (design review 20b).
-            Button(action: onBake) {
-                Text("Bake")
-                    .studioText(.labelBold)
-                    .foregroundStyle(StudioTheme.background)
-                    .padding(.vertical, 9)
-                    .padding(.horizontal, 14)
-                    .background(accent, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
-            }
-            .buttonStyle(.plain)
         }
     }
 
@@ -1389,15 +1314,6 @@ struct ClipRandomizeSettingsPanel: View {
         var copy = settings
         mutate(&copy)
         settings = copy.normalized
-    }
-
-    private func previewStep(at index: Int) -> ClipStep? {
-        guard case let .noteGrid(_, steps) = previewContent?.normalized,
-              !steps.isEmpty
-        else {
-            return nil
-        }
-        return steps[index % steps.count]
     }
 
     private func rootLabel(_ pitchClass: Int) -> String {

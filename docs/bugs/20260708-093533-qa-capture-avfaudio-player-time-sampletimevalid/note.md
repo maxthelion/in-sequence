@@ -34,4 +34,4 @@ Expected:
 - Visual QA capture should not crash the app or leave the command channel stale.
 - Sample/drum-kit playback scheduling must avoid `AVAudioPlayerNode` commands when node time is invalid; fixes must respect the audio hard rules, especially schedule-ahead timing and fixed-graph routing.
 
-Status: RESOLVED pending final commit; fresh qa-surface-coverage run 20260708-090903-in-sequence-qa-surface-coverage-main-923a889d absorbed all 79 PNG rows without reproducing the AVFAudio abort. Rows 29c, 29d, and 29f needed narrow status-timeout backfills after the full run, so the crash is fixed but drum-kit command ack latency remains separate process evidence if it recurs.
+Status: RESOLVED in this commit; fresh qa-surface-coverage run 20260708-090903-in-sequence-qa-surface-coverage-main-923a889d absorbed all 79 PNG rows without reproducing the AVFAudio abort. Rows 29c, 29d, and 29f needed narrow status-timeout backfills after the full run, so the crash is fixed but drum-kit command ack latency remains separate process evidence if it recurs.

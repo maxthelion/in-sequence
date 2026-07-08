@@ -7,7 +7,6 @@ struct StudioModal<Content: View, HeaderAccessory: View>: View {
     let title: String
     var subtitle: String? = nil
     var accent: Color = StudioTheme.transportAccent
-    var showsTitleRule = true
     var minWidth: CGFloat = 480
     var minHeight: CGFloat? = nil
     var onClose: () -> Void
@@ -36,21 +35,10 @@ struct StudioModal<Content: View, HeaderAccessory: View>: View {
                         .foregroundStyle(StudioTheme.text)
                         .lineLimit(1)
                         .truncationMode(.tail)
-
-                    if showsTitleRule {
-                        Rectangle()
-                            .fill(accent)
-                            .frame(width: 36, height: 2)
-                    }
                 }
 
-                if let subtitle {
-                    Text(subtitle)
-                        .studioText(.body)
-                        .foregroundStyle(StudioTheme.mutedText)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                }
+                // Keep the subtitle parameter for existing sheet call sites,
+                // but modal headers intentionally render as title-only chrome.
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -72,7 +60,6 @@ extension StudioModal where HeaderAccessory == EmptyView {
         title: String,
         subtitle: String? = nil,
         accent: Color = StudioTheme.transportAccent,
-        showsTitleRule: Bool = true,
         minWidth: CGFloat = 480,
         minHeight: CGFloat? = nil,
         onClose: @escaping () -> Void,
@@ -82,7 +69,6 @@ extension StudioModal where HeaderAccessory == EmptyView {
             title: title,
             subtitle: subtitle,
             accent: accent,
-            showsTitleRule: showsTitleRule,
             minWidth: minWidth,
             minHeight: minHeight,
             onClose: onClose,

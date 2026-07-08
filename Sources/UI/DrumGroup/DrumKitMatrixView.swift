@@ -411,7 +411,7 @@ struct DrumKitMatrixView: View {
     }
 
     private var content: some View {
-        StudioPanel(title: "Drum Kit", accent: accent, showsHeader: false) {
+        StudioPanel(title: "Drum Kit", accent: accent, showsHeader: false, contentPadding: StudioMetrics.Spacing.standard) {
             VStack(alignment: .leading, spacing: 18) {
                 header
 
@@ -602,9 +602,7 @@ struct DrumKitMatrixView: View {
     /// Matrix tab: the existing matrix content, minus the group pattern row
     /// (which now lives in the persistent Patterns row above). The layer/fill/
     /// bar value selectors render as inset tracks INSIDE the well (locked
-    /// grammar), with the Apply Template… action button at the row's trailing
-    /// edge (per prototype 09 kit-matrix render) — accent-filled so it stays
-    /// visually distinct from the selectors. (AC23)
+    /// grammar). (AC23)
     @ViewBuilder
     func matrixTabBody(_ model: DrumKitMatrixModel) -> some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -614,13 +612,6 @@ struct DrumKitMatrixView: View {
                 fillModeControl(model)
 
                 barPager(model)
-
-                Spacer(minLength: 0)
-
-                headerActionButton(title: "Apply Template…", systemImage: "square.grid.2x2") {
-                    isPresentingTemplateChooser = true
-                }
-                .help("Apply a pattern template into pattern slot P\((model.groupSelectedSlotIndex ?? 0) + 1)")
             }
 
             if model.staleMemberCount > 0 {

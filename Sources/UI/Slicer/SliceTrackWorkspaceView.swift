@@ -851,12 +851,7 @@ struct SliceTrackWorkspaceView: View {
 
                 Spacer()
 
-                // Live slice count reflects the in-progress draft. The draft is
-                // populated on appear and on every parameter change, so this
-                // tracks the preview the user sees on the waveform.
-                Text("\(detectionSliceCount) slices")
-                    .studioText(.labelBold)
-                    .foregroundStyle(accent)
+                EmptyView()
             }
 
             if analysisMode == .transient {

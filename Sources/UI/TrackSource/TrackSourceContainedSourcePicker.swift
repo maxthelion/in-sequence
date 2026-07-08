@@ -19,7 +19,7 @@ enum TrackSourceContainedSourcePickerStep: Equatable {
     var eyebrow: String {
         switch self {
         case .root:
-            return "Choose how to populate this slot."
+            return ""
         case .generatorPool:
             return "Pick a compatible generator without leaving the editor."
         case .clipPool:
@@ -88,7 +88,7 @@ struct TrackSourceContainedSourcePickerPresentation: Equatable {
         )
     }
 
-    private static let newBlankGeneratorAction = TrackSourceContainedSourcePickerActionPresentation(
+    fileprivate static let newBlankGeneratorAction = TrackSourceContainedSourcePickerActionPresentation(
         id: .createBlankGenerator,
         title: "New Blank Generator",
         detail: "Fastest recovery path for this slot.",
@@ -97,7 +97,7 @@ struct TrackSourceContainedSourcePickerPresentation: Equatable {
 
     private static let selectGeneratorAction = TrackSourceContainedSourcePickerActionPresentation(
         id: .showGeneratorPool,
-        title: "Select Generator From Pool",
+        title: "Generator Pool",
         detail: "Browse compatible pool entries in this editor.",
         role: .poolDisclosure
     )
@@ -118,7 +118,7 @@ struct TrackSourceContainedSourcePickerPresentation: Equatable {
 
     private static let selectClipAction = TrackSourceContainedSourcePickerActionPresentation(
         id: .showClipPool,
-        title: "Select Clip From Pool",
+        title: "Clip Pool",
         detail: "Browse compatible pool entries in this editor.",
         role: .poolDisclosure
     )
@@ -221,33 +221,71 @@ struct TrackSourceContainedSourcePicker: View {
     }
 
     var body: some View {
-        StudioPanel(title: step.title, eyebrow: step.eyebrow, accent: accent) {
-            VStack(alignment: .leading, spacing: 16) {
-                switch step {
-                case .root:
-                    rootContent
-                case .generatorPool:
-                    generatorPoolContent
-                case .clipPool:
-                    clipPoolContent
-                }
+        if step == .root {
+            rootContent
+        } else {
+            StudioPanel(title: step.title, eyebrow: step.eyebrow, accent: accent) {
+                VStack(alignment: .leading, spacing: 16) {
+                    switch step {
+                    case .root:
+                        EmptyView()
+                    case .generatorPool:
+                        generatorPoolContent
+                    case .clipPool:
+                        clipPoolContent
+                    }
 
-                controlsRow
+                    controlsRow
+                }
             }
         }
     }
 
     private var rootContent: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            ForEach(presentation.rootGroups) { group in
-                pickerGroup(
-                    group: group,
-                    primaryAccent: accent(for: group.primary.id),
-                    primaryAction: action(for: group.primary.id),
-                    secondaryAction: action(for: group.secondary.id)
-                )
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .top, spacing: 14) {
+                newClipWell
+                blankGeneratorList
+            }
+
+            VStack(alignment: .leading, spacing: 14) {
+                newClipWell
+                blankGeneratorList
             }
         }
+    }
+
+    private var newClipWell: some View {
+        StudioAddCard(
+            label: "New Clip",
+            accent: accent,
+            minHeight: 148,
+            backgroundColor: StudioTheme.background,
+            help: "Create a blank clip"
+        ) {
+            onCreateBlankClip()
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private var blankGeneratorList: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            pickerActionButton(
+                action: TrackSourceContainedSourcePickerPresentation.newBlankGeneratorAction,
+                accent: accent,
+                trigger: onCreateBlankGenerator
+            )
+        }
+        .frame(maxWidth: .infinity, minHeight: 148, alignment: .topLeading)
+        .padding(StudioMetrics.Spacing.standard)
+        .background(
+            StudioTheme.background,
+            in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
+                .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+        )
     }
 
     private var generatorPoolContent: some View {

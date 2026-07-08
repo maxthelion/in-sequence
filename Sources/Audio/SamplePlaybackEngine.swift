@@ -593,7 +593,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         // Hard Rule 4: schedule the RESIDENT PCM buffer (warm-from-RAM). The
         // live trigger path always supplies a warmed `pcmBuffer`; the file
         // fallback below is reserved for the URL/audition path with no buffer.
-        scheduleResidentOrFileSegment(
+        guard scheduleResidentOrFileSegment(
             voice,
             file: file,
             pcmBuffer: pcmBuffer,
@@ -602,7 +602,16 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
             transforms: nil,
             playbackFormat: voice.outputFormat(forBus: 0),
             at: effectiveWhen
-        )
+        ) else {
+            deferPreparedTrackRepair(trackID: trackID, scheduled: scheduled)
+            SequencerTimingProbe.sampleFastPath(
+                trackID: trackID,
+                scheduled: scheduled,
+                actual: ProcessInfo.processInfo.systemUptime,
+                result: "schedule-failed"
+            )
+            return nil
+        }
         guard startVoiceSafely(voice, at: effectiveWhen) else {
             deferPreparedTrackRepair(trackID: trackID, scheduled: scheduled)
             SequencerTimingProbe.sampleFastPath(
@@ -791,7 +800,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         // the in-RAM sub-range (sample start / length); the file fallback only
         // engages when no resident buffer exists (URL/audition path).
         let frameRange = Self.sampleFrameRange(file: file, settings: settings, params: params)
-        scheduleResidentOrFileSegment(
+        guard scheduleResidentOrFileSegment(
             voice,
             file: file,
             pcmBuffer: pcmBuffer,
@@ -800,7 +809,9 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
             transforms: nil,
             playbackFormat: voice.outputFormat(forBus: 0),
             at: when
-        )
+        ) else {
+            return false
+        }
         return startVoiceSafely(voice, at: when)
     }
 
@@ -835,7 +846,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
             attackMs: sliceParameters.attackMs,
             releaseMs: sliceParameters.releaseMs
         )
-        scheduleResidentOrFileSegment(
+        guard scheduleResidentOrFileSegment(
             voice,
             file: file,
             pcmBuffer: pcmBuffer,
@@ -844,7 +855,9 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
             transforms: transforms,
             playbackFormat: voice.outputFormat(forBus: 0),
             at: when
-        )
+        ) else {
+            return false
+        }
         return startVoiceSafely(voice, at: when)
     }
 
@@ -870,7 +883,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         transforms: SliceBufferTransforms?,
         playbackFormat: AVAudioFormat,
         at when: AVAudioTime?
-    ) {
+    ) -> Bool {
         if let buffer = residentTriggerBuffer(
             pcmBuffer: pcmBuffer,
             fileFormat: file.processingFormat,
@@ -879,24 +892,35 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
             frameCount: frameCount,
             transforms: transforms
         ) {
-            voice.scheduleBuffer(buffer, at: when, options: [], completionHandler: nil)
+            if let exception = SEQRunCatchingObjCException({
+                voice.scheduleBuffer(buffer, at: when, options: [], completionHandler: nil)
+            }) {
+                DevActivity.trace(DevActivity.audioGraph, "dropped sample trigger: scheduleBuffer threw \(exception.name.rawValue): \(exception.reason ?? "no reason")")
+                return false
+            }
             #if DEBUG
             residentBufferScheduleCountForTesting += 1
             #endif
-            return
+            return true
         }
 
         // realtime-allow-file-stream: bounded large-loop / no-resident-buffer fallback only; warmed PreparedSampleAsset triggers always take the resident scheduleBuffer branch above (verified: EngineController dispatches sampleAsset assets carrying pcmBuffer). Test: SamplePlaybackEngineResidentBufferTests.
-        voice.scheduleSegment(
-            file,
-            startingFrame: startFrame,
-            frameCount: frameCount,
-            at: when,
-            completionHandler: nil
-        )
+        if let exception = SEQRunCatchingObjCException({
+            voice.scheduleSegment(
+                file,
+                startingFrame: startFrame,
+                frameCount: frameCount,
+                at: when,
+                completionHandler: nil
+            )
+        }) {
+            DevActivity.trace(DevActivity.audioGraph, "dropped sample trigger: scheduleSegment threw \(exception.name.rawValue): \(exception.reason ?? "no reason")")
+            return false
+        }
         #if DEBUG
         fileSegmentScheduleCountForTesting += 1
         #endif
+        return true
     }
 
     /// Build the resident sub-range buffer for a trigger from the warmed
