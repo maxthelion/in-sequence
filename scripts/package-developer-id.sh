@@ -22,6 +22,9 @@ Options:
                                env: SEQAI_DEVELOPER_ID_APPLICATION
   --output-dir DIR             Output directory. Defaults to
                                dist/developer-id/<timestamp>-<commit>
+  --app-name NAME              Distributed .app bundle name. Defaults to
+                               "In Sequence"
+                               env: SEQAI_DISTRIBUTION_APP_NAME
   --configuration NAME         Xcode configuration. Defaults to Release
   --scheme NAME                Xcode scheme. Defaults to SequencerAI
   --skip-notarize              Export and zip the signed app, but do not
@@ -46,6 +49,7 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 project="$repo_root/SequencerAI.xcodeproj"
 scheme="SequencerAI"
 configuration="Release"
+distribution_app_name="${SEQAI_DISTRIBUTION_APP_NAME:-In Sequence}"
 team_id="${SEQAI_DEVELOPMENT_TEAM:-${DEVELOPMENT_TEAM:-${APPLE_TEAM_ID:-}}}"
 signing_identity="${SEQAI_DEVELOPER_ID_APPLICATION:-Developer ID Application}"
 notary_profile="${SEQAI_NOTARY_PROFILE:-${NOTARY_PROFILE:-}}"
@@ -82,6 +86,12 @@ while (($# > 0)); do
     --configuration)
       [[ $# -ge 2 ]] || { printf 'Missing value for --configuration\n' >&2; exit 64; }
       configuration="${2:-}"
+      shift 2
+      continue
+      ;;
+    --app-name)
+      [[ $# -ge 2 ]] || { printf 'Missing value for --app-name\n' >&2; exit 64; }
+      distribution_app_name="${2:-}"
       shift 2
       continue
       ;;
@@ -152,8 +162,12 @@ fi
 archive_path="$output_dir/SequencerAI.xcarchive"
 export_dir="$output_dir/export"
 export_options="$output_dir/ExportOptions.plist"
-notary_zip="$output_dir/SequencerAI-notary-submit.zip"
-final_zip="$output_dir/SequencerAI-${commit}-developer-id.zip"
+zip_slug="$(printf '%s' "$distribution_app_name" | tr -cd '[:alnum:]_-')"
+if [[ -z "$zip_slug" ]]; then
+  zip_slug="SequencerAI"
+fi
+notary_zip="$output_dir/${zip_slug}-notary-submit.zip"
+final_zip="$output_dir/${zip_slug}-${commit}-developer-id.zip"
 
 mkdir -p "$output_dir"
 
@@ -183,6 +197,7 @@ printf '  commit:          %s\n' "$commit"
 printf '  dirty:           %s\n' "$dirty"
 printf '  team:            %s\n' "$team_id"
 printf '  identity:        %s\n' "$signing_identity"
+printf '  app name:        %s\n' "$distribution_app_name"
 printf '  output:          %s\n' "$output_dir"
 
 xcodebuild archive \
@@ -209,6 +224,13 @@ app_path="$(find "$export_dir" -maxdepth 1 -name '*.app' -type d | head -n 1)"
 if [[ -z "$app_path" ]]; then
   printf 'Export succeeded but no .app was found in %s\n' "$export_dir" >&2
   exit 66
+fi
+
+distribution_app_path="$export_dir/${distribution_app_name}.app"
+if [[ "$app_path" != "$distribution_app_path" ]]; then
+  rm -rf "$distribution_app_path"
+  mv "$app_path" "$distribution_app_path"
+  app_path="$distribution_app_path"
 fi
 
 codesign --verify --deep --strict --verbose=2 "$app_path"

@@ -35,10 +35,15 @@ The script:
 
 1. Archives the Release app with `xcodebuild archive`.
 2. Exports using Developer ID signing.
-3. Zips the app for notarization.
-4. Submits with `xcrun notarytool`.
-5. Staples and validates the notarization ticket.
-6. Produces a final distributable zip under `dist/developer-id/`.
+3. Renames the exported bundle to `In Sequence.app`.
+4. Zips the app for notarization.
+5. Submits with `xcrun notarytool`.
+6. Staples and validates the notarization ticket.
+7. Produces a final distributable zip under `dist/developer-id/`.
+
+The Xcode target/scheme and bundle identifier remain `SequencerAI` /
+`ai.sequencer.SequencerAI`; only the user-facing app/document names and
+distributed bundle filename are `In Sequence`.
 
 ## Useful Options
 
@@ -57,6 +62,15 @@ Create a signed but unnotarized artifact for local smoke testing:
 scripts/package-developer-id.sh \
   --team-id TEAMID \
   --skip-notarize
+```
+
+Override the distributed app bundle name:
+
+```sh
+scripts/package-developer-id.sh \
+  --team-id TEAMID \
+  --notary-profile seqai-notary \
+  --app-name "In Sequence"
 ```
 
 Package from a dirty checkout only when deliberately making a throwaway build:
