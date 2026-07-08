@@ -89,6 +89,37 @@ final class MixerBusHost {
     }
 
     @MainActor
+    func prepareAUEffect(insertID: UUID) {
+        guard let insert = latestBus?.inserts.first(where: { $0.id == insertID }),
+              case let .auEffect(componentID, stateBlob) = insert.kind
+        else { return }
+        _ = cachedAUEffectNode(insertID: insertID, componentID: componentID, stateBlob: stateBlob)
+    }
+
+    @MainActor
+    func currentAUEffect(insertID: UUID) -> AVAudioUnit? {
+        guard let insert = latestBus?.inserts.first(where: { $0.id == insertID }),
+              case let .auEffect(componentID, stateBlob) = insert.kind,
+              let cached = cachedAUEffects[insertID],
+              cached.componentID == componentID,
+              cached.stateBlob == stateBlob
+        else {
+            return nil
+        }
+        return cached.unit
+    }
+
+    @MainActor
+    func auEffectParameterReadout(insertID: UUID) -> [AUParameterDescriptor]? {
+        guard let unit = currentAUEffect(insertID: insertID),
+              let tree = unit.auAudioUnit.parameterTree
+        else {
+            return nil
+        }
+        return AudioInstrumentHost.parameterDescriptors(from: tree)
+    }
+
+    @MainActor
     func teardown(from audioGraph: MainAudioGraph) {
         if let inputMixer {
             audioGraph.disconnectOutput(inputMixer)

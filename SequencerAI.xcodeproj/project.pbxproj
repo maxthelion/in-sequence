@@ -441,6 +441,7 @@
 		B6863061684526E1768461AF /* SequencerDocumentSessionRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A722A3FE340A068B514DB7E /* SequencerDocumentSessionRegistry.swift */; };
 		B71F8D067ABCCFB699A3DEB6 /* OfflineRenderHarness.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0106D90C2A84332F0CA02A91 /* OfflineRenderHarness.swift */; };
 		B881B8D0AB773876DB47639B /* InsertChainComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9861C444DE75DD989268D69D /* InsertChainComponents.swift */; };
+		BE39FDAA50E1B2F0EBFBCF6E /* AUEffectEditorPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E0F8608A69EC6B4AEA19E91 /* AUEffectEditorPanel.swift */; };
 		B927D6F5540DAAA2EACE4F9F /* InsertKindShape.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2438B744373D8C903E8CF1AF /* InsertKindShape.swift */; };
 		BA8016BC55D62287FBAA7C39 /* AVAudioPCMBuffer+PlaybackConversion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4CFAB8C28D29758AD8AF801D /* AVAudioPCMBuffer+PlaybackConversion.swift */; };
 		BACEF904A3AEB81E5BC505E7 /* ClipContentEmptyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D69E7F5964479E254C64568 /* ClipContentEmptyTests.swift */; };
@@ -780,6 +781,7 @@
 		1857B367680D1547BFEE9EB6 /* SequencerAI.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = SequencerAI.entitlements; sourceTree = "<group>"; };
 		18868819F0898E9CEDE6F7D9 /* note.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = note.md; sourceTree = "<group>"; };
 		18A42B9452FE5B613F4A8127 /* SequencerSnapshotCompiler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SequencerSnapshotCompiler.swift; sourceTree = "<group>"; };
+		1E0F8608A69EC6B4AEA19E91 /* AUEffectEditorPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AUEffectEditorPanel.swift; sourceTree = "<group>"; };
 		18AEECC2BF587F77E849B4F5 /* SaveFlushTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SaveFlushTests.swift; sourceTree = "<group>"; };
 		18CD1A530C413842E775B627 /* TrackPatternBankCodableTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackPatternBankCodableTests.swift; sourceTree = "<group>"; };
 		18E0C15911AFC9330A237D90 /* validated-capture-status.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = "validated-capture-status.txt"; sourceTree = "<group>"; };
@@ -3937,6 +3939,7 @@
 		56BDE8D8CBF7788B17981BBE /* FX */ = {
 			isa = PBXGroup;
 			children = (
+				1E0F8608A69EC6B4AEA19E91 /* AUEffectEditorPanel.swift */,
 				4ABDD0F18942E1FECFD44799 /* FXInsertEditorSheet.swift */,
 				9861C444DE75DD989268D69D /* InsertChainComponents.swift */,
 			);
@@ -7617,6 +7620,7 @@
 				6C66703D23737075A1530E07 /* GeneratorParamsEditorView.swift in Sources */,
 				65B174285FFD41552F62BFF0 /* GlobalApplyLayerCard.swift in Sources */,
 				48BD197D4D71219D62370DF4 /* GridEditor.swift in Sources */,
+				BE39FDAA50E1B2F0EBFBCF6E /* AUEffectEditorPanel.swift in Sources */,
 				B881B8D0AB773876DB47639B /* InsertChainComponents.swift in Sources */,
 				B927D6F5540DAAA2EACE4F9F /* InsertKindShape.swift in Sources */,
 				295A4BEED435806DC5E40E53 /* InspectorView.swift in Sources */,

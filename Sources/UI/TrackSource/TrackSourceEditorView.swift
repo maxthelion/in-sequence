@@ -721,11 +721,8 @@ struct TrackSourceEditorView: View {
 
     @ViewBuilder
     private var fxTab: some View {
-        // ENGINE TODO: the chain is persisted + fully editable here, but the
-        // inserts do not yet process audio. Wiring `track.fxInserts` (respecting
-        // order + bypass) into the per-track audio graph — reusing the existing
-        // AU-effect host path used for bus/master/scene inserts — is a follow-up.
         TrackFXChainView(
+            trackID: track.id,
             inserts: track.fxInserts,
             accent: accent,
             onAddFX: { isAddFXPresented = true },

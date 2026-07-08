@@ -2101,6 +2101,30 @@ final class EngineController: RouterDispatcher {
         masterBusHost.auEffectParameterReadout(insertID: insertID)
     }
 
+    func prepareTrackAUEffect(trackID: UUID, insertID: UUID) {
+        mainAudioGraph.prepareTrackAUEffect(trackID: trackID, insertID: insertID)
+    }
+
+    func currentTrackAUEffect(trackID: UUID, insertID: UUID) -> AVAudioUnit? {
+        mainAudioGraph.currentTrackAUEffect(trackID: trackID, insertID: insertID)
+    }
+
+    func trackAUEffectParameterReadout(trackID: UUID, insertID: UUID) -> [AUParameterDescriptor]? {
+        mainAudioGraph.trackAUEffectParameterReadout(trackID: trackID, insertID: insertID)
+    }
+
+    func prepareMixerBusAUEffect(busID: UUID, insertID: UUID) {
+        mainAudioGraph.prepareMixerBusAUEffect(busID: busID, insertID: insertID)
+    }
+
+    func currentMixerBusAUEffect(busID: UUID, insertID: UUID) -> AVAudioUnit? {
+        mainAudioGraph.currentMixerBusAUEffect(busID: busID, insertID: insertID)
+    }
+
+    func mixerBusAUEffectParameterReadout(busID: UUID, insertID: UUID) -> [AUParameterDescriptor]? {
+        mainAudioGraph.mixerBusAUEffectParameterReadout(busID: busID, insertID: insertID)
+    }
+
     var availableAudioInstruments: [AudioInstrumentChoice] {
         if let audioPluginChoiceFixtureInstruments {
             return audioPluginChoiceFixtureInstruments

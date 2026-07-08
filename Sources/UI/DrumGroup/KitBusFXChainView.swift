@@ -14,6 +14,7 @@ import SwiftUI
 /// the kit-bus session API (`addMixerBusInsert` etc.).
 struct KitBusFXChainView: View {
     @Environment(SequencerDocumentSession.self) private var session
+    @Environment(EngineController.self) private var engineController
 
     let busID: UUID
     let inserts: [MixerBusInsert]
@@ -131,7 +132,7 @@ struct KitBusFXChainView: View {
                 kindEditor(insert)
             }
             .padding(StudioMetrics.Spacing.roomy)
-            .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
+            .background(StudioTheme.background, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
                     .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
@@ -210,18 +211,30 @@ struct KitBusFXChainView: View {
         )
     }
 
-    // AU inserts on the kit bus do not yet host an in-panel parameter editor
-    // (the AU host is scoped to the master bus). Show the insert summary so the
-    // editor pane is not empty, consistent with not inventing broken controls.
     private func auEffectSummary(_ insert: MixerBusInsert) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(insert.name)
-                .studioText(.bodyEmphasis)
-                .foregroundStyle(StudioTheme.text)
-            Text(insert.kind.summary)
-                .studioText(.body)
-                .foregroundStyle(StudioTheme.mutedText)
-        }
+        AUEffectEditorPanel(
+            title: insert.name,
+            subtitle: insert.kind.summary,
+            accent: accent,
+            prepare: {
+                engineController.prepareMixerBusAUEffect(busID: busID, insertID: insert.id)
+            },
+            currentAudioUnit: {
+                engineController.currentMixerBusAUEffect(busID: busID, insertID: insert.id)
+            },
+            parameterReadout: {
+                engineController.mixerBusAUEffectParameterReadout(busID: busID, insertID: insert.id)
+            },
+            openWindow: { audioUnit in
+                AUWindowHost.shared.open(
+                    for: .mixerBusInsert(busID: busID, insertID: insert.id),
+                    presenter: audioUnit,
+                    title: insert.name
+                ) { stateBlob in
+                    session.setMixerBusAUEffectStateBlob(insert.id, busID: busID, stateBlob: stateBlob)
+                }
+            }
+        )
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 

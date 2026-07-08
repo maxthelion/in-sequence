@@ -605,6 +605,7 @@ struct ChordTrackWorkspaceView: View {
 
     private var fxTab: some View {
         TrackFXChainView(
+            trackID: track.id,
             inserts: track.fxInserts,
             accent: accent,
             onAddFX: { isAddFXPresented = true },

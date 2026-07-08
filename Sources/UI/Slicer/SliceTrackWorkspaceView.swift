@@ -503,9 +503,8 @@ struct SliceTrackWorkspaceView: View {
 
     @ViewBuilder
     private var fxTabBody: some View {
-        // ENGINE TODO (shared with melodic track detail): the chain persists and
-        // is fully editable, but inserts do not yet process slicer audio.
         TrackFXChainView(
+            trackID: track.id,
             inserts: track.fxInserts,
             accent: accent,
             onAddFX: { isAddFXPresented = true },

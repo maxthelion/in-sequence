@@ -540,6 +540,7 @@ extension DrumKitMatrixView {
         let memberID = row.memberID
         let inserts = memberTrack(memberID)?.fxInserts ?? []
         TrackFXChainView(
+            trackID: memberID,
             inserts: inserts,
             accent: accent,
             onAddFX: { expandedFXTarget = ExpandedFXTarget(memberID: memberID) },

@@ -33,6 +33,8 @@ final class AUWindowHost: NSObject, NSWindowDelegate {
     enum WindowKey: Hashable {
         case track(UUID)
         case group(TrackGroupID)
+        case trackInsert(trackID: UUID, insertID: UUID)
+        case mixerBusInsert(busID: UUID, insertID: UUID)
         case masterInsert(UUID)
     }
 

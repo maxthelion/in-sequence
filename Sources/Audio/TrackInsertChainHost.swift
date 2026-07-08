@@ -142,6 +142,35 @@ final class TrackInsertChainHost {
         parameterApplyCount += 1
     }
 
+    @MainActor
+    func prepareAUEffect(insertID: UUID, in inserts: [TrackFXInsert]) {
+        guard case let .auEffect(componentID, stateBlob) = inserts.first(where: { $0.id == insertID })?.kind
+        else { return }
+        _ = cachedAUEffectNode(insertID: insertID, componentID: componentID, stateBlob: stateBlob)
+    }
+
+    @MainActor
+    func currentAUEffect(insertID: UUID, in inserts: [TrackFXInsert]) -> AVAudioUnit? {
+        guard case let .auEffect(componentID, stateBlob) = inserts.first(where: { $0.id == insertID })?.kind,
+              let cached = cachedAUEffects[insertID],
+              cached.componentID == componentID,
+              cached.stateBlob == stateBlob
+        else {
+            return nil
+        }
+        return cached.unit
+    }
+
+    @MainActor
+    func auEffectParameterReadout(insertID: UUID, in inserts: [TrackFXInsert]) -> [AUParameterDescriptor]? {
+        guard let unit = currentAUEffect(insertID: insertID, in: inserts),
+              let tree = unit.auAudioUnit.parameterTree
+        else {
+            return nil
+        }
+        return AudioInstrumentHost.parameterDescriptors(from: tree)
+    }
+
     /// Detach every node from the graph. Called when the track goes away.
     @MainActor
     func teardown(from audioGraph: MainAudioGraph) {

@@ -1149,6 +1149,35 @@ final class MainAudioGraph {
         }
     }
 
+    func prepareTrackAUEffect(trackID: UUID, insertID: UUID) {
+        performOnMain {
+            self.lockGraphLock()
+            defer { self.unlockGraphLock() }
+            guard let inserts = self.trackInsertChainsByTrackID[trackID] else { return }
+            let host = self.trackInsertChainHosts[trackID] ?? self.makeTrackInsertChainHost(trackID: trackID)
+            self.trackInsertChainHosts[trackID] = host
+            host.prepareAUEffect(insertID: insertID, in: inserts)
+        }
+    }
+
+    func currentTrackAUEffect(trackID: UUID, insertID: UUID) -> AVAudioUnit? {
+        performOnMainReturning {
+            self.lockGraphLock()
+            defer { self.unlockGraphLock() }
+            guard let inserts = self.trackInsertChainsByTrackID[trackID] else { return nil }
+            return self.trackInsertChainHosts[trackID]?.currentAUEffect(insertID: insertID, in: inserts)
+        }
+    }
+
+    func trackAUEffectParameterReadout(trackID: UUID, insertID: UUID) -> [AUParameterDescriptor]? {
+        performOnMainReturning {
+            self.lockGraphLock()
+            defer { self.unlockGraphLock() }
+            guard let inserts = self.trackInsertChainsByTrackID[trackID] else { return nil }
+            return self.trackInsertChainHosts[trackID]?.auEffectParameterReadout(insertID: insertID, in: inserts)
+        }
+    }
+
     /// Re-entry point for `TrackInsertChainHost` AU-load completion. Hops onto
     /// the graph queue and re-applies the latest authored chain so the freshly
     /// instantiated AU node wires in. Mirrors the send-bus post-load re-entry.
@@ -1575,6 +1604,30 @@ final class MainAudioGraph {
             self.lockGraphLock()
             defer { self.unlockGraphLock() }
             return self.mixerBusHosts[busID]?.readout()
+        }
+    }
+
+    func prepareMixerBusAUEffect(busID: UUID, insertID: UUID) {
+        performOnMain {
+            self.lockGraphLock()
+            defer { self.unlockGraphLock() }
+            self.mixerBusHosts[busID]?.prepareAUEffect(insertID: insertID)
+        }
+    }
+
+    func currentMixerBusAUEffect(busID: UUID, insertID: UUID) -> AVAudioUnit? {
+        performOnMainReturning {
+            self.lockGraphLock()
+            defer { self.unlockGraphLock() }
+            return self.mixerBusHosts[busID]?.currentAUEffect(insertID: insertID)
+        }
+    }
+
+    func mixerBusAUEffectParameterReadout(busID: UUID, insertID: UUID) -> [AUParameterDescriptor]? {
+        performOnMainReturning {
+            self.lockGraphLock()
+            defer { self.unlockGraphLock() }
+            return self.mixerBusHosts[busID]?.auEffectParameterReadout(insertID: insertID)
         }
     }
 
