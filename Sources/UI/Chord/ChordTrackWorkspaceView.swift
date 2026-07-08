@@ -501,7 +501,6 @@ struct ChordTrackWorkspaceView: View {
                 layerOptions
             }
             chordStepGrid
-            selectedStepEditor
         }
     }
 
@@ -578,13 +577,14 @@ struct ChordTrackWorkspaceView: View {
             playingStepIndex: nil,
             selectedStepIndexes: [selectedStepIndex],
             accent: accent,
-            contentProvider: { index, _ in
+            contentProvider: { index, state in
                 switch selectedLayer {
                 case .chord:
                     return .chordLabel(name: stepSlotName(at: index))
                 case .inversion:
                     return .optionLabel(text: "I\(selectedStepInversion(at: index))")
                 case .chordType:
+                    guard state != .off else { return .toggle }
                     return .optionLabel(text: stepChordTypeName(at: index))
                 }
             },
@@ -601,15 +601,6 @@ struct ChordTrackWorkspaceView: View {
             case .chordType:
                 cycleChordType(at: index)
             }
-        }
-    }
-
-    private var selectedStepEditor: some View {
-        HStack(spacing: 10) {
-            StudioMetricPill(title: "STEP", value: "\(selectedStepIndex + 1)", accent: accent)
-            StudioMetricPill(title: "CHORD", value: selectedStepSlotName(), accent: accent)
-            StudioMetricPill(title: "INV", value: "\(selectedStepInversion())", accent: accent)
-            StudioMetricPill(title: "TYPE", value: selectedStepChordTypeName(), accent: accent)
         }
     }
 
@@ -823,10 +814,6 @@ struct ChordTrackWorkspaceView: View {
         }
     }
 
-    private func selectedStepSlotName() -> String {
-        stepSlotName(at: selectedStepIndex)
-    }
-
     private func stepSlotName(at stepIndex: Int) -> String {
         guard case let .chordReferences(_, slotIDs, _, _, _, _) = chordContent else {
             return "-"
@@ -846,10 +833,6 @@ struct ChordTrackWorkspaceView: View {
         return inversions.value(at: stepIndex) ?? 0
     }
 
-    private func selectedStepChordTypeName() -> String {
-        stepChordTypeName(at: selectedStepIndex)
-    }
-
     private func stepChordTypeName(at stepIndex: Int) -> String {
         guard case let .chordReferences(_, slotIDs, _, chordIDs, _, _) = chordContent else {
             return "-"
@@ -858,16 +841,6 @@ struct ChordTrackWorkspaceView: View {
         let fallback = palette.slot(id: slotID)?.chordID ?? selectedSlot?.chordID ?? .majorTriad
         let chordID = (chordIDs.value(at: stepIndex) ?? nil) ?? fallback
         return shortChordName(for: chordID)
-    }
-
-    private func fullChordTypeName(at stepIndex: Int) -> String {
-        guard case let .chordReferences(_, slotIDs, _, chordIDs, _, _) = chordContent else {
-            return "-"
-        }
-        let slotID = slotIDs.value(at: stepIndex) ?? nil
-        let fallback = palette.slot(id: slotID)?.chordID ?? selectedSlot?.chordID ?? .majorTriad
-        let chordID = (chordIDs.value(at: stepIndex) ?? nil) ?? fallback
-        return ChordDefinition.for(id: chordID)?.name ?? chordID.rawValue
     }
 
     private func selectPaletteSlot(_ slotID: UUID) {
