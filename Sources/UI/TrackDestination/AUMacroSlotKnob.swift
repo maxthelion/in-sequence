@@ -29,6 +29,7 @@ struct AUMacroSlotKnob: View {
     let slotIndex: Int
     let binding: TrackMacroBinding?
     let value: Double?
+    let accent: Color
     let knobSize: CGFloat
     let showSlotLabel: Bool
     let onAssign: () -> Void
@@ -39,6 +40,7 @@ struct AUMacroSlotKnob: View {
         slotIndex: Int,
         binding: TrackMacroBinding?,
         value: Double?,
+        accent: Color = StudioTheme.transportAccent,
         knobSize: CGFloat = StudioMetrics.ControlSize.knob,
         showSlotLabel: Bool = true,
         onAssign: @escaping () -> Void,
@@ -48,6 +50,7 @@ struct AUMacroSlotKnob: View {
         self.slotIndex = slotIndex
         self.binding = binding
         self.value = value
+        self.accent = accent
         self.knobSize = knobSize
         self.showSlotLabel = showSlotLabel
         self.onAssign = onAssign
@@ -66,7 +69,7 @@ struct AUMacroSlotKnob: View {
                 )
             },
             value: value,
-            accent: StudioTheme.transportAccent,
+            accent: accent,
             knobSize: knobSize,
             showSlotLabel: showSlotLabel,
             onAssign: onAssign,
@@ -74,6 +77,14 @@ struct AUMacroSlotKnob: View {
             onRemove: onRemove
         )
     }
+}
+
+enum MacroSlotPresentation {
+    static let workspaceKnobSize: CGFloat = 76
+    static let workspaceColumns = Array(
+        repeating: GridItem(.flexible(minimum: 92), spacing: 16, alignment: .top),
+        count: 8
+    )
 }
 
 struct MacroSlotKnob: View {

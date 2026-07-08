@@ -615,6 +615,9 @@ extension DrumKitMatrixView {
                     slotIndex: slot.slotIndex,
                     binding: slot.binding,
                     value: slot.binding.flatMap { fallbacks[$0.id] },
+                    accent: accent,
+                    knobSize: MacroSlotPresentation.workspaceKnobSize,
+                    showSlotLabel: false,
                     onAssign: { prepareAndPresentMemberMacroPicker(memberID: memberID, slotIndex: slot.slotIndex) },
                     onChange: { newValue in
                         guard let binding = slot.binding else { return }

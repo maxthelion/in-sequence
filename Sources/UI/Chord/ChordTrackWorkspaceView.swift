@@ -70,9 +70,7 @@ struct ChordTrackWorkspaceView: View {
         }
     }
 
-    private let macroSlotColumns = [
-        GridItem(.adaptive(minimum: 58, maximum: 72), spacing: 10, alignment: .top)
-    ]
+    private let macroSlotColumns = MacroSlotPresentation.workspaceColumns
 
     private let configScaleIDs: [ScaleID] = [
         .major,
@@ -652,6 +650,9 @@ struct ChordTrackWorkspaceView: View {
             slotIndex: slot.slotIndex,
             binding: binding,
             value: slotValue,
+            accent: accent,
+            knobSize: MacroSlotPresentation.workspaceKnobSize,
+            showSlotLabel: false,
             onAssign: { prepareAndPresentMacroSlotPicker(slotIndex: slot.slotIndex) },
             onChange: { newValue in
                 guard let binding else { return }

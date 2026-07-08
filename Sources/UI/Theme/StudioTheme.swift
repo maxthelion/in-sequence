@@ -71,11 +71,10 @@ enum StudioTheme {
     static let panelFill = panel
     static let stageFill = background
 
-    /// Opaque equivalents of the old translucent white fills. These preserve
-    /// the intended single grey step on the near-black ground without allowing
-    /// nested controls to compound brighter through alpha compositing.
-    static let disabledSubtleFill = solidWhiteOverlay(0.015)
-    static let subtleFill = solidWhiteOverlay(StudioOpacity.subtleFill)
+    /// Shared container/control backing. Keep the common shell black so
+    /// structure reads from outlines, spacing, and accents instead of grey slabs.
+    static let disabledSubtleFill = background
+    static let subtleFill = background
     static let borderSubtleFill = solidWhiteOverlay(StudioOpacity.borderSubtle)
     static let borderFaintFill = solidWhiteOverlay(StudioOpacity.borderFaint)
     static let mutedFill = solidWhiteOverlay(StudioOpacity.mutedFill)

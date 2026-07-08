@@ -811,9 +811,7 @@ struct TrackSourceEditorView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private let macroSlotColumns = [
-        GridItem(.adaptive(minimum: 92, maximum: 120), spacing: 16, alignment: .top)
-    ]
+    private let macroSlotColumns = MacroSlotPresentation.workspaceColumns
 
     @ViewBuilder
     private var macroSlotGrid: some View {
@@ -832,7 +830,8 @@ struct TrackSourceEditorView: View {
             slotIndex: slot.slotIndex,
             binding: binding,
             value: slotValue,
-            knobSize: 76,
+            accent: accent,
+            knobSize: MacroSlotPresentation.workspaceKnobSize,
             showSlotLabel: false,
             onAssign: { prepareAndPresentMacroSlotPicker(slotIndex: slot.slotIndex) },
             onChange: { newValue in
@@ -1225,6 +1224,30 @@ struct ClipRandomizeSettingsPanel: View {
     private var controls: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack(alignment: .top, spacing: 22) {
+                RandomizeChoiceMenu(
+                    title: "Root",
+                    selection: Binding(
+                        get: { settings.rootPitchClass },
+                        set: { value in update { $0.rootPitchClass = value } }
+                    ),
+                    options: (0..<12).map { StudioMenuPickerOption(label: rootLabel($0), value: $0) },
+                    width: 82,
+                    accent: accent,
+                    help: "Root note"
+                )
+
+                RandomizeChoiceMenu(
+                    title: "Scale",
+                    selection: Binding(
+                        get: { settings.scaleID },
+                        set: { value in update { $0.scaleID = value } }
+                    ),
+                    options: ScaleID.allCases.map { StudioMenuPickerOption(label: $0.displayName, value: $0) },
+                    width: 172,
+                    accent: accent,
+                    help: "Scale"
+                )
+
                 StudioRotaryKnob(
                     title: "Density",
                     value: settings.density * 100,
@@ -1280,30 +1303,6 @@ struct ClipRandomizeSettingsPanel: View {
 
                 Spacer(minLength: 0)
             }
-
-            HStack(alignment: .top, spacing: 14) {
-                StudioMenuPicker(
-                    title: "Root",
-                    selection: Binding(
-                        get: { settings.rootPitchClass },
-                        set: { value in update { $0.rootPitchClass = value } }
-                    ),
-                    options: (0..<12).map { StudioMenuPickerOption(label: rootLabel($0), value: $0) },
-                    help: "Root note"
-                )
-
-                StudioMenuPicker(
-                    title: "Scale",
-                    selection: Binding(
-                        get: { settings.scaleID },
-                        set: { value in update { $0.scaleID = value } }
-                    ),
-                    options: ScaleID.allCases.map { StudioMenuPickerOption(label: $0.displayName, value: $0) },
-                    help: "Scale"
-                )
-
-                Spacer(minLength: 0)
-            }
         }
     }
 
@@ -1344,6 +1343,110 @@ struct ClipRandomizeSettingsPanel: View {
     private func rootLabel(_ pitchClass: Int) -> String {
         let names = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
         return names[((pitchClass % names.count) + names.count) % names.count]
+    }
+}
+
+private struct RandomizeChoiceMenu<Value: Hashable>: View {
+    let title: String
+    @Binding var selection: Value
+    let options: [StudioMenuPickerOption<Value>]
+    let width: CGFloat
+    let accent: Color
+    let help: String
+    @State private var isOpen = false
+
+    private var selectedLabel: String {
+        options.first { $0.value == selection }?.label ?? "-"
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            Text(title.uppercased())
+                .studioText(.eyebrow)
+                // ux-canon-allow: eyebrow captions are structural labels,
+                // not stateful chrome — mutedText is the caption token.
+                .foregroundStyle(StudioTheme.mutedText)
+
+            Button {
+                isOpen.toggle()
+            } label: {
+                HStack(spacing: 8) {
+                    Text(selectedLabel)
+                        .studioText(.labelBold)
+                        .foregroundStyle(StudioTheme.text)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+
+                    Spacer(minLength: 0)
+
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 9, weight: .heavy))
+                        .foregroundStyle(accent)
+                }
+                .padding(.horizontal, 11)
+                .frame(width: width)
+                .frame(minHeight: 34)
+                .background(
+                    StudioTheme.background,
+                    in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                        .stroke(accent.opacity(0.85), lineWidth: StudioMetrics.borderWidth)
+                )
+                .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
+            }
+            .buttonStyle(.plain)
+            .popover(isPresented: $isOpen, arrowEdge: .bottom) {
+                dropdown
+            }
+            .help(help)
+            .accessibilityLabel("\(title) \(selectedLabel)")
+        }
+    }
+
+    private var dropdown: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 6) {
+                ForEach(options, id: \.value) { option in
+                    Button {
+                        selection = option.value
+                        isOpen = false
+                    } label: {
+                        HStack(spacing: 8) {
+                            Text(option.label)
+                                .studioText(.labelBold)
+                                .foregroundStyle(option.value == selection ? StudioTheme.background : StudioTheme.text)
+                                .lineLimit(1)
+
+                            Spacer(minLength: 0)
+
+                            if option.value == selection {
+                                Image(systemName: "checkmark")
+                                    .font(.system(size: 9, weight: .heavy))
+                                    .foregroundStyle(StudioTheme.background)
+                            }
+                        }
+                        .padding(.vertical, 8)
+                        .padding(.horizontal, 10)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(
+                            option.value == selection ? accent : StudioTheme.subtleFill,
+                            in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                                .stroke(option.value == selection ? accent : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(8)
+        }
+        .frame(width: max(width, 180))
+        .frame(maxHeight: 280)
+        .background(StudioTheme.panelFill)
     }
 }
 
