@@ -351,7 +351,7 @@ struct DrumKitMatrixView: View {
 
     var body: some View {
         content
-        .padding(StudioMetrics.Spacing.page)
+        .padding(StudioMetrics.Spacing.workspaceInset)
         .sheet(isPresented: $isPresentingRoutingEditor) {
             routingEditorSheet
         }
@@ -411,7 +411,7 @@ struct DrumKitMatrixView: View {
     }
 
     private var content: some View {
-        StudioPanel(title: "Drum Kit", accent: accent, showsHeader: false, contentPadding: StudioMetrics.Spacing.standard) {
+        StudioPanel(title: "Drum Kit", accent: accent, showsHeader: false, contentPadding: 0) {
             VStack(alignment: .leading, spacing: 18) {
                 header
 
