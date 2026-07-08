@@ -9,3 +9,5 @@ Capture references:
 Status: RESOLVED 16ac1dea; verified by qa-surface-coverage run 20260708-090903-in-sequence-qa-surface-coverage-main-923a889d row 22a-track-add-source-empty.
 
 Follow-up: made the root add-source wells stylistically symmetrical by rendering Blank Generator with the same centered dashed add-card grammar as New Clip. Verified with focused qa-surface-coverage capture 22a-track-add-source-empty.
+
+Follow-up: removed the mixed "New" / "Blank" wording from the root add wells; the plus button now pairs with simple object labels, Clip and Generator.

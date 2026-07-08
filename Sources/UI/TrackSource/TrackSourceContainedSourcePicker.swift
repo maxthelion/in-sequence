@@ -257,7 +257,7 @@ struct TrackSourceContainedSourcePicker: View {
 
     private var newClipWell: some View {
         StudioAddCard(
-            label: "New Clip",
+            label: "Clip",
             accent: accent,
             minHeight: 148,
             backgroundColor: StudioTheme.background,
@@ -270,7 +270,7 @@ struct TrackSourceContainedSourcePicker: View {
 
     private var blankGeneratorWell: some View {
         StudioAddCard(
-            label: "Blank Generator",
+            label: "Generator",
             accent: accent,
             minHeight: 148,
             backgroundColor: StudioTheme.background,
