@@ -43,6 +43,13 @@ extension DrumKitMatrixView {
                 }
                 .help("Edit the kit's trigger routing and destinations")
 
+                if let model, !model.rows.isEmpty {
+                    headerActionButton(title: "Apply Template", systemImage: "square.grid.2x2") {
+                        isPresentingTemplateChooser = true
+                    }
+                    .help("Apply a pattern template into pattern slot P\((model.groupSelectedSlotIndex ?? 0) + 1)")
+                }
+
                 captureButton
 
                 performButton
@@ -63,33 +70,23 @@ extension DrumKitMatrixView {
     /// The 1–16 kit-level pattern pills, now living inside the header box. The
     /// kit supports only KIT-level patterns, so the former Linked / MIXED /
     /// Re-link controls are gone — selecting a slot applies it across the kit.
-    /// Apply Template lives beside the persistent pattern/routing controls.
     func headerPatternPalette(_ model: DrumKitMatrixModel) -> some View {
-        HStack(spacing: 10) {
-            TrackPatternSlotPalette(
-                selectedSlot: groupPatternSlotBinding(model),
-                occupiedSlots: model.occupiedSlotIndexes,
-                bypassState: .notApplicable,
-                onBypassToggle: { _ in },
-                accent: accent,
-                destinationMode: isCaptureOpen && isSelectingCaptureSaveSlot
-                    ? TrackPatternSlotPalette.DestinationMode(
-                        pendingReplaceSlot: historyTargetSlotIndex(model),
-                        accent: accent
-                    )
-                    : nil,
-                onDestinationSelect: { slotIndex in
-                    saveKitHistoryClipSet(model, slotIndex: slotIndex)
-                }
-            )
-
-            Spacer(minLength: 0)
-
-            headerActionButton(title: "Apply Template", systemImage: "square.grid.2x2") {
-                isPresentingTemplateChooser = true
+        TrackPatternSlotPalette(
+            selectedSlot: groupPatternSlotBinding(model),
+            occupiedSlots: model.occupiedSlotIndexes,
+            bypassState: .notApplicable,
+            onBypassToggle: { _ in },
+            accent: accent,
+            destinationMode: isCaptureOpen && isSelectingCaptureSaveSlot
+                ? TrackPatternSlotPalette.DestinationMode(
+                    pendingReplaceSlot: historyTargetSlotIndex(model),
+                    accent: accent
+                )
+                : nil,
+            onDestinationSelect: { slotIndex in
+                saveKitHistoryClipSet(model, slotIndex: slotIndex)
             }
-            .help("Apply a pattern template into pattern slot P\((model.groupSelectedSlotIndex ?? 0) + 1)")
-        }
+        )
     }
 
     func headerActionButton(
