@@ -62,75 +62,80 @@ struct MixerView<TrailingContent: View>: View {
         // every column down. The solo affordance lives in the master column
         // header (fixed slot, no layout shift). Stock scrollbar tracks are
         // banned chrome (canon Rule 6, design review 04) — indicators hidden.
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(alignment: .top, spacing: MixerWorkspaceLayout.laneSpacing) {
-                ForEach(tracks, id: \.id) { track in
-                    MixerChannelStrip(
-                        track: track,
-                        accent: StudioTheme.trackAccent(for: track, groups: session.store.trackGroups),
-                        destinationLabel: destinationLabel(for: track),
-                        outputTitle: MixerRoutingDisplayModel.outputTitle(for: track, buses: buses),
-                        buses: buses,
-                        isEffectivelyMuted: muteState.mutedTrackIDs.contains(track.id),
-                        isRoutingApplying: routingTrackIDs.contains(track.id),
-                        engineController: engineController,
-                        onSelect: {
-                            // Narrowed from .fullEngineApply: selection alone has no audible
-                            // impact; .snapshotOnly is sufficient. The onEditTrack callback
-                            // handles any editor-navigation side effects.
-                            let trackID = track.id
-                            session.setSelectedTrackID(trackID)
-                            onEditTrack?(trackID)
-                        },
-                        onSetMix: { mix in
-                            session.setTrackMix(trackID: track.id, mix: mix)
-                        },
-                        onToggleMute: {
-                            // .fullEngineApply preserved: mute requires engine document-model rebuild.
-                            session.toggleTrackMute(trackID: track.id)
-                        },
-                        onToggleSolo: {
-                            session.setTrackSoloed(!track.mix.isSoloed, trackID: track.id)
-                        },
-                        onRoute: { busID in
-                            applyRoute(trackID: track.id, busID: busID)
-                        }
-                    )
+        StudioCustomHorizontalScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(alignment: .top, spacing: MixerWorkspaceLayout.laneSpacing) {
+                    ForEach(tracks, id: \.id) { track in
+                        MixerChannelStrip(
+                            track: track,
+                            accent: StudioTheme.trackAccent(for: track, groups: session.store.trackGroups),
+                            destinationLabel: destinationLabel(for: track),
+                            outputTitle: MixerRoutingDisplayModel.outputTitle(for: track, buses: buses),
+                            buses: buses,
+                            isEffectivelyMuted: muteState.mutedTrackIDs.contains(track.id),
+                            isRoutingApplying: routingTrackIDs.contains(track.id),
+                            engineController: engineController,
+                            onSelect: {
+                                // Narrowed from .fullEngineApply: selection alone has no audible
+                                // impact; .snapshotOnly is sufficient. The onEditTrack callback
+                                // handles any editor-navigation side effects.
+                                let trackID = track.id
+                                session.setSelectedTrackID(trackID)
+                                onEditTrack?(trackID)
+                            },
+                            onSetMix: { mix in
+                                session.setTrackMix(trackID: track.id, mix: mix)
+                            },
+                            onToggleMute: {
+                                // .fullEngineApply preserved: mute requires engine document-model rebuild.
+                                session.toggleTrackMute(trackID: track.id)
+                            },
+                            onToggleSolo: {
+                                session.setTrackSoloed(!track.mix.isSoloed, trackID: track.id)
+                            },
+                            onRoute: { busID in
+                                applyRoute(trackID: track.id, busID: busID)
+                            }
+                        )
+                    }
+
+                    // Busses are siblings of the track strips — same top edge,
+                    // same slot grid — never a separately-headed lower zone.
+                    ForEach(Array(buses.enumerated()), id: \.element.id) { index, bus in
+                        MixerBusStrip(
+                            bus: bus,
+                            accent: Self.busAccent(for: bus, index: index),
+                            routedTrackNames: MixerRoutingDisplayModel.affectedTrackNames(for: bus.id, tracks: tracks),
+                            isEffectivelyMuted: muteState.mutedBusIDs.contains(bus.id),
+                            isRenaming: renamingBusID == bus.id,
+                            onBeginRename: {
+                                renamingBusID = bus.id
+                            },
+                            onCancelRename: {
+                                renamingBusID = nil
+                            },
+                            onCommitRename: { name in
+                                session.renameMixerBus(bus.id, name: name)
+                                renamingBusID = nil
+                            },
+                            onSetLevel: { session.setMixerBusLevel($0, busID: bus.id) },
+                            onSetPan: { session.setMixerBusPan($0, busID: bus.id) },
+                            onToggleMute: { session.setMixerBusMuted(!bus.mix.isMuted, busID: bus.id) },
+                            onToggleSolo: { session.setMixerBusSoloed(!bus.mix.isSoloed, busID: bus.id) },
+                            onDelete: { requestDelete(bus) }
+                        )
+                    }
+
+                    // The one control for adding busses.
+                    MixerAddBusTile(onAddBus: addBus)
+
+                    trailingContent
                 }
+                .padding(StudioMetrics.Spacing.hairline)
 
-                // Busses are siblings of the track strips — same top edge,
-                // same slot grid — never a separately-headed lower zone.
-                ForEach(Array(buses.enumerated()), id: \.element.id) { index, bus in
-                    MixerBusStrip(
-                        bus: bus,
-                        accent: Self.busAccent(for: bus, index: index),
-                        routedTrackNames: MixerRoutingDisplayModel.affectedTrackNames(for: bus.id, tracks: tracks),
-                        isEffectivelyMuted: muteState.mutedBusIDs.contains(bus.id),
-                        isRenaming: renamingBusID == bus.id,
-                        onBeginRename: {
-                            renamingBusID = bus.id
-                        },
-                        onCancelRename: {
-                            renamingBusID = nil
-                        },
-                        onCommitRename: { name in
-                            session.renameMixerBus(bus.id, name: name)
-                            renamingBusID = nil
-                        },
-                        onSetLevel: { session.setMixerBusLevel($0, busID: bus.id) },
-                        onSetPan: { session.setMixerBusPan($0, busID: bus.id) },
-                        onToggleMute: { session.setMixerBusMuted(!bus.mix.isMuted, busID: bus.id) },
-                        onToggleSolo: { session.setMixerBusSoloed(!bus.mix.isSoloed, busID: bus.id) },
-                        onDelete: { requestDelete(bus) }
-                    )
-                }
-
-                // The one control for adding busses.
-                MixerAddBusTile(onAddBus: addBus)
-
-                trailingContent
+                Spacer(minLength: 0)
             }
-            .padding(StudioMetrics.Spacing.hairline)
+            .frame(maxHeight: .infinity, alignment: .topLeading)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .confirmationDialog(

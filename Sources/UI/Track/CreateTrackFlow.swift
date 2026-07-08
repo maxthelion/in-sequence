@@ -290,7 +290,7 @@ struct CreateTrackFlow: View {
             if audioInstrumentChoices.isEmpty {
                 StudioEmptyListRow(message: "No AU instruments found")
             } else {
-                ScrollView {
+                StudioCustomVerticalScrollView {
                     VStack(alignment: .leading, spacing: 10) {
                         // Rows commit on a single click (bug 20260610-100343):
                         // create the track, attach the AU, open the track.
@@ -301,7 +301,7 @@ struct CreateTrackFlow: View {
                         }
                     }
                 }
-                .frame(maxHeight: 320)
+                .frame(height: 320)
             }
 
             StudioOptionButton(
