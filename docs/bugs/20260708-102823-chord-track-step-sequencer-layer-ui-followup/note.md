@@ -41,4 +41,4 @@ Verification:
 - `scripts/diagnostics/ux-canon-lint.sh` — OK.
 - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild test -project SequencerAI.xcodeproj -scheme SequencerAI -destination 'platform=macOS' -only-testing:SequencerAITests/ChordsTests CODE_SIGNING_ALLOWED=NO` — 9 tests passed.
 - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild build -project SequencerAI.xcodeproj -scheme SequencerAI -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO` — build succeeded.
-- Focused captures published: `http://localhost:4747/gallery?run=20260708-094923-in-sequence-qa-surface-coverage-main-eae906db`.
+- Focused captures published: `http://localhost:4747/gallery?run=20260708-095122-in-sequence-qa-surface-coverage-main-895226c1`.
