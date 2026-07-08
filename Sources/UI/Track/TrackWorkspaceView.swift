@@ -446,9 +446,9 @@ struct CompactTrackDetailHeader<Title: View, Trailing: View, PatternControls: Vi
             patternSlotControls()
         }
         .padding(StudioMetrics.Spacing.standard)
-        .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.section, style: .continuous))
+        .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.section, style: .continuous)
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
                 .stroke(accent.opacity(StudioOpacity.hoverFill), lineWidth: StudioMetrics.borderWidth)
         )
     }

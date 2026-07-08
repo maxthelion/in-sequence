@@ -161,7 +161,9 @@ struct TrackPatternSlotPalette: View {
     }
 
     private func borderWidth(for slotIndex: Int) -> CGFloat {
-        destinationMode?.pendingReplaceSlot == slotIndex ? 2 : 1
+        destinationMode?.pendingReplaceSlot == slotIndex
+            ? StudioMetrics.emphasisBorderWidth
+            : StudioMetrics.borderWidth
     }
 
     private func destinationShadowColor(for slotIndex: Int) -> Color {

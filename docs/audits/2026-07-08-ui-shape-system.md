@@ -15,6 +15,7 @@ Defined in `Sources/UI/Theme/StudioMetrics.swift`:
 | Token | Value |
 | --- | ---: |
 | `StudioMetrics.borderWidth` | `1.5` |
+| `StudioMetrics.emphasisBorderWidth` | `2` |
 | `CornerRadius.workspace` | `30` |
 | `CornerRadius.chrome` | `28` |
 | `CornerRadius.section` | `22` |
@@ -32,37 +33,46 @@ Defined in `Sources/UI/Theme/StudioMetrics.swift`:
 
 - Files scanned: 147
 - Corner radius token uses: 459
-- Border width token uses: 230
+- Border width token uses: 233
 - Raw corner radius literals: 10
-- Raw stroke width literals: 39
-- Raw shape width helper literals: 3
+- Raw stroke width literals: 38
+- Raw shape width helper literals: 2
 
 Most chrome already uses the token scale. The remaining risk is not absence of
 tokens; it is inconsistent role mapping and raw exception drift.
 
 ## Screenshot Finding
 
-The screenshot mismatch is real in code:
+The screenshot mismatch was real in code:
 
-- The track and kit top headers use `CornerRadius.section` (`22`) in
+- The track and kit top headers used `CornerRadius.section` (`22`) in
   `CompactTrackDetailHeader` and `DrumKitMatrixView.header`.
-- The unified section switcher and tab well underneath use
+- The unified section switcher and tab well underneath used
   `CornerRadius.control` (`12`) by design in `StudioSectionPills` and
   `StudioTabWell`.
-- The pattern slot buttons use `CornerRadius.control` (`12`), but their border
+- The pattern slot buttons used `CornerRadius.control` (`12`), but their border
   width is routed through `TrackPatternSlotPalette.borderWidth(for:)`, which
-  returns raw `1` for normal slots and `2` for destination mode instead of the
-  canonical `StudioMetrics.borderWidth` (`1.5`).
+  returned raw `1` for normal slots and `2` for destination mode instead of the
+  canonical `StudioMetrics.borderWidth` (`1.5`) and a named emphasis token.
 
-So the top region mixes `22`, `12`, `1.5`, `1`, and `2` in one visual cluster.
-That is why the header/pattern strip reads as if it came from a different
-corner and stroke system than the elements below.
+Resolved in the follow-up shape pass:
+
+- `CompactTrackDetailHeader` now uses `CornerRadius.control` (`12`).
+- `DrumKitMatrixView.header` now uses `CornerRadius.control` (`12`).
+- `TrackPatternSlotPalette` now uses `StudioMetrics.borderWidth` (`1.5`) for
+  normal slot borders and `StudioMetrics.emphasisBorderWidth` (`2`) for
+  destination emphasis.
+- `TrackFillPreviewControl` now uses `StudioMetrics.emphasisBorderWidth` for
+  its active-state outline.
+
+The top track region no longer mixes `22`, `12`, `1.5`, `1`, and raw `2` in one
+visual cluster. It now uses the same 12px corner role as the tab/well cluster
+and the same named stroke-width tokens as the rest of the chrome.
 
 ## Broader Findings
 
-- `section` (`22`) is rare: only 9 token uses. It currently behaves like a large
-  surface shell, but it is being used for compact headers that sit directly
-  beside `control`-radius tab chrome.
+- `section` (`22`) is rare: now only 5 token uses. It currently behaves like a
+  large surface shell and is no longer used by the compact track/kit headers.
 - `panel`, `subPanel`, `tile`, and `control` are the dominant working-surface
   radii. The app has enough tokens, but no rule that says which surface tier
   gets which token.
@@ -85,22 +95,20 @@ Adopt a shape-role rule before doing piecemeal fixes:
 - Buttons, pattern slots, tabs, and value controls: `control`, `chip`, `badge`,
   or `mini`.
 - Standard chrome strokes: always `StudioMetrics.borderWidth`.
-- Selected/focused emphasis: introduce a token such as
-  `StudioMetrics.emphasisBorderWidth` instead of raw `2`.
+- Selected/focused emphasis: use `StudioMetrics.emphasisBorderWidth` instead of
+  raw `2`.
 - Drawing-only exceptions: keep local literals only with a short
   `ux-canon-allow` explanation or move them into component-local named
   constants.
 
-For the reported track surface, the robust fix is:
+For the reported track surface, the applied fix is:
 
-1. Decide whether the top header is a peer of the tab strip or a larger enclosing
-   page shell.
-2. If it is a peer, change both `CompactTrackDetailHeader` and
-   `DrumKitMatrixView.header` from `CornerRadius.section` to the same role used
-   by the tab/well cluster.
+1. Treat the top header as a peer of the tab strip for shape purposes.
+2. Change both `CompactTrackDetailHeader` and `DrumKitMatrixView.header` from
+   `CornerRadius.section` to `CornerRadius.control`.
 3. Change normal `TrackPatternSlotPalette` borders from raw `1` to
-   `StudioMetrics.borderWidth`, and selected/destination emphasis to a named
-   token.
+   `StudioMetrics.borderWidth`, and destination emphasis to
+   `StudioMetrics.emphasisBorderWidth`.
 4. Add the strict shape audit to CI after current raw literals are tokenized or
    annotated.
 

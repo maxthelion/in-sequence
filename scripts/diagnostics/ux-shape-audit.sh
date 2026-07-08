@@ -85,7 +85,7 @@ token_count="$(awk '{ sum += $1 } END { print sum + 0 }' "$token_hits")"
 radius_literal_count="$(wc -l < "$radius_literals" | tr -d ' ')"
 stroke_literal_count="$(wc -l < "$stroke_literals" | tr -d ' ')"
 shape_width_helper_count="$(wc -l < "$shape_width_helpers" | tr -d ' ')"
-border_token_count="$(rg -No 'StudioMetrics\.borderWidth' "${files[@]}" | wc -l | tr -d ' ' || true)"
+border_token_count="$(rg -No 'StudioMetrics\.(borderWidth|emphasisBorderWidth)' "${files[@]}" | wc -l | tr -d ' ' || true)"
 
 printf 'UX shape audit\n'
 printf 'Files scanned: %s\n' "$scanned_count"
