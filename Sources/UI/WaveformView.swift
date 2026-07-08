@@ -13,19 +13,18 @@ struct WaveformView: View {
             Canvas { context, size in
                 guard !buckets.isEmpty else { return }
                 let barSpacing: CGFloat = 1
-                let totalSpacing = barSpacing * CGFloat(buckets.count - 1)
-                let fillWidth = max(1, (size.width - totalSpacing) / CGFloat(buckets.count))
-                let barWidth = min(3, max(1, fillWidth))
-                let occupiedWidth = CGFloat(buckets.count) * barWidth + totalSpacing
-                let originX = max(0, (size.width - occupiedWidth) / 2)
+                let visibleBuckets = Self.fittedBuckets(buckets, width: size.width, maxBarWidth: 3, spacing: barSpacing)
+                guard !visibleBuckets.isEmpty else { return }
+                let slotWidth = size.width / CGFloat(visibleBuckets.count)
+                let barWidth = min(3, max(1, slotWidth - barSpacing))
                 let midY = size.height / 2
 
                 drawGuides(context: context, size: size)
 
-                for (i, v) in buckets.enumerated() {
+                for (i, v) in visibleBuckets.enumerated() {
                     let clamped = max(0, min(CGFloat(v), 1))
                     let halfHeight = clamped * size.height / 2
-                    let x = originX + CGFloat(i) * (barWidth + barSpacing)
+                    let x = CGFloat(i) * slotWidth + max(0, (slotWidth - barWidth) / 2)
                     let rect = CGRect(
                         x: x,
                         y: midY - halfHeight,
@@ -56,6 +55,25 @@ struct WaveformView: View {
             let x = ratio * size.width
             let rect = CGRect(x: x, y: 0, width: width, height: size.height)
             context.fill(Path(rect), with: .color(StudioTheme.border.opacity(opacity))) // ux-canon-allow: Canvas guide strokes are structural meter lines
+        }
+    }
+
+    static func fittedBuckets(
+        _ buckets: [Float],
+        width: CGFloat,
+        maxBarWidth: CGFloat = 3,
+        spacing: CGFloat = 1
+    ) -> [Float] {
+        guard width > 0, !buckets.isEmpty else { return [] }
+        let slotWidth = max(1, maxBarWidth + spacing)
+        let capacity = max(1, Int(floor(width / slotWidth)))
+        guard buckets.count > capacity else { return buckets }
+
+        return (0..<capacity).map { index in
+            let lower = Int(floor(Double(index) * Double(buckets.count) / Double(capacity)))
+            let upper = Int(ceil(Double(index + 1) * Double(buckets.count) / Double(capacity)))
+            let range = buckets[max(0, lower)..<min(buckets.count, max(lower + 1, upper))]
+            return range.max() ?? 0
         }
     }
 }

@@ -164,29 +164,10 @@ struct DrumKitTemplateChooserSheet: View {
                 return (PatternTemplateApplicationPreview.tagLabel(tag), Array(pattern.prefix(PatternTemplate.stepCount)))
             }
 
-        return VStack(alignment: .leading, spacing: 4) {
-            ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
-                HStack(spacing: 5) {
-                    Text(row.0)
-                        .studioText(.microEmphasis)
-                        .foregroundStyle(StudioTheme.text)
-                        .frame(width: 54, alignment: .leading)
-                        .lineLimit(1)
-
-                    HStack(spacing: 2) {
-                        ForEach(Array(row.1.enumerated()), id: \.offset) { _, isOn in
-                            RoundedRectangle(cornerRadius: 1.5, style: .continuous)
-                                .fill(isOn ? accent : StudioTheme.inset)
-                                .frame(width: 8, height: 8)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 1.5, style: .continuous)
-                                        .stroke(StudioTheme.border.opacity(0.75), lineWidth: 0.5)
-                                )
-                        }
-                    }
-                }
-            }
-        }
+        return CompactStepPatternRowsPreview(
+            rows: rows.map { CompactStepPatternRowsPreview.Row(label: $0.0, steps: $0.1) },
+            accent: accent
+        )
     }
 
     private func requestApply() {

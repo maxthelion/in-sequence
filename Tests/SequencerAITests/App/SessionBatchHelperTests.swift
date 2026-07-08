@@ -198,6 +198,40 @@ final class SessionBatchHelperTests: XCTestCase {
         SequencerDocumentSessionRegistry.unregister(session)
     }
 
+    func test_restoreClipSnapshot_revertsRandomizeBakeForSelectedSlot() throws {
+        let (project, trackID, clipID) = makeLiveStoreProject(clipPitch: 60, stepPattern: [true, false, false, false])
+        let (session, engine, _) = makeSession(project: project)
+        let originalClip = try XCTUnwrap(session.store.clipEntry(id: clipID))
+        let snapshotsBefore = engine.applyPlaybackSnapshotCallCount
+        let settings = ClipRandomizeSettings(
+            density: 1,
+            scaleID: .major,
+            rootPitchClass: 9,
+            octaveCenter: 4,
+            octaveSpan: 0,
+            velocityVariance: 0,
+            gateVariance: 0
+        )
+
+        _ = session.bakeRandomizedSelectedClip(
+            trackID: trackID,
+            settings: settings,
+            seed: 0xCA11CE1
+        )
+        XCTAssertNotEqual(session.store.clipEntry(id: clipID)?.content, originalClip.content)
+
+        let restored = session.restoreClipSnapshot(
+            originalClip,
+            at: PatternSlotAddress(trackID: trackID, slotIndex: 0)
+        )
+
+        XCTAssertTrue(restored)
+        XCTAssertEqual(session.store.clipEntry(id: clipID), originalClip)
+        XCTAssertGreaterThan(engine.applyPlaybackSnapshotCallCount, snapshotsBefore)
+
+        SequencerDocumentSessionRegistry.unregister(session)
+    }
+
     func test_auditionRandomizedSelectedClip_playsOverrideWithoutMutatingClip_andClearsOnClose() throws {
         let (project, trackID, clipID) = makeLiveStoreProject(clipPitch: 60, stepPattern: [true, false, false, false])
         let box = DocumentBox(document: SeqAIDocument(project: project))

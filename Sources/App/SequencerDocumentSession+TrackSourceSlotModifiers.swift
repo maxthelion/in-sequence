@@ -174,6 +174,23 @@ extension SequencerDocumentSession {
     }
 
     @discardableResult
+    func restoreClipSnapshot(
+        _ snapshot: ClipPoolEntry,
+        at address: PatternSlotAddress,
+        impact: LiveMutationImpact = .snapshotOnly
+    ) -> Bool {
+        var changed = false
+        batch(impact: impact, changed: .clip(snapshot.id).union(.patternBank(address.trackID))) { store in
+            let slot = store.patternBank(for: address.trackID).slot(at: address.slotIndex)
+            guard slot.sourceRef.clipID == snapshot.id else { return }
+            changed = store.mutateClip(id: snapshot.id) { entry in
+                entry = snapshot
+            }
+        }
+        return changed
+    }
+
+    @discardableResult
     func auditionRandomizedClip(
         at address: PatternSlotAddress,
         settings: ClipRandomizeSettings,

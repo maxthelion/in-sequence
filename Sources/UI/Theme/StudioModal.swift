@@ -36,9 +36,12 @@ struct StudioModal<Content: View, HeaderAccessory: View>: View {
                         .lineLimit(1)
                         .truncationMode(.tail)
                 }
+                .help(subtitle ?? title)
+                .accessibilityHint(subtitle ?? "")
 
                 // Keep the subtitle parameter for existing sheet call sites,
-                // but modal headers intentionally render as title-only chrome.
+                // but modal headers intentionally render as title-only chrome;
+                // contextual detail is exposed as help/accessibility instead.
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 

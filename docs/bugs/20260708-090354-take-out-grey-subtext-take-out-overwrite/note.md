@@ -6,4 +6,4 @@ Screenshots:
 Capture references:
 - 38-drum-kit-matrix-template-chooser.png (in-sequence/qa-surface-coverage; main @ 53e42ea6; run 20260707-215434-in-sequence-qa-surface-coverage-main-53e42ea6; ae998c9cb9b30ebe1a4776a85f2dd118)
 
-Status: RESOLVED in this commit; verified by qa-surface-coverage run 20260708-090903-in-sequence-qa-surface-coverage-main-923a889d row 38-drum-kit-matrix-template-chooser.
+Status: RESOLVED 16ac1dea; verified by qa-surface-coverage run 20260708-090903-in-sequence-qa-surface-coverage-main-923a889d row 38-drum-kit-matrix-template-chooser.

@@ -6,4 +6,4 @@ Screenshots:
 Capture references:
 - 23e-track-slicer-slice-tab.png (in-sequence/qa-surface-coverage; main @ 53e42ea6; run 20260707-215434-in-sequence-qa-surface-coverage-main-53e42ea6; 51b0c36a8a94efeb168f4ca205ec2a82)
 
-Status: RESOLVED in this commit; verified by qa-surface-coverage run 20260708-090903-in-sequence-qa-surface-coverage-main-923a889d row 23e-track-slicer-slice-tab.
+Status: RESOLVED 16ac1dea; verified by qa-surface-coverage run 20260708-090903-in-sequence-qa-surface-coverage-main-923a889d row 23e-track-slicer-slice-tab.

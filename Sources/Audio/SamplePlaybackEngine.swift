@@ -749,7 +749,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
     /// and play, so the ObjC catcher is the only airtight guard: a failed
     /// start drops the trigger instead of killing the app.
     private func startVoiceSafely(_ voice: AVAudioPlayerNode, at when: AVAudioTime? = nil) -> Bool {
-        guard audioGraph.isNodePlayableNow(voice) else { return false }
+        guard canIssuePlayerNodeCommand(voice, operation: "play") else { return false }
         if let exception = SEQRunCatchingObjCException({
             if let when {
                 voice.play(at: when)
@@ -758,6 +758,15 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
             }
         }) {
             DevActivity.trace(DevActivity.audioGraph, "dropped sample trigger: play threw \(exception.name.rawValue): \(exception.reason ?? "no reason")")
+            return false
+        }
+        return true
+    }
+
+    private func canIssuePlayerNodeCommand(_ voice: AVAudioPlayerNode, operation: String) -> Bool {
+        guard audioGraph.isNodePlayableNow(voice) else { return false }
+        guard audioGraph.renderPosition != nil else {
+            DevActivity.trace(DevActivity.audioGraph, "dropped sample trigger: \(operation) before valid render position")
             return false
         }
         return true
@@ -884,6 +893,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         playbackFormat: AVAudioFormat,
         at when: AVAudioTime?
     ) -> Bool {
+        guard canIssuePlayerNodeCommand(voice, operation: "schedule") else { return false }
         if let buffer = residentTriggerBuffer(
             pcmBuffer: pcmBuffer,
             fileFormat: file.processingFormat,
