@@ -245,19 +245,19 @@ struct TrackSourceContainedSourcePicker: View {
         ViewThatFits(in: .horizontal) {
             HStack(alignment: .top, spacing: 14) {
                 newClipWell
-                blankGeneratorList
+                blankGeneratorWell
             }
 
             VStack(alignment: .leading, spacing: 14) {
                 newClipWell
-                blankGeneratorList
+                blankGeneratorWell
             }
         }
     }
 
     private var newClipWell: some View {
         StudioAddCard(
-            label: "New Clip",
+            label: "Clip",
             accent: accent,
             minHeight: 148,
             backgroundColor: StudioTheme.background,
@@ -268,24 +268,17 @@ struct TrackSourceContainedSourcePicker: View {
         .frame(maxWidth: .infinity)
     }
 
-    private var blankGeneratorList: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            pickerActionButton(
-                action: TrackSourceContainedSourcePickerPresentation.newBlankGeneratorAction,
-                accent: accent,
-                trigger: onCreateBlankGenerator
-            )
+    private var blankGeneratorWell: some View {
+        StudioAddCard(
+            label: "Generator",
+            accent: accent,
+            minHeight: 148,
+            backgroundColor: StudioTheme.background,
+            help: "Create a blank generator"
+        ) {
+            onCreateBlankGenerator()
         }
-        .frame(maxWidth: .infinity, minHeight: 148, alignment: .topLeading)
-        .padding(StudioMetrics.Spacing.standard)
-        .background(
-            StudioTheme.background,
-            in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
-        )
+        .frame(maxWidth: .infinity)
     }
 
     private var generatorPoolContent: some View {

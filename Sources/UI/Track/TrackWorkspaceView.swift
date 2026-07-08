@@ -1015,6 +1015,16 @@ private struct AudioInputSignalPanel: View {
         return runtime.waveformBuckets
     }
 
+    private var waveformStepCount: Int {
+        let bars: Int
+        if runtime?.armState == .recording {
+            bars = runtime?.armedRecordBarLength ?? runtime?.recordBarLength ?? 1
+        } else {
+            bars = runtime?.recordedLoopBarLength ?? runtime?.recordBarLength ?? 1
+        }
+        return max(1, bars) * 16
+    }
+
     /// Live input states (idle/armed with input monitoring) have no engine
     /// bucket stream, so the monitor builds a rolling waveform from the live
     /// level snapshots — the same visual grammar as the slicer and the
@@ -1058,9 +1068,10 @@ private struct AudioInputSignalPanel: View {
                         buckets: waveformBuckets,
                         fillColor: accent,
                         inactiveColor: StudioTheme.border.opacity(0.7),
-                        stepCount: 16,
+                        stepCount: waveformStepCount,
                         barStepInterval: 16,
-                        playheadFraction: runtime?.armState == .recording ? CGFloat(progress) : nil
+                        playheadFraction: runtime?.armState == .recording ? CGFloat(progress) : nil,
+                        showsTimelineRuler: true
                     )
                     .padding(StudioMetrics.Spacing.standard)
                 } else if showsRollingLiveWaveform {

@@ -21,6 +21,7 @@ struct UnifiedStepCell: View {
     private static let geometry = UnifiedStepCellGeometry()
     private static let cornerRadius: CGFloat = 6
     private static let valueBarInset: CGFloat = 3
+    private static let valueBarCornerRadius: CGFloat = 4
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -69,7 +70,7 @@ struct UnifiedStepCell: View {
     private var valueBar: some View {
         if let fraction = visualConfiguration.valueFraction {
             let availableHeight = Self.geometry.size.height - (Self.valueBarInset * 2)
-            Rectangle()
+            RoundedRectangle(cornerRadius: Self.valueBarCornerRadius, style: .continuous)
                 .fill(visualConfiguration.valueBarColor)
                 .frame(height: availableHeight * fraction)
                 .frame(maxWidth: .infinity, alignment: .bottom)
@@ -284,6 +285,7 @@ struct UnifiedStepCellVisualConfiguration {
     let playingBorderInset: CGFloat
     let usesBarInOutlineValueTreatment: Bool
     let valueBarInset: CGFloat
+    let valueBarCornerRadius: CGFloat
 
     init(
         visualState: StepVisualState,
@@ -301,6 +303,7 @@ struct UnifiedStepCellVisualConfiguration {
         self.playingBorderInset = isSelected ? 3 : 0.5
         self.usesBarInOutlineValueTreatment = isValueBarContent
         self.valueBarInset = 3
+        self.valueBarCornerRadius = 4
 
         // Bold-flat pass, like the reference's pad rows: an inactive step is
         // outline-only on the ground; an active step is a fully solid accent

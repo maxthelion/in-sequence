@@ -115,6 +115,8 @@ struct TrackSourceEditorView: View {
     @State private var isRandomizePanelVisible = false
     @State private var randomizeDraft = ClipRandomizeSettings()
     @State private var randomizeAuditionSeed: UInt64?
+    @State private var randomizeOriginalClip: ClipPoolEntry?
+    @State private var randomizeOriginalAddress: PatternSlotAddress?
     @State private var isAddFXPresented = false
 
     private var clipHistoryDestinationMode: Bool {
@@ -478,6 +480,10 @@ struct TrackSourceEditorView: View {
 
     private func presentRandomizePanel(rollImmediately: Bool = true) {
         guard canRandomizeSelectedClip else { return }
+        if !isRandomizePanelVisible {
+            randomizeOriginalClip = currentClip
+            randomizeOriginalAddress = selectedPatternAddress
+        }
         randomizeDraft = currentClip?.randomizeSettings ?? ClipRandomizeSettings()
         isRandomizePanelVisible = true
         if rollImmediately {
@@ -504,6 +510,16 @@ struct TrackSourceEditorView: View {
     private func closeRandomizePanel() {
         session.clearRandomizeAudition(trackID: track.id)
         isRandomizePanelVisible = false
+        randomizeOriginalClip = nil
+        randomizeOriginalAddress = nil
+    }
+
+    private func cancelRandomizePanel() {
+        if let original = randomizeOriginalClip,
+           let address = randomizeOriginalAddress {
+            session.restoreClipSnapshot(original, at: address)
+        }
+        closeRandomizePanel()
     }
 
     private func nextRandomizeSeed() -> UInt64 {
@@ -549,6 +565,7 @@ struct TrackSourceEditorView: View {
                         settings: $randomizeDraft,
                         accent: accent,
                         onReRoll: auditionRandomizeDraft,
+                        onCancel: cancelRandomizePanel,
                         onClose: closeRandomizePanel
                     )
                 )
@@ -1181,6 +1198,7 @@ struct ClipRandomizeSettingsPanel: View {
     @Binding var settings: ClipRandomizeSettings
     let accent: Color
     let onReRoll: () -> Void
+    let onCancel: () -> Void
     let onClose: () -> Void
 
     var body: some View {
@@ -1291,6 +1309,13 @@ struct ClipRandomizeSettingsPanel: View {
 
     private var actionRow: some View {
         HStack(spacing: 10) {
+            Button(action: onCancel) {
+                Text("Cancel")
+                    .studioText(.labelBold)
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(StudioTheme.mutedText)
+
             Button(action: onReRoll) {
                 Text("Re-Roll")
                     .studioText(.labelBold)

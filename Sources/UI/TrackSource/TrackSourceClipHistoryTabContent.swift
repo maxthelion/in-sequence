@@ -462,6 +462,51 @@ private struct ClipHistoryMiniPianoThumbnail: View {
     }
 }
 
+struct CompactStepPatternRowsPreview: View {
+    struct Row: Identifiable {
+        let id: String
+        let label: String
+        let steps: [Bool]
+
+        init(label: String, steps: [Bool]) {
+            self.id = label
+            self.label = label
+            self.steps = steps
+        }
+    }
+
+    let rows: [Row]
+    let accent: Color
+    var labelWidth: CGFloat = 54
+    var cellSize: CGFloat = 8
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            ForEach(rows) { row in
+                HStack(spacing: 5) {
+                    Text(row.label)
+                        .studioText(.microEmphasis)
+                        .foregroundStyle(StudioTheme.text)
+                        .frame(width: labelWidth, alignment: .leading)
+                        .lineLimit(1)
+
+                    HStack(spacing: 2) {
+                        ForEach(Array(row.steps.enumerated()), id: \.offset) { _, isOn in
+                            RoundedRectangle(cornerRadius: 1.5, style: .continuous)
+                                .fill(isOn ? accent : StudioTheme.inset)
+                                .frame(width: cellSize, height: cellSize)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 1.5, style: .continuous)
+                                        .stroke(StudioTheme.border.opacity(0.75), lineWidth: 0.5)
+                                )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 private func clipNotes(from content: ClipContent?) -> [ClipNote] {
     guard let steps = content?.normalized.noteGridSteps else {
         return []

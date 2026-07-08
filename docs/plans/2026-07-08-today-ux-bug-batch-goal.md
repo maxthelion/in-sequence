@@ -250,7 +250,9 @@ absorbed capture run demonstrates the updated UI for every listed row.
 
 ## Execution Evidence
 
-Status: COMPLETE in this commit.
+Status: COMPLETE for the UI batch in `16ac1dea`; adversarial follow-up splits
+the remaining drum-kit command-ack latency into a separate process bug instead
+of treating it as the original AVFAudio abort.
 
 Checks run:
 
@@ -279,7 +281,9 @@ PEEKABOO_OUTPUT_DIR="$TMPDIR/in-sequence-captures/qa-$USER" \
 The first fresh full run produced 76/79 rows and did not reproduce the AVFAudio
 abort. Rows `29c`, `29d`, and `29f` timed out on status acknowledgement, then
 were rerun narrowly and backfilled as PNG evidence. The final absorbed set has
-all 79 PNGs.
+all 79 PNGs, but the run was not uninterrupted; the command-ack latency is
+tracked separately in
+`docs/bugs/20260708-094500-qa-drum-kit-command-ack-latency/`.
 
 Absorbed gallery evidence:
 
