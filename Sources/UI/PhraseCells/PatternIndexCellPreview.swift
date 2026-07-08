@@ -101,6 +101,7 @@ struct PatternIndexCellPreview: View {
                 label
             }
             .buttonStyle(.plain)
+            .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous))
             .help("P\(index + 1)")
             .accessibilityLabel("Pattern slot \(index + 1)")
         } else {

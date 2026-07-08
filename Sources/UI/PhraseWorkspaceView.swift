@@ -19,6 +19,7 @@ struct PhraseWorkspaceView: View {
     @State private var isPresentingGlobalApplyTrackSelector = false
     @State private var phraseSceneSlotPickerRequest: ScenePerformSlotPickerRequest?
     @State private var isPresentingPhraseCapture = false
+    @State private var finiteChoiceTarget: PhraseFiniteChoiceTarget?
     @State private var phraseLatchMode: TrackPerformLatchMode = .momentary
     @State private var phraseLatchLengthBars: Int?
     @State private var scalarDragBase: (phraseID: UUID, trackID: UUID, value: Double)?
@@ -163,6 +164,13 @@ struct PhraseWorkspaceView: View {
         .padding(StudioMetrics.Spacing.workspaceInset)
         .sheet(item: $editingCellTarget) { target in
             PhraseCellEditorSheet(
+                target: target,
+                accent: layerAccent(target.layerID)
+            )
+            .presentationBackground(.clear)
+        }
+        .sheet(item: $finiteChoiceTarget) { target in
+            PhraseFiniteChoiceSheet(
                 target: target,
                 accent: layerAccent(target.layerID)
             )
@@ -1359,6 +1367,24 @@ struct PhraseWorkspaceView: View {
         )
     }
 
+    private func openFiniteChoicePicker(phraseID: UUID, trackID: UUID) {
+        guard let activeMatrixLayer,
+              activeMatrixLayer.valueType == .patternIndex
+        else {
+            if activeMatrixLayer == nil {
+                isPresentingPerformanceLayerSelection = true
+            }
+            return
+        }
+
+        session.setSelectedPhraseAndTrackID(phraseID: phraseID, trackID: trackID)
+        finiteChoiceTarget = PhraseFiniteChoiceTarget(
+            phraseID: phraseID,
+            trackID: trackID,
+            layerID: activeMatrixLayer.id
+        )
+    }
+
     /// Shift-click: toggle the value, write it as an explicit value on THIS
     /// phrase, and convert every *following* phrase's cell to inherit it.
     /// Inheritance is forward-only — earlier phrases are never touched, and the
@@ -1633,32 +1659,38 @@ struct PhraseWorkspaceView: View {
                         scalarDragGesture(phrase: displayedPhrase, track: track, layer: activeLayer)
                     )
                     .studioSelectOnRightClick {
-                        selectPhraseLayerTrack(track.id, additive: phraseLayerSelection.contains(track.id))
-                        session.setSelectedPhraseAndTrackID(phraseID: displayedPhrase.id, trackID: track.id)
+                        if activeLayer?.valueType == .patternIndex || activeLayer == nil {
+                            openFiniteChoicePicker(phraseID: displayedPhrase.id, trackID: track.id)
+                        } else {
+                            selectPhraseLayerTrack(track.id, additive: phraseLayerSelection.contains(track.id))
+                            session.setSelectedPhraseAndTrackID(phraseID: displayedPhrase.id, trackID: track.id)
+                        }
                     }
                     .contextMenu {
-                        Button("Select") {
-                            selectPhraseLayerTrack(track.id, additive: false)
-                        }
-                        Button("Add to Selection") {
-                            selectPhraseLayerTrack(track.id, additive: true)
-                        }
-                        Divider()
-                        Button("Copy Value") {
-                            copyPhraseLayerValue(phrase: displayedPhrase, trackID: track.id)
-                        }
-                        if canPastePhraseLayerValue {
-                            Button("Paste Value") {
-                                pastePhraseLayerValue(phraseID: displayedPhrase.id, fallbackTrackID: track.id)
+                        if activeLayer?.valueType != .patternIndex && activeLayer != nil {
+                            Button("Select") {
+                                selectPhraseLayerTrack(track.id, additive: false)
                             }
-                        }
-                        if phraseLayerSingleSelectionID(fallbackTrackID: track.id) != nil {
+                            Button("Add to Selection") {
+                                selectPhraseLayerTrack(track.id, additive: true)
+                            }
                             Divider()
-                            Button("Automation") {
-                                openCellEditor(
-                                    phraseID: displayedPhrase.id,
-                                    trackID: phraseLayerSingleSelectionID(fallbackTrackID: track.id) ?? track.id
-                                )
+                            Button("Copy Value") {
+                                copyPhraseLayerValue(phrase: displayedPhrase, trackID: track.id)
+                            }
+                            if canPastePhraseLayerValue {
+                                Button("Paste Value") {
+                                    pastePhraseLayerValue(phraseID: displayedPhrase.id, fallbackTrackID: track.id)
+                                }
+                            }
+                            if phraseLayerSingleSelectionID(fallbackTrackID: track.id) != nil {
+                                Divider()
+                                Button("Automation") {
+                                    openCellEditor(
+                                        phraseID: displayedPhrase.id,
+                                        trackID: phraseLayerSingleSelectionID(fallbackTrackID: track.id) ?? track.id
+                                    )
+                                }
                             }
                         }
                     }
@@ -1946,7 +1978,7 @@ struct PhraseWorkspaceView: View {
 
     private var phraseLocalPerformanceLayerOptions: [PerformanceLayerOption] {
         PerformanceLayerOption.all.filter { option in
-            guard let layerID = option.mode.phraseLayerID else { return false }
+            guard let layerID = option.mode.phraseLayerID else { return true }
             return matrixSelectableLayers.contains { $0.id == layerID }
         }
     }
@@ -2102,6 +2134,124 @@ struct PhraseWorkspaceView: View {
         }
         isPresentingPerformanceLayerSelection = false
         postRenderedMatrixVisualState(isVisible: true)
+    }
+}
+
+struct PhraseFiniteChoiceTarget: Identifiable, Equatable {
+    let phraseID: UUID
+    let trackID: UUID
+    let layerID: String
+
+    var id: String {
+        "\(phraseID.uuidString):\(trackID.uuidString):\(layerID)"
+    }
+}
+
+private struct PhraseFiniteChoiceSheet: View {
+    let target: PhraseFiniteChoiceTarget
+    let accent: Color
+
+    @Environment(SequencerDocumentSession.self) private var session
+    @Environment(\.dismiss) private var dismiss
+
+    private var phrase: PhraseModel? {
+        session.store.phrases.first(where: { $0.id == target.phraseID }).map(session.phraseWithPerformOverlay)
+    }
+
+    private var track: StepSequenceTrack? {
+        session.store.tracks.first(where: { $0.id == target.trackID })
+    }
+
+    private var layer: PhraseLayerDefinition? {
+        session.store.layer(id: target.layerID)
+    }
+
+    private var columns: [GridItem] {
+        Array(repeating: GridItem(.flexible(minimum: 64), spacing: 10), count: 4)
+    }
+
+    var body: some View {
+        Group {
+            if let phrase, let track, let layer {
+                StudioModal(
+                    title: layer.name,
+                    subtitle: "\(phrase.name) • \(track.name)",
+                    accent: accent,
+                    minWidth: 420,
+                    minHeight: 320,
+                    onClose: { dismiss() }
+                ) {
+                    choiceGrid(phrase: phrase, track: track, layer: layer)
+                }
+            } else {
+                Color.clear
+                    .frame(width: 1, height: 1)
+                    .onAppear {
+                        dismiss()
+                    }
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private func choiceGrid(
+        phrase: PhraseModel,
+        track: StepSequenceTrack,
+        layer: PhraseLayerDefinition
+    ) -> some View {
+        let selectedIndex = selectedIndex(phrase: phrase, track: track, layer: layer)
+        return LazyVGrid(columns: columns, alignment: .leading, spacing: 10) {
+            ForEach(optionIndices(for: layer), id: \.self) { index in
+                Button {
+                    session.setPhraseCell(
+                        .single(.index(index)),
+                        layerID: layer.id,
+                        trackIDs: [track.id],
+                        phraseID: phrase.id
+                    )
+                    dismiss()
+                } label: {
+                    Text(optionLabel(index, layer: layer))
+                        .studioText(.labelBold)
+                        .foregroundStyle(index == selectedIndex ? StudioTheme.background : StudioTheme.text)
+                        .frame(maxWidth: .infinity, minHeight: 52)
+                        .background(index == selectedIndex ? accent : StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                                .stroke(index == selectedIndex ? accent : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+                        )
+                        .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("\(layer.name) \(optionLabel(index, layer: layer))")
+            }
+        }
+    }
+
+    private func selectedIndex(
+        phrase: PhraseModel,
+        track: StepSequenceTrack,
+        layer: PhraseLayerDefinition
+    ) -> Int? {
+        guard case let .index(index) = phrase.resolvedValue(
+            for: layer,
+            trackID: track.id,
+            stepIndex: 0
+        ).normalized(for: layer) else {
+            return nil
+        }
+        return index
+    }
+
+    private func optionIndices(for layer: PhraseLayerDefinition) -> [Int] {
+        let lower = Int(layer.minValue.rounded(.up))
+        let upper = Int(layer.maxValue.rounded(.down))
+        guard lower <= upper else { return [] }
+        return Array(lower...upper)
+    }
+
+    private func optionLabel(_ index: Int, layer: PhraseLayerDefinition) -> String {
+        layer.valueType == .patternIndex ? "P\(index + 1)" : "\(index)"
     }
 }
 
