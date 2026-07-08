@@ -336,6 +336,7 @@ struct StudioModeSegmentedPill<Mode: Hashable>: View {
                 isSelected ? accent : StudioTheme.subtleFill,
                 in: Capsule()
             )
+            .contentShape(Capsule())
         }
         .buttonStyle(.plain)
         .modify { view in

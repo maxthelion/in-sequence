@@ -80,6 +80,7 @@ struct StudioIconActionButton: View {
                 .foregroundStyle(isDisabled ? StudioTheme.mutedText.opacity(StudioOpacity.inheritedContent) : StudioTheme.text)
                 .frame(width: 24, height: 24)
                 .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+                .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
         }
         .buttonStyle(.plain)
         .disabled(isDisabled)

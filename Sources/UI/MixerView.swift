@@ -731,6 +731,7 @@ struct MixerInsertChainView: View {
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
                 .stroke(StudioTheme.border.opacity(0.75), style: StrokeStyle(lineWidth: StudioMetrics.borderWidth, dash: [4, 4]))
         )
+        .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
         .help(addLabel)
         .accessibilityLabel(addLabel)
     }
