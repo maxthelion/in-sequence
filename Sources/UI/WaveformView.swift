@@ -127,13 +127,27 @@ struct WaveformView: View {
         guard width > 0, !buckets.isEmpty else { return [] }
         let slotWidth = max(1, maxBarWidth + spacing)
         let capacity = max(1, Int(floor(width / slotWidth)))
-        guard buckets.count > capacity else { return buckets }
+        guard buckets.count != capacity else { return buckets }
+
+        if buckets.count > capacity {
+            return (0..<capacity).map { index in
+                let lower = Int(floor(Double(index) * Double(buckets.count) / Double(capacity)))
+                let upper = Int(ceil(Double(index + 1) * Double(buckets.count) / Double(capacity)))
+                let range = buckets[max(0, lower)..<min(buckets.count, max(lower + 1, upper))]
+                return range.max() ?? 0
+            }
+        }
+
+        guard buckets.count > 1, capacity > 1 else {
+            return Array(repeating: buckets.max() ?? 0, count: capacity)
+        }
 
         return (0..<capacity).map { index in
-            let lower = Int(floor(Double(index) * Double(buckets.count) / Double(capacity)))
-            let upper = Int(ceil(Double(index + 1) * Double(buckets.count) / Double(capacity)))
-            let range = buckets[max(0, lower)..<min(buckets.count, max(lower + 1, upper))]
-            return range.max() ?? 0
+            let position = Double(index) * Double(buckets.count - 1) / Double(capacity - 1)
+            let lower = Int(floor(position))
+            let upper = min(buckets.count - 1, lower + 1)
+            let fraction = Float(position - Double(lower))
+            return buckets[lower] + (buckets[upper] - buckets[lower]) * fraction
         }
     }
 }
