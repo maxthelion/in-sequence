@@ -82,6 +82,8 @@ enum VisualScenarioCommandRunner {
     private static var chordTrackRenderedPaletteSlotCount = 0
     private static var chordTrackRenderedActiveStepCount = 0
     private static var chordTrackRenderedBaked = false
+    private static var chordTrackRenderedConfigVisible = false
+    private static var chordTrackRenderedProgressionChooserVisible = false
     private static var audioInputTabState = "source"
     private static var drumGroupRoutingEditorRenderedState = false
     private static var drumGroupRoutingEditorMode = "none"
@@ -306,6 +308,8 @@ enum VisualScenarioCommandRunner {
                 chordTrackRenderedPaletteSlotCount = userInfo["paletteSlotCount"] as? Int ?? 0
                 chordTrackRenderedActiveStepCount = userInfo["activeStepCount"] as? Int ?? 0
                 chordTrackRenderedBaked = userInfo["baked"] as? Bool ?? false
+                chordTrackRenderedConfigVisible = userInfo["configVisible"] as? Bool ?? false
+                chordTrackRenderedProgressionChooserVisible = userInfo["progressionChooserVisible"] as? Bool ?? false
             }
         }
         NotificationCenter.default.addObserver(
@@ -1280,6 +1284,8 @@ enum VisualScenarioCommandRunner {
         chordTrackRenderedPaletteSlotCount=\(chordTrackRenderedPaletteSlotCount)
         chordTrackRenderedActiveStepCount=\(chordTrackRenderedActiveStepCount)
         chordTrackRenderedBaked=\(chordTrackRenderedBaked)
+        chordTrackRenderedConfigVisible=\(chordTrackRenderedConfigVisible)
+        chordTrackRenderedProgressionChooserVisible=\(chordTrackRenderedProgressionChooserVisible)
         performOverviewRowCount=\(PerformOverviewRowModel.rows(tracks: session.store.tracks, groups: session.store.trackGroups).count)
         selectedNoteRepeatAvailable=\(session.isNoteRepeatAvailable(trackID: session.store.selectedTrackID))
         selectedNoteRepeatStoredInterval=\(session.store.selectedTrack.noteRepeatInterval.rawValue)
@@ -2385,6 +2391,8 @@ enum VisualScenarioCommandRunner {
               command["chordTrackTab"] != nil ||
               command["chordTrackLayer"] != nil ||
               command["chordTrackSelectStep"] != nil ||
+              command["chordTrackConfig"] != nil ||
+              command["chordTrackProgressionChooser"] != nil ||
               command["chordTrackBake"] != nil ||
               command["chordTrackRestore"] != nil
         else { return }
@@ -2419,6 +2427,24 @@ enum VisualScenarioCommandRunner {
         if let rawStep = command["chordTrackSelectStep"],
            let step = Int(rawStep), step >= 0 {
             postRepeatedVisualCommand(name: .chordTrackWorkspaceVisualCommand, object: "selectStep:\(step)")
+        }
+
+        switch command["chordTrackConfig"] {
+        case "open":
+            postRepeatedVisualCommand(name: .chordTrackWorkspaceVisualCommand, object: "config:open")
+        case "close":
+            postRepeatedVisualCommand(name: .chordTrackWorkspaceVisualCommand, object: "config:close")
+        default:
+            break
+        }
+
+        switch command["chordTrackProgressionChooser"] {
+        case "open":
+            postRepeatedVisualCommand(name: .chordTrackWorkspaceVisualCommand, object: "progression:open")
+        case "close":
+            postRepeatedVisualCommand(name: .chordTrackWorkspaceVisualCommand, object: "progression:close")
+        default:
+            break
         }
 
         switch command["chordTrackBake"] {
@@ -2459,6 +2485,7 @@ enum VisualScenarioCommandRunner {
             stepPattern: stepPattern,
             slotIDs: references,
             inversions: inversions,
+            chordIDs: Array(repeating: nil, count: 16),
             velocities: Array(repeating: 96, count: 16),
             lengthSteps: Array(repeating: 4, count: 16)
         )

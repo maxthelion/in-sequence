@@ -43,13 +43,22 @@ struct ChordPaletteSlot: Codable, Equatable, Hashable, Identifiable, Sendable {
 struct ChordPalette: Codable, Equatable, Hashable, Sendable {
     var slots: [ChordPaletteSlot]
     var selectedSlotID: UUID?
+    var progressionRoot: Int
+    var progressionScaleID: ScaleID
 
-    init(slots: [ChordPaletteSlot] = Self.defaultSlots, selectedSlotID: UUID? = nil) {
+    init(
+        slots: [ChordPaletteSlot] = Self.defaultSlots,
+        selectedSlotID: UUID? = nil,
+        progressionRoot: Int = 60,
+        progressionScaleID: ScaleID = .major
+    ) {
         let resolvedSlots = slots.isEmpty ? Self.defaultSlots : slots.map(\.normalized)
         self.slots = resolvedSlots
         self.selectedSlotID = selectedSlotID.flatMap { id in
             resolvedSlots.contains(where: { $0.id == id }) ? id : nil
         } ?? resolvedSlots.first?.id
+        self.progressionRoot = min(max(progressionRoot, 0), 127)
+        self.progressionScaleID = progressionScaleID
     }
 
     static let defaultSlots: [ChordPaletteSlot] = [
@@ -86,7 +95,12 @@ struct ChordPalette: Codable, Equatable, Hashable, Sendable {
     static let `default` = ChordPalette()
 
     var normalized: ChordPalette {
-        ChordPalette(slots: slots, selectedSlotID: selectedSlotID)
+        ChordPalette(
+            slots: slots,
+            selectedSlotID: selectedSlotID,
+            progressionRoot: progressionRoot,
+            progressionScaleID: progressionScaleID
+        )
     }
 
     func slot(id: UUID?) -> ChordPaletteSlot? {
@@ -104,9 +118,9 @@ struct ChordPalette: Codable, Equatable, Hashable, Sendable {
         return slots[index].id
     }
 
-    func voicedPitches(slotID: UUID?, inversion: Int) -> [Int] {
+    func voicedPitches(slotID: UUID?, inversion: Int, chordIDOverride: ChordID? = nil) -> [Int] {
         guard let slot = slot(id: slotID),
-              let definition = ChordDefinition.for(id: slot.chordID)
+              let definition = ChordDefinition.for(id: chordIDOverride ?? slot.chordID)
         else {
             return []
         }
@@ -139,5 +153,32 @@ struct ChordPalette: Codable, Equatable, Hashable, Sendable {
         let pitchClass = ((midiNote % 12) + 12) % 12
         let octave = midiNote / 12 - 1
         return "\(names[pitchClass])\(octave)"
+    }
+}
+
+extension ChordPalette {
+    private enum CodingKeys: String, CodingKey {
+        case slots
+        case selectedSlotID
+        case progressionRoot
+        case progressionScaleID
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            slots: try container.decodeIfPresent([ChordPaletteSlot].self, forKey: .slots) ?? Self.defaultSlots,
+            selectedSlotID: try container.decodeIfPresent(UUID.self, forKey: .selectedSlotID),
+            progressionRoot: try container.decodeIfPresent(Int.self, forKey: .progressionRoot) ?? 60,
+            progressionScaleID: try container.decodeIfPresent(ScaleID.self, forKey: .progressionScaleID) ?? .major
+        )
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(slots, forKey: .slots)
+        try container.encodeIfPresent(selectedSlotID, forKey: .selectedSlotID)
+        try container.encode(progressionRoot, forKey: .progressionRoot)
+        try container.encode(progressionScaleID, forKey: .progressionScaleID)
     }
 }

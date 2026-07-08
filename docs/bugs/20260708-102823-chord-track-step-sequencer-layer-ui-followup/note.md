@@ -1,6 +1,6 @@
 Chord track should use normal step-sequencer layer UI
 
-Status: OPEN
+Status: RESOLVED
 
 Feedback source: user review of `23h-track-chord-steps`, `23i-track-chord-chords-tab`, and `23j-track-chord-inversion-layer` in gallery run `20260708-083510-in-sequence-qa-surface-coverage-main-923a889d`.
 
@@ -28,3 +28,17 @@ Acceptance criteria:
 Notes:
 - This supersedes the rough MVP-specific chord/inversion segmented control, not the underlying chord-reference architecture.
 - Preserve the architecture shipped in `e55bffc7`: chord palette belongs to the track, steps reference palette/progression data, palette edits update referencing steps, and bake/recipe preservation remain available where appropriate.
+
+Resolved:
+- Chord Steps/Clip now uses the normal length + layer quick-switch controls.
+- Chord, Inversion, and Chord Type are step layers; chord-type overrides are persisted per step and resolved at playback/bake time.
+- The palette strip keeps add/config/progression controls and no longer exposes Bake on the working surface.
+- Config sets chord-track progression root/scale inline; progression chooser applies track-palette chord templates.
+- The Chords tab uses a piano-style root selector with progression root and scale-degree markings.
+- Visual QA rows added/updated for chord steps, chords tab keyboard, inversion layer, chord type layer, config UI, and progression chooser.
+
+Verification:
+- `scripts/diagnostics/ux-canon-lint.sh` — OK.
+- `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild test -project SequencerAI.xcodeproj -scheme SequencerAI -destination 'platform=macOS' -only-testing:SequencerAITests/ChordsTests CODE_SIGNING_ALLOWED=NO` — 9 tests passed.
+- `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild build -project SequencerAI.xcodeproj -scheme SequencerAI -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO` — build succeeded.
+- Focused captures published: `http://localhost:4747/gallery?run=20260708-094923-in-sequence-qa-surface-coverage-main-eae906db`.

@@ -311,7 +311,7 @@ enum GeneratedSourceEvaluator {
             guard !steps.isEmpty else { return false }
             let normalizedStep = positiveModulo(stepIndex, max(lengthSteps, 1))
             return !steps[normalizedStep].isEmpty
-        case let .chordReferences(stepPattern, _, _, _, _):
+        case let .chordReferences(stepPattern, _, _, _, _, _):
             guard !stepPattern.isEmpty else { return false }
             return stepPattern[stepIndex % stepPattern.count]
         case let .sliceTriggers(stepPattern, _, _, _):

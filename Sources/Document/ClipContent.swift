@@ -124,7 +124,7 @@ enum ClipRandomizeBaker {
                 }
             )
             .normalized
-        case let .chordReferences(stepPattern, slotIDs, inversions, velocities, lengthSteps):
+        case let .chordReferences(stepPattern, slotIDs, inversions, chordIDs, velocities, lengthSteps):
             let stepCount = max(1, stepPattern.count)
             let sourceSlotIDs = slotIDs.isEmpty ? Array(repeating: ChordPalette.default.slots.first?.id, count: stepCount) : slotIDs
             let bakedPattern = (0..<stepCount).map { stepIndex in
@@ -146,6 +146,9 @@ enum ClipRandomizeBaker {
                 stepPattern: bakedPattern,
                 slotIDs: bakedSlotIDs,
                 inversions: bakedInversions,
+                chordIDs: chordIDs.isEmpty ? Array(repeating: nil, count: stepCount) : (0..<stepCount).map { stepIndex in
+                    chordIDs.indices.contains(stepIndex) ? chordIDs[stepIndex] : nil
+                },
                 velocities: bakedVelocities,
                 lengthSteps: bakedLengths
             )
@@ -419,6 +422,7 @@ enum ClipContent: Equatable, Hashable, Sendable {
         stepPattern: [Bool],
         slotIDs: [UUID?],
         inversions: [Int],
+        chordIDs: [ChordID?],
         velocities: [Int],
         lengthSteps: [Int]
     )
@@ -434,7 +438,7 @@ enum ClipContent: Equatable, Hashable, Sendable {
         switch self {
         case let .noteGrid(lengthSteps, _):
             return max(1, lengthSteps)
-        case let .chordReferences(stepPattern, _, _, _, _):
+        case let .chordReferences(stepPattern, _, _, _, _, _):
             return max(1, stepPattern.count)
         case let .sliceTriggers(stepPattern, _, _, _):
             return max(1, stepPattern.count)
@@ -467,6 +471,7 @@ extension ClipContent {
             stepPattern: Array(repeating: false, count: resolvedLength),
             slotIDs: Array(repeating: defaultSlotID, count: resolvedLength),
             inversions: Array(repeating: 0, count: resolvedLength),
+            chordIDs: Array(repeating: nil, count: resolvedLength),
             velocities: Array(repeating: 96, count: resolvedLength),
             lengthSteps: Array(repeating: 4, count: resolvedLength)
         )
@@ -517,7 +522,7 @@ extension ClipContent {
         switch self {
         case let .noteGrid(lengthSteps, _):
             return max(1, lengthSteps)
-        case let .chordReferences(stepPattern, _, _, _, _):
+        case let .chordReferences(stepPattern, _, _, _, _, _):
             return max(1, stepPattern.count)
         case let .sliceTriggers(stepPattern, _, _, _):
             return max(1, stepPattern.count)
@@ -535,13 +540,14 @@ extension ClipContent {
                 return .empty
             }
             return .noteGrid(lengthSteps: resolvedLength, steps: normalizedSteps)
-        case let .chordReferences(stepPattern, slotIDs, inversions, velocities, lengthSteps):
+        case let .chordReferences(stepPattern, slotIDs, inversions, chordIDs, velocities, lengthSteps):
             let resolvedPattern = stepPattern.isEmpty ? [false] : stepPattern
             let count = resolvedPattern.count
             return .chordReferences(
                 stepPattern: resolvedPattern,
                 slotIDs: Self.syncedChordSlotIDs(slotIDs, stepCount: count),
                 inversions: Self.syncedChordInversions(inversions, stepCount: count),
+                chordIDs: Self.syncedChordIDs(chordIDs, stepCount: count),
                 velocities: Self.syncedChordVelocities(velocities, stepCount: count),
                 lengthSteps: Self.syncedChordLengths(lengthSteps, stepCount: count)
             )
@@ -586,12 +592,13 @@ extension ClipContent {
 
     func resolvedChordNoteGrid(palette: ChordPalette) -> ClipContent {
         switch normalized {
-        case let .chordReferences(stepPattern, slotIDs, inversions, velocities, lengthSteps):
+        case let .chordReferences(stepPattern, slotIDs, inversions, chordIDs, velocities, lengthSteps):
             let steps = stepPattern.indices.map { index -> ClipStep in
                 guard stepPattern[index] else { return .empty }
                 let pitches = palette.normalized.voicedPitches(
                     slotID: slotIDs.indices.contains(index) ? slotIDs[index] : nil,
-                    inversion: inversions.indices.contains(index) ? inversions[index] : 0
+                    inversion: inversions.indices.contains(index) ? inversions[index] : 0,
+                    chordIDOverride: chordIDs.indices.contains(index) ? chordIDs[index] : nil
                 )
                 guard !pitches.isEmpty else { return .empty }
                 let velocity = velocities.indices.contains(index) ? velocities[index] : 96
@@ -660,6 +667,7 @@ extension ClipContent: Codable {
         case stepPattern
         case slotIDs
         case inversions
+        case chordIDs
         case velocities
         case lengthSteps
     }
@@ -705,6 +713,7 @@ extension ClipContent: Codable {
                 stepPattern: try nested.decode([Bool].self, forKey: .stepPattern),
                 slotIDs: try nested.decodeIfPresent([UUID?].self, forKey: .slotIDs) ?? [],
                 inversions: try nested.decodeIfPresent([Int].self, forKey: .inversions) ?? [],
+                chordIDs: try nested.decodeIfPresent([ChordID?].self, forKey: .chordIDs) ?? [],
                 velocities: try nested.decodeIfPresent([Int].self, forKey: .velocities) ?? [],
                 lengthSteps: try nested.decodeIfPresent([Int].self, forKey: .lengthSteps) ?? []
             ).normalized
@@ -725,11 +734,12 @@ extension ClipContent: Codable {
             var nested = container.nestedContainer(keyedBy: NoteGridCodingKeys.self, forKey: DynamicCodingKey("noteGrid"))
             try nested.encode(lengthSteps, forKey: .lengthSteps)
             try nested.encode(steps, forKey: .steps)
-        case let .chordReferences(stepPattern, slotIDs, inversions, velocities, lengthSteps):
+        case let .chordReferences(stepPattern, slotIDs, inversions, chordIDs, velocities, lengthSteps):
             var nested = container.nestedContainer(keyedBy: ChordReferencesCodingKeys.self, forKey: DynamicCodingKey("chordReferences"))
             try nested.encode(stepPattern, forKey: .stepPattern)
             try nested.encode(slotIDs, forKey: .slotIDs)
             try nested.encode(inversions, forKey: .inversions)
+            try nested.encode(chordIDs, forKey: .chordIDs)
             try nested.encode(velocities, forKey: .velocities)
             try nested.encode(lengthSteps, forKey: .lengthSteps)
         case let .sliceTriggers(stepPattern, sliceIndexes, stepModes, stepParameters):
@@ -759,6 +769,15 @@ extension ClipContent: Codable {
             return clamped + Array(repeating: 0, count: count - clamped.count)
         }
         return Array(clamped.prefix(count))
+    }
+
+    private static func syncedChordIDs(_ chordIDs: [ChordID?], stepCount: Int) -> [ChordID?] {
+        let count = max(1, stepCount)
+        if chordIDs.count == count { return chordIDs }
+        if chordIDs.count < count {
+            return chordIDs + Array(repeating: nil, count: count - chordIDs.count)
+        }
+        return Array(chordIDs.prefix(count))
     }
 
     private static func syncedChordVelocities(_ velocities: [Int], stepCount: Int) -> [Int] {

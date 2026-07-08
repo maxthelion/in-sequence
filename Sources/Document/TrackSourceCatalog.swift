@@ -429,6 +429,7 @@ struct ClipPoolEntry: Equatable, Identifiable, Sendable {
                     ChordPalette.default.slotID(at: 3),
                 ],
                 inversions: Array(repeating: 0, count: 16),
+                chordIDs: Array(repeating: nil, count: 16),
                 velocities: Array(repeating: 96, count: 16),
                 lengthSteps: Array(repeating: 4, count: 16)
             )

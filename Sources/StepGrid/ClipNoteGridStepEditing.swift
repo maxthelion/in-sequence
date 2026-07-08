@@ -278,7 +278,7 @@ enum ClipNoteGridStepEditing {
                 stepParameters: stepParameters
             )
 
-        case let .chordReferences(stepPattern, slotIDs, inversions, velocities, lengthSteps):
+        case let .chordReferences(stepPattern, slotIDs, inversions, chordIDs, velocities, lengthSteps):
             var updated = stepPattern
             guard updated.indices.contains(index) else { return }
             updated[index].toggle()
@@ -286,6 +286,7 @@ enum ClipNoteGridStepEditing {
                 stepPattern: updated,
                 slotIDs: slotIDs,
                 inversions: inversions,
+                chordIDs: chordIDs,
                 velocities: velocities,
                 lengthSteps: lengthSteps
             )
@@ -325,7 +326,7 @@ enum ClipNoteGridStepEditing {
                 stepParameters: updatedParameters
             )
 
-        case let .chordReferences(stepPattern, slotIDs, inversions, velocities, lengthSteps):
+        case let .chordReferences(stepPattern, slotIDs, inversions, chordIDs, velocities, lengthSteps):
             var updatedPattern = stepPattern
             var updatedVelocities = velocities
             guard updatedPattern.indices.contains(index), updatedVelocities.indices.contains(index) else { return }
@@ -336,6 +337,7 @@ enum ClipNoteGridStepEditing {
                 stepPattern: updatedPattern,
                 slotIDs: slotIDs,
                 inversions: inversions,
+                chordIDs: chordIDs,
                 velocities: updatedVelocities,
                 lengthSteps: lengthSteps
             )
@@ -372,7 +374,7 @@ enum ClipNoteGridStepEditing {
                 stepParameters: stepParameters
             )
 
-        case let .chordReferences(stepPattern, slotIDs, inversions, velocities, lengthSteps):
+        case let .chordReferences(stepPattern, slotIDs, inversions, chordIDs, velocities, lengthSteps):
             var updatedPattern = stepPattern
             guard updatedPattern.indices.contains(index) else { return }
             updatedPattern[index] = clampedUnit(value) >= 0.5
@@ -380,6 +382,7 @@ enum ClipNoteGridStepEditing {
                 stepPattern: updatedPattern,
                 slotIDs: slotIDs,
                 inversions: inversions,
+                chordIDs: chordIDs,
                 velocities: velocities,
                 lengthSteps: lengthSteps
             )
@@ -508,7 +511,7 @@ enum ClipNoteGridStepEditing {
                 stepParameters: stepParameters
             )
 
-        case let .chordReferences(stepPattern, slotIDs, inversions, velocities, lengthSteps):
+        case let .chordReferences(stepPattern, slotIDs, inversions, chordIDs, velocities, lengthSteps):
             var updated = stepPattern
             guard updated.indices.contains(index) else { return }
             updated[index] = true
@@ -516,6 +519,7 @@ enum ClipNoteGridStepEditing {
                 stepPattern: updated,
                 slotIDs: slotIDs,
                 inversions: inversions,
+                chordIDs: chordIDs,
                 velocities: velocities,
                 lengthSteps: lengthSteps
             )
@@ -543,7 +547,7 @@ enum ClipNoteGridStepEditing {
                 )
             }
 
-        case let .chordReferences(stepPattern, slotIDs, inversions, velocities, lengthSteps):
+        case let .chordReferences(stepPattern, slotIDs, inversions, chordIDs, velocities, lengthSteps):
             var updated = stepPattern
             if updated.indices.contains(index) {
                 updated[index] = false
@@ -551,6 +555,7 @@ enum ClipNoteGridStepEditing {
                     stepPattern: updated,
                     slotIDs: slotIDs,
                     inversions: inversions,
+                    chordIDs: chordIDs,
                     velocities: velocities,
                     lengthSteps: lengthSteps
                 )
@@ -595,7 +600,7 @@ enum ClipNoteGridStepEditing {
                 sliceMode: stepModes[safe: index].map { $0 == .runFromHere ? 1 : 0 }
             )
 
-        case let .chordReferences(stepPattern, _, _, velocities, _):
+        case let .chordReferences(stepPattern, _, _, _, velocities, _):
             return StepClipboardEntry(
                 active: stepPattern[safe: index] ?? false,
                 velocity: velocities[safe: index].map { Double($0) / 127 },
@@ -656,7 +661,7 @@ enum ClipNoteGridStepEditing {
             let gain = stepParameters[safe: index]?.gain ?? 0
             return clampedUnit((gain + 24) / 36)
 
-        case let .chordReferences(stepPattern, _, _, velocities, _):
+        case let .chordReferences(stepPattern, _, _, _, velocities, _):
             guard stepPattern.indices.contains(index), stepPattern[index] else {
                 return 0
             }
@@ -675,7 +680,7 @@ enum ClipNoteGridStepEditing {
             }
             return stepPattern[index] ? 1 : 0
 
-        case let .chordReferences(stepPattern, _, _, _, _):
+        case let .chordReferences(stepPattern, _, _, _, _, _):
             guard stepPattern.indices.contains(index) else {
                 return 0
             }

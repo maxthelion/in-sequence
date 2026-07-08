@@ -85,6 +85,26 @@ final class ChordsTests: XCTestCase {
         XCTAssertEqual(palette.voicedPitches(slotID: slotID, inversion: 0), [60, 64, 67])
     }
 
+    func test_step_chord_type_override_changes_quality_without_mutating_palette() {
+        var project = Self.makeChordProject()
+        let trackID = project.selectedTrackID
+        let slotID = project.tracks.first(where: { $0.id == trackID })?.chordPalette.slotID(at: 0)
+        Self.replaceCurrentChordClip(
+            in: &project,
+            stepPattern: [true],
+            slotIDs: [slotID],
+            inversions: [0],
+            chordIDs: [.minor7th]
+        )
+
+        let notes = Self.resolvedNotes(project: project, trackID: trackID, stepIndex: 0)
+        XCTAssertEqual(notes.map(\.pitch), [60, 63, 67, 70])
+
+        let palette = project.tracks.first(where: { $0.id == trackID })!.chordPalette
+        XCTAssertEqual(palette.slot(id: slotID)?.chordID, .majorTriad)
+    }
+
+
     func test_baking_chord_track_creates_note_grid_and_retains_recipe_clip() {
         var project = Self.makeChordProject()
         let trackID = project.selectedTrackID
@@ -129,7 +149,8 @@ final class ChordsTests: XCTestCase {
         in project: inout Project,
         stepPattern: [Bool],
         slotIDs: [UUID?],
-        inversions: [Int]
+        inversions: [Int],
+        chordIDs: [ChordID?]? = nil
     ) {
         let trackID = project.selectedTrackID
         let clipID = project.patternBank(for: trackID).slot(at: 0).sourceRef.clipID!
@@ -138,6 +159,7 @@ final class ChordsTests: XCTestCase {
                 stepPattern: stepPattern,
                 slotIDs: slotIDs,
                 inversions: inversions,
+                chordIDs: chordIDs ?? Array(repeating: nil, count: max(1, stepPattern.count)),
                 velocities: Array(repeating: 96, count: max(1, stepPattern.count)),
                 lengthSteps: Array(repeating: 4, count: max(1, stepPattern.count))
             )

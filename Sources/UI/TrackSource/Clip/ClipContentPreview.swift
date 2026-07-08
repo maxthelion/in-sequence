@@ -232,7 +232,7 @@ struct ClipContentPreview: View {
             case let .noteGrid(lengthSteps, steps):
                 noteGridEditor(lengthSteps: lengthSteps, steps: steps)
 
-            case let .chordReferences(stepPattern, slotIDs, inversions, velocities, lengthSteps):
+            case let .chordReferences(stepPattern, slotIDs, inversions, _, velocities, lengthSteps):
                 VStack(alignment: .leading, spacing: 14) {
                     StepGridView(
                         stepStates: stepPattern.map { $0 ? .on : .off },
@@ -1065,7 +1065,7 @@ struct ClipContentPreview: View {
         switch content {
         case let .noteGrid(lengthSteps, steps):
             return "noteGrid length=\(lengthSteps) notes=\(noteCount(in: steps))"
-        case let .chordReferences(stepPattern, _, _, _, _):
+        case let .chordReferences(stepPattern, _, _, _, _, _):
             return "chordReferences length=\(stepPattern.count) active=\(stepPattern.filter { $0 }.count)"
         case let .sliceTriggers(stepPattern, _, _, _):
             return "sliceTriggers length=\(stepPattern.count) active=\(stepPattern.filter { $0 }.count)"

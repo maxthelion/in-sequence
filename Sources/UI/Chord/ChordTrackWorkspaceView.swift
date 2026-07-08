@@ -21,14 +21,16 @@ enum ChordTrackTab: String, CaseIterable, Equatable {
     }
 }
 
-enum ChordTrackStepLayer: String, CaseIterable, Equatable {
+enum ChordTrackStepLayer: String, CaseIterable, Equatable, Hashable {
     case chord
     case inversion
+    case chordType
 
     var title: String {
         switch self {
         case .chord: return "Chord"
         case .inversion: return "Inversion"
+        case .chordType: return "Chord Type"
         }
     }
 }
@@ -44,7 +46,11 @@ struct ChordTrackWorkspaceView: View {
     @State private var selectedTab: ChordTrackTab = .steps
     @State private var selectedLayer: ChordTrackStepLayer = .chord
     @State private var selectedStepIndex = 0
+    @State private var selectedPage = 0
     @State private var selectedPaletteSlotID: UUID?
+    @State private var isLayerSwitcherOpen = false
+    @State private var isConfigPresented = false
+    @State private var isProgressionChooserPresented = false
     @State private var isAddFXPresented = false
     @State private var macroSlotPickerRequest: MacroSlotPickerRequest?
 
@@ -53,8 +59,54 @@ struct ChordTrackWorkspaceView: View {
         var id: Int { slotIndex }
     }
 
+    private struct ProgressionTemplate: Identifiable {
+        let id: String
+        let title: String
+        let degrees: [Int]
+        let qualities: [ChordID]
+
+        var preview: String {
+            degrees.map { ChordTrackWorkspaceView.romanDegreeLabel(for: $0) }.joined(separator: " ")
+        }
+    }
+
     private let macroSlotColumns = [
         GridItem(.adaptive(minimum: 58, maximum: 72), spacing: 10, alignment: .top)
+    ]
+
+    private let configScaleIDs: [ScaleID] = [
+        .major,
+        .naturalMinor,
+        .dorian,
+        .mixolydian,
+        .minorPentatonic
+    ]
+
+    private let progressionTemplates: [ProgressionTemplate] = [
+        ProgressionTemplate(
+            id: "one-four-five-six",
+            title: "I IV V vi",
+            degrees: [0, 3, 4, 5],
+            qualities: [.majorTriad, .majorTriad, .majorTriad, .minorTriad]
+        ),
+        ProgressionTemplate(
+            id: "one-five-six-four",
+            title: "I V vi IV",
+            degrees: [0, 4, 5, 3],
+            qualities: [.majorTriad, .majorTriad, .minorTriad, .majorTriad]
+        ),
+        ProgressionTemplate(
+            id: "two-five-one",
+            title: "ii V I",
+            degrees: [1, 4, 0],
+            qualities: [.minor7th, .dominant7th, .major7th]
+        ),
+        ProgressionTemplate(
+            id: "six-four-one-five",
+            title: "vi IV I V",
+            degrees: [5, 3, 0, 4],
+            qualities: [.minorTriad, .majorTriad, .majorTriad, .majorTriad]
+        )
     ]
 
     private var track: StepSequenceTrack {
@@ -153,6 +205,12 @@ struct ChordTrackWorkspaceView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             paletteBar
+            if isConfigPresented {
+                progressionConfigPanel
+            }
+            if isProgressionChooserPresented {
+                progressionChooserPanel
+            }
             tabWell
         }
         .frame(minWidth: 0, maxWidth: .infinity, alignment: .topLeading)
@@ -220,17 +278,48 @@ struct ChordTrackWorkspaceView: View {
             .help("Add chord")
 
             Button {
-                bakeSelectedPattern()
+                isConfigPresented.toggle()
+                if isConfigPresented {
+                    isProgressionChooserPresented = false
+                }
             } label: {
-                Label("Bake", systemImage: "square.grid.2x2")
-                    .studioText(.labelBold)
-                    .padding(.horizontal, 12)
-                    .frame(height: 34)
+                Image(systemName: "gearshape")
+                    .font(.system(size: 13, weight: .bold))
+                    .frame(width: 34, height: 34)
             }
             .buttonStyle(.plain)
-            .foregroundStyle(StudioTheme.background)
-            .background(accent, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
-            .help("Bake chord references to a clip")
+            .foregroundStyle(isConfigPresented ? StudioTheme.background : StudioTheme.text)
+            .background(
+                isConfigPresented ? accent : StudioTheme.subtleFill,
+                in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                    .stroke(isConfigPresented ? Color.clear : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+            )
+            .help("Chord config")
+
+            Button {
+                isProgressionChooserPresented.toggle()
+                if isProgressionChooserPresented {
+                    isConfigPresented = false
+                }
+            } label: {
+                Image(systemName: "list.bullet.rectangle")
+                    .font(.system(size: 13, weight: .bold))
+                    .frame(width: 34, height: 34)
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(isProgressionChooserPresented ? StudioTheme.background : StudioTheme.text)
+            .background(
+                isProgressionChooserPresented ? accent : StudioTheme.subtleFill,
+                in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                    .stroke(isProgressionChooserPresented ? Color.clear : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+            )
+            .help("Choose progression")
 
             if selectedPattern.sourceRef.sourceClipID != nil {
                 Button {
@@ -278,6 +367,86 @@ struct ChordTrackWorkspaceView: View {
         .buttonStyle(.plain)
     }
 
+    private var progressionConfigPanel: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            ChordRootKeyboard(
+                selectedRoot: palette.progressionRoot,
+                progressionRoot: palette.progressionRoot,
+                scaleID: palette.progressionScaleID,
+                accent: accent
+            ) { root in
+                updateProgressionRoot(root)
+            }
+
+            StudioSegmentedControl(
+                title: "Scale",
+                selection: Binding(
+                    get: { palette.progressionScaleID },
+                    set: { updateProgressionScale($0) }
+                ),
+                segments: configScaleIDs.map { scaleID in
+                    StudioSegment(title: Scale.for(id: scaleID)?.name ?? scaleID.rawValue, value: scaleID)
+                },
+                accent: accent,
+                layout: .init(fillsWidth: false, minWidth: 88)
+            )
+        }
+        .padding(14)
+        .frame(maxWidth: 620, alignment: .leading)
+        .background(
+            StudioTheme.panelFill,
+            in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.section, style: .continuous)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.section, style: .continuous)
+                .stroke(accent.opacity(StudioOpacity.accentStroke), lineWidth: StudioMetrics.borderWidth)
+        )
+    }
+
+    private var progressionChooserPanel: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            ForEach(progressionTemplates) { template in
+                Button {
+                    applyProgressionTemplate(template)
+                    isProgressionChooserPresented = false
+                } label: {
+                    HStack(spacing: 10) {
+                        Text(template.title)
+                            .studioText(.labelBold)
+                            .foregroundStyle(StudioTheme.text)
+                            .lineLimit(1)
+                        Spacer(minLength: 0)
+                        Text(template.preview)
+                            .studioText(.micro)
+                            .foregroundStyle(StudioTheme.mutedText)
+                            .lineLimit(1)
+                    }
+                    .padding(.horizontal, 10)
+                    .frame(height: 34)
+                    .background(
+                        StudioTheme.subtleFill,
+                        in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                            .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+                    )
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: 420, alignment: .leading)
+        .background(
+            StudioTheme.panelFill,
+            in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.section, style: .continuous)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.section, style: .continuous)
+                .stroke(accent.opacity(StudioOpacity.accentStroke), lineWidth: StudioMetrics.borderWidth)
+        )
+    }
+
     private var tabWell: some View {
         VStack(alignment: .leading, spacing: StudioTabWellGrammar.pillRowToWellGap) {
             StudioSectionPills(
@@ -320,21 +489,92 @@ struct ChordTrackWorkspaceView: View {
 
     private var stepsTab: some View {
         VStack(alignment: .leading, spacing: 14) {
-            StudioSegmentedControl(
-                title: nil,
-                selection: Binding(get: { selectedLayer }, set: { selectedLayer = $0 }),
-                segments: ChordTrackStepLayer.allCases.map { StudioSegment(title: $0.title, value: $0) },
-                accent: accent
-            )
+            HStack(spacing: 12) {
+                lengthSelector
+                layerChip
+                if chordPageCount > 1 {
+                    pageSelector
+                }
+                Spacer(minLength: 0)
+            }
+            if isLayerSwitcherOpen {
+                layerOptions
+            }
             chordStepGrid
             selectedStepEditor
         }
     }
 
+    private var lengthSelector: some View {
+        StudioSegmentedControl(
+            title: "Length",
+            selection: Binding(
+                get: { chordContent.stepCount },
+                set: { resizeChordClip(to: $0) }
+            ),
+            segments: [16, 32, 64, 128].map { length in
+                StudioSegment(title: "\(length)", value: length)
+            },
+            accent: accent,
+            layout: .init(fillsWidth: false, minWidth: 44)
+        )
+    }
+
+    private var layerChip: some View {
+        StepLayerQuickSwitchChip(
+            title: "Layer",
+            selection: $selectedLayer,
+            isOpen: $isLayerSwitcherOpen,
+            options: layerQuickSwitchOptions,
+            accent: accent
+        )
+    }
+
+    private var layerOptions: some View {
+        StepLayerQuickSwitchOptions(
+            selection: $selectedLayer,
+            isOpen: $isLayerSwitcherOpen,
+            options: layerQuickSwitchOptions,
+            accent: accent
+        )
+    }
+
+    private var layerQuickSwitchOptions: [StepLayerQuickSwitchOption<ChordTrackStepLayer>] {
+        ChordTrackStepLayer.allCases.map { layer in
+            StepLayerQuickSwitchOption(id: layer.rawValue, title: layer.title, value: layer)
+        }
+    }
+
+    private var chordPageCount: Int {
+        max(1, Int(ceil(Double(chordContent.stepCount) / 16.0)))
+    }
+
+    private var chordPageStart: Int {
+        min(max(selectedPage, 0), chordPageCount - 1) * 16
+    }
+
+    private var pageSelector: some View {
+        StudioSegmentedControl(
+            title: nil,
+            selection: Binding(
+                get: { min(selectedPage, chordPageCount - 1) },
+                set: { selectedPage = min(max($0, 0), chordPageCount - 1) }
+            ),
+            segments: (0..<chordPageCount).map { index in
+                let start = index * 16 + 1
+                let end = min((index + 1) * 16, chordContent.stepCount)
+                return StudioSegment(title: "\(start)-\(end)", value: index)
+            },
+            accent: accent,
+            layout: .init(fillsWidth: false, minWidth: 44)
+        )
+    }
+
     private var chordStepGrid: some View {
-        let states = stepStates()
+        let states = visibleStepStates()
         return StepGridView(
             stepStates: states,
+            indexOffset: chordPageStart,
             playingStepIndex: nil,
             selectedStepIndexes: [selectedStepIndex],
             accent: accent,
@@ -344,6 +584,8 @@ struct ChordTrackWorkspaceView: View {
                     return .chordLabel(name: stepSlotName(at: index))
                 case .inversion:
                     return .optionLabel(text: "I\(selectedStepInversion(at: index))")
+                case .chordType:
+                    return .optionLabel(text: stepChordTypeName(at: index))
                 }
             },
             onSelectStep: { index in
@@ -356,6 +598,8 @@ struct ChordTrackWorkspaceView: View {
                 assignSelectedSlot(to: index)
             case .inversion:
                 incrementInversion(at: index)
+            case .chordType:
+                cycleChordType(at: index)
             }
         }
     }
@@ -365,6 +609,7 @@ struct ChordTrackWorkspaceView: View {
             StudioMetricPill(title: "STEP", value: "\(selectedStepIndex + 1)", accent: accent)
             StudioMetricPill(title: "CHORD", value: selectedStepSlotName(), accent: accent)
             StudioMetricPill(title: "INV", value: "\(selectedStepInversion())", accent: accent)
+            StudioMetricPill(title: "TYPE", value: selectedStepChordTypeName(), accent: accent)
         }
     }
 
@@ -501,16 +746,16 @@ struct ChordTrackWorkspaceView: View {
     private var chordsTab: some View {
         VStack(alignment: .leading, spacing: 14) {
             if let selectedSlot {
-                HStack(spacing: 12) {
-                    SourceParameterStepperRow(
-                        title: "Root",
-                        value: selectedSlot.root,
-                        range: 24...96
-                    ) { root in
-                        updateSelectedSlot { $0.root = root }
-                    }
-                    qualityGrid(selectedSlot: selectedSlot)
+                ChordRootKeyboard(
+                    selectedRoot: selectedSlot.root,
+                    progressionRoot: palette.progressionRoot,
+                    scaleID: palette.progressionScaleID,
+                    accent: accent
+                ) { root in
+                    updateSelectedSlot { $0.root = root }
                 }
+
+                qualityGrid(selectedSlot: selectedSlot)
 
                 HStack(spacing: 8) {
                     Button {
@@ -558,13 +803,20 @@ struct ChordTrackWorkspaceView: View {
         )
     }
 
+    private func visibleStepStates() -> [StepVisualState] {
+        Array(stepStates().dropFirst(chordPageStart).prefix(16))
+    }
+
     private func stepStates() -> [StepVisualState] {
-        guard case let .chordReferences(stepPattern, _, inversions, _, _) = chordContent else {
+        guard case let .chordReferences(stepPattern, _, inversions, chordIDs, _, _) = chordContent else {
             return Array(repeating: .off, count: 16)
         }
         return stepPattern.indices.map { index in
             guard stepPattern[index] else { return .off }
             if selectedLayer == .inversion, (inversions.value(at: index) ?? 0) != 0 {
+                return .accented
+            }
+            if selectedLayer == .chordType, chordIDs.value(at: index) != nil {
                 return .accented
             }
             return .on
@@ -576,7 +828,7 @@ struct ChordTrackWorkspaceView: View {
     }
 
     private func stepSlotName(at stepIndex: Int) -> String {
-        guard case let .chordReferences(_, slotIDs, _, _, _) = chordContent else {
+        guard case let .chordReferences(_, slotIDs, _, _, _, _) = chordContent else {
             return "-"
         }
         let slotID = slotIDs.value(at: stepIndex) ?? nil
@@ -588,10 +840,34 @@ struct ChordTrackWorkspaceView: View {
     }
 
     private func selectedStepInversion(at stepIndex: Int) -> Int {
-        guard case let .chordReferences(_, _, inversions, _, _) = chordContent else {
+        guard case let .chordReferences(_, _, inversions, _, _, _) = chordContent else {
             return 0
         }
         return inversions.value(at: stepIndex) ?? 0
+    }
+
+    private func selectedStepChordTypeName() -> String {
+        stepChordTypeName(at: selectedStepIndex)
+    }
+
+    private func stepChordTypeName(at stepIndex: Int) -> String {
+        guard case let .chordReferences(_, slotIDs, _, chordIDs, _, _) = chordContent else {
+            return "-"
+        }
+        let slotID = slotIDs.value(at: stepIndex) ?? nil
+        let fallback = palette.slot(id: slotID)?.chordID ?? selectedSlot?.chordID ?? .majorTriad
+        let chordID = (chordIDs.value(at: stepIndex) ?? nil) ?? fallback
+        return shortChordName(for: chordID)
+    }
+
+    private func fullChordTypeName(at stepIndex: Int) -> String {
+        guard case let .chordReferences(_, slotIDs, _, chordIDs, _, _) = chordContent else {
+            return "-"
+        }
+        let slotID = slotIDs.value(at: stepIndex) ?? nil
+        let fallback = palette.slot(id: slotID)?.chordID ?? selectedSlot?.chordID ?? .majorTriad
+        let chordID = (chordIDs.value(at: stepIndex) ?? nil) ?? fallback
+        return ChordDefinition.for(id: chordID)?.name ?? chordID.rawValue
     }
 
     private func selectPaletteSlot(_ slotID: UUID) {
@@ -629,10 +905,50 @@ struct ChordTrackWorkspaceView: View {
         }
     }
 
+    private func updateProgressionRoot(_ root: Int) {
+        session.mutateTrack(id: track.id) { track in
+            track.chordPalette.progressionRoot = root
+            track.chordPalette = track.chordPalette.normalized
+        }
+    }
+
+    private func updateProgressionScale(_ scaleID: ScaleID) {
+        session.mutateTrack(id: track.id) { track in
+            track.chordPalette.progressionScaleID = scaleID
+            track.chordPalette = track.chordPalette.normalized
+        }
+    }
+
+    private func applyProgressionTemplate(_ template: ProgressionTemplate) {
+        let root = palette.progressionRoot
+        let intervals = Scale.for(id: palette.progressionScaleID)?.intervals ?? [0, 2, 4, 5, 7, 9, 11]
+        let currentSlots = palette.slots
+        let slots = template.degrees.enumerated().map { index, degree -> ChordPaletteSlot in
+            let existing = currentSlots.value(at: index)
+            let interval = intervals.value(at: degree % max(intervals.count, 1)) ?? 0
+            let octaveOffset = (degree / max(intervals.count, 1)) * 12
+            let quality = template.qualities.value(at: index) ?? .majorTriad
+            return ChordPaletteSlot(
+                id: existing?.id ?? UUID(),
+                name: Self.romanDegreeLabel(for: degree),
+                root: min(max(root + interval + octaveOffset, 0), 127),
+                chordID: quality,
+                scaleID: palette.progressionScaleID
+            )
+        }
+        guard !slots.isEmpty else { return }
+        selectedPaletteSlotID = slots.first?.id
+        session.mutateTrack(id: track.id) { track in
+            track.chordPalette.slots = slots
+            track.chordPalette.selectedSlotID = slots.first?.id
+            track.chordPalette = track.chordPalette.normalized
+        }
+    }
+
     private func assignSelectedSlot(to stepIndex: Int) {
         guard let slotID = selectedPaletteSlotID ?? palette.selectedSlotID else { return }
         mutateChordClip { content in
-            guard case let .chordReferences(stepPattern, slotIDs, inversions, velocities, lengthSteps) = content.normalized else {
+            guard case let .chordReferences(stepPattern, slotIDs, inversions, chordIDs, velocities, lengthSteps) = content.normalized else {
                 return
             }
             var nextPattern = stepPattern
@@ -644,6 +960,7 @@ struct ChordTrackWorkspaceView: View {
                 stepPattern: nextPattern,
                 slotIDs: nextSlotIDs,
                 inversions: inversions,
+                chordIDs: chordIDs,
                 velocities: velocities,
                 lengthSteps: lengthSteps
             )
@@ -652,7 +969,7 @@ struct ChordTrackWorkspaceView: View {
 
     private func incrementInversion(at stepIndex: Int) {
         mutateChordClip { content in
-            guard case let .chordReferences(stepPattern, slotIDs, inversions, velocities, lengthSteps) = content.normalized else {
+            guard case let .chordReferences(stepPattern, slotIDs, inversions, chordIDs, velocities, lengthSteps) = content.normalized else {
                 return
             }
             var nextPattern = stepPattern
@@ -664,10 +981,60 @@ struct ChordTrackWorkspaceView: View {
                 stepPattern: nextPattern,
                 slotIDs: slotIDs,
                 inversions: nextInversions,
+                chordIDs: chordIDs,
                 velocities: velocities,
                 lengthSteps: lengthSteps
             )
         }
+    }
+
+    private func cycleChordType(at stepIndex: Int) {
+        mutateChordClip { content in
+            guard case let .chordReferences(stepPattern, slotIDs, inversions, chordIDs, velocities, lengthSteps) = content.normalized else {
+                return
+            }
+            var nextPattern = stepPattern
+            var nextChordIDs = chordIDs
+            guard nextPattern.indices.contains(stepIndex), nextChordIDs.indices.contains(stepIndex) else { return }
+            nextPattern[stepIndex] = true
+            let slotID = slotIDs.value(at: stepIndex) ?? nil
+            let fallback = palette.slot(id: slotID)?.chordID ?? .majorTriad
+            let current = nextChordIDs[stepIndex] ?? fallback
+            let all = ChordID.allCases
+            let nextIndex = ((all.firstIndex(of: current) ?? 0) + 1) % all.count
+            let nextID = all[nextIndex]
+            nextChordIDs[stepIndex] = nextID == fallback ? nil : nextID
+            content = .chordReferences(
+                stepPattern: nextPattern,
+                slotIDs: slotIDs,
+                inversions: inversions,
+                chordIDs: nextChordIDs,
+                velocities: velocities,
+                lengthSteps: lengthSteps
+            )
+        }
+    }
+
+    private func resizeChordClip(to newLength: Int) {
+        let resolvedLength = min(max(newLength, 1), 128)
+        mutateChordClip { content in
+            let normalized = content.normalized
+            guard case let .chordReferences(stepPattern, slotIDs, inversions, chordIDs, velocities, lengthSteps) = normalized else {
+                content = .emptyChordReferences(lengthSteps: resolvedLength, defaultSlotID: palette.selectedSlotID)
+                return
+            }
+            content = .chordReferences(
+                stepPattern: resized(stepPattern, to: resolvedLength, fill: false),
+                slotIDs: resized(slotIDs, to: resolvedLength, fill: palette.selectedSlotID),
+                inversions: resized(inversions, to: resolvedLength, fill: 0),
+                chordIDs: resized(chordIDs, to: resolvedLength, fill: nil),
+                velocities: resized(velocities, to: resolvedLength, fill: 96),
+                lengthSteps: resized(lengthSteps, to: resolvedLength, fill: 4)
+            )
+            .normalized
+        }
+        selectedPage = min(selectedPage, max(0, (resolvedLength - 1) / 16))
+        selectedStepIndex = min(selectedStepIndex, resolvedLength - 1)
     }
 
     private func mutateChordClip(_ update: @escaping (inout ClipContent) -> Void) {
@@ -689,6 +1056,43 @@ struct ChordTrackWorkspaceView: View {
 
     private func restoreRecipeClip() {
         session.restoreChordSourceClip(trackID: track.id, slotIndex: selectedPatternIndex)
+    }
+
+    private func shortChordName(for chordID: ChordID) -> String {
+        switch chordID {
+        case .majorTriad: return "Maj"
+        case .minorTriad: return "Min"
+        case .augmentedTriad: return "Aug"
+        case .diminishedTriad: return "Dim"
+        case .major7th: return "Maj7"
+        case .minor7th: return "Min7"
+        case .dominant7th: return "7"
+        case .diminished7th: return "Dim7"
+        case .augmented7th: return "Aug7"
+        case .halfDiminished7th: return "m7b5"
+        case .major6th: return "Maj6"
+        case .minor6th: return "Min6"
+        case .major9th: return "Maj9"
+        case .minor9th: return "Min9"
+        case .major11th: return "Maj11"
+        case .minor11th: return "Min11"
+        }
+    }
+
+    fileprivate static func romanDegreeLabel(for degree: Int) -> String {
+        let labels = ["i", "ii", "iii", "iv", "v", "vi", "vii"]
+        guard labels.indices.contains(degree) else {
+            return "\(degree + 1)"
+        }
+        return labels[degree]
+    }
+
+    private func resized<Value>(_ values: [Value], to count: Int, fill: Value) -> [Value] {
+        if values.count == count { return values }
+        if values.count < count {
+            return values + Array(repeating: fill, count: count - values.count)
+        }
+        return Array(values.prefix(count))
     }
 
     private func applyVisualCommand(_ command: String) {
@@ -719,6 +1123,16 @@ struct ChordTrackWorkspaceView: View {
         switch command {
         case "bake":
             bakeSelectedPattern()
+        case "config:open":
+            isConfigPresented = true
+            isProgressionChooserPresented = false
+        case "config:close":
+            isConfigPresented = false
+        case "progression:open":
+            isProgressionChooserPresented = true
+            isConfigPresented = false
+        case "progression:close":
+            isProgressionChooserPresented = false
         case "restore":
             restoreRecipeClip()
         default:
@@ -760,13 +1174,15 @@ struct ChordTrackWorkspaceView: View {
                 "paletteSlotCount": palette.slots.count,
                 "activeStepCount": chordActiveStepCount(),
                 "baked": selectedPattern.sourceRef.sourceClipID != nil,
+                "configVisible": isConfigPresented,
+                "progressionChooserVisible": isProgressionChooserPresented,
                 "trackID": track.id.uuidString
             ]
         )
     }
 
     private func chordActiveStepCount() -> Int {
-        guard case let .chordReferences(stepPattern, _, _, _, _) = chordContent else {
+        guard case let .chordReferences(stepPattern, _, _, _, _, _) = chordContent else {
             return 0
         }
         return stepPattern.filter { $0 }.count
@@ -776,5 +1192,124 @@ struct ChordTrackWorkspaceView: View {
 private extension Array {
     func value(at index: Int) -> Element? {
         indices.contains(index) ? self[index] : nil
+    }
+}
+
+private struct ChordRootKeyboard: View {
+    let selectedRoot: Int
+    let progressionRoot: Int
+    let scaleID: ScaleID
+    let accent: Color
+    let onSelect: (Int) -> Void
+
+    private let whiteKeys: [(name: String, pitchClass: Int)] = [
+        ("C", 0),
+        ("D", 2),
+        ("E", 4),
+        ("F", 5),
+        ("G", 7),
+        ("A", 9),
+        ("B", 11)
+    ]
+
+    private let blackKeys: [(name: String, pitchClass: Int, x: CGFloat)] = [
+        ("C#", 1, 0.118),
+        ("D#", 3, 0.261),
+        ("F#", 6, 0.547),
+        ("G#", 8, 0.69),
+        ("A#", 10, 0.833)
+    ]
+
+    var body: some View {
+        GeometryReader { proxy in
+            let blackWidth = max(26, proxy.size.width / 11)
+            let blackHeight = max(46, proxy.size.height * 0.58)
+
+            ZStack(alignment: .topLeading) {
+                HStack(spacing: 4) {
+                    ForEach(whiteKeys, id: \.pitchClass) { key in
+                        keyButton(
+                            name: key.name,
+                            pitchClass: key.pitchClass,
+                            isBlack: false
+                        )
+                    }
+                }
+
+                ForEach(blackKeys, id: \.pitchClass) { key in
+                    keyButton(
+                        name: key.name,
+                        pitchClass: key.pitchClass,
+                        isBlack: true
+                    )
+                    .frame(width: blackWidth, height: blackHeight)
+                    .offset(x: proxy.size.width * key.x - blackWidth / 2)
+                }
+            }
+        }
+        .frame(height: 96)
+        .frame(maxWidth: 620)
+    }
+
+    private func keyButton(name: String, pitchClass: Int, isBlack: Bool) -> some View {
+        let isSelected = pitchClass == pitchClassOf(selectedRoot)
+        let isProgressionRoot = pitchClass == pitchClassOf(progressionRoot)
+        let degree = degreeLabel(for: pitchClass)
+        let baseFill = isBlack ? StudioTheme.background : StudioTheme.subtleFill
+        return Button {
+            onSelect(midiRoot(for: pitchClass))
+        } label: {
+            VStack(spacing: isBlack ? 3 : 5) {
+                Spacer(minLength: 0)
+                Text(name)
+                    .studioText(.labelBold)
+                    .foregroundStyle(isSelected ? StudioTheme.background : StudioTheme.text)
+                    .lineLimit(1)
+                Text(degree)
+                    .studioText(.micro)
+                    .foregroundStyle(isSelected ? StudioTheme.background.opacity(0.8) : StudioTheme.mutedText)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                Text(isProgressionRoot ? "ROOT" : " ")
+                    .studioText(.micro)
+                    .foregroundStyle(isSelected ? StudioTheme.background : accent)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+            }
+            .padding(.vertical, isBlack ? 6 : 8)
+            .frame(maxWidth: .infinity)
+            .frame(height: isBlack ? nil : 96)
+            .background(
+                isSelected ? accent : baseFill,
+                in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                    .stroke(isProgressionRoot || isSelected ? accent : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func degreeLabel(for pitchClass: Int) -> String {
+        let relative = pitchClassOf(pitchClass - pitchClassOf(progressionRoot))
+        guard let scale = Scale.for(id: scaleID),
+              let degree = scale.intervals.firstIndex(of: relative)
+        else {
+            return ""
+        }
+        return ChordTrackWorkspaceView.romanDegreeLabel(for: degree)
+    }
+
+    private func midiRoot(for pitchClass: Int) -> Int {
+        let octaveBase = (selectedRoot / 12) * 12
+        var candidate = octaveBase + pitchClass
+        if candidate < 24 { candidate += 12 }
+        if candidate > 96 { candidate -= 12 }
+        return min(max(candidate, 0), 127)
+    }
+
+    private func pitchClassOf(_ value: Int) -> Int {
+        ((value % 12) + 12) % 12
     }
 }
