@@ -45,7 +45,8 @@ struct PatternIndexCellPreview: View {
                     Spacer(minLength: 0)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(StudioMetrics.Spacing.compact)
+                .padding(.horizontal, StudioMetrics.Spacing.tight)
+                .padding(.vertical, StudioMetrics.Spacing.compact)
                 .frame(height: metrics.valueHeight)
                 .background(cellFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
             }

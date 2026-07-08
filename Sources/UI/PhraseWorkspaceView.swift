@@ -3039,7 +3039,7 @@ private struct PhraseGridCell: View {
             PatternIndexCellPreview(
                 layer: layer,
                 resolvedValue: resolvedValue,
-                accent: accent,
+                accent: trackAccent,
                 summary: valueLabel(resolvedValue, layer: layer),
                 isMixed: false,
                 metrics: .matrix,
@@ -3050,7 +3050,7 @@ private struct PhraseGridCell: View {
                 layer: layer,
                 cell: cell,
                 resolvedValue: resolvedValue,
-                accent: accent,
+                accent: layer.valueType == .boolean ? trackAccent : accent,
                 summary: valueLabel(resolvedValue, layer: layer),
                 metrics: .matrix
             )
