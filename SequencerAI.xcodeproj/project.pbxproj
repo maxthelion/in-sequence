@@ -24,6 +24,8 @@
 		0858E7BE80B3CCADFA28E634 /* PatternIndexCellPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = C83646DA7EE07AF03317D968 /* PatternIndexCellPreview.swift */; };
 		08612155F4FAC437E7C5CCCE /* AUWindowHostCloseAllTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 550816EA6A0A5FF2E9425922 /* AUWindowHostCloseAllTests.swift */; };
 		08DAA37EDE7E63650C12C817 /* SamplerDestinationWidgetTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1624C29AA598742CFB6E4069 /* SamplerDestinationWidgetTests.swift */; };
+		08F470FE3AE34C59B4D7271C /* ChordTrackSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08F470FD3AE34C59B4D7271C /* ChordTrackSettings.swift */; };
+		4F4B52B08E0C4C8796014B11 /* ChordTrackWorkspaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F4B52AF8E0C4C8796014B11 /* ChordTrackWorkspaceView.swift */; };
 		097634FC7B0D6C21040EDA1E /* AudioSampleLibraryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 522921C6F5937EAC50CB65D3 /* AudioSampleLibraryTests.swift */; };
 		0A43E32C374F1E8E21BED3FF /* StudioSegmentedControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CC99FECAEF3AD769EA4DC3E /* StudioSegmentedControls.swift */; };
 		0A4878941BC67CA21171AD6A /* RenderHarnessScenarioTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84EA58A8812F3E339F8689CE /* RenderHarnessScenarioTests.swift */; };
@@ -1496,6 +1498,8 @@
 		8009C8F15666682B2F35DA36 /* review-review-review-review-review-write-p0-performance-overlay-build-plan-through-lenses-through-lenses-through-lenses-through-lenses-through-lenses.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "review-review-review-review-review-write-p0-performance-overlay-build-plan-through-lenses-through-lenses-through-lenses-through-lenses-through-lenses.md"; sourceTree = "<group>"; };
 		801B166B3DC1D7E36E00C71B /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		803690D5CFD6EF6577BDD4BB /* 01-phrase.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "01-phrase.png"; sourceTree = "<group>"; };
+		08F470FD3AE34C59B4D7271C /* ChordTrackSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChordTrackSettings.swift; sourceTree = "<group>"; };
+		4F4B52AF8E0C4C8796014B11 /* ChordTrackWorkspaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChordTrackWorkspaceView.swift; sourceTree = "<group>"; };
 		806222840FB3F12A0D3A6063 /* ClipContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipContent.swift; sourceTree = "<group>"; };
 		8089A496A81F6EF62AA7F1C4 /* report.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = report.md; sourceTree = "<group>"; };
 		809E64B6CA9D3F7D45855691 /* StyleProfiles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StyleProfiles.swift; sourceTree = "<group>"; };
@@ -2425,6 +2429,7 @@
 				B051F1394CFE5F589ED3EE8E /* AudioFileRef.swift */,
 				0D9933D58E1264792549F4F4 /* AudioSample.swift */,
 				E682FFD32432C3B7DFAD5D45 /* AudioSampleCategory.swift */,
+				08F470FD3AE34C59B4D7271C /* ChordTrackSettings.swift */,
 				806222840FB3F12A0D3A6063 /* ClipContent.swift */,
 				6633C426F88100CB1CD30BBB /* ClipContent+Empty.swift */,
 				DEEBECB6D74E34D75D40A96B /* Destination.swift */,
@@ -3180,6 +3185,7 @@
 				E722412B86369F239A97BDEB /* WaveformView.swift */,
 				306F5A9CCD2F3CC180968DD2 /* WorkspaceDetailView.swift */,
 				9EB7FFAF4CAB2F59448D91D8 /* WorkspaceSection.swift */,
+				4F4B52B18E0C4C8796014B11 /* Chord */,
 				72F3FBA39C502654435F8181 /* DrumGroup */,
 				56BDE8D8CBF7788B17981BBE /* FX */,
 				C1AF7BF25FEBFDE65F413E71 /* Inputs */,
@@ -3194,6 +3200,14 @@
 				0F97B943324FB53AA8928680 /* TrackSource */,
 			);
 			path = UI;
+			sourceTree = "<group>";
+		};
+		4F4B52B18E0C4C8796014B11 /* Chord */ = {
+			isa = PBXGroup;
+			children = (
+				4F4B52AF8E0C4C8796014B11 /* ChordTrackWorkspaceView.swift */,
+			);
+			path = Chord;
 			sourceTree = "<group>";
 		};
 		26A63CBD584650C8A96845BA /* 20260620-191818-sound-source-above-the-well-is-not-neede */ = {
@@ -7546,6 +7560,7 @@
 				628574239987E5CE0E0A7DC1 /* Chord.swift in Sources */,
 				AEDF13F0CD4A135FC3D60DF6 /* ChordContextSink.swift in Sources */,
 				AEE65803BE8663826BD8B6F7 /* ChordID.swift in Sources */,
+				08F470FE3AE34C59B4D7271C /* ChordTrackSettings.swift in Sources */,
 				1BBE34751449D6BA8D733557 /* Chords.swift in Sources */,
 				9ADCA353B5CECEFE636AC229 /* ClipBuffer.swift in Sources */,
 				C7F2E0C0D3C25068BC1062FC /* ClipCaptureService.swift in Sources */,
@@ -7734,6 +7749,7 @@
 				F3BD3C15B233A27E35B0F202 /* SliceMarker.swift in Sources */,
 				16163F2E83F6190EAE85C8DA /* SliceSet.swift in Sources */,
 				73DDBAAE65056AF9F72A64B2 /* SliceTrackEditingControls.swift in Sources */,
+				4F4B52B08E0C4C8796014B11 /* ChordTrackWorkspaceView.swift in Sources */,
 				EF4A12DD57C2CF09ED36C128 /* SliceTrackWorkspaceView.swift in Sources */,
 				43564851CC4ECFAC1E7C50A1 /* SlicerControlField.swift in Sources */,
 				5F145298A2B78E662A29ECBC /* SlicerSettings.swift in Sources */,

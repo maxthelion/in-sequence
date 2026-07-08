@@ -163,6 +163,9 @@ CAPTURES=$(cat <<'TABLE'
 23e-track-slicer-slice-tab|workspace=track,selectedTrackType=slice,slicerFixture=populated,slicerTab=slice|slicerFixture=populated;slicerLayer=steps;slicerTab=slice;workspaceScroll=bottom;transport=stop
 23f-slice-source-modal|workspace=track,selectedTrackType=slice,slicerFixture=populated,sliceSourceModal=open|slicerFixture=populated;slicerLayer=steps;slicerTab=source;sliceSourceModal=open;transport=stop
 23fa-slice-layer-quick-switch|workspace=track,selectedTrackType=slice,slicerFixture=populated,slicerLayerSwitcher=open|sliceSourceModal=close;slicerFixture=populated;slicerTab=steps;slicerLayer=steps;slicerLayerSwitcher=open;workspaceScroll=bottom;transport=stop
+23h-track-chord-steps|workspace=track,selectedTrackType=chord,chordTrackRenderedVisible=true,chordTrackRenderedTab=steps,chordTrackRenderedLayer=chord,chordTrackRenderedActiveStepCount=4|chordTrackFixture=populated;chordTrackTab=steps;chordTrackLayer=chord;chordTrackSelectStep=4;transport=stop
+23i-track-chord-chords-tab|workspace=track,selectedTrackType=chord,chordTrackRenderedVisible=true,chordTrackRenderedTab=chords,chordTrackRenderedPaletteSlotCount=4|chordTrackFixture=populated;chordTrackTab=chords;transport=stop
+23j-track-chord-inversion-layer|workspace=track,selectedTrackType=chord,chordTrackRenderedVisible=true,chordTrackRenderedTab=steps,chordTrackRenderedLayer=inversion,chordTrackRenderedActiveStepCount=4|chordTrackFixture=populated;chordTrackTab=steps;chordTrackLayer=inversion;chordTrackSelectStep=4;transport=stop
 # 23g step-edit rotaries: the StepLayerRotaryRow / StepLayerRotaryDial cluster
 # lives in ClipContentPreview (the melodic Steps/Clip tab), shared code gated on
 # a step selection — it is NOT rendered by the slicer's own SliceStepStrip. So

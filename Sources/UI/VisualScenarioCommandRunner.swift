@@ -73,6 +73,15 @@ enum VisualScenarioCommandRunner {
     private static var slicerLayerSwitcherState = "closed"
     private static var slicerTabState = "steps"
     private static var sliceSourceModalState = "closed"
+    private static var chordTrackFixtureState = "none"
+    private static var chordTrackTabState = "steps"
+    private static var chordTrackLayerState = "chord"
+    private static var chordTrackRenderedVisible = false
+    private static var chordTrackRenderedTab = "none"
+    private static var chordTrackRenderedLayer = "none"
+    private static var chordTrackRenderedPaletteSlotCount = 0
+    private static var chordTrackRenderedActiveStepCount = 0
+    private static var chordTrackRenderedBaked = false
     private static var audioInputTabState = "source"
     private static var drumGroupRoutingEditorRenderedState = false
     private static var drumGroupRoutingEditorMode = "none"
@@ -282,6 +291,21 @@ enum VisualScenarioCommandRunner {
             guard let userInfo = notification.userInfo else { return }
             Task { @MainActor in
                 trackSourceGeneratorRenderedStage = userInfo["stage"] as? String ?? "none"
+            }
+        }
+        NotificationCenter.default.addObserver(
+            forName: .chordTrackWorkspaceRenderedVisualState,
+            object: nil,
+            queue: .main
+        ) { notification in
+            guard let userInfo = notification.userInfo else { return }
+            Task { @MainActor in
+                chordTrackRenderedVisible = userInfo["visible"] as? Bool ?? false
+                chordTrackRenderedTab = userInfo["tab"] as? String ?? "none"
+                chordTrackRenderedLayer = userInfo["layer"] as? String ?? "none"
+                chordTrackRenderedPaletteSlotCount = userInfo["paletteSlotCount"] as? Int ?? 0
+                chordTrackRenderedActiveStepCount = userInfo["activeStepCount"] as? Int ?? 0
+                chordTrackRenderedBaked = userInfo["baked"] as? Bool ?? false
             }
         }
         NotificationCenter.default.addObserver(
@@ -511,6 +535,7 @@ enum VisualScenarioCommandRunner {
         applyDrumKitMatrixCommand(command: command, session: session)
         applyTrackSoundSourceCommand(command: command, section: section, session: session)
         applyTrackSourceTabCommand(command: command, section: section, session: session)
+        applyChordTrackFixture(command: command, section: section, session: session)
         applySlicerFixture(command: command, section: section, session: session)
         applyScenesModeCommand(command: command, section: section, session: session)
         applyLibraryCommand(command: command, section: section, session: session)
@@ -1246,6 +1271,15 @@ enum VisualScenarioCommandRunner {
         selectedPatternSourceMode=\(selectedPattern.sourceRef.mode.rawValue)
         selectedPatternHasClip=\(session.store.clipEntry(id: selectedPattern.sourceRef.clipID) != nil)
         selectedPatternHasGenerator=\(session.store.generatorEntry(id: selectedPattern.sourceRef.generatorID) != nil)
+        chordTrackFixture=\(chordTrackFixtureState)
+        chordTrackTab=\(chordTrackTabState)
+        chordTrackLayer=\(chordTrackLayerState)
+        chordTrackRenderedVisible=\(chordTrackRenderedVisible)
+        chordTrackRenderedTab=\(chordTrackRenderedTab)
+        chordTrackRenderedLayer=\(chordTrackRenderedLayer)
+        chordTrackRenderedPaletteSlotCount=\(chordTrackRenderedPaletteSlotCount)
+        chordTrackRenderedActiveStepCount=\(chordTrackRenderedActiveStepCount)
+        chordTrackRenderedBaked=\(chordTrackRenderedBaked)
         performOverviewRowCount=\(PerformOverviewRowModel.rows(tracks: session.store.tracks, groups: session.store.trackGroups).count)
         selectedNoteRepeatAvailable=\(session.isNoteRepeatAvailable(trackID: session.store.selectedTrackID))
         selectedNoteRepeatStoredInterval=\(session.store.selectedTrack.noteRepeatInterval.rawValue)
@@ -2340,6 +2374,103 @@ enum VisualScenarioCommandRunner {
             pendingTrackSourceEditorCommands.insert(tabCommand, at: 0)
         }
         postRepeatedVisualCommand(name: .trackSourceEditorVisualCommand, object: "select-tab:\(rawTab)")
+    }
+
+    private static func applyChordTrackFixture(
+        command: [String: String],
+        section: Binding<WorkspaceSection>,
+        session: SequencerDocumentSession
+    ) {
+        guard command["chordTrackFixture"] != nil ||
+              command["chordTrackTab"] != nil ||
+              command["chordTrackLayer"] != nil ||
+              command["chordTrackSelectStep"] != nil ||
+              command["chordTrackBake"] != nil ||
+              command["chordTrackRestore"] != nil
+        else { return }
+
+        section.wrappedValue = .track
+        if session.store.selectedTrack.trackType != .chord {
+            session.appendTrack(trackType: .chord)
+        }
+
+        switch command["chordTrackFixture"] {
+        case "populated", "grid":
+            populateSelectedChordTrack(session: session)
+            chordTrackFixtureState = "populated"
+        case "empty":
+            chordTrackFixtureState = "empty"
+        default:
+            break
+        }
+
+        if let rawTab = command["chordTrackTab"],
+           ChordTrackTab(rawValue: rawTab) != nil {
+            chordTrackTabState = rawTab
+            postRepeatedVisualCommand(name: .chordTrackWorkspaceVisualCommand, object: "tab:\(rawTab)")
+        }
+
+        if let rawLayer = command["chordTrackLayer"],
+           ChordTrackStepLayer(rawValue: rawLayer) != nil {
+            chordTrackLayerState = rawLayer
+            postRepeatedVisualCommand(name: .chordTrackWorkspaceVisualCommand, object: "layer:\(rawLayer)")
+        }
+
+        if let rawStep = command["chordTrackSelectStep"],
+           let step = Int(rawStep), step >= 0 {
+            postRepeatedVisualCommand(name: .chordTrackWorkspaceVisualCommand, object: "selectStep:\(step)")
+        }
+
+        switch command["chordTrackBake"] {
+        case "true", "on", "1":
+            postRepeatedVisualCommand(name: .chordTrackWorkspaceVisualCommand, object: "bake")
+        default:
+            break
+        }
+
+        switch command["chordTrackRestore"] {
+        case "true", "on", "1":
+            postRepeatedVisualCommand(name: .chordTrackWorkspaceVisualCommand, object: "restore")
+        default:
+            break
+        }
+    }
+
+    private static func populateSelectedChordTrack(session: SequencerDocumentSession) {
+        let track = session.store.selectedTrack
+        guard track.trackType == .chord else { return }
+
+        let palette = track.chordPalette.normalized
+        let slots = palette.slots
+        let slotIDs = slots.map(\.id)
+        guard !slotIDs.isEmpty else { return }
+
+        var stepPattern = Array(repeating: false, count: 16)
+        var references = Array<UUID?>(repeating: nil, count: 16)
+        var inversions = Array(repeating: 0, count: 16)
+        let activeIndexes = [0, 4, 8, 12]
+        for (position, stepIndex) in activeIndexes.enumerated() where stepPattern.indices.contains(stepIndex) {
+            stepPattern[stepIndex] = true
+            references[stepIndex] = slotIDs[position % slotIDs.count]
+            inversions[stepIndex] = position % 3
+        }
+
+        let content = ClipContent.chordReferences(
+            stepPattern: stepPattern,
+            slotIDs: references,
+            inversions: inversions,
+            velocities: Array(repeating: 96, count: 16),
+            lengthSteps: Array(repeating: 4, count: 16)
+        )
+
+        let address = PatternSlotAddress(
+            trackID: track.id,
+            slotIndex: session.store.selectedPatternIndex(for: track.id)
+        )
+        _ = session.ensureClipAndMutate(at: address) { _, clip in
+            clip.content = content.normalized
+            clip.name = "Chord Palette Pattern"
+        }
     }
 
     /// Drives the slice-track workspace into populated, reviewable states.

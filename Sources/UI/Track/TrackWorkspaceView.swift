@@ -144,6 +144,12 @@ struct TrackWorkspaceView: View {
                         accent: sourceAccent,
                         stepGridWorkspaceModel: stepGridWorkspaceModel
                     )
+                } else if track.trackType == .chord {
+                    ChordTrackWorkspaceView(
+                        document: $document,
+                        accent: sourceAccent,
+                        stepGridWorkspaceModel: stepGridWorkspaceModel
+                    )
                 } else {
                     // The permanent right-hand destination column is gone: the
                     // destination + sends path now lives in the ROUTING tab of
@@ -468,6 +474,8 @@ extension Notification.Name {
     static let trackSourceEditorRenderedVisualState = Notification.Name("SequencerAITrackSourceEditorRenderedVisualState")
     static let trackSourceGeneratorRenderedVisualState = Notification.Name("SequencerAITrackSourceGeneratorRenderedVisualState")
     static let sliceTrackWorkspaceVisualCommand = Notification.Name("SequencerAISliceTrackWorkspaceVisualCommand")
+    static let chordTrackWorkspaceVisualCommand = Notification.Name("SequencerAIChordTrackWorkspaceVisualCommand")
+    static let chordTrackWorkspaceRenderedVisualState = Notification.Name("SequencerAIChordTrackWorkspaceRenderedVisualState")
     static let audioInputTrackWorkspaceVisualCommand = Notification.Name("SequencerAIAudioInputTrackWorkspaceVisualCommand")
     static let workspaceDetailVisualCommand = Notification.Name("SequencerAIWorkspaceDetailVisualCommand")
     static let scenesWorkspaceVisualCommand = Notification.Name("SequencerAIScenesWorkspaceVisualCommand")
@@ -813,7 +821,7 @@ private struct AudioInputRuntimePanel: View {
                 .foregroundStyle(StudioTheme.mutedText)
 
             writeTargetOption(
-                title: "Rolling capture",
+                title: "Capture Buffer",
                 isSelected: true,
                 isEnabled: true,
                 help: "Each capture replaces the live buffer."
@@ -850,21 +858,6 @@ private struct AudioInputRuntimePanel: View {
 
     private var playbackSourceContent: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .bottom, spacing: 12) {
-                Text(runtime?.hasRecordedLoop == true ? "Rolling capture" : "No captured buffer")
-                    .studioText(.subtitle)
-                    .foregroundStyle(StudioTheme.text)
-                    .help("Plays back the selected pattern's captured buffer.")
-
-                Spacer()
-
-                Button("Choose...") {}
-                    .buttonStyle(.borderless)
-                    .studioText(.microEmphasis)
-                    .disabled(true)
-                    .help("Saved buffer selection is not yet modeled.")
-            }
-
             AudioInputSignalPanel(
                 runtime: runtime,
                 accent: runtime?.isSilent == true ? StudioTheme.mutedText : accent,
@@ -888,10 +881,13 @@ private struct AudioInputRuntimePanel: View {
     @ViewBuilder
     private var macrosTab: some View {
         if track.macros.isEmpty {
-            Text("No Macros")
-                .studioText(.placeholderTitle)
-                .foregroundStyle(StudioTheme.mutedText)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            StudioEmptyWell(
+                title: "Macros",
+                systemImage: "slider.horizontal.3",
+                accent: accent,
+                minHeight: 148,
+                help: "Assign M1-M8 controls from routable parameters."
+            )
                 .help("Assign M1-M8 controls from routable parameters.")
         } else {
             MacroKnobRow(document: $document, trackID: track.id)
@@ -1061,7 +1057,10 @@ private struct AudioInputSignalPanel: View {
                     WaveformView(
                         buckets: waveformBuckets,
                         fillColor: accent,
-                        inactiveColor: StudioTheme.border.opacity(0.7)
+                        inactiveColor: StudioTheme.border.opacity(0.7),
+                        stepCount: 16,
+                        barStepInterval: 16,
+                        playheadFraction: runtime?.armState == .recording ? CGFloat(progress) : nil
                     )
                     .padding(StudioMetrics.Spacing.standard)
                 } else if showsRollingLiveWaveform {
@@ -1069,7 +1068,9 @@ private struct AudioInputSignalPanel: View {
                         WaveformView(
                             buckets: liveBuckets,
                             fillColor: accent,
-                            inactiveColor: StudioTheme.border.opacity(0.7)
+                            inactiveColor: StudioTheme.border.opacity(0.7),
+                            stepCount: 16,
+                            barStepInterval: 16
                         )
 
                         AudioInputLevelMeters(level: level, accent: accent)

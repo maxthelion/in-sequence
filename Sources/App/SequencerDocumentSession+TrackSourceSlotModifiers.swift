@@ -75,6 +75,7 @@ extension SequencerDocumentSession {
                 mode: slot.sourceRef.mode,
                 generatorID: slot.sourceRef.generatorID,
                 clipID: slot.sourceRef.clipID,
+                sourceClipID: slot.sourceRef.sourceClipID,
                 modifierGeneratorID: slot.sourceRef.modifierGeneratorID,
                 modifierBypassed: bypassed
             )
@@ -94,6 +95,7 @@ extension SequencerDocumentSession {
                 mode: slot.sourceRef.mode,
                 generatorID: slot.sourceRef.generatorID,
                 clipID: slot.sourceRef.clipID,
+                sourceClipID: slot.sourceRef.sourceClipID,
                 modifierGeneratorID: modifierGeneratorID,
                 modifierBypassed: modifierGeneratorID == nil ? false : slot.sourceRef.modifierBypassed
             )
@@ -298,5 +300,50 @@ extension SequencerDocumentSession {
             store.setPatternBank(trackID: trackID, bank: bank)
         }
         return bakedClipID
+    }
+
+    @discardableResult
+    func bakeChordTrackToClip(trackID: UUID, slotIndex: Int) -> UUID? {
+        var bakedClipID: UUID?
+        batch(impact: .snapshotOnly, changed: .full) { store in
+            var project = store.exportToProject()
+            let existingClipIDs = Set(store.clipPool.map(\.id))
+            bakedClipID = project.bakeChordSourceToClip(
+                trackID: trackID,
+                slotIndex: slotIndex
+            )
+            guard bakedClipID != nil else {
+                return
+            }
+            for clip in project.clipPool where !existingClipIDs.contains(clip.id) {
+                store.appendClip(clip)
+            }
+            guard let bank = project.patternBanks.first(where: { $0.trackID == trackID }) else {
+                return
+            }
+            store.setPatternBank(trackID: trackID, bank: bank)
+        }
+        return bakedClipID
+    }
+
+    func restoreChordSourceClip(trackID: UUID, slotIndex: Int) {
+        mutatePatternBank(trackID: trackID) { bank in
+            let slot = bank.slot(at: slotIndex)
+            guard let sourceClipID = slot.sourceRef.sourceClipID else {
+                return
+            }
+            let restored = SourceRef(
+                mode: .clip,
+                generatorID: slot.sourceRef.generatorID,
+                clipID: sourceClipID,
+                sourceClipID: nil,
+                modifierGeneratorID: slot.sourceRef.modifierGeneratorID,
+                modifierBypassed: slot.sourceRef.modifierBypassed
+            )
+            bank.setSlot(
+                TrackPatternSlot(slotIndex: slot.slotIndex, name: slot.name, sourceRef: restored),
+                at: slotIndex
+            )
+        }
     }
 }

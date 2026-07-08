@@ -311,6 +311,9 @@ enum GeneratedSourceEvaluator {
             guard !steps.isEmpty else { return false }
             let normalizedStep = positiveModulo(stepIndex, max(lengthSteps, 1))
             return !steps[normalizedStep].isEmpty
+        case let .chordReferences(stepPattern, _, _, _, _):
+            guard !stepPattern.isEmpty else { return false }
+            return stepPattern[stepIndex % stepPattern.count]
         case let .sliceTriggers(stepPattern, _, _, _):
             guard !stepPattern.isEmpty else { return false }
             return stepPattern[stepIndex % stepPattern.count]
@@ -457,6 +460,24 @@ enum GeneratedSourceEvaluator {
                 length: max(1, note.lengthSteps),
                 voiceTag: nil
             )
+        case .chordReferences:
+            let resolved = clip.content.resolvedChordNoteGrid(palette: .default)
+            guard case let .noteGrid(lengthSteps, steps) = resolved,
+                  !steps.isEmpty
+            else {
+                return nil
+            }
+            let normalizedStep = positiveModulo(stepIndex, max(lengthSteps, 1))
+            let step = steps[normalizedStep]
+            guard let note = step.main?.notes.first ?? step.fill?.notes.first else {
+                return nil
+            }
+            return GeneratedNote(
+                pitch: clampMIDI(note.pitch),
+                velocity: clampMIDI(note.velocity),
+                length: max(1, note.lengthSteps),
+                voiceTag: nil
+            )
         case .sliceTriggers:
             return GeneratedNote(
                 pitch: 60,
@@ -471,6 +492,7 @@ enum GeneratedSourceEvaluator {
         for clip: ClipPoolEntry,
         stepIndex: Int,
         fillEnabled: Bool,
+        chordPalette: ChordPalette? = nil,
         rng: inout R
     ) -> [GeneratedNote] {
         switch clip.content.normalized {
@@ -500,6 +522,22 @@ enum GeneratedSourceEvaluator {
                     voiceTag: nil
                 )
             } ?? []
+
+        case .chordReferences:
+            let resolved = clip.content.resolvedChordNoteGrid(palette: chordPalette ?? .default)
+            let proxy = ClipPoolEntry(
+                id: clip.id,
+                name: clip.name,
+                trackType: clip.trackType,
+                content: resolved
+            )
+            return resolveClipStep(
+                for: proxy,
+                stepIndex: stepIndex,
+                fillEnabled: fillEnabled,
+                chordPalette: nil,
+                rng: &rng
+            )
 
         case let .sliceTriggers(stepPattern, sliceIndexes, stepModes, stepParameters):
             guard !stepPattern.isEmpty else { return [] }

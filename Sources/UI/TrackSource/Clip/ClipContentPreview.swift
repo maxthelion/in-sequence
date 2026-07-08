@@ -232,6 +232,34 @@ struct ClipContentPreview: View {
             case let .noteGrid(lengthSteps, steps):
                 noteGridEditor(lengthSteps: lengthSteps, steps: steps)
 
+            case let .chordReferences(stepPattern, slotIDs, inversions, velocities, lengthSteps):
+                VStack(alignment: .leading, spacing: 14) {
+                    StepGridView(
+                        stepStates: stepPattern.map { $0 ? .on : .off },
+                        playingStepIndex: playingStepIndex,
+                        accent: accent
+                    ) { index in
+                        guard stepPattern.indices.contains(index) else { return }
+                        commit { entry in
+                            ClipNoteGridStepEditing.toggleActive(
+                                at: index,
+                                entry: &entry,
+                                noteLane: .main,
+                                defaultNote: defaultNote
+                            )
+                        }
+                    }
+                    .allowsHitTesting(isEditable)
+
+                    chordReferenceSummary(
+                        stepPattern: stepPattern,
+                        slotIDs: slotIDs,
+                        inversions: inversions,
+                        velocities: velocities,
+                        lengthSteps: lengthSteps
+                    )
+                }
+
             case let .sliceTriggers(stepPattern, sliceIndexes, stepModes, stepParameters):
                 VStack(alignment: .leading, spacing: 14) {
                     StepGridView(
@@ -336,76 +364,73 @@ struct ClipContentPreview: View {
                 playheadPage: playheadPage
             )
 
-            if isRandomizePanelVisible, let randomizePanel {
-                randomizePanel()
+            layerDisclosureRow(lengthSteps: lengthSteps, steps: steps)
+
+            if let selectedMacroLayer {
+                let layer = StepGridLayer.macro(index: selectedMacroLayer.macroIndex)
+                let previewClip = macroPreviewClip(lengthSteps: lengthSteps, steps: steps)
+
+                StepGridView(
+                    stepStates: visibleSteps.map { stepVisualState(for: $0, lane: selectedLane) },
+                    indexOffset: pageStart,
+                    playingStepIndex: playingStepIndex,
+                    selectedStepIndexes: selectedStepIndexes,
+                    accent: accent,
+                    contentProvider: { index, _ in
+                        StepGridCoordinator.cellContent(
+                            for: index,
+                            in: previewClip,
+                            layer: layer,
+                            macroBindings: macroBindings
+                        )
+                    },
+                    onValueDrag: { index, fraction in
+                        writeValueLayer(fraction, layer: layer, tappedIndex: index)
+                    },
+                    onSelectStep: selectStepAction,
+                    onBackgroundTap: clearSelectionAction
+                ) { index in
+                    cycleMacroLayerValue(macroIndex: selectedMacroLayer.macroIndex, tappedIndex: index)
+                }
+                .allowsHitTesting(isEditable)
             } else {
-                layerDisclosureRow(lengthSteps: lengthSteps, steps: steps)
-
-                if let selectedMacroLayer {
-                    let layer = StepGridLayer.macro(index: selectedMacroLayer.macroIndex)
-                    let previewClip = macroPreviewClip(lengthSteps: lengthSteps, steps: steps)
-
+                switch selectedMode {
+                case .trigger:
                     StepGridView(
                         stepStates: visibleSteps.map { stepVisualState(for: $0, lane: selectedLane) },
                         indexOffset: pageStart,
                         playingStepIndex: playingStepIndex,
                         selectedStepIndexes: selectedStepIndexes,
                         accent: accent,
-                        contentProvider: { index, _ in
-                            StepGridCoordinator.cellContent(
-                                for: index,
-                                in: previewClip,
-                                layer: layer,
-                                macroBindings: macroBindings
-                            )
-                        },
-                        onValueDrag: { index, fraction in
-                            writeValueLayer(fraction, layer: layer, tappedIndex: index)
-                        },
                         onSelectStep: selectStepAction,
                         onBackgroundTap: clearSelectionAction
                     ) { index in
-                        cycleMacroLayerValue(macroIndex: selectedMacroLayer.macroIndex, tappedIndex: index)
+                        #if DEBUG
+                        let beforeState = steps.indices.contains(index)
+                            ? stepVisualState(for: steps[index], lane: selectedLane).diagnosticName
+                            : "missing"
+                        StepGridTapDiagnostics.log(
+                            "clipTriggerTapHandler",
+                            stepIndex: index,
+                            details: "lane=\(selectedLane.rawValue) before=\(beforeState)"
+                        )
+                        #endif
+                        let indexes = affectedStepIndexes(for: index)
+                        commit { entry in
+                            ClipNoteGridStepEditing.applyTap(
+                                tappedIndex: index,
+                                indexes: indexes,
+                                layer: .trigger,
+                                entry: &entry,
+                                macroBindings: nil,
+                                noteLane: selectedLane.noteLane,
+                                defaultNote: defaultNote
+                            )
+                        }
                     }
                     .allowsHitTesting(isEditable)
-                } else {
-                    switch selectedMode {
-                    case .trigger:
-                        StepGridView(
-                            stepStates: visibleSteps.map { stepVisualState(for: $0, lane: selectedLane) },
-                            indexOffset: pageStart,
-                            playingStepIndex: playingStepIndex,
-                            selectedStepIndexes: selectedStepIndexes,
-                            accent: accent,
-                            onSelectStep: selectStepAction,
-                            onBackgroundTap: clearSelectionAction
-                        ) { index in
-                            #if DEBUG
-                            let beforeState = steps.indices.contains(index)
-                                ? stepVisualState(for: steps[index], lane: selectedLane).diagnosticName
-                                : "missing"
-                            StepGridTapDiagnostics.log(
-                                "clipTriggerTapHandler",
-                                stepIndex: index,
-                                details: "lane=\(selectedLane.rawValue) before=\(beforeState)"
-                            )
-                            #endif
-                            let indexes = affectedStepIndexes(for: index)
-                            commit { entry in
-                                ClipNoteGridStepEditing.applyTap(
-                                    tappedIndex: index,
-                                    indexes: indexes,
-                                    layer: .trigger,
-                                    entry: &entry,
-                                    macroBindings: nil,
-                                    noteLane: selectedLane.noteLane,
-                                    defaultNote: defaultNote
-                                )
-                            }
-                        }
-                        .allowsHitTesting(isEditable)
 
-                    case .pitch:
+                case .pitch:
                         StepGridView(
                             stepStates: visibleSteps.map { stepVisualState(for: $0, lane: selectedLane) },
                             indexOffset: pageStart,
@@ -453,7 +478,7 @@ struct ClipContentPreview: View {
                         }
                         .allowsHitTesting(isEditable)
 
-                    case .velocity:
+                case .velocity:
                         StepGridView(
                             stepStates: visibleSteps.map { stepVisualState(for: $0, lane: selectedLane) },
                             indexOffset: pageStart,
@@ -481,7 +506,7 @@ struct ClipContentPreview: View {
                         }
                         .allowsHitTesting(isEditable)
 
-                    case .probability:
+                case .probability:
                         StepGridView(
                             stepStates: visibleSteps.map { stepVisualState(for: $0, lane: selectedLane) },
                             indexOffset: pageStart,
@@ -508,8 +533,11 @@ struct ClipContentPreview: View {
                             writeValueLayer(nextValue, layer: .chance, tappedIndex: index)
                         }
                         .allowsHitTesting(isEditable)
-                    }
                 }
+            }
+
+            if isRandomizePanelVisible, let randomizePanel {
+                randomizePanel()
             }
         }
         .background {
@@ -1015,11 +1043,30 @@ struct ClipContentPreview: View {
         UUID(uuidString: "00000000-0000-0000-0000-000000000002") ?? UUID()
     }
 
+    private func chordReferenceSummary(
+        stepPattern: [Bool],
+        slotIDs: [UUID?],
+        inversions: [Int],
+        velocities: [Int],
+        lengthSteps: [Int]
+    ) -> some View {
+        let activeCount = stepPattern.filter { $0 }.count
+        return HStack(spacing: 8) {
+            StudioMetricPill(title: "STEPS", value: "\(activeCount)")
+            StudioMetricPill(title: "SLOTS", value: "\(Set(slotIDs.compactMap { $0 }).count)")
+            StudioMetricPill(title: "INV", value: "\(inversions.first ?? 0)")
+            StudioMetricPill(title: "VEL", value: "\(velocities.first ?? 96)")
+            StudioMetricPill(title: "LEN", value: "\(lengthSteps.first ?? 4)")
+        }
+    }
+
     #if DEBUG
     private func diagnosticSummary(for content: ClipContent) -> String {
         switch content {
         case let .noteGrid(lengthSteps, steps):
             return "noteGrid length=\(lengthSteps) notes=\(noteCount(in: steps))"
+        case let .chordReferences(stepPattern, _, _, _, _):
+            return "chordReferences length=\(stepPattern.count) active=\(stepPattern.filter { $0 }.count)"
         case let .sliceTriggers(stepPattern, _, _, _):
             return "sliceTriggers length=\(stepPattern.count) active=\(stepPattern.filter { $0 }.count)"
         }

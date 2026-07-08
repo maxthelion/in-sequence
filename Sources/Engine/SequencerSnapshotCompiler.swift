@@ -268,6 +268,16 @@ enum SequencerSnapshotCompiler {
         switch normalized {
         case let .noteGrid(_, clipSteps):
             steps = clipSteps.map(compileStepBuffer)
+        case .chordReferences:
+            let ownerPalette = ownerTrackID
+                .flatMap { id in tracks.first(where: { $0.id == id }) }?
+                .chordPalette ?? .default
+            let resolved = normalized.resolvedChordNoteGrid(palette: ownerPalette).normalized
+            if case let .noteGrid(_, clipSteps) = resolved {
+                steps = clipSteps.map(compileStepBuffer)
+            } else {
+                steps = Array(repeating: ClipStepBuffer(main: nil, fill: nil), count: lengthSteps)
+            }
         case let .sliceTriggers(stepPattern, sliceIndexes, _, _):
             let normalizedIndexes = sliceIndexes.isEmpty ? [60] : sliceIndexes.map { 60 + $0 }
             steps = stepPattern.map { isOn in

@@ -1322,6 +1322,8 @@ private struct TrackTypeBadge: View {
             return "waveform.path"
         case .polyMelodic:
             return "pianokeys"
+        case .chord:
+            return "pianokeys"
         case .slice:
             return "waveform"
         case .audioInput:

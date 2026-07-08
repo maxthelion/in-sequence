@@ -405,6 +405,35 @@ struct ClipPoolEntry: Equatable, Identifiable, Sendable {
             )
         ),
         ClipPoolEntry(
+            id: UUID(uuidString: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb4") ?? UUID(),
+            name: "Chord Palette Clip",
+            trackType: .chord,
+            content: .chordReferences(
+                stepPattern: [true, false, false, false, true, false, false, false, true, false, false, false, true, false, false, false],
+                slotIDs: [
+                    ChordPalette.default.slotID(at: 0),
+                    ChordPalette.default.slotID(at: 0),
+                    ChordPalette.default.slotID(at: 0),
+                    ChordPalette.default.slotID(at: 0),
+                    ChordPalette.default.slotID(at: 1),
+                    ChordPalette.default.slotID(at: 1),
+                    ChordPalette.default.slotID(at: 1),
+                    ChordPalette.default.slotID(at: 1),
+                    ChordPalette.default.slotID(at: 2),
+                    ChordPalette.default.slotID(at: 2),
+                    ChordPalette.default.slotID(at: 2),
+                    ChordPalette.default.slotID(at: 2),
+                    ChordPalette.default.slotID(at: 3),
+                    ChordPalette.default.slotID(at: 3),
+                    ChordPalette.default.slotID(at: 3),
+                    ChordPalette.default.slotID(at: 3),
+                ],
+                inversions: Array(repeating: 0, count: 16),
+                velocities: Array(repeating: 96, count: 16),
+                lengthSteps: Array(repeating: 4, count: 16)
+            )
+        ),
+        ClipPoolEntry(
             id: UUID(uuidString: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb3") ?? UUID(),
             name: "Slice Lane",
             trackType: .slice,
@@ -472,6 +501,19 @@ extension ClipPoolEntry {
                 )
             )
             .sorted()
+        case .chordReferences:
+            guard case let .noteGrid(_, steps) = content.resolvedChordNoteGrid(palette: .default) else {
+                return []
+            }
+            return Array(
+                Set(
+                    steps.flatMap { step in
+                        (step.main?.notes ?? []) + (step.fill?.notes ?? [])
+                    }
+                    .map(\.pitch)
+                )
+            )
+            .sorted()
         case let .sliceTriggers(_, sliceIndexes, _, _):
             return sliceIndexes.map { 60 + $0 }
         }
@@ -486,6 +528,7 @@ struct SourceRef: Codable, Equatable, Hashable, Sendable {
     var mode: TrackSourceMode
     var generatorID: UUID?
     var clipID: UUID?
+    var sourceClipID: UUID?
     var modifierGeneratorID: UUID?
     var modifierBypassed: Bool
 
@@ -493,6 +536,7 @@ struct SourceRef: Codable, Equatable, Hashable, Sendable {
         case mode
         case generatorID
         case clipID
+        case sourceClipID
         case modifierGeneratorID
         case modifierBypassed
     }
@@ -501,12 +545,14 @@ struct SourceRef: Codable, Equatable, Hashable, Sendable {
         mode: TrackSourceMode,
         generatorID: UUID? = nil,
         clipID: UUID? = nil,
+        sourceClipID: UUID? = nil,
         modifierGeneratorID: UUID? = nil,
         modifierBypassed: Bool = false
     ) {
         self.mode = mode
         self.generatorID = generatorID
         self.clipID = clipID
+        self.sourceClipID = sourceClipID
         self.modifierGeneratorID = modifierGeneratorID
         self.modifierBypassed = modifierBypassed
     }
@@ -556,6 +602,9 @@ struct SourceRef: Codable, Equatable, Hashable, Sendable {
                 && $0.trackType == trackType
                 && $0.kind.supportsModifierStage
         })?.id
+        let compatibleSourceClipID = sourceClipID.flatMap { candidateID in
+            clipPool.first(where: { $0.id == candidateID && $0.trackType == trackType })?.id
+        }
 
         switch mode {
         case .generator:
@@ -563,6 +612,7 @@ struct SourceRef: Codable, Equatable, Hashable, Sendable {
                 mode: .generator,
                 generatorID: compatibleSourceGeneratorID,
                 clipID: clipID,
+                sourceClipID: compatibleSourceClipID,
                 modifierGeneratorID: compatibleModifierGeneratorID,
                 modifierBypassed: compatibleModifierGeneratorID == nil ? false : modifierBypassed
             )
@@ -572,6 +622,7 @@ struct SourceRef: Codable, Equatable, Hashable, Sendable {
                     mode: .clip,
                     generatorID: compatibleSourceGeneratorID,
                     clipID: nil,
+                    sourceClipID: compatibleSourceClipID,
                     modifierGeneratorID: compatibleModifierGeneratorID,
                     modifierBypassed: compatibleModifierGeneratorID == nil ? false : modifierBypassed
                 )
@@ -581,6 +632,7 @@ struct SourceRef: Codable, Equatable, Hashable, Sendable {
                 mode: .clip,
                 generatorID: compatibleSourceGeneratorID,
                 clipID: compatibleID,
+                sourceClipID: compatibleSourceClipID,
                 modifierGeneratorID: compatibleModifierGeneratorID,
                 modifierBypassed: compatibleModifierGeneratorID == nil ? false : modifierBypassed
             )
@@ -592,6 +644,7 @@ struct SourceRef: Codable, Equatable, Hashable, Sendable {
         let mode = try container.decode(TrackSourceMode.self, forKey: .mode)
         let generatorID = try container.decodeIfPresent(UUID.self, forKey: .generatorID)
         let clipID = try container.decodeIfPresent(UUID.self, forKey: .clipID)
+        let sourceClipID = try container.decodeIfPresent(UUID.self, forKey: .sourceClipID)
         let hasModifierKey = container.contains(.modifierGeneratorID)
         let decodedModifierID = try container.decodeIfPresent(UUID.self, forKey: .modifierGeneratorID)
         let modifierBypassed = try container.decodeIfPresent(Bool.self, forKey: .modifierBypassed) ?? false
@@ -607,6 +660,7 @@ struct SourceRef: Codable, Equatable, Hashable, Sendable {
             mode: mode,
             generatorID: generatorID,
             clipID: clipID,
+            sourceClipID: sourceClipID,
             modifierGeneratorID: resolvedModifierID,
             modifierBypassed: modifierBypassed
         )
@@ -617,6 +671,7 @@ struct SourceRef: Codable, Equatable, Hashable, Sendable {
         try container.encode(mode, forKey: .mode)
         try container.encodeIfPresent(generatorID, forKey: .generatorID)
         try container.encodeIfPresent(clipID, forKey: .clipID)
+        try container.encodeIfPresent(sourceClipID, forKey: .sourceClipID)
         if let modifierGeneratorID {
             try container.encode(modifierGeneratorID, forKey: .modifierGeneratorID)
         } else {

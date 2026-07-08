@@ -3,6 +3,7 @@ import Foundation
 enum TrackType: String, Codable, CaseIterable, Equatable, Sendable {
     case monoMelodic
     case polyMelodic
+    case chord
     case slice
     case audioInput
 
@@ -12,6 +13,8 @@ enum TrackType: String, Codable, CaseIterable, Equatable, Sendable {
             return "Mono"
         case .polyMelodic:
             return "Poly"
+        case .chord:
+            return "Chord"
         case .slice:
             return "Slice"
         case .audioInput:
@@ -25,6 +28,8 @@ enum TrackType: String, Codable, CaseIterable, Equatable, Sendable {
             return "Mono"
         case .polyMelodic:
             return "Poly"
+        case .chord:
+            return "Chord"
         case .slice:
             return "Slice"
         case .audioInput:

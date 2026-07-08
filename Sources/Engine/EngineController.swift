@@ -3775,6 +3775,7 @@ final class EngineController: RouterDispatcher {
             guard let clip = playbackSnapshot.clipEntry(id: clipID) else {
                 return []
             }
+            let chordPalette = playbackSnapshot.tracks.first(where: { $0.id == trackID })?.chordPalette
 
             let effectiveFillEnabled = quantisedFillFlagOverrides[trackID]
                 ?? (resolved.fillEnabled
@@ -3784,6 +3785,7 @@ final class EngineController: RouterDispatcher {
                 for: clip,
                 stepIndex: resolved.sourceStepIndex,
                 fillEnabled: effectiveFillEnabled,
+                chordPalette: chordPalette,
                 rng: &rng
             )
 
@@ -3901,6 +3903,7 @@ final class EngineController: RouterDispatcher {
             for: clip,
             stepIndex: stepIndex,
             fillEnabled: false,
+            chordPalette: nil,
             rng: &rng
         )
     }

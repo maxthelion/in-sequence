@@ -224,6 +224,8 @@ extension Project {
             return index == 1 ? "Main Track" : "Mono \(index)"
         case .polyMelodic:
             return "Poly \(index)"
+        case .chord:
+            return "Chord \(index)"
         case .slice:
             return "Slice \(index)"
         case .audioInput:
@@ -237,6 +239,8 @@ extension Project {
             return StepSequenceTrack.default.pitches
         case .polyMelodic:
             return [60, 64, 67]
+        case .chord:
+            return [60, 64, 67]
         case .slice:
             return [60]
         case .audioInput:
@@ -246,7 +250,7 @@ extension Project {
 
     private static func defaultStepPattern(for trackType: TrackType) -> [Bool] {
         switch trackType {
-        case .monoMelodic, .polyMelodic:
+        case .monoMelodic, .polyMelodic, .chord:
             return StepSequenceTrack.default.stepPattern
         case .slice:
             return Array(repeating: false, count: 16)
@@ -284,7 +288,7 @@ extension Project {
 
     static func defaultDestination(for trackType: TrackType) -> Destination {
         switch trackType {
-        case .monoMelodic, .polyMelodic:
+        case .monoMelodic, .polyMelodic, .chord:
             return .none
         case .slice:
             return .slicer(sliceSetID: SliceSet.emptyID, settings: .default)
@@ -304,6 +308,15 @@ extension Project {
                 name: "\(track.name) clip",
                 trackType: .slice,
                 content: .emptySliceTriggers(lengthSteps: 16)
+            )
+        }
+
+        if track.trackType == .chord {
+            return ClipPoolEntry(
+                id: UUID(),
+                name: "\(track.name) clip",
+                trackType: .chord,
+                content: .emptyChordReferences(lengthSteps: 16, defaultSlotID: track.chordPalette.normalized.slots.first?.id)
             )
         }
 
