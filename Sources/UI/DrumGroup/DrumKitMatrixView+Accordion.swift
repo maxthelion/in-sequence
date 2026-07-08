@@ -220,10 +220,11 @@ extension DrumKitMatrixView {
     func expandedStepGrid(row: DrumKitMatrixModel.Row, pageOffset: Int) -> some View {
         switch row.content {
         case let .editable(_, _, steps):
+            let noteLane = matrixNoteLane(model)
             let states = (0..<Self.stepsPerBar).map { local -> StepVisualState in
                 let absolute = pageOffset + local
                 guard steps.indices.contains(absolute) else { return .off }
-                return ClipNoteGridStepEditing.visualState(for: steps[absolute], lane: .main)
+                return ClipNoteGridStepEditing.visualState(for: steps[absolute], lane: noteLane)
             }
             VStack(alignment: .leading, spacing: 8) {
                 if let model { barPager(model) }
@@ -256,16 +257,17 @@ extension DrumKitMatrixView {
         guard steps.indices.contains(index) else {
             return selectedLayer == .steps ? .toggle : .valueBar(fraction: 0)
         }
+        let noteLane = matrixNoteLane(model)
         switch selectedLayer {
         case .steps:
             return .toggle
         case .velocity:
             return .valueBar(
-                fraction: ClipNoteGridStepEditing.velocityValue(for: steps[index], lane: .main) / 127.0
+                fraction: ClipNoteGridStepEditing.velocityValue(for: steps[index], lane: noteLane) / 127.0
             )
         case .chance:
             return .valueBar(
-                fraction: ClipNoteGridStepEditing.chanceValue(for: steps[index], lane: .main)
+                fraction: ClipNoteGridStepEditing.chanceValue(for: steps[index], lane: noteLane)
             )
         }
     }

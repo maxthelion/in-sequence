@@ -186,6 +186,7 @@ CAPTURES=$(cat <<'TABLE'
 # 28b RETIRED: the default kit route now lands on the same kit matrix surface
 # as 29; keep the explicit kit-matrix row as the canonical capture.
 29-drum-kit-matrix|workspace=track,drumKitMatrixRenderedVisible=true|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;transport=stop
+29e-drum-kit-matrix-fill-lane|workspace=track,drumKitMatrixRenderedVisible=true,drumKitMatrixRenderedFillMode=fill|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixCommand=fill-mode:fill;transport=stop
 # 30 RETIRED: the kit-matrix 16/32 display toggle was removed; the view ignores
 # `display-32`, so this row duplicated row 29 while failing its status wait.
 29a-drum-kit-fx-tab|workspace=track,drumKitMatrixRenderedKitTab=fx|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixCommand=tab-fx;transport=stop

@@ -17,6 +17,7 @@ enum VisualScenarioCommandRunner {
     private static var drumKitMatrixRenderedTemplateChooserState = false
     private static var drumKitMatrixRenderedDisplayStepCount = 16
     private static var drumKitMatrixRenderedLayer = "none"
+    private static var drumKitMatrixRenderedFillMode = "none"
     private static var drumKitMatrixRenderedGroupPatternSlot = "none"
     private static var drumKitMatrixRenderedGroupName = "none"
     private static var drumKitMatrixRenderedMemberCount = 0
@@ -242,6 +243,7 @@ enum VisualScenarioCommandRunner {
                 drumKitMatrixRenderedTemplateChooserState = userInfo["templateChooserVisible"] as? Bool ?? false
                 drumKitMatrixRenderedDisplayStepCount = userInfo["displayStepCount"] as? Int ?? 16
                 drumKitMatrixRenderedLayer = userInfo["layer"] as? String ?? "none"
+                drumKitMatrixRenderedFillMode = userInfo["fillMode"] as? String ?? "none"
                 drumKitMatrixRenderedGroupPatternSlot = userInfo["groupPatternSlot"] as? String ?? "none"
                 drumKitMatrixRenderedGroupName = userInfo["groupName"] as? String ?? "none"
                 drumKitMatrixRenderedMemberCount = userInfo["memberCount"] as? Int ?? 0
@@ -1240,6 +1242,7 @@ enum VisualScenarioCommandRunner {
         drumKitMatrixRenderedTemplateChooserVisible=\(drumKitMatrixRenderedTemplateChooserState)
         drumKitMatrixRenderedDisplayStepCount=\(drumKitMatrixRenderedDisplayStepCount)
         drumKitMatrixRenderedLayer=\(drumKitMatrixRenderedLayer)
+        drumKitMatrixRenderedFillMode=\(drumKitMatrixRenderedFillMode)
         drumKitMatrixRenderedGroupPatternSlot=\(drumKitMatrixRenderedGroupPatternSlot)
         drumKitMatrixRenderedGroupName=\(drumKitMatrixRenderedGroupName)
         drumKitMatrixRenderedMemberCount=\(drumKitMatrixRenderedMemberCount)

@@ -8,6 +8,7 @@ import SwiftUI
 struct DrumKitMatrixRowView<DetailPanel: View>: View {
     let row: DrumKitMatrixModel.Row
     let layer: DrumKitMatrixLayer
+    let noteLane: StepGridNoteLane
     /// Absolute step index of the first visible cell (selected bar × 16).
     let pageOffset: Int
     /// Fixed grid width — always 16 columns.
@@ -146,7 +147,7 @@ struct DrumKitMatrixRowView<DetailPanel: View>: View {
         (0..<stepsPerBar).map { local in
             let absolute = pageOffset + local
             guard steps.indices.contains(absolute) else { return .off }
-            return ClipNoteGridStepEditing.visualState(for: steps[absolute], lane: .main)
+            return ClipNoteGridStepEditing.visualState(for: steps[absolute], lane: noteLane)
         }
     }
 
@@ -178,11 +179,11 @@ struct DrumKitMatrixRowView<DetailPanel: View>: View {
             return .toggle
         case .velocity:
             return .valueBar(
-                fraction: ClipNoteGridStepEditing.velocityValue(for: steps[index], lane: .main) / 127.0
+                fraction: ClipNoteGridStepEditing.velocityValue(for: steps[index], lane: noteLane) / 127.0
             )
         case .chance:
             return .valueBar(
-                fraction: ClipNoteGridStepEditing.chanceValue(for: steps[index], lane: .main)
+                fraction: ClipNoteGridStepEditing.chanceValue(for: steps[index], lane: noteLane)
             )
         }
     }

@@ -49,6 +49,7 @@ enum DrumKitVisualCommand: Equatable {
     case expandPart(index: Int)
     case selectIndex(index: Int)
     case layer(DrumKitMatrixLayer)
+    case fillMode(Bool)
     case bar(page: Int)
     case pattern(slotIndex: Int)
     case saveSlot(slotIndex: Int)
@@ -96,6 +97,10 @@ enum DrumKitVisualCommand: Equatable {
             } else if rawValue.hasPrefix("layer:"),
                       let layer = DrumKitMatrixLayer(rawValue: String(rawValue.dropFirst("layer:".count))) {
                 self = .layer(layer)
+            } else if rawValue == "fill-mode:fill" || rawValue == "fill:on" {
+                self = .fillMode(true)
+            } else if rawValue == "fill-mode:normal" || rawValue == "fill:off" {
+                self = .fillMode(false)
             } else if let page = Self.intArgument(rawValue, prefix: "bar:") {
                 self = .bar(page: page)
             } else if let slotIndex = Self.intArgument(rawValue, prefix: "pattern:") {
@@ -236,6 +241,11 @@ extension DrumKitMatrixView {
             }
         case let .layer(layer):
             selectedLayer = layer
+            postRenderedVisualState(isVisible: true)
+        case let .fillMode(active):
+            if let model, let memberID = fillPreviewMemberID(model) {
+                session.setTrackFillPreview(trackID: memberID, active: active)
+            }
             postRenderedVisualState(isVisible: true)
         case let .bar(page):
             if page >= 0 {

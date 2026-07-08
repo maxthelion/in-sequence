@@ -84,11 +84,30 @@ extension DrumKitMatrixView {
         )
     }
 
-    private func fillPreviewMemberID(_ model: DrumKitMatrixModel) -> UUID? {
+    func fillPreviewMemberID(_ model: DrumKitMatrixModel) -> UUID? {
         if model.rows.contains(where: { $0.memberID == navigationState.originatingPartID }) {
             return navigationState.originatingPartID
         }
         return model.rows.first?.memberID
+    }
+
+    func matrixNoteLane(_ model: DrumKitMatrixModel?) -> StepGridNoteLane {
+        guard let model,
+              let memberID = fillPreviewMemberID(model),
+              session.isTrackFillPreviewActive(trackID: memberID)
+        else {
+            return .main
+        }
+        return .fill
+    }
+
+    func matrixNoteLaneLabel(_ model: DrumKitMatrixModel?) -> String {
+        switch matrixNoteLane(model) {
+        case .main:
+            return "main"
+        case .fill:
+            return "fill"
+        }
     }
 
     func staleMemberBanner(count: Int) -> some View {
@@ -117,12 +136,14 @@ extension DrumKitMatrixView {
 
     func matrixRows(_ model: DrumKitMatrixModel) -> some View {
         let pageOffset = clampedPage(model) * Self.stepsPerBar
+        let noteLane = matrixNoteLane(model)
         return ScrollView(.vertical) {
             VStack(alignment: .leading, spacing: 10) {
                 ForEach(model.rows) { row in
                     DrumKitMatrixRowView(
                         row: row,
                         layer: selectedLayer,
+                        noteLane: noteLane,
                         pageOffset: pageOffset,
                         stepsPerBar: Self.stepsPerBar,
                         accent: accent,
