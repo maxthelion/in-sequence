@@ -7,3 +7,5 @@ Capture references:
 - 29-drum-kit-matrix.png (in-sequence/qa-surface-coverage; main @ 53e42ea6; run 20260707-215434-in-sequence-qa-surface-coverage-main-53e42ea6; 5c597e7d2abfd72701f13fee28dcb57c)
 
 Status: RESOLVED; corrected after the 29-vs-27c gallery review by removing the drum-kit-only extra page inset and matching the shared track workspace inset. Verified with focused qa-surface-coverage captures for 27c-audio-playback and 29-drum-kit-matrix.
+
+Follow-up: completed the title-size clause by using the shared compact `.title` typography for all track-detail titles, not only audio/slicer tracks; the scenes editor header now uses the same title typography too.

@@ -280,7 +280,7 @@ struct TrackWorkspaceView: View {
 
     @ViewBuilder
     private var trackNameEditor: some View {
-        let nameStyle: StudioTypography = (track.trackType == .audioInput || track.trackType == .slice) ? .title : .display
+        let nameStyle: StudioTypography = .title
         if isEditingSelectedTrackName {
             TextField("Track Name", text: $draftTrackName)
                 .textFieldStyle(.roundedBorder)

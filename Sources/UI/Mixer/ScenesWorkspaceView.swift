@@ -496,7 +496,7 @@ struct ScenesWorkspaceView: View {
     private var sceneEditorHeader: some View {
         CompactTrackDetailHeader(accent: StudioTheme.transportAccent) {
             Text("Scene \(sceneNumber(for: selectedScene.id) ?? 0)")
-                .font(.system(size: 28, weight: .black, design: .rounded))
+                .studioText(.title)
                 .foregroundStyle(StudioTheme.text)
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
