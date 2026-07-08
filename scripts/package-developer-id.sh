@@ -6,7 +6,7 @@ usage() {
 Usage:
   scripts/package-developer-id.sh --team-id TEAMID --notary-profile PROFILE [options]
 
-Build, sign, export, notarize, staple, and zip SequencerAI for distribution
+Build, sign, export, notarize, staple, and package SequencerAI for distribution
 outside the Mac App Store using a Developer ID Application certificate.
 
 Required unless supplied by environment:
@@ -27,8 +27,17 @@ Options:
                                env: SEQAI_DISTRIBUTION_APP_NAME
   --configuration NAME         Xcode configuration. Defaults to Release
   --scheme NAME                Xcode scheme. Defaults to SequencerAI
-  --skip-notarize              Export and zip the signed app, but do not
+  --skip-notarize              Export and package the signed app, but do not
                                notarize or staple it.
+  --upload-r2                  Upload the final DMG to Cloudflare R2.
+                               env: SEQAI_UPLOAD_R2=1
+  --r2-key KEY                 R2 object key for the final DMG.
+  --r2-prefix PREFIX           R2 object prefix. Defaults to
+                               releases/developer-id.
+                               env: R2_DISTRIBUTION_PREFIX
+  --r2-bucket BUCKET           R2 bucket. Env: R2_DISTRIBUTION_BUCKET, R2_BUCKET
+  --r2-endpoint URL            R2 S3 endpoint. Env: R2_DISTRIBUTION_ENDPOINT,
+                               R2_ENDPOINT
   --allow-dirty                Permit packaging from a dirty git worktree.
   --help                       Show this help.
 
@@ -56,6 +65,17 @@ notary_profile="${SEQAI_NOTARY_PROFILE:-${NOTARY_PROFILE:-}}"
 output_dir=""
 skip_notarize=0
 allow_dirty=0
+upload_r2=0
+r2_key=""
+r2_prefix="${R2_DISTRIBUTION_PREFIX:-releases/developer-id}"
+r2_bucket="${R2_DISTRIBUTION_BUCKET:-${R2_BUCKET:-}}"
+r2_endpoint="${R2_DISTRIBUTION_ENDPOINT:-${R2_ENDPOINT:-}}"
+
+case "${SEQAI_UPLOAD_R2:-}" in
+  1|true|TRUE|yes|YES|on|ON)
+    upload_r2=1
+    ;;
+esac
 
 while (($# > 0)); do
   case "$1" in
@@ -104,6 +124,33 @@ while (($# > 0)); do
     --skip-notarize)
       skip_notarize=1
       ;;
+    --upload-r2)
+      upload_r2=1
+      ;;
+    --r2-key)
+      [[ $# -ge 2 ]] || { printf 'Missing value for --r2-key\n' >&2; exit 64; }
+      r2_key="${2:-}"
+      shift 2
+      continue
+      ;;
+    --r2-prefix)
+      [[ $# -ge 2 ]] || { printf 'Missing value for --r2-prefix\n' >&2; exit 64; }
+      r2_prefix="${2:-}"
+      shift 2
+      continue
+      ;;
+    --r2-bucket)
+      [[ $# -ge 2 ]] || { printf 'Missing value for --r2-bucket\n' >&2; exit 64; }
+      r2_bucket="${2:-}"
+      shift 2
+      continue
+      ;;
+    --r2-endpoint)
+      [[ $# -ge 2 ]] || { printf 'Missing value for --r2-endpoint\n' >&2; exit 64; }
+      r2_endpoint="${2:-}"
+      shift 2
+      continue
+      ;;
     --allow-dirty)
       allow_dirty=1
       ;;
@@ -132,12 +179,19 @@ if ((skip_notarize == 0)) && [[ -z "$notary_profile" ]]; then
   exit 64
 fi
 
-for tool in git xcodebuild xcrun ditto codesign; do
+for tool in git xcodebuild xcrun ditto codesign hdiutil; do
   command -v "$tool" >/dev/null || {
     printf 'Required tool not found on PATH: %s\n' "$tool" >&2
     exit 127
   }
 done
+
+if ((upload_r2 == 1)); then
+  command -v node >/dev/null || {
+    printf 'Required tool not found on PATH for --upload-r2: node\n' >&2
+    exit 127
+  }
+fi
 
 cd "$repo_root"
 
@@ -167,7 +221,8 @@ if [[ -z "$zip_slug" ]]; then
   zip_slug="SequencerAI"
 fi
 notary_zip="$output_dir/${zip_slug}-notary-submit.zip"
-final_zip="$output_dir/${zip_slug}-${commit}-developer-id.zip"
+final_dmg="$output_dir/${zip_slug}-${commit}-developer-id.dmg"
+dmg_staging="$output_dir/dmg-root"
 
 mkdir -p "$output_dir"
 
@@ -199,6 +254,11 @@ printf '  team:            %s\n' "$team_id"
 printf '  identity:        %s\n' "$signing_identity"
 printf '  app name:        %s\n' "$distribution_app_name"
 printf '  output:          %s\n' "$output_dir"
+if ((upload_r2 == 1)); then
+  printf '  r2 upload:       enabled\n'
+  printf '  r2 bucket:       %s\n' "${r2_bucket:-<from env file>}"
+  printf '  r2 prefix:       %s\n' "$r2_prefix"
+fi
 
 xcodebuild archive \
   -project "$project" \
@@ -245,13 +305,52 @@ if ((skip_notarize == 0)); then
   xcrun stapler validate "$app_path"
 fi
 
-ditto -c -k --sequesterRsrc --keepParent "$app_path" "$final_zip"
+rm -rf "$dmg_staging" "$final_dmg"
+mkdir -p "$dmg_staging"
+ditto "$app_path" "$dmg_staging/${distribution_app_name}.app"
+ln -s /Applications "$dmg_staging/Applications"
+hdiutil create \
+  -volname "$distribution_app_name" \
+  -srcfolder "$dmg_staging" \
+  -format UDZO \
+  -ov \
+  "$final_dmg"
+codesign --force --sign "$signing_identity" --timestamp "$final_dmg"
+codesign --verify --verbose=2 "$final_dmg"
+
+if ((skip_notarize == 0)); then
+  xcrun notarytool submit "$final_dmg" \
+    --keychain-profile "$notary_profile" \
+    --wait
+
+  xcrun stapler staple "$final_dmg"
+  xcrun stapler validate "$final_dmg"
+fi
+
+r2_upload_json=""
+if ((upload_r2 == 1)); then
+  upload_args=("$repo_root/scripts/r2-upload-artifact.mjs" "$final_dmg" "--prefix" "$r2_prefix")
+  if [[ -n "$r2_key" ]]; then
+    upload_args+=("--key" "$r2_key")
+  fi
+  if [[ -n "$r2_bucket" ]]; then
+    upload_args+=("--bucket" "$r2_bucket")
+  fi
+  if [[ -n "$r2_endpoint" ]]; then
+    upload_args+=("--endpoint" "$r2_endpoint")
+  fi
+  r2_upload_json="$(node "${upload_args[@]}")"
+  printf '%s\n' "$r2_upload_json"
+fi
 
 printf '\nDeveloper ID package complete:\n'
 printf '  app:             %s\n' "$app_path"
-printf '  zip:             %s\n' "$final_zip"
+printf '  dmg:             %s\n' "$final_dmg"
 if ((skip_notarize == 1)); then
   printf '  notarization:    skipped\n'
 else
-  printf '  notarization:    stapled\n'
+  printf '  notarization:    app and dmg stapled\n'
+fi
+if ((upload_r2 == 1)); then
+  printf '  r2 upload:       complete\n'
 fi

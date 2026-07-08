@@ -1,6 +1,6 @@
 # Developer ID Distribution
 
-SequencerAI can be packaged for other Macs from the command line. Opening Xcode
+In Sequence can be packaged for other Macs from the command line. Opening Xcode
 is not required for the normal distribution path, and the packaging script does
 not edit `project.yml` or `SequencerAI.xcodeproj/project.pbxproj`.
 
@@ -38,12 +38,42 @@ The script:
 3. Renames the exported bundle to `In Sequence.app`.
 4. Zips the app for notarization.
 5. Submits with `xcrun notarytool`.
-6. Staples and validates the notarization ticket.
-7. Produces a final distributable zip under `dist/developer-id/`.
+6. Staples and validates the app notarization ticket.
+7. Builds and signs a DMG containing `In Sequence.app` and an Applications
+   symlink.
+8. Notarizes, staples, and validates the DMG.
+9. Produces a final distributable DMG under `dist/developer-id/`.
 
 The Xcode target/scheme and bundle identifier remain `SequencerAI` /
 `ai.sequencer.SequencerAI`; only the user-facing app/document names and
 distributed bundle filename are `In Sequence`.
+
+## R2 Upload
+
+Use a dedicated distribution bucket/key rather than the visual QA screenshot
+bucket. Copy `scripts/r2-distribution.env.example` to a gitignored
+`scripts/distribution.r2.env`, or export the values in your shell:
+
+```sh
+R2_DISTRIBUTION_BUCKET=in-sequence-releases
+R2_DISTRIBUTION_ENDPOINT=https://ACCOUNT_ID.r2.cloudflarestorage.com
+R2_DISTRIBUTION_ACCESS_KEY_ID=...
+R2_DISTRIBUTION_SECRET_ACCESS_KEY=...
+R2_REGION=auto
+R2_DISTRIBUTION_PREFIX=releases/developer-id
+```
+
+Then package and upload:
+
+```sh
+scripts/package-developer-id.sh \
+  --team-id TEAMID \
+  --identity "Developer ID Application: Your Name (TEAMID)" \
+  --notary-profile seqai-notary \
+  --upload-r2
+```
+
+Use `--r2-key <key>` to set an exact object key for the final DMG.
 
 ## Useful Options
 

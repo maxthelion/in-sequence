@@ -46,21 +46,56 @@ The script:
 3. Renames the exported bundle to `In Sequence.app`.
 4. Zips the app for notarization.
 5. Submits with `xcrun notarytool`.
-6. Staples and validates the notarization ticket.
-7. Produces a final distributable zip.
+6. Staples and validates the app notarization ticket.
+7. Builds and signs a DMG containing `In Sequence.app` and an Applications
+   symlink.
+8. Notarizes, staples, and validates the DMG.
+9. Produces the final distributable DMG.
 
 The Xcode target/scheme and bundle identifier remain `SequencerAI` /
 `ai.sequencer.SequencerAI`; the user-facing app/document names and distributed
 bundle filename are `In Sequence`.
 
+## R2 Upload
+
+For release uploads, use a dedicated distribution bucket/key rather than the
+visual QA screenshot bucket. The script reads a gitignored
+`scripts/distribution.r2.env`, `$R2_ENV_FILE`, `.env`, or the live shell
+environment:
+
+```sh
+R2_DISTRIBUTION_BUCKET=in-sequence-releases
+R2_DISTRIBUTION_ENDPOINT=https://ACCOUNT_ID.r2.cloudflarestorage.com
+R2_DISTRIBUTION_ACCESS_KEY_ID=...
+R2_DISTRIBUTION_SECRET_ACCESS_KEY=...
+R2_REGION=auto
+R2_DISTRIBUTION_PREFIX=releases/developer-id
+```
+
+Then package and upload the final DMG:
+
+```sh
+scripts/package-developer-id.sh \
+  --team-id TEAMID \
+  --identity "Developer ID Application: Your Name (TEAMID)" \
+  --notary-profile seqai-notary \
+  --upload-r2
+```
+
+Use `--r2-key <key>` when the release object path should be exact rather than
+`$R2_DISTRIBUTION_PREFIX/<dmg-name>`.
+
 ## Verification
 
-After packaging, verify the exported app before sharing the zip:
+After packaging, verify the exported app and final DMG before sharing:
 
 ```sh
 codesign --verify --deep --strict --verbose=2 "/path/to/export/In Sequence.app"
 xcrun stapler validate "/path/to/export/In Sequence.app"
 spctl --assess --type execute --verbose=4 "/path/to/export/In Sequence.app"
+codesign --verify --verbose=2 "/path/to/InSequence-COMMIT-developer-id.dmg"
+xcrun stapler validate "/path/to/InSequence-COMMIT-developer-id.dmg"
+spctl --assess --type open --context context:primary-signature --verbose=4 "/path/to/InSequence-COMMIT-developer-id.dmg"
 ```
 
 The expected `spctl` result is `accepted` with `source=Notarized Developer ID`.

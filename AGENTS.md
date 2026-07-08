@@ -173,8 +173,8 @@ changed.
 
 The runbook is [`wiki/pages/developer-id-distribution.md`](wiki/pages/developer-id-distribution.md).
 It covers the `seqai-notary` keychain profile, Developer ID signing,
-notarization, stapling, Gatekeeper verification, and the expected `In Sequence`
-distributed bundle name.
+DMG creation, Cloudflare R2 release upload, notarization, stapling, Gatekeeper
+verification, and the expected `In Sequence` distributed bundle name.
 
 ## Audio Engine Hard Rules
 
