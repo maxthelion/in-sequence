@@ -104,6 +104,7 @@ struct TrackSourceEditorView: View {
     @Environment(EngineController.self) private var engineController
     @Environment(SequencerDocumentSession.self) private var session
     let accent: Color
+    let displayedPatternIndex: Int
     let stepGridWorkspaceModel: TrackStepGridWorkspaceModel
 
     @State private var selectedTab: TrackSourceEditorTab = .stepsClip
@@ -134,11 +135,13 @@ struct TrackSourceEditorView: View {
 
     private var track: StepSequenceTrack { session.store.selectedTrack }
     private var bank: TrackPatternBank { session.store.patternBank(for: track.id) }
-    private var selectedPatternIndex: Int { session.store.selectedPatternIndex(for: track.id) }
+    private var selectedPatternIndex: Int {
+        min(max(displayedPatternIndex, 0), TrackPatternBank.slotCount - 1)
+    }
     private var selectedPatternAddress: PatternSlotAddress {
         PatternSlotAddress(trackID: track.id, slotIndex: selectedPatternIndex)
     }
-    private var selectedPattern: TrackPatternSlot { session.store.selectedPattern(for: track.id) }
+    private var selectedPattern: TrackPatternSlot { bank.slot(at: selectedPatternIndex) }
     private var occupiedPatternSlots: Set<Int> {
         Set(bank.slots.compactMap { slot in
             guard let clip = session.store.clipEntry(id: slot.sourceRef.clipID),
@@ -400,7 +403,7 @@ struct TrackSourceEditorView: View {
             StudioPanel(title: "Save Capture", accent: accent, showsHeader: false) {
                 VStack(alignment: .leading, spacing: 10) {
                     TrackPatternSlotPalette(
-                        selectedSlot: selectedPatternIndexBinding,
+                        selectedSlot: displayedPatternIndexBinding,
                         occupiedSlots: occupiedPatternSlots,
                         bypassState: .notApplicable,
                         onBypassToggle: { _ in },
@@ -1182,13 +1185,10 @@ struct TrackSourceEditorView: View {
         sourcePickerStep = nil
     }
 
-    private var selectedPatternIndexBinding: Binding<Int> {
+    private var displayedPatternIndexBinding: Binding<Int> {
         Binding(
-            get: { session.store.selectedPatternIndex(for: track.id) },
-            set: { newValue in
-                let trackID = track.id
-                session.setSelectedPatternIndex(newValue, for: trackID)
-            }
+            get: { selectedPatternIndex },
+            set: { _ in }
         )
     }
 }

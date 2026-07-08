@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 struct TrackPatternSlotPalette: View {
@@ -15,6 +16,8 @@ struct TrackPatternSlotPalette: View {
     let occupiedSlots: Set<Int>
     let bypassState: BypassState
     let onBypassToggle: (Int) -> Void
+    var playingSlot: Int?
+    var onPlayingSlotSelect: (Int) -> Void = { _ in }
     var accent: Color = StudioTheme.transportAccent
     var destinationMode: DestinationMode?
     var onDestinationSelect: (Int) -> Void = { _ in }
@@ -77,8 +80,23 @@ struct TrackPatternSlotPalette: View {
                     x: 0,
                     y: 0
                 )
+                .overlay(alignment: .bottom) {
+                    if playingSlot == slotIndex && destinationMode == nil {
+                        Capsule()
+                            .fill(accent)
+                            .frame(height: 3)
+                            .padding(.horizontal, 10)
+                            .offset(y: 6)
+                    }
+                }
             }
             .buttonStyle(.plain)
+            .background {
+                TrackPatternSlotRightClickProbe {
+                    guard destinationMode == nil else { return }
+                    onPlayingSlotSelect(slotIndex)
+                }
+            }
             .accessibilityLabel(slotAccessibilityLabel(slotIndex: slotIndex, isBypassed: isBypassed, bypassApplicable: bypassApplicable))
 
             if bypassApplicable && destinationMode == nil {
@@ -174,5 +192,36 @@ struct TrackPatternSlotPalette: View {
             return destinationMode.accent.opacity(destinationPulse ? 0.38 : 0.12)
         }
         return destinationMode.accent.opacity(destinationPulse ? 0.32 : 0.08)
+    }
+}
+
+private struct TrackPatternSlotRightClickProbe: NSViewRepresentable {
+    let action: () -> Void
+
+    func makeNSView(context: Context) -> NSView {
+        let view = RightClickView()
+        view.action = action
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        guard let view = nsView as? RightClickView else { return }
+        view.action = action
+    }
+
+    final class RightClickView: NSView {
+        var action: (() -> Void)?
+
+        override func mouseDown(with event: NSEvent) {
+            if event.type == .rightMouseDown || event.modifierFlags.contains(.control) {
+                action?()
+            } else {
+                super.mouseDown(with: event)
+            }
+        }
+
+        override func rightMouseDown(with event: NSEvent) {
+            action?()
+        }
     }
 }

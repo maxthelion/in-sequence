@@ -7,6 +7,7 @@ struct SliceTrackWorkspaceView: View {
     @Environment(SequencerDocumentSession.self) private var session
 
     let accent: Color
+    let displayedPatternIndex: Int
     let stepGridWorkspaceModel: TrackStepGridWorkspaceModel
 
     @State private var selectedPage = 0
@@ -45,7 +46,7 @@ struct SliceTrackWorkspaceView: View {
     }
 
     private var selectedPatternIndex: Int {
-        session.store.selectedPatternIndex(for: track.id)
+        min(max(displayedPatternIndex, 0), TrackPatternBank.slotCount - 1)
     }
 
     private var selectedPatternAddress: PatternSlotAddress {
@@ -53,7 +54,7 @@ struct SliceTrackWorkspaceView: View {
     }
 
     private var selectedPattern: TrackPatternSlot {
-        session.store.selectedPattern(for: track.id)
+        bank.slot(at: selectedPatternIndex)
     }
 
     private var currentClip: ClipPoolEntry? {
@@ -98,13 +99,6 @@ struct SliceTrackWorkspaceView: View {
             }
             return slot.slotIndex
         })
-    }
-
-    private var selectedPatternIndexBinding: Binding<Int> {
-        Binding(
-            get: { session.store.selectedPatternIndex(for: track.id) },
-            set: { session.setSelectedPatternIndex($0, for: track.id) }
-        )
     }
 
     var body: some View {

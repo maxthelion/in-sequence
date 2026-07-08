@@ -7,6 +7,7 @@ struct TrackWorkspaceView: View {
     @Environment(EngineController.self) private var engineController
     @State private var editingTrackID: UUID?
     @State private var stepGridWorkspaceModel = TrackStepGridWorkspaceModel()
+    @State private var displayedPatternSlotsByTrackID: [UUID: Int] = [:]
     @State private var draftTrackName = ""
     /// Drives the delete-track confirmation on the single-track detail header.
     @State private var isConfirmingTrackDelete = false
@@ -48,11 +49,23 @@ struct TrackWorkspaceView: View {
         })
     }
 
-    private var selectedPatternIndexBinding: Binding<Int> {
+    private var displayedPatternIndex: Int {
+        displayedPatternSlotsByTrackID[track.id] ?? session.store.selectedPatternIndex(for: track.id)
+    }
+
+    private var displayedPatternIndexBinding: Binding<Int> {
         Binding(
-            get: { session.store.selectedPatternIndex(for: track.id) },
-            set: { session.setSelectedPatternIndex($0, for: track.id) }
+            get: { displayedPatternIndex },
+            set: { newValue in
+                displayedPatternSlotsByTrackID[track.id] = min(max(newValue, 0), TrackPatternBank.slotCount - 1)
+            }
         )
+    }
+
+    private func setPlayingPatternIndex(_ slotIndex: Int) {
+        let clamped = min(max(slotIndex, 0), TrackPatternBank.slotCount - 1)
+        session.setSelectedPatternIndex(clamped, for: track.id)
+        displayedPatternSlotsByTrackID[track.id] = clamped
     }
 
     private var sourceAccent: Color {
@@ -142,12 +155,14 @@ struct TrackWorkspaceView: View {
                     SliceTrackWorkspaceView(
                         document: $document,
                         accent: sourceAccent,
+                        displayedPatternIndex: displayedPatternIndex,
                         stepGridWorkspaceModel: stepGridWorkspaceModel
                     )
                 } else if track.trackType == .chord {
                     ChordTrackWorkspaceView(
                         document: $document,
                         accent: sourceAccent,
+                        displayedPatternIndex: displayedPatternIndex,
                         stepGridWorkspaceModel: stepGridWorkspaceModel
                     )
                 } else {
@@ -158,6 +173,7 @@ struct TrackWorkspaceView: View {
                     TrackSourceEditorView(
                         document: $document,
                         accent: sourceAccent,
+                        displayedPatternIndex: displayedPatternIndex,
                         stepGridWorkspaceModel: stepGridWorkspaceModel
                     )
                         .frame(minWidth: 0, maxWidth: .infinity, alignment: .topLeading)
@@ -205,10 +221,12 @@ struct TrackWorkspaceView: View {
             }
         } patternSlotControls: {
             TrackPatternSlotPalette(
-                selectedSlot: selectedPatternIndexBinding,
+                selectedSlot: displayedPatternIndexBinding,
                 occupiedSlots: occupiedPatternSlots,
                 bypassState: .notApplicable,
                 onBypassToggle: { _ in },
+                playingSlot: session.store.selectedPatternIndex(for: track.id),
+                onPlayingSlotSelect: setPlayingPatternIndex,
                 accent: sourceAccent
             )
         }

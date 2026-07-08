@@ -41,6 +41,7 @@ struct ChordTrackWorkspaceView: View {
     @Environment(SequencerDocumentSession.self) private var session
 
     let accent: Color
+    let displayedPatternIndex: Int
     let stepGridWorkspaceModel: TrackStepGridWorkspaceModel
 
     @State private var selectedTab: ChordTrackTab = .steps
@@ -112,11 +113,11 @@ struct ChordTrackWorkspaceView: View {
     }
 
     private var selectedPatternIndex: Int {
-        session.store.selectedPatternIndex(for: track.id)
+        min(max(displayedPatternIndex, 0), TrackPatternBank.slotCount - 1)
     }
 
     private var selectedPattern: TrackPatternSlot {
-        session.store.selectedPattern(for: track.id)
+        session.store.patternBank(for: track.id).slot(at: selectedPatternIndex)
     }
 
     private var routingPathSummary: TrackRoutingPathSummary {

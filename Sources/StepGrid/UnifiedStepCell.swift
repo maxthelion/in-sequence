@@ -194,9 +194,12 @@ struct UnifiedStepCell: View {
             .strokeBorder(visualConfiguration.outlineColor, lineWidth: StudioMetrics.borderWidth)
 
         if isPlaying {
-            backgroundShape
-                .inset(by: visualConfiguration.playingBorderInset)
-                .strokeBorder(accent.opacity(0.96), lineWidth: StudioMetrics.borderWidth)
+            Capsule()
+                .fill(accent)
+                .frame(height: 3)
+                .padding(.horizontal, 7)
+                .padding(.bottom, 3)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
         }
 
         if isSelected {
