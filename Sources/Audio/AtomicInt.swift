@@ -91,3 +91,19 @@ final class AtomicInt32 {
         OSAtomicDecrement32Barrier(storage)
     }
 }
+
+final class AtomicDouble {
+    private let bits: AtomicInt64
+
+    init(_ value: Double) {
+        bits = AtomicInt64(Int64(bitPattern: value.bitPattern))
+    }
+
+    func load() -> Double {
+        Double(bitPattern: UInt64(bitPattern: bits.load()))
+    }
+
+    func store(_ value: Double) {
+        bits.store(Int64(bitPattern: value.bitPattern))
+    }
+}

@@ -387,6 +387,22 @@ final class AudioMasterClock {
         return cumulativeMusicalSecondsByStep[step]
     }
 
+    /// Duration of the interval leaving `step`, using the same pair-latched
+    /// swing value as `advance`. This lets sub-step schedulers divide the real
+    /// swung interval without advancing (and therefore prematurely committing)
+    /// the tempo map for the next step.
+    func durationAfterStep(_ step: UInt64, bpm: Double, swing: Double) -> TimeInterval {
+        tempoMapLock.lock()
+        defer { tempoMapLock.unlock() }
+        let perStep = Self.secondsPerStep(bpm: bpm, stepsPerBar: stepsPerBar)
+        let nextStep = step &+ 1
+        let pairSwing = nextStep % 2 == 1
+            ? min(max(swing, 0), 1)
+            : latchedSwing
+        let offset = pairSwing * perStep * Self.swingMaxStepFraction
+        return nextStep % 2 == 1 ? perStep + offset : perStep - offset
+    }
+
     // MARK: - Conversion (the one converter API)
 
     /// `sampleTime(at musicalPosition:)` — map a cumulative musical-seconds

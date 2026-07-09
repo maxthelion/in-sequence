@@ -245,6 +245,12 @@ final class EngineController: RouterDispatcher {
     private let masterBusHost: MasterBusHosting
     let stepsPerBar: Int
     private let stateLock = NSLock()
+    /// `Executor`, `TickStateBuffer`, and the event queue are single-consumer
+    /// state machines. The live TickClock pump and direct/manual/MIDI tick entry
+    /// points can arrive on different threads, so serialize the complete tick
+    /// transaction at this boundary. This is a control-queue lock, never used by
+    /// the audio render callback.
+    private let tickExecutionLock = NSRecursiveLock()
     @ObservationIgnored
     let phraseNavigationLock = NSLock()
     @ObservationIgnored
@@ -296,7 +302,11 @@ final class EngineController: RouterDispatcher {
         qos: .utility
     )
 
+    /// Main/UI-observed transport mirror. Runtime code must use
+    /// `isTransportRunning`, which is safe to read from the tick queue.
     private(set) var isRunning = false
+    @ObservationIgnored
+    private let isRunningAtomic = AtomicInt32(0)
 
     /// Phase-0 event-recording sink (`docs/plans/2026-06-30-precompute-lookahead-recording.md`).
     /// When non-nil, `prepareTick` records the REALIZED note stream
@@ -378,7 +388,7 @@ final class EngineController: RouterDispatcher {
     /// (`isRunning` stays false) and must still bootstrap+dispatch — so the guard
     /// keys on "was explicitly stopped," not "is not running."
     @ObservationIgnored
-    private var transportStoppedSuppressingTicks = false
+    private let transportStoppedSuppressingTicksAtomic = AtomicInt32(0)
 
     @ObservationIgnored
     private var pendingTransportStartWorkItem: DispatchWorkItem?
@@ -389,12 +399,16 @@ final class EngineController: RouterDispatcher {
     /// queued events, no running clock.
     private(set) var deferredTransportStartAttempt = 0
     private(set) var currentBPM: Double
+    @ObservationIgnored
+    private let currentBPMAtomic = AtomicDouble(120)
     /// Global transport swing amount (0…1) — delays off-beat (odd-index) 16th
     /// steps by up to `AudioMasterClock.swingMaxStepFraction` of a step.
     /// Same lifecycle as `currentBPM`: transient runtime state (not persisted
     /// on the document), threaded to the executor via `.setSwing`, mirrored
     /// back from the post-drain executor value at prepare time.
     private(set) var currentSwing: Double = 0
+    @ObservationIgnored
+    private let currentSwingAtomic = AtomicDouble(0)
     /// Main-published mirror of the transport tick for UI observation.
     /// Engine-internal code must read `currentTransportTick` instead: this
     /// property is written via publishToMain, so tick-queue readers would see
@@ -412,6 +426,31 @@ final class EngineController: RouterDispatcher {
 
     var currentTransportTick: UInt64 {
         UInt64(bitPattern: transportTickAtomic.load())
+    }
+
+    var transportBPMForScheduling: Double {
+        currentBPMAtomic.load()
+    }
+
+    var transportSwingForScheduling: Double {
+        currentSwingAtomic.load()
+    }
+
+    private var isTransportRunning: Bool {
+        isRunningAtomic.load() != 0
+    }
+
+    private var transportStoppedSuppressingTicks: Bool {
+        transportStoppedSuppressingTicksAtomic.load() != 0
+    }
+
+    private func setTransportRunning(_ running: Bool) {
+        isRunningAtomic.store(running ? 1 : 0)
+        isRunning = running
+    }
+
+    private func setTransportStoppedSuppressingTicks(_ stopped: Bool) {
+        transportStoppedSuppressingTicksAtomic.store(stopped ? 1 : 0)
     }
 
     func transportGenerationForScheduling() -> UInt64 {
@@ -968,11 +1007,11 @@ final class EngineController: RouterDispatcher {
                 state.queuedPhraseID = nil
             }
             if validPhraseID(state.basisPhraseID, in: snapshot) == nil {
-                state.basisPhraseID = isRunning
+                state.basisPhraseID = isTransportRunning
                     ? (state.queuedPhraseID ?? state.currentPhraseID ?? fallbackPhraseID)
                     : fallbackPhraseID
             }
-            if !isRunning, state.queuedPhraseID == nil {
+            if !isTransportRunning, state.queuedPhraseID == nil {
                 state.basisPhraseID = fallbackPhraseID
             }
         }
@@ -1224,7 +1263,7 @@ final class EngineController: RouterDispatcher {
     private func start(deferredAttempt: Int) {
         pendingTransportStartWorkItem?.cancel()
         pendingTransportStartWorkItem = nil
-        guard !isRunning, executor != nil else {
+        guard !isTransportRunning, executor != nil else {
             return
         }
         DevActivity.trace(DevActivity.engine, "EngineController.start")
@@ -1270,7 +1309,7 @@ final class EngineController: RouterDispatcher {
         // transport start (recorded at the first event stamp in dispatchTick),
         // and lift the post-stop in-flight-tick suppression.
         firstEventOriginWasRenderDerived = nil
-        transportStoppedSuppressingTicks = false
+        setTransportStoppedSuppressingTicks(false)
         advanceTransportGeneration()
         // G2-approved startup anchor (owner-locked 50 ms anchor / 60 ms rail
         // cap, 2026-07-02): musical second 0 is anchored a fixed
@@ -1308,7 +1347,7 @@ final class EngineController: RouterDispatcher {
         promotePreparedNoteRepeatCapture(for: 0)
         tickState.markPreparedTick(0)
         nextLivePumpStep = 0
-        isRunning = true
+        setTransportRunning(true)
         // Wake-phase compensation for the startup anchor: TickClock's wake grid
         // is anchored at THIS wall-clock instant, while every musical due time
         // now sits `startupAnchorLeadSeconds` later (the anchored origin). To
@@ -1400,7 +1439,7 @@ final class EngineController: RouterDispatcher {
     /// with a synthetic timeline (offline render harness). `stop()` tears
     /// down as usual — `clock.stop()` is a no-op when the clock never ran.
     func startTransportWithoutClockForTesting(now: TimeInterval) {
-        guard !isRunning, executor != nil else {
+        guard !isTransportRunning, executor != nil else {
             return
         }
         DevActivity.trace(DevActivity.engine, "EngineController.startTransportWithoutClockForTesting")
@@ -1425,7 +1464,7 @@ final class EngineController: RouterDispatcher {
         // Phase-1: re-arm the render-derived-origin recorder for this fresh
         // start and lift any post-stop in-flight-tick suppression.
         firstEventOriginWasRenderDerived = nil
-        transportStoppedSuppressingTicks = false
+        setTransportStoppedSuppressingTicks(false)
         advanceTransportGeneration()
         audioMasterClock.captureOrigin(
             fallbackHostSeconds: now,
@@ -1435,22 +1474,22 @@ final class EngineController: RouterDispatcher {
         promotePreparedNoteRepeatCapture(for: 0)
         tickState.markPreparedTick(0)
         nextLivePumpStep = 0
-        isRunning = true
+        setTransportRunning(true)
     }
 
     func stop() {
-        DevActivity.trace(DevActivity.engine, "EngineController.stop (isRunning=\(isRunning))")
+        DevActivity.trace(DevActivity.engine, "EngineController.stop (isRunning=\(isTransportRunning))")
         // Phase-1: suppress any pump-in-flight tick that lands after this stop
         // drains the transport (it must schedule zero events). Cleared on the
         // next transport start.
-        transportStoppedSuppressingTicks = true
+        setTransportStoppedSuppressingTicks(true)
         advanceTransportGeneration()
         pendingTransportStartWorkItem?.cancel()
         pendingTransportStartWorkItem = nil
         deferredTransportStartAttempt = 0
         // realtime-allow-diagnostic: transport-stop control path; `now` stamps note-off flush / note-repeat cleanup (MIDI wall-clock + bookkeeping), never an event's sounding frame (Rule 1). Test: RealtimePathLintTests.
         let now = ProcessInfo.processInfo.systemUptime
-        guard isRunning else {
+        guard isTransportRunning else {
             clearNoteRepeatCaptureCaches()
             clearAllNoteRepeats(now: now)
             return
@@ -1458,13 +1497,16 @@ final class EngineController: RouterDispatcher {
 
         clearAllNoteRepeats(now: now)
         flushAllPendingMIDINoteOffs(now: now)
-        audioMasterClock.reset()
         DevActivity.trace(DevActivity.clock, "TickClock.stop requested (joins tick queue)")
         clock.stop()
         DevActivity.trace(DevActivity.clock, "TickClock.stop returned")
+        // `AudioMasterClock` converters mutate their render-origin correlation.
+        // Reset only after the tick queue is joined so stop cannot race an
+        // in-flight dispatch reading or refreshing that correlation.
+        audioMasterClock.reset()
         let hosts = withStateLock { Array(trackRuntime.audioOutputsByTrackID.values) }
         hosts.forEach { $0.stop() }
-        isRunning = false
+        setTransportRunning(false)
         lastNoteTriggerUptime = 0
         lastNoteTriggerCount = 0
         // Phase-1 warm engine: a transport stop silences voices but keeps the
@@ -1546,7 +1588,7 @@ final class EngineController: RouterDispatcher {
     /// `armed`). Does not touch the transport generation or clock origin —
     /// it only re-enables tick processing for the manual driver.
     func resumeManualTickProcessingForFixtures() {
-        transportStoppedSuppressingTicks = false
+        setTransportStoppedSuppressingTicks(false)
     }
     var bypassAudioInputRoutingSyncForTesting = false
     var audioInputCapturePublicationEnabledForTesting: Bool { publishesAudioInputCapture }
@@ -1559,16 +1601,16 @@ final class EngineController: RouterDispatcher {
         shutdownObserver?()
         log("shutdown start")
         // Phase-1: a tick in flight after shutdown must also schedule nothing.
-        transportStoppedSuppressingTicks = true
+        setTransportStoppedSuppressingTicks(true)
         advanceTransportGeneration()
         // realtime-allow-diagnostic: shutdown control path; `now` stamps note-off flush / note-repeat cleanup (MIDI wall-clock + bookkeeping), never an event's sounding frame (Rule 1). Test: RealtimePathLintTests.
         let now = ProcessInfo.processInfo.systemUptime
         let hosts = withStateLock { Self.uniqueHosts(Array(trackRuntime.audioOutputsByTrackID.values)) }
-        if isRunning {
+        if isTransportRunning {
             clearAllNoteRepeats(now: now)
             flushAllPendingMIDINoteOffs(now: now)
             clock.stop()
-            isRunning = false
+            setTransportRunning(false)
             lastNoteTriggerUptime = 0
             lastNoteTriggerCount = 0
         } else if tickState.hasPreparedTick() {
@@ -1615,6 +1657,7 @@ final class EngineController: RouterDispatcher {
 
     func setBPM(_ bpm: Double) {
         let clamped = min(max(bpm, 40), 300)
+        currentBPMAtomic.store(clamped)
         currentBPM = clamped
         clock.bpm = clamped
         _ = commandQueue.enqueue(.setBPM(clamped))
@@ -1629,6 +1672,7 @@ final class EngineController: RouterDispatcher {
     /// pacing is untouched.
     func setSwing(_ swing: Double) {
         let clamped = min(max(swing, 0), 1)
+        currentSwingAtomic.store(clamped)
         currentSwing = clamped
         _ = commandQueue.enqueue(.setSwing(clamped))
     }
@@ -1743,7 +1787,7 @@ final class EngineController: RouterDispatcher {
 
     @discardableResult
     func queuePhrase(_ phraseID: UUID) -> Bool {
-        guard isRunning else {
+        guard isTransportRunning else {
             return false
         }
 
@@ -1770,7 +1814,7 @@ final class EngineController: RouterDispatcher {
         phraseID: UUID,
         enabledMapValues: [UInt8]? = nil
     ) -> Bool {
-        guard isRunning else {
+        guard isTransportRunning else {
             return false
         }
         if enabled {
@@ -1807,7 +1851,7 @@ final class EngineController: RouterDispatcher {
     /// change immediately instead (the step-order fallback shape).
     @discardableResult
     func armQuantisedToggle(_ change: QuantisedToggleChange) -> QuantisedToggleArmResult {
-        guard isRunning else {
+        guard isTransportRunning else {
             return .rejected
         }
         let result = quantisedToggleScheduler.armOrCancel(change)
@@ -2442,15 +2486,17 @@ final class EngineController: RouterDispatcher {
         // TickPathMainSyncGuard (architecture verdict §1).
         // realtime-allow-diagnostic: SequencerTimingProbe processTick-duration measurement (only when the probe is enabled), never a sounding-time source (Rule 1). Test: RealtimePathLintTests.
         let started = SequencerTimingProbe.isEnabled ? ProcessInfo.processInfo.systemUptime : 0
-        let eventCount = TickPathMainSyncGuard.withTickPathMarker {
-            if isRunning, tickIndex < nextLivePumpStep {
-                return 0
+        let eventCount = withTickExecutionLock {
+            TickPathMainSyncGuard.withTickPathMarker {
+                if isTransportRunning, tickIndex < nextLivePumpStep {
+                    return 0
+                }
+                let count = processTickMarked(tickIndex: tickIndex, now: now)
+                if isTransportRunning {
+                    nextLivePumpStep = max(nextLivePumpStep, tickIndex &+ 1)
+                }
+                return count
             }
-            let count = processTickMarked(tickIndex: tickIndex, now: now)
-            if isRunning {
-                nextLivePumpStep = max(nextLivePumpStep, tickIndex &+ 1)
-            }
-            return count
         }
         if SequencerTimingProbe.isEnabled {
             SequencerTimingProbe.processTick(
@@ -2475,8 +2521,10 @@ final class EngineController: RouterDispatcher {
         // remain per-step musical due times from AudioMasterClock.
         // realtime-allow-diagnostic: SequencerTimingProbe process-pump duration measurement (only when the probe is enabled), never a sounding-time source (Rule 1). Test: RealtimePathLintTests.
         let started = SequencerTimingProbe.isEnabled ? ProcessInfo.processInfo.systemUptime : 0
-        let eventCount = TickPathMainSyncGuard.withTickPathMarker {
-            processLiveLookAheadPumpMarked(now: now)
+        let eventCount = withTickExecutionLock {
+            TickPathMainSyncGuard.withTickPathMarker {
+                processLiveLookAheadPumpMarked(now: now)
+            }
         }
         if SequencerTimingProbe.isEnabled {
             SequencerTimingProbe.processTick(
@@ -2489,6 +2537,12 @@ final class EngineController: RouterDispatcher {
         return eventCount
     }
 
+    private func withTickExecutionLock<T>(_ body: () throws -> T) rethrows -> T {
+        tickExecutionLock.lock()
+        defer { tickExecutionLock.unlock() }
+        return try body()
+    }
+
     private func processLiveLookAheadPumpMarked(now: TimeInterval) -> Int {
         guard !transportStoppedSuppressingTicks else { return 0 }
 
@@ -2497,7 +2551,7 @@ final class EngineController: RouterDispatcher {
         // the interval into the next down-beat by up to 1/3 step), but 2-step
         // pairs still sum to 2 * stepDuration, so the uniform estimate below is
         // at most one step short over the horizon — covered by the +2 margin.
-        let maxStepsPerWake = max(1, Int(ceil(lookAheadLeadSeconds / max(0.001, stepDurationSeconds(bpm: max(1, currentBPM))))) + 2)
+        let maxStepsPerWake = max(1, Int(ceil(lookAheadLeadSeconds / max(0.001, stepDurationSeconds(bpm: max(1, currentBPMAtomic.load()))))) + 2)
         var processedSteps = 0
         while processedSteps < maxStepsPerWake,
               livePumpShouldProcessStep(nextLivePumpStep, pumpHostSeconds: now)
@@ -2899,6 +2953,8 @@ final class EngineController: RouterDispatcher {
         )
         let newCurrentBPM = executor.currentBPM
         let newCurrentSwing = executor.currentSwing
+        currentBPMAtomic.store(newCurrentBPM)
+        currentSwingAtomic.store(newCurrentSwing)
         // The event stamp is the upcoming step's MUSICAL position (cumulative
         // seconds) from the unified audio clock's tempo map — computed AFTER
         // executor.tick has drained any setBPM/setSwing command, so a
@@ -3178,7 +3234,7 @@ final class EngineController: RouterDispatcher {
         // and/or no transport start) keep exact musical-position stamps for
         // the 0-frame gate.
         let schedulingFloorMusicalSeconds: TimeInterval?
-        if isRunning, hasRenderOriginThisTick, scheduledAudioTimeOverrideForTesting == nil, !events.isEmpty {
+        if isTransportRunning, hasRenderOriginThisTick, scheduledAudioTimeOverrideForTesting == nil, !events.isEmpty {
             schedulingFloorMusicalSeconds = audioMasterClock.liveDispatchSchedulingFloorMusicalSeconds()
         } else {
             schedulingFloorMusicalSeconds = nil

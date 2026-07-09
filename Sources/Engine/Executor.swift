@@ -17,12 +17,14 @@ final class Executor {
     private let orderedBlockIDs: [BlockID]
     private var tickCounter: UInt64 = 0
 
-    private(set) var currentBPM: Double = 120
+    private let currentBPMAtomic = AtomicDouble(120)
+    var currentBPM: Double { currentBPMAtomic.load() }
     /// Global transport swing amount (0…1), drained from `.setSwing` with the
     /// same "in effect for this step, no one-tick lag" semantics as
     /// `currentBPM` (both are read post-drain by `resolveNow` and the
     /// engine's per-step `AudioMasterClock.advance`).
-    private(set) var currentSwing: Double = 0
+    private let currentSwingAtomic = AtomicDouble(0)
+    var currentSwing: Double { currentSwingAtomic.load() }
 
     init(
         blocks: [BlockID: Block],
@@ -104,10 +106,10 @@ final class Executor {
                 block.apply(paramKey: paramKey, value: value)
 
             case let .setBPM(bpm):
-                currentBPM = bpm
+                currentBPMAtomic.store(bpm)
 
             case let .setSwing(swing):
-                currentSwing = min(max(swing, 0), 1)
+                currentSwingAtomic.store(min(max(swing, 0), 1))
             }
         }
     }

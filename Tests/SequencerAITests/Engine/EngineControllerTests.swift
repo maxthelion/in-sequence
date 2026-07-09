@@ -467,6 +467,40 @@ final class EngineControllerTests: XCTestCase {
         }
     }
 
+    func test_noteRepeatSubdividesTheSwungStepInterval() {
+        let sink = CountingAudioSink()
+        let controller = EngineController(client: nil, endpoint: nil, audioOutput: sink)
+        var (project, trackID) = Self.noteRepeatClipProject(
+            steps: [
+                ClipStep(
+                    main: ClipLane(chance: 1, notes: [ClipStepNote(pitch: 62, velocity: 91, lengthSteps: 1)]),
+                    fill: nil
+                )
+            ]
+        )
+        project.tracks[0].noteRepeatInterval = .oneSixtyFourth
+
+        controller.apply(documentModel: project)
+        controller.setSwing(1)
+        controller.processTick(tickIndex: 0, now: 0)
+        controller.engageNoteRepeat(trackID: trackID)
+        controller.processTick(tickIndex: 1, now: 1)
+
+        let outputs = controller.noteRepeatScheduledOutputsForTesting(for: trackID)
+            .filter { $0.stepIndex == 1 }
+        let swungOddStepDuration = 0.125 * (1 - AudioMasterClock.swingMaxStepFraction)
+        let spacing = swungOddStepDuration / 4
+        XCTAssertEqual(outputs.count, 4)
+        for (index, output) in outputs.enumerated() {
+            XCTAssertEqual(
+                output.scheduledHostTime,
+                1 + Double(index) * spacing,
+                accuracy: 0.000_001
+            )
+        }
+        XCTAssertLessThan(outputs.last?.scheduledHostTime ?? .infinity, 1 + swungOddStepDuration)
+    }
+
     func test_noteRepeatSlowIntervalsFireOnStrideStepsOnly() {
         let cases: [(NoteRepeatInterval, [UInt64])] = [
             (.oneEighth, [1, 3, 5]),

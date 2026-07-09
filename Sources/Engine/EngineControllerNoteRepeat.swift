@@ -73,10 +73,10 @@ extension EngineController {
     }
 
     func scheduleActiveNoteRepeatsForCurrentTick(tickIndex: UInt64, now: TimeInterval) {
-        let (executor, effectiveMutedTrackIDs) = withStateLock {
-            (self.executor, self.trackRuntime.effectiveMutedTrackIDs)
+        let (hasExecutor, effectiveMutedTrackIDs) = withStateLock {
+            (self.executor != nil, self.trackRuntime.effectiveMutedTrackIDs)
         }
-        guard let executor else {
+        guard hasExecutor else {
             return
         }
 
@@ -89,8 +89,8 @@ extension EngineController {
         scheduleActiveNoteRepeats(
             anchorTickIndex: tickIndex,
             anchorHostTime: now,
-            bpm: executor.currentBPM,
-            swing: executor.currentSwing,
+            bpm: transportBPMForScheduling,
+            swing: transportSwingForScheduling,
             snapshot: snapshot,
             layerSnapshot: layerSnapshot,
             effectiveMutedTrackIDs: effectiveMutedTrackIDs
@@ -111,7 +111,11 @@ extension EngineController {
             return
         }
 
-        let secondsPerStep = Self.secondsPerStep(bpm: bpm, stepsPerBar: stepsPerBar)
+        let secondsForAnchorStep = audioMasterClock.durationAfterStep(
+            anchorTickIndex,
+            bpm: bpm,
+            swing: swing
+        )
         // Musical-position anchor for the AUDIO and (since Phase 3) MIDI sub-step
         // stamps (Rule 1): the cumulative musical seconds of this tick from the
         // unified clock, independent of the pump's wake `now`. Each sub-step's
@@ -147,7 +151,7 @@ extension EngineController {
             }
 
             let triggerCount = activeRepeat.interval.v1TriggerCountPerStep
-            let triggerSpacing = secondsPerStep / Double(max(1, triggerCount))
+            let triggerSpacing = secondsForAnchorStep / Double(max(1, triggerCount))
             var scheduledOutputs: [NoteRepeatScheduledOutput] = []
 
             for triggerIndex in 0..<triggerCount {
