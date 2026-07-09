@@ -18,6 +18,8 @@ Options:
   --region REGION             Defaults to env R2_REGION, then auto
   --prefix PREFIX             Defaults to env R2_DISTRIBUTION_PREFIX, then releases/developer-id
   --key KEY                   Full object key. Defaults to PREFIX/basename(FILE)
+  --latest-key KEY            Also write latest release JSON to this key.
+                              Env: R2_DISTRIBUTION_LATEST_KEY
   --content-type TYPE         Defaults from extension
   --dry-run                   Print planned upload without writing to R2
 
@@ -174,6 +176,7 @@ function parseArgs(argv) {
     region: "",
     prefix: "",
     key: "",
+    latestKey: "",
     contentType: "",
     dryRun: false,
   };
@@ -197,6 +200,8 @@ function parseArgs(argv) {
       options.prefix = argv[++i] || "";
     } else if (arg === "--key") {
       options.key = argv[++i] || "";
+    } else if (arg === "--latest-key") {
+      options.latestKey = argv[++i] || "";
     } else if (arg === "--content-type") {
       options.contentType = argv[++i] || "";
     } else if (arg === "--dry-run") {
@@ -239,22 +244,53 @@ async function main() {
 
   const prefix = trimSlashes(options.prefix || process.env.R2_DISTRIBUTION_PREFIX || "releases/developer-id");
   const key = trimSlashes(options.key || `${prefix}/${path.basename(file)}`);
+  const latestKey = trimSlashes(options.latestKey || process.env.R2_DISTRIBUTION_LATEST_KEY || "");
   const contentType = options.contentType || contentTypeFor(file);
   const sha256 = sha256Hex(body);
 
   if (!options.dryRun) await putObject(cfg, key, body, contentType);
 
   const publicBase = (process.env.R2_DISTRIBUTION_PUBLIC_BASE_URL || process.env.R2_PUBLIC_BASE_URL || "").replace(/\/+$/, "");
+  const commit = git(["rev-parse", "--short=12", "HEAD"], "");
+  const branch = git(["rev-parse", "--abbrev-ref", "HEAD"], "");
   const result = {
     file,
+    name: "In Sequence",
+    fileName: path.basename(file),
     bucket: cfg.bucket,
     key,
     bytes: body.length,
     sha256,
     contentType,
+    commit,
+    branch,
+    createdAt: new Date().toISOString(),
     uploaded: !options.dryRun,
   };
   if (publicBase) result.publicUrl = `${publicBase}/${encodeKey(key)}`;
+  if (latestKey) {
+    const latest = {
+      name: result.name,
+      fileName: result.fileName,
+      key: result.key,
+      publicUrl: result.publicUrl,
+      bytes: result.bytes,
+      sha256: result.sha256,
+      contentType: result.contentType,
+      commit: result.commit,
+      branch: result.branch,
+      createdAt: result.createdAt,
+    };
+    if (!options.dryRun) {
+      await putObject(
+        cfg,
+        latestKey,
+        Buffer.from(`${JSON.stringify(latest, null, 2)}\n`),
+        "application/json"
+      );
+    }
+    result.latestKey = latestKey;
+  }
   console.log(JSON.stringify(result, null, 2));
 }
 

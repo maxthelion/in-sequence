@@ -20,6 +20,7 @@ Environment:
   R2_REGION                 default: auto
   R2_SCREENSHOT_PREFIX      default: screenshots
   R2_MANIFEST_PREFIX        default: manifests
+  R2_GALLERY_INDEX_KEY      default: site/gallery-index.json
 `);
 }
 
@@ -214,6 +215,43 @@ async function getObject(cfg, key) {
   return Buffer.from(await res.arrayBuffer());
 }
 
+async function getJsonObject(cfg, key) {
+  try {
+    return JSON.parse((await getObject(cfg, key)).toString("utf8"));
+  } catch {
+    return null;
+  }
+}
+
+async function updateGalleryIndex(cfg, manifest) {
+  const key = trimSlashes(process.env.R2_GALLERY_INDEX_KEY || "site/gallery-index.json");
+  const existing = await getJsonObject(cfg, key);
+  const current = Array.isArray(existing?.manifests) ? existing.manifests : [];
+  const entry = {
+    manifestId: manifest.manifestId,
+    key: `${manifest.manifestPrefix}/${manifest.manifestId}.json`,
+    branch: manifest.branch,
+    commit: manifest.commit,
+    capturedAt: manifest.capturedAt,
+    captureDir: manifest.captureDir,
+    rowCount: Object.keys(manifest.rows || {}).length,
+  };
+  const byId = new Map();
+  for (const item of current) {
+    if (item?.manifestId) byId.set(item.manifestId, item);
+  }
+  byId.set(entry.manifestId, entry);
+  const body = Buffer.from(`${JSON.stringify({
+    schemaVersion: 1,
+    generatedAt: new Date().toISOString(),
+    manifests: [...byId.values()].sort((a, b) =>
+      String(b.capturedAt || "").localeCompare(String(a.capturedAt || ""))
+    ),
+  }, null, 2)}\n`);
+  await putObject(cfg, key, body);
+  return key;
+}
+
 async function topLevelPngs(dir) {
   const entries = await fs.readdir(dir, { withFileTypes: true });
   return entries
@@ -299,6 +337,7 @@ async function syncCommand(argv) {
 
   const manifestKey = `${cfg.manifestPrefix}/${safeManifestId}.json`;
   if (!dryRun) await putObject(cfg, manifestKey, manifestBody);
+  const galleryIndexKey = dryRun ? "" : await updateGalleryIndex(cfg, manifest);
 
   if (pruneLocal && !dryRun) {
     for (const png of pngs) {
@@ -314,6 +353,7 @@ async function syncCommand(argv) {
   console.log(JSON.stringify({
     manifest: path.relative(root, localManifest),
     manifestKey,
+    galleryIndexKey,
     rows: Object.keys(rows).length,
     uploaded,
     skipped,

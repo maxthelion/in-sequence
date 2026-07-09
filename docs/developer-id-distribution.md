@@ -61,6 +61,7 @@ R2_DISTRIBUTION_ACCESS_KEY_ID=...
 R2_DISTRIBUTION_SECRET_ACCESS_KEY=...
 R2_REGION=auto
 R2_DISTRIBUTION_PREFIX=releases/developer-id
+R2_DISTRIBUTION_LATEST_KEY=releases/developer-id/latest.json
 ```
 
 Then package and upload:
@@ -74,6 +75,8 @@ scripts/package-developer-id.sh \
 ```
 
 Use `--r2-key <key>` to set an exact object key for the final DMG.
+Each successful R2 upload also writes the latest-release pointer JSON, defaulting
+to `$R2_DISTRIBUTION_PREFIX/latest.json`, for the website download endpoint.
 
 ## Useful Options
 
