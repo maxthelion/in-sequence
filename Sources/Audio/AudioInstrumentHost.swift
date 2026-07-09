@@ -81,9 +81,27 @@ extension TrackPlaybackSink {
 }
 
 final class AudioInstrumentHost: TrackPlaybackSink {
+    /// Rotate note voices across MIDI channels so a stale note-off for a long
+    /// gate cannot silence a newer retrigger of the same pitch. Channel 10 is
+    /// excluded because General MIDI instruments commonly reserve it for drums.
+    static let midiVoiceChannels: [UInt8] = Array(0...8) + Array(10...15)
+
+    static func midiVoiceChannel(forAllocation allocation: Int) -> UInt8 {
+        midiVoiceChannels[max(0, allocation) % midiVoiceChannels.count]
+    }
+
+    static func noteOnBytes(pitch: UInt8, velocity: UInt8, channel: UInt8) -> [UInt8] {
+        [0x90 | (channel & 0x0F), pitch, velocity]
+    }
+
+    static func noteOffBytes(pitch: UInt8, channel: UInt8) -> [UInt8] {
+        [0x80 | (channel & 0x0F), pitch, 0]
+    }
+
     private let audioGraph: MainAudioGraph
     private let queue = DispatchQueue(label: "ai.sequencer.SequencerAI.AudioInstrumentHost")
     private let snapshotLock = NSLock()
+    private var nextMIDIVoiceChannelIndex = 0
     /// Serializes mutation of, and scheduling against, the LIVE AU's internal
     /// state across thread domains (Phase 1 concurrency fix, defect D2). Two
     /// writers can otherwise touch the same `AUAudioUnit` with no mutual
@@ -548,25 +566,27 @@ final class AudioInstrumentHost: TrackPlaybackSink {
         return try factory.captureState(instrument)
     }
 
-    /// MIDI All-Notes-Off (Control Change 123, value 0) on channel 0 — releases
-    /// every held note. Sent right after a preset switch to clear a note left
-    /// ringing by the patch reconfiguration (bug 20260629-101847).
-    static func allNotesOffBytes() -> [UInt8] {
-        [0xB0, 0x7B, 0x00]
+    /// MIDI All-Notes-Off (Control Change 123, value 0). Sent on every allocated
+    /// voice channel after a preset switch to clear notes left ringing by patch
+    /// reconfiguration (bug 20260629-101847).
+    static func allNotesOffBytes(channel: UInt8 = 0) -> [UInt8] {
+        [0xB0 | (channel & 0x0F), 0x7B, 0x00]
     }
 
     /// Send MIDI CC 123 through the AU's own sample-stamped MIDI block. This is
     /// used on control paths only (transport stop / preset change), never as a
     /// tick-path substitute for normal note-off scheduling.
     static func scheduleAllNotesOff(using scheduleMIDI: AUScheduleMIDIEventBlock) {
-        let allNotesOff = allNotesOffBytes()
-        allNotesOff.withUnsafeBufferPointer { buffer in
-            scheduleMIDI(
-                AUEventSampleTime(AUEventSampleTimeImmediate),
-                0,
-                buffer.count,
-                buffer.baseAddress!
-            )
+        for channel in midiVoiceChannels {
+            let allNotesOff = allNotesOffBytes(channel: channel)
+            allNotesOff.withUnsafeBufferPointer { buffer in
+                scheduleMIDI(
+                    AUEventSampleTime(AUEventSampleTimeImmediate),
+                    0,
+                    buffer.count,
+                    buffer.baseAddress!
+                )
+            }
         }
     }
 
@@ -781,9 +801,15 @@ final class AudioInstrumentHost: TrackPlaybackSink {
                     firstScheduledOn = stamps.noteOn
                     firstScheduledOff = stamps.noteOff
                 }
+                let channel = Self.midiVoiceChannel(
+                    forAllocation: self.nextMIDIVoiceChannelIndex
+                )
+                self.nextMIDIVoiceChannelIndex =
+                    (self.nextMIDIVoiceChannelIndex + 1) % Self.midiVoiceChannels.count
                 Self.scheduleNote(
                     event,
                     stamps: stamps,
+                    channel: channel,
                     using: scheduleMIDI
                 )
             }
@@ -803,20 +829,13 @@ final class AudioInstrumentHost: TrackPlaybackSink {
         }
     }
 
-    /// AU MIDI note-on / note-off bytes for channel 0 (status 0x90 / 0x80).
-    ///
-    /// KNOWN LIMITATION (Phase 1 point 5 — same-pitch overlap on channel 0): all
-    /// notes are scheduled on MIDI channel 0. If the SAME pitch retriggers while
-    /// a previous long gate is still ringing, this note-off (`0x80 pitch`) can
-    /// cancel the NEW note-on instead of the old one — standard MIDI has no
-    /// per-voice note identity, only (channel, pitch). This is NOT new (the
-    /// pre-P1 single-channel `startNote`/`stopNote` path had the same property);
-    /// sample-accurate stamping only makes the ordering deterministic. A real fix
-    /// is per-voice channel rotation / voice allocation, deliberately OUT OF
-    /// SCOPE for this task (see docs/plans/2026-06-24-sample-accurate-timing.md).
-    private static func scheduleNote(
+    /// AU MIDI note-on / note-off bytes on one allocated voice channel. Matching
+    /// note-offs stay on that channel, preserving same-pitch overlaps until all
+    /// 15 channels are occupied concurrently.
+    static func scheduleNote(
         _ event: NoteEvent,
         stamps: AUNoteStamps,
+        channel: UInt8,
         using scheduleMIDI: AUScheduleMIDIEventBlock
     ) {
         let velocity = event.velocity
@@ -824,11 +843,11 @@ final class AudioInstrumentHost: TrackPlaybackSink {
         // Note-on (0x90), then note-off (0x80) one gate-length later, both
         // stamped on the AU render timeline. scheduleMIDIEventBlock copies the
         // bytes synchronously, so a stack array is RT-safe here.
-        let noteOn: [UInt8] = [0x90, pitch, velocity]
+        let noteOn = noteOnBytes(pitch: pitch, velocity: velocity, channel: channel)
         noteOn.withUnsafeBufferPointer { buffer in
             scheduleMIDI(stamps.noteOn, 0, buffer.count, buffer.baseAddress!)
         }
-        let noteOff: [UInt8] = [0x80, pitch, 0]
+        let noteOff = noteOffBytes(pitch: pitch, channel: channel)
         noteOff.withUnsafeBufferPointer { buffer in
             scheduleMIDI(stamps.noteOff, 0, buffer.count, buffer.baseAddress!)
         }
@@ -865,9 +884,11 @@ final class AudioInstrumentHost: TrackPlaybackSink {
         performOnMain: (@escaping @MainActor () -> Void) -> Void
     ) {
         performOnMain {
-            for pitch in UInt8(0)...UInt8(127) {
-                // realtime-allow-control-stopnote: all-notes-off panic on stop/shutdown/preset-silence, NOT the note/tick trigger path (which is sample-stamped via scheduleMIDIEventBlock). Test: RealtimePathLintTests.
-                instrument.stopNote(pitch, onChannel: 0)
+            for channel in midiVoiceChannels {
+                for pitch in UInt8(0)...UInt8(127) {
+                    // realtime-allow-control-stopnote: all-notes-off panic on stop/shutdown/preset-silence, NOT the note/tick trigger path (which is sample-stamped via scheduleMIDIEventBlock). Test: RealtimePathLintTests.
+                    instrument.stopNote(pitch, onChannel: channel)
+                }
             }
         }
     }

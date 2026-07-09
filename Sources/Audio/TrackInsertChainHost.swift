@@ -44,6 +44,7 @@ final class TrackInsertChainHost {
     private var cachedAUEffects: [UUID: CachedAUEffect] = [:]
     private var pendingAUEffectIDs: Set<UUID> = []
     private var installedShape: [InsertShape]?
+    private var pendingShape: [InsertShape]?
     private(set) var topologyRebuildCount = 0
     private(set) var parameterApplyCount = 0
 
@@ -78,7 +79,23 @@ final class TrackInsertChainHost {
     /// uses this to skip a full output rewire for value-only changes.
     @MainActor
     func needsTopologyChange(for inserts: [TrackFXInsert]) -> Bool {
-        installedShape != Self.graphShape(for: inserts)
+        // The pending ramp's completion reads the latest authored insert list.
+        // Coalesce every edit that arrives in that window into the one install.
+        if pendingShape != nil {
+            return false
+        }
+        if inserts.isEmpty, pendingShape == nil, installedShape == nil {
+            return false
+        }
+        return installedShape != Self.graphShape(for: inserts)
+    }
+
+    /// Publish the shape before the ramp-to-silence delay begins. Value-only
+    /// edits that arrive during that short window then coalesce into the pending
+    /// install instead of scheduling a second topology rebuild.
+    @MainActor
+    func markTopologyChangePending(for inserts: [TrackFXInsert]) {
+        pendingShape = Self.graphShape(for: inserts)
     }
 
     /// Build (or reconfigure) the insert nodes for `inserts`, attaching new
@@ -127,6 +144,7 @@ final class TrackInsertChainHost {
         // takes the configure-in-place path, and the AU never wires in (the
         // send-bus post-load class, mirrored).
         installedShape = Self.graphShape(for: inserts, includingOnly: survivingIDs)
+        pendingShape = nil
         topologyRebuildCount += 1
         parameterApplyCount += 1
     }
@@ -183,6 +201,7 @@ final class TrackInsertChainHost {
         nodesByInsertID = [:]
         cachedAUEffects = [:]
         installedShape = nil
+        pendingShape = nil
     }
 
     // MARK: - Node creation / configuration (identical mapping to bus hosts)

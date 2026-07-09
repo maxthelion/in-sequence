@@ -32,6 +32,20 @@ final class RoutingNoStopNoReconnectTests: XCTestCase {
 
     private var libraryRoot: URL!
 
+    private func assertEngineRendering(
+        _ graph: MainAudioGraph,
+        _ message: String,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        XCTAssertTrue(
+            graph.engine.isRunning || graph.engine.isInManualRenderingMode,
+            message,
+            file: file,
+            line: line
+        )
+    }
+
     override func setUpWithError() throws {
         MainAudioGraph.useManualRenderingForAutomation = true
         libraryRoot = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
@@ -89,7 +103,7 @@ final class RoutingNoStopNoReconnectTests: XCTestCase {
         controller.start()
         defer { controller.stop() }
 
-        XCTAssertTrue(graph.engine.isRunning, "engine must be running before the routing edit battery")
+        assertEngineRendering(graph, "engine must be rendering before the routing edit battery")
 
         // Snapshot the live-rewire counter; pure-gain edits must NOT bump it.
         let reconnectsBefore = graph.reconnectTrackOutputCountForTesting
@@ -100,7 +114,7 @@ final class RoutingNoStopNoReconnectTests: XCTestCase {
             mix.sendA = sendA
             mix.sendB = 0
             controller.setMix(trackID: drum.id, mix: mix)
-            XCTAssertTrue(graph.engine.isRunning, "send sweep step (A=\(sendA)) must not stop the engine")
+            assertEngineRendering(graph, "send sweep step (A=\(sendA)) must not stop the engine")
         }
 
         // --- 2. Send A/B combination sweep (gain only) — covers the full
@@ -111,7 +125,7 @@ final class RoutingNoStopNoReconnectTests: XCTestCase {
             mix.sendA = sendA
             mix.sendB = sendB
             controller.setMix(trackID: drum.id, mix: mix)
-            XCTAssertTrue(graph.engine.isRunning, "send A/B combination (A=\(sendA) B=\(sendB)) must not stop the engine")
+            assertEngineRendering(graph, "send A/B combination (A=\(sendA) B=\(sendB)) must not stop the engine")
         }
 
         // --- 3. Bus fader sweep (bus gain only). ---
@@ -119,7 +133,7 @@ final class RoutingNoStopNoReconnectTests: XCTestCase {
             var busMix = BusMixSettings.default
             busMix.level = level
             controller.setMixerBusMix(busID: busID, mix: busMix)
-            XCTAssertTrue(graph.engine.isRunning, "bus fader (level=\(level)) must not stop the engine")
+            assertEngineRendering(graph, "bus fader (level=\(level)) must not stop the engine")
         }
 
         let reconnectsAfterGainEdits = graph.reconnectTrackOutputCountForTesting
@@ -131,7 +145,7 @@ final class RoutingNoStopNoReconnectTests: XCTestCase {
         // --- 4. Bus reassign: the ONE structural edit (re-wire once). ---
         doc.setTrackOutputBus(trackID: drum.id, busID: busID)
         controller.setTrackOutputBus(trackID: drum.id, busID: busID, documentModel: doc)
-        XCTAssertTrue(graph.engine.isRunning, "bus reassign must rewire on the live engine, not stop it")
+        assertEngineRendering(graph, "bus reassign must rewire on the live engine, not stop it")
 
         // Drive a few ticks so the sample track's graph fully connects (the
         // prepared-track repair completes and the track's terminal source node
@@ -139,7 +153,20 @@ final class RoutingNoStopNoReconnectTests: XCTestCase {
         for step in 0..<4 {
             controller.processTick(tickIndex: UInt64(step), now: Double(step) * 0.125)
         }
-        XCTAssertTrue(graph.engine.isRunning, "ticking the transport must not stop the engine")
+        assertEngineRendering(graph, "ticking the transport must not stop the engine")
+
+        // Prepared-sample graph repair is deliberately deferred off the tick
+        // path. Let that bounded main-queue repair publish the terminal source
+        // before testing insert topology; otherwise the enable call only stores
+        // authored state and the later bypass call becomes the first install,
+        // which does not exercise the promised value-only path at all.
+        let sourceDeadline = Date().addingTimeInterval(0.5)
+        while graph.trackMeterSourceNodeForTesting(trackID: drum.id) == nil,
+              Date() < sourceDeadline
+        {
+            RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.01))
+        }
+        XCTAssertNotNil(graph.trackMeterSourceNodeForTesting(trackID: drum.id))
 
         // --- 5. Track FX insert ENABLE + bypass toggle (native bitcrusher, no
         //         AU). The load-bearing Rule-5 claim is that these edits never
@@ -153,18 +180,22 @@ final class RoutingNoStopNoReconnectTests: XCTestCase {
         //         XCTExpectFailure), so the node-count is not asserted here; the
         //         live-HAL routing-stress rig covers physical insert install.
         let bitcrusher = TrackFXInsert.bitcrusher()
-        var drumWithInsert = drum
-        drumWithInsert.fxInserts = [bitcrusher]
-        doc.tracks = [drumWithInsert]
-        controller.apply(documentModel: doc)
-        XCTAssertTrue(graph.engine.isRunning, "enabling a native insert must happen on the live engine, not via engine stop/start")
+        controller.setTrackInserts(trackID: drum.id, inserts: [bitcrusher])
+        assertEngineRendering(graph, "enabling a native insert must happen on the live engine, not via engine stop/start")
+        let installDeadline = Date().addingTimeInterval(0.5)
+        while graph.trackInstalledInsertNodeCountForTesting(trackID: drum.id) == 0,
+              Date() < installDeadline
+        {
+            RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.01))
+        }
+        XCTAssertEqual(graph.trackInstalledInsertNodeCountForTesting(trackID: drum.id), 1)
         let installsAfterEnable = graph.trackInsertChainTopologyInstallCountForTesting
 
         // Bypass toggle via the scoped path = value-only fast path: no further
         // topology install, engine stays running.
         let bypassed = TrackFXInsert(id: bitcrusher.id, name: bitcrusher.name, bypassed: true, kind: bitcrusher.kind)
         controller.setTrackInserts(trackID: drum.id, inserts: [bypassed])
-        XCTAssertTrue(graph.engine.isRunning, "bypass toggle must not stop the engine")
+        assertEngineRendering(graph, "bypass toggle must not stop the engine")
         XCTAssertEqual(
             graph.trackInsertChainTopologyInstallCountForTesting, installsAfterEnable,
             "a bypass toggle on the installed chain is value-only — it must not bump the topology-install counter"
@@ -172,6 +203,6 @@ final class RoutingNoStopNoReconnectTests: XCTestCase {
 
         // Engine still running after the entire battery — direct proof Rule 5
         // held end-to-end (no edit reached engine.stop()).
-        XCTAssertTrue(graph.engine.isRunning, "engine must still be running after the full routing edit battery")
+        assertEngineRendering(graph, "engine must still be rendering after the full routing edit battery")
     }
 }

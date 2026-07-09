@@ -1212,6 +1212,7 @@ final class MainAudioGraph {
             return
         }
 
+        host.markTopologyChangePending(for: inserts)
         self.trackInsertChainTopologyInstallCountForTesting += 1
         // R2 (fixed-superset): rebuild the track insert chain on the LIVE
         // engine — no stop/start. reconnectTrackOutputOnMain re-splices
@@ -1228,7 +1229,10 @@ final class MainAudioGraph {
         // plain synchronous path (no behaviour change for setup/tests).
         let routing = self.trackOutputRoutings[ObjectIdentifier(source)]
         self.withTrackGainRampedToSilence(source: source) {
-            host.rebuild(inserts: inserts, in: self)
+            // A bypass/parameter edit may have arrived while the gain ramp was
+            // settling. Install the latest authored values in this one rebuild.
+            let latestInserts = self.trackInsertChainsByTrackID[trackID] ?? inserts
+            host.rebuild(inserts: latestInserts, in: self)
             if let routing {
                 self.reconnectTrackOutputOnMain(routing)
             }

@@ -204,6 +204,18 @@ final class AudioInstrumentHostPresetsTests: XCTestCase {
         XCTAssertEqual(bytes[2], 0x00, "All-Notes-Off carries a 0 value")
     }
 
+    func test_noteVoiceAllocation_keepsSamePitchNoteOffsOnDistinctChannels() {
+        let first = AudioInstrumentHost.midiVoiceChannel(forAllocation: 0)
+        let second = AudioInstrumentHost.midiVoiceChannel(forAllocation: 1)
+
+        XCTAssertNotEqual(first, second)
+        XCTAssertEqual(AudioInstrumentHost.noteOnBytes(pitch: 60, velocity: 100, channel: first), [0x90, 60, 100])
+        XCTAssertEqual(AudioInstrumentHost.noteOffBytes(pitch: 60, channel: first), [0x80, 60, 0])
+        XCTAssertEqual(AudioInstrumentHost.noteOnBytes(pitch: 60, velocity: 100, channel: second), [0x91, 60, 100])
+        XCTAssertEqual(AudioInstrumentHost.noteOffBytes(pitch: 60, channel: second), [0x81, 60, 0])
+        XCTAssertFalse(AudioInstrumentHost.midiVoiceChannels.contains(9))
+    }
+
     func test_programChangeBytes_clamps_into_legal_0_127_data_range() {
         XCTAssertEqual(AudioInstrumentHost.programChangeBytes(programNumber: 127), [0xC0, 127])
         XCTAssertEqual(AudioInstrumentHost.programChangeBytes(programNumber: 200), [0xC0, 127],
