@@ -55,7 +55,7 @@ bucket. Copy `scripts/r2-distribution.env.example` to a gitignored
 `scripts/distribution.r2.env`, or export the values in your shell:
 
 ```sh
-R2_DISTRIBUTION_BUCKET=in-sequence-releases
+R2_DISTRIBUTION_BUCKET=in-seq-builds
 R2_DISTRIBUTION_ENDPOINT=https://ACCOUNT_ID.r2.cloudflarestorage.com
 R2_DISTRIBUTION_ACCESS_KEY_ID=...
 R2_DISTRIBUTION_SECRET_ACCESS_KEY=...
