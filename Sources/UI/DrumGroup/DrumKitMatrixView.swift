@@ -93,6 +93,7 @@ struct ExpandedSoundPresetTarget: Identifiable {
 enum DrumKitMatrixLayer: String, CaseIterable, Identifiable {
     case steps
     case velocity
+    case length
     case chance
 
     var id: String { rawValue }
@@ -103,6 +104,8 @@ enum DrumKitMatrixLayer: String, CaseIterable, Identifiable {
             return "Steps"
         case .velocity:
             return "Velocity"
+        case .length:
+            return "Length"
         case .chance:
             return "Chance"
         }
@@ -144,6 +147,21 @@ enum DrumKitMatrixStepEdit {
                 steps: steps,
                 defaultNote: defaultNote
             )
+        case .length:
+            let current = ClipNoteGridStepEditing.lengthSteps(
+                at: stepIndex,
+                in: .noteGrid(lengthSteps: lengthSteps, steps: steps),
+                noteLane: lane
+            )
+            let next = ClipNoteGridStepEditing.nextLength(after: current, allowsNatural: false) ?? 1
+            return ClipNoteGridStepEditing.updatingLaneLengths(
+                lane: lane,
+                values: [next],
+                visibleIndices: [stepIndex],
+                lengthSteps: lengthSteps,
+                steps: steps,
+                defaultNote: defaultNote
+            )
         case .chance:
             let nextValue = ClipNoteGridStepEditing.cycledValue(
                 after: ClipNoteGridStepEditing.chanceValue(for: steps[stepIndex], lane: lane),
@@ -177,6 +195,15 @@ enum DrumKitMatrixStepEdit {
             return ClipNoteGridStepEditing.updatingLaneVelocities(
                 lane: lane,
                 values: [fraction * 127.0],
+                visibleIndices: [stepIndex],
+                lengthSteps: lengthSteps,
+                steps: steps,
+                defaultNote: defaultNote
+            )
+        case .length:
+            return ClipNoteGridStepEditing.updatingLaneLengths(
+                lane: lane,
+                values: [1 + Int((ClipNoteGridStepEditing.clampedUnit(fraction) * 15).rounded())],
                 visibleIndices: [stepIndex],
                 lengthSteps: lengthSteps,
                 steps: steps,

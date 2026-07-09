@@ -265,6 +265,14 @@ extension DrumKitMatrixView {
             return .valueBar(
                 fraction: ClipNoteGridStepEditing.velocityValue(for: steps[index], lane: noteLane) / 127.0
             )
+        case .length:
+            return .optionLabel(
+                text: ClipNoteGridStepEditing.lengthDisplayValue(
+                    at: index,
+                    in: .noteGrid(lengthSteps: steps.count, steps: steps),
+                    noteLane: noteLane
+                )
+            )
         case .chance:
             return .valueBar(
                 fraction: ClipNoteGridStepEditing.chanceValue(for: steps[index], lane: noteLane)

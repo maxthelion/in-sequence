@@ -320,6 +320,12 @@ struct SliceTrackWorkspaceView: View {
                     selectedStepIndex = min(max(stepIndex, 0), steps.count - 1)
                     if selectedLayer == .steps {
                         toggleStep(at: selectedStepIndex, steps: steps)
+                    } else if selectedLayer == .gate {
+                        _ = coordinator?.onTap(
+                            stepIndex: selectedStepIndex,
+                            layer: .length,
+                            track: track
+                        )
                     }
                 }
                 .background {
@@ -1130,7 +1136,7 @@ private extension SliceTrackWorkspaceView {
             }
             return .sliceLabel(index: sliceIndex, label: sliceIndex == 0 ? "All" : "S\(sliceIndex)")
 
-        case .velocity, .chance:
+        case .velocity, .gate, .chance:
             guard let currentClip, let coordinator else {
                 return .valueBar(fraction: 0)
             }
@@ -1141,7 +1147,7 @@ private extension SliceTrackWorkspaceView {
                 track: track
             )
 
-        case .direction, .noteRepeat, .gate:
+        case .direction, .noteRepeat:
             // Real selectable layers in the step grammar, but not yet backed by
             // a per-step engine parameter. Show the on/off state read-only so
             // the layer row + step strip stay consistent with other layers.
@@ -1156,7 +1162,7 @@ private extension SliceTrackWorkspaceView {
         switch layer {
         case .direction: return "Fwd"
         case .noteRepeat: return "1x"
-        case .gate: return "100%"
+        case .gate: return "Full"
         default: return ""
         }
     }
@@ -1204,7 +1210,7 @@ private extension SliceTrackWorkspaceView {
         let coordinator = stepGridWorkspaceModel.coordinator(
             for: clipID,
             clipMutator: session,
-            editableLayers: [.velocity, .chance]
+            editableLayers: [.velocity, .length, .chance]
         )
         coordinator.updateActiveLayer(selectedLayer.stepGridLayer)
     }
@@ -1465,6 +1471,8 @@ private extension SliceTrackClipLayer {
             self = .velocity
         case .chance:
             self = .chance
+        case .length:
+            self = .gate
         case .pitch, .macro, .sliceIndex, .sliceMode, .chord:
             return nil
         }
@@ -1478,9 +1486,11 @@ private extension SliceTrackClipLayer {
             return .velocity
         case .chance:
             return .chance
+        case .gate:
+            return .length
         // Non-engine-backed layers have no step-grid counterpart yet; they map
         // to `.trigger` for display only (writes are gated by `isEngineBacked`).
-        case .direction, .noteRepeat, .gate:
+        case .direction, .noteRepeat:
             return .trigger
         }
     }

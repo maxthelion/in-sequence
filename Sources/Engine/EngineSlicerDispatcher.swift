@@ -39,7 +39,14 @@ enum EngineSlicerDispatcher {
             let endTrimFrames = Int64((Double(baseLength) * stepParameters.endTrim).rounded())
             let microOffset = Int64(marker.microTimingSteps * Double(framesPerStep))
             let startFrame = max(0, marker.startFrame + startTrimFrames + microOffset)
-            let endFrame = max(startFrame + 1, baseEndFrame - endTrimFrames)
+            let trimmedEndFrame = max(startFrame + 1, baseEndFrame - endTrimFrames)
+            let endFrame: Int64
+            if let lengthSteps = stepParameters.lengthSteps {
+                let gateFrames = max(1, Int64(lengthSteps) * framesPerStep)
+                endFrame = min(trimmedEndFrame, startFrame + gateFrames)
+            } else {
+                endFrame = trimmedEndFrame
+            }
             guard endFrame > startFrame else {
                 continue
             }

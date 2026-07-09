@@ -41,8 +41,14 @@ Marker index `0` is always the whole sample. `SliceSet.normalize(sampleLengthFra
 - `stepPattern`
 - `sliceIndexes`
 - `stepModes`
+- per-step `lengthSteps` values
 
 `stepModes` is currently `.single` or `.runFromHere`. `.single` plays the selected marker range. `.runFromHere` starts at the selected marker and continues to marker `0`'s whole-sample end frame, which gives tracker-style "run from here" playback.
+
+Slice length is backward compatible with existing projects. An absent per-step
+length is shown as `Full` and plays the complete range selected by the step mode.
+A numbered length from 1 through 16 caps that range to the corresponding number
+of sequencer steps. It never extends beyond the selected slice or run range.
 
 The generated-source evaluator converts slice trigger steps into generated notes with voice tags:
 
@@ -64,7 +70,12 @@ On each tick, `EngineController` resolves the normal phrase/pattern step, evalua
 5. enqueues `.sliceTrigger`
 6. dispatches to `SamplePlaybackEngine.playSlice(...)`
 
-`SamplePlaybackEngine` schedules frame ranges directly from `AVAudioFile`. Mono slicer mode reuses one voice per track; polyphonic mode uses the existing round-robin voice pool. Reversed slices use a small LRU cache keyed by `(fileURL, startFrame, endFrame)`.
+`EngineSlicerDispatcher` resolves the natural frame range first, then applies an
+optional step-length cap using the current tempo and sample rate.
+`SamplePlaybackEngine` schedules the resulting frame range directly from
+`AVAudioFile`. Mono slicer mode reuses one voice per track; polyphonic mode uses
+the existing round-robin voice pool. Reversed slices use a small LRU cache keyed
+by `(fileURL, startFrame, endFrame)`.
 
 ## UI
 
@@ -73,6 +84,10 @@ On each tick, `EngineController` resolves the normal phrase/pattern step, evalua
 `SlicerSourceWidget` appears in `TrackDestinationEditor` for `.slicer` destinations. It lets the user choose a sample, run grid or transient analysis, audition slices, adjust track-wide settings, and open the waveform editor.
 
 `SlicerWaveformWindow` is a sheet-style waveform editor for marker-level edits. It displays the downsampled waveform, marker boundaries, a slice list, and a per-slice inspector for range, gain, timing, reverse, and tag.
+
+The step editor exposes the shared `Length` layer used by melodic, chord, and
+drum step sequencers. Slicer cells additionally offer `Full`, which preserves
+the natural slice or run range.
 
 ## Related Pages
 

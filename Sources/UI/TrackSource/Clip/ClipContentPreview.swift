@@ -43,6 +43,7 @@ enum ClipEditorMode: String, CaseIterable, Identifiable {
     case trigger
     case pitch
     case velocity
+    case length
     case probability
 
     var id: String { rawValue }
@@ -55,6 +56,8 @@ enum ClipEditorMode: String, CaseIterable, Identifiable {
             return "Pitch"
         case .velocity:
             return "Velocity"
+        case .length:
+            return "Length"
         case .probability:
             return "Chance"
         }
@@ -97,6 +100,8 @@ enum ClipEditorLayer: Equatable, Hashable {
             return .pitch
         case .mode(.velocity):
             return .velocity
+        case .mode(.length):
+            return .length
         case .mode(.probability):
             return .chance
         case let .macro(index):
@@ -112,6 +117,8 @@ enum ClipEditorLayer: Equatable, Hashable {
             self = .mode(.pitch)
         case .velocity:
             self = .mode(.velocity)
+        case .length:
+            self = .mode(.length)
         case .chance:
             self = .mode(.probability)
         case let .macro(index):
@@ -506,6 +513,37 @@ struct ClipContentPreview: View {
                         }
                         .allowsHitTesting(isEditable)
 
+                case .length:
+                        StepGridView(
+                            stepStates: visibleSteps.map { stepVisualState(for: $0, lane: selectedLane) },
+                            indexOffset: pageStart,
+                            playingStepIndex: playingStepIndex,
+                            selectedStepIndexes: selectedStepIndexes,
+                            accent: accent,
+                            contentProvider: { index, _ in
+                                .optionLabel(
+                                    text: ClipNoteGridStepEditing.lengthDisplayValue(
+                                        at: index,
+                                        in: .noteGrid(lengthSteps: lengthSteps, steps: steps),
+                                        noteLane: selectedLane.noteLane
+                                    )
+                                )
+                            },
+                            onValueDrag: { index, fraction in
+                                writeValueLayer(fraction, layer: .length, tappedIndex: index)
+                            },
+                            onSelectStep: selectStepAction,
+                            onBackgroundTap: clearSelectionAction
+                        ) { index in
+                            _ = stepGridCoordinator?.onTap(
+                                stepIndex: index,
+                                layer: .length,
+                                noteLane: selectedLane.noteLane,
+                                defaultNote: defaultNote
+                            )
+                        }
+                        .allowsHitTesting(isEditable)
+
                 case .probability:
                         StepGridView(
                             stepStates: visibleSteps.map { stepVisualState(for: $0, lane: selectedLane) },
@@ -647,7 +685,7 @@ struct ClipContentPreview: View {
     private func syncCoordinatorLayers() {
         guard let stepGridCoordinator else { return }
         stepGridCoordinator.updateEditableLayers(
-            [.pitch, .velocity, .chance] + macroLayerTabs.map { StepGridLayer.macro(index: $0.macroIndex) }
+            [.pitch, .velocity, .length, .chance] + macroLayerTabs.map { StepGridLayer.macro(index: $0.macroIndex) }
         )
         stepGridCoordinator.updateActiveLayer(selectedLayer.stepGridLayer)
     }

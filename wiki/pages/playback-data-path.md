@@ -75,6 +75,12 @@ The compiler is responsible for turning authored structures into arrays and look
 
 `ClipBuffer.step(at:)` wraps step indexes into the clip length. `ClipBuffer.macroOverrides(at:)` returns only the per-step macro overrides that are present.
 
+Authored note, chord, and drum steps carry their gate duration as
+`lengthSteps`. Slicer trigger steps use an optional `lengthSteps`: `nil` keeps
+the full natural slice/run range, while a numbered value caps playback to that
+many sequencer steps. The shared step-editor `Length` layer edits these values
+across all four sequencer families.
+
 ### Track Source Programs
 
 `TrackSourceProgram` stores the playable program for one track:

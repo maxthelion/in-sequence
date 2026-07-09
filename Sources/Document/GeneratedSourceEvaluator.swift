@@ -551,7 +551,7 @@ enum GeneratedSourceEvaluator {
                 GeneratedNote(
                     pitch: 60,
                     velocity: clampMIDI(NoteShape.default.velocity),
-                    length: max(1, NoteShape.default.gateLength),
+                    length: parameters.lengthSteps ?? max(1, NoteShape.default.gateLength),
                     voiceTag: sliceVoiceTag(sliceIndex, runFromHere: mode == .runFromHere),
                     sliceParameters: parameters
                 )

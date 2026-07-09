@@ -503,9 +503,30 @@ final class StepGridCoordinatorTests: XCTestCase {
         XCTAssertEqual(coordinator.cellContent(for: 0, in: mutator.clip, layer: .sliceMode), .optionLabel(text: "Run"))
         XCTAssertEqual(coordinator.cellContent(for: 1, in: mutator.clip, layer: .sliceMode), .optionLabel(text: "One"))
         XCTAssertEqual(coordinator.cellContent(for: 0, in: mutator.clip, layer: .velocity), .valueBar(fraction: 0.5))
+        XCTAssertEqual(coordinator.cellContent(for: 0, in: mutator.clip, layer: .length), .optionLabel(text: "Full"))
         XCTAssertEqual(coordinator.cellContent(for: 1, in: mutator.clip, layer: .velocity), .valueBar(fraction: 0))
         XCTAssertEqual(coordinator.cellContent(for: 0, in: mutator.clip, layer: .chance), .valueBar(fraction: 1))
         XCTAssertEqual(coordinator.cellContent(for: 1, in: mutator.clip, layer: .chance), .valueBar(fraction: 0))
+    }
+
+    func test_selectedLengthWriteUpdatesEverySelectedNoteStepInOneMutation() {
+        let clipID = UUID()
+        let mutator = RecordingClipMutator(
+            clip: Self.makeNoteClip(id: clipID, activeIndexes: [0, 2])
+        )
+        let coordinator = StepGridCoordinator(clipID: clipID, clipMutator: mutator)
+        coordinator.toggleSelection(at: 0)
+        coordinator.toggleSelection(at: 2)
+
+        coordinator.writeAbsoluteValue(7.0 / 15.0, stepIndex: 0, layer: .length)
+
+        XCTAssertEqual(mutator.mutationCount, 1)
+        XCTAssertEqual(
+            [0, 2].compactMap {
+                ClipNoteGridStepEditing.lengthSteps(at: $0, in: mutator.clip.content)
+            },
+            [8, 8]
+        )
     }
 
     func test_slicerVelocityLayerReturnsValueBarForClipStep() {

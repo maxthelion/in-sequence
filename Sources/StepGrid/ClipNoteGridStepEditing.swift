@@ -13,6 +13,10 @@ enum ClipNoteGridStepEditing {
     /// Chance values cycled by tapping a cell in the chance layer.
     static let chanceCycleValues: [Double] = [0, 0.25, 0.5, 0.75, 1]
 
+    /// Musical gate lengths offered by a step-cell tap. Slicer steps include
+    /// an additional natural/full-slice state before this numeric cycle.
+    static let lengthCycleValues: [Int] = [1, 2, 4, 8, 16]
+
     // MARK: - Reads
 
     static func visualState(
@@ -31,6 +35,63 @@ enum ClipNoteGridStepEditing {
     /// Lane chance (0–1); 0 when the lane is off.
     static func chanceValue(for step: ClipStep, lane: StepGridNoteLane) -> Double {
         lane.lane(in: step)?.chance ?? 0
+    }
+
+    static func lengthSteps(
+        at index: Int,
+        in content: ClipContent,
+        noteLane: StepGridNoteLane = .main
+    ) -> Int? {
+        switch content.normalized {
+        case let .noteGrid(_, steps):
+            return steps[safe: index]
+                .flatMap { noteLane.lane(in: $0) }?
+                .notes.first?
+                .lengthSteps
+        case let .sliceTriggers(_, _, _, stepParameters):
+            return stepParameters[safe: index]?.lengthSteps
+        case let .chordReferences(_, _, _, _, _, lengthSteps):
+            return lengthSteps[safe: index]
+        }
+    }
+
+    static func lengthFraction(
+        at index: Int,
+        in content: ClipContent,
+        noteLane: StepGridNoteLane = .main
+    ) -> Double {
+        guard let length = lengthSteps(at: index, in: content, noteLane: noteLane) else {
+            return 0
+        }
+        return clampedUnit(Double(length) / 16)
+    }
+
+    static func lengthDisplayValue(
+        at index: Int,
+        in content: ClipContent,
+        noteLane: StepGridNoteLane = .main
+    ) -> String {
+        switch content.normalized {
+        case let .noteGrid(_, steps):
+            guard let step = steps[safe: index], noteLane.lane(in: step) != nil else { return "" }
+        case let .sliceTriggers(stepPattern, _, _, _):
+            guard stepPattern[safe: index] == true else { return "" }
+        case let .chordReferences(stepPattern, _, _, _, _, _):
+            guard stepPattern[safe: index] == true else { return "" }
+        }
+        return lengthSteps(at: index, in: content, noteLane: noteLane).map(String.init) ?? "Full"
+    }
+
+    static func nextLength(after current: Int?, allowsNatural: Bool) -> Int? {
+        guard let current else { return lengthCycleValues[0] }
+        guard let index = lengthCycleValues.firstIndex(of: current) else {
+            return lengthCycleValues.first { $0 > current } ?? (allowsNatural ? nil : lengthCycleValues[0])
+        }
+        let nextIndex = index + 1
+        if nextIndex < lengthCycleValues.count {
+            return lengthCycleValues[nextIndex]
+        }
+        return allowsNatural ? nil : lengthCycleValues[0]
     }
 
     static func cycledValue(after value: Double, allowedValues: [Double]) -> Double {
@@ -145,6 +206,34 @@ enum ClipNoteGridStepEditing {
         return .noteGrid(lengthSteps: lengthSteps, steps: updated)
     }
 
+    static func updatingLaneLengths(
+        lane: StepGridNoteLane,
+        values: [Int],
+        visibleIndices: [Int],
+        lengthSteps: Int,
+        steps: [ClipStep],
+        defaultNote: ClipStepNote
+    ) -> ClipContent {
+        var updated = steps
+        for (stepIndex, value) in zip(visibleIndices, values) where updated.indices.contains(stepIndex) {
+            let resolved = min(max(value, 1), 16)
+            if var existingLane = lane.lane(in: updated[stepIndex]) {
+                let notes = existingLane.notes.isEmpty ? [defaultNote] : existingLane.notes
+                existingLane.notes = notes.map { note in
+                    var updatedNote = note
+                    updatedNote.lengthSteps = resolved
+                    return updatedNote
+                }
+                lane.setLane(existingLane, on: &updated[stepIndex])
+            } else {
+                var note = defaultNote
+                note.lengthSteps = resolved
+                lane.setLane(ClipLane(chance: 1, notes: [note]), on: &updated[stepIndex])
+            }
+        }
+        return .noteGrid(lengthSteps: lengthSteps, steps: updated)
+    }
+
     // MARK: - Entry-level edits (in-place ClipPoolEntry transforms)
     //
     // Layer-dispatched edits applied directly to a clip-pool entry. These are
@@ -196,6 +285,19 @@ enum ClipNoteGridStepEditing {
                 setSliceMode(target == .runFromHere ? 1 : 0, at: index, entry: &entry)
             }
 
+        case .length:
+            let current = lengthSteps(at: tappedIndex, in: entry.content, noteLane: noteLane)
+            let allowsNaturalLength: Bool
+            if case .sliceTriggers = entry.content.normalized {
+                allowsNaturalLength = true
+            } else {
+                allowsNaturalLength = false
+            }
+            let target = nextLength(after: current, allowsNatural: allowsNaturalLength)
+            for index in indexes {
+                setLengthSteps(target, at: index, entry: &entry, noteLane: noteLane, defaultNote: defaultNote)
+            }
+
         case let .macro(macroIndex):
             guard let binding = macroBindings?[safe: macroIndex] else { return }
             // Cycle through the binding's quantized allowed values, seeded
@@ -234,6 +336,9 @@ enum ClipNoteGridStepEditing {
                 setPitchFraction(value, at: index, entry: &entry, noteLane: noteLane, defaultNote: defaultNote)
             case .velocity:
                 setVelocityFraction(value, at: index, entry: &entry, noteLane: noteLane, defaultNote: defaultNote)
+            case .length:
+                let steps = 1 + Int((clampedUnit(value) * 15).rounded())
+                setLengthSteps(steps, at: index, entry: &entry, noteLane: noteLane, defaultNote: defaultNote)
             case .chance:
                 setChanceFraction(value, at: index, entry: &entry, noteLane: noteLane, defaultNote: defaultNote)
             case let .macro(macroIndex):
@@ -340,6 +445,64 @@ enum ClipNoteGridStepEditing {
                 chordIDs: chordIDs,
                 velocities: updatedVelocities,
                 lengthSteps: lengthSteps
+            )
+        }
+    }
+
+    static func setLengthSteps(
+        _ lengthSteps: Int?,
+        at index: Int,
+        entry: inout ClipPoolEntry,
+        noteLane: StepGridNoteLane,
+        defaultNote: ClipStepNote
+    ) {
+        let resolvedLength = lengthSteps.map { min(max($0, 1), 16) }
+        switch entry.content.normalized {
+        case let .noteGrid(clipLength, steps):
+            var updated = steps
+            guard updated.indices.contains(index) else { return }
+            let numericLength = resolvedLength ?? 1
+            if var lane = noteLane.lane(in: updated[index]) {
+                let notes = lane.notes.isEmpty ? [defaultNote] : lane.notes
+                lane.notes = notes.map { note in
+                    var updatedNote = note
+                    updatedNote.lengthSteps = numericLength
+                    return updatedNote
+                }
+                noteLane.setLane(lane, on: &updated[index])
+            } else {
+                var note = defaultNote
+                note.lengthSteps = numericLength
+                noteLane.setLane(ClipLane(chance: 1, notes: [note]), on: &updated[index])
+            }
+            entry.content = .noteGrid(lengthSteps: clipLength, steps: updated)
+
+        case let .sliceTriggers(stepPattern, sliceIndexes, stepModes, stepParameters):
+            var updatedPattern = stepPattern
+            var updatedParameters = stepParameters
+            guard updatedPattern.indices.contains(index), updatedParameters.indices.contains(index) else { return }
+            updatedPattern[index] = true
+            updatedParameters[index].lengthSteps = resolvedLength
+            entry.content = .sliceTriggers(
+                stepPattern: updatedPattern,
+                sliceIndexes: sliceIndexes,
+                stepModes: stepModes,
+                stepParameters: updatedParameters
+            )
+
+        case let .chordReferences(stepPattern, slotIDs, inversions, chordIDs, velocities, lengthSteps):
+            var updatedPattern = stepPattern
+            var updatedLengths = lengthSteps
+            guard updatedPattern.indices.contains(index), updatedLengths.indices.contains(index) else { return }
+            updatedPattern[index] = true
+            updatedLengths[index] = resolvedLength ?? 1
+            entry.content = .chordReferences(
+                stepPattern: updatedPattern,
+                slotIDs: slotIDs,
+                inversions: inversions,
+                chordIDs: chordIDs,
+                velocities: velocities,
+                lengthSteps: updatedLengths
             )
         }
     }
@@ -584,26 +747,29 @@ enum ClipNoteGridStepEditing {
             return StepClipboardEntry(
                 active: lane != nil,
                 velocity: lane?.notes.first.map { Double($0.velocity) / 127 },
+                length: lane?.notes.first.map { .steps($0.lengthSteps) },
                 chance: lane?.chance,
                 macroOverrides: macroOverrides,
                 sliceIndex: nil,
                 sliceMode: nil
             )
 
-        case let .sliceTriggers(stepPattern, sliceIndexes, stepModes, _):
+        case let .sliceTriggers(stepPattern, sliceIndexes, stepModes, stepParameters):
             return StepClipboardEntry(
                 active: stepPattern[safe: index] ?? false,
                 velocity: nil,
+                length: stepParameters[safe: index]?.lengthSteps.map { .steps($0) } ?? .natural,
                 chance: nil,
                 macroOverrides: macroOverrides,
                 sliceIndex: sliceIndexes[safe: index],
                 sliceMode: stepModes[safe: index].map { $0 == .runFromHere ? 1 : 0 }
             )
 
-        case let .chordReferences(stepPattern, _, _, _, velocities, _):
+        case let .chordReferences(stepPattern, _, _, _, velocities, lengthSteps):
             return StepClipboardEntry(
                 active: stepPattern[safe: index] ?? false,
                 velocity: velocities[safe: index].map { Double($0) / 127 },
+                length: lengthSteps[safe: index].map { .steps($0) },
                 chance: stepPattern[safe: index] == true ? 1 : 0,
                 macroOverrides: macroOverrides,
                 sliceIndex: nil,
@@ -627,6 +793,14 @@ enum ClipNoteGridStepEditing {
 
         if let velocity = clipboardEntry.velocity {
             setVelocityFraction(velocity, at: index, entry: &entry, noteLane: .main, defaultNote: defaultNote)
+        }
+        if clipboardEntry.active, let length = clipboardEntry.length {
+            switch length {
+            case .natural:
+                setLengthSteps(nil, at: index, entry: &entry, noteLane: .main, defaultNote: defaultNote)
+            case let .steps(value):
+                setLengthSteps(value, at: index, entry: &entry, noteLane: .main, defaultNote: defaultNote)
+            }
         }
         if let chance = clipboardEntry.chance {
             setChanceFraction(chance, at: index, entry: &entry, noteLane: .main, defaultNote: defaultNote)

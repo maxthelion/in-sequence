@@ -5,6 +5,7 @@ enum StepGridLayer: Equatable, Sendable {
     case trigger
     case pitch
     case velocity
+    case length
     case chance
     case macro(index: Int)
     case sliceIndex
@@ -13,7 +14,7 @@ enum StepGridLayer: Equatable, Sendable {
 
     var isEditableValueLayer: Bool {
         switch self {
-        case .pitch, .velocity, .chance, .macro, .sliceIndex, .sliceMode, .chord:
+        case .pitch, .velocity, .length, .chance, .macro, .sliceIndex, .sliceMode, .chord:
             return true
         case .trigger:
             return false
@@ -35,6 +36,8 @@ struct StepGridRotaryControl: Equatable, Identifiable, Sendable {
             return "pitch"
         case .velocity:
             return "velocity"
+        case .length:
+            return "length"
         case .chance:
             return "chance"
         case let .macro(index):
@@ -95,7 +98,7 @@ final class StepGridCoordinator {
         clipID: ClipID,
         clipMutator: any StepGridClipMutating,
         activeLayer: StepGridLayer = .trigger,
-        editableLayers: [StepGridLayer] = [.velocity, .chance]
+        editableLayers: [StepGridLayer] = [.velocity, .length, .chance]
     ) {
         selection = StepSelectionModel(clipID: clipID)
         self.clipMutator = clipMutator
@@ -126,7 +129,7 @@ final class StepGridCoordinator {
         }
 
         let triggerLayerRotaries = editableValueLayers.filter { layer in
-            layer == .velocity || layer == .chance
+            layer == .velocity || layer == .length || layer == .chance
         }
         return triggerLayerRotaries.isEmpty ? editableValueLayers : triggerLayerRotaries
     }
@@ -215,6 +218,9 @@ final class StepGridCoordinator {
 
         case .velocity:
             return .valueBar(fraction: Self.velocityFraction(at: stepIndex, in: clip.content, noteLane: noteLane))
+
+        case .length:
+            return .optionLabel(text: Self.lengthDisplayValue(at: stepIndex, in: clip.content, noteLane: noteLane))
 
         case .pitch:
             return Self.pitchContent(at: stepIndex, in: clip.content, noteLane: noteLane)
@@ -443,6 +449,14 @@ private extension StepGridCoordinator {
         ClipNoteGridStepEditing.chanceFraction(at: index, in: content, noteLane: noteLane)
     }
 
+    static func lengthFraction(at index: Int, in content: ClipContent, noteLane: StepGridNoteLane = .main) -> Double {
+        ClipNoteGridStepEditing.lengthFraction(at: index, in: content, noteLane: noteLane)
+    }
+
+    static func lengthDisplayValue(at index: Int, in content: ClipContent, noteLane: StepGridNoteLane = .main) -> String {
+        ClipNoteGridStepEditing.lengthDisplayValue(at: index, in: content, noteLane: noteLane)
+    }
+
     static func pitchFraction(at index: Int, in content: ClipContent, noteLane: StepGridNoteLane = .main) -> Double {
         ClipNoteGridStepEditing.pitchFraction(at: index, in: content, noteLane: noteLane)
     }
@@ -473,6 +487,8 @@ private extension StepGridCoordinator {
         switch layer {
         case .velocity:
             return velocityFraction(at: index, in: clip.content, noteLane: noteLane)
+        case .length:
+            return lengthFraction(at: index, in: clip.content, noteLane: noteLane)
         case .pitch:
             return pitchFraction(at: index, in: clip.content, noteLane: noteLane)
         case .chance:
@@ -510,6 +526,8 @@ private extension StepGridCoordinator {
             return "Pitch"
         case .velocity:
             return "Velocity"
+        case .length:
+            return "Length"
         case .chance:
             return "Chance"
         case let .macro(index):
@@ -535,6 +553,8 @@ private extension StepGridCoordinator {
             return pitchDisplayValue(at: seedStepIndex, in: clip.content, noteLane: noteLane)
         case .velocity:
             return "\(Int((clampedUnit(normalizedValue) * 127).rounded()))"
+        case .length:
+            return lengthDisplayValue(at: seedStepIndex, in: clip.content, noteLane: noteLane)
         case .chance, .macro:
             return "\(Int((clampedUnit(normalizedValue) * 100).rounded()))%"
         case .sliceIndex:

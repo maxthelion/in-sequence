@@ -1211,10 +1211,11 @@ final class EngineControllerSampleTriggerTests: XCTestCase {
             sampleID: sample.id,
             markers: [
                 SliceMarker(startFrame: 0, endFrame: 44_100),
-                SliceMarker(startFrame: 100, endFrame: 1_100, gain: 3)
+                SliceMarker(startFrame: 100, endFrame: 20_100, gain: 3)
             ]
         )
         let stepParameters = SliceTriggerStepParameters(
+            lengthSteps: 1,
             gain: 4,
             pitch: 2,
             startTrim: 0.1,
@@ -1269,9 +1270,12 @@ final class EngineControllerSampleTriggerTests: XCTestCase {
         controller.processTick(tickIndex: 0, now: ProcessInfo.processInfo.systemUptime)
 
         let call = spy.playSliceCalls.first
+        let sampleRate = sample.sampleRate ?? 44_100
+        let secondsPerStep = (60.0 / 120.0) * (4.0 / 16.0)
+        let framesPerStep = Int64(secondsPerStep * sampleRate)
         XCTAssertEqual(spy.playSliceCalls.count, 1)
-        XCTAssertEqual(call?.1, 200)
-        XCTAssertEqual(call?.2, 900)
+        XCTAssertEqual(call?.1, 2_100)
+        XCTAssertEqual(call?.2, 2_100 + framesPerStep)
         XCTAssertEqual(call?.3.gain ?? 0, 5, accuracy: 1e-9)
         XCTAssertEqual(call?.3.transpose, 3)
         XCTAssertEqual(call?.3.voiceMode, .polyphonic)
@@ -1281,6 +1285,7 @@ final class EngineControllerSampleTriggerTests: XCTestCase {
         XCTAssertEqual(call?.7?.attackMs, 12)
         XCTAssertEqual(call?.7?.releaseMs, 80)
         XCTAssertEqual(call?.7?.choke, false)
+        XCTAssertEqual(call?.7?.lengthSteps, 1)
     }
 
     func test_slicerRapidAlternatingSlicesUseWarmedAssetAndRemainMono() throws {

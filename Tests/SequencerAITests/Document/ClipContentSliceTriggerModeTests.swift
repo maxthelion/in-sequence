@@ -78,6 +78,24 @@ final class ClipContentSliceTriggerModeTests: XCTestCase {
             return XCTFail("expected slice trigger content")
         }
         XCTAssertEqual(parameters, [.default, .default])
+        XCTAssertNil(parameters[0].lengthSteps)
+    }
+
+    func test_sliceStepLengthRoundTripsAndClamps() throws {
+        let content = ClipContent.sliceTriggers(
+            stepPattern: [true],
+            sliceIndexes: [1],
+            stepModes: [.single],
+            stepParameters: [SliceTriggerStepParameters(lengthSteps: 24)]
+        ).normalized
+
+        let data = try JSONEncoder().encode(content)
+        let decoded = try JSONDecoder().decode(ClipContent.self, from: data).normalized
+
+        guard case let .sliceTriggers(_, _, _, parameters) = decoded else {
+            return XCTFail("expected slice trigger content")
+        }
+        XCTAssertEqual(parameters[0].lengthSteps, 16)
     }
 
     func test_sliceTriggerStepsCollectsParallelArraysIntoPerStepValues() {
