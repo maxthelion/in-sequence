@@ -23,12 +23,14 @@ enum ChordTrackTab: String, CaseIterable, Equatable {
 
 enum ChordTrackStepLayer: String, CaseIterable, Equatable, Hashable {
     case chord
+    case length
     case inversion
     case chordType
 
     var title: String {
         switch self {
         case .chord: return "Chord"
+        case .length: return "Length"
         case .inversion: return "Inversion"
         case .chordType: return "Chord Type"
         }
@@ -580,6 +582,8 @@ struct ChordTrackWorkspaceView: View {
                 switch selectedLayer {
                 case .chord:
                     return .chordLabel(name: stepSlotName(at: index))
+                case .length:
+                    return .optionLabel(text: stepLengthDisplayValue(at: index))
                 case .inversion:
                     return .optionLabel(text: "I\(selectedStepInversion(at: index))")
                 case .chordType:
@@ -595,6 +599,8 @@ struct ChordTrackWorkspaceView: View {
             switch selectedLayer {
             case .chord:
                 assignSelectedSlot(to: index)
+            case .length:
+                cycleStepLength(at: index)
             case .inversion:
                 incrementInversion(at: index)
             case .chordType:
@@ -939,6 +945,39 @@ struct ChordTrackWorkspaceView: View {
                 chordIDs: chordIDs,
                 velocities: velocities,
                 lengthSteps: lengthSteps
+            )
+        }
+    }
+
+    private func stepLengthDisplayValue(at stepIndex: Int) -> String {
+        guard case let .chordReferences(stepPattern, _, _, _, _, lengthSteps) = chordContent.normalized,
+              stepPattern.value(at: stepIndex) == true
+        else {
+            return ""
+        }
+        return String(lengthSteps.value(at: stepIndex) ?? 4)
+    }
+
+    private func cycleStepLength(at stepIndex: Int) {
+        mutateChordClip { content in
+            guard case let .chordReferences(stepPattern, slotIDs, inversions, chordIDs, velocities, lengthSteps) = content.normalized else {
+                return
+            }
+            var nextPattern = stepPattern
+            var nextLengths = lengthSteps
+            guard nextPattern.indices.contains(stepIndex), nextLengths.indices.contains(stepIndex) else { return }
+            nextPattern[stepIndex] = true
+            nextLengths[stepIndex] = ClipNoteGridStepEditing.nextLength(
+                after: nextLengths[stepIndex],
+                allowsNatural: false
+            ) ?? 1
+            content = .chordReferences(
+                stepPattern: nextPattern,
+                slotIDs: slotIDs,
+                inversions: inversions,
+                chordIDs: chordIDs,
+                velocities: velocities,
+                lengthSteps: nextLengths
             )
         }
     }

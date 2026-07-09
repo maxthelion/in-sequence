@@ -613,7 +613,7 @@ struct TrackSourceEditorView: View {
         _ = stepGridWorkspaceModel.coordinator(
             for: clipID,
             clipMutator: session,
-            editableLayers: [.velocity, .chance]
+            editableLayers: [.velocity, .length, .chance]
         )
     }
 

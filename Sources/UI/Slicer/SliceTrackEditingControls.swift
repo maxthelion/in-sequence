@@ -35,7 +35,7 @@ enum SliceTrackClipLayer: String, CaseIterable, Identifiable {
         case .velocity: return "Velocity"
         case .direction: return "Direction"
         case .noteRepeat: return "Note Repeat"
-        case .gate: return "Gate"
+        case .gate: return "Length"
         case .chance: return "Chance"
         }
     }
@@ -46,9 +46,9 @@ enum SliceTrackClipLayer: String, CaseIterable, Identifiable {
     /// they render the strip read-only with a NOTE.
     var isEngineBacked: Bool {
         switch self {
-        case .steps, .velocity, .chance:
+        case .steps, .velocity, .gate, .chance:
             return true
-        case .direction, .noteRepeat, .gate:
+        case .direction, .noteRepeat:
             return false
         }
     }

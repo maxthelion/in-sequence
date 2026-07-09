@@ -272,6 +272,26 @@ final class DrumKitMatrixEditingTests: XCTestCase {
         }
         XCTAssertEqual(draggedSteps[0].main?.notes.first?.velocity, 64)
 
+        let lengthTapped = try XCTUnwrap(
+            DrumKitMatrixStepEdit.tappedContent(
+                layer: .length,
+                lane: .main,
+                stepIndex: 0,
+                lengthSteps: lengthSteps,
+                steps: steps,
+                defaultNote: row.defaultNote
+            )
+        )
+        guard case let .noteGrid(_, lengthEditedSteps) = lengthTapped.normalized else {
+            return XCTFail("expected note grid")
+        }
+        let originalLength = steps[0].main?.notes.first?.lengthSteps
+        let expectedLength = ClipNoteGridStepEditing.nextLength(
+            after: originalLength,
+            allowsNatural: false
+        )
+        XCTAssertEqual(lengthEditedSteps[0].main?.notes.first?.lengthSteps, expectedLength)
+
         // Chance tap cycles the shared chance values.
         let chanceTapped = try XCTUnwrap(
             DrumKitMatrixStepEdit.tappedContent(

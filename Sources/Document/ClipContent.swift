@@ -233,6 +233,9 @@ enum SliceTriggerStepMode: String, Codable, Equatable, Hashable, Sendable, CaseI
 }
 
 struct SliceTriggerStepParameters: Codable, Equatable, Hashable, Sendable {
+    /// Optional gate in sequencer steps. `nil` preserves the legacy slicer
+    /// behaviour: play the selected frame range to its natural end.
+    var lengthSteps: Int?
     var gain: Double
     var pitch: Double
     var startTrim: Double
@@ -245,6 +248,7 @@ struct SliceTriggerStepParameters: Codable, Equatable, Hashable, Sendable {
     var choke: Bool
 
     init(
+        lengthSteps: Int? = nil,
         gain: Double = 0,
         pitch: Double = 0,
         startTrim: Double = 0,
@@ -256,6 +260,7 @@ struct SliceTriggerStepParameters: Codable, Equatable, Hashable, Sendable {
         reverse: Bool = false,
         choke: Bool = true
     ) {
+        self.lengthSteps = lengthSteps
         self.gain = gain
         self.pitch = pitch
         self.startTrim = startTrim
@@ -272,6 +277,7 @@ struct SliceTriggerStepParameters: Codable, Equatable, Hashable, Sendable {
 
     var clamped: SliceTriggerStepParameters {
         SliceTriggerStepParameters(
+            lengthSteps: lengthSteps.map { min(max($0, 1), 16) },
             gain: min(max(gain, -24), 12),
             pitch: min(max(pitch, -12), 12),
             startTrim: min(max(startTrim, 0), 0.99),
@@ -286,6 +292,7 @@ struct SliceTriggerStepParameters: Codable, Equatable, Hashable, Sendable {
     }
 
     private enum CodingKeys: String, CodingKey {
+        case lengthSteps
         case gain
         case pitch
         case startTrim
@@ -300,6 +307,7 @@ struct SliceTriggerStepParameters: Codable, Equatable, Hashable, Sendable {
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
+        lengthSteps = try container.decodeIfPresent(Int.self, forKey: .lengthSteps)
         gain = try container.decodeIfPresent(Double.self, forKey: .gain) ?? 0
         pitch = try container.decodeIfPresent(Double.self, forKey: .pitch) ?? 0
         startTrim = try container.decodeIfPresent(Double.self, forKey: .startTrim) ?? 0

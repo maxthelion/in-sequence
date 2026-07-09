@@ -8,6 +8,7 @@ final class ClipEditorLayerMappingTests: XCTestCase {
     func test_editorLayersMapOntoSharedStepGridLayers() {
         XCTAssertEqual(ClipEditorLayer.mode(.trigger).stepGridLayer, .trigger)
         XCTAssertEqual(ClipEditorLayer.mode(.velocity).stepGridLayer, .velocity)
+        XCTAssertEqual(ClipEditorLayer.mode(.length).stepGridLayer, .length)
         XCTAssertEqual(ClipEditorLayer.mode(.probability).stepGridLayer, .chance)
         XCTAssertEqual(ClipEditorLayer.macro(index: 3).stepGridLayer, .macro(index: 3))
     }
@@ -16,6 +17,7 @@ final class ClipEditorLayerMappingTests: XCTestCase {
         let editorLayers: [ClipEditorLayer] = [
             .mode(.trigger),
             .mode(.velocity),
+            .mode(.length),
             .mode(.probability),
             .macro(index: 0),
             .macro(index: 5),
