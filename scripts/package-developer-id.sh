@@ -35,6 +35,9 @@ Options:
   --r2-prefix PREFIX           R2 object prefix. Defaults to
                                releases/developer-id.
                                env: R2_DISTRIBUTION_PREFIX
+  --r2-latest-key KEY          R2 JSON pointer for the latest DMG. Defaults to
+                               <r2-prefix>/latest.json.
+                               env: R2_DISTRIBUTION_LATEST_KEY
   --r2-bucket BUCKET           R2 bucket. Env: R2_DISTRIBUTION_BUCKET, R2_BUCKET
   --r2-endpoint URL            R2 S3 endpoint. Env: R2_DISTRIBUTION_ENDPOINT,
                                R2_ENDPOINT
@@ -68,6 +71,7 @@ allow_dirty=0
 upload_r2=0
 r2_key=""
 r2_prefix="${R2_DISTRIBUTION_PREFIX:-releases/developer-id}"
+r2_latest_key="${R2_DISTRIBUTION_LATEST_KEY:-}"
 r2_bucket="${R2_DISTRIBUTION_BUCKET:-${R2_BUCKET:-}}"
 r2_endpoint="${R2_DISTRIBUTION_ENDPOINT:-${R2_ENDPOINT:-}}"
 
@@ -136,6 +140,12 @@ while (($# > 0)); do
     --r2-prefix)
       [[ $# -ge 2 ]] || { printf 'Missing value for --r2-prefix\n' >&2; exit 64; }
       r2_prefix="${2:-}"
+      shift 2
+      continue
+      ;;
+    --r2-latest-key)
+      [[ $# -ge 2 ]] || { printf 'Missing value for --r2-latest-key\n' >&2; exit 64; }
+      r2_latest_key="${2:-}"
       shift 2
       continue
       ;;
@@ -211,6 +221,10 @@ fi
 if [[ -z "$output_dir" ]]; then
   timestamp="$(date -u +%Y%m%d-%H%M%S)"
   output_dir="$repo_root/dist/developer-id/${timestamp}-${commit}"
+fi
+
+if [[ -z "$r2_latest_key" ]]; then
+  r2_latest_key="${r2_prefix%/}/latest.json"
 fi
 
 archive_path="$output_dir/SequencerAI.xcarchive"
@@ -329,7 +343,7 @@ fi
 
 r2_upload_json=""
 if ((upload_r2 == 1)); then
-  upload_args=("$repo_root/scripts/r2-upload-artifact.mjs" "$final_dmg" "--prefix" "$r2_prefix")
+  upload_args=("$repo_root/scripts/r2-upload-artifact.mjs" "$final_dmg" "--prefix" "$r2_prefix" "--latest-key" "$r2_latest_key")
   if [[ -n "$r2_key" ]]; then
     upload_args+=("--key" "$r2_key")
   fi
