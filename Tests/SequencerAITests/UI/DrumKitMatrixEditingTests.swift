@@ -169,6 +169,7 @@ final class DrumKitMatrixEditingTests: XCTestCase {
         let matrixContent = try XCTUnwrap(
             DrumKitMatrixStepEdit.tappedContent(
                 layer: .steps,
+                lane: .main,
                 stepIndex: 3,
                 lengthSteps: lengthSteps,
                 steps: steps,
@@ -187,6 +188,7 @@ final class DrumKitMatrixEditingTests: XCTestCase {
         let revertContent = try XCTUnwrap(
             DrumKitMatrixStepEdit.tappedContent(
                 layer: .steps,
+                lane: .main,
                 stepIndex: 3,
                 lengthSteps: l2,
                 steps: s2,
@@ -227,6 +229,7 @@ final class DrumKitMatrixEditingTests: XCTestCase {
         let velocityTapped = try XCTUnwrap(
             DrumKitMatrixStepEdit.tappedContent(
                 layer: .velocity,
+                lane: .main,
                 stepIndex: 0,
                 lengthSteps: lengthSteps,
                 steps: steps,
@@ -256,6 +259,7 @@ final class DrumKitMatrixEditingTests: XCTestCase {
         let dragged = try XCTUnwrap(
             DrumKitMatrixStepEdit.draggedContent(
                 layer: .velocity,
+                lane: .main,
                 stepIndex: 0,
                 fraction: 0.5,
                 lengthSteps: lengthSteps,
@@ -272,6 +276,7 @@ final class DrumKitMatrixEditingTests: XCTestCase {
         let chanceTapped = try XCTUnwrap(
             DrumKitMatrixStepEdit.tappedContent(
                 layer: .chance,
+                lane: .main,
                 stepIndex: 0,
                 lengthSteps: lengthSteps,
                 steps: steps,
@@ -537,6 +542,7 @@ final class DrumKitMatrixEditingTests: XCTestCase {
         let edit = try XCTUnwrap(
             DrumKitMatrixStepEdit.tappedContent(
                 layer: .steps,
+                lane: .main,
                 stepIndex: 5,
                 lengthSteps: lengthSteps,
                 steps: steps,
