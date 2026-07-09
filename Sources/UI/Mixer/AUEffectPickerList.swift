@@ -35,15 +35,14 @@ struct AUEffectPickerList<Row: View>: View {
             } else if filtered.isEmpty {
                 StudioEmptyListRow(message: "No effects match “\(query)”")
             } else {
-                ScrollView {
+                StudioCustomVerticalScrollView {
                     VStack(spacing: 6) {
                         ForEach(filtered) { effect in
                             row(effect)
                         }
                     }
                 }
-                .frame(maxHeight: maxHeight)
-                .scrollContentBackground(.hidden)
+                .frame(height: maxHeight)
             }
         }
     }

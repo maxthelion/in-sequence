@@ -1,104 +1,109 @@
 # Process Health
 
-- updated: 2026-06-16T15:34Z
-- request: `.meta/multipass/runtime/inbox/claimed/2026-06-16T152226580Z-process-health-observer-cadence.md`
+- updated: 2026-07-06T11:35Z
+- request: `.meta/multipass/runtime/inbox/claimed/2026-07-04T171510683Z-process-health-observer-cadence.md`
 - observation artifact:
-  `.meta/multipass/runtime/loops/project/observe/2026-06-16T15-34Z-process-health-observation.md`
+  `.meta/multipass/runtime/loops/project/observe/2026-07-06T11-35Z-process-health-observation.md`
 - verdict: `yellow`
 - scope: observation only; no inbox message, request lifecycle move, merge,
-  rebase, cleanup, product-code edit, PM artifact action, build action,
-  process repair, test suite, visual capture, or product-owner question
-  performed.
+  rebase, cleanup, product-code edit, product test suite, visual automation,
+  process repair, or product-owner question performed.
 
 ## Summary
 
-The loop improved from red to yellow. The prior routing failure did not leave
-abandoned product-code dirt: project/build orienters and deciders routed
-recovery, the continuation builder completed a clean exact checkpoint
-`babe91e0856c54b9c37710bfe4c4542e5fb81947`, and the build decider opened the
-required exact-state review batch.
+The loop is producing useful product work, but its process health remains
+yellow. Recent repair work created and advanced
+`build/drum-kit-matrix-sound-prep`; builders produced exact-state seam evidence,
+architecture passed, focused tests passed `18/0`, and UX canon lint passed with
+`0` violations. Disk pressure also improved to roughly `30Gi` available.
 
-The loop is still unhealthy on cost and reserve depth. Latest-24h token
-pressure is `6.30M` across `52` runs with `11` failures and `1.96M`
-failed/blocked pressure. One ordinary build slot is open, ready/unpromoted
-ready candidates remain `none`, and repeated observer cadence plus stale
-reports/Ruby warning noise still make process-health reconstruction expensive.
+The main throughput problem is cadence churn and slow follow-through on the
+current concrete gate. Latest-24h token pressure is `21.06M` across `274` runs,
+up `1.54x` from the previous 24h. The biggest spenders over 168h are
+`pm-orienter` (`10.56M`), project `decider` (`8.53M`), and `pm-decider`
+(`6.16M`). Meanwhile the build-loop testing-review continuation for
+`build/drum-kit-matrix-sound-prep`, created at `2026-07-06T10:17Z`, remained
+pending during the `11:28Z` scan.
 
 ## Top Risks
 
 | Risk | Throughput impact | Evidence |
 | --- | --- | --- |
-| Observer cadence and rate-limit failures still dominate cost | Product work is moving, but observers are still the largest spend and failure surface. | `token-pressure --hours 168`: `52` latest-24h runs, `11` failures, `6,296,573` token pressure, `1,964,715` failed/blocked pressure. |
-| Capacity and reserve remain thin | Routing consumes one ordinary slot; the other slot is open with no ready PM supply. | `build-capacity.ts`: active ordinary build loops `1`, locked build loops `2`, available slots `1`, ready candidates `none`, unpromoted ready candidates `none`. |
-| Runtime/status visibility remains noisy | Stale reports and lifecycle residue force repeated manual interpretation. | Saved reports are stale (token pressure June 8, swimlanes June 4); Foreman CLIs emit Ruby warnings; root `main` is `abc9adf6` with `315` dirty/local-only paths. |
+| Cadence churn dominates token pressure | Product work exists, but PM/project orient-decide polling is the largest spend and repeats no-op conclusions. | `token-pressure --hours 168 --json`: `34.72M` total; top actors `pm-orienter`, project `decider`, `pm-decider`. |
+| Concrete build-review follow-through is lagging | The next accepted gate for active drum-kit work waits while generic cadence continues. | Pending `.meta/multipass/runtime/inbox/pending/2026-07-06T101720296Z-testing-review.md` after about `70m`; capacity is full at `2/2`. |
+| Stale/superseded state keeps reconstruction expensive | Observers must rerun live commands and qualify exact checkout state. | June report timestamps, active but superseded `pm/july-4-phrase-layers-global-apply`, root `main` at `c8f368d5c3c5` with `295` dirty/local paths. |
 
 ## KPI Snapshot
 
 | KPI | Current read |
 | --- | --- |
-| Implementation time | Completed act time returned: integrator `17.7m`, process-fixer `4.6m`, successful routing builder `4.0m` (`26.3m` total). A failed routing builder attempt burned `24.4m`. |
-| Idle / blocked time | Inbox status: `8` pending, `4` claimed, `671` blocked, `3608` done. One ordinary build slot open. |
-| Actor failures | `11` latest-24h failures, mostly `usage_rate_limit`; compact failure evidence includes repeated project observers and the first routing builder. |
-| Token pressure | `6.30M` latest-24h token pressure; failed/blocked pressure `1.96M`; largest hour 13:00Z with `1.84M`. |
-| High-priority time-to-claim | Recovery claims were prompt: integrator about `2.6m`, process-fixer about `5.5m`, continuation builder about `3.7m`. New high-priority review requests were just queued and still pending at the scan. |
-| Open build capacity | `1` ordinary slot open; `build/routing-source-mixer-split` active; Observability and MIDI locked outside capacity. |
+| Implementation time | Recent useful act work: drum-kit process-fixer `2.3m`, two drum-kit builders `4.3m`, plus July 5 integrations/closeouts. Over 168h, builder token pressure is much smaller than PM/project cadence. |
+| Idle / blocked time | Inbox: `17` pending, `3` claimed, `714` blocked, `5004` done. No ordinary build slots open, but one active build review gate is pending. |
+| Actor failures | 168h: `10` failures; latest 24h: `3` failures. Compact failures remain dominated by `usage_rate_limit`; recent failed project decider also appears in recent runs. |
+| Token pressure | Latest 24h `21,063,472`; previous 24h `13,652,712`; ratio `1.54x`; 168h total `34,716,184`; failed/blocked pressure warning `11,409,979`. |
+| High-priority time-to-claim | Drum-kit setup and builders were claimed; current testing-review continuation remained unclaimed about `70m` after creation. |
+| Open build capacity | `0`; active ordinary loops are `build/au-runtime-safety` and `build/drum-kit-matrix-sound-prep`; locked loops are Observability and MIDI; ready candidates `none`. |
+
+## Dumb-Loop Signals
+
+- Repeated project decider no-op/full-capacity decisions are recorded through
+  July 6 while the same drum-kit testing-review request remains pending.
+- `pm/july-4-phrase-layers-global-apply` continues to receive cadence despite
+  durable state saying it is resolved on `main` and should be no-op without new
+  feedback.
+- `pm/track-phrase-perform-interaction-prep` is also bouncing between
+  orientation and decision around the same conclusion: let the existing pending
+  PM readiness observer run.
+- Coordinator CLIs still emit Ruby warning noise before useful output.
 
 ## Follow-Through
 
 Repaired or improving:
 
-- Prior "no act time" risk is repaired for this window.
-- The failed routing builder was converted into a clean committed checkpoint
-  and queued exact-state review batch.
-- Project orienter/decider cadence is no longer stale; it produced concrete
-  action on June 16.
+- Stale routing/AU rescan capacity accounting was repaired on July 4.
+- PM ready-buffer recovery produced the current drum-kit build loop.
+- Disk pressure has improved from the July 5 `73Mi` post-merge failure state to
+  about `30Gi` free.
 
 Still repeating:
 
-- `usage_rate_limit` remains the dominant failure mode.
-- PM reserve recovery remains blocked and no ready-buffer candidate exists.
-- Observability remains human-locked with dirty partial work beyond the
-  reviewed checkpoint; MIDI remains hardware-locked.
-- Broad root dirt, stale reports, lifecycle residue, and Ruby warning noise
-  continue to tax observers.
+- Cadence runs continue to rediscover no-op/full-capacity facts faster than the
+  exact pending build-review gate is claimed.
+- Stale report artifacts from June remain unrepaired.
+- Superseded PM lanes still appear active enough to spend tokens.
+- Root dirt remains broad.
 
 ## Recovery Health
 
-- `build/routing-source-mixer-split`: healthy recovery so far; clean at
-  `babe91e0`, `0` behind / `2` ahead of local `main`, exact-state reviews
-  pending, mandatory critic still required.
-- `build/observability-log-issues`: still human-locked; dirty partial remains
-  unpaired beyond reviewed `714fdb8`.
-- `build/midi-interfaces`: clean at `34d5c43`; missing hardware acceptance.
-- PM reserve recovery: still blocked by `usage_rate_limit`.
+- `build/drum-kit-matrix-sound-prep`: healthy but waiting on testing-review
+  continuation. Visual evidence remains `capture-permission-or-focus`.
+- `build/au-runtime-safety`: deterministic checkpoint exists but full closure
+  still needs human-present third-party AU validation or an accepted manual gap.
+- `build/observability-log-issues` and `build/midi-interfaces`: correctly
+  locked outside ordinary capacity.
+- No product-code dirt from failed actors was observed as newly orphaned in this
+  pass; compact failure evidence was sufficient.
 
 ## Suggested Repair Shape
 
-- `cadence thinning`: prompt/actor-contract repair. Smallest success signal:
-  after a concrete build-loop action, do not launch another broad project
-  observer wave until the active high-priority review batch resolves.
-- `ready-buffer recovery`: project process-fixer or PM-prep recovery. Smallest
-  success signal: one compact candidate/no-candidate artifact for the next
-  unlocked PM lane.
-- `report freshness`: coordinator/report repair. Smallest success signal:
-  regenerated June 16 swimlane/token reports with clear stale labels.
-- `rate-limit contract`: coordinator failure-artifact repair. Smallest success
-  signal: future `usage_rate_limit` artifacts include branch, HEAD, dirty
-  counts, and completed checks automatically.
+- `cadence thinning`: process/prompt repair. Smallest success signal: no
+  duplicate project/PM no-op decisions while a named pending build/review gate
+  is waiting and no new evidence exists.
+- `pending-gate priority`: coordinator scheduling repair. Smallest success
+  signal: active build-loop review gates are selected before generic cadence
+  when build capacity is full.
+- `superseded PM closeout`: lifecycle/process repair for
+  `pm/july-4-phrase-layers-global-apply`. Smallest success signal: inventory
+  or scheduler no longer treats the lane as active cadence work.
+- `report freshness`: report regeneration or stale labeling. Smallest success
+  signal: token/swimlane/report files have current timestamps or inventory
+  labels them stale.
 
 ## Checks Run
 
-- Read the claimed request, process-health prompt/actions, project README,
-  Foreman Coordinator README, Foreman config, prior process-health, decision
-  log, current-work, feature-readiness, holistic status, flow status,
-  lifecycle status, active build-loop summaries, compact actor-failure
-  evidence, routing builder final, routing build summary, routing
-  decision/batch evidence, and report freshness.
-- Ran Foreman Coordinator `inventory.ts`, `recent-runs.ts --limit 40`,
-  `recent-runs.ts --limit 20`, `build-capacity.ts`, and
-  `token-pressure.ts --hours 168 --json`.
-- Ran `scripts/multi-pass/inbox-status.sh` and
-  `scripts/multi-pass/process-evidence-status.sh`.
-- Checked direct root and routing worktree branch/HEAD/dirty relation.
-- No broad raw actor transcript scan was performed; evidence came from compact
-  state, deterministic scripts, loop-local artifacts, and actor finals.
+- Read compact state, build-loop summaries, PM summaries, actor-failure
+  evidence, and relevant drum-kit decision/evidence artifacts.
+- Ran Foreman Coordinator `inventory.ts`, `build-capacity.ts`,
+  `recent-runs.ts --limit 60`, and `token-pressure.ts --hours 168 --json`.
+- Ran `scripts/multi-pass/inbox-status.sh`.
+- Checked report timestamps, root branch/HEAD/dirty count, and disk free space.

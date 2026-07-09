@@ -7,7 +7,6 @@ struct StudioModal<Content: View, HeaderAccessory: View>: View {
     let title: String
     var subtitle: String? = nil
     var accent: Color = StudioTheme.transportAccent
-    var showsTitleRule = true
     var minWidth: CGFloat = 480
     var minHeight: CGFloat? = nil
     var onClose: () -> Void
@@ -34,28 +33,27 @@ struct StudioModal<Content: View, HeaderAccessory: View>: View {
                     Text(title)
                         .font(.system(size: 22, weight: .bold, design: .rounded))
                         .foregroundStyle(StudioTheme.text)
-
-                    if showsTitleRule {
-                        Rectangle()
-                            .fill(accent)
-                            .frame(width: 36, height: 2)
-                    }
+                        .lineLimit(1)
+                        .truncationMode(.tail)
                 }
+                .help(subtitle ?? title)
+                .accessibilityHint(subtitle ?? "")
 
-                if let subtitle {
-                    Text(subtitle)
-                        .studioText(.body)
-                        .foregroundStyle(StudioTheme.mutedText)
-                }
+                // Keep the subtitle parameter for existing sheet call sites,
+                // but modal headers intentionally render as title-only chrome;
+                // contextual detail is exposed as help/accessibility instead.
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             Spacer(minLength: 12)
 
             // Optional title-bar accessory (e.g. a Normalize button) sits to the
             // left of the close affordance.
             headerAccessory
+                .fixedSize()
 
             StudioModalCloseButton(action: onClose)
+                .fixedSize()
         }
     }
 }
@@ -65,7 +63,6 @@ extension StudioModal where HeaderAccessory == EmptyView {
         title: String,
         subtitle: String? = nil,
         accent: Color = StudioTheme.transportAccent,
-        showsTitleRule: Bool = true,
         minWidth: CGFloat = 480,
         minHeight: CGFloat? = nil,
         onClose: @escaping () -> Void,
@@ -75,7 +72,6 @@ extension StudioModal where HeaderAccessory == EmptyView {
             title: title,
             subtitle: subtitle,
             accent: accent,
-            showsTitleRule: showsTitleRule,
             minWidth: minWidth,
             minHeight: minHeight,
             onClose: onClose,

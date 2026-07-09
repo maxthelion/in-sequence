@@ -331,6 +331,43 @@ final class MainAudioGraphTests: XCTestCase {
     }
 
     @MainActor
+    func test_trackSendNodesAreRetiredAndReusedInsteadOfDetachedOnTrackRemoval() throws {
+        let graph = MainAudioGraph()
+        graph.installSendBuses([.sendA, .sendB])
+
+        let firstSource = AVAudioPlayerNode()
+        graph.attach(firstSource)
+        graph.connectTrackOutput(
+            firstSource,
+            to: nil,
+            sends: MainAudioGraph.TrackSendLevels(sendA: 0.4, sendB: 0.2)
+        )
+        let firstReadout = try XCTUnwrap(graph.trackSendReadoutForTesting(firstSource))
+        let fanout = try XCTUnwrap(firstReadout.sendFanoutNode)
+        let sendA = try XCTUnwrap(firstReadout.sendAGainNode)
+        let sendB = try XCTUnwrap(firstReadout.sendBGainNode)
+
+        graph.disconnectOutput(firstSource)
+        graph.detach(firstSource)
+        XCTAssertNil(graph.trackSendReadoutForTesting(firstSource))
+
+        let secondSource = AVAudioPlayerNode()
+        graph.attach(secondSource)
+        graph.connectTrackOutput(
+            secondSource,
+            to: nil,
+            sends: MainAudioGraph.TrackSendLevels(sendA: 0.1, sendB: 0.7)
+        )
+        let secondReadout = try XCTUnwrap(graph.trackSendReadoutForTesting(secondSource))
+
+        XCTAssertTrue(secondReadout.sendFanoutNode === fanout)
+        XCTAssertTrue(secondReadout.sendAGainNode === sendA)
+        XCTAssertTrue(secondReadout.sendBGainNode === sendB)
+        XCTAssertEqual(secondReadout.sendAGain, 0.1, accuracy: 0.0005)
+        XCTAssertEqual(secondReadout.sendBGain, 0.7, accuracy: 0.0005)
+    }
+
+    @MainActor
     func test_mixerBusMixAndBypassStayParameterOnlyWhileInsertShapeRebuildsTopology() throws {
         let graph = MainAudioGraph()
         let busID = UUID()

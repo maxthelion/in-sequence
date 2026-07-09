@@ -115,6 +115,7 @@ enum DrumKitMatrixLayer: String, CaseIterable, Identifiable {
 enum DrumKitMatrixStepEdit {
     static func tappedContent(
         layer: DrumKitMatrixLayer,
+        lane: StepGridNoteLane,
         stepIndex: Int,
         lengthSteps: Int,
         steps: [ClipStep],
@@ -127,16 +128,16 @@ enum DrumKitMatrixStepEdit {
                 at: stepIndex,
                 lengthSteps: lengthSteps,
                 steps: steps,
-                lane: .main,
+                lane: lane,
                 defaultNote: defaultNote
             )
         case .velocity:
             let nextValue = ClipNoteGridStepEditing.cycledValue(
-                after: ClipNoteGridStepEditing.velocityValue(for: steps[stepIndex], lane: .main),
+                after: ClipNoteGridStepEditing.velocityValue(for: steps[stepIndex], lane: lane),
                 allowedValues: ClipNoteGridStepEditing.velocityCycleValues
             )
             return ClipNoteGridStepEditing.updatingLaneVelocities(
-                lane: .main,
+                lane: lane,
                 values: [nextValue],
                 visibleIndices: [stepIndex],
                 lengthSteps: lengthSteps,
@@ -145,11 +146,11 @@ enum DrumKitMatrixStepEdit {
             )
         case .chance:
             let nextValue = ClipNoteGridStepEditing.cycledValue(
-                after: ClipNoteGridStepEditing.chanceValue(for: steps[stepIndex], lane: .main),
+                after: ClipNoteGridStepEditing.chanceValue(for: steps[stepIndex], lane: lane),
                 allowedValues: ClipNoteGridStepEditing.chanceCycleValues
             )
             return ClipNoteGridStepEditing.updatingLaneChances(
-                lane: .main,
+                lane: lane,
                 values: [nextValue],
                 visibleIndices: [stepIndex],
                 lengthSteps: lengthSteps,
@@ -161,6 +162,7 @@ enum DrumKitMatrixStepEdit {
 
     static func draggedContent(
         layer: DrumKitMatrixLayer,
+        lane: StepGridNoteLane,
         stepIndex: Int,
         fraction: Double,
         lengthSteps: Int,
@@ -173,7 +175,7 @@ enum DrumKitMatrixStepEdit {
             return nil
         case .velocity:
             return ClipNoteGridStepEditing.updatingLaneVelocities(
-                lane: .main,
+                lane: lane,
                 values: [fraction * 127.0],
                 visibleIndices: [stepIndex],
                 lengthSteps: lengthSteps,
@@ -182,7 +184,7 @@ enum DrumKitMatrixStepEdit {
             )
         case .chance:
             return ClipNoteGridStepEditing.updatingLaneChances(
-                lane: .main,
+                lane: lane,
                 values: [fraction],
                 visibleIndices: [stepIndex],
                 lengthSteps: lengthSteps,
@@ -351,7 +353,7 @@ struct DrumKitMatrixView: View {
 
     var body: some View {
         content
-        .padding(StudioMetrics.Spacing.page)
+        .padding(StudioMetrics.Spacing.workspaceInset)
         .sheet(isPresented: $isPresentingRoutingEditor) {
             routingEditorSheet
         }
@@ -411,7 +413,7 @@ struct DrumKitMatrixView: View {
     }
 
     private var content: some View {
-        StudioPanel(title: "Drum Kit", accent: accent, showsHeader: false) {
+        StudioPanel(title: "Drum Kit", accent: accent, showsHeader: false, contentPadding: 0) {
             VStack(alignment: .leading, spacing: 18) {
                 header
 
@@ -512,6 +514,7 @@ struct DrumKitMatrixView: View {
             barPage: isVisible ? (longest.map(clampedPage(longestRowLength:)) ?? 0) : 0,
             barPageCount: isVisible ? (longest.map(barPageCount(longestRowLength:)) ?? 1) : 1,
             layer: isVisible ? selectedLayer.rawValue : "none",
+            fillMode: isVisible ? matrixNoteLaneLabel(model) : "none",
             groupPatternSlot: isVisible ? (groupSlot.map { "\($0 + 1)" } ?? "mixed") : "none",
             // Patterns are global across the kit: members always share one slot
             // and can never diverge through the UI, so the kit is always
@@ -531,6 +534,7 @@ struct DrumKitMatrixView: View {
                 : "none",
             historyAuditioning: isVisible && isCaptureOpen && isAuditioningCapture,
             historySaveSlotPickerVisible: isVisible && isCaptureOpen && isSelectingCaptureSaveSlot,
+            historyCellCount: isVisible && isCaptureOpen ? Self.historyNavigationCellCount : 0,
             expandedPartIndex: isVisible ? expandedIndex : nil,
             expandedRowTab: isVisible && expandedIndex != nil ? expandedRowTab.rawValue : "none",
             expandedSourceMode: expandedSourceMode
@@ -601,9 +605,7 @@ struct DrumKitMatrixView: View {
     /// Matrix tab: the existing matrix content, minus the group pattern row
     /// (which now lives in the persistent Patterns row above). The layer/fill/
     /// bar value selectors render as inset tracks INSIDE the well (locked
-    /// grammar), with the Apply Template… action button at the row's trailing
-    /// edge (per prototype 09 kit-matrix render) — accent-filled so it stays
-    /// visually distinct from the selectors. (AC23)
+    /// grammar). (AC23)
     @ViewBuilder
     func matrixTabBody(_ model: DrumKitMatrixModel) -> some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -645,6 +647,7 @@ struct DrumKitMatrixView: View {
         guard case let .editable(_, lengthSteps, steps) = row.content,
               let updated = DrumKitMatrixStepEdit.tappedContent(
                   layer: selectedLayer,
+                  lane: matrixNoteLane(model),
                   stepIndex: stepIndex,
                   lengthSteps: lengthSteps,
                   steps: steps,
@@ -663,6 +666,7 @@ struct DrumKitMatrixView: View {
         guard case let .editable(_, lengthSteps, steps) = row.content,
               let updated = DrumKitMatrixStepEdit.draggedContent(
                   layer: selectedLayer,
+                  lane: matrixNoteLane(model),
                   stepIndex: stepIndex,
                   fraction: fraction,
                   lengthSteps: lengthSteps,
@@ -718,6 +722,7 @@ struct DrumKitRenderedVisualState: Equatable, Sendable {
     var barPage: Int
     var barPageCount: Int
     var layer: String
+    var fillMode: String
     var groupPatternSlot: String
     var patternLinked: Bool
     var patternLinkBroken: Bool
@@ -731,6 +736,7 @@ struct DrumKitRenderedVisualState: Equatable, Sendable {
     var historyWindow: String
     var historyAuditioning: Bool
     var historySaveSlotPickerVisible: Bool
+    var historyCellCount: Int
     /// `nil` means "no expanded part". On the wire this encodes as `-1`.
     var expandedPartIndex: Int?
     var expandedRowTab: String
@@ -752,6 +758,7 @@ struct DrumKitRenderedVisualState: Equatable, Sendable {
             "barPage": barPage,
             "barPageCount": barPageCount,
             "layer": layer,
+            "fillMode": fillMode,
             "groupPatternSlot": groupPatternSlot,
             "patternLinked": patternLinked,
             "patternLinkBroken": patternLinkBroken,
@@ -765,6 +772,7 @@ struct DrumKitRenderedVisualState: Equatable, Sendable {
             "historyWindow": historyWindow,
             "historyAuditioning": historyAuditioning,
             "historySaveSlotPickerVisible": historySaveSlotPickerVisible,
+            "historyCellCount": historyCellCount,
             "rowExpanded": rowExpanded,
             "expandedPartIndex": expandedPartIndex ?? -1,
             "expandedRowTab": expandedRowTab,

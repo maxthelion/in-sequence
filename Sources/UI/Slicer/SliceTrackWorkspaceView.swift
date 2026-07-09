@@ -7,6 +7,7 @@ struct SliceTrackWorkspaceView: View {
     @Environment(SequencerDocumentSession.self) private var session
 
     let accent: Color
+    let displayedPatternIndex: Int
     let stepGridWorkspaceModel: TrackStepGridWorkspaceModel
 
     @State private var selectedPage = 0
@@ -34,9 +35,7 @@ struct SliceTrackWorkspaceView: View {
         var id: Int { slotIndex }
     }
 
-    private let macroSlotColumns = [
-        GridItem(.adaptive(minimum: 58, maximum: 72), spacing: 10, alignment: .top)
-    ]
+    private let macroSlotColumns = MacroSlotPresentation.workspaceColumns
 
     private var track: StepSequenceTrack {
         session.store.selectedTrack
@@ -47,7 +46,7 @@ struct SliceTrackWorkspaceView: View {
     }
 
     private var selectedPatternIndex: Int {
-        session.store.selectedPatternIndex(for: track.id)
+        min(max(displayedPatternIndex, 0), TrackPatternBank.slotCount - 1)
     }
 
     private var selectedPatternAddress: PatternSlotAddress {
@@ -55,7 +54,7 @@ struct SliceTrackWorkspaceView: View {
     }
 
     private var selectedPattern: TrackPatternSlot {
-        session.store.selectedPattern(for: track.id)
+        bank.slot(at: selectedPatternIndex)
     }
 
     private var currentClip: ClipPoolEntry? {
@@ -100,13 +99,6 @@ struct SliceTrackWorkspaceView: View {
             }
             return slot.slotIndex
         })
-    }
-
-    private var selectedPatternIndexBinding: Binding<Int> {
-        Binding(
-            get: { session.store.selectedPatternIndex(for: track.id) },
-            set: { session.setSelectedPatternIndex($0, for: track.id) }
-        )
     }
 
     var body: some View {
@@ -511,9 +503,8 @@ struct SliceTrackWorkspaceView: View {
 
     @ViewBuilder
     private var fxTabBody: some View {
-        // ENGINE TODO (shared with melodic track detail): the chain persists and
-        // is fully editable, but inserts do not yet process slicer audio.
         TrackFXChainView(
+            trackID: track.id,
             inserts: track.fxInserts,
             accent: accent,
             onAddFX: { isAddFXPresented = true },
@@ -851,12 +842,7 @@ struct SliceTrackWorkspaceView: View {
 
                 Spacer()
 
-                // Live slice count reflects the in-progress draft. The draft is
-                // populated on appear and on every parameter change, so this
-                // tracks the preview the user sees on the waveform.
-                Text("\(detectionSliceCount) slices")
-                    .studioText(.labelBold)
-                    .foregroundStyle(accent)
+                EmptyView()
             }
 
             if analysisMode == .transient {
@@ -954,6 +940,9 @@ struct SliceTrackWorkspaceView: View {
             slotIndex: slot.slotIndex,
             binding: binding,
             value: slotValue,
+            accent: accent,
+            knobSize: MacroSlotPresentation.workspaceKnobSize,
+            showSlotLabel: false,
             onAssign: { prepareAndPresentMacroSlotPicker(slotIndex: slot.slotIndex) },
             onChange: { newValue in
                 guard let binding else { return }

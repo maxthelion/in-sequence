@@ -19,6 +19,7 @@ struct PhraseWorkspaceView: View {
     @State private var isPresentingGlobalApplyTrackSelector = false
     @State private var phraseSceneSlotPickerRequest: ScenePerformSlotPickerRequest?
     @State private var isPresentingPhraseCapture = false
+    @State private var finiteChoiceTarget: PhraseFiniteChoiceTarget?
     @State private var phraseLatchMode: TrackPerformLatchMode = .momentary
     @State private var phraseLatchLengthBars: Int?
     @State private var scalarDragBase: (phraseID: UUID, trackID: UUID, value: Double)?
@@ -163,6 +164,13 @@ struct PhraseWorkspaceView: View {
         .padding(StudioMetrics.Spacing.workspaceInset)
         .sheet(item: $editingCellTarget) { target in
             PhraseCellEditorSheet(
+                target: target,
+                accent: layerAccent(target.layerID)
+            )
+            .presentationBackground(.clear)
+        }
+        .sheet(item: $finiteChoiceTarget) { target in
+            PhraseFiniteChoiceSheet(
                 target: target,
                 accent: layerAccent(target.layerID)
             )
@@ -346,6 +354,7 @@ struct PhraseWorkspaceView: View {
                             lineWidth: StudioMetrics.borderWidth
                         )
                 )
+                .contentShape(Capsule())
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("phrase-perform-toggle")
@@ -364,6 +373,7 @@ struct PhraseWorkspaceView: View {
                         .foregroundStyle(phraseLatchMode == mode ? StudioTheme.background : StudioTheme.mutedText)
                         .frame(width: 58, height: 30)
                         .background(phraseLatchMode == mode ? StudioTheme.phraseAccent : StudioTheme.inset, in: Capsule())
+                        .contentShape(Capsule())
                 }
                 .buttonStyle(.plain)
             }
@@ -381,6 +391,7 @@ struct PhraseWorkspaceView: View {
                         Capsule()
                             .stroke(phraseLatchMode == .latched ? StudioTheme.phraseAccent : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
                     )
+                    .contentShape(Capsule())
             }
             .buttonStyle(.plain)
             .disabled(phraseLatchMode != .latched)
@@ -399,6 +410,7 @@ struct PhraseWorkspaceView: View {
                         Capsule()
                             .stroke(phraseLatchMode == .latched && phraseLatchLengthBars != nil ? StudioTheme.phraseAccent : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
                     )
+                    .contentShape(Capsule())
             }
             .buttonStyle(.plain)
             .disabled(phraseLatchMode != .latched)
@@ -441,6 +453,7 @@ struct PhraseWorkspaceView: View {
                     .padding(.vertical, 8)
                     .background(availability.canCapture ? StudioTheme.phraseAccent : StudioTheme.subtleFill, in: Capsule())
                     .overlay(Capsule().stroke(availability.canCapture ? StudioTheme.phraseAccent : StudioTheme.border, lineWidth: StudioMetrics.borderWidth))
+                    .contentShape(Capsule())
             }
             .buttonStyle(.plain)
             .disabled(!availability.canCapture)
@@ -459,6 +472,7 @@ struct PhraseWorkspaceView: View {
                     .padding(.vertical, 8)
                     .background(StudioTheme.subtleFill, in: Capsule())
                     .overlay(Capsule().stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth))
+                    .contentShape(Capsule())
             }
             .buttonStyle(.plain)
             .disabled(!availability.canDiscard)
@@ -979,15 +993,16 @@ struct PhraseWorkspaceView: View {
                         .foregroundStyle(StudioTheme.mutedText)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 8)
+                .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
+                        .stroke(activeLayerAccent.opacity(StudioOpacity.subtleStroke), lineWidth: StudioMetrics.borderWidth)
+                )
+                .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
             }
             .buttonStyle(.plain)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 8)
-            .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                    .stroke(activeLayerAccent.opacity(StudioOpacity.subtleStroke), lineWidth: StudioMetrics.borderWidth)
-            )
             .accessibilityIdentifier("phrase-layer-selector")
             .help("Choose the Phrase performance layer")
     }
@@ -1014,6 +1029,7 @@ struct PhraseWorkspaceView: View {
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
                     .stroke(phraseCellTool == tool ? activeLayerAccent : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
             )
+            .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("phrase-cell-tool-\(tool.rawValue)")
@@ -1351,6 +1367,24 @@ struct PhraseWorkspaceView: View {
         )
     }
 
+    private func openFiniteChoicePicker(phraseID: UUID, trackID: UUID) {
+        guard let activeMatrixLayer,
+              activeMatrixLayer.valueType == .patternIndex
+        else {
+            if activeMatrixLayer == nil {
+                isPresentingPerformanceLayerSelection = true
+            }
+            return
+        }
+
+        session.setSelectedPhraseAndTrackID(phraseID: phraseID, trackID: trackID)
+        finiteChoiceTarget = PhraseFiniteChoiceTarget(
+            phraseID: phraseID,
+            trackID: trackID,
+            layerID: activeMatrixLayer.id
+        )
+    }
+
     /// Shift-click: toggle the value, write it as an explicit value on THIS
     /// phrase, and convert every *following* phrase's cell to inherit it.
     /// Inheritance is forward-only — earlier phrases are never touched, and the
@@ -1585,6 +1619,7 @@ struct PhraseWorkspaceView: View {
                 ForEach(scopedLayerTracks, id: \.id) { track in
                     let renderedCell = activeLayer.map { displayedPhrase.cell(for: $0.id, trackID: track.id) }
                     let cellIsSelected = phraseLayerSelection.contains(track.id) || track.id == selectedTrackID
+                    let trackAccent = StudioTheme.trackAccent(for: track, groups: session.store.trackGroups)
                     Group {
                         if let activeLayer {
                             PhraseGridCell(
@@ -1594,6 +1629,7 @@ struct PhraseWorkspaceView: View {
                                 track: track,
                                 isSelected: cellIsSelected,
                                 accent: accent,
+                                trackAccent: trackAccent,
                                 inherited: rowInherited,
                                 onSelectPatternSlot: { slotIndex in
                                     selectPatternSlot(slotIndex, phraseID: displayedPhrase.id, trackID: track.id)
@@ -1605,7 +1641,8 @@ struct PhraseWorkspaceView: View {
                                 phrase: displayedPhrase,
                                 track: track,
                                 isSelected: cellIsSelected,
-                                accent: accent
+                                accent: accent,
+                                trackAccent: trackAccent
                             )
                         }
                     }
@@ -1622,32 +1659,38 @@ struct PhraseWorkspaceView: View {
                         scalarDragGesture(phrase: displayedPhrase, track: track, layer: activeLayer)
                     )
                     .studioSelectOnRightClick {
-                        selectPhraseLayerTrack(track.id, additive: phraseLayerSelection.contains(track.id))
-                        session.setSelectedPhraseAndTrackID(phraseID: displayedPhrase.id, trackID: track.id)
+                        if activeLayer?.valueType == .patternIndex || activeLayer == nil {
+                            openFiniteChoicePicker(phraseID: displayedPhrase.id, trackID: track.id)
+                        } else {
+                            selectPhraseLayerTrack(track.id, additive: phraseLayerSelection.contains(track.id))
+                            session.setSelectedPhraseAndTrackID(phraseID: displayedPhrase.id, trackID: track.id)
+                        }
                     }
                     .contextMenu {
-                        Button("Select") {
-                            selectPhraseLayerTrack(track.id, additive: false)
-                        }
-                        Button("Add to Selection") {
-                            selectPhraseLayerTrack(track.id, additive: true)
-                        }
-                        Divider()
-                        Button("Copy Value") {
-                            copyPhraseLayerValue(phrase: displayedPhrase, trackID: track.id)
-                        }
-                        if canPastePhraseLayerValue {
-                            Button("Paste Value") {
-                                pastePhraseLayerValue(phraseID: displayedPhrase.id, fallbackTrackID: track.id)
+                        if activeLayer?.valueType != .patternIndex && activeLayer != nil {
+                            Button("Select") {
+                                selectPhraseLayerTrack(track.id, additive: false)
                             }
-                        }
-                        if phraseLayerSingleSelectionID(fallbackTrackID: track.id) != nil {
+                            Button("Add to Selection") {
+                                selectPhraseLayerTrack(track.id, additive: true)
+                            }
                             Divider()
-                            Button("Automation") {
-                                openCellEditor(
-                                    phraseID: displayedPhrase.id,
-                                    trackID: phraseLayerSingleSelectionID(fallbackTrackID: track.id) ?? track.id
-                                )
+                            Button("Copy Value") {
+                                copyPhraseLayerValue(phrase: displayedPhrase, trackID: track.id)
+                            }
+                            if canPastePhraseLayerValue {
+                                Button("Paste Value") {
+                                    pastePhraseLayerValue(phraseID: displayedPhrase.id, fallbackTrackID: track.id)
+                                }
+                            }
+                            if phraseLayerSingleSelectionID(fallbackTrackID: track.id) != nil {
+                                Divider()
+                                Button("Automation") {
+                                    openCellEditor(
+                                        phraseID: displayedPhrase.id,
+                                        trackID: phraseLayerSingleSelectionID(fallbackTrackID: track.id) ?? track.id
+                                    )
+                                }
                             }
                         }
                     }
@@ -1862,6 +1905,7 @@ struct PhraseWorkspaceView: View {
 
     private func globalApplyTrackCell(_ track: StepSequenceTrack) -> some View {
         let isSelected = globalApplyScope.contains(track.id)
+        let trackAccent = StudioTheme.trackAccent(for: track, groups: session.store.trackGroups)
         return Button {
             globalApplyScope.toggle(track.id)
             postRenderedMatrixVisualState(isVisible: true)
@@ -1872,11 +1916,12 @@ struct PhraseWorkspaceView: View {
                 .lineLimit(1)
                 .padding(StudioMetrics.Spacing.compact)
                 .frame(maxWidth: .infinity, minHeight: 56, maxHeight: 56, alignment: .topLeading)
-                .background(isSelected ? StudioTheme.phraseAccent : Color.clear, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
+                .background(isSelected ? trackAccent : Color.clear, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-                        .stroke(isSelected ? StudioTheme.phraseAccent : StudioTheme.border, lineWidth: isSelected ? 2 : StudioMetrics.borderWidth)
+                        .stroke(trackAccent.opacity(isSelected ? 1 : StudioOpacity.mediumStroke), lineWidth: isSelected ? 2 : StudioMetrics.borderWidth)
                 )
+                .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("phrase-global-apply-track-cell-\(track.id.uuidString)")
@@ -1933,7 +1978,7 @@ struct PhraseWorkspaceView: View {
 
     private var phraseLocalPerformanceLayerOptions: [PerformanceLayerOption] {
         PerformanceLayerOption.all.filter { option in
-            guard let layerID = option.mode.phraseLayerID else { return false }
+            guard let layerID = option.mode.phraseLayerID else { return true }
             return matrixSelectableLayers.contains { $0.id == layerID }
         }
     }
@@ -2092,6 +2137,124 @@ struct PhraseWorkspaceView: View {
     }
 }
 
+struct PhraseFiniteChoiceTarget: Identifiable, Equatable {
+    let phraseID: UUID
+    let trackID: UUID
+    let layerID: String
+
+    var id: String {
+        "\(phraseID.uuidString):\(trackID.uuidString):\(layerID)"
+    }
+}
+
+private struct PhraseFiniteChoiceSheet: View {
+    let target: PhraseFiniteChoiceTarget
+    let accent: Color
+
+    @Environment(SequencerDocumentSession.self) private var session
+    @Environment(\.dismiss) private var dismiss
+
+    private var phrase: PhraseModel? {
+        session.store.phrases.first(where: { $0.id == target.phraseID }).map(session.phraseWithPerformOverlay)
+    }
+
+    private var track: StepSequenceTrack? {
+        session.store.tracks.first(where: { $0.id == target.trackID })
+    }
+
+    private var layer: PhraseLayerDefinition? {
+        session.store.layer(id: target.layerID)
+    }
+
+    private var columns: [GridItem] {
+        Array(repeating: GridItem(.flexible(minimum: 64), spacing: 10), count: 4)
+    }
+
+    var body: some View {
+        Group {
+            if let phrase, let track, let layer {
+                StudioModal(
+                    title: layer.name,
+                    subtitle: "\(phrase.name) • \(track.name)",
+                    accent: accent,
+                    minWidth: 420,
+                    minHeight: 320,
+                    onClose: { dismiss() }
+                ) {
+                    choiceGrid(phrase: phrase, track: track, layer: layer)
+                }
+            } else {
+                Color.clear
+                    .frame(width: 1, height: 1)
+                    .onAppear {
+                        dismiss()
+                    }
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private func choiceGrid(
+        phrase: PhraseModel,
+        track: StepSequenceTrack,
+        layer: PhraseLayerDefinition
+    ) -> some View {
+        let selectedIndex = selectedIndex(phrase: phrase, track: track, layer: layer)
+        return LazyVGrid(columns: columns, alignment: .leading, spacing: 10) {
+            ForEach(optionIndices(for: layer), id: \.self) { index in
+                Button {
+                    session.setPhraseCell(
+                        .single(.index(index)),
+                        layerID: layer.id,
+                        trackIDs: [track.id],
+                        phraseID: phrase.id
+                    )
+                    dismiss()
+                } label: {
+                    Text(optionLabel(index, layer: layer))
+                        .studioText(.labelBold)
+                        .foregroundStyle(index == selectedIndex ? StudioTheme.background : StudioTheme.text)
+                        .frame(maxWidth: .infinity, minHeight: 52)
+                        .background(index == selectedIndex ? accent : StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                                .stroke(index == selectedIndex ? accent : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+                        )
+                        .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("\(layer.name) \(optionLabel(index, layer: layer))")
+            }
+        }
+    }
+
+    private func selectedIndex(
+        phrase: PhraseModel,
+        track: StepSequenceTrack,
+        layer: PhraseLayerDefinition
+    ) -> Int? {
+        guard case let .index(index) = phrase.resolvedValue(
+            for: layer,
+            trackID: track.id,
+            stepIndex: 0
+        ).normalized(for: layer) else {
+            return nil
+        }
+        return index
+    }
+
+    private func optionIndices(for layer: PhraseLayerDefinition) -> [Int] {
+        let lower = Int(layer.minValue.rounded(.up))
+        let upper = Int(layer.maxValue.rounded(.down))
+        guard lower <= upper else { return [] }
+        return Array(lower...upper)
+    }
+
+    private func optionLabel(_ index: Int, layer: PhraseLayerDefinition) -> String {
+        layer.valueType == .patternIndex ? "P\(index + 1)" : "\(index)"
+    }
+}
+
 struct SongWorkspaceView: View {
     let onOpenPhrase: () -> Void
     @Environment(SequencerDocumentSession.self) private var session
@@ -2200,17 +2363,11 @@ struct SongWorkspaceView: View {
                         .frame(width: phraseColumnWidth, height: 52)
 
                     ForEach(tracks, id: \.id) { track in
-                        Button {
-                            session.setSelectedTrackID(track.id)
-                        } label: {
-                            PhraseMatrixTrackHeaderCell(
-                                track: track,
-                                isSelected: selectedTrackID == track.id,
-                                accent: accent
-                            )
-                        }
-                        .buttonStyle(.plain)
-                        .frame(width: trackColumnWidth)
+                        phraseGridTrackHeaderButton(
+                            track: track,
+                            isSelected: selectedTrackID == track.id,
+                            width: trackColumnWidth
+                        )
                     }
                 }
 
@@ -2242,6 +2399,7 @@ struct SongWorkspaceView: View {
                         .frame(width: phraseColumnWidth)
 
                         ForEach(tracks, id: \.id) { track in
+                            let trackAccent = StudioTheme.trackAccent(for: track, groups: session.store.trackGroups)
                             Group {
                                 if let activeLayer {
                                     PhraseGridCell(
@@ -2251,6 +2409,7 @@ struct SongWorkspaceView: View {
                                         track: track,
                                         isSelected: phrase.id == selectedPhraseID && track.id == selectedTrackID,
                                         accent: accent,
+                                        trackAccent: trackAccent,
                                         inherited: inherited,
                                         showsTrackName: false
                                     )
@@ -2275,6 +2434,25 @@ struct SongWorkspaceView: View {
         .scrollIndicators(.never)
         .frame(minHeight: 280)
         .accessibilityIdentifier("song-phrase-grid")
+    }
+
+    private func phraseGridTrackHeaderButton(
+        track: StepSequenceTrack,
+        isSelected: Bool,
+        width: CGFloat
+    ) -> some View {
+        Button {
+            session.setSelectedTrackID(track.id)
+        } label: {
+            PhraseMatrixTrackHeaderCell(
+                track: track,
+                isSelected: isSelected,
+                accent: StudioTheme.trackAccent(for: track, groups: session.store.trackGroups)
+            )
+        }
+        .buttonStyle(.plain)
+        .frame(width: width)
+        .contentShape(Rectangle())
     }
 
     private func songActionButton(
@@ -2542,13 +2720,12 @@ private struct PhraseMatrixTrackHeaderCell: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 10)
         .padding(.vertical, 10)
-        // Colour identifies, it never floods (ux-canon rule 12): outline-only
-        // header cell — drawn border-grey line when idle, solid accent line
-        // when selected, body on the neutral step.
+        // Colour identifies track identity only: selection may add neutral
+        // weight, but it must not change the track border hue.
         .background((isSelected ? StudioTheme.subtleFill : Color.clear), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                .stroke(isSelected ? accent : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+                .stroke(accent.opacity(StudioOpacity.mediumStroke), lineWidth: StudioMetrics.borderWidth)
         )
     }
 }
@@ -2805,6 +2982,7 @@ private struct PhraseGridCell: View {
     let track: StepSequenceTrack
     let isSelected: Bool
     let accent: Color
+    let trackAccent: Color
     var inherited: PhraseInheritedDefaults.Resolved?
     var onSelectPatternSlot: ((Int) -> Void)?
     // By Track has no header row, so each cell carries the track name. The Song
@@ -2844,11 +3022,12 @@ private struct PhraseGridCell: View {
         // Bold-flat pass: no container fill — the value preview is the block,
         // and the container border is always visible so every matrix cell has
         // the same readable boundary.
+        .background((isSelected ? StudioTheme.subtleFill : Color.clear), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
                 .stroke(
-                    isSelected ? accent : StudioTheme.border,
-                    lineWidth: isSelected ? 2 : StudioMetrics.borderWidth
+                    trackAccent.opacity(StudioOpacity.mediumStroke),
+                    lineWidth: StudioMetrics.borderWidth
                 )
         )
         .help(isInherited ? "Follows the layer default. Click to set its own value; shift-click to push a value into this and the following phrases." : "")
@@ -2860,7 +3039,7 @@ private struct PhraseGridCell: View {
             PatternIndexCellPreview(
                 layer: layer,
                 resolvedValue: resolvedValue,
-                accent: accent,
+                accent: trackAccent,
                 summary: valueLabel(resolvedValue, layer: layer),
                 isMixed: false,
                 metrics: .matrix,
@@ -2871,7 +3050,7 @@ private struct PhraseGridCell: View {
                 layer: layer,
                 cell: cell,
                 resolvedValue: resolvedValue,
-                accent: accent,
+                accent: layer.valueType == .boolean ? trackAccent : accent,
                 summary: valueLabel(resolvedValue, layer: layer),
                 metrics: .matrix
             )
@@ -2901,6 +3080,7 @@ private struct PhrasePerformancePlaceholderCell: View {
     let track: StepSequenceTrack
     let isSelected: Bool
     let accent: Color
+    let trackAccent: Color
 
     private var detail: String {
         switch selection.mode {
@@ -2937,7 +3117,7 @@ private struct PhrasePerformancePlaceholderCell: View {
         .background((isSelected ? StudioTheme.subtleFill : Color.clear), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                .stroke(isSelected ? accent : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+                .stroke(trackAccent.opacity(StudioOpacity.mediumStroke), lineWidth: StudioMetrics.borderWidth)
         )
         .accessibilityLabel("\(phrase.name), \(track.name), \(selection.activeLabel), selection only")
     }

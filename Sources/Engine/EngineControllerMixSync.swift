@@ -397,6 +397,7 @@ extension EngineController {
     /// (no A/B selection resolvable) means every membership plays at unity.
     private func sceneMembershipCrossfader(for documentModel: Project) -> Double? {
         masterBusPerformanceOverlay.crossfaderOverride
+            ?? masterBusPerformanceOverlay.abSelectionOverride?.crossfader
             ?? documentModel.masterBus.abSelection?.crossfader
     }
 

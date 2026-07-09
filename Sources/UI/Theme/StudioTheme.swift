@@ -42,16 +42,39 @@ enum StudioTheme {
     static let phraseAccent = cyan
     static let neutral = border
     static let warning = amber
+    static let patternPalette: [Color] = [
+        Color(red: 0.00, green: 0.80, blue: 1.00),
+        Color(red: 1.00, green: 0.53, blue: 0.22),
+        Color(red: 0.63, green: 0.53, blue: 1.00),
+        Color(red: 0.30, green: 0.92, blue: 0.52),
+        Color(red: 1.00, green: 0.32, blue: 0.34),
+        Color(red: 0.95, green: 0.82, blue: 0.28),
+        Color(red: 0.23, green: 0.66, blue: 1.00),
+        Color(red: 0.91, green: 0.42, blue: 0.78),
+        Color(red: 0.44, green: 0.86, blue: 0.74),
+        Color(red: 0.74, green: 0.62, blue: 1.00),
+        Color(red: 1.00, green: 0.67, blue: 0.45),
+        Color(red: 0.58, green: 0.78, blue: 1.00),
+        Color(red: 0.80, green: 0.94, blue: 0.36),
+        Color(red: 1.00, green: 0.48, blue: 0.58),
+        Color(red: 0.36, green: 0.72, blue: 0.54),
+        Color(red: 0.78, green: 0.78, blue: 0.92),
+    ]
+
+    static func patternColor(_ index: Int) -> Color {
+        let count = max(patternPalette.count, 1)
+        let wrapped = ((index % count) + count) % count
+        return patternPalette[wrapped]
+    }
 
     /// Bold-flat pass: panels and the stage share the single ground.
     static let panelFill = panel
     static let stageFill = background
 
-    /// Opaque equivalents of the old translucent white fills. These preserve
-    /// the intended single grey step on the near-black ground without allowing
-    /// nested controls to compound brighter through alpha compositing.
-    static let disabledSubtleFill = solidWhiteOverlay(0.015)
-    static let subtleFill = solidWhiteOverlay(StudioOpacity.subtleFill)
+    /// Shared container/control backing. Keep the common shell black so
+    /// structure reads from outlines, spacing, and accents instead of grey slabs.
+    static let disabledSubtleFill = background
+    static let subtleFill = background
     static let borderSubtleFill = solidWhiteOverlay(StudioOpacity.borderSubtle)
     static let borderFaintFill = solidWhiteOverlay(StudioOpacity.borderFaint)
     static let mutedFill = solidWhiteOverlay(StudioOpacity.mutedFill)

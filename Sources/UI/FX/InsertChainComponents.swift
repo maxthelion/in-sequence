@@ -22,8 +22,8 @@ import SwiftUI
 ///   - `nameField`: scenes makes the name an editable `TextField`; track + kit
 ///     show static text. When `nameBinding` is nil the row renders static text.
 ///   - `showsSelection`: the track chain has no selectable rows, so its stroke
-///     is always the neutral border; kit + scenes show a cyan stroke when
-///     selected.
+///     is always the neutral border when disabled; selected rows use the
+///     owning surface accent.
 struct InsertChainRow: View {
     let title: String
     let subtitle: String
@@ -139,13 +139,14 @@ struct InsertChainRow: View {
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
                 .stroke(strokeColor, lineWidth: StudioMetrics.borderWidth)
         )
+        .frame(minHeight: 56)
         .opacity(isBypassed ? 0.55 : 1)
         .modifier(SelectableRowModifier(isEnabled: showsSelection, onSelect: onSelect))
     }
 
     private var strokeColor: Color {
         if showsSelection, isSelected {
-            return StudioTheme.transportAccent
+            return accent
         }
         return StudioTheme.border
     }

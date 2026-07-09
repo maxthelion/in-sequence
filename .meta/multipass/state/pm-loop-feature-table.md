@@ -20,7 +20,7 @@
 | Phrase Features | Expand phrase-level arrangement/performance capabilities. | PM handoff consumed by the 2026-06-05T01:29Z project promotion; active build loop `build/phrase-features` owns implementation on branch `auto/roadmap-10-phrase-features` in `.worktrees/roadmap-10-phrase-features`. |
 | Song Mode And Phrase Looping | Support song-mode structure and phrase looping behavior. | Complete and contained in `main`; PM and build loops consumed/terminal, with transient terminal PM cadence residue emitted during repair. |
 | Drum Parts As A Group | Treat drum-kit parts as coordinated group material with shared pattern/step relationships. | Complete and locally integrated on `main` at `472583cf1fed30a085a19ead5fa5d581de12ffc7`; PM and build loops consumed/terminal, with historical blocked residue only. |
-| Autoslice Algorithm | Improve automatic slicing of audio into musically useful regions. | Inventory / architecture stage; not ready for build. |
+| Autoslice Algorithm | Improve automatic slicing of audio into musically useful regions. | Phase 0 complete and locally merged on `main`; PM handoff consumed by `build/autoslice-algorithm`. Future slicer UI/audition integration needs fresh scope. |
 | Audio Looping | Support audio looping workflows. | Locked PM loop on product-owner scope choice: one loop-capable Input Audio track now, or wait for plural/shared input looping. |
 | Note Repeat | Add note-repeat performance/editing behavior. | Inventory / architecture stage; not ready for build. |
 | Step Order | Allow alternate or controllable step playback order. | Inventory / architecture stage; not ready for build. |
@@ -33,3 +33,5 @@
 | Phrase Cells | Isolate phrase-cell behavior and UX as its own area. | Deferred until reactivated. |
 | Track Perform Multi-Select And Latch | Add multi-select/latch behavior to track performance controls. | Complete and contained in `main`; PM and build loops terminal. |
 | Selective Scene Inputs | Let master scenes include/exclude selected source inputs. | Deferred; separated from v1 mixer/main-out scope. |
+| July 4 Phrase Layers / Global Apply | Repair the July 4 owner-feedback cluster for phrase layer matrix borders, in-place layer selector replacement, Global Apply cell heights, and compact All/Clear controls. | Active PM lane `pm/july-4-phrase-layers-global-apply`; not builder-ready until PM artifact authoring produces a handoff or lock. |
+| Track Setup Surface Compression | Compress track setup headers and clip-header controls while improving slicer/sample-player visual economy for bug-intake G7 plus the fresh capture-backed clip-header report. | Active PM lane `pm/track-setup-surface-compression`; initial artifact-author request routed, not builder-ready and not promoted to a build loop. |

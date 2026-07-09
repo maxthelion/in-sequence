@@ -1,0 +1,26 @@
+id: build/track-setup-surface-compression
+kind: build
+status: complete
+feature: track-setup-surface-compression
+worktree: .worktrees/track-setup-surface-compression
+branch: feature/track-setup-surface-compression
+actors:
+  orient:
+    - actor: build-orienter
+  decide:
+    - actor: build-decider
+  act:
+    - actor: builder
+      cadence: on_inbox
+  observe:
+    - actor: architecture-review
+      cadence: on_inbox
+    - actor: testing-review
+      cadence: on_inbox
+gates:
+  - id: architecture
+    actor: architecture-review
+    checklist: architecture
+  - id: testing
+    actor: testing-review
+    checklist: testing

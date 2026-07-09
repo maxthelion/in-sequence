@@ -545,6 +545,9 @@ final class EngineController: RouterDispatcher {
     @ObservationIgnored
     private var macroLayerDefaultOverrides: [UUID: [UUID: Double]] = [:]
 
+    @ObservationIgnored
+    private var phraseSceneSelectionOverride: MasterBusABSelection?
+
     private(set) var currentPhraseID: UUID?
     private(set) var queuedPhraseID: UUID?
     private(set) var basisPhraseID: UUID?
@@ -877,16 +880,44 @@ final class EngineController: RouterDispatcher {
     }
 
     private func applyPhraseSceneState(phraseID: UUID?, snapshot: PlaybackSnapshot) {
-        guard let phraseID else { return }
-        var masterBus = currentDocumentModel.masterBus
+        guard let phraseID else {
+            installPhraseSceneSelectionOverrideIfNeeded(nil)
+            return
+        }
+        let selection: MasterBusABSelection?
         if let sceneState = snapshot.phraseBuffer(for: phraseID)?.sceneState {
-            masterBus.setABSelection(MasterBusABSelection(
+            selection = MasterBusABSelection(
                 sceneAID: sceneState.sceneAID,
                 sceneBID: sceneState.sceneBID,
                 crossfader: sceneState.crossfader
-            ))
+            )
+        } else {
+            selection = nil
         }
-        applyMasterBusIfChanged(masterBus)
+        installPhraseSceneSelectionOverrideIfNeeded(selection)
+    }
+
+    private func installPhraseSceneSelectionOverrideIfNeeded(_ selection: MasterBusABSelection?) {
+        let normalized = selection?.normalized()
+        let shouldPublish = withStateLock {
+            guard phraseSceneSelectionOverride != normalized else { return false }
+            phraseSceneSelectionOverride = normalized
+            return true
+        }
+        guard shouldPublish else { return }
+
+        publishToMain { [weak self] in
+            guard let self else { return }
+            guard self.withStateLock({ self.phraseSceneSelectionOverride == normalized }) else { return }
+            self.applyPhraseSceneSelectionOverlay(normalized)
+        }
+    }
+
+    private func applyPhraseSceneSelectionOverlay(_ selection: MasterBusABSelection?) {
+        masterBusPerformanceOverlay.abSelectionOverride = selection
+        masterBusPerformanceOverlay = masterBusPerformanceOverlay.normalized(for: currentDocumentModel.masterBus)
+        masterBusHost.setPerformanceOverlay(masterBusPerformanceOverlay)
+        refreshSceneMembershipGainsForCurrentDocument()
     }
 
     private func initializePhraseNavigationForPlaybackStart(snapshot: PlaybackSnapshot, cycleStartTick: UInt64) {
@@ -1982,6 +2013,7 @@ final class EngineController: RouterDispatcher {
 
     var effectiveCrossfader: Double {
         masterBusPerformanceOverlay.crossfaderOverride
+            ?? masterBusPerformanceOverlay.abSelectionOverride?.crossfader
             ?? currentDocumentModel.masterBus.abSelection?.crossfader
             ?? 0
     }
@@ -2035,6 +2067,9 @@ final class EngineController: RouterDispatcher {
 
     func clearMasterBusPerformanceOverlay() {
         masterBusPerformanceOverlay.clearAll()
+        withStateLock {
+            phraseSceneSelectionOverride = nil
+        }
         masterBusHost.clearPerformanceOverlay()
     }
 
@@ -2064,6 +2099,30 @@ final class EngineController: RouterDispatcher {
 
     func masterAUEffectParameterReadout(insertID: UUID) -> [AUParameterDescriptor]? {
         masterBusHost.auEffectParameterReadout(insertID: insertID)
+    }
+
+    func prepareTrackAUEffect(trackID: UUID, insertID: UUID) {
+        mainAudioGraph.prepareTrackAUEffect(trackID: trackID, insertID: insertID)
+    }
+
+    func currentTrackAUEffect(trackID: UUID, insertID: UUID) -> AVAudioUnit? {
+        mainAudioGraph.currentTrackAUEffect(trackID: trackID, insertID: insertID)
+    }
+
+    func trackAUEffectParameterReadout(trackID: UUID, insertID: UUID) -> [AUParameterDescriptor]? {
+        mainAudioGraph.trackAUEffectParameterReadout(trackID: trackID, insertID: insertID)
+    }
+
+    func prepareMixerBusAUEffect(busID: UUID, insertID: UUID) {
+        mainAudioGraph.prepareMixerBusAUEffect(busID: busID, insertID: insertID)
+    }
+
+    func currentMixerBusAUEffect(busID: UUID, insertID: UUID) -> AVAudioUnit? {
+        mainAudioGraph.currentMixerBusAUEffect(busID: busID, insertID: insertID)
+    }
+
+    func mixerBusAUEffectParameterReadout(busID: UUID, insertID: UUID) -> [AUParameterDescriptor]? {
+        mainAudioGraph.mixerBusAUEffectParameterReadout(busID: busID, insertID: insertID)
     }
 
     var availableAudioInstruments: [AudioInstrumentChoice] {
@@ -3692,14 +3751,19 @@ final class EngineController: RouterDispatcher {
             guard let generator = playbackSnapshot.generatorEntry(id: generatorID) else {
                 return []
             }
-            let sourceNotes = GeneratedSourceEvaluator.evaluateSourceStep(
+            let sourceNotes = GeneratedSourceEvaluator.evaluateStep(
                 for: generator.params,
                 stepIndex: resolved.sourceStepIndex,
                 clipChoices: playbackSnapshot.clipPool,
+                chordContext: chordContext,
+                state: &state,
+                stateScope: .generatorSource(slotIndex: effectiveSlotIndex, generatorID: generatorID),
                 rng: &rng
             )
 
             guard !modifierBypassed,
+                  modifierGeneratorID != generatorID,
+                  let modifierGeneratorID,
                   let processor = playbackSnapshot.generatorEntry(id: modifierGeneratorID)
             else {
                 return applyingGeneratorDensity(
@@ -3719,6 +3783,7 @@ final class EngineController: RouterDispatcher {
                 clipChoices: playbackSnapshot.clipPool,
                 chordContext: chordContext,
                 state: &state,
+                stateScope: .generatorModifier(slotIndex: effectiveSlotIndex, generatorID: modifierGeneratorID),
                 rng: &rng
             )
             return applyingGeneratorDensity(
@@ -3734,6 +3799,7 @@ final class EngineController: RouterDispatcher {
             guard let clip = playbackSnapshot.clipEntry(id: clipID) else {
                 return []
             }
+            let chordPalette = playbackSnapshot.tracks.first(where: { $0.id == trackID })?.chordPalette
 
             let effectiveFillEnabled = quantisedFillFlagOverrides[trackID]
                 ?? (resolved.fillEnabled
@@ -3743,10 +3809,12 @@ final class EngineController: RouterDispatcher {
                 for: clip,
                 stepIndex: resolved.sourceStepIndex,
                 fillEnabled: effectiveFillEnabled,
+                chordPalette: chordPalette,
                 rng: &rng
             )
 
             guard !modifierBypassed,
+                  let modifierGeneratorID,
                   let processor = playbackSnapshot.generatorEntry(id: modifierGeneratorID)
             else {
                 return applyingClipDensity(
@@ -3766,6 +3834,7 @@ final class EngineController: RouterDispatcher {
                 clipChoices: playbackSnapshot.clipPool,
                 chordContext: chordContext,
                 state: &state,
+                stateScope: .generatorModifier(slotIndex: effectiveSlotIndex, generatorID: modifierGeneratorID),
                 rng: &rng
             )
             return applyingClipDensity(
@@ -3858,6 +3927,7 @@ final class EngineController: RouterDispatcher {
             for: clip,
             stepIndex: stepIndex,
             fillEnabled: false,
+            chordPalette: nil,
             rng: &rng
         )
     }
@@ -4026,6 +4096,9 @@ final class EngineController: RouterDispatcher {
         let normalizedOverlay = masterBusPerformanceOverlay.normalized(for: masterBus)
         if normalizedOverlay != masterBusPerformanceOverlay {
             masterBusPerformanceOverlay = normalizedOverlay
+        }
+        withStateLock {
+            phraseSceneSelectionOverride = normalizedOverlay.abSelectionOverride
         }
     }
 

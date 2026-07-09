@@ -1,0 +1,26 @@
+id: build/track-phrase-perform-mini-cells
+kind: build
+status: complete
+feature: track-phrase-perform-mini-cells
+worktree: .worktrees/track-phrase-perform-mini-cells
+branch: feature/track-phrase-perform-mini-cells
+actors:
+  orient:
+    - actor: build-orienter
+  decide:
+    - actor: build-decider
+  act:
+    - actor: builder
+      cadence: on_inbox
+  observe:
+    - actor: architecture-review
+      cadence: on_inbox
+    - actor: testing-review
+      cadence: on_inbox
+gates:
+  - id: architecture
+    actor: architecture-review
+    checklist: architecture
+  - id: testing
+    actor: testing-review
+    checklist: testing

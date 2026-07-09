@@ -167,25 +167,75 @@ struct GeneratedSourcePipeline: Codable, Equatable, Hashable, Sendable {
     }
 }
 
+enum GeneratedSourceEvaluationScope: Hashable, Sendable {
+    case primary
+    case generatorSource(slotIndex: Int, generatorID: UUID)
+    case generatorModifier(slotIndex: Int, generatorID: UUID)
+}
+
 struct GeneratedSourceEvaluationState: Equatable, Sendable {
     var lastPitchesByLane: [Int?]
+    var scopedLastPitchesByLane: [GeneratedSourceEvaluationScope: [Int?]]
 
-    init(lastPitchesByLane: [Int?] = []) {
+    init(
+        lastPitchesByLane: [Int?] = [],
+        scopedLastPitchesByLane: [GeneratedSourceEvaluationScope: [Int?]] = [:]
+    ) {
         self.lastPitchesByLane = lastPitchesByLane
+        self.scopedLastPitchesByLane = scopedLastPitchesByLane
     }
 
     mutating func lastPitch(for laneIndex: Int) -> Int? {
-        if !lastPitchesByLane.indices.contains(laneIndex) {
-            lastPitchesByLane.append(contentsOf: Array(repeating: nil, count: laneIndex - lastPitchesByLane.count + 1))
-        }
+        expand(&lastPitchesByLane, through: laneIndex)
         return lastPitchesByLane[laneIndex]
     }
 
     mutating func setLastPitch(_ pitch: Int?, for laneIndex: Int) {
-        if !lastPitchesByLane.indices.contains(laneIndex) {
-            lastPitchesByLane.append(contentsOf: Array(repeating: nil, count: laneIndex - lastPitchesByLane.count + 1))
-        }
+        expand(&lastPitchesByLane, through: laneIndex)
         lastPitchesByLane[laneIndex] = pitch
+    }
+
+    mutating func lastPitch(for laneIndex: Int, scope: GeneratedSourceEvaluationScope) -> Int? {
+        guard scope != .primary else {
+            return lastPitch(for: laneIndex)
+        }
+        var lanes = scopedLastPitchesByLane[scope] ?? fallbackLanes(for: scope)
+        expand(&lanes, through: laneIndex)
+        scopedLastPitchesByLane[scope] = lanes
+        return lanes[laneIndex]
+    }
+
+    mutating func setLastPitch(
+        _ pitch: Int?,
+        for laneIndex: Int,
+        scope: GeneratedSourceEvaluationScope
+    ) {
+        guard scope != .primary else {
+            setLastPitch(pitch, for: laneIndex)
+            return
+        }
+        var lanes = scopedLastPitchesByLane[scope] ?? []
+        expand(&lanes, through: laneIndex)
+        lanes[laneIndex] = pitch
+        scopedLastPitchesByLane[scope] = lanes
+        if case .generatorSource = scope {
+            setLastPitch(pitch, for: laneIndex)
+        }
+    }
+
+    private func fallbackLanes(for scope: GeneratedSourceEvaluationScope) -> [Int?] {
+        switch scope {
+        case .primary, .generatorSource:
+            return lastPitchesByLane
+        case .generatorModifier:
+            return []
+        }
+    }
+
+    private func expand(_ lanes: inout [Int?], through laneIndex: Int) {
+        if !lanes.indices.contains(laneIndex) {
+            lanes.append(contentsOf: Array(repeating: nil, count: laneIndex - lanes.count + 1))
+        }
     }
 }
 

@@ -1,0 +1,68 @@
+id: pm/july-4-phrase-layers-global-apply
+kind: pm
+status: active
+feature: july-4-phrase-layers-global-apply
+source_intent:
+  - docs/roadmap/july-4-ui-feedback-batch/README.md
+  - docs/bugs/20260704-080905-each-cell-should-have-a-border-it-s-not
+  - docs/bugs/20260704-081015-each-cell-should-have-a-border-i-think-d
+  - docs/bugs/20260704-081150-the-track-cells-matrix-should-disappear
+  - docs/bugs/20260704-081215-cells-should-be-the-same-height
+  - docs/bugs/20260704-081347-all-and-clear-should-be-reduced-height-t
+runtime:
+  root: .meta/multipass/runtime/loops/pm/july-4-phrase-layers-global-apply
+  activity: activity.ndjson
+artifacts:
+  durable_summary: .meta/multipass/state/pm-loops/july-4-phrase-layers-global-apply.md
+  product_docs: docs/roadmap/july-4-ui-feedback-batch
+work:
+  branch: main
+  worktree: .
+phases:
+  observe: observe
+  orient: orient
+  decide: decide
+  act: act
+  evidence: evidence
+freshness:
+  output_state: PM lane setup for the July 4 Phrase Layers / Global Apply owner-feedback cluster, not product implementation.
+  stale_when:
+    - docs/roadmap/july-4-ui-feedback-batch/README.md changes.
+    - linked July 4 phrase/global-apply bug reports receive resolution evidence.
+    - active build-loop evidence already consumes this exact cluster.
+
+actors:
+  observe:
+    - actor: pm-readiness-observer
+      cadence: 2h
+      prompt: project/actors/pm-readiness-observer/prompt.md
+      actions: project/actors/pm-readiness-observer/actions.yaml
+      tick: >
+        Observe July 4 Phrase Layers / Global Apply PM artifact readiness.
+        Record existing artifacts, missing readiness gates, product-owner
+        decision needs, and whether the lane is ready for promotion. Do not
+        write inbox requests or modify roadmap artifacts.
+  orient:
+    - actor: pm-orienter
+      cadence: 30m
+      prompt: project/actors/pm-orienter/prompt.md
+      actions: project/actors/pm-orienter/actions.yaml
+      tick: >
+        Interpret July 4 Phrase Layers / Global Apply observations against
+        current feature-readiness evidence and the July 4 feedback batch.
+        Identify the next PM artifact gap or lock. Do not schedule work.
+  decide:
+    - actor: pm-decider
+      cadence: 30m
+      prompt: project/actors/pm-decider/prompt.md
+      actions: project/actors/pm-decider/actions.yaml
+      tick: >
+        Decide one bounded PM-loop action for July 4 Phrase Layers / Global
+        Apply from the latest PM orientation. Route only PM artifact work or a
+        loop-local lock; do not promote a build loop.
+  act:
+    - actor: pm-artifact-author
+      cadence: on_inbox
+      prompt: project/actors/pm-artifact-author/prompt.md
+      actions: project/actors/pm-artifact-author/actions.yaml
+      resource_keys: mutate:pm:july-4-phrase-layers-global-apply

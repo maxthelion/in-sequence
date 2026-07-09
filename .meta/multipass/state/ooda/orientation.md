@@ -1,13 +1,352 @@
 ---
-updated: 2026-06-16T13:23Z
+updated: 2026-07-07T08:17Z
 phase: orient
 status: current
-source_request: .meta/multipass/runtime/inbox/claimed/2026-06-16T130133892Z-orienter-cadence.md
-loop_local_copy: .meta/multipass/runtime/loops/project/orient/2026-06-16T13-23Z-project-orientation.md
+source_request: .meta/multipass/runtime/inbox/claimed/2026-07-07T081312429Z-decider-cadence.md
+loop_local_copy: .meta/multipass/runtime/loops/project/decide/2026-07-07T08-17Z-no-duplicate-active-builds-full.md
 scope: project-cadence
 ---
 
 # Project Orientation
+
+## 2026-07-07T08:17Z Decider Cadence Snapshot
+
+Current read: hold the no-duplicate posture. Fresh live capacity agrees with
+the prior orientation: both ordinary build slots are occupied, no ready or
+unpromoted ready feature candidate exists, and the next useful implementation
+action is already pending.
+
+Live `build-capacity.ts` reports `2` configured ordinary build slots, `2`
+active ordinary build loops, `0` available ordinary slots, ready candidates
+`none`, and unpromoted ready candidates `none`.
+
+Active ordinary build WIP:
+
+- `build/drum-kit-matrix-sound-implementation`: consumed the accepted drum-kit
+  matrix sound implementation PM handoff and has the next builder request
+  already pending at
+  `.meta/multipass/runtime/inbox/pending/2026-07-07T074400550Z-builder.md`.
+- `build/au-runtime-safety`: deterministic checkpoint evidence exists for the
+  AU preset command path, but full owner-bug closure is still held on
+  human-present third-party AU validation or explicit acceptance of that manual
+  evidence gap.
+
+Locked build loops outside ordinary capacity remain scoped and should not be
+advanced autonomously: `build/observability-log-issues` is held for scope
+correction, and `build/midi-interfaces` is held for Launchpad Mini MK3 hardware
+acceptance.
+
+Bug intake does not create a higher-priority routing override. Database-backed
+open bugs currently list one capture-backed clip-header visual-economy report,
+`bug_20260706103305_move-lane-length-layer-chooser-randomize-and`, with QA row
+`18-track-detail-steps-clip`. It should remain behind active capacity rather
+than duplicating build work.
+
+Decision consequence: do not create a duplicate builder, review, PM promotion,
+process-repair, integration, or product-owner question from this cadence. Let
+the already-pending drum-kit builder request consume the next useful project
+action; revisit project-level routing after a build slot opens, the AU
+validation lock resolves, or fresh observer evidence changes
+capacity/readiness.
+
+No product-owner attention is needed from this cadence beyond the existing
+human locks named above.
+
+## 2026-07-07T07:28Z Decider Cadence Snapshot
+
+Current read: hold the no-duplicate posture. The fresh capacity and bug-intake
+checks still support the prior orientation: both ordinary build slots are full,
+no ready/unpromoted build candidate exists, and the useful implementation
+request is already pending.
+
+Live `build-capacity.ts` reports `2` configured ordinary build slots, `2`
+active ordinary build loops, `0` available ordinary slots, ready candidates
+`none`, and unpromoted ready candidates `none`.
+
+Active ordinary build WIP:
+
+- `build/drum-kit-matrix-sound-implementation`: consumed the accepted drum-kit
+  matrix sound implementation PM handoff and has the initial builder request
+  already pending at
+  `.meta/multipass/runtime/inbox/pending/2026-07-06T210344696Z-drum-kit-matrix-sound-implementation-builder.md`.
+- `build/au-runtime-safety`: deterministic checkpoint evidence exists for the
+  AU preset command path, but full owner-bug closure is still held on
+  human-present third-party AU validation or explicit acceptance of that manual
+  evidence gap.
+
+Locked build loops outside ordinary capacity remain scoped and should not be
+advanced autonomously: `build/observability-log-issues` is held for scope
+correction, and `build/midi-interfaces` is held for Launchpad Mini MK3 hardware
+acceptance.
+
+Bug intake does not create a higher-priority routing override. Database-backed
+open bugs currently list three capture-backed UI polish reports: two
+clip-header visual-economy/consolidation reports and one mixer
+channel-emphasis/color-border report. They should remain behind active capacity
+rather than duplicating build work.
+
+Decision consequence: do not create a duplicate builder, review, PM promotion,
+process-repair, integration, or product-owner question from this cadence. Let
+the already-pending drum-kit builder request consume the next useful project
+action; revisit project-level routing after a build slot opens, the AU
+validation lock resolves, or fresh observer evidence changes
+capacity/readiness.
+
+No product-owner attention is needed from this cadence beyond the existing
+human locks named above.
+
+## 2026-07-07T06:28Z Decider Cadence Snapshot
+
+Current read: hold the no-duplicate posture. The fresh capacity and bug-intake
+checks do not change the prior orientation: both ordinary build slots are full,
+no ready/unpromoted build candidate exists, and the useful implementation
+request is already pending.
+
+Live `build-capacity.ts` reports `2` configured ordinary build slots, `2`
+active ordinary build loops, `0` available ordinary slots, ready candidates
+`none`, and unpromoted ready candidates `none`.
+
+Active ordinary build WIP:
+
+- `build/drum-kit-matrix-sound-implementation`: consumed the accepted drum-kit
+  matrix sound implementation PM handoff and has the initial builder request
+  already pending at
+  `.meta/multipass/runtime/inbox/pending/2026-07-06T210344696Z-drum-kit-matrix-sound-implementation-builder.md`.
+- `build/au-runtime-safety`: deterministic checkpoint evidence exists for the
+  AU preset command path, but full owner-bug closure is still held on
+  human-present third-party AU validation or explicit acceptance of that manual
+  evidence gap.
+
+Locked build loops outside ordinary capacity remain scoped and should not be
+advanced autonomously: `build/observability-log-issues` is held for scope
+correction, and `build/midi-interfaces` is held for Launchpad Mini MK3 hardware
+acceptance.
+
+Bug intake does not create a higher-priority routing override. Database-backed
+open bugs currently list three capture-backed UI polish reports: two clip-header
+visual-economy/consolidation reports and one mixer channel-emphasis report.
+They should remain behind active capacity rather than duplicating build work.
+
+Decision consequence: do not create a duplicate builder, review, PM promotion,
+process-repair, integration, or product-owner question from this cadence. Let
+the already-pending drum-kit builder request consume the next useful project
+action; revisit project-level routing after a build slot opens, the AU
+validation lock resolves, or fresh observer evidence changes
+capacity/readiness.
+
+No product-owner attention is needed from this cadence beyond the existing
+human locks named above.
+
+## 2026-07-07T06:13Z Decider Cadence Snapshot
+
+Current read: hold the no-duplicate posture. The fresh capacity check reports
+both ordinary build slots occupied, no ready/unpromoted candidates, and one
+useful implementation request already pending.
+
+Live `build-capacity.ts` reports `2` configured ordinary build slots, `2`
+active ordinary build loops, `0` available ordinary slots, ready candidates
+`none`, and unpromoted ready candidates `none`.
+
+Active ordinary build WIP:
+
+- `build/drum-kit-matrix-sound-implementation`: consumed the accepted drum-kit
+  matrix sound implementation PM handoff and has the initial builder request
+  already pending at
+  `.meta/multipass/runtime/inbox/pending/2026-07-06T210344696Z-drum-kit-matrix-sound-implementation-builder.md`.
+- `build/au-runtime-safety`: deterministic checkpoint evidence exists for the
+  AU preset command path, but full owner-bug closure is still held on
+  human-present third-party AU validation or explicit acceptance of that manual
+  evidence gap.
+
+Locked build loops outside ordinary capacity remain scoped and should not be
+advanced autonomously: `build/observability-log-issues` is held for scope
+correction, and `build/midi-interfaces` is held for Launchpad Mini MK3 hardware
+acceptance.
+
+PM supply is not promotable right now. The drum-kit implementation PM handoff
+has already been consumed; other active PM registry rows remain stale,
+superseded, already consumed, or human-locked rather than spare builder-ready
+supply.
+
+Decision consequence: do not create a duplicate builder, review, PM promotion,
+process-repair, integration, or product-owner question from this cadence. Let
+the already-pending drum-kit builder request consume the next useful project
+action; revisit project-level routing after a build slot opens, the AU
+validation lock resolves, or fresh observer evidence changes capacity/readiness.
+
+No product-owner attention is needed from this cadence beyond the existing
+human locks named above.
+
+## 2026-07-07T04:26Z Decider Cadence Snapshot
+
+Current read: hold the no-duplicate posture. The fresh capacity check still
+shows both ordinary build slots occupied, no ready/unpromoted candidates, and
+one useful implementation request already pending.
+
+Live `build-capacity.ts` reports `2` configured ordinary build slots, `2`
+active ordinary build loops, `0` available ordinary slots, ready candidates
+`none`, and unpromoted ready candidates `none`.
+
+Active ordinary build WIP:
+
+- `build/drum-kit-matrix-sound-implementation`: consumed the accepted drum-kit
+  matrix sound implementation PM handoff and has the initial builder request
+  already pending at
+  `.meta/multipass/runtime/inbox/pending/2026-07-06T210344696Z-drum-kit-matrix-sound-implementation-builder.md`.
+- `build/au-runtime-safety`: deterministic checkpoint evidence exists for the
+  AU preset command path, but full owner-bug closure is still held on
+  human-present third-party AU validation or explicit acceptance of that manual
+  evidence gap.
+
+Locked build loops outside ordinary capacity remain scoped and should not be
+advanced autonomously: `build/observability-log-issues` is held for scope
+correction, and `build/midi-interfaces` is held for Launchpad Mini MK3 hardware
+acceptance.
+
+PM supply is not promotable right now. The drum-kit implementation PM handoff
+has already been consumed, older PM registry/current-state rows remain residue
+or human-locked rather than spare builder-ready supply, and live capacity
+reports no ready candidates.
+
+Decision consequence: do not create a duplicate builder, review, PM promotion,
+process-repair, integration, or product-owner question from this cadence. Let
+the already pending drum-kit builder request consume the next useful project
+action; revisit project-level routing after a build slot opens, the AU
+validation lock resolves, or fresh observer evidence changes
+capacity/readiness.
+
+No product-owner attention is needed from this cadence beyond the existing
+human locks named above.
+
+## 2026-07-07T03:31Z Decider Cadence Snapshot
+
+Current read: hold the no-duplicate posture. The fresh capacity check still
+shows both ordinary build slots occupied, no ready/unpromoted candidates, and
+one useful implementation request already pending.
+
+Live `build-capacity.ts` reports `2` configured ordinary build slots, `2`
+active ordinary build loops, `0` available ordinary slots, ready candidates
+`none`, and unpromoted ready candidates `none`.
+
+Active ordinary build WIP:
+
+- `build/drum-kit-matrix-sound-implementation`: consumed the accepted drum-kit
+  matrix sound implementation PM handoff and has the initial builder request
+  already pending at
+  `.meta/multipass/runtime/inbox/pending/2026-07-06T210344696Z-drum-kit-matrix-sound-implementation-builder.md`.
+- `build/au-runtime-safety`: deterministic checkpoint evidence exists for the
+  AU preset command path, but full owner-bug closure is still held on
+  human-present third-party AU validation or explicit acceptance of that manual
+  evidence gap.
+
+Locked build loops outside ordinary capacity remain scoped and should not be
+advanced autonomously: `build/observability-log-issues` is held for scope
+correction, and `build/midi-interfaces` is held for Launchpad Mini MK3 hardware
+acceptance.
+
+PM supply is not promotable right now. The drum-kit implementation PM handoff
+has already been consumed, older PM registry/current-state rows remain residue
+or human-locked rather than spare builder-ready supply, and live capacity
+reports no ready candidates.
+
+Decision consequence: do not create a duplicate builder, review, PM promotion,
+process-repair, integration, or product-owner question from this cadence. Let
+the already pending drum-kit builder request consume the next useful project
+action; revisit project-level routing after a build slot opens, the AU
+validation lock resolves, or fresh observer evidence changes capacity/readiness.
+
+No product-owner attention is needed from this cadence beyond the existing
+human locks named above.
+
+## 2026-07-07T02:06Z Decider Cadence Snapshot
+
+Current read: hold the no-duplicate posture. The fresh capacity check still
+shows all ordinary build capacity occupied, no ready/unpromoted candidates, and
+one useful implementation request already pending.
+
+Live `build-capacity.ts` reports `2` configured ordinary build slots, `2`
+active ordinary build loops, `0` available ordinary slots, ready candidates
+`none`, and unpromoted ready candidates `none`.
+
+Active ordinary build WIP:
+
+- `build/drum-kit-matrix-sound-implementation`: consumed the accepted
+  drum-kit matrix sound implementation PM handoff and has the initial builder
+  request already pending at
+  `.meta/multipass/runtime/inbox/pending/2026-07-06T210344696Z-drum-kit-matrix-sound-implementation-builder.md`.
+- `build/au-runtime-safety`: deterministic checkpoint evidence exists for the
+  AU preset command path, but full owner-bug closure is still held on
+  human-present third-party AU validation or explicit acceptance of that manual
+  evidence gap.
+
+Locked build loops outside ordinary capacity remain scoped and should not be
+advanced autonomously: `build/observability-log-issues` is held for scope
+correction, and `build/midi-interfaces` is held for Launchpad Mini MK3 hardware
+acceptance.
+
+PM supply is not promotable right now. The drum-kit implementation PM handoff
+has already been consumed, and older PM registry/current-state rows remain
+residue or human-locked rather than spare builder-ready supply.
+
+Root checkout is local `main` at `859b3193d637`, with broad pre-existing
+coordination/state dirt. Whole-app claims should remain exact-checkout bounded.
+
+Decision consequence: do not create a duplicate builder, review, PM promotion,
+process-repair, or product-owner question from this cadence. Let the already
+pending drum-kit builder request consume the next useful project action; revisit
+project-level routing after a build slot opens, the AU validation lock resolves,
+or fresh observer evidence changes capacity/readiness.
+
+No product-owner attention is needed from this cadence beyond the existing
+human locks named above.
+
+## 2026-07-07T01:11Z Decider Cadence Snapshot
+
+Current read: hold a no-duplicate posture. The product direction remains
+stable, and the immediate useful work is already queued inside the active
+drum-kit matrix sound implementation loop.
+
+Live `build-capacity.ts` reports `2` configured ordinary build slots, `2`
+active ordinary build loops, `0` available ordinary slots, ready candidates
+`none`, and unpromoted ready candidates `none`.
+
+Active ordinary build WIP:
+
+- `build/drum-kit-matrix-sound-implementation`: newly promoted from accepted
+  PM handoff `docs/roadmap/drum-kit-matrix-sound-implementation-prep/`.
+  Initial builder request is already pending at
+  `.meta/multipass/runtime/inbox/pending/2026-07-06T210344696Z-drum-kit-matrix-sound-implementation-builder.md`.
+- `build/au-runtime-safety`: deterministic checkpoint evidence exists for the
+  preset command path, but full owner-bug closure is still held on
+  human-present third-party AU validation or explicit acceptance of that
+  manual evidence gap.
+
+Locked build loops outside ordinary capacity remain scoped and should not be
+advanced autonomously: `build/observability-log-issues` is held for scope
+correction, and `build/midi-interfaces` is held for Launchpad Mini MK3 hardware
+acceptance.
+
+PM supply is not promotable right now. The drum-kit implementation PM handoff
+has already been consumed, `track-setup-surface-compression` is already in or
+behind active build state by compact flow evidence, `july-4-phrase-layers-global-apply`
+and `track-phrase-perform-interaction-prep` are registry/current-state residue
+rather than spare builder-ready supply, and `scenes-in-phrases` plus
+`audio-looping` remain product-owner locked.
+
+Root checkout is local `main` at `859b3193d637`, ahead of `origin/main` with
+broad pre-existing coordination/state/visual-review dirt. Whole-app claims
+should remain exact-checkout bounded.
+
+Decision consequence: do not create a duplicate builder, review, PM promotion,
+or process-repair request from this cadence. Let the already pending
+drum-kit builder request consume the next action; revisit project-level
+routing after a build slot opens, the AU validation lock is resolved, or fresh
+observer evidence changes capacity/readiness.
+
+No product-owner attention is needed from this cadence beyond the existing
+human locks named above.
+
+## Historical June 16 Orientation
 
 Current read: stay in scoped `caution`. The product direction remains coherent:
 performance-first sequencing, quick setup, recoverable live changes, and

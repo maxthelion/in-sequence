@@ -17,6 +17,13 @@ import XCTest
 // (DEBUG only).
 @MainActor
 final class TracksPageInvalidationTests: XCTestCase {
+    private var repoRoot: URL {
+        URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+    }
 
     // MARK: - Fixture
 
@@ -314,5 +321,510 @@ final class TracksPageInvalidationTests: XCTestCase {
             "reach no tracks-page leaf (\(leafEvaluations) leaf evaluations for " +
             "\(tickCount) ticks)."
         )
+    }
+
+    func test_trackNavigatorCards_selectOnRightClickWithoutContextMenus() throws {
+        let source = try String(
+            contentsOf: repoRoot.appendingPathComponent("Sources/UI/TracksMatrixView.swift"),
+            encoding: .utf8
+        )
+        let trackCard = try XCTUnwrap(
+            source.slice(from: "private struct TrackMatrixCard", to: "    private var strokeColor"),
+            "TrackMatrixCard source should be present"
+        )
+        let kitCard = try XCTUnwrap(
+            source.slice(from: "private struct KitMatrixCard", to: "struct TrackPerformRuntimeControlState"),
+            "KitMatrixCard source should be present"
+        )
+
+        XCTAssertTrue(
+            trackCard.contains(".studioSelectOnRightClick"),
+            "Track cards should still select on secondary click."
+        )
+        XCTAssertFalse(
+            trackCard.contains(".contextMenu"),
+            "Track cards must not open the old Select/Copy/Mute menu on secondary click."
+        )
+        XCTAssertTrue(
+            kitCard.contains(".studioSelectOnRightClick"),
+            "Kit cards should still select on secondary click."
+        )
+        XCTAssertFalse(
+            kitCard.contains(".contextMenu"),
+            "Kit cards must not open the old Select/Copy/Expand menu on secondary click."
+        )
+    }
+
+    func test_generatorTriggerEditorExposesEuclideanControlsWithoutManualOrDisclosure() throws {
+        let source = try String(
+            contentsOf: repoRoot.appendingPathComponent("Sources/UI/TrackSource/Generator/StepAlgoEditor.swift"),
+            encoding: .utf8
+        )
+        let euclideanSection = try XCTUnwrap(
+            source.slice(from: "case let .euclidean", to: "case let .manual"),
+            "Euclidean trigger section should be present"
+        )
+
+        XCTAssertFalse(
+            source.contains("showsSecondaryParameters"),
+            "Euclidean Steps/Offset/Pitch must not be hidden behind disclosure state."
+        )
+        XCTAssertFalse(
+            source.contains("StudioCircleIconButton"),
+            "Trigger generator must not expose the old ellipsis/chevron parameter disclosure."
+        )
+        XCTAssertFalse(
+            source.contains("title: \"Source\""),
+            "The trigger algorithm chooser should not surface implementation wording as a Source label."
+        )
+        XCTAssertTrue(
+            source.contains("private var visibleStepAlgoKinds: [StepAlgoKind] { [.euclidean, .weighted] }"),
+            "Manual trigger controls are intentionally not part of this visible generator slice."
+        )
+        XCTAssertOrdered(
+            ["title: \"Pulses\"", "title: \"Steps\"", "title: \"Offset\"", "title: \"Pitch\""],
+            in: euclideanSection,
+            message: "Euclidean trigger controls should render as the visible four-control set."
+        )
+    }
+
+    func test_generatorPitchEditorStartsWithKeyboardThenUsesRotariesAndScaleMenu() throws {
+        let source = try String(
+            contentsOf: repoRoot.appendingPathComponent("Sources/UI/TrackSource/Generator/PitchAlgoEditor.swift"),
+            encoding: .utf8
+        )
+
+        XCTAssertFalse(
+            source.contains("SourceParameterStepperRow(title: \"Root\""),
+            "Pitch Root should be a rotary, not the old stepper row."
+        )
+        XCTAssertFalse(
+            source.contains("SourceParameterStepperRow(title: \"Spread\""),
+            "Pitch Spread should be a rotary, not the old stepper row."
+        )
+        XCTAssertFalse(
+            source.contains("SourceParameterSliderRow(title: \"Selection\""),
+            "Pitch Selection should be a rotary, not the old slider row."
+        )
+        XCTAssertOrdered(
+            [
+                "PitchPoolKeyboardStrip(",
+                "scaleControl(scale)",
+                "title: \"Root\"",
+                "title: \"Spread\"",
+                "title: \"Selection\""
+            ],
+            in: source,
+            message: "Pitch editing should start with the piano strip, put Scale on its own row, then render the numeric controls."
+        )
+        XCTAssertTrue(
+            source.contains("LazyVGrid(columns: pitchColumns") &&
+                source.contains("count: 8"),
+            "Pitch rotaries should use an eight-column grid grammar instead of cramped rows."
+        )
+        XCTAssertTrue(
+            source.contains("GeometryReader") &&
+                source.contains("whiteKeyClasses") &&
+                source.contains("blackKeySpecs") &&
+                source.contains(".offset(x: whiteWidth * spec.boundary - blackWidth / 2)"),
+            "The pitch keyboard should be full-width piano geometry with shorter black keys aligned to white-key boundaries."
+        )
+    }
+
+    func test_generatorStageSelectorLivesInHeaderWithBake() throws {
+        let source = try String(
+            contentsOf: repoRoot.appendingPathComponent("Sources/UI/TrackSource/Generator/GeneratorParamsEditorView.swift"),
+            encoding: .utf8
+        )
+        let qaScript = try String(
+            contentsOf: repoRoot.appendingPathComponent("scripts/visual-scenarios/qa-surface-coverage.sh"),
+            encoding: .utf8
+        )
+        let visualRunner = try String(
+            contentsOf: repoRoot.appendingPathComponent("Sources/UI/VisualScenarioCommandRunner.swift"),
+            encoding: .utf8
+        )
+        let shell = try XCTUnwrap(
+            source.slice(from: "private var foundationEditorShell", to: "private var generatorHeader"),
+            "Generator shell source should be present"
+        )
+        let header = try XCTUnwrap(
+            source.slice(from: "private var generatorHeader", to: "private var generatorStageSelector"),
+            "Generator header source should be present"
+        )
+
+        XCTAssertFalse(
+            shell.contains("StudioSegmentedControl("),
+            "Trigger/Pitch switching should not render as a separate row below the generator header."
+        )
+        XCTAssertTrue(
+            header.contains("generatorStageSelector"),
+            "The shared generator header should contain the Trigger/Pitch stage selector."
+        )
+        XCTAssertFalse(
+            source.contains("generatorKindMenu"),
+            "Generator kind names should not render as a dropdown in the working generator surface."
+        )
+        XCTAssertTrue(
+            header.contains("Label(\"Bake\""),
+            "Bake should remain in the same generator header grammar."
+        )
+        XCTAssertTrue(
+            qaScript.contains("22e-track-generator-trigger-tab|workspace=track,trackSourceTab=source,trackSourceEditorRenderedVisible=true,trackSourceEditorRenderedTab=steps-clip,trackGeneratorStage=trigger,trackSourceGeneratorRenderedStage=trigger"),
+            "The trigger generator capture must wait for the rendered generator editor, not only selected command state."
+        )
+        XCTAssertTrue(
+            qaScript.contains("22f-track-generator-pitch-tab|workspace=track,trackSourceTab=source,trackSourceEditorRenderedVisible=true,trackSourceEditorRenderedTab=steps-clip,trackGeneratorStage=pitch,trackSourceGeneratorRenderedStage=pitch"),
+            "The pitch generator capture must wait for the rendered generator editor, not only selected command state."
+        )
+        XCTAssertTrue(
+            visualRunner.contains("trackSourceGeneratorRenderedStage=\\("),
+            "The visual status file should publish the rendered generator stage used by the QA waits."
+        )
+    }
+
+    func test_emptyTrackSourceRendersInlineAddSourceAndHasCaptureRow() throws {
+        let sourceTab = try String(
+            contentsOf: repoRoot.appendingPathComponent("Sources/UI/TrackSource/TrackSourceSourceTabContent.swift"),
+            encoding: .utf8
+        )
+        let qaScript = try String(
+            contentsOf: repoRoot.appendingPathComponent("scripts/visual-scenarios/qa-surface-coverage.sh"),
+            encoding: .utf8
+        )
+        let visualRunner = try String(
+            contentsOf: repoRoot.appendingPathComponent("Sources/UI/VisualScenarioCommandRunner.swift"),
+            encoding: .utf8
+        )
+
+        XCTAssertTrue(
+            sourceTab.contains("case .empty:\n            addSourcePicker(step: sourcePickerStep ?? .root)"),
+            "Empty source slots should render the Add Source chooser inline, not an intermediate empty well."
+        )
+        XCTAssertTrue(
+            qaScript.contains("22a-track-add-source-empty"),
+            "The standard QA surface pass should include the inline Add Source empty-slot state."
+        )
+        XCTAssertTrue(
+            qaScript.contains("22a-track-add-source-empty|workspace=track,trackSourceTab=source,trackSourceEditorRenderedVisible=true,trackSourceEditorRenderedTab=steps-clip"),
+            "The Add Source capture row should wait for the track source editor to render, not just for command state."
+        )
+        XCTAssertTrue(
+            qaScript.contains("trackSourceAddSourceVisible=true"),
+            "The Add Source capture row should wait on a status key that proves the intended state."
+        )
+        XCTAssertTrue(
+            visualRunner.contains("trackSourceAddSourceVisible=\\("),
+            "The visual command status file should publish the Add Source visibility key."
+        )
+    }
+
+    func test_clipCaptureHistoryIsReachableFromToolbarAndCaptureRow() throws {
+        let editor = try String(
+            contentsOf: repoRoot.appendingPathComponent("Sources/UI/TrackSource/TrackSourceEditorView.swift"),
+            encoding: .utf8
+        )
+        let pills = try String(
+            contentsOf: repoRoot.appendingPathComponent("Sources/UI/TrackSource/TrackSourceSlotWellTabBar.swift"),
+            encoding: .utf8
+        )
+        let clipPreview = try String(
+            contentsOf: repoRoot.appendingPathComponent("Sources/UI/TrackSource/Clip/ClipContentPreview.swift"),
+            encoding: .utf8
+        )
+        let qaScript = try String(
+            contentsOf: repoRoot.appendingPathComponent("scripts/visual-scenarios/qa-surface-coverage.sh"),
+            encoding: .utf8
+        )
+
+        XCTAssertTrue(
+            editor.contains("case history") && editor.contains("case .history:\n                        clipHistoryTab"),
+            "The implemented clip history view should remain reachable as the Capture button destination."
+        )
+        XCTAssertFalse(
+            pills.contains("track-detail-tab-history"),
+            "History should not remain a visible peer tab; Capture opens it as a workflow surface."
+        )
+        XCTAssertTrue(
+            clipPreview.contains("Label(\"Capture\", systemImage: \"waveform.path.ecg\")"),
+            "The clip toolbar should expose a Capture button that opens history."
+        )
+        XCTAssertFalse(
+            clipPreview.contains("Label(\"Assign Macro\""),
+            "The old inline Assign Macro button should not remain in the clip grid area."
+        )
+        XCTAssertTrue(
+            qaScript.contains("22aa-track-clip-history"),
+            "The standard QA surface pass should include the clip history state."
+        )
+        XCTAssertTrue(
+            qaScript.contains("22aa-track-clip-history|workspace=track,trackSourceTab=history,trackSourceEditorRenderedVisible=true,trackSourceEditorRenderedTab=history"),
+            "The history capture row should wait for the history tab to render, not just for selected-tab command state."
+        )
+        XCTAssertTrue(
+            qaScript.contains("trackClipHistoryFixture=selected"),
+            "The history capture row should drive a selected populated history cell, not an empty tab."
+        )
+    }
+
+    func test_samplerSoundPageRemovesStaleControlsAndCapturesRealWaveformState() throws {
+        let samplerWidget = try String(
+            contentsOf: repoRoot.appendingPathComponent("Sources/UI/SamplerDestinationWidget.swift"),
+            encoding: .utf8
+        )
+        let drumAccordion = try String(
+            contentsOf: repoRoot.appendingPathComponent("Sources/UI/DrumGroup/DrumKitMatrixView+Accordion.swift"),
+            encoding: .utf8
+        )
+        let chooserPanel = try XCTUnwrap(
+            drumAccordion.slice(from: "func expandedSoundChooserPanel", to: "func expandedSoundSamplerPanel"),
+            "Drum-part empty sound chooser should be present"
+        )
+        let samplerPanel = try XCTUnwrap(
+            drumAccordion.slice(from: "func expandedSoundSamplerPanel", to: "func expandedSoundAUPanel"),
+            "Drum-part sampler sound panel should be present"
+        )
+        let qaScript = try String(
+            contentsOf: repoRoot.appendingPathComponent("scripts/visual-scenarios/qa-surface-coverage.sh"),
+            encoding: .utf8
+        )
+        let visualRunner = try String(
+            contentsOf: repoRoot.appendingPathComponent("Sources/UI/VisualScenarioCommandRunner.swift"),
+            encoding: .utf8
+        )
+
+        XCTAssertTrue(
+            samplerWidget.contains("WaveformView(buckets: buckets, fillColor: accent)"),
+            "Sampler sound pages must keep the actual waveform renderer in the populated sample card."
+        )
+        XCTAssertFalse(
+            samplerWidget.contains(".fill(StudioTheme.subtleFill)\n                    .frame(width: max(0, stopX - startX), height: height)"),
+            "The start/length overlay must not paint an opaque region over the sampler waveform."
+        )
+        XCTAssertFalse(
+            samplerWidget.contains("View built-in sampler macros"),
+            "The sampler header must not keep the old config/macro button beside Play."
+        )
+        XCTAssertFalse(
+            samplerWidget.contains("systemName: \"slider.horizontal.3\""),
+            "The sampler header must not render the old config/macro icon."
+        )
+        XCTAssertTrue(
+            chooserPanel.contains("HStack(alignment: .top"),
+            "Empty drum-part sound state should place the two add choices side by side."
+        )
+        XCTAssertEqual(
+            chooserPanel.components(separatedBy: "StudioAddCard(").count - 1,
+            2,
+            "Empty drum-part sound state should offer two dashed plus boxes."
+        )
+        XCTAssertFalse(
+            chooserPanel.contains("No sound source"),
+            "The empty drum-part sound state should not show the old text label."
+        )
+        XCTAssertFalse(
+            samplerPanel.contains("Load AU instrument"),
+            "Sampler parts should not keep the bottom Load AU instrument button."
+        )
+        XCTAssertFalse(
+            samplerPanel.contains("kit-row-load-au"),
+            "The removed bottom Load AU button should not leave an accessibility target behind."
+        )
+        XCTAssertTrue(
+            qaScript.contains("SEQUENCER_AI_MATERIALIZE_FIXTURE_SAMPLES"),
+            "QA captures must materialize audio-rich fixture WAVs so sampler waveforms draw non-zero buckets."
+        )
+        XCTAssertTrue(
+            qaScript.contains("19-track-sampler-sound-populated") &&
+                qaScript.contains("trackSourceEditorRenderedVisible=true") &&
+                qaScript.contains("trackSourceEditorRenderedTab=sound") &&
+                qaScript.contains("selectedTrackSoundDestinationKind=sample") &&
+                qaScript.contains("trackSoundSource=sample"),
+            "QA coverage should include a populated sampler sound page, not a generator sound page."
+        )
+        XCTAssertTrue(
+            qaScript.contains("19a-track-sound-empty") &&
+                qaScript.contains("trackSourceEditorRenderedVisible=true") &&
+                qaScript.contains("trackSourceEditorRenderedTab=sound") &&
+                qaScript.contains("selectedTrackSoundDestinationKind=none") &&
+                qaScript.contains("trackSoundSource=empty"),
+            "QA coverage should include the empty sound-source chooser state."
+        )
+        XCTAssertTrue(
+            visualRunner.contains("case \"sample\", \"sampler\":") &&
+                visualRunner.contains(".sample(sampleID: sample.id, settings: .default)"),
+            "The visual command runner should be able to drive the sampler sound capture state directly."
+        )
+    }
+
+    func test_drumKitRowHeaderKeepsPartNameTopAlignedAndRemovesLengthSubtext() throws {
+        let source = try String(
+            contentsOf: repoRoot.appendingPathComponent("Sources/UI/DrumGroup/DrumKitMatrixRowView.swift"),
+            encoding: .utf8
+        )
+        let nameColumn = try XCTUnwrap(
+            source.slice(from: "private var nameColumn", to: "@ViewBuilder\n    private var readOnlyBadge"),
+            "Drum-kit row name column should be present"
+        )
+
+        XCTAssertTrue(
+            source.contains("HStack(alignment: .top, spacing: 10)"),
+            "The drum-part name column should stay top-aligned in both compact and expanded rows."
+        )
+        XCTAssertTrue(
+            nameColumn.contains("Text(row.partName)\n                        .studioText(.subtitle)"),
+            "The drum-part name should be larger than the old compact label text."
+        )
+        XCTAssertFalse(
+            nameColumn.contains("clipLengthLabel"),
+            "The compact grey clip-length subtext should not render beneath the drum-part name."
+        )
+        XCTAssertFalse(
+            nameColumn.contains("kit-row-clip-length"),
+            "The removed clip-length subtext should not leave an accessibility target behind."
+        )
+    }
+
+    func test_drumKitGeneratorModeUsesSharedGeneratorEditorAndHasCaptureRow() throws {
+        let accordion = try String(
+            contentsOf: repoRoot.appendingPathComponent("Sources/UI/DrumGroup/DrumKitMatrixView+Accordion.swift"),
+            encoding: .utf8
+        )
+        let sourceSwitch = try XCTUnwrap(
+            accordion.slice(from: "func sourceModeSwitch", to: "func setMemberSourceMode"),
+            "Drum-kit source mode switch should be present"
+        )
+        let generatorBody = try XCTUnwrap(
+            accordion.slice(from: "func expandedGeneratorBody", to: "func memberSourceGenerator"),
+            "Drum-kit expanded generator body should be present"
+        )
+        let qaScript = try String(
+            contentsOf: repoRoot.appendingPathComponent("scripts/visual-scenarios/qa-surface-coverage.sh"),
+            encoding: .utf8
+        )
+        let visualRunner = try String(
+            contentsOf: repoRoot.appendingPathComponent("Sources/UI/VisualScenarioCommandRunner.swift"),
+            encoding: .utf8
+        )
+
+        XCTAssertFalse(
+            sourceSwitch.contains("Text(\"SOURCE\")"),
+            "The drum-part Clip/Generator switch should not show the old Source label."
+        )
+        XCTAssertTrue(
+            generatorBody.contains("GeneratorParamsEditorView(") &&
+                generatorBody.contains("layout: .sourceContained"),
+            "Drum-part generator mode should reuse the shared mono-track generator controls."
+        )
+        XCTAssertFalse(
+            generatorBody.contains("MODIFIER") ||
+                generatorBody.contains("Add modifier") ||
+                generatorBody.contains("kit-row-add-modifier"),
+            "The drum-part generator row should not expose modifier controls in this slice."
+        )
+        XCTAssertTrue(
+            qaScript.contains("29d-drum-kit-expanded-generator") &&
+                qaScript.contains("drumKitMatrixRenderedVisible=true") &&
+                qaScript.contains("drumKitMatrixRenderedExpandedSourceMode=generator") &&
+                qaScript.contains("drumKitMatrixCommands=expand-part:0,row-tab-steps,source-generator"),
+            "QA coverage should include the expanded drum-part generator mode with strict status waits."
+        )
+        XCTAssertTrue(
+            visualRunner.contains("drumKitMatrixRenderedExpandedSourceMode"),
+            "The visual status file should publish expanded source mode for the generator capture wait."
+        )
+    }
+
+    func test_drumKitCaptureUsesSingleHistoryBarWithoutAuditionOrLive() throws {
+        let capture = try String(
+            contentsOf: repoRoot.appendingPathComponent("Sources/UI/DrumGroup/DrumKitMatrixView+Capture.swift"),
+            encoding: .utf8
+        )
+        let body = try XCTUnwrap(
+            capture.slice(from: "func captureHistoryBody", to: "func captureSnapshots"),
+            "Drum-kit capture body should be present"
+        )
+        let bar = try XCTUnwrap(
+            capture.slice(from: "func captureHistoryBar", to: "func captureHistoryMiniBar"),
+            "Drum-kit capture bar should be present"
+        )
+        let cellStrip = try XCTUnwrap(
+            capture.slice(from: "func captureHistoryCellStrip", to: "    /// Shared Preview/Audition toggle"),
+            "Drum-kit capture cell strip should be present"
+        )
+        let qaScript = try String(
+            contentsOf: repoRoot.appendingPathComponent("scripts/visual-scenarios/qa-surface-coverage.sh"),
+            encoding: .utf8
+        )
+
+        XCTAssertTrue(
+            body.contains("captureHistoryBar(model, snapshots: snapshots)"),
+            "The capture surface should render one combined capture bar."
+        )
+        XCTAssertFalse(
+            body.contains("captureHistoryHeader") || body.contains("captureHistoryScrubber"),
+            "The old separate header/scrubber rows should not be part of the visible capture body."
+        )
+        XCTAssertTrue(
+            bar.contains("captureHistoryCellStrip(model, snapshots: snapshots)") &&
+                bar.contains("historyLengthControl") &&
+                bar.contains("Label(isSelectingCaptureSaveSlot ? \"Choose slot\" : \"Save\"") &&
+                bar.contains("systemName: \"xmark\""),
+            "The single capture bar should contain track-style history cells, length, save, and the close cross."
+        )
+        XCTAssertFalse(
+            bar.contains("Audition") || bar.contains("Live"),
+            "Audition and Live controls should not be visible in the active capture bar."
+        )
+        XCTAssertTrue(
+            cellStrip.contains("KitHistoryMinibarCell") &&
+                cellStrip.contains("historyNavigationCellCount") &&
+                cellStrip.contains("kitHistoryCellPartStepStates") &&
+                cellStrip.contains("historyBarsBack = back") &&
+                cellStrip.contains("kit-history-cell-\\(index)"),
+            "Selecting a kit history cell should change the displayed history window across the 16-cell part matrix."
+        )
+        XCTAssertFalse(
+            capture.slice(from: "private struct KitHistoryMinibarCell", to: "private struct KitHistoryMiniStepThumbnail")?.contains("Text(") ?? true,
+            "Kit history cells should render as text-free mini part matrices."
+        )
+        XCTAssertTrue(
+            bar.contains("isSelectingCaptureSaveSlot = true"),
+            "Save should arm pattern-slot targeting instead of toggling it off on a second click."
+        )
+        XCTAssertTrue(
+            qaScript.contains("29f-drum-kit-capture-save-slot") &&
+                qaScript.contains("history-save-open") &&
+                !qaScript.contains("29f-drum-kit-capture-save-slot|workspace=track,drumKitMatrixRenderedCaptureOpen=true,drumKitMatrixRenderedSaveSlotPickerVisible=true|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixCommands=open-capture,history-fixture,history-audition-on"),
+            "The QA capture row should cover save-slot targeting without opening the removed audition state."
+        )
+    }
+}
+
+private extension String {
+    func slice(from start: String, to end: String) -> String? {
+        guard let startRange = range(of: start),
+              let endRange = range(of: end, range: startRange.upperBound..<endIndex)
+        else {
+            return nil
+        }
+        return String(self[startRange.lowerBound..<endRange.lowerBound])
+    }
+}
+
+private func XCTAssertOrdered(
+    _ needles: [String],
+    in haystack: String,
+    message: String,
+    file: StaticString = #filePath,
+    line: UInt = #line
+) {
+    var lowerBound = haystack.startIndex
+    for needle in needles {
+        guard let range = haystack.range(of: needle, range: lowerBound..<haystack.endIndex) else {
+            XCTFail("\(message) Missing ordered token: \(needle)", file: file, line: line)
+            return
+        }
+        lowerBound = range.upperBound
     }
 }

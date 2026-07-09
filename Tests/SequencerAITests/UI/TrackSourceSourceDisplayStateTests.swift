@@ -1082,9 +1082,6 @@ private struct ClipHistoryUnavailableEvidenceSurface: View {
 
             StudioTabWell(accent: StudioTheme.cyan) {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("History")
-                        .studioText(.bodyBold)
-                        .foregroundStyle(StudioTheme.text)
                     Text(unavailableReason)
                         .studioText(.body)
                         .foregroundStyle(StudioTheme.mutedText)

@@ -2,11 +2,11 @@ import SwiftUI
 
 /// One step of the consolidated track-creation flow. The flow presents as a
 /// SINGLE continuously-presented sheet (`TracksMatrixView` holds one
-/// `.sheet(item:)`); picking Slice / Drum Group / Mono / Poly swaps the step
+/// `.sheet(item:)`); picking Slice / Drum Group / Mono / Poly / Chord swaps the step
 /// inside the same `StudioModal` instead of dismissing one sheet and
 /// re-presenting another (the old double-modal flash).
 enum CreateTrackFlowStep: Equatable, Identifiable {
-    /// The type-picker grid (Mono / Poly / Slice / Input / Drum Group).
+    /// The type-picker grid (Mono / Poly / Chord / Slice / Input / Drum Group).
     case pickType
     /// The at-creation sound step for a Mono or Poly track: Blank / Sampler /
     /// pick an AU instrument (the fast path).
@@ -110,7 +110,6 @@ struct CreateTrackFlow: View {
         StudioModal(
             title: title,
             subtitle: subtitle,
-            showsTitleRule: false,
             minWidth: minWidth,
             minHeight: minHeight,
             onClose: onDismiss,
@@ -229,6 +228,10 @@ struct CreateTrackFlow: View {
             createButton(title: "Poly", accent: creationAccent, help: "Chord-capable lane") {
                 step = .monoPolySound(.polyMelodic)
             }
+            createButton(title: "Chord", accent: creationAccent, help: "Palette-driven chord lane") {
+                session.appendTrack(trackType: .chord)
+                finish()
+            }
             createButton(title: "Slice", accent: creationAccent, help: "Sample/slice trigger lane") {
                 step = .sliceSound
             }
@@ -287,7 +290,7 @@ struct CreateTrackFlow: View {
             if audioInstrumentChoices.isEmpty {
                 StudioEmptyListRow(message: "No AU instruments found")
             } else {
-                ScrollView {
+                StudioCustomVerticalScrollView {
                     VStack(alignment: .leading, spacing: 10) {
                         // Rows commit on a single click (bug 20260610-100343):
                         // create the track, attach the AU, open the track.
@@ -298,7 +301,7 @@ struct CreateTrackFlow: View {
                         }
                     }
                 }
-                .frame(maxHeight: 320)
+                .frame(height: 320)
             }
 
             StudioOptionButton(

@@ -208,6 +208,7 @@ final class MainAudioGraph {
     private var trackOutputDestinationsForTesting: [ObjectIdentifier: AVAudioNode] = [:]
     private var trackOutputRoutings: [ObjectIdentifier: TrackOutputRouting] = [:]
     private var trackSendNodes: [ObjectIdentifier: TrackSendNodes] = [:]
+    private var retiredTrackSendNodes: [TrackSendNodes] = []
     private var trackSendDestinationsForTesting: [ObjectIdentifier: TrackSendDestinations] = [:]
     private var audioInputRoutingHosts: [UUID: AudioInputRoutingHost] = [:]
     /// Tick-path-readable snapshot of each audio-input host's capture format
@@ -562,7 +563,7 @@ final class MainAudioGraph {
     /// even on a running engine (seen when a document re-apply tears voices
     /// down while a queued play closure is in flight).
     func isNodePlayableNow(_ node: AVAudioNode) -> Bool {
-        engine.isRunning
+        (engine.isRunning || engine.isInManualRenderingMode)
             && node.engine === engine
             && !engine.outputConnectionPoints(for: node, outputBus: 0).isEmpty
     }
@@ -1148,6 +1149,35 @@ final class MainAudioGraph {
         }
     }
 
+    func prepareTrackAUEffect(trackID: UUID, insertID: UUID) {
+        performOnMain {
+            self.lockGraphLock()
+            defer { self.unlockGraphLock() }
+            guard let inserts = self.trackInsertChainsByTrackID[trackID] else { return }
+            let host = self.trackInsertChainHosts[trackID] ?? self.makeTrackInsertChainHost(trackID: trackID)
+            self.trackInsertChainHosts[trackID] = host
+            host.prepareAUEffect(insertID: insertID, in: inserts)
+        }
+    }
+
+    func currentTrackAUEffect(trackID: UUID, insertID: UUID) -> AVAudioUnit? {
+        performOnMainReturning {
+            self.lockGraphLock()
+            defer { self.unlockGraphLock() }
+            guard let inserts = self.trackInsertChainsByTrackID[trackID] else { return nil }
+            return self.trackInsertChainHosts[trackID]?.currentAUEffect(insertID: insertID, in: inserts)
+        }
+    }
+
+    func trackAUEffectParameterReadout(trackID: UUID, insertID: UUID) -> [AUParameterDescriptor]? {
+        performOnMainReturning {
+            self.lockGraphLock()
+            defer { self.unlockGraphLock() }
+            guard let inserts = self.trackInsertChainsByTrackID[trackID] else { return nil }
+            return self.trackInsertChainHosts[trackID]?.auEffectParameterReadout(insertID: insertID, in: inserts)
+        }
+    }
+
     /// Re-entry point for `TrackInsertChainHost` AU-load completion. Hops onto
     /// the graph queue and re-applies the latest authored chain so the freshly
     /// instantiated AU node wires in. Mirrors the send-bus post-load re-entry.
@@ -1574,6 +1604,30 @@ final class MainAudioGraph {
             self.lockGraphLock()
             defer { self.unlockGraphLock() }
             return self.mixerBusHosts[busID]?.readout()
+        }
+    }
+
+    func prepareMixerBusAUEffect(busID: UUID, insertID: UUID) {
+        performOnMain {
+            self.lockGraphLock()
+            defer { self.unlockGraphLock() }
+            self.mixerBusHosts[busID]?.prepareAUEffect(insertID: insertID)
+        }
+    }
+
+    func currentMixerBusAUEffect(busID: UUID, insertID: UUID) -> AVAudioUnit? {
+        performOnMainReturning {
+            self.lockGraphLock()
+            defer { self.unlockGraphLock() }
+            return self.mixerBusHosts[busID]?.currentAUEffect(insertID: insertID)
+        }
+    }
+
+    func mixerBusAUEffectParameterReadout(busID: UUID, insertID: UUID) -> [AUParameterDescriptor]? {
+        performOnMainReturning {
+            self.lockGraphLock()
+            defer { self.unlockGraphLock() }
+            return self.mixerBusHosts[busID]?.auEffectParameterReadout(insertID: insertID)
         }
     }
 
@@ -2363,18 +2417,12 @@ final class MainAudioGraph {
             // The fanout is a potential MULTI-POINT source: dissolve its output
             // point-by-point (see `dissolveOutputConnectionsOnMain`) so a
             // stopped-engine teardown cannot plant the UpdateGraphAfterReconfig
-            // poison; all edges are gone before `detach`.
+            // poison. Retire the send nodes to the graph-owned pool instead of
+            // detaching them; rapid source transitions previously crashed inside
+            // AVAudioEngineGraph::RemoveNode while removing these nodes.
             let key = ObjectIdentifier(source)
             if let nodes = trackSendNodes.removeValue(forKey: key) {
-                dissolveOutputConnectionsOnMain(of: nodes.fanout)
-                engine.disconnectNodeInput(nodes.fanout)
-                dissolveOutputConnectionsOnMain(of: nodes.sendA)
-                engine.disconnectNodeInput(nodes.sendA)
-                dissolveOutputConnectionsOnMain(of: nodes.sendB)
-                engine.disconnectNodeInput(nodes.sendB)
-                engine.detach(nodes.fanout)
-                engine.detach(nodes.sendA)
-                engine.detach(nodes.sendB)
+                retireTrackSendNodes(nodes)
             }
             trackSendDestinationsForTesting.removeValue(forKey: key)
         }
@@ -2726,10 +2774,15 @@ final class MainAudioGraph {
             return nodes
         }
 
-        let nodes = TrackSendNodes(fanout: AVAudioMixerNode(), sendA: AVAudioMixerNode(), sendB: AVAudioMixerNode())
-        engine.attach(nodes.fanout)
-        engine.attach(nodes.sendA)
-        engine.attach(nodes.sendB)
+        let nodes: TrackSendNodes
+        if let retired = retiredTrackSendNodes.popLast() {
+            nodes = retired
+        } else {
+            nodes = TrackSendNodes(fanout: AVAudioMixerNode(), sendA: AVAudioMixerNode(), sendB: AVAudioMixerNode())
+            engine.attach(nodes.fanout)
+            engine.attach(nodes.sendA)
+            engine.attach(nodes.sendB)
+        }
         // Seed the fanout's SETTLED target at its rest level (1.0). The fanout is
         // a pure dry/send splitter whose `outputVolume` is only ever moved by the
         // routing ramp-to-silence dip — so its steady-state is always full. The
@@ -2772,6 +2825,27 @@ final class MainAudioGraph {
     }
 
     @MainActor
+    private func retireTrackSendNodes(_ nodes: TrackSendNodes) {
+        // Remove every edge while the nodes are still graph-owned, then keep the
+        // nodes attached but disconnected for reuse by a later track/source.
+        // This follows the fixed-resource graph rule and avoids the crash site:
+        // AVAudioEngine detachNode during rapid sample source transitions.
+        dissolveOutputConnectionsOnMain(of: nodes.fanout)
+        engine.disconnectNodeInput(nodes.fanout)
+        dissolveOutputConnectionsOnMain(of: nodes.sendA)
+        engine.disconnectNodeInput(nodes.sendA)
+        dissolveOutputConnectionsOnMain(of: nodes.sendB)
+        engine.disconnectNodeInput(nodes.sendB)
+        MixerGainRamp.shared.forgetSettledTarget(for: nodes.fanout)
+        MixerGainRamp.shared.forgetSettledTarget(for: nodes.sendA)
+        MixerGainRamp.shared.forgetSettledTarget(for: nodes.sendB)
+        nodes.fanout.outputVolume = 0
+        nodes.sendA.outputVolume = 0
+        nodes.sendB.outputVolume = 0
+        retiredTrackSendNodes.append(nodes)
+    }
+
+    @MainActor
     private func removeTrackSendNodes(for source: AVAudioNode) {
         let key = ObjectIdentifier(source)
         guard let nodes = trackSendNodes.removeValue(forKey: key) else {
@@ -2780,22 +2854,7 @@ final class MainAudioGraph {
             trackSendDestinationsForTesting.removeValue(forKey: key)
             return
         }
-        // See `dissolveOutputConnectionsOnMain`: the fanout's 1→3 splitter
-        // output must come apart point-by-point, and every edge must be gone
-        // BEFORE `detach` below so detach's internal disconnect is a no-op.
-        dissolveOutputConnectionsOnMain(of: nodes.fanout)
-        engine.disconnectNodeInput(nodes.fanout)
-        dissolveOutputConnectionsOnMain(of: nodes.sendA)
-        dissolveOutputConnectionsOnMain(of: nodes.sendB)
-        // Forget the ramp's per-node settled targets so a recycled
-        // ObjectIdentifier (a new node at the same address) can't inherit a
-        // stale rest level.
-        MixerGainRamp.shared.forgetSettledTarget(for: nodes.fanout)
-        MixerGainRamp.shared.forgetSettledTarget(for: nodes.sendA)
-        MixerGainRamp.shared.forgetSettledTarget(for: nodes.sendB)
-        engine.detach(nodes.fanout)
-        engine.detach(nodes.sendA)
-        engine.detach(nodes.sendB)
+        retireTrackSendNodes(nodes)
         trackOutputRoutings.removeValue(forKey: key)
         trackOutputDestinationsForTesting.removeValue(forKey: key)
         trackSendDestinationsForTesting.removeValue(forKey: key)

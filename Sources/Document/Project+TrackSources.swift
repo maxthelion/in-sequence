@@ -98,6 +98,95 @@ extension Project {
         return newClip.id
     }
 
+    @discardableResult
+    mutating func bakeGeneratorSourceToClip(
+        trackID: UUID,
+        slotIndex: Int,
+        name: String,
+        content: ClipContent,
+        preserveSeparateModifier: Bool = false
+    ) -> UUID? {
+        guard let track = tracks.first(where: { $0.id == trackID }),
+              let bankIndex = patternBanks.firstIndex(where: { $0.trackID == trackID })
+        else {
+            return nil
+        }
+        guard track.trackType != .audioInput else {
+            return nil
+        }
+
+        let slot = patternBanks[bankIndex].slot(at: slotIndex)
+        guard slot.sourceRef.mode == .generator,
+              let generatorID = slot.sourceRef.generatorID
+        else {
+            return nil
+        }
+
+        let bakedClip = ClipPoolEntry(
+            id: UUID(),
+            name: name,
+            trackType: track.trackType,
+            content: content.normalized
+        )
+        clipPool.append(bakedClip)
+
+        let retainedModifierID = !preserveSeparateModifier || slot.sourceRef.modifierGeneratorID == generatorID
+            ? nil
+            : slot.sourceRef.modifierGeneratorID
+        let bakedRef = SourceRef(
+            mode: .clip,
+            generatorID: generatorID,
+            clipID: bakedClip.id,
+            modifierGeneratorID: retainedModifierID,
+            modifierBypassed: retainedModifierID == nil ? false : slot.sourceRef.modifierBypassed
+        )
+        setPatternSourceRef(bakedRef, for: trackID, slotIndex: slotIndex)
+        return bakedClip.id
+    }
+
+    @discardableResult
+    mutating func bakeChordSourceToClip(trackID: UUID, slotIndex: Int, name: String? = nil) -> UUID? {
+        guard let track = tracks.first(where: { $0.id == trackID }),
+              track.trackType == .chord,
+              let bankIndex = patternBanks.firstIndex(where: { $0.trackID == trackID })
+        else {
+            return nil
+        }
+
+        let slot = patternBanks[bankIndex].slot(at: slotIndex)
+        guard slot.sourceRef.mode == .clip,
+              let sourceClipID = slot.sourceRef.sourceClipID ?? slot.sourceRef.clipID,
+              let sourceClip = clipPool.first(where: { $0.id == sourceClipID && $0.trackType == .chord }),
+              case .chordReferences = sourceClip.content.normalized
+        else {
+            return nil
+        }
+
+        let content = sourceClip.content.resolvedChordNoteGrid(palette: track.chordPalette).normalized
+        guard case .noteGrid = content else {
+            return nil
+        }
+
+        let bakedClip = ClipPoolEntry(
+            id: UUID(),
+            name: name ?? "\(sourceClip.name) Bake",
+            trackType: .chord,
+            content: content
+        )
+        clipPool.append(bakedClip)
+
+        let bakedRef = SourceRef(
+            mode: .clip,
+            generatorID: slot.sourceRef.generatorID,
+            clipID: bakedClip.id,
+            sourceClipID: sourceClipID,
+            modifierGeneratorID: slot.sourceRef.modifierGeneratorID,
+            modifierBypassed: slot.sourceRef.modifierBypassed
+        )
+        setPatternSourceRef(bakedRef, for: trackID, slotIndex: slotIndex)
+        return bakedClip.id
+    }
+
     mutating func setPatternSourceRef(_ sourceRef: SourceRef, for trackID: UUID, slotIndex: Int) {
         setPatternSourceRef(sourceRef, at: PatternSlotAddress(trackID: trackID, slotIndex: slotIndex))
     }
@@ -277,6 +366,7 @@ extension Project {
                 mode: existing.sourceRef.mode,
                 generatorID: newEntry.id,
                 clipID: existing.sourceRef.clipID,
+                sourceClipID: existing.sourceRef.sourceClipID,
                 modifierGeneratorID: newEntry.id,
                 modifierBypassed: existing.sourceRef.modifierBypassed
             )
@@ -305,6 +395,7 @@ extension Project {
                 mode: .clip,
                 generatorID: existing.sourceRef.generatorID,
                 clipID: existing.sourceRef.clipID,
+                sourceClipID: existing.sourceRef.sourceClipID,
                 modifierGeneratorID: existing.sourceRef.modifierGeneratorID,
                 modifierBypassed: existing.sourceRef.modifierBypassed
             )
@@ -329,6 +420,7 @@ extension Project {
                 mode: existing.sourceRef.mode,
                 generatorID: newGeneratorID,
                 clipID: existing.sourceRef.clipID,
+                sourceClipID: existing.sourceRef.sourceClipID,
                 modifierGeneratorID: newGeneratorID,
                 modifierBypassed: existing.sourceRef.modifierBypassed
             )
@@ -356,6 +448,7 @@ extension Project {
             mode: newMode,
             generatorID: existing.sourceRef.generatorID,
             clipID: existing.sourceRef.clipID,
+            sourceClipID: existing.sourceRef.sourceClipID,
             modifierGeneratorID: existing.sourceRef.modifierGeneratorID,
             modifierBypassed: existing.sourceRef.modifierBypassed
         )
@@ -393,6 +486,7 @@ extension Project {
             mode: slot.sourceRef.mode,
             generatorID: slot.sourceRef.generatorID,
             clipID: slot.sourceRef.clipID,
+            sourceClipID: slot.sourceRef.sourceClipID,
             modifierGeneratorID: modifierGeneratorID,
             modifierBypassed: modifierGeneratorID == nil ? false : bypassed
         )
@@ -425,6 +519,7 @@ extension Project {
             mode: slot.sourceRef.mode,
             generatorID: slot.sourceRef.generatorID,
             clipID: slot.sourceRef.clipID,
+            sourceClipID: slot.sourceRef.sourceClipID,
             modifierGeneratorID: slot.sourceRef.modifierGeneratorID,
             modifierBypassed: bypassed
         )
@@ -449,6 +544,8 @@ extension Project {
         switch trackType {
         case .slice:
             return .emptySliceTriggers(lengthSteps: 16)
+        case .chord:
+            return .emptyChordReferences(lengthSteps: 16)
         case .monoMelodic, .polyMelodic:
             return .emptyNoteGrid(lengthSteps: 16)
         case .audioInput:

@@ -39,14 +39,14 @@ struct AddSliceTrackContent: View {
                 )
                 .help("Add WAV loops to \(breaksFolderPath)")
             } else {
-                ScrollView {
+                StudioCustomVerticalScrollView {
                     LazyVStack(alignment: .leading, spacing: 8) {
                         ForEach(samples) { sample in
                             sampleRow(sample)
                         }
                     }
                 }
-                .frame(maxHeight: 440)
+                .frame(height: 440)
             }
         }
         .onDisappear {

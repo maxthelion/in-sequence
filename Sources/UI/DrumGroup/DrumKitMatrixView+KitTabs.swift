@@ -140,6 +140,9 @@ extension DrumKitMatrixView {
                         slotIndex: slot.slotIndex,
                         binding: slot.binding,
                         value: nil,
+                        accent: accent,
+                        knobSize: MacroSlotPresentation.workspaceKnobSize,
+                        showSlotLabel: false,
                         onAssign: {},
                         onChange: { _ in }
                     )
@@ -167,10 +170,7 @@ extension DrumKitMatrixView {
         )
     }
 
-    static let macroColumns = Array(
-        repeating: GridItem(.flexible(), spacing: 14),
-        count: 4
-    )
+    static let macroColumns = MacroSlotPresentation.workspaceColumns
 
     /// Eight slots (M1–M8) seeded from the originating part's macro bindings so
     /// the kit view reflects the seeded drum-part defaults (M1 start / M2 len /

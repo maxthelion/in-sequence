@@ -3,6 +3,16 @@ import XCTest
 @testable import SequencerAI
 
 final class SourceRefNormalizationTests: XCTestCase {
+    func test_generatorConvenienceRetainsSameGeneratorAsLegacySelfModifier() {
+        let generatorID = UUID()
+        let ref = SourceRef.generator(generatorID)
+
+        XCTAssertEqual(ref.mode, .generator)
+        XCTAssertEqual(ref.generatorID, generatorID)
+        XCTAssertEqual(ref.modifierGeneratorID, generatorID)
+        XCTAssertFalse(ref.modifierBypassed)
+    }
+
     func test_normalized_preserves_clipID_when_mode_is_generator() {
         let genID = UUID()
         let clipID = UUID()

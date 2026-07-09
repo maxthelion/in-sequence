@@ -134,9 +134,8 @@ CAPTURES=$(cat <<'TABLE'
 # (covered by the phrase-perform rows 08-13b). The trackPerformLayer* status
 # fields no longer exist.
 18-track-detail-steps-clip|workspace=track|trackFillSource=clip;trackSourceTab=steps-clip;transport=stop
-19-track-detail-sound|workspace=track|trackFillSource=generator;trackSourceTab=sound;transport=stop
-# 19a RETIRED: `trackSoundSource=empty` now renders the same Sound tab state as
-# row 19. Keep one honest Sound-tab capture rather than publishing duplicates.
+19-track-sampler-sound-populated|workspace=track,trackSourceTab=sound,trackSourceEditorRenderedVisible=true,trackSourceEditorRenderedTab=sound,selectedTrackSoundDestinationKind=sample|trackSoundSource=sample;trackSourceTab=sound;transport=stop
+19a-track-sound-empty|workspace=track,trackSourceTab=sound,trackSourceEditorRenderedVisible=true,trackSourceEditorRenderedTab=sound,selectedTrackSoundDestinationKind=none|trackSoundSource=empty;trackSourceTab=sound;transport=stop
 20-track-fill-preview-active|workspace=track,trackSourceTab=steps-clip,selectedTrackFillPreviewActive=true|trackFillSource=clip;trackFillPreview=on;trackSourceTab=steps-clip;transport=stop
 # 20a RETIRED: the old `trackFillEngaged` visual command no longer reaches a
 # strict `selectedTrackFillEngaged=true` state in the current track detail flow.
@@ -145,12 +144,14 @@ CAPTURES=$(cat <<'TABLE'
 20c-track-randomize-rolled|workspace=track,selectedTrackRandomizePersisted=true|trackFillSource=clip;trackSourceTab=source;trackRandomizeRoll=on;transport=stop
 21-track-macros-tab|workspace=track,trackSourceTab=macros|trackRandomizeSheet=closed;trackFillSource=clip;trackFillPreview=off;trackSourceTab=macros;transport=stop
 22-track-detail-fx|workspace=track,trackSourceTab=fx|trackFillSource=generator;trackSourceTab=fx;transport=stop
+22a-track-add-source-empty|workspace=track,trackSourceTab=source,trackSourceEditorRenderedVisible=true,trackSourceEditorRenderedTab=steps-clip,trackSourceAddSourceVisible=true,selectedPatternSourceMode=clip,selectedPatternHasClip=false|trackFillSource=empty;trackSourceTab=source;transport=stop
+22aa-track-clip-history|workspace=track,trackSourceTab=history,trackSourceEditorRenderedVisible=true,trackSourceEditorRenderedTab=history|trackFillSource=clip;trackSourceTab=history;trackClipHistoryFixture=selected;transport=stop
 22b-track-detail-mixer|workspace=track,trackSourceTab=mixer|trackFillSource=clip;trackSourceTab=mixer;workspaceMode=setup;transport=stop
 22ba-track-routing-scene-selector|workspace=track,trackSourceTab=mixer,selectedTrackSceneMembership=sceneA|trackFillSource=clip;trackSourceTab=mixer;trackSceneMembership=sceneA;workspaceMode=setup;transport=stop
 22c-track-pitch-layer|workspace=track,trackSourceTab=steps-clip,trackClipLayer=pitch|trackFillSource=clip;trackSourceTab=steps-clip;trackClipLayer=pitch;transport=stop
 22d-track-layer-quick-switch|workspace=track,trackClipLayerSwitcher=open|trackFillSource=clip;trackSourceTab=steps-clip;trackClipLayerSwitcher=open;transport=stop
-22e-track-generator-trigger-tab|workspace=track,trackSourceTab=source,trackGeneratorStage=trigger|trackFillSource=generator;trackSourceTab=source;trackGeneratorStage=trigger;transport=stop
-22f-track-generator-pitch-tab|workspace=track,trackSourceTab=source,trackGeneratorStage=pitch|trackFillSource=generator;trackSourceTab=source;trackGeneratorStage=pitch;transport=stop
+22e-track-generator-trigger-tab|workspace=track,trackSourceTab=source,trackSourceEditorRenderedVisible=true,trackSourceEditorRenderedTab=steps-clip,trackGeneratorStage=trigger,trackSourceGeneratorRenderedStage=trigger|trackFillSource=generator;trackSourceTab=source;trackGeneratorStage=trigger;transport=stop
+22f-track-generator-pitch-tab|workspace=track,trackSourceTab=source,trackSourceEditorRenderedVisible=true,trackSourceEditorRenderedTab=steps-clip,trackGeneratorStage=pitch,trackSourceGeneratorRenderedStage=pitch|trackFillSource=generator;trackSourceTab=source;trackGeneratorStage=pitch;transport=stop
 22g-track-generator-chord-instrument|workspace=track,trackSourceTab=source,trackGeneratorKind=progressionChordGenerator|addTrack=polyMelodic;trackFillSource=generator;trackGeneratorKind=progressionChordGenerator;trackSourceTab=source;transport=stop
 # 22h RETIRED: the chord-following command currently mutates generator state but
 # does not expose a distinct visual from 22g in the Source tab.
@@ -162,6 +163,12 @@ CAPTURES=$(cat <<'TABLE'
 23e-track-slicer-slice-tab|workspace=track,selectedTrackType=slice,slicerFixture=populated,slicerTab=slice|slicerFixture=populated;slicerLayer=steps;slicerTab=slice;workspaceScroll=bottom;transport=stop
 23f-slice-source-modal|workspace=track,selectedTrackType=slice,slicerFixture=populated,sliceSourceModal=open|slicerFixture=populated;slicerLayer=steps;slicerTab=source;sliceSourceModal=open;transport=stop
 23fa-slice-layer-quick-switch|workspace=track,selectedTrackType=slice,slicerFixture=populated,slicerLayerSwitcher=open|sliceSourceModal=close;slicerFixture=populated;slicerTab=steps;slicerLayer=steps;slicerLayerSwitcher=open;workspaceScroll=bottom;transport=stop
+23h-track-chord-steps|workspace=track,selectedTrackType=chord,chordTrackRenderedVisible=true,chordTrackRenderedTab=steps,chordTrackRenderedLayer=chord,chordTrackRenderedActiveStepCount=4|chordTrackFixture=populated;chordTrackTab=steps;chordTrackLayer=chord;chordTrackSelectStep=4;transport=stop
+23i-track-chord-chords-tab|workspace=track,selectedTrackType=chord,chordTrackRenderedVisible=true,chordTrackRenderedTab=chords,chordTrackRenderedPaletteSlotCount=4|chordTrackFixture=populated;chordTrackTab=chords;transport=stop
+23j-track-chord-inversion-layer|workspace=track,selectedTrackType=chord,chordTrackRenderedVisible=true,chordTrackRenderedTab=steps,chordTrackRenderedLayer=inversion,chordTrackRenderedActiveStepCount=4|chordTrackFixture=populated;chordTrackTab=steps;chordTrackLayer=inversion;chordTrackSelectStep=4;transport=stop
+23k-track-chord-type-layer|workspace=track,selectedTrackType=chord,chordTrackRenderedVisible=true,chordTrackRenderedTab=steps,chordTrackRenderedLayer=chordType,chordTrackRenderedActiveStepCount=4|chordTrackFixture=populated;chordTrackTab=steps;chordTrackLayer=chordType;chordTrackSelectStep=4;transport=stop
+23l-track-chord-config|workspace=track,selectedTrackType=chord,chordTrackRenderedVisible=true,chordTrackRenderedTab=steps,chordTrackRenderedConfigVisible=true|chordTrackFixture=populated;chordTrackTab=steps;chordTrackConfig=open;transport=stop
+23m-track-chord-progression-chooser|workspace=track,selectedTrackType=chord,chordTrackRenderedVisible=true,chordTrackRenderedTab=steps,chordTrackRenderedProgressionChooserVisible=true|chordTrackFixture=populated;chordTrackTab=steps;chordTrackProgressionChooser=open;transport=stop
 # 23g step-edit rotaries: the StepLayerRotaryRow / StepLayerRotaryDial cluster
 # lives in ClipContentPreview (the melodic Steps/Clip tab), shared code gated on
 # a step selection — it is NOT rendered by the slicer's own SliceStepStrip. So
@@ -179,15 +186,17 @@ CAPTURES=$(cat <<'TABLE'
 # 28b RETIRED: the default kit route now lands on the same kit matrix surface
 # as 29; keep the explicit kit-matrix row as the canonical capture.
 29-drum-kit-matrix|workspace=track,drumKitMatrixRenderedVisible=true|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;transport=stop
+29e-drum-kit-matrix-fill-lane|workspace=track,drumKitMatrixRenderedVisible=true,drumKitMatrixRenderedFillMode=fill|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixCommand=fill-mode:fill;transport=stop
 # 30 RETIRED: the kit-matrix 16/32 display toggle was removed; the view ignores
 # `display-32`, so this row duplicated row 29 while failing its status wait.
 29a-drum-kit-fx-tab|workspace=track,drumKitMatrixRenderedKitTab=fx|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixCommand=tab-fx;transport=stop
 29b-drum-kit-macros-tab|workspace=track,drumKitMatrixRenderedKitTab=macros|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixCommand=tab-macros;transport=stop
 29c-drum-kit-mixer-tab|workspace=track,drumKitMatrixRenderedKitTab=mixer|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixCommand=tab-mixer;drumKitSceneMembership=sceneA;transport=stop
-# 29d/29e/29g RETIRED: chooser and expanded-row sub-surfaces are still useful
-# targets, but the current full-suite command channel does not reach their
-# strict rendered status reliably. Do not publish timeout-forced evidence.
-29f-drum-kit-capture-save-slot|workspace=track,drumKitMatrixRenderedCaptureOpen=true,drumKitMatrixRenderedSaveSlotPickerVisible=true|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixCommands=open-capture,history-fixture,history-audition-on,history-save-open;transport=stop
+# 29e/29g RETIRED: chooser sub-surfaces are still useful targets, but the
+# current full-suite command channel does not reach their strict rendered
+# status reliably. Keep 29d as the generator-mode expanded-row coverage.
+29d-drum-kit-expanded-generator|workspace=track,drumKitMatrixRenderedVisible=true,drumKitMatrixRenderedRowExpanded=true,drumKitMatrixRenderedExpandedPartIndex=0,drumKitMatrixRenderedExpandedRowTab=stepsClip,drumKitMatrixRenderedExpandedSourceMode=generator|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixCommands=expand-part:0,row-tab-steps,source-generator;transport=stop
+29f-drum-kit-capture-save-slot|workspace=track,drumKitMatrixRenderedCaptureOpen=true,drumKitMatrixRenderedSaveSlotPickerVisible=true|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixCommands=open-capture,history-fixture,history-save-open;transport=stop
 35-drum-kit-matrix-velocity-layer|workspace=track,drumKitMatrixRenderedLayer=velocity|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixLayer=velocity;transport=stop
 36-drum-kit-matrix-chance-layer|workspace=track,drumKitMatrixRenderedLayer=chance|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixLayer=chance;transport=stop
 # 37 RETIRED: the pattern-realign command no longer reaches slot 2 in a strict
@@ -279,8 +288,18 @@ skip_capture_state() {
 capture_state() {
   local pid="$1"
   local name="$2"
+  local output="$output_dir/${name}.png"
+  local window_number=""
   copy_row_evidence "$name"
-  if capture_window "$pid" "$output_dir/${name}.png"; then
+  window_number="$(status_value "visualCommandWindowNumber" 2>/dev/null || true)"
+  if [ -n "$window_number" ] && [ "$window_number" != "-1" ] && [ "$window_number" != "0" ] &&
+     screencapture -x -l "$window_number" "$output"; then
+    captured_count=$((captured_count + 1))
+    action_log "Captured ${name}.png (${captured_count}) from command window ${window_number}"
+    scenario_status="captured ${name}"
+    return 0
+  fi
+  if capture_window "$pid" "$output"; then
     captured_count=$((captured_count + 1))
     action_log "Captured ${name}.png (${captured_count})"
     scenario_status="captured ${name}"
@@ -383,6 +402,7 @@ $payload"
   local settle=0.8
   case "$name" in
     01-*|01a-*|01b-*|02-*|02a-*|02b-*) settle=3.5 ;;
+    19-*|19a-*|22a-*|22e-*|22f-*|29d-*) settle=3.5 ;;
     29g-*) settle=2.8 ;;
   esac
   sleep "$settle"
@@ -504,15 +524,23 @@ cp "$fixture_source_path" "$runtime_fixture_path"
 if [ "$command_file_from_env" != true ]; then
   launchctl setenv SEQUENCER_AI_VISUAL_COMMAND_FILE "$command_file" >/dev/null
   launchctl setenv SEQUENCER_AI_NEW_DOCUMENT_FIXTURE "$runtime_fixture_path" >/dev/null
+  launchctl setenv SEQUENCER_AI_MATERIALIZE_FIXTURE_SAMPLES 1 >/dev/null
   defaults write "$bundle_id" VisualScenarioCommandFile "$command_file"
 fi
 export SEQUENCER_AI_VISUAL_COMMAND_FILE="$command_file"
 export SEQUENCER_AI_NEW_DOCUMENT_FIXTURE="$runtime_fixture_path"
+export SEQUENCER_AI_MATERIALIZE_FIXTURE_SAMPLES=1
 
-app_path="$(
-  cd "$REPO_ROOT"
-  scripts/open-latest-build.sh --print 2>"$output_dir/app-open.log"
-)"
+if [ -n "${SEQUENCER_AI_VISUAL_APP_PATH:-}" ]; then
+  app_path="$SEQUENCER_AI_VISUAL_APP_PATH"
+  : >"$output_dir/app-open.log"
+  printf 'using SEQUENCER_AI_VISUAL_APP_PATH=%s\n' "$app_path" >>"$output_dir/app-open.log"
+else
+  app_path="$(
+    cd "$REPO_ROOT"
+    scripts/open-latest-build.sh --print 2>"$output_dir/app-open.log"
+  )"
+fi
 printf 'app_path=%s\n' "$app_path" >>"$output_dir/app-open.log"
 app_executable="$app_path/Contents/MacOS/$APP_NAME"
 if [ ! -x "$app_executable" ]; then

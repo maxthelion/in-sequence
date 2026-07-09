@@ -5,3 +5,5 @@ Screenshots:
 
 Capture references:
 - 18-track-detail-steps-clip.png (in-sequence/qa-surface-coverage; codex/july-5-ui-feedback-batch @ 9c1744ba; run 20260706-093732-in-sequence-qa-surface-coverage-july-5-ui-feedback-batch-9c1744ba; 10f65bddf02ddbec50c9459dc0bb30a4)
+
+Status: RESOLVED 859b3193

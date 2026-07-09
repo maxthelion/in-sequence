@@ -164,11 +164,6 @@ extension DrumKitMatrixView {
 
     func sourceModeSwitch(_ row: DrumKitMatrixModel.Row) -> some View {
         HStack(spacing: 8) {
-            Text("SOURCE")
-                .studioText(.eyebrow)
-                .tracking(0.8)
-                .foregroundStyle(StudioTheme.mutedText)
-
             StudioSegmentedControl(
                 title: nil,
                 selection: Binding(
@@ -225,10 +220,11 @@ extension DrumKitMatrixView {
     func expandedStepGrid(row: DrumKitMatrixModel.Row, pageOffset: Int) -> some View {
         switch row.content {
         case let .editable(_, _, steps):
+            let noteLane = matrixNoteLane(model)
             let states = (0..<Self.stepsPerBar).map { local -> StepVisualState in
                 let absolute = pageOffset + local
                 guard steps.indices.contains(absolute) else { return .off }
-                return ClipNoteGridStepEditing.visualState(for: steps[absolute], lane: .main)
+                return ClipNoteGridStepEditing.visualState(for: steps[absolute], lane: noteLane)
             }
             VStack(alignment: .leading, spacing: 8) {
                 if let model { barPager(model) }
@@ -261,106 +257,55 @@ extension DrumKitMatrixView {
         guard steps.indices.contains(index) else {
             return selectedLayer == .steps ? .toggle : .valueBar(fraction: 0)
         }
+        let noteLane = matrixNoteLane(model)
         switch selectedLayer {
         case .steps:
             return .toggle
         case .velocity:
             return .valueBar(
-                fraction: ClipNoteGridStepEditing.velocityValue(for: steps[index], lane: .main) / 127.0
+                fraction: ClipNoteGridStepEditing.velocityValue(for: steps[index], lane: noteLane) / 127.0
             )
         case .chance:
             return .valueBar(
-                fraction: ClipNoteGridStepEditing.chanceValue(for: steps[index], lane: .main)
+                fraction: ClipNoteGridStepEditing.chanceValue(for: steps[index], lane: noteLane)
             )
         }
     }
 
     @ViewBuilder
     func expandedGeneratorBody(_ row: DrumKitMatrixModel.Row) -> some View {
-        let detail: String = {
-            if case let .generator(d) = row.content { return d }
-            return "Generator"
-        }()
-        let modifierName = memberModifierName(row.memberID)
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
-                Text(detail)
-                    .studioText(.labelBold)
-                    .foregroundStyle(StudioTheme.background)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
-                    .background(accent, in: Capsule())
-                Text("generator")
-                    .studioText(.label)
-                    .foregroundStyle(StudioTheme.mutedText)
-                Spacer(minLength: 0)
-            }
-
-            HStack(spacing: 8) {
-                Text("MODIFIER")
-                    .studioText(.eyebrow)
-                    .tracking(0.8)
-                    .foregroundStyle(StudioTheme.mutedText)
-
-                if let modifierName {
-                    Text(modifierName)
-                        .studioText(.label)
-                        .foregroundStyle(StudioTheme.text)
-                        .padding(.horizontal, 9)
-                        .padding(.vertical, 4)
-                        .background(StudioTheme.subtleFill, in: Capsule())
-                    Button {
-                        session.setPatternModifierGeneratorID(nil, for: row.memberID, slotIndex: row.patternSlotIndex)
-                        postRenderedVisualState(isVisible: true)
-                    } label: {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundStyle(StudioTheme.mutedText)
+        if let generator = memberSourceGenerator(row) {
+            GeneratorParamsEditorView(
+                generator: generator,
+                inputClipChoices: session.store.clipPool,
+                harmonicSidechainClipChoices: session.store.clipPool,
+                sourceMode: .generator,
+                accent: accent,
+                layout: .sourceContained,
+                onUpdate: { updated in
+                    session.mutateGenerator(id: generator.id) { entry in
+                        entry.params = updated
                     }
-                    .buttonStyle(.plain)
-                    .help("Remove modifier")
-                    .accessibilityLabel("Remove modifier")
-                } else {
-                    Button {
-                        addMemberModifier(row)
-                    } label: {
-                        Label("Add modifier", systemImage: "plus")
-                            .studioText(.label)
-                            .foregroundStyle(StudioTheme.text)
-                            .padding(.horizontal, 9)
-                            .padding(.vertical, 4)
-                            .background(StudioTheme.subtleFill, in: Capsule())
-                            .overlay(Capsule().stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth))
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("kit-row-add-modifier")
-                    .accessibilityLabel("Add generator modifier")
+                    postRenderedVisualState(isVisible: true)
+                },
+                onSwitchKind: { kind in
+                    _ = session.switchGeneratorKind(id: generator.id, to: kind)
+                    postRenderedVisualState(isVisible: true)
                 }
-
-                Spacer(minLength: 0)
-            }
+            )
+        } else {
+            Text("Generator unavailable")
+                .studioText(.body)
+                .foregroundStyle(StudioTheme.mutedText)
         }
     }
 
-    func memberModifierName(_ memberID: UUID) -> String? {
-        guard let bank = session.store.patternBanksByTrackID[memberID],
-              let track = memberTrack(memberID) else { return nil }
-        let slotIndex = session.store.selectedPhrase.patternIndex(for: track.id, layers: session.store.layers)
-        guard let modifierID = bank.slot(at: slotIndex).sourceRef.modifierGeneratorID,
-              let generator = session.store.generatorPool.first(where: { $0.id == modifierID })
-        else { return nil }
-        return generator.name
-    }
-
-    /// Attach the first modifier-capable generator as a modifier on the member's
-    /// active slot (AC21: the generator can carry a modifier).
-    func addMemberModifier(_ row: DrumKitMatrixModel.Row) {
-        guard let track = memberTrack(row.memberID) else { return }
-        let candidate = session.store.generatorPool.first { $0.trackType == track.trackType }
-            ?? session.store.generatorPool.first
-        guard let modifier = candidate else { return }
-        session.setPatternModifierGeneratorID(modifier.id, for: row.memberID, slotIndex: row.patternSlotIndex)
-        postRenderedVisualState(isVisible: true)
+    func memberSourceGenerator(_ row: DrumKitMatrixModel.Row) -> GeneratorPoolEntry? {
+        guard let bank = session.store.patternBanksByTrackID[row.memberID] else {
+            return nil
+        }
+        let sourceID = bank.slot(at: row.patternSlotIndex).sourceRef.generatorID
+        return session.store.generatorPool.first { $0.id == sourceID }
     }
 
     // MARK: Sound mini-tab (sampler + in-sampler filter OR AU instrument)
@@ -389,22 +334,21 @@ extension DrumKitMatrixView {
         }
     }
 
-    /// Neutral "no sound source" empty state for a part with `.none` destination.
-    /// Offers the two source choices as equal, compact, clickable rows — distinct
-    /// from a sampler that lost its sample (which keeps its own recovery card).
+    /// Empty sound source state for a part with `.none` destination. Offers the
+    /// two source choices as equal dashed add tiles — distinct from a sampler
+    /// that lost its sample (which keeps its own recovery card).
     /// Choosing Sample assigns the first library sample so the sampler card opens
     /// populated; choosing AU opens the same instrument chooser as the per-track
     /// editor (bug 20260629-101345).
     @ViewBuilder
     func expandedSoundChooserPanel(memberID: UUID) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            // Canon Rule 3: state title only — the two option rows below are
-            // the affordance; no explainer prose.
-            Text("No sound source")
-                .studioText(.subtitle)
-                .foregroundStyle(StudioTheme.text)
-
-            StudioFXOptionRow(title: "Sample", systemImage: "waveform") {
+        HStack(alignment: .top, spacing: StudioMetrics.Spacing.standard) {
+            StudioAddCard(
+                label: "Sample",
+                accent: accent,
+                minHeight: 92,
+                help: "Add a sample sound source"
+            ) {
                 guard let first = AudioSampleLibrary.shared.samples.first else { return }
                 applyMemberSoundDestination(
                     .sample(sampleID: first.id, settings: .default),
@@ -413,7 +357,12 @@ extension DrumKitMatrixView {
             }
             .accessibilityIdentifier("kit-row-choose-sample")
 
-            StudioFXOptionRow(title: "AU instrument", systemImage: "pianokeys") {
+            StudioAddCard(
+                label: "AU Instrument",
+                accent: accent,
+                minHeight: 92,
+                help: "Add an AU instrument sound source"
+            ) {
                 expandedSoundAUTarget = ExpandedSoundAUTarget(memberID: memberID)
             }
             .accessibilityIdentifier("kit-row-choose-au")
@@ -428,59 +377,40 @@ extension DrumKitMatrixView {
     }
 
     /// Sampler sound source for the member: today's `SamplerDestinationWidget`
-    /// (mini sampler + the in-sampler filter) PLUS a compact "Load AU instrument"
-    /// button that swaps the part's sound to an AU. Used for `.sample` (incl. the
-    /// missing-sample recovery card) and `.inheritGroup`. A `.none` part routes to
-    /// `expandedSoundChooserPanel` instead, so clearing the sample (X → `.none`)
-    /// lands on the neutral chooser, not the sampler's missing-sample card.
+    /// (mini sampler + the in-sampler filter). Used for `.sample` (incl. the
+    /// missing-sample recovery card) and `.inheritGroup`. A `.none` part routes
+    /// to `expandedSoundChooserPanel` instead, so clearing the sample (X →
+    /// `.none`) lands on the neutral chooser, not the sampler's missing-sample
+    /// card.
     @ViewBuilder
     func expandedSoundSamplerPanel(memberID: UUID) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            SamplerDestinationWidget(
-                destination: Binding(
-                    get: { memberTrack(memberID)?.destination ?? .none },
-                    set: { session.setEditedDestination($0, for: memberID) }
-                ),
-                library: AudioSampleLibrary.shared,
-                sampleEngine: engineController.sampleEngineSink,
-                trackID: memberID,
-                accent: accent,
-                filterSettings: Binding(
-                    get: { memberTrack(memberID)?.filter ?? .init() },
-                    set: { session.setFilterSettings($0, for: memberID) }
-                ),
-                onManageMacros: {
-                    expandedRowTab = .macros
-                    postRenderedVisualState(isVisible: true)
-                },
-                // Clear the member part's sound through the normal undoable document
-                // edit path (mirrors TrackDestinationEditor.clearDestination). The
-                // `.none` change ramp-removes the live sample voice via
-                // setEditedDestination → .fullEngineApply → syncSampleMixers; it does
-                // NOT write a transient "empty" capture into the .seqai document.
-                onRemove: {
-                    session.setEditedDestination(.none, for: memberID)
-                    postRenderedVisualState(isVisible: true)
-                }
-            )
-
-            // Compact "swap to an AU instrument" affordance — a real button, not
-            // the old always-on descriptive strip (bug 20260629-101345). Reuses
-            // the per-track AU chooser sheet; on selection it calls
-            // setEditedDestination(.auInstrument(...)) (see applyMemberSoundDestination).
-            Button {
-                expandedSoundAUTarget = ExpandedSoundAUTarget(memberID: memberID)
-            } label: {
-                Label("Load AU instrument", systemImage: "pianokeys")
-                    .studioText(.label)
+        SamplerDestinationWidget(
+            destination: Binding(
+                get: { memberTrack(memberID)?.destination ?? .none },
+                set: { session.setEditedDestination($0, for: memberID) }
+            ),
+            library: AudioSampleLibrary.shared,
+            sampleEngine: engineController.sampleEngineSink,
+            trackID: memberID,
+            accent: accent,
+            filterSettings: Binding(
+                get: { memberTrack(memberID)?.filter ?? .init() },
+                set: { session.setFilterSettings($0, for: memberID) }
+            ),
+            onManageMacros: {
+                expandedRowTab = .macros
+                postRenderedVisualState(isVisible: true)
+            },
+            // Clear the member part's sound through the normal undoable document
+            // edit path (mirrors TrackDestinationEditor.clearDestination). The
+            // `.none` change ramp-removes the live sample voice via
+            // setEditedDestination -> .fullEngineApply -> syncSampleMixers; it does
+            // NOT write a transient "empty" capture into the .seqai document.
+            onRemove: {
+                session.setEditedDestination(.none, for: memberID)
+                postRenderedVisualState(isVisible: true)
             }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
-            // One chrome accent per surface (locked grammar): the kit group
-            // colour, not a second cyan chrome accent on the part row.
-            .tint(accent)
-            .accessibilityIdentifier("kit-row-load-au")
-        }
+        )
     }
 
     /// AU instrument sound source for the member. Reuses the per-track AU flow
@@ -610,6 +540,7 @@ extension DrumKitMatrixView {
         let memberID = row.memberID
         let inserts = memberTrack(memberID)?.fxInserts ?? []
         TrackFXChainView(
+            trackID: memberID,
             inserts: inserts,
             accent: accent,
             onAddFX: { expandedFXTarget = ExpandedFXTarget(memberID: memberID) },
@@ -687,6 +618,9 @@ extension DrumKitMatrixView {
                     slotIndex: slot.slotIndex,
                     binding: slot.binding,
                     value: slot.binding.flatMap { fallbacks[$0.id] },
+                    accent: accent,
+                    knobSize: MacroSlotPresentation.workspaceKnobSize,
+                    showSlotLabel: false,
                     onAssign: { prepareAndPresentMemberMacroPicker(memberID: memberID, slotIndex: slot.slotIndex) },
                     onChange: { newValue in
                         guard let binding = slot.binding else { return }

@@ -103,7 +103,7 @@ struct TrackSourceSourceWell: View {
             sourceBadge(title: displayState.badgeTitle, accent: accent)
 
             VStack(alignment: .leading, spacing: 3) {
-                Text(selectedGenerator?.name ?? "Unnamed Generator")
+                Text(generatorDisplayName)
                     .studioText(.bodyBold)
                     .foregroundStyle(StudioTheme.text)
                     .lineLimit(1)
@@ -143,6 +143,22 @@ struct TrackSourceSourceWell: View {
         let barCount = max(1, (stepCount + 15) / 16)
         let barsLabel = barCount == 1 ? "1 bar" : "\(barCount) bars"
         return "\(currentClip.trackType.label) clip · \(barsLabel)"
+    }
+
+    private var generatorDisplayName: String {
+        guard let selectedGenerator else {
+            return "Unnamed Generator"
+        }
+
+        let generatedNamePrefix = selectedGenerator.kind.label
+        guard selectedGenerator.name.hasPrefix(generatedNamePrefix) else {
+            return selectedGenerator.name
+        }
+
+        let suffix = selectedGenerator.name
+            .dropFirst(generatedNamePrefix.count)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return suffix.allSatisfy(\.isNumber) ? generatedNamePrefix : selectedGenerator.name
     }
 
     private func slotWell<Content: View>(

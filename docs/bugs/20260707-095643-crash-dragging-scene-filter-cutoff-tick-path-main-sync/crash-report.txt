@@ -1,0 +1,1002 @@
+-------------------------------------
+Translated Report (Full Report Below)
+-------------------------------------
+
+Process:               SequencerAI [28560]
+Path:                  /Users/USER/Library/Developer/Xcode/DerivedData/SequencerAI-eqtzejtdpfgahvcbigxlxtvgqtjf/Build/Products/Debug/SequencerAI.app/Contents/MacOS/SequencerAI
+Identifier:            ai.sequencer.SequencerAI
+Version:               0.0.1 (1)
+Code Type:             ARM-64 (Native)
+Parent Process:        launchd [1]
+User ID:               501
+
+Date/Time:             2026-07-07 09:55:38.5424 +0100
+OS Version:            macOS 15.3.2 (24D81)
+Report Version:        12
+Anonymous UUID:        20A48EEF-180D-736B-84E7-5EE9109FFA7E
+
+
+Time Awake Since Boot: 87000 seconds
+
+System Integrity Protection: enabled
+
+Crashed Thread:        18  Dispatch queue: ai.sequencer.SequencerAI.TickClock
+
+Exception Type:        EXC_BREAKPOINT (SIGTRAP)
+Exception Codes:       0x0000000000000001, 0x00000001973550a4
+
+Termination Reason:    Namespace SIGNAL, Code 5 Trace/BPT trap: 5
+Terminating Process:   exc handler [28560]
+
+Thread 0::  Dispatch queue: com.apple.main-thread
+0   libsystem_kernel.dylib        	       0x18653e4e8 __semwait_signal + 8
+1   libsystem_c.dylib             	       0x18641d6f0 nanosleep + 220
+2   libc++.1.dylib                	       0x1864b42f4 std::__1::this_thread::sleep_for(std::__1::chrono::duration<long long, std::__1::ratio<1l, 1000000000l>> const&) + 84
+3   AVFAudio                      	       0x1e3a9f400 AVAudioNodeImplBase::GetAttachAndEngineLock() const + 100
+4   AVFAudio                      	       0x1e3a33974 -[AVAudioMixerNode outputVolume] + 40
+5   SequencerAI.debug.dylib       	       0x105663d5c MixerBusHost.readout() + 404 (MixerBusHost.swift:121)
+6   SequencerAI.debug.dylib       	       0x1055c63d8 closure #1 in MainAudioGraph.mixerBusReadoutForTesting(busID:) + 380 (MainAudioGraph.swift:1576)
+7   SequencerAI.debug.dylib       	       0x1055d2bb8 closure #1 in MainAudioGraph.performOnMainReturning<A>(_:) + 80 (MainAudioGraph.swift:2851)
+8   SequencerAI.debug.dylib       	       0x1055d80b0 partial apply for closure #1 in MainAudioGraph.performOnMainReturning<A>(_:) + 40
+9   SequencerAI.debug.dylib       	       0x105156058 thunk for @callee_guaranteed () -> (@out A, @error @owned Error) + 24
+10  SequencerAI.debug.dylib       	       0x1051568fc partial apply for thunk for @callee_guaranteed () -> (@out A, @error @owned Error) + 40
+11  SequencerAI.debug.dylib       	       0x10515614c closure #1 in static MainActor.assumeIsolated<A>(_:file:line:) + 184
+12  SequencerAI.debug.dylib       	       0x105141868 static MainActor.assumeIsolated<A>(_:file:line:) + 424
+13  SequencerAI.debug.dylib       	       0x1055b7dd0 MainAudioGraph.performOnMainReturning<A>(_:) + 372 (MainAudioGraph.swift:2850)
+14  SequencerAI.debug.dylib       	       0x1055c6248 MainAudioGraph.mixerBusReadoutForTesting(busID:) + 288 (MainAudioGraph.swift:1570)
+15  SequencerAI.debug.dylib       	       0x105a16904 SamplePlaybackEngine.isBusVoicePoolReadyForPlayback(pool:busID:) + 188 (SamplePlaybackEngine.swift:1606)
+16  SequencerAI.debug.dylib       	       0x105a03c04 SamplePlaybackEngine.publishBusTrackFastPathIfConnected(trackID:busID:pool:) + 160 (SamplePlaybackEngine.swift:2294)
+17  SequencerAI.debug.dylib       	       0x105a02c3c closure #1 in SamplePlaybackEngine.prepareTrack(trackID:) + 1188 (SamplePlaybackEngine.swift:395)
+18  SequencerAI.debug.dylib       	       0x105a20c68 closure #1 in SamplePlaybackEngine.performOnMain<A>(_:) + 80 (SamplePlaybackEngine.swift:2596)
+19  SequencerAI.debug.dylib       	       0x105a26dc4 partial apply for closure #1 in SamplePlaybackEngine.performOnMain<A>(_:) + 40
+20  SequencerAI.debug.dylib       	       0x105156058 thunk for @callee_guaranteed () -> (@out A, @error @owned Error) + 24
+21  SequencerAI.debug.dylib       	       0x1051568fc partial apply for thunk for @callee_guaranteed () -> (@out A, @error @owned Error) + 40
+22  SequencerAI.debug.dylib       	       0x10515614c closure #1 in static MainActor.assumeIsolated<A>(_:file:line:) + 184
+23  SequencerAI.debug.dylib       	       0x105141868 static MainActor.assumeIsolated<A>(_:file:line:) + 424
+24  SequencerAI.debug.dylib       	       0x105a054c8 SamplePlaybackEngine.performOnMain<A>(_:) + 368 (SamplePlaybackEngine.swift:2595)
+25  SequencerAI.debug.dylib       	       0x105a02784 SamplePlaybackEngine.prepareTrack(trackID:) + 320 (SamplePlaybackEngine.swift:380)
+26  SequencerAI.debug.dylib       	       0x105a13194 SamplePlaybackEngine.setTrackSends(trackID:sendA:sendB:) + 168 (SamplePlaybackEngine.swift:1208)
+27  SequencerAI.debug.dylib       	       0x105a210f8 protocol witness for SamplePlaybackSink.setTrackSends(trackID:sendA:sendB:) in conformance SamplePlaybackEngine + 12
+28  SequencerAI.debug.dylib       	       0x1053f7978 EngineController.refreshEffectiveMixerState(for:) + 2284 (EngineControllerMixSync.swift:222)
+29  SequencerAI.debug.dylib       	       0x1053f7dd8 EngineController.refreshSceneMembershipGains(for:) + 380 (EngineControllerMixSync.swift:37)
+30  SequencerAI.debug.dylib       	       0x1053a990c EngineController.applyMasterBusIfChanged(_:) + 392 (EngineController.swift:4039)
+31  SequencerAI.debug.dylib       	       0x1053c5178 EngineController.apply(masterBus:) + 124 (EngineController.swift:1994)
+32  SequencerAI.debug.dylib       	       0x105b6aa90 SequencerDocumentSession.dispatchScopedRuntimeUpdate(_:) + 2064 (SequencerDocumentSession.swift:408)
+33  SequencerAI.debug.dylib       	       0x105b32924 SequencerDocumentSession.dispatchImpact(_:changed:) + 816 (SequencerDocumentSession+Mutations.swift:35)
+34  SequencerAI.debug.dylib       	       0x105b3a6d0 SequencerDocumentSession.mutateMasterBus(_:) + 728 (SequencerDocumentSession+Mutations.swift:540)
+35  SequencerAI.debug.dylib       	       0x105b3af94 SequencerDocumentSession.updateMasterBusInsert(_:in:edit:) + 108 (SequencerDocumentSession+Mutations.swift:593)
+36  SequencerAI.debug.dylib       	       0x105added4 closure #2 in ScenesWorkspaceView.filterCutoffBinding(insertID:settings:) + 348 (ScenesWorkspaceView.swift:921)
+37  SwiftUICore                   	       0x225d73d14 partial apply for closure #1 in Binding.init(get:set:) + 48
+38  SwiftUICore                   	       0x225c9e564 FunctionalLocation.set(_:transaction:) + 28
+39  SwiftUICore                   	       0x225c9d274 LocationBox.set(_:transaction:) + 300
+40  SwiftUICore                   	       0x225d73c60 specialized Binding.wrappedValue.setter + 60
+41  SwiftUICore                   	       0x225d70f80 Binding.wrappedValue.setter + 32
+42  SequencerAI.debug.dylib       	       0x105adaa74 closure #2 in ScenesWorkspaceView.filterEditor(insert:settings:) + 148 (ScenesWorkspaceView.swift:847)
+43  SequencerAI.debug.dylib       	       0x105d4caf8 closure #3 in closure #1 in StudioRotaryKnob.body.getter + 228 (StudioRotaryKnob.swift:125)
+44  SwiftUICore                   	       0x225d73d14 partial apply for closure #1 in Binding.init(get:set:) + 48
+45  SwiftUICore                   	       0x225c9e564 FunctionalLocation.set(_:transaction:) + 28
+46  SwiftUICore                   	       0x225c9d274 LocationBox.set(_:transaction:) + 300
+47  SwiftUICore                   	       0x225d73c60 specialized Binding.wrappedValue.setter + 60
+48  SwiftUICore                   	       0x225d70f80 Binding.wrappedValue.setter + 32
+49  SequencerAI.debug.dylib       	       0x105d29ab4 closure #1 in static StudioDrag.verticalValueGesture(value:dragStart:range:onCommit:) + 1100 (StudioControls.swift:159)
+50  SwiftUICore                   	       0x225a9f9f0 partial apply for closure #1 in closure #2 in ChangedCallbacks.dispatch(phase:state:) + 40
+51  SwiftUICore                   	       0x225a9f920 partial apply for closure #1 in closure #3 in FullGestureCallbacks.dispatch(phase:state:) + 16
+52  SwiftUICore                   	       0x225760608 specialized closure #1 in withTransaction<A>(_:_:) + 304
+53  SwiftUICore                   	       0x225a9a33c closure #2 in ChangedCallbacks.dispatch(phase:state:) + 148
+54  SwiftUICore                   	       0x225b61768 thunk for @callee_guaranteed () -> () + 28
+55  SwiftUICore                   	       0x22578d200 FunctionalLocation.get() + 28
+56  SwiftUICore                   	       0x225b61768 thunk for @callee_guaranteed () -> () + 28
+57  SwiftUICore                   	       0x225b625bc static Update.dispatchActions() + 1236
+58  SwiftUICore                   	       0x225b61aa0 static Update.end() + 212
+59  SwiftUICore                   	       0x225e962d8 EventBindingManager.send(_:) + 148
+60  SwiftUI                       	       0x1b5bd8050 NSHostingView.sendEvents(_:track:) + 4016
+61  SwiftUI                       	       0x1b5bd6f84 NSHostingView.sendEvent<A>(_:serial:track:) + 512
+62  SwiftUI                       	       0x1b5bd9c34 NSHostingView.sendMouseEvent(_:phase:button:) + 1148
+63  SwiftUI                       	       0x1b5be7538 NSHostingView.mouseDragged(with:) + 560
+64  SwiftUI                       	       0x1b5be7624 @objc NSHostingView.mouseDragged(with:) + 56
+65  AppKit                        	       0x18acd49c8 -[NSWindow _handleMouseDraggedEvent:] + 52
+66  AppKit                        	       0x18a301694 -[NSWindow(NSEventRouting) _reallySendEvent:isDelayedEvent:] + 284
+67  AppKit                        	       0x18a3013a8 -[NSWindow(NSEventRouting) sendEvent:] + 284
+68  AppKit                        	       0x18ab3fa08 -[NSApplication(NSEventRouting) sendEvent:] + 1656
+69  AppKit                        	       0x18a746b04 -[NSApplication _handleEvent:] + 60
+70  AppKit                        	       0x18a1cd89c -[NSApplication run] + 520
+71  AppKit                        	       0x18a1a4068 NSApplicationMain + 888
+72  SwiftUI                       	       0x1b530270c specialized runApp(_:) + 160
+73  SwiftUI                       	       0x1b57789a0 runApp<A>(_:) + 140
+74  SwiftUI                       	       0x1b5af4e68 static App.main() + 224
+75  SequencerAI.debug.dylib       	       0x105b28fbc static SequencerAIApp.$main() + 40
+76  SequencerAI.debug.dylib       	       0x105b29068 __debug_main_executable_dylib_entry_point + 12
+77  dyld                          	       0x1861fc274 start + 2840
+
+Thread 1::  Dispatch queue: ai.sequencer.SequencerAI.AudioInstrumentHost
+0   libsystem_kernel.dylib        	       0x18653ccac __ulock_wait + 8
+1   libdispatch.dylib             	       0x1863c9fa4 _dlock_wait + 56
+2   libdispatch.dylib             	       0x1863c9d58 _dispatch_thread_event_wait_slow + 56
+3   libdispatch.dylib             	       0x1863d90f4 __DISPATCH_WAIT_FOR_QUEUE__ + 368
+4   libdispatch.dylib             	       0x1863d8ca0 _dispatch_sync_f_slow + 148
+5   SequencerAI.debug.dylib       	       0x105141578 AudioInstrumentHost.performOnMain(_:) + 576 (AudioInstrumentHost.swift:156)
+6   SequencerAI.debug.dylib       	       0x105147568 AudioInstrumentHost.applyCurrentMix() + 844 (AudioInstrumentHost.swift:1080)
+7   SequencerAI.debug.dylib       	       0x1051471f4 closure #1 in AudioInstrumentHost.setMix(_:) + 284 (AudioInstrumentHost.swift:364)
+8   SequencerAI.debug.dylib       	       0x105125ae4 thunk for @escaping @callee_guaranteed @Sendable () -> () + 48
+9   libdispatch.dylib             	       0x1863c7854 _dispatch_call_block_and_release + 32
+10  libdispatch.dylib             	       0x1863c95b4 _dispatch_client_callout + 20
+11  libdispatch.dylib             	       0x1863d0bd8 _dispatch_lane_serial_drain + 768
+12  libdispatch.dylib             	       0x1863d1730 _dispatch_lane_invoke + 380
+13  libdispatch.dylib             	       0x1863dc9a0 _dispatch_root_queue_drain_deferred_wlh + 288
+14  libdispatch.dylib             	       0x1863dc1ec _dispatch_workloop_worker_thread + 540
+15  libsystem_pthread.dylib       	       0x1865783d8 _pthread_wqthread + 288
+16  libsystem_pthread.dylib       	       0x1865770f0 start_wqthread + 8
+
+Thread 2:
+0   libsystem_kernel.dylib        	       0x18653af54 mach_msg2_trap + 8
+1   libsystem_kernel.dylib        	       0x18654d604 mach_msg2_internal + 80
+2   libsystem_kernel.dylib        	       0x186543af8 mach_msg_overwrite + 480
+3   libsystem_kernel.dylib        	       0x18653b29c mach_msg + 24
+4   CoreMIDI                      	       0x1a20dd614 XServerMachPort::ReceiveMessage(int&, void*, int&) + 104
+5   CoreMIDI                      	       0x1a20ff210 MIDIProcess::MIDIInPortThread::Run() + 156
+6   CoreMIDI                      	       0x1a20f4028 CADeprecated::XThread::RunHelper(void*) + 48
+7   CoreMIDI                      	       0x1a20fe914 CADeprecated::CAPThread::Entry(CADeprecated::CAPThread*) + 92
+8   libsystem_pthread.dylib       	       0x18657c2e4 _pthread_start + 136
+9   libsystem_pthread.dylib       	       0x1865770fc thread_start + 8
+
+Thread 3:: com.apple.NSEventThread
+0   libsystem_kernel.dylib        	       0x18653af54 mach_msg2_trap + 8
+1   libsystem_kernel.dylib        	       0x18654d604 mach_msg2_internal + 80
+2   libsystem_kernel.dylib        	       0x186543af8 mach_msg_overwrite + 480
+3   libsystem_kernel.dylib        	       0x18653b29c mach_msg + 24
+4   CoreFoundation                	       0x186664a4c __CFRunLoopServiceMachPort + 160
+5   CoreFoundation                	       0x1866632ac __CFRunLoopRun + 1212
+6   CoreFoundation                	       0x186662734 CFRunLoopRunSpecific + 588
+7   AppKit                        	       0x18a2ff278 _NSEventThread + 148
+8   libsystem_pthread.dylib       	       0x18657c2e4 _pthread_start + 136
+9   libsystem_pthread.dylib       	       0x1865770fc thread_start + 8
+
+Thread 4:: caulk.messenger.shared:17
+0   libsystem_kernel.dylib        	       0x18653aed0 semaphore_wait_trap + 8
+1   caulk                         	       0x1916a7ff4 caulk::semaphore::timed_wait(double) + 220
+2   caulk                         	       0x1916a7ea0 caulk::concurrent::details::worker_thread::run() + 36
+3   caulk                         	       0x1916a7b74 void* caulk::thread_proxy<std::__1::tuple<caulk::thread::attributes, void (caulk::concurrent::details::worker_thread::*)(), std::__1::tuple<caulk::concurrent::details::worker_thread*>>>(void*) + 96
+4   libsystem_pthread.dylib       	       0x18657c2e4 _pthread_start + 136
+5   libsystem_pthread.dylib       	       0x1865770fc thread_start + 8
+
+Thread 5:: caulk.messenger.shared:high
+0   libsystem_kernel.dylib        	       0x18653aed0 semaphore_wait_trap + 8
+1   caulk                         	       0x1916a7ff4 caulk::semaphore::timed_wait(double) + 220
+2   caulk                         	       0x1916a7ea0 caulk::concurrent::details::worker_thread::run() + 36
+3   caulk                         	       0x1916a7b74 void* caulk::thread_proxy<std::__1::tuple<caulk::thread::attributes, void (caulk::concurrent::details::worker_thread::*)(), std::__1::tuple<caulk::concurrent::details::worker_thread*>>>(void*) + 96
+4   libsystem_pthread.dylib       	       0x18657c2e4 _pthread_start + 136
+5   libsystem_pthread.dylib       	       0x1865770fc thread_start + 8
+
+Thread 6:: caulk::deferred_logger
+0   libsystem_kernel.dylib        	       0x18653aed0 semaphore_wait_trap + 8
+1   caulk                         	       0x1916a7ff4 caulk::semaphore::timed_wait(double) + 220
+2   caulk                         	       0x1916a7ea0 caulk::concurrent::details::worker_thread::run() + 36
+3   caulk                         	       0x1916a7b74 void* caulk::thread_proxy<std::__1::tuple<caulk::thread::attributes, void (caulk::concurrent::details::worker_thread::*)(), std::__1::tuple<caulk::concurrent::details::worker_thread*>>>(void*) + 96
+4   libsystem_pthread.dylib       	       0x18657c2e4 _pthread_start + 136
+5   libsystem_pthread.dylib       	       0x1865770fc thread_start + 8
+
+Thread 7:: com.apple.audio.toolbox.AUScheduledParameterRefresher
+0   libsystem_kernel.dylib        	       0x18653aed0 semaphore_wait_trap + 8
+1   caulk                         	       0x1916a7ff4 caulk::semaphore::timed_wait(double) + 220
+2   caulk                         	       0x1916a7ea0 caulk::concurrent::details::worker_thread::run() + 36
+3   caulk                         	       0x1916a7b74 void* caulk::thread_proxy<std::__1::tuple<caulk::thread::attributes, void (caulk::concurrent::details::worker_thread::*)(), std::__1::tuple<caulk::concurrent::details::worker_thread*>>>(void*) + 96
+4   libsystem_pthread.dylib       	       0x18657c2e4 _pthread_start + 136
+5   libsystem_pthread.dylib       	       0x1865770fc thread_start + 8
+
+Thread 8:: com.apple.audio.IOThread.client
+0   libmusiceaselvProcessor.dylib 	       0x11c5035fc 0x11c4b0000 + 341500
+1   ???                           	        0xb8e32be1 ???
+2   libmusiceaselvProcessor.dylib 	       0x11c50e398 0x11c4b0000 + 385944
+3   libmusiceaselvProcessor.dylib 	       0x11c4e1668 0x11c4b0000 + 202344
+4   Buchla Easel V                	       0x11e4fd878 0x11e190000 + 3594360
+5   Buchla Easel V                	       0x11e479d38 0x11e190000 + 3054904
+6   Buchla Easel V                	       0x11e4f9fd0 0x11e190000 + 3579856
+7   Buchla Easel V                	       0x11e4acdf0 0x11e190000 + 3263984
+8   Buchla Easel V                	       0x11e39af84 0x11e190000 + 2142084
+9   Buchla Easel V                	       0x10efcf21c 0x10efb8000 + 94748
+10  Buchla Easel V                	       0x10efc3e18 0x10efb8000 + 48664
+11  Buchla Easel V                	       0x10efc654c 0x10efb8000 + 58700
+12  AudioToolboxCore              	       0x188bdd0d0 AudioUnitRender + 428
+13  AudioToolboxCore              	       0x188b247cc invocation function for block in AUAudioUnitV2Bridge_Renderer::renderBlock() + 624
+14  AudioToolboxCore              	       0x188aa78d0 __26-[AUAudioUnit renderBlock]_block_invoke + 288
+15  AVFAudio                      	       0x1e3a04850 invocation function for block in CopyInnerInputBlock(AUGraphNodeBaseV3*) + 320
+16  AVFAudio                      	       0x1e3a08a68 invocation function for block in AUGraphMultiBusNode::AllocateInputBlock() + 168
+17  AudioToolboxCore              	       0x188b2651c AUAudioUnitV2Bridge_Renderer::renderInputProc(void*, unsigned int*, AudioTimeStamp const*, unsigned int, unsigned int, AudioBufferList*) + 76
+18  CoreAudio                     	       0x10e0fafa4 0x10e000000 + 1028004
+19  CoreAudio                     	       0x10e0f9ec0 0x10e000000 + 1023680
+20  CoreAudio                     	       0x10e0f97fc 0x10e000000 + 1021948
+21  CoreAudio                     	       0x10e0f8d24 0x10e000000 + 1019172
+22  CoreAudio                     	       0x10e10be7c 0x10e000000 + 1097340
+23  CoreAudio                     	       0x10e10e1dc 0x10e000000 + 1106396
+24  AudioToolboxCore              	       0x188bdd0d0 AudioUnitRender + 428
+25  AudioToolboxCore              	       0x188b247cc invocation function for block in AUAudioUnitV2Bridge_Renderer::renderBlock() + 624
+26  AudioToolboxCore              	       0x188aa78d0 __26-[AUAudioUnit renderBlock]_block_invoke + 288
+27  AVFAudio                      	       0x1e3a04850 invocation function for block in CopyInnerInputBlock(AUGraphNodeBaseV3*) + 320
+28  AVFAudio                      	       0x1e3a08a68 invocation function for block in AUGraphMultiBusNode::AllocateInputBlock() + 168
+29  AudioToolboxCore              	       0x188b2651c AUAudioUnitV2Bridge_Renderer::renderInputProc(void*, unsigned int*, AudioTimeStamp const*, unsigned int, unsigned int, AudioBufferList*) + 76
+30  CoreAudio                     	       0x10e0fafa4 0x10e000000 + 1028004
+31  CoreAudio                     	       0x10e0f9ec0 0x10e000000 + 1023680
+32  CoreAudio                     	       0x10e0f97fc 0x10e000000 + 1021948
+33  CoreAudio                     	       0x10e0f8d24 0x10e000000 + 1019172
+34  CoreAudio                     	       0x10e10be7c 0x10e000000 + 1097340
+35  CoreAudio                     	       0x10e10e1dc 0x10e000000 + 1106396
+36  AudioToolboxCore              	       0x188bdd0d0 AudioUnitRender + 428
+37  AudioToolboxCore              	       0x188b247cc invocation function for block in AUAudioUnitV2Bridge_Renderer::renderBlock() + 624
+38  AudioToolboxCore              	       0x188aa78d0 __26-[AUAudioUnit renderBlock]_block_invoke + 288
+39  AVFAudio                      	       0x1e3a04850 invocation function for block in CopyInnerInputBlock(AUGraphNodeBaseV3*) + 320
+40  AVFAudio                      	       0x1e3a08a68 invocation function for block in AUGraphMultiBusNode::AllocateInputBlock() + 168
+41  AudioToolboxCore              	       0x188b2651c AUAudioUnitV2Bridge_Renderer::renderInputProc(void*, unsigned int*, AudioTimeStamp const*, unsigned int, unsigned int, AudioBufferList*) + 76
+42  CoreAudio                     	       0x10e1063b4 0x10e000000 + 1074100
+43  CoreAudio                     	       0x10e02cf40 0x10e000000 + 184128
+44  CoreAudio                     	       0x10e10be7c 0x10e000000 + 1097340
+45  CoreAudio                     	       0x10e10e1dc 0x10e000000 + 1106396
+46  AudioToolboxCore              	       0x188bdd0d0 AudioUnitRender + 428
+47  AudioToolboxCore              	       0x188b247cc invocation function for block in AUAudioUnitV2Bridge_Renderer::renderBlock() + 624
+48  AudioToolboxCore              	       0x188aa78d0 __26-[AUAudioUnit renderBlock]_block_invoke + 288
+49  AVFAudio                      	       0x1e3a04850 invocation function for block in CopyInnerInputBlock(AUGraphNodeBaseV3*) + 320
+50  AVFAudio                      	       0x1e3a08a68 invocation function for block in AUGraphMultiBusNode::AllocateInputBlock() + 168
+51  AudioToolboxCore              	       0x188b2651c AUAudioUnitV2Bridge_Renderer::renderInputProc(void*, unsigned int*, AudioTimeStamp const*, unsigned int, unsigned int, AudioBufferList*) + 76
+52  CoreAudio                     	       0x10e0fafa4 0x10e000000 + 1028004
+53  CoreAudio                     	       0x10e0f9e6c 0x10e000000 + 1023596
+54  CoreAudio                     	       0x10e0f97fc 0x10e000000 + 1021948
+55  CoreAudio                     	       0x10e0f8d24 0x10e000000 + 1019172
+56  CoreAudio                     	       0x10e10be7c 0x10e000000 + 1097340
+57  CoreAudio                     	       0x10e10e1dc 0x10e000000 + 1106396
+58  AudioToolboxCore              	       0x188bdd0d0 AudioUnitRender + 428
+59  AudioToolboxCore              	       0x188b247cc invocation function for block in AUAudioUnitV2Bridge_Renderer::renderBlock() + 624
+60  AudioToolboxCore              	       0x188aa78d0 __26-[AUAudioUnit renderBlock]_block_invoke + 288
+61  AVFAudio                      	       0x1e3a04850 invocation function for block in CopyInnerInputBlock(AUGraphNodeBaseV3*) + 320
+62  AVFAudio                      	       0x1e3a08a68 invocation function for block in AUGraphMultiBusNode::AllocateInputBlock() + 168
+63  AudioToolboxCore              	       0x188b2651c AUAudioUnitV2Bridge_Renderer::renderInputProc(void*, unsigned int*, AudioTimeStamp const*, unsigned int, unsigned int, AudioBufferList*) + 76
+64  CoreAudio                     	       0x10e1063b4 0x10e000000 + 1074100
+65  CoreAudio                     	       0x10e02cf40 0x10e000000 + 184128
+66  CoreAudio                     	       0x10e10be7c 0x10e000000 + 1097340
+67  CoreAudio                     	       0x10e10e1dc 0x10e000000 + 1106396
+68  AudioToolboxCore              	       0x188bdd0d0 AudioUnitRender + 428
+69  AudioToolboxCore              	       0x188b247cc invocation function for block in AUAudioUnitV2Bridge_Renderer::renderBlock() + 624
+70  AudioToolboxCore              	       0x188aa78d0 __26-[AUAudioUnit renderBlock]_block_invoke + 288
+71  AVFAudio                      	       0x1e3a04850 invocation function for block in CopyInnerInputBlock(AUGraphNodeBaseV3*) + 320
+72  AVFAudio                      	       0x1e3a08a68 invocation function for block in AUGraphMultiBusNode::AllocateInputBlock() + 168
+73  AudioToolboxCore              	       0x188b2651c AUAudioUnitV2Bridge_Renderer::renderInputProc(void*, unsigned int*, AudioTimeStamp const*, unsigned int, unsigned int, AudioBufferList*) + 76
+74  CoreAudio                     	       0x10e0fafa4 0x10e000000 + 1028004
+75  CoreAudio                     	       0x10e0f9ec0 0x10e000000 + 1023680
+76  CoreAudio                     	       0x10e0f97fc 0x10e000000 + 1021948
+77  CoreAudio                     	       0x10e0f8d24 0x10e000000 + 1019172
+78  CoreAudio                     	       0x10e10be7c 0x10e000000 + 1097340
+79  CoreAudio                     	       0x10e10e1dc 0x10e000000 + 1106396
+80  AudioToolboxCore              	       0x188bdd0d0 AudioUnitRender + 428
+81  AudioToolboxCore              	       0x188b247cc invocation function for block in AUAudioUnitV2Bridge_Renderer::renderBlock() + 624
+82  AudioToolboxCore              	       0x188aa78d0 __26-[AUAudioUnit renderBlock]_block_invoke + 288
+83  AVFAudio                      	       0x1e3a04850 invocation function for block in CopyInnerInputBlock(AUGraphNodeBaseV3*) + 320
+84  AVFAudio                      	       0x1e3a08a68 invocation function for block in AUGraphMultiBusNode::AllocateInputBlock() + 168
+85  AudioToolboxCore              	       0x188b2651c AUAudioUnitV2Bridge_Renderer::renderInputProc(void*, unsigned int*, AudioTimeStamp const*, unsigned int, unsigned int, AudioBufferList*) + 76
+86  CoreAudio                     	       0x10e0fafa4 0x10e000000 + 1028004
+87  CoreAudio                     	       0x10e0f9e6c 0x10e000000 + 1023596
+88  CoreAudio                     	       0x10e0f97fc 0x10e000000 + 1021948
+89  CoreAudio                     	       0x10e0f8d24 0x10e000000 + 1019172
+90  CoreAudio                     	       0x10e10be7c 0x10e000000 + 1097340
+91  CoreAudio                     	       0x10e10e1dc 0x10e000000 + 1106396
+92  AudioToolboxCore              	       0x188bdd0d0 AudioUnitRender + 428
+93  AudioToolboxCore              	       0x188b247cc invocation function for block in AUAudioUnitV2Bridge_Renderer::renderBlock() + 624
+94  AudioToolboxCore              	       0x188aa78d0 __26-[AUAudioUnit renderBlock]_block_invoke + 288
+95  AVFAudio                      	       0x1e3a04850 invocation function for block in CopyInnerInputBlock(AUGraphNodeBaseV3*) + 320
+96  AVFAudio                      	       0x1e3a08a68 invocation function for block in AUGraphMultiBusNode::AllocateInputBlock() + 168
+97  AudioToolboxCore              	       0x188b2651c AUAudioUnitV2Bridge_Renderer::renderInputProc(void*, unsigned int*, AudioTimeStamp const*, unsigned int, unsigned int, AudioBufferList*) + 76
+98  CoreAudio                     	       0x10e0fafa4 0x10e000000 + 1028004
+99  CoreAudio                     	       0x10e0f9ec0 0x10e000000 + 1023680
+100 CoreAudio                     	       0x10e0f97fc 0x10e000000 + 1021948
+101 CoreAudio                     	       0x10e0f8d24 0x10e000000 + 1019172
+102 CoreAudio                     	       0x10e10be7c 0x10e000000 + 1097340
+103 CoreAudio                     	       0x10e10e1dc 0x10e000000 + 1106396
+104 AudioToolboxCore              	       0x188bdd0d0 AudioUnitRender + 428
+105 AudioToolboxCore              	       0x188b247cc invocation function for block in AUAudioUnitV2Bridge_Renderer::renderBlock() + 624
+106 AudioToolboxCore              	       0x188aa78d0 __26-[AUAudioUnit renderBlock]_block_invoke + 288
+107 AVFAudio                      	       0x1e3a04850 invocation function for block in CopyInnerInputBlock(AUGraphNodeBaseV3*) + 320
+108 AVFAudio                      	       0x1e3a08a68 invocation function for block in AUGraphMultiBusNode::AllocateInputBlock() + 168
+109 AudioToolboxCore              	       0x188b2651c AUAudioUnitV2Bridge_Renderer::renderInputProc(void*, unsigned int*, AudioTimeStamp const*, unsigned int, unsigned int, AudioBufferList*) + 76
+110 CoreAudio                     	       0x10e0fafa4 0x10e000000 + 1028004
+111 CoreAudio                     	       0x10e0f9ec0 0x10e000000 + 1023680
+112 CoreAudio                     	       0x10e0f92d0 0x10e000000 + 1020624
+113 CoreAudio                     	       0x10e0f8d24 0x10e000000 + 1019172
+114 CoreAudio                     	       0x10e10be7c 0x10e000000 + 1097340
+115 CoreAudio                     	       0x10e10e1dc 0x10e000000 + 1106396
+116 AudioToolboxCore              	       0x188bdd0d0 AudioUnitRender + 428
+117 AudioToolboxCore              	       0x188b247cc invocation function for block in AUAudioUnitV2Bridge_Renderer::renderBlock() + 624
+118 AudioToolboxCore              	       0x188aa78d0 __26-[AUAudioUnit renderBlock]_block_invoke + 288
+119 AVFAudio                      	       0x1e3a04850 invocation function for block in CopyInnerInputBlock(AUGraphNodeBaseV3*) + 320
+120 AVFAudio                      	       0x1e3a049a0 invocation function for block in AUGraphNodeBaseV3::AllocateInputBlock() + 152
+121 CoreAudio                     	       0x10e1063b4 0x10e000000 + 1074100
+122 CoreAudio                     	       0x10e009e54 0x10e000000 + 40532
+123 AudioToolboxCore              	       0x188a61c70 caulk::expected<unsigned int, int> caulk::function_ref<caulk::expected<unsigned int, int> (ACAudioSpan&)>::functor_invoker<acv2::AudioConverterV2::fillComplexBuffer(int (*)(OpaqueAudioConverter*, unsigned int*, AudioBufferList*, AudioStreamPacketDescription**, void*), void*, unsigned int*, AudioBufferList*, AudioStreamPacketDescription*, AudioStreamPacketDependencyInfo*)::$_1>(caulk::details::erased_callable<caulk::expected<unsigned int, int> (ACAudioSpan&)> const&, ACAudioSpan&) + 152
+124 AudioToolboxCore              	       0x188999f48 acv2::AudioConverterChain::ObtainInput(acv2::AudioConverterBase&, unsigned int) + 572
+125 AudioToolboxCore              	       0x188bbf3ac acv2::CBRConverter::ProduceOutput(ACAudioSpan&) + 52
+126 AudioToolboxCore              	       0x188999528 acv2::AudioConverterChain::ProduceOutput(caulk::function_ref<caulk::expected<unsigned int, int> (ACAudioSpan&)>, ACBaseAudioSpan&) + 172
+127 AudioToolboxCore              	       0x188a61744 acv2::AudioConverterV2::fillComplexBuffer(int (*)(OpaqueAudioConverter*, unsigned int*, AudioBufferList*, AudioStreamPacketDescription**, void*), void*, unsigned int*, AudioBufferList*, AudioStreamPacketDescription*, AudioStreamPacketDependencyInfo*) + 904
+128 AudioToolboxCore              	       0x188a6648c int caulk::function_ref<int (AudioConverterAPI*)>::functor_invoker<AudioConverterFillComplexBuffer::$_0>(caulk::details::erased_callable<int (AudioConverterAPI*)> const&, AudioConverterAPI*) + 108
+129 AudioToolboxCore              	       0x188a65ac0 with_resolved(OpaqueAudioConverter*, caulk::function_ref<int (AudioConverterAPI*)>) + 60
+130 AudioToolboxCore              	       0x188a66414 AudioConverterFillComplexBuffer + 88
+131 CoreAudio                     	       0x10e009708 0x10e000000 + 38664
+132 CoreAudio                     	       0x10e10be7c 0x10e000000 + 1097340
+133 CoreAudio                     	       0x10e00f104 0x10e000000 + 61700
+134 CoreAudio                     	       0x1890b981c HALC_ProxyIOContext::IOWorkLoop() + 10248
+135 CoreAudio                     	       0x1890b6898 invocation function for block in HALC_ProxyIOContext::HALC_ProxyIOContext(unsigned int, unsigned int) + 176
+136 CoreAudio                     	       0x189267760 HALC_IOThread::Entry(void*) + 88
+137 libsystem_pthread.dylib       	       0x18657c2e4 _pthread_start + 136
+138 libsystem_pthread.dylib       	       0x1865770fc thread_start + 8
+
+Thread 9:
+0   libsystem_pthread.dylib       	       0x1865770e8 start_wqthread + 0
+
+Thread 10:
+0   libsystem_kernel.dylib        	       0x18653e6ec __psynch_cvwait + 8
+1   libsystem_pthread.dylib       	       0x18657c894 _pthread_cond_wait + 1204
+2   libc++.1.dylib                	       0x1864b2578 std::__1::condition_variable::wait(std::__1::unique_lock<std::__1::mutex>&) + 28
+3   Buchla Easel V                	       0x11e4764ec 0x11e190000 + 3040492
+4   Buchla Easel V                	       0x11e488610 0x11e190000 + 3114512
+5   libsystem_pthread.dylib       	       0x18657c2e4 _pthread_start + 136
+6   libsystem_pthread.dylib       	       0x1865770fc thread_start + 8
+
+Thread 11:: AsyncPresetLoader
+0   libsystem_kernel.dylib        	       0x18653e6ec __psynch_cvwait + 8
+1   libsystem_pthread.dylib       	       0x18657c894 _pthread_cond_wait + 1204
+2   libc++.1.dylib                	       0x1864b2578 std::__1::condition_variable::wait(std::__1::unique_lock<std::__1::mutex>&) + 28
+3   Buchla Easel V                	       0x11e3e501c 0x11e190000 + 2445340
+4   libsystem_pthread.dylib       	       0x18657c2e4 _pthread_start + 136
+5   libsystem_pthread.dylib       	       0x1865770fc thread_start + 8
+
+Thread 12:
+0   libsystem_kernel.dylib        	       0x18653e4e8 __semwait_signal + 8
+1   libsystem_c.dylib             	       0x18641d6f0 nanosleep + 220
+2   libc++.1.dylib                	       0x1864b42f4 std::__1::this_thread::sleep_for(std::__1::chrono::duration<long long, std::__1::ratio<1l, 1000000000l>> const&) + 84
+3   libmusiceaselvProcessor.dylib 	       0x11c51d938 0x11c4b0000 + 448824
+4   libsystem_pthread.dylib       	       0x18657c2e4 _pthread_start + 136
+5   libsystem_pthread.dylib       	       0x1865770fc thread_start + 8
+
+Thread 13:
+0   libsystem_kernel.dylib        	       0x18653e4e8 __semwait_signal + 8
+1   libsystem_c.dylib             	       0x18641d6f0 nanosleep + 220
+2   libc++.1.dylib                	       0x1864b42f4 std::__1::this_thread::sleep_for(std::__1::chrono::duration<long long, std::__1::ratio<1l, 1000000000l>> const&) + 84
+3   libmusiceaselvProcessor.dylib 	       0x11c534a48 0x11c4b0000 + 543304
+4   libmusiceaselvProcessor.dylib 	       0x11c534d9c 0x11c4b0000 + 544156
+5   libsystem_pthread.dylib       	       0x18657c2e4 _pthread_start + 136
+6   libsystem_pthread.dylib       	       0x1865770fc thread_start + 8
+
+Thread 14:: ConvoEngine
+0   libsystem_kernel.dylib        	       0x18653e6ec __psynch_cvwait + 8
+1   libsystem_pthread.dylib       	       0x18657c894 _pthread_cond_wait + 1204
+2   libc++.1.dylib                	       0x1864b2578 std::__1::condition_variable::wait(std::__1::unique_lock<std::__1::mutex>&) + 28
+3   libmusiceaselvProcessor.dylib 	       0x11c536e18 0x11c4b0000 + 552472
+4   libsystem_pthread.dylib       	       0x18657c2e4 _pthread_start + 136
+5   libsystem_pthread.dylib       	       0x1865770fc thread_start + 8
+
+Thread 15:: ConvoEngine
+0   libsystem_kernel.dylib        	       0x18653e6ec __psynch_cvwait + 8
+1   libsystem_pthread.dylib       	       0x18657c894 _pthread_cond_wait + 1204
+2   libc++.1.dylib                	       0x1864b2578 std::__1::condition_variable::wait(std::__1::unique_lock<std::__1::mutex>&) + 28
+3   libmusiceaselvProcessor.dylib 	       0x11c536e18 0x11c4b0000 + 552472
+4   libsystem_pthread.dylib       	       0x18657c2e4 _pthread_start + 136
+5   libsystem_pthread.dylib       	       0x1865770fc thread_start + 8
+
+Thread 16:: JUCE Timer
+0   libsystem_kernel.dylib        	       0x18653e6ec __psynch_cvwait + 8
+1   libsystem_pthread.dylib       	       0x18657c894 _pthread_cond_wait + 1204
+2   libc++.1.dylib                	       0x1864b260c std::__1::condition_variable::__do_timed_wait(std::__1::unique_lock<std::__1::mutex>&, std::__1::chrono::time_point<std::__1::chrono::system_clock, std::__1::chrono::duration<long long, std::__1::ratio<1l, 1000000000l>>>) + 100
+3   Buchla Easel V                	       0x11efd3224 0x11e190000 + 14955044
+4   Buchla Easel V                	       0x11edf46a0 0x11e190000 + 12994208
+5   Buchla Easel V                	       0x11efe9d3c 0x11e190000 + 15047996
+6   libsystem_pthread.dylib       	       0x18657c2e4 _pthread_start + 136
+7   libsystem_pthread.dylib       	       0x1865770fc thread_start + 8
+
+Thread 17:
+0   libsystem_pthread.dylib       	       0x1865770e8 start_wqthread + 0
+
+Thread 18 Crashed::  Dispatch queue: ai.sequencer.SequencerAI.TickClock
+0   libswiftCore.dylib            	       0x1973550a4 _assertionFailure(_:_:file:line:flags:) + 268
+1   libswiftCore.dylib            	       0x19735534c assertionFailure(_:file:line:) + 108
+2   SequencerAI.debug.dylib       	       0x105392840 static TickPathMainSyncGuard.report(_:) + 336 (EngineController.swift:140)
+3   SequencerAI.debug.dylib       	       0x1053925ac static TickPathMainSyncGuard.assertNotSyncingToMainFromTickPath(_:) + 104 (EngineController.swift:109)
+4   SequencerAI.debug.dylib       	       0x105a0552c SamplePlaybackEngine.performOnMain<A>(_:) + 468 (SamplePlaybackEngine.swift:2600)
+5   SequencerAI.debug.dylib       	       0x105a02784 SamplePlaybackEngine.prepareTrack(trackID:) + 320 (SamplePlaybackEngine.swift:380)
+6   SequencerAI.debug.dylib       	       0x105a0e138 SamplePlaybackEngine.setTrackMix(trackID:level:pan:) + 168 (SamplePlaybackEngine.swift:986)
+7   SequencerAI.debug.dylib       	       0x105a210b4 protocol witness for SamplePlaybackSink.setTrackMix(trackID:level:pan:) in conformance SamplePlaybackEngine + 12
+8   SequencerAI.debug.dylib       	       0x1053f77fc EngineController.refreshEffectiveMixerState(for:) + 1904 (EngineControllerMixSync.swift:212)
+9   SequencerAI.debug.dylib       	       0x1053f7dd8 EngineController.refreshSceneMembershipGains(for:) + 380 (EngineControllerMixSync.swift:37)
+10  SequencerAI.debug.dylib       	       0x1053a990c EngineController.applyMasterBusIfChanged(_:) + 392 (EngineController.swift:4039)
+11  SequencerAI.debug.dylib       	       0x1053a94d0 EngineController.applyPhraseSceneState(phraseID:snapshot:) + 1440 (EngineController.swift:889)
+12  SequencerAI.debug.dylib       	       0x1053ab800 EngineController.playbackPhraseForPrepare(upcomingStep:snapshot:) + 952 (EngineController.swift:1021)
+13  SequencerAI.debug.dylib       	       0x10540440c EngineController.scheduleActiveNoteRepeatsForCurrentTick(tickIndex:now:) + 480 (EngineControllerNoteRepeat.swift:84)
+14  SequencerAI.debug.dylib       	       0x1053c9c6c EngineController.processTickMarked(tickIndex:now:) + 556 (EngineController.swift:2515)
+15  SequencerAI.debug.dylib       	       0x1053ca130 EngineController.processLiveLookAheadPumpMarked(now:) + 900 (EngineController.swift:2446)
+16  SequencerAI.debug.dylib       	       0x1053c9d94 closure #1 in EngineController.processLiveLookAheadPump(pumpIndex:now:) + 48 (EngineController.swift:2420)
+17  SequencerAI.debug.dylib       	       0x1053924f8 static TickPathMainSyncGuard.withTickPathMarker<A>(_:) + 100 (EngineController.swift:96)
+18  SequencerAI.debug.dylib       	       0x1053b8cb8 EngineController.processLiveLookAheadPump(pumpIndex:now:) + 256 (EngineController.swift:2419)
+19  SequencerAI.debug.dylib       	       0x1053b8b9c closure #3 in EngineController.start(deferredAttempt:) + 176 (EngineController.swift:1297)
+20  SequencerAI.debug.dylib       	       0x105d9715c closure #1 in closure #1 in TickClock.start(lookAheadLeadSeconds:onTick:) + 1520 (TickClock.swift:100)
+21  SequencerAI.debug.dylib       	       0x10508dfb8 thunk for @escaping @callee_guaranteed () -> () + 48
+22  libdispatch.dylib             	       0x1863c95b4 _dispatch_client_callout + 20
+23  libdispatch.dylib             	       0x1863cca68 _dispatch_continuation_pop + 596
+24  libdispatch.dylib             	       0x1863e0e84 _dispatch_source_latch_and_call + 420
+25  libdispatch.dylib             	       0x1863dfa4c _dispatch_source_invoke + 836
+26  libdispatch.dylib             	       0x1863d0a38 _dispatch_lane_serial_drain + 352
+27  libdispatch.dylib             	       0x1863d1730 _dispatch_lane_invoke + 380
+28  libdispatch.dylib             	       0x1863dc9a0 _dispatch_root_queue_drain_deferred_wlh + 288
+29  libdispatch.dylib             	       0x1863dc1ec _dispatch_workloop_worker_thread + 540
+30  libsystem_pthread.dylib       	       0x1865783d8 _pthread_wqthread + 288
+31  libsystem_pthread.dylib       	       0x1865770f0 start_wqthread + 8
+
+Thread 19:: Pool
+0   libsystem_kernel.dylib        	       0x18653e6ec __psynch_cvwait + 8
+1   libsystem_pthread.dylib       	       0x18657c894 _pthread_cond_wait + 1204
+2   libc++.1.dylib                	       0x1864b2578 std::__1::condition_variable::wait(std::__1::unique_lock<std::__1::mutex>&) + 28
+3   Buchla Easel V                	       0x11efa98fc 0x11e190000 + 14784764
+4   Buchla Easel V                	       0x11efa9d08 0x11e190000 + 14785800
+5   Buchla Easel V                	       0x11eff8d5c 0x11e190000 + 15109468
+6   Buchla Easel V                	       0x11efe9d3c 0x11e190000 + 15047996
+7   libsystem_pthread.dylib       	       0x18657c2e4 _pthread_start + 136
+8   libsystem_pthread.dylib       	       0x1865770fc thread_start + 8
+
+Thread 20:: CVDisplayLink
+0   libsystem_kernel.dylib        	       0x18653e6ec __psynch_cvwait + 8
+1   libsystem_pthread.dylib       	       0x18657c8c0 _pthread_cond_wait + 1248
+2   CoreVideo                     	       0x18f9e03a4 CVDisplayLink::waitUntil(unsigned long long) + 316
+3   CoreVideo                     	       0x18f9df47c CVDisplayLink::runIOThread() + 504
+4   libsystem_pthread.dylib       	       0x18657c2e4 _pthread_start + 136
+5   libsystem_pthread.dylib       	       0x1865770fc thread_start + 8
+
+Thread 21:
+0   libsystem_pthread.dylib       	       0x1865770e8 start_wqthread + 0
+
+Thread 22:
+0   libsystem_kernel.dylib        	       0x18653e6ec __psynch_cvwait + 8
+1   libsystem_pthread.dylib       	       0x18657c894 _pthread_cond_wait + 1204
+2   libc++.1.dylib                	       0x1864b2578 std::__1::condition_variable::wait(std::__1::unique_lock<std::__1::mutex>&) + 28
+3   Buchla Easel V                	       0x11e4764ec 0x11e190000 + 3040492
+4   Buchla Easel V                	       0x11e488610 0x11e190000 + 3114512
+5   libsystem_pthread.dylib       	       0x18657c2e4 _pthread_start + 136
+6   libsystem_pthread.dylib       	       0x1865770fc thread_start + 8
+
+Thread 23:: AsyncPresetLoader
+0   libsystem_kernel.dylib        	       0x18653e6ec __psynch_cvwait + 8
+1   libsystem_pthread.dylib       	       0x18657c894 _pthread_cond_wait + 1204
+2   libc++.1.dylib                	       0x1864b2578 std::__1::condition_variable::wait(std::__1::unique_lock<std::__1::mutex>&) + 28
+3   Buchla Easel V                	       0x11e3e501c 0x11e190000 + 2445340
+4   libsystem_pthread.dylib       	       0x18657c2e4 _pthread_start + 136
+5   libsystem_pthread.dylib       	       0x1865770fc thread_start + 8
+
+Thread 24:
+0   libsystem_kernel.dylib        	       0x18653e4e8 __semwait_signal + 8
+1   libsystem_c.dylib             	       0x18641d6f0 nanosleep + 220
+2   libc++.1.dylib                	       0x1864b42f4 std::__1::this_thread::sleep_for(std::__1::chrono::duration<long long, std::__1::ratio<1l, 1000000000l>> const&) + 84
+3   libmusiceaselvProcessor.dylib 	       0x11c51d938 0x11c4b0000 + 448824
+4   libsystem_pthread.dylib       	       0x18657c2e4 _pthread_start + 136
+5   libsystem_pthread.dylib       	       0x1865770fc thread_start + 8
+
+Thread 25:
+0   libsystem_kernel.dylib        	       0x18653e4e8 __semwait_signal + 8
+1   libsystem_c.dylib             	       0x18641d6f0 nanosleep + 220
+2   libc++.1.dylib                	       0x1864b42f4 std::__1::this_thread::sleep_for(std::__1::chrono::duration<long long, std::__1::ratio<1l, 1000000000l>> const&) + 84
+3   libmusiceaselvProcessor.dylib 	       0x11c534a48 0x11c4b0000 + 543304
+4   libmusiceaselvProcessor.dylib 	       0x11c534d9c 0x11c4b0000 + 544156
+5   libsystem_pthread.dylib       	       0x18657c2e4 _pthread_start + 136
+6   libsystem_pthread.dylib       	       0x1865770fc thread_start + 8
+
+Thread 26:: ConvoEngine
+0   libsystem_kernel.dylib        	       0x18653e6ec __psynch_cvwait + 8
+1   libsystem_pthread.dylib       	       0x18657c894 _pthread_cond_wait + 1204
+2   libc++.1.dylib                	       0x1864b2578 std::__1::condition_variable::wait(std::__1::unique_lock<std::__1::mutex>&) + 28
+3   libmusiceaselvProcessor.dylib 	       0x11c536e18 0x11c4b0000 + 552472
+4   libsystem_pthread.dylib       	       0x18657c2e4 _pthread_start + 136
+5   libsystem_pthread.dylib       	       0x1865770fc thread_start + 8
+
+Thread 27:: ConvoEngine
+0   libsystem_kernel.dylib        	       0x18653e6ec __psynch_cvwait + 8
+1   libsystem_pthread.dylib       	       0x18657c894 _pthread_cond_wait + 1204
+2   libc++.1.dylib                	       0x1864b2578 std::__1::condition_variable::wait(std::__1::unique_lock<std::__1::mutex>&) + 28
+3   libmusiceaselvProcessor.dylib 	       0x11c536e18 0x11c4b0000 + 552472
+4   libsystem_pthread.dylib       	       0x18657c2e4 _pthread_start + 136
+5   libsystem_pthread.dylib       	       0x1865770fc thread_start + 8
+
+Thread 28:
+0   libsystem_pthread.dylib       	       0x1865770e8 start_wqthread + 0
+
+Thread 29:
+0   libsystem_pthread.dylib       	       0x1865770e8 start_wqthread + 0
+
+
+Thread 18 crashed with ARM Thread State (64-bit):
+    x0: 0x000000011b3cde08   x1: 0x0000000200000003   x2: 0x000000011b39bb20   x3: 0x0000000000000013
+    x4: 0x000000011b39bb20   x5: 0x0000000000000013   x6: 0x0000000000000000   x7: 0x0000000000000000
+    x8: 0xfffffffe00000000   x9: 0x0000000200000003  x10: 0x0000000000000003  x11: 0x0000000000149b20
+   x12: 0x000000011b303f70  x13: 0x0000000000000012  x14: 0x000000011b300000  x15: 0x00000000f020ffff
+   x16: 0xd7960001022ec080  x17: 0x0000000000000000  x18: 0x0000000000000000  x19: 0x000000019787e734
+   x20: 0x000000011b3cde00  x21: 0x0000000000000000  x22: 0x000000000000000b  x23: 0x0000000000000022
+   x24: 0x000000000000008c  x25: 0x00000001060f53e0  x26: 0x3000000000000114  x27: 0x0000000000000001
+   x28: 0x00000001efef0440   fp: 0x000000016dcd8620   lr: 0x00000001973550a4
+    sp: 0x000000016dcd8550   pc: 0x00000001973550a4 cpsr: 0x60001000
+   far: 0x0000000000000000  esr: 0xf2000001 (Breakpoint) brk 1
+
+Binary Images:
+       0x1022c4000 -        0x1022c7fff ai.sequencer.SequencerAI (0.0.1) <202a10b3-bc74-3d90-94c4-21ddf0cb9381> /Users/USER/Library/Developer/Xcode/DerivedData/SequencerAI-eqtzejtdpfgahvcbigxlxtvgqtjf/Build/Products/Debug/SequencerAI.app/Contents/MacOS/SequencerAI
+       0x10508c000 -        0x1062d3fff SequencerAI.debug.dylib (*) <fe362535-b0f2-3e06-b9c3-211c9708294d> /Users/USER/Library/Developer/Xcode/DerivedData/SequencerAI-eqtzejtdpfgahvcbigxlxtvgqtjf/Build/Products/Debug/SequencerAI.app/Contents/MacOS/SequencerAI.debug.dylib
+       0x1045e0000 -        0x1045ebfff libobjc-trampolines.dylib (*) <3d687e9b-e092-3632-bc1d-74b19d492de0> /usr/lib/libobjc-trampolines.dylib
+       0x10c9a4000 -        0x10d047fff com.apple.AGXMetal13-3 (324.6) <4127f44c-9853-3b87-b300-dc4614ed8bcc> /System/Library/Extensions/AGXMetal13_3.bundle/Contents/MacOS/AGXMetal13_3
+       0x10e000000 -        0x10e13bfff com.apple.audio.units.Components (1.14) <ce006ced-ee1c-3174-bba9-1e326231ab55> /System/Library/Components/CoreAudio.component/Contents/MacOS/CoreAudio
+       0x10efb8000 -        0x10efe3fff com.arturia.component.Buchla-Easel-V (68608) <24251532-9d3e-319c-8f82-694757b039bf> /Library/Audio/Plug-Ins/Components/Buchla Easel V.component/Contents/MacOS/Buchla Easel V
+       0x11e190000 -        0x11f307fff com.Arturia.Buchla-Easel-V.vst3 (1.12.0.3420) <7cfa446f-0ea2-367f-ac7d-b48d693df744> /Library/Audio/Plug-Ins/Components/Buchla Easel V.component/Contents/Resources/plugin.vst3/Contents/MacOS/Buchla Easel V
+       0x11b514000 -        0x11b63bfff libsqlite.dylib (*) <c6fdd249-ac24-385a-85a0-d3e91bfbb179> /Library/Arturia/*/libsqlite.dylib
+       0x11c4b0000 -        0x11c793fff libmusiceaselvProcessor.dylib (*) <79f3b94d-0329-3cf2-9c4d-289fb177dc69> /Library/Arturia/*/libmusiceaselvProcessor.dylib
+       0x11b400000 -        0x11b467fff com.apple.AppleMetalOpenGLRenderer (1.0) <a969aeaf-d20c-3296-b195-742e2b280d5e> /System/Library/Extensions/AppleMetalOpenGLRenderer.bundle/Contents/MacOS/AppleMetalOpenGLRenderer
+       0x146444000 -        0x146947fff com.TokyoDawnLabs.TDRKotelnikov (1.6.7) <cb5f27f5-a8c5-33b0-bfa8-968f350fd45f> /Library/Audio/Plug-Ins/Components/TDR Kotelnikov.component/Contents/MacOS/TDR Kotelnikov
+       0x18653a000 -        0x186574ff7 libsystem_kernel.dylib (*) <eee9d0d3-dffc-37cb-9ced-b27cd0286d8c> /usr/lib/system/libsystem_kernel.dylib
+       0x18640f000 -        0x186490ffb libsystem_c.dylib (*) <92699527-645f-3d8d-aed8-1cfb0c034e15> /usr/lib/system/libsystem_c.dylib
+       0x186491000 -        0x18651effb libc++.1.dylib (*) <bbab286c-2e51-3d64-9ae3-a4102935fe32> /usr/lib/libc++.1.dylib
+       0x1e39de000 -        0x1e3b10fff com.apple.audio.AVFAudio (1.0) <4b44cee7-1f08-3bc7-b65b-340dd2f79f04> /System/Library/Frameworks/AVFAudio.framework/Versions/A/AVFAudio
+       0x2256a0000 -        0x2262b9fff com.apple.SwiftUICore (6.3.5.1) <dac7a57b-d767-339a-a565-2eb382e758aa> /System/Library/Frameworks/SwiftUICore.framework/Versions/A/SwiftUICore
+       0x1b52b7000 -        0x1b6a60fff com.apple.SwiftUI (6.3.5.1) <680539f6-0829-3a16-9151-d8345b0936d4> /System/Library/Frameworks/SwiftUI.framework/Versions/A/SwiftUI
+       0x18a19f000 -        0x18b5dbfff com.apple.AppKit (6.9) <b88a44c1-d617-33dc-90ed-b6ab417c428e> /System/Library/Frameworks/AppKit.framework/Versions/C/AppKit
+       0x1861f6000 -        0x186277f3f dyld (*) <398a133c-9bcb-317f-a064-a40d3cea3c0f> /usr/lib/dyld
+               0x0 - 0xffffffffffffffff ??? (*) <00000000-0000-0000-0000-000000000000> ???
+       0x1863c5000 -        0x18640bfff libdispatch.dylib (*) <5576e4fd-aad2-3608-8c8f-4eec421236f9> /usr/lib/system/libdispatch.dylib
+       0x186575000 -        0x186581fff libsystem_pthread.dylib (*) <642faf7a-874e-37e6-8aba-2b0cc09a3025> /usr/lib/system/libsystem_pthread.dylib
+       0x1a20a0000 -        0x1a2158fff com.apple.audio.midi.CoreMIDI (2.0) <ccb045b1-4cfc-3fbb-bdd7-44a103588428> /System/Library/Frameworks/CoreMIDI.framework/Versions/A/CoreMIDI
+       0x1865e7000 -        0x186adbfff com.apple.CoreFoundation (6.9) <190e6a36-fcaa-3ea3-94bb-7009c44653da> /System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation
+       0x1916a6000 -        0x1916cdfff com.apple.audio.caulk (1.0) <a307ba82-97de-37d1-99b7-bf68ac23c35c> /System/Library/PrivateFrameworks/caulk.framework/Versions/A/caulk
+       0x188904000 -        0x188cb5fff com.apple.audio.AudioToolboxCore (1.0) <3573e5a3-0c97-33bd-82ec-8b2a0e152826> /System/Library/PrivateFrameworks/AudioToolboxCore.framework/Versions/A/AudioToolboxCore
+       0x188ec6000 -        0x189611fff com.apple.audio.CoreAudio (5.0) <214b90dc-87e8-30a8-b682-c2c1883f9635> /System/Library/Frameworks/CoreAudio.framework/Versions/A/CoreAudio
+       0x19731d000 -        0x1978c0fff libswiftCore.dylib (*) <a0ebe73e-3b7b-329e-985c-e884aba916df> /usr/lib/swift/libswiftCore.dylib
+       0x18f9dd000 -        0x18fa3dfff com.apple.CoreVideo (1.8) <0fcfe924-013c-3974-9fdf-58f9a8d71845> /System/Library/Frameworks/CoreVideo.framework/Versions/A/CoreVideo
+
+External Modification Summary:
+  Calls made by other processes targeting this process:
+    task_for_pid: 0
+    thread_create: 0
+    thread_set_state: 0
+  Calls made by this process:
+    task_for_pid: 0
+    thread_create: 0
+    thread_set_state: 0
+  Calls made by all processes on this machine:
+    task_for_pid: 10
+    thread_create: 0
+    thread_set_state: 0
+
+VM Region Summary:
+ReadOnly portion of Libraries: Total=1.7G resident=0K(0%) swapped_out_or_unallocated=1.7G(100%)
+Writable regions: Total=2.3G written=1028K(0%) resident=1028K(0%) swapped_out=0K(0%) unallocated=2.3G(100%)
+
+                                VIRTUAL   REGION
+REGION TYPE                        SIZE    COUNT (non-coalesced)
+===========                     =======  =======
+Accelerate framework               256K        2
+Activity Tracing                   256K        1
+AttributeGraph Data               1024K        1
+CG image                           384K       16
+ColorSync                          752K       39
+CoreAnimation                     1760K      108
+CoreGraphics                        32K        2
+CoreUI image data                 2752K       35
+Foundation                          16K        1
+Kernel Alloc Once                   32K        1
+MALLOC                             2.2G      108
+MALLOC guard page                  384K       24
+MALLOC_LARGE (reserved)           18.1M        2         reserved VM address space (unallocated)
+OpenGL GLSL                        256K        3
+STACK GUARD                       56.5M       30
+Stack                             23.4M       31
+VM_ALLOCATE                       13.5M       42
+__AUTH                            5195K      667
+__AUTH_CONST                      70.1M      910
+__CTF                               824        1
+__DATA                            25.3M      901
+__DATA_CONST                      25.8M      928
+__DATA_DIRTY                      2755K      334
+__FONT_DATA                        2352        1
+__GLSLBUILTINS                    5174K        1
+__INFO_FILTER                         8        1
+__LINKEDIT                       633.5M       12
+__OBJC_RW                         2374K        1
+__TEXT                             1.0G      948
+__TPRO_CONST                       272K        2
+mapped file                      468.4M       51
+owned unmapped memory              576K        1
+page table in kernel              1028K        1
+shared memory                      9.8M       24
+===========                     =======  =======
+TOTAL                              4.6G     5230
+TOTAL, minus reserved VM space     4.6G     5230
+
+
+
+-----------
+Full Report
+-----------
+
+{"app_name":"SequencerAI","timestamp":"2026-07-07 09:55:40.00 +0100","app_version":"0.0.1","slice_uuid":"202a10b3-bc74-3d90-94c4-21ddf0cb9381","build_version":"1","platform":1,"bundleID":"ai.sequencer.SequencerAI","share_with_app_devs":0,"is_first_party":0,"bug_type":"309","os_version":"macOS 15.3.2 (24D81)","roots_installed":0,"name":"SequencerAI","incident_id":"83BEDF3C-C24A-44BE-994E-99FC7C627D19"}
+{
+  "uptime" : 87000,
+  "procRole" : "Foreground",
+  "version" : 2,
+  "userID" : 501,
+  "deployVersion" : 210,
+  "modelCode" : "Macmini9,1",
+  "coalitionID" : 8715,
+  "osVersion" : {
+    "train" : "macOS 15.3.2",
+    "build" : "24D81",
+    "releaseType" : "User"
+  },
+  "captureTime" : "2026-07-07 09:55:38.5424 +0100",
+  "codeSigningMonitor" : 1,
+  "incident" : "83BEDF3C-C24A-44BE-994E-99FC7C627D19",
+  "pid" : 28560,
+  "translated" : false,
+  "cpuType" : "ARM-64",
+  "roots_installed" : 0,
+  "bug_type" : "309",
+  "procLaunch" : "2026-07-07 09:49:23.6782 +0100",
+  "procStartAbsTime" : 2092865351099,
+  "procExitAbsTime" : 2101861043143,
+  "procName" : "SequencerAI",
+  "procPath" : "\/Users\/USER\/Library\/Developer\/Xcode\/DerivedData\/SequencerAI-eqtzejtdpfgahvcbigxlxtvgqtjf\/Build\/Products\/Debug\/SequencerAI.app\/Contents\/MacOS\/SequencerAI",
+  "bundleInfo" : {"CFBundleShortVersionString":"0.0.1","CFBundleVersion":"1","CFBundleIdentifier":"ai.sequencer.SequencerAI"},
+  "storeInfo" : {"deviceIdentifierForVendor":"B583A58F-1A0C-5C39-9E0C-22B22AC9A612","thirdParty":true},
+  "parentProc" : "launchd",
+  "parentPid" : 1,
+  "coalitionName" : "ai.sequencer.SequencerAI",
+  "crashReporterKey" : "20A48EEF-180D-736B-84E7-5EE9109FFA7E",
+  "codeSigningID" : "ai.sequencer.SequencerAI",
+  "codeSigningTeamID" : "",
+  "codeSigningFlags" : 570425861,
+  "codeSigningValidationCategory" : 10,
+  "codeSigningTrustLevel" : 4294967295,
+  "instructionByteStream" : {"beforePC":"4gMZquMDF6rkAxWq5QMTquYDFqrnAxiqFQCA0nIDAJTgAxSqxhIQlA==","atPC":"IAAg1CgAgFKJEoBS6BMAuekHAPlIAIBS6AMAOUApALAA0ByRQykAsA=="},
+  "bootSessionUUID" : "6EAF1A37-507D-471F-B10C-BA902160759D",
+  "sip" : "enabled",
+  "exception" : {"codes":"0x0000000000000001, 0x00000001973550a4","rawCodes":[1,6831820964],"type":"EXC_BREAKPOINT","signal":"SIGTRAP"},
+  "termination" : {"flags":0,"code":5,"namespace":"SIGNAL","indicator":"Trace\/BPT trap: 5","byProc":"exc handler","byPid":28560},
+  "os_fault" : {"process":"SequencerAI"},
+  "extMods" : {"caller":{"thread_create":0,"thread_set_state":0,"task_for_pid":0},"system":{"thread_create":0,"thread_set_state":0,"task_for_pid":10},"targeted":{"thread_create":0,"thread_set_state":0,"task_for_pid":0},"warnings":0},
+  "faultingThread" : 18,
+  "threads" : [{"id":3519649,"threadState":{"x":[{"value":4},{"value":0},{"value":1},{"value":1},{"value":0},{"value":5000000},{"value":52},{"value":0},{"value":8320408352,"symbolLocation":0,"symbol":"clock_sem"},{"value":16387},{"value":17},{"value":1099511627776},{"value":4294967293},{"value":0},{"value":0},{"value":0},{"value":334},{"value":8461148912},{"value":0},{"value":6135440448},{"value":6135440448},{"value":105553167149184},{"value":5098447256},{"value":5000000},{"value":6135453248},{"value":105553146026640},{"value":10723748240,"symbolLocation":0,"symbol":"value witness table for FunctionalLocation"},{"value":132581633},{"value":1}],"flavor":"ARM_THREAD_STATE64","lr":{"value":6547429104},"cpsr":{"value":1610616832},"fp":{"value":6135440432},"sp":{"value":6135440384},"esr":{"value":1442840704,"description":" Address size fault"},"pc":{"value":6548612328},"far":{"value":0}},"queue":"com.apple.main-thread","frames":[{"imageOffset":17640,"symbol":"__semwait_signal","symbolLocation":8,"imageIndex":11},{"imageOffset":59120,"symbol":"nanosleep","symbolLocation":220,"imageIndex":12},{"imageOffset":144116,"symbol":"std::__1::this_thread::sleep_for(std::__1::chrono::duration<long long, std::__1::ratio<1l, 1000000000l>> const&)","symbolLocation":84,"imageIndex":13},{"imageOffset":791552,"symbol":"AVAudioNodeImplBase::GetAttachAndEngineLock() const","symbolLocation":100,"imageIndex":14},{"imageOffset":350580,"symbol":"-[AVAudioMixerNode outputVolume]","symbolLocation":40,"imageIndex":14},{"imageOffset":6126940,"sourceLine":121,"sourceFile":"MixerBusHost.swift","symbol":"MixerBusHost.readout()","imageIndex":1,"symbolLocation":404},{"imageOffset":5481432,"sourceLine":1576,"sourceFile":"MainAudioGraph.swift","symbol":"closure #1 in MainAudioGraph.mixerBusReadoutForTesting(busID:)","imageIndex":1,"symbolLocation":380},{"imageOffset":5532600,"sourceLine":2851,"sourceFile":"MainAudioGraph.swift","symbol":"closure #1 in MainAudioGraph.performOnMainReturning<A>(_:)","imageIndex":1,"symbolLocation":80},{"imageOffset":5554352,"sourceFile":"\/<compiler-generated>","symbol":"partial apply for closure #1 in MainAudioGraph.performOnMainReturning<A>(_:)","symbolLocation":40,"imageIndex":1},{"imageOffset":827480,"sourceFile":"\/<compiler-generated>","symbol":"thunk for @callee_guaranteed () -> (@out A, @error @owned Error)","symbolLocation":24,"imageIndex":1},{"imageOffset":829692,"sourceFile":"\/<compiler-generated>","symbol":"partial apply for thunk for @callee_guaranteed () -> (@out A, @error @owned Error)","symbolLocation":40,"imageIndex":1},{"imageOffset":827724,"sourceFile":"\/<compiler-generated>","symbol":"closure #1 in static MainActor.assumeIsolated<A>(_:file:line:)","symbolLocation":184,"imageIndex":1},{"imageOffset":743528,"sourceFile":"\/<compiler-generated>","symbol":"static MainActor.assumeIsolated<A>(_:file:line:)","symbolLocation":424,"imageIndex":1},{"imageOffset":5422544,"sourceLine":2850,"sourceFile":"MainAudioGraph.swift","symbol":"MainAudioGraph.performOnMainReturning<A>(_:)","imageIndex":1,"symbolLocation":372},{"imageOffset":5481032,"sourceLine":1570,"sourceFile":"MainAudioGraph.swift","symbol":"MainAudioGraph.mixerBusReadoutForTesting(busID:)","imageIndex":1,"symbolLocation":288},{"imageOffset":10004740,"sourceLine":1606,"sourceFile":"SamplePlaybackEngine.swift","symbol":"SamplePlaybackEngine.isBusVoicePoolReadyForPlayback(pool:busID:)","imageIndex":1,"symbolLocation":188},{"imageOffset":9927684,"sourceLine":2294,"sourceFile":"SamplePlaybackEngine.swift","symbol":"SamplePlaybackEngine.publishBusTrackFastPathIfConnected(trackID:busID:pool:)","imageIndex":1,"symbolLocation":160},{"imageOffset":9923644,"sourceLine":395,"sourceFile":"SamplePlaybackEngine.swift","symbol":"closure #1 in SamplePlaybackEngine.prepareTrack(trackID:)","imageIndex":1,"symbolLocation":1188},{"imageOffset":10046568,"sourceLine":2596,"sourceFile":"SamplePlaybackEngine.swift","symbol":"closure #1 in SamplePlaybackEngine.performOnMain<A>(_:)","imageIndex":1,"symbolLocation":80},{"imageOffset":10071492,"sourceFile":"\/<compiler-generated>","symbol":"partial apply for closure #1 in SamplePlaybackEngine.performOnMain<A>(_:)","symbolLocation":40,"imageIndex":1},{"imageOffset":827480,"sourceFile":"\/<compiler-generated>","symbol":"thunk for @callee_guaranteed () -> (@out A, @error @owned Error)","symbolLocation":24,"imageIndex":1},{"imageOffset":829692,"sourceFile":"\/<compiler-generated>","symbol":"partial apply for thunk for @callee_guaranteed () -> (@out A, @error @owned Error)","symbolLocation":40,"imageIndex":1},{"imageOffset":827724,"sourceFile":"\/<compiler-generated>","symbol":"closure #1 in static MainActor.assumeIsolated<A>(_:file:line:)","symbolLocation":184,"imageIndex":1},{"imageOffset":743528,"sourceFile":"\/<compiler-generated>","symbol":"static MainActor.assumeIsolated<A>(_:file:line:)","symbolLocation":424,"imageIndex":1},{"imageOffset":9934024,"sourceLine":2595,"sourceFile":"SamplePlaybackEngine.swift","symbol":"SamplePlaybackEngine.performOnMain<A>(_:)","imageIndex":1,"symbolLocation":368},{"imageOffset":9922436,"sourceLine":380,"sourceFile":"SamplePlaybackEngine.swift","symbol":"SamplePlaybackEngine.prepareTrack(trackID:)","imageIndex":1,"symbolLocation":320},{"imageOffset":9990548,"sourceLine":1208,"sourceFile":"SamplePlaybackEngine.swift","symbol":"SamplePlaybackEngine.setTrackSends(trackID:sendA:sendB:)","imageIndex":1,"symbolLocation":168},{"imageOffset":10047736,"sourceFile":"\/<compiler-generated>","symbol":"protocol witness for SamplePlaybackSink.setTrackSends(trackID:sendA:sendB:) in conformance SamplePlaybackEngine","symbolLocation":12,"imageIndex":1},{"imageOffset":3586424,"sourceLine":222,"sourceFile":"EngineControllerMixSync.swift","symbol":"EngineController.refreshEffectiveMixerState(for:)","imageIndex":1,"symbolLocation":2284},{"imageOffset":3587544,"sourceLine":37,"sourceFile":"EngineControllerMixSync.swift","symbol":"EngineController.refreshSceneMembershipGains(for:)","imageIndex":1,"symbolLocation":380},{"imageOffset":3266828,"sourceLine":4039,"sourceFile":"EngineController.swift","symbol":"EngineController.applyMasterBusIfChanged(_:)","imageIndex":1,"symbolLocation":392},{"imageOffset":3379576,"sourceLine":1994,"sourceFile":"EngineController.swift","symbol":"EngineController.apply(masterBus:)","imageIndex":1,"symbolLocation":124},{"imageOffset":11397776,"sourceLine":408,"sourceFile":"SequencerDocumentSession.swift","symbol":"SequencerDocumentSession.dispatchScopedRuntimeUpdate(_:)","imageIndex":1,"symbolLocation":2064},{"imageOffset":11168036,"sourceLine":35,"sourceFile":"SequencerDocumentSession+Mutations.swift","symbol":"SequencerDocumentSession.dispatchImpact(_:changed:)","imageIndex":1,"symbolLocation":816},{"imageOffset":11200208,"sourceLine":540,"sourceFile":"SequencerDocumentSession+Mutations.swift","symbol":"SequencerDocumentSession.mutateMasterBus(_:)","imageIndex":1,"symbolLocation":728},{"imageOffset":11202452,"sourceLine":593,"sourceFile":"SequencerDocumentSession+Mutations.swift","symbol":"SequencerDocumentSession.updateMasterBusInsert(_:in:edit:)","imageIndex":1,"symbolLocation":108},{"imageOffset":10821332,"sourceLine":921,"sourceFile":"ScenesWorkspaceView.swift","symbol":"closure #2 in ScenesWorkspaceView.filterCutoffBinding(insertID:settings:)","imageIndex":1,"symbolLocation":348},{"imageOffset":7159060,"symbol":"partial apply for closure #1 in Binding.init(get:set:)","symbolLocation":48,"imageIndex":15},{"imageOffset":6284644,"symbol":"FunctionalLocation.set(_:transaction:)","symbolLocation":28,"imageIndex":15},{"imageOffset":6279796,"symbol":"LocationBox.set(_:transaction:)","symbolLocation":300,"imageIndex":15},{"imageOffset":7158880,"symbol":"specialized Binding.wrappedValue.setter","symbolLocation":60,"imageIndex":15},{"imageOffset":7147392,"symbol":"Binding.wrappedValue.setter","symbolLocation":32,"imageIndex":15},{"imageOffset":10807924,"sourceLine":847,"sourceFile":"ScenesWorkspaceView.swift","symbol":"closure #2 in ScenesWorkspaceView.filterEditor(insert:settings:)","imageIndex":1,"symbolLocation":148},{"imageOffset":13372152,"sourceLine":125,"sourceFile":"StudioRotaryKnob.swift","symbol":"closure #3 in closure #1 in StudioRotaryKnob.body.getter","imageIndex":1,"symbolLocation":228},{"imageOffset":7159060,"symbol":"partial apply for closure #1 in Binding.init(get:set:)","symbolLocation":48,"imageIndex":15},{"imageOffset":6284644,"symbol":"FunctionalLocation.set(_:transaction:)","symbolLocation":28,"imageIndex":15},{"imageOffset":6279796,"symbol":"LocationBox.set(_:transaction:)","symbolLocation":300,"imageIndex":15},{"imageOffset":7158880,"symbol":"specialized Binding.wrappedValue.setter","symbolLocation":60,"imageIndex":15},{"imageOffset":7147392,"symbol":"Binding.wrappedValue.setter","symbolLocation":32,"imageIndex":15},{"imageOffset":13228724,"sourceLine":159,"sourceFile":"StudioControls.swift","symbol":"closure #1 in static StudioDrag.verticalValueGesture(value:dragStart:range:onCommit:)","imageIndex":1,"symbolLocation":1100},{"imageOffset":4192752,"symbol":"partial apply for closure #1 in closure #2 in ChangedCallbacks.dispatch(phase:state:)","symbolLocation":40,"imageIndex":15},{"imageOffset":4192544,"symbol":"partial apply for closure #1 in closure #3 in FullGestureCallbacks.dispatch(phase:state:)","symbolLocation":16,"imageIndex":15},{"imageOffset":787976,"symbol":"specialized closure #1 in withTransaction<A>(_:_:)","symbolLocation":304,"imageIndex":15},{"imageOffset":4170556,"symbol":"closure #2 in ChangedCallbacks.dispatch(phase:state:)","symbolLocation":148,"imageIndex":15},{"imageOffset":4986728,"symbol":"thunk for @callee_guaranteed () -> ()","symbolLocation":28,"imageIndex":15},{"imageOffset":971264,"symbol":"FunctionalLocation.get()","symbolLocation":28,"imageIndex":15},{"imageOffset":4986728,"symbol":"thunk for @callee_guaranteed () -> ()","symbolLocation":28,"imageIndex":15},{"imageOffset":4990396,"symbol":"static Update.dispatchActions()","symbolLocation":1236,"imageIndex":15},{"imageOffset":4987552,"symbol":"static Update.end()","symbolLocation":212,"imageIndex":15},{"imageOffset":8348376,"symbol":"EventBindingManager.send(_:)","symbolLocation":148,"imageIndex":15},{"imageOffset":9572432,"symbol":"NSHostingView.sendEvents(_:track:)","symbolLocation":4016,"imageIndex":16},{"imageOffset":9568132,"symbol":"NSHostingView.sendEvent<A>(_:serial:track:)","symbolLocation":512,"imageIndex":16},{"imageOffset":9579572,"symbol":"NSHostingView.sendMouseEvent(_:phase:button:)","symbolLocation":1148,"imageIndex":16},{"imageOffset":9635128,"symbol":"NSHostingView.mouseDragged(with:)","symbolLocation":560,"imageIndex":16},{"imageOffset":9635364,"symbol":"@objc NSHostingView.mouseDragged(with:)","symbolLocation":56,"imageIndex":16},{"imageOffset":11753928,"symbol":"-[NSWindow _handleMouseDraggedEvent:]","symbolLocation":52,"imageIndex":17},{"imageOffset":1451668,"symbol":"-[NSWindow(NSEventRouting) _reallySendEvent:isDelayedEvent:]","symbolLocation":284,"imageIndex":17},{"imageOffset":1450920,"symbol":"-[NSWindow(NSEventRouting) sendEvent:]","symbolLocation":284,"imageIndex":17},{"imageOffset":10095112,"symbol":"-[NSApplication(NSEventRouting) sendEvent:]","symbolLocation":1656,"imageIndex":17},{"imageOffset":5929732,"symbol":"-[NSApplication _handleEvent:]","symbolLocation":60,"imageIndex":17},{"imageOffset":190620,"symbol":"-[NSApplication run]","symbolLocation":520,"imageIndex":17},{"imageOffset":20584,"symbol":"NSApplicationMain","symbolLocation":888,"imageIndex":17},{"imageOffset":309004,"symbol":"specialized runApp(_:)","symbolLocation":160,"imageIndex":16},{"imageOffset":4987296,"symbol":"runApp<A>(_:)","symbolLocation":140,"imageIndex":16},{"imageOffset":8642152,"symbol":"static App.main()","symbolLocation":224,"imageIndex":16},{"imageOffset":11128764,"sourceFile":"\/<compiler-generated>","symbol":"static SequencerAIApp.$main()","symbolLocation":40,"imageIndex":1},{"imageOffset":11128936,"sourceFile":"SequencerAIApp.swift","symbol":"__debug_main_executable_dylib_entry_point","symbolLocation":12,"imageIndex":1},{"imageOffset":25204,"symbol":"start","symbolLocation":2840,"imageIndex":18}]},{"id":3519672,"threadState":{"x":[{"value":18446744073709551612},{"value":0},{"value":4294967295},{"value":0},{"value":335007449088},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":78},{"value":0},{"value":0},{"value":1},{"value":0},{"value":515},{"value":8461149024},{"value":0},{"value":4294967295},{"value":0},{"value":6137734128},{"value":16777217},{"value":276},{"value":105553161760104},{"value":0},{"value":6137737440},{"value":105553149555904},{"value":0}],"flavor":"ARM_THREAD_STATE64","lr":{"value":6547087268},"cpsr":{"value":1073745920},"fp":{"value":6137733936},"sp":{"value":6137733904},"esr":{"value":1442840704,"description":" Address size fault"},"pc":{"value":6548606124},"far":{"value":0}},"queue":"ai.sequencer.SequencerAI.AudioInstrumentHost","frames":[{"imageOffset":11436,"symbol":"__ulock_wait","symbolLocation":8,"imageIndex":11},{"imageOffset":20388,"symbol":"_dlock_wait","symbolLocation":56,"imageIndex":20},{"imageOffset":19800,"symbol":"_dispatch_thread_event_wait_slow","symbolLocation":56,"imageIndex":20},{"imageOffset":82164,"symbol":"__DISPATCH_WAIT_FOR_QUEUE__","symbolLocation":368,"imageIndex":20},{"imageOffset":81056,"symbol":"_dispatch_sync_f_slow","symbolLocation":148,"imageIndex":20},{"imageOffset":742776,"sourceLine":156,"sourceFile":"AudioInstrumentHost.swift","symbol":"AudioInstrumentHost.performOnMain(_:)","imageIndex":1,"symbolLocation":576},{"imageOffset":767336,"sourceLine":1080,"sourceFile":"AudioInstrumentHost.swift","symbol":"AudioInstrumentHost.applyCurrentMix()","imageIndex":1,"symbolLocation":844},{"imageOffset":766452,"sourceLine":364,"sourceFile":"AudioInstrumentHost.swift","symbol":"closure #1 in AudioInstrumentHost.setMix(_:)","imageIndex":1,"symbolLocation":284},{"imageOffset":629476,"sourceFile":"\/<compiler-generated>","symbol":"thunk for @escaping @callee_guaranteed @Sendable () -> ()","symbolLocation":48,"imageIndex":1},{"imageOffset":10324,"symbol":"_dispatch_call_block_and_release","symbolLocation":32,"imageIndex":20},{"imageOffset":17844,"symbol":"_dispatch_client_callout","symbolLocation":20,"imageIndex":20},{"imageOffset":48088,"symbol":"_dispatch_lane_serial_drain","symbolLocation":768,"imageIndex":20},{"imageOffset":50992,"symbol":"_dispatch_lane_invoke","symbolLocation":380,"imageIndex":20},{"imageOffset":96672,"symbol":"_dispatch_root_queue_drain_deferred_wlh","symbolLocation":288,"imageIndex":20},{"imageOffset":94700,"symbol":"_dispatch_workloop_worker_thread","symbolLocation":540,"imageIndex":20},{"imageOffset":13272,"symbol":"_pthread_wqthread","symbolLocation":288,"imageIndex":21},{"imageOffset":8432,"symbol":"start_wqthread","symbolLocation":8,"imageIndex":21}]},{"id":3519675,"frames":[{"imageOffset":3924,"symbol":"mach_msg2_trap","symbolLocation":8,"imageIndex":11},{"imageOffset":79364,"symbol":"mach_msg2_internal","symbolLocation":80,"imageIndex":11},{"imageOffset":39672,"symbol":"mach_msg_overwrite","symbolLocation":480,"imageIndex":11},{"imageOffset":4764,"symbol":"mach_msg","symbolLocation":24,"imageIndex":11},{"imageOffset":251412,"symbol":"XServerMachPort::ReceiveMessage(int&, void*, int&)","symbolLocation":104,"imageIndex":22},{"imageOffset":389648,"symbol":"MIDIProcess::MIDIInPortThread::Run()","symbolLocation":156,"imageIndex":22},{"imageOffset":344104,"symbol":"CADeprecated::XThread::RunHelper(void*)","symbolLocation":48,"imageIndex":22},{"imageOffset":387348,"symbol":"CADeprecated::CAPThread::Entry(CADeprecated::CAPThread*)","symbolLocation":92,"imageIndex":22},{"imageOffset":29412,"symbol":"_pthread_start","symbolLocation":136,"imageIndex":21},{"imageOffset":8444,"symbol":"thread_start","symbolLocation":8,"imageIndex":21}],"threadState":{"x":[{"value":268451845},{"value":17179869186},{"value":0},{"value":64884070940672},{"value":0},{"value":64884070940672},{"value":100},{"value":0},{"value":18446744073709550527},{"value":100},{"value":0},{"value":0},{"value":0},{"value":15107},{"value":0},{"value":0},{"value":18446744073709551569},{"value":8461131256},{"value":0},{"value":0},{"value":100},{"value":64884070940672},{"value":0},{"value":64884070940672},{"value":6138882516},{"value":0},{"value":17179869186},{"value":17179869186},{"value":2}],"flavor":"ARM_THREAD_STATE64","lr":{"value":6548674052},"cpsr":{"value":4096},"fp":{"value":6138882176},"sp":{"value":6138882096},"esr":{"value":1442840704,"description":" Address size fault"},"pc":{"value":6548598612},"far":{"value":0}}},{"id":3520200,"name":"com.apple.NSEventThread","threadState":{"x":[{"value":268451845},{"value":21592279046},{"value":8589934592},{"value":254000070918144},{"value":0},{"value":254000070918144},{"value":2},{"value":4294967295},{"value":18446744073709550527},{"value":2},{"value":0},{"value":0},{"value":0},{"value":59139},{"value":0},{"value":0},{"value":18446744073709551569},{"value":8461131256},{"value":0},{"value":4294967295},{"value":2},{"value":254000070918144},{"value":0},{"value":254000070918144},{"value":6140026984},{"value":8589934592},{"value":21592279046},{"value":21592279046},{"value":4412409862}],"flavor":"ARM_THREAD_STATE64","lr":{"value":6548674052},"cpsr":{"value":4096},"fp":{"value":6140026832},"sp":{"value":6140026752},"esr":{"value":1442840704,"description":" Address size fault"},"pc":{"value":6548598612},"far":{"value":0}},"frames":[{"imageOffset":3924,"symbol":"mach_msg2_trap","symbolLocation":8,"imageIndex":11},{"imageOffset":79364,"symbol":"mach_msg2_internal","symbolLocation":80,"imageIndex":11},{"imageOffset":39672,"symbol":"mach_msg_overwrite","symbolLocation":480,"imageIndex":11},{"imageOffset":4764,"symbol":"mach_msg","symbolLocation":24,"imageIndex":11},{"imageOffset":514636,"symbol":"__CFRunLoopServiceMachPort","symbolLocation":160,"imageIndex":23},{"imageOffset":508588,"symbol":"__CFRunLoopRun","symbolLocation":1212,"imageIndex":23},{"imageOffset":505652,"symbol":"CFRunLoopRunSpecific","symbolLocation":588,"imageIndex":23},{"imageOffset":1442424,"symbol":"_NSEventThread","symbolLocation":148,"imageIndex":17},{"imageOffset":29412,"symbol":"_pthread_start","symbolLocation":136,"imageIndex":21},{"imageOffset":8444,"symbol":"thread_start","symbolLocation":8,"imageIndex":21}]},{"id":3520201,"name":"caulk.messenger.shared:17","threadState":{"x":[{"value":14},{"value":105553122221594},{"value":0},{"value":6140604522},{"value":105553122221568},{"value":25},{"value":0},{"value":0},{"value":0},{"value":4294967295},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":18446744073709551580},{"value":8461137640},{"value":0},{"value":105553182185808},{"value":105553182185808},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0}],"flavor":"ARM_THREAD_STATE64","lr":{"value":6734643188},"cpsr":{"value":2147487744},"fp":{"value":6140604288},"sp":{"value":6140604256},"esr":{"value":1442840704,"description":" Address size fault"},"pc":{"value":6548598480},"far":{"value":0}},"frames":[{"imageOffset":3792,"symbol":"semaphore_wait_trap","symbolLocation":8,"imageIndex":11},{"imageOffset":8180,"symbol":"caulk::semaphore::timed_wait(double)","symbolLocation":220,"imageIndex":24},{"imageOffset":7840,"symbol":"caulk::concurrent::details::worker_thread::run()","symbolLocation":36,"imageIndex":24},{"imageOffset":7028,"symbol":"void* caulk::thread_proxy<std::__1::tuple<caulk::thread::attributes, void (caulk::concurrent::details::worker_thread::*)(), std::__1::tuple<caulk::concurrent::details::worker_thread*>>>(void*)","symbolLocation":96,"imageIndex":24},{"imageOffset":29412,"symbol":"_pthread_start","symbolLocation":136,"imageIndex":21},{"imageOffset":8444,"symbol":"thread_start","symbolLocation":8,"imageIndex":21}]},{"id":3520202,"name":"caulk.messenger.shared:high","threadState":{"x":[{"value":14},{"value":54787},{"value":54787},{"value":89},{"value":4294967295},{"value":0},{"value":0},{"value":0},{"value":0},{"value":4294967295},{"value":1},{"value":105553128446344},{"value":0},{"value":0},{"value":0},{"value":0},{"value":18446744073709551580},{"value":8461137640},{"value":0},{"value":105553182186224},{"value":105553182186224},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0}],"flavor":"ARM_THREAD_STATE64","lr":{"value":6734643188},"cpsr":{"value":2147487744},"fp":{"value":6141177728},"sp":{"value":6141177696},"esr":{"value":1442840704,"description":" Address size fault"},"pc":{"value":6548598480},"far":{"value":0}},"frames":[{"imageOffset":3792,"symbol":"semaphore_wait_trap","symbolLocation":8,"imageIndex":11},{"imageOffset":8180,"symbol":"caulk::semaphore::timed_wait(double)","symbolLocation":220,"imageIndex":24},{"imageOffset":7840,"symbol":"caulk::concurrent::details::worker_thread::run()","symbolLocation":36,"imageIndex":24},{"imageOffset":7028,"symbol":"void* caulk::thread_proxy<std::__1::tuple<caulk::thread::attributes, void (caulk::concurrent::details::worker_thread::*)(), std::__1::tuple<caulk::concurrent::details::worker_thread*>>>(void*)","symbolLocation":96,"imageIndex":24},{"imageOffset":29412,"symbol":"_pthread_start","symbolLocation":136,"imageIndex":21},{"imageOffset":8444,"symbol":"thread_start","symbolLocation":8,"imageIndex":21}]},{"id":3520319,"name":"caulk::deferred_logger","threadState":{"x":[{"value":14},{"value":105553151674263},{"value":0},{"value":6141751399},{"value":105553151674240},{"value":22},{"value":0},{"value":0},{"value":0},{"value":4294967295},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":18446744073709551580},{"value":8461137640},{"value":0},{"value":105553180033080},{"value":105553180033080},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0}],"flavor":"ARM_THREAD_STATE64","lr":{"value":6734643188},"cpsr":{"value":2147487744},"fp":{"value":6141751168},"sp":{"value":6141751136},"esr":{"value":1442840704,"description":" Address size fault"},"pc":{"value":6548598480},"far":{"value":0}},"frames":[{"imageOffset":3792,"symbol":"semaphore_wait_trap","symbolLocation":8,"imageIndex":11},{"imageOffset":8180,"symbol":"caulk::semaphore::timed_wait(double)","symbolLocation":220,"imageIndex":24},{"imageOffset":7840,"symbol":"caulk::concurrent::details::worker_thread::run()","symbolLocation":36,"imageIndex":24},{"imageOffset":7028,"symbol":"void* caulk::thread_proxy<std::__1::tuple<caulk::thread::attributes, void (caulk::concurrent::details::worker_thread::*)(), std::__1::tuple<caulk::concurrent::details::worker_thread*>>>(void*)","symbolLocation":96,"imageIndex":24},{"imageOffset":29412,"symbol":"_pthread_start","symbolLocation":136,"imageIndex":21},{"imageOffset":8444,"symbol":"thread_start","symbolLocation":8,"imageIndex":21}]},{"id":3520323,"name":"com.apple.audio.toolbox.AUScheduledParameterRefresher","threadState":{"x":[{"value":14},{"value":1},{"value":0},{"value":1},{"value":0},{"value":1},{"value":0},{"value":0},{"value":0},{"value":4294967295},{"value":0},{"value":0},{"value":4489674776},{"value":18446744073709551615},{"value":6142324344},{"value":28672},{"value":18446744073709551580},{"value":8461137640},{"value":0},{"value":105553180033528},{"value":105553180033528},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0}],"flavor":"ARM_THREAD_STATE64","lr":{"value":6734643188},"cpsr":{"value":2147487744},"fp":{"value":6142324608},"sp":{"value":6142324576},"esr":{"value":1442840704,"description":" Address size fault"},"pc":{"value":6548598480},"far":{"value":0}},"frames":[{"imageOffset":3792,"symbol":"semaphore_wait_trap","symbolLocation":8,"imageIndex":11},{"imageOffset":8180,"symbol":"caulk::semaphore::timed_wait(double)","symbolLocation":220,"imageIndex":24},{"imageOffset":7840,"symbol":"caulk::concurrent::details::worker_thread::run()","symbolLocation":36,"imageIndex":24},{"imageOffset":7028,"symbol":"void* caulk::thread_proxy<std::__1::tuple<caulk::thread::attributes, void (caulk::concurrent::details::worker_thread::*)(), std::__1::tuple<caulk::concurrent::details::worker_thread*>>>(void*)","symbolLocation":96,"imageIndex":24},{"imageOffset":29412,"symbol":"_pthread_start","symbolLocation":136,"imageIndex":21},{"imageOffset":8444,"symbol":"thread_start","symbolLocation":8,"imageIndex":21}]},{"id":3520324,"name":"com.apple.audio.IOThread.client","threadState":{"x":[{"value":1047060097},{"value":1060205080},{"value":3253477982},{"value":1105994334},{"value":3257554361},{"value":3250168928},{"value":1107296256},{"value":3144556890},{"value":1059760811},{"value":1060680391},{"value":1110070713},{"value":0},{"value":1007934205},{"value":16},{"value":0},{"value":0},{"value":1069066811},{"value":1034072639},{"value":0},{"value":4437739296},{"value":1032911768},{"value":3271294976},{"value":1052300191},{"value":1080800718},{"value":1058089597},{"value":1296754896},{"value":1249046233},{"value":973659774},{"value":3212836780}],"flavor":"ARM_THREAD_STATE64","lr":{"value":3101895649},"cpsr":{"value":536875008},"fp":{"value":6142869648},"sp":{"value":6142869296},"esr":{"value":1442840704,"description":" Address size fault"},"pc":{"value":4769986044},"far":{"value":0}},"frames":[{"imageOffset":341500,"imageIndex":8},{"imageOffset":3101895649,"imageIndex":19},{"imageOffset":385944,"imageIndex":8},{"imageOffset":202344,"imageIndex":8},{"imageOffset":3594360,"imageIndex":6},{"imageOffset":3054904,"imageIndex":6},{"imageOffset":3579856,"imageIndex":6},{"imageOffset":3263984,"imageIndex":6},{"imageOffset":2142084,"imageIndex":6},{"imageOffset":94748,"imageIndex":5},{"imageOffset":48664,"imageIndex":5},{"imageOffset":58700,"imageIndex":5},{"imageOffset":2986192,"symbol":"AudioUnitRender","symbolLocation":428,"imageIndex":25},{"imageOffset":2230220,"symbol":"invocation function for block in AUAudioUnitV2Bridge_Renderer::renderBlock()","symbolLocation":624,"imageIndex":25},{"imageOffset":1718480,"symbol":"__26-[AUAudioUnit renderBlock]_block_invoke","symbolLocation":288,"imageIndex":25},{"imageOffset":157776,"symbol":"invocation function for block in CopyInnerInputBlock(AUGraphNodeBaseV3*)","symbolLocation":320,"imageIndex":14},{"imageOffset":174696,"symbol":"invocation function for block in AUGraphMultiBusNode::AllocateInputBlock()","symbolLocation":168,"imageIndex":14},{"imageOffset":2237724,"symbol":"AUAudioUnitV2Bridge_Renderer::renderInputProc(void*, unsigned int*, AudioTimeStamp const*, unsigned int, unsigned int, AudioBufferList*)","symbolLocation":76,"imageIndex":25},{"imageOffset":1028004,"imageIndex":4},{"imageOffset":1023680,"imageIndex":4},{"imageOffset":1021948,"imageIndex":4},{"imageOffset":1019172,"imageIndex":4},{"imageOffset":1097340,"imageIndex":4},{"imageOffset":1106396,"imageIndex":4},{"imageOffset":2986192,"symbol":"AudioUnitRender","symbolLocation":428,"imageIndex":25},{"imageOffset":2230220,"symbol":"invocation function for block in AUAudioUnitV2Bridge_Renderer::renderBlock()","symbolLocation":624,"imageIndex":25},{"imageOffset":1718480,"symbol":"__26-[AUAudioUnit renderBlock]_block_invoke","symbolLocation":288,"imageIndex":25},{"imageOffset":157776,"symbol":"invocation function for block in CopyInnerInputBlock(AUGraphNodeBaseV3*)","symbolLocation":320,"imageIndex":14},{"imageOffset":174696,"symbol":"invocation function for block in AUGraphMultiBusNode::AllocateInputBlock()","symbolLocation":168,"imageIndex":14},{"imageOffset":2237724,"symbol":"AUAudioUnitV2Bridge_Renderer::renderInputProc(void*, unsigned int*, AudioTimeStamp const*, unsigned int, unsigned int, AudioBufferList*)","symbolLocation":76,"imageIndex":25},{"imageOffset":1028004,"imageIndex":4},{"imageOffset":1023680,"imageIndex":4},{"imageOffset":1021948,"imageIndex":4},{"imageOffset":1019172,"imageIndex":4},{"imageOffset":1097340,"imageIndex":4},{"imageOffset":1106396,"imageIndex":4},{"imageOffset":2986192,"symbol":"AudioUnitRender","symbolLocation":428,"imageIndex":25},{"imageOffset":2230220,"symbol":"invocation function for block in AUAudioUnitV2Bridge_Renderer::renderBlock()","symbolLocation":624,"imageIndex":25},{"imageOffset":1718480,"symbol":"__26-[AUAudioUnit renderBlock]_block_invoke","symbolLocation":288,"imageIndex":25},{"imageOffset":157776,"symbol":"invocation function for block in CopyInnerInputBlock(AUGraphNodeBaseV3*)","symbolLocation":320,"imageIndex":14},{"imageOffset":174696,"symbol":"invocation function for block in AUGraphMultiBusNode::AllocateInputBlock()","symbolLocation":168,"imageIndex":14},{"imageOffset":2237724,"symbol":"AUAudioUnitV2Bridge_Renderer::renderInputProc(void*, unsigned int*, AudioTimeStamp const*, unsigned int, unsigned int, AudioBufferList*)","symbolLocation":76,"imageIndex":25},{"imageOffset":1074100,"imageIndex":4},{"imageOffset":184128,"imageIndex":4},{"imageOffset":1097340,"imageIndex":4},{"imageOffset":1106396,"imageIndex":4},{"imageOffset":2986192,"symbol":"AudioUnitRender","symbolLocation":428,"imageIndex":25},{"imageOffset":2230220,"symbol":"invocation function for block in AUAudioUnitV2Bridge_Renderer::renderBlock()","symbolLocation":624,"imageIndex":25},{"imageOffset":1718480,"symbol":"__26-[AUAudioUnit renderBlock]_block_invoke","symbolLocation":288,"imageIndex":25},{"imageOffset":157776,"symbol":"invocation function for block in CopyInnerInputBlock(AUGraphNodeBaseV3*)","symbolLocation":320,"imageIndex":14},{"imageOffset":174696,"symbol":"invocation function for block in AUGraphMultiBusNode::AllocateInputBlock()","symbolLocation":168,"imageIndex":14},{"imageOffset":2237724,"symbol":"AUAudioUnitV2Bridge_Renderer::renderInputProc(void*, unsigned int*, AudioTimeStamp const*, unsigned int, unsigned int, AudioBufferList*)","symbolLocation":76,"imageIndex":25},{"imageOffset":1028004,"imageIndex":4},{"imageOffset":1023596,"imageIndex":4},{"imageOffset":1021948,"imageIndex":4},{"imageOffset":1019172,"imageIndex":4},{"imageOffset":1097340,"imageIndex":4},{"imageOffset":1106396,"imageIndex":4},{"imageOffset":2986192,"symbol":"AudioUnitRender","symbolLocation":428,"imageIndex":25},{"imageOffset":2230220,"symbol":"invocation function for block in AUAudioUnitV2Bridge_Renderer::renderBlock()","symbolLocation":624,"imageIndex":25},{"imageOffset":1718480,"symbol":"__26-[AUAudioUnit renderBlock]_block_invoke","symbolLocation":288,"imageIndex":25},{"imageOffset":157776,"symbol":"invocation function for block in CopyInnerInputBlock(AUGraphNodeBaseV3*)","symbolLocation":320,"imageIndex":14},{"imageOffset":174696,"symbol":"invocation function for block in AUGraphMultiBusNode::AllocateInputBlock()","symbolLocation":168,"imageIndex":14},{"imageOffset":2237724,"symbol":"AUAudioUnitV2Bridge_Renderer::renderInputProc(void*, unsigned int*, AudioTimeStamp const*, unsigned int, unsigned int, AudioBufferList*)","symbolLocation":76,"imageIndex":25},{"imageOffset":1074100,"imageIndex":4},{"imageOffset":184128,"imageIndex":4},{"imageOffset":1097340,"imageIndex":4},{"imageOffset":1106396,"imageIndex":4},{"imageOffset":2986192,"symbol":"AudioUnitRender","symbolLocation":428,"imageIndex":25},{"imageOffset":2230220,"symbol":"invocation function for block in AUAudioUnitV2Bridge_Renderer::renderBlock()","symbolLocation":624,"imageIndex":25},{"imageOffset":1718480,"symbol":"__26-[AUAudioUnit renderBlock]_block_invoke","symbolLocation":288,"imageIndex":25},{"imageOffset":157776,"symbol":"invocation function for block in CopyInnerInputBlock(AUGraphNodeBaseV3*)","symbolLocation":320,"imageIndex":14},{"imageOffset":174696,"symbol":"invocation function for block in AUGraphMultiBusNode::AllocateInputBlock()","symbolLocation":168,"imageIndex":14},{"imageOffset":2237724,"symbol":"AUAudioUnitV2Bridge_Renderer::renderInputProc(void*, unsigned int*, AudioTimeStamp const*, unsigned int, unsigned int, AudioBufferList*)","symbolLocation":76,"imageIndex":25},{"imageOffset":1028004,"imageIndex":4},{"imageOffset":1023680,"imageIndex":4},{"imageOffset":1021948,"imageIndex":4},{"imageOffset":1019172,"imageIndex":4},{"imageOffset":1097340,"imageIndex":4},{"imageOffset":1106396,"imageIndex":4},{"imageOffset":2986192,"symbol":"AudioUnitRender","symbolLocation":428,"imageIndex":25},{"imageOffset":2230220,"symbol":"invocation function for block in AUAudioUnitV2Bridge_Renderer::renderBlock()","symbolLocation":624,"imageIndex":25},{"imageOffset":1718480,"symbol":"__26-[AUAudioUnit renderBlock]_block_invoke","symbolLocation":288,"imageIndex":25},{"imageOffset":157776,"symbol":"invocation function for block in CopyInnerInputBlock(AUGraphNodeBaseV3*)","symbolLocation":320,"imageIndex":14},{"imageOffset":174696,"symbol":"invocation function for block in AUGraphMultiBusNode::AllocateInputBlock()","symbolLocation":168,"imageIndex":14},{"imageOffset":2237724,"symbol":"AUAudioUnitV2Bridge_Renderer::renderInputProc(void*, unsigned int*, AudioTimeStamp const*, unsigned int, unsigned int, AudioBufferList*)","symbolLocation":76,"imageIndex":25},{"imageOffset":1028004,"imageIndex":4},{"imageOffset":1023596,"imageIndex":4},{"imageOffset":1021948,"imageIndex":4},{"imageOffset":1019172,"imageIndex":4},{"imageOffset":1097340,"imageIndex":4},{"imageOffset":1106396,"imageIndex":4},{"imageOffset":2986192,"symbol":"AudioUnitRender","symbolLocation":428,"imageIndex":25},{"imageOffset":2230220,"symbol":"invocation function for block in AUAudioUnitV2Bridge_Renderer::renderBlock()","symbolLocation":624,"imageIndex":25},{"imageOffset":1718480,"symbol":"__26-[AUAudioUnit renderBlock]_block_invoke","symbolLocation":288,"imageIndex":25},{"imageOffset":157776,"symbol":"invocation function for block in CopyInnerInputBlock(AUGraphNodeBaseV3*)","symbolLocation":320,"imageIndex":14},{"imageOffset":174696,"symbol":"invocation function for block in AUGraphMultiBusNode::AllocateInputBlock()","symbolLocation":168,"imageIndex":14},{"imageOffset":2237724,"symbol":"AUAudioUnitV2Bridge_Renderer::renderInputProc(void*, unsigned int*, AudioTimeStamp const*, unsigned int, unsigned int, AudioBufferList*)","symbolLocation":76,"imageIndex":25},{"imageOffset":1028004,"imageIndex":4},{"imageOffset":1023680,"imageIndex":4},{"imageOffset":1021948,"imageIndex":4},{"imageOffset":1019172,"imageIndex":4},{"imageOffset":1097340,"imageIndex":4},{"imageOffset":1106396,"imageIndex":4},{"imageOffset":2986192,"symbol":"AudioUnitRender","symbolLocation":428,"imageIndex":25},{"imageOffset":2230220,"symbol":"invocation function for block in AUAudioUnitV2Bridge_Renderer::renderBlock()","symbolLocation":624,"imageIndex":25},{"imageOffset":1718480,"symbol":"__26-[AUAudioUnit renderBlock]_block_invoke","symbolLocation":288,"imageIndex":25},{"imageOffset":157776,"symbol":"invocation function for block in CopyInnerInputBlock(AUGraphNodeBaseV3*)","symbolLocation":320,"imageIndex":14},{"imageOffset":174696,"symbol":"invocation function for block in AUGraphMultiBusNode::AllocateInputBlock()","symbolLocation":168,"imageIndex":14},{"imageOffset":2237724,"symbol":"AUAudioUnitV2Bridge_Renderer::renderInputProc(void*, unsigned int*, AudioTimeStamp const*, unsigned int, unsigned int, AudioBufferList*)","symbolLocation":76,"imageIndex":25},{"imageOffset":1028004,"imageIndex":4},{"imageOffset":1023680,"imageIndex":4},{"imageOffset":1020624,"imageIndex":4},{"imageOffset":1019172,"imageIndex":4},{"imageOffset":1097340,"imageIndex":4},{"imageOffset":1106396,"imageIndex":4},{"imageOffset":2986192,"symbol":"AudioUnitRender","symbolLocation":428,"imageIndex":25},{"imageOffset":2230220,"symbol":"invocation function for block in AUAudioUnitV2Bridge_Renderer::renderBlock()","symbolLocation":624,"imageIndex":25},{"imageOffset":1718480,"symbol":"__26-[AUAudioUnit renderBlock]_block_invoke","symbolLocation":288,"imageIndex":25},{"imageOffset":157776,"symbol":"invocation function for block in CopyInnerInputBlock(AUGraphNodeBaseV3*)","symbolLocation":320,"imageIndex":14},{"imageOffset":158112,"symbol":"invocation function for block in AUGraphNodeBaseV3::AllocateInputBlock()","symbolLocation":152,"imageIndex":14},{"imageOffset":1074100,"imageIndex":4},{"imageOffset":40532,"imageIndex":4},{"imageOffset":1432688,"symbol":"caulk::expected<unsigned int, int> caulk::function_ref<caulk::expected<unsigned int, int> (ACAudioSpan&)>::functor_invoker<acv2::AudioConverterV2::fillComplexBuffer(int (*)(OpaqueAudioConverter*, unsigned int*, AudioBufferList*, AudioStreamPacketDescription**, void*), void*, unsigned int*, AudioBufferList*, AudioStreamPacketDescription*, AudioStreamPacketDependencyInfo*)::$_1>(caulk::details::erased_callable<caulk::expected<unsigned int, int> (ACAudioSpan&)> const&, ACAudioSpan&)","symbolLocation":152,"imageIndex":25},{"imageOffset":614216,"symbol":"acv2::AudioConverterChain::ObtainInput(acv2::AudioConverterBase&, unsigned int)","symbolLocation":572,"imageIndex":25},{"imageOffset":2864044,"symbol":"acv2::CBRConverter::ProduceOutput(ACAudioSpan&)","symbolLocation":52,"imageIndex":25},{"imageOffset":611624,"symbol":"acv2::AudioConverterChain::ProduceOutput(caulk::function_ref<caulk::expected<unsigned int, int> (ACAudioSpan&)>, ACBaseAudioSpan&)","symbolLocation":172,"imageIndex":25},{"imageOffset":1431364,"symbol":"acv2::AudioConverterV2::fillComplexBuffer(int (*)(OpaqueAudioConverter*, unsigned int*, AudioBufferList*, AudioStreamPacketDescription**, void*), void*, unsigned int*, AudioBufferList*, AudioStreamPacketDescription*, AudioStreamPacketDependencyInfo*)","symbolLocation":904,"imageIndex":25},{"imageOffset":1451148,"symbol":"int caulk::function_ref<int (AudioConverterAPI*)>::functor_invoker<AudioConverterFillComplexBuffer::$_0>(caulk::details::erased_callable<int (AudioConverterAPI*)> const&, AudioConverterAPI*)","symbolLocation":108,"imageIndex":25},{"imageOffset":1448640,"symbol":"with_resolved(OpaqueAudioConverter*, caulk::function_ref<int (AudioConverterAPI*)>)","symbolLocation":60,"imageIndex":25},{"imageOffset":1451028,"symbol":"AudioConverterFillComplexBuffer","symbolLocation":88,"imageIndex":25},{"imageOffset":38664,"imageIndex":4},{"imageOffset":1097340,"imageIndex":4},{"imageOffset":61700,"imageIndex":4},{"imageOffset":2045980,"symbol":"HALC_ProxyIOContext::IOWorkLoop()","symbolLocation":10248,"imageIndex":26},{"imageOffset":2033816,"symbol":"invocation function for block in HALC_ProxyIOContext::HALC_ProxyIOContext(unsigned int, unsigned int)","symbolLocation":176,"imageIndex":26},{"imageOffset":3807072,"symbol":"HALC_IOThread::Entry(void*)","symbolLocation":88,"imageIndex":26},{"imageOffset":29412,"symbol":"_pthread_start","symbolLocation":136,"imageIndex":21},{"imageOffset":8444,"symbol":"thread_start","symbolLocation":8,"imageIndex":21}]},{"id":3521222,"frames":[{"imageOffset":8424,"symbol":"start_wqthread","symbolLocation":0,"imageIndex":21}],"threadState":{"x":[{"value":6136016896},{"value":36219},{"value":6135480320},{"value":0},{"value":409604},{"value":18446744073709551615},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0}],"flavor":"ARM_THREAD_STATE64","lr":{"value":0},"cpsr":{"value":4096},"fp":{"value":0},"sp":{"value":6136016896},"esr":{"value":1442840704,"description":" Address size fault"},"pc":{"value":6548844776},"far":{"value":0}}},{"id":3521600,"frames":[{"imageOffset":18156,"symbol":"__psynch_cvwait","symbolLocation":8,"imageIndex":11},{"imageOffset":30868,"symbol":"_pthread_cond_wait","symbolLocation":1204,"imageIndex":21},{"imageOffset":136568,"symbol":"std::__1::condition_variable::wait(std::__1::unique_lock<std::__1::mutex>&)","symbolLocation":28,"imageIndex":13},{"imageOffset":3040492,"imageIndex":6},{"imageOffset":3114512,"imageIndex":6},{"imageOffset":29412,"symbol":"_pthread_start","symbolLocation":136,"imageIndex":21},{"imageOffset":8444,"symbol":"thread_start","symbolLocation":8,"imageIndex":21}],"threadState":{"x":[{"value":260},{"value":0},{"value":0},{"value":0},{"value":0},{"value":160},{"value":0},{"value":0},{"value":6138309624},{"value":0},{"value":0},{"value":2},{"value":2},{"value":0},{"value":0},{"value":0},{"value":305},{"value":8461148792},{"value":0},{"value":5430617208},{"value":5430617152},{"value":6138310880},{"value":0},{"value":0},{"value":0},{"value":1},{"value":256},{"value":0},{"value":1}],"flavor":"ARM_THREAD_STATE64","lr":{"value":6548867220},"cpsr":{"value":1610616832},"fp":{"value":6138309744},"sp":{"value":6138309600},"esr":{"value":1442840704,"description":" Address size fault"},"pc":{"value":6548612844},"far":{"value":0}}},{"id":3521635,"name":"AsyncPresetLoader","threadState":{"x":[{"value":260},{"value":0},{"value":2816},{"value":0},{"value":0},{"value":160},{"value":0},{"value":0},{"value":6143470440},{"value":0},{"value":0},{"value":2},{"value":2},{"value":0},{"value":0},{"value":0},{"value":305},{"value":8461148792},{"value":0},{"value":5385517072},{"value":5385517136},{"value":6143471840},{"value":0},{"value":0},{"value":2816},{"value":2817},{"value":3072},{"value":5385517256},{"value":6143471344}],"flavor":"ARM_THREAD_STATE64","lr":{"value":6548867220},"cpsr":{"value":1610616832},"fp":{"value":6143470560},"sp":{"value":6143470416},"esr":{"value":1442840704,"description":" Address size fault"},"pc":{"value":6548612844},"far":{"value":0}},"frames":[{"imageOffset":18156,"symbol":"__psynch_cvwait","symbolLocation":8,"imageIndex":11},{"imageOffset":30868,"symbol":"_pthread_cond_wait","symbolLocation":1204,"imageIndex":21},{"imageOffset":136568,"symbol":"std::__1::condition_variable::wait(std::__1::unique_lock<std::__1::mutex>&)","symbolLocation":28,"imageIndex":13},{"imageOffset":2445340,"imageIndex":6},{"imageOffset":29412,"symbol":"_pthread_start","symbolLocation":136,"imageIndex":21},{"imageOffset":8444,"symbol":"thread_start","symbolLocation":8,"imageIndex":21}]},{"id":3521638,"frames":[{"imageOffset":17640,"symbol":"__semwait_signal","symbolLocation":8,"imageIndex":11},{"imageOffset":59120,"symbol":"nanosleep","symbolLocation":220,"imageIndex":12},{"imageOffset":144116,"symbol":"std::__1::this_thread::sleep_for(std::__1::chrono::duration<long long, std::__1::ratio<1l, 1000000000l>> const&)","symbolLocation":84,"imageIndex":13},{"imageOffset":448824,"imageIndex":8},{"imageOffset":29412,"symbol":"_pthread_start","symbolLocation":136,"imageIndex":21},{"imageOffset":8444,"symbol":"thread_start","symbolLocation":8,"imageIndex":21}],"threadState":{"x":[{"value":4},{"value":0},{"value":1},{"value":1},{"value":0},{"value":10000000},{"value":52},{"value":0},{"value":8320408352,"symbolLocation":0,"symbol":"clock_sem"},{"value":16387},{"value":17},{"value":9264},{"value":2043},{"value":2045},{"value":4194357442},{"value":4192258258},{"value":334},{"value":8461148912},{"value":0},{"value":6144618016},{"value":6144618016},{"value":105553125320496},{"value":105553155878772},{"value":12},{"value":105553155878704},{"value":105553119712956},{"value":5102285304},{"value":105553124314448},{"value":105553155878704}],"flavor":"ARM_THREAD_STATE64","lr":{"value":6547429104},"cpsr":{"value":1610616832},"fp":{"value":6144618000},"sp":{"value":6144617952},"esr":{"value":1442840704,"description":" Address size fault"},"pc":{"value":6548612328},"far":{"value":0}}},{"id":3521639,"frames":[{"imageOffset":17640,"symbol":"__semwait_signal","symbolLocation":8,"imageIndex":11},{"imageOffset":59120,"symbol":"nanosleep","symbolLocation":220,"imageIndex":12},{"imageOffset":144116,"symbol":"std::__1::this_thread::sleep_for(std::__1::chrono::duration<long long, std::__1::ratio<1l, 1000000000l>> const&)","symbolLocation":84,"imageIndex":13},{"imageOffset":543304,"imageIndex":8},{"imageOffset":544156,"imageIndex":8},{"imageOffset":29412,"symbol":"_pthread_start","symbolLocation":136,"imageIndex":21},{"imageOffset":8444,"symbol":"thread_start","symbolLocation":8,"imageIndex":21}],"threadState":{"x":[{"value":4},{"value":0},{"value":1},{"value":1},{"value":0},{"value":10000000},{"value":52},{"value":0},{"value":8320408352,"symbolLocation":0,"symbol":"clock_sem"},{"value":16387},{"value":17},{"value":2},{"value":0},{"value":0},{"value":0},{"value":0},{"value":334},{"value":8461148912},{"value":0},{"value":6145191712},{"value":6145191712},{"value":5420106040},{"value":1000000},{"value":9223372036000},{"value":9223372036854775807},{"value":105553124314600},{"value":105553124314600},{"value":0},{"value":0}],"flavor":"ARM_THREAD_STATE64","lr":{"value":6547429104},"cpsr":{"value":1610616832},"fp":{"value":6145191696},"sp":{"value":6145191648},"esr":{"value":1442840704,"description":" Address size fault"},"pc":{"value":6548612328},"far":{"value":0}}},{"id":3521640,"name":"ConvoEngine","threadState":{"x":[{"value":260},{"value":0},{"value":1439744},{"value":0},{"value":0},{"value":160},{"value":0},{"value":0},{"value":6145764952},{"value":0},{"value":256},{"value":1099511628034},{"value":1099511628034},{"value":256},{"value":0},{"value":1099511628032},{"value":305},{"value":8461148792},{"value":0},{"value":5389063960},{"value":5389064024},{"value":6145765600},{"value":0},{"value":0},{"value":1439744},{"value":1439745},{"value":1440000},{"value":11},{"value":2}],"flavor":"ARM_THREAD_STATE64","lr":{"value":6548867220},"cpsr":{"value":1610616832},"fp":{"value":6145765072},"sp":{"value":6145764928},"esr":{"value":1442840704,"description":" Address size fault"},"pc":{"value":6548612844},"far":{"value":0}},"frames":[{"imageOffset":18156,"symbol":"__psynch_cvwait","symbolLocation":8,"imageIndex":11},{"imageOffset":30868,"symbol":"_pthread_cond_wait","symbolLocation":1204,"imageIndex":21},{"imageOffset":136568,"symbol":"std::__1::condition_variable::wait(std::__1::unique_lock<std::__1::mutex>&)","symbolLocation":28,"imageIndex":13},{"imageOffset":552472,"imageIndex":8},{"imageOffset":29412,"symbol":"_pthread_start","symbolLocation":136,"imageIndex":21},{"imageOffset":8444,"symbol":"thread_start","symbolLocation":8,"imageIndex":21}]},{"id":3521641,"name":"ConvoEngine","threadState":{"x":[{"value":260},{"value":0},{"value":50944},{"value":0},{"value":0},{"value":160},{"value":0},{"value":0},{"value":6146338392},{"value":0},{"value":0},{"value":2},{"value":2},{"value":0},{"value":0},{"value":0},{"value":305},{"value":8461148792},{"value":0},{"value":5389064240},{"value":5389064304},{"value":6146339040},{"value":0},{"value":0},{"value":50944},{"value":50945},{"value":51200},{"value":11},{"value":8}],"flavor":"ARM_THREAD_STATE64","lr":{"value":6548867220},"cpsr":{"value":1610616832},"fp":{"value":6146338512},"sp":{"value":6146338368},"esr":{"value":1442840704,"description":" Address size fault"},"pc":{"value":6548612844},"far":{"value":0}},"frames":[{"imageOffset":18156,"symbol":"__psynch_cvwait","symbolLocation":8,"imageIndex":11},{"imageOffset":30868,"symbol":"_pthread_cond_wait","symbolLocation":1204,"imageIndex":21},{"imageOffset":136568,"symbol":"std::__1::condition_variable::wait(std::__1::unique_lock<std::__1::mutex>&)","symbolLocation":28,"imageIndex":13},{"imageOffset":552472,"imageIndex":8},{"imageOffset":29412,"symbol":"_pthread_start","symbolLocation":136,"imageIndex":21},{"imageOffset":8444,"symbol":"thread_start","symbolLocation":8,"imageIndex":21}]},{"id":3521643,"name":"JUCE Timer","threadState":{"x":[{"value":260},{"value":0},{"value":4896768},{"value":0},{"value":0},{"value":160},{"value":0},{"value":299998917},{"value":6146911784},{"value":0},{"value":16896},{"value":72567767450114},{"value":72567767450114},{"value":16896},{"value":0},{"value":72567767450112},{"value":305},{"value":8461148792},{"value":0},{"value":5389270056},{"value":5389270120},{"value":6146912480},{"value":299998917},{"value":0},{"value":4896768},{"value":4896769},{"value":4897024},{"value":87577542},{"value":4294967295}],"flavor":"ARM_THREAD_STATE64","lr":{"value":6548867220},"cpsr":{"value":1610616832},"fp":{"value":6146911904},"sp":{"value":6146911760},"esr":{"value":1442840704,"description":" Address size fault"},"pc":{"value":6548612844},"far":{"value":0}},"frames":[{"imageOffset":18156,"symbol":"__psynch_cvwait","symbolLocation":8,"imageIndex":11},{"imageOffset":30868,"symbol":"_pthread_cond_wait","symbolLocation":1204,"imageIndex":21},{"imageOffset":136716,"symbol":"std::__1::condition_variable::__do_timed_wait(std::__1::unique_lock<std::__1::mutex>&, std::__1::chrono::time_point<std::__1::chrono::system_clock, std::__1::chrono::duration<long long, std::__1::ratio<1l, 1000000000l>>>)","symbolLocation":100,"imageIndex":13},{"imageOffset":14955044,"imageIndex":6},{"imageOffset":12994208,"imageIndex":6},{"imageOffset":15047996,"imageIndex":6},{"imageOffset":29412,"symbol":"_pthread_start","symbolLocation":136,"imageIndex":21},{"imageOffset":8444,"symbol":"thread_start","symbolLocation":8,"imageIndex":21}]},{"id":3521834,"frames":[{"imageOffset":8424,"symbol":"start_wqthread","symbolLocation":0,"imageIndex":21}],"threadState":{"x":[{"value":6136590336},{"value":105291},{"value":6136053760},{"value":0},{"value":409604},{"value":18446744073709551615},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0}],"flavor":"ARM_THREAD_STATE64","lr":{"value":0},"cpsr":{"value":4096},"fp":{"value":0},"sp":{"value":6136590336},"esr":{"value":1442840704,"description":" Address size fault"},"pc":{"value":6548844776},"far":{"value":0}}},{"triggered":true,"id":3521929,"threadState":{"x":[{"value":4751941128},{"value":8589934595},{"value":4751735584},{"value":19},{"value":4751735584},{"value":19},{"value":0},{"value":0},{"value":18446744065119617024},{"value":8589934595},{"value":3},{"value":1350432},{"value":4751114096},{"value":18},{"value":4751097856},{"value":4028694527},{"value":15534603968992690304},{"value":0},{"value":0},{"value":6837233460},{"value":4751941120},{"value":0},{"value":11},{"value":34},{"value":140},{"value":4396635104},{"value":3458764513820541204},{"value":1},{"value":8320386112,"symbolLocation":0,"symbol":"_dispatch_mgr_q"}],"flavor":"ARM_THREAD_STATE64","lr":{"value":6831820964},"cpsr":{"value":1610616832},"fp":{"value":6137153056},"sp":{"value":6137152848},"esr":{"value":4060086273,"description":"(Breakpoint) brk 1"},"pc":{"value":6831820964,"matchesCrashFrame":1},"far":{"value":0}},"queue":"ai.sequencer.SequencerAI.TickClock","frames":[{"imageOffset":229540,"symbol":"_assertionFailure(_:_:file:line:flags:)","symbolLocation":268,"imageIndex":27},{"imageOffset":230220,"symbol":"assertionFailure(_:file:line:)","symbolLocation":108,"imageIndex":27},{"imageOffset":3172416,"sourceLine":140,"sourceFile":"EngineController.swift","symbol":"static TickPathMainSyncGuard.report(_:)","imageIndex":1,"symbolLocation":336},{"imageOffset":3171756,"sourceLine":109,"sourceFile":"EngineController.swift","symbol":"static TickPathMainSyncGuard.assertNotSyncingToMainFromTickPath(_:)","imageIndex":1,"symbolLocation":104},{"imageOffset":9934124,"sourceLine":2600,"sourceFile":"SamplePlaybackEngine.swift","symbol":"SamplePlaybackEngine.performOnMain<A>(_:)","imageIndex":1,"symbolLocation":468},{"imageOffset":9922436,"sourceLine":380,"sourceFile":"SamplePlaybackEngine.swift","symbol":"SamplePlaybackEngine.prepareTrack(trackID:)","imageIndex":1,"symbolLocation":320},{"imageOffset":9969976,"sourceLine":986,"sourceFile":"SamplePlaybackEngine.swift","symbol":"SamplePlaybackEngine.setTrackMix(trackID:level:pan:)","imageIndex":1,"symbolLocation":168},{"imageOffset":10047668,"sourceFile":"\/<compiler-generated>","symbol":"protocol witness for SamplePlaybackSink.setTrackMix(trackID:level:pan:) in conformance SamplePlaybackEngine","symbolLocation":12,"imageIndex":1},{"imageOffset":3586044,"sourceLine":212,"sourceFile":"EngineControllerMixSync.swift","symbol":"EngineController.refreshEffectiveMixerState(for:)","imageIndex":1,"symbolLocation":1904},{"imageOffset":3587544,"sourceLine":37,"sourceFile":"EngineControllerMixSync.swift","symbol":"EngineController.refreshSceneMembershipGains(for:)","imageIndex":1,"symbolLocation":380},{"imageOffset":3266828,"sourceLine":4039,"sourceFile":"EngineController.swift","symbol":"EngineController.applyMasterBusIfChanged(_:)","imageIndex":1,"symbolLocation":392},{"imageOffset":3265744,"sourceLine":889,"sourceFile":"EngineController.swift","symbol":"EngineController.applyPhraseSceneState(phraseID:snapshot:)","imageIndex":1,"symbolLocation":1440},{"imageOffset":3274752,"sourceLine":1021,"sourceFile":"EngineController.swift","symbol":"EngineController.playbackPhraseForPrepare(upcomingStep:snapshot:)","imageIndex":1,"symbolLocation":952},{"imageOffset":3638284,"sourceLine":84,"sourceFile":"EngineControllerNoteRepeat.swift","symbol":"EngineController.scheduleActiveNoteRepeatsForCurrentTick(tickIndex:now:)","imageIndex":1,"symbolLocation":480},{"imageOffset":3398764,"sourceLine":2515,"sourceFile":"EngineController.swift","symbol":"EngineController.processTickMarked(tickIndex:now:)","imageIndex":1,"symbolLocation":556},{"imageOffset":3399984,"sourceLine":2446,"sourceFile":"EngineController.swift","symbol":"EngineController.processLiveLookAheadPumpMarked(now:)","imageIndex":1,"symbolLocation":900},{"imageOffset":3399060,"sourceLine":2420,"sourceFile":"EngineController.swift","symbol":"closure #1 in EngineController.processLiveLookAheadPump(pumpIndex:now:)","imageIndex":1,"symbolLocation":48},{"imageOffset":3171576,"sourceLine":96,"sourceFile":"EngineController.swift","symbol":"static TickPathMainSyncGuard.withTickPathMarker<A>(_:)","imageIndex":1,"symbolLocation":100},{"imageOffset":3329208,"sourceLine":2419,"sourceFile":"EngineController.swift","symbol":"EngineController.processLiveLookAheadPump(pumpIndex:now:)","imageIndex":1,"symbolLocation":256},{"imageOffset":3328924,"sourceLine":1297,"sourceFile":"EngineController.swift","symbol":"closure #3 in EngineController.start(deferredAttempt:)","imageIndex":1,"symbolLocation":176},{"imageOffset":13676892,"sourceLine":100,"sourceFile":"TickClock.swift","symbol":"closure #1 in closure #1 in TickClock.start(lookAheadLeadSeconds:onTick:)","imageIndex":1,"symbolLocation":1520},{"imageOffset":8120,"sourceFile":"\/<compiler-generated>","symbol":"thunk for @escaping @callee_guaranteed () -> ()","symbolLocation":48,"imageIndex":1},{"imageOffset":17844,"symbol":"_dispatch_client_callout","symbolLocation":20,"imageIndex":20},{"imageOffset":31336,"symbol":"_dispatch_continuation_pop","symbolLocation":596,"imageIndex":20},{"imageOffset":114308,"symbol":"_dispatch_source_latch_and_call","symbolLocation":420,"imageIndex":20},{"imageOffset":109132,"symbol":"_dispatch_source_invoke","symbolLocation":836,"imageIndex":20},{"imageOffset":47672,"symbol":"_dispatch_lane_serial_drain","symbolLocation":352,"imageIndex":20},{"imageOffset":50992,"symbol":"_dispatch_lane_invoke","symbolLocation":380,"imageIndex":20},{"imageOffset":96672,"symbol":"_dispatch_root_queue_drain_deferred_wlh","symbolLocation":288,"imageIndex":20},{"imageOffset":94700,"symbol":"_dispatch_workloop_worker_thread","symbolLocation":540,"imageIndex":20},{"imageOffset":13272,"symbol":"_pthread_wqthread","symbolLocation":288,"imageIndex":21},{"imageOffset":8432,"symbol":"start_wqthread","symbolLocation":8,"imageIndex":21}]},{"id":3522299,"name":"Pool","threadState":{"x":[{"value":260},{"value":0},{"value":325632},{"value":0},{"value":0},{"value":160},{"value":0},{"value":0},{"value":6144044520},{"value":0},{"value":5632},{"value":24189255816706},{"value":24189255816706},{"value":5632},{"value":0},{"value":24189255816704},{"value":305},{"value":8461148792},{"value":0},{"value":4556367120},{"value":4556367184},{"value":6144045280},{"value":0},{"value":0},{"value":325632},{"value":325633},{"value":325888},{"value":105553180047360},{"value":1}],"flavor":"ARM_THREAD_STATE64","lr":{"value":6548867220},"cpsr":{"value":1610616832},"fp":{"value":6144044640},"sp":{"value":6144044496},"esr":{"value":1442840704,"description":" Address size fault"},"pc":{"value":6548612844},"far":{"value":0}},"frames":[{"imageOffset":18156,"symbol":"__psynch_cvwait","symbolLocation":8,"imageIndex":11},{"imageOffset":30868,"symbol":"_pthread_cond_wait","symbolLocation":1204,"imageIndex":21},{"imageOffset":136568,"symbol":"std::__1::condition_variable::wait(std::__1::unique_lock<std::__1::mutex>&)","symbolLocation":28,"imageIndex":13},{"imageOffset":14784764,"imageIndex":6},{"imageOffset":14785800,"imageIndex":6},{"imageOffset":15109468,"imageIndex":6},{"imageOffset":15047996,"imageIndex":6},{"imageOffset":29412,"symbol":"_pthread_start","symbolLocation":136,"imageIndex":21},{"imageOffset":8444,"symbol":"thread_start","symbolLocation":8,"imageIndex":21}]},{"id":3522305,"name":"CVDisplayLink","threadState":{"x":[{"value":260},{"value":0},{"value":0},{"value":0},{"value":0},{"value":65704},{"value":0},{"value":14233167},{"value":4275969},{"value":0},{"value":0},{"value":2},{"value":2},{"value":0},{"value":0},{"value":0},{"value":305},{"value":8461148792},{"value":0},{"value":5408503864},{"value":5408503928},{"value":1},{"value":14233167},{"value":0},{"value":0},{"value":4275969},{"value":4276224},{"value":8284437752,"symbolLocation":0,"symbol":"CVHostTimeBase::sToNanosDenominator"},{"value":8284437784,"symbolLocation":0,"symbol":"kZeroVideoTime"}],"flavor":"ARM_THREAD_STATE64","lr":{"value":6548867264},"cpsr":{"value":2684358656},"fp":{"value":6147485104},"sp":{"value":6147484960},"esr":{"value":1442840704,"description":" Address size fault"},"pc":{"value":6548612844},"far":{"value":0}},"frames":[{"imageOffset":18156,"symbol":"__psynch_cvwait","symbolLocation":8,"imageIndex":11},{"imageOffset":30912,"symbol":"_pthread_cond_wait","symbolLocation":1248,"imageIndex":21},{"imageOffset":13220,"symbol":"CVDisplayLink::waitUntil(unsigned long long)","symbolLocation":316,"imageIndex":28},{"imageOffset":9340,"symbol":"CVDisplayLink::runIOThread()","symbolLocation":504,"imageIndex":28},{"imageOffset":29412,"symbol":"_pthread_start","symbolLocation":136,"imageIndex":21},{"imageOffset":8444,"symbol":"thread_start","symbolLocation":8,"imageIndex":21}]},{"id":3522311,"frames":[{"imageOffset":8424,"symbol":"start_wqthread","symbolLocation":0,"imageIndex":21}],"threadState":{"x":[{"value":6148059136},{"value":112547},{"value":6147522560},{"value":0},{"value":409604},{"value":18446744073709551615},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0}],"flavor":"ARM_THREAD_STATE64","lr":{"value":0},"cpsr":{"value":4096},"fp":{"value":0},"sp":{"value":6148059136},"esr":{"value":1442840704,"description":" Address size fault"},"pc":{"value":6548844776},"far":{"value":0}}},{"id":3522924,"frames":[{"imageOffset":18156,"symbol":"__psynch_cvwait","symbolLocation":8,"imageIndex":11},{"imageOffset":30868,"symbol":"_pthread_cond_wait","symbolLocation":1204,"imageIndex":21},{"imageOffset":136568,"symbol":"std::__1::condition_variable::wait(std::__1::unique_lock<std::__1::mutex>&)","symbolLocation":28,"imageIndex":13},{"imageOffset":3040492,"imageIndex":6},{"imageOffset":3114512,"imageIndex":6},{"imageOffset":29412,"symbol":"_pthread_start","symbolLocation":136,"imageIndex":21},{"imageOffset":8444,"symbol":"thread_start","symbolLocation":8,"imageIndex":21}],"threadState":{"x":[{"value":260},{"value":0},{"value":0},{"value":0},{"value":0},{"value":160},{"value":0},{"value":0},{"value":6151498744},{"value":0},{"value":0},{"value":2},{"value":2},{"value":0},{"value":0},{"value":0},{"value":305},{"value":8461148792},{"value":0},{"value":5286975096},{"value":5286975040},{"value":6151500000},{"value":0},{"value":0},{"value":0},{"value":1},{"value":256},{"value":0},{"value":1}],"flavor":"ARM_THREAD_STATE64","lr":{"value":6548867220},"cpsr":{"value":1610616832},"fp":{"value":6151498864},"sp":{"value":6151498720},"esr":{"value":1442840704,"description":" Address size fault"},"pc":{"value":6548612844},"far":{"value":0}}},{"id":3522925,"name":"AsyncPresetLoader","threadState":{"x":[{"value":260},{"value":0},{"value":0},{"value":0},{"value":0},{"value":160},{"value":0},{"value":0},{"value":6152072040},{"value":0},{"value":0},{"value":2},{"value":2},{"value":0},{"value":0},{"value":0},{"value":305},{"value":8461148792},{"value":0},{"value":5341711712},{"value":5341711776},{"value":6152073440},{"value":0},{"value":0},{"value":0},{"value":1},{"value":256},{"value":0},{"value":6152072944}],"flavor":"ARM_THREAD_STATE64","lr":{"value":6548867220},"cpsr":{"value":1610616832},"fp":{"value":6152072160},"sp":{"value":6152072016},"esr":{"value":1442840704,"description":" Address size fault"},"pc":{"value":6548612844},"far":{"value":0}},"frames":[{"imageOffset":18156,"symbol":"__psynch_cvwait","symbolLocation":8,"imageIndex":11},{"imageOffset":30868,"symbol":"_pthread_cond_wait","symbolLocation":1204,"imageIndex":21},{"imageOffset":136568,"symbol":"std::__1::condition_variable::wait(std::__1::unique_lock<std::__1::mutex>&)","symbolLocation":28,"imageIndex":13},{"imageOffset":2445340,"imageIndex":6},{"imageOffset":29412,"symbol":"_pthread_start","symbolLocation":136,"imageIndex":21},{"imageOffset":8444,"symbol":"thread_start","symbolLocation":8,"imageIndex":21}]},{"id":3522926,"frames":[{"imageOffset":17640,"symbol":"__semwait_signal","symbolLocation":8,"imageIndex":11},{"imageOffset":59120,"symbol":"nanosleep","symbolLocation":220,"imageIndex":12},{"imageOffset":144116,"symbol":"std::__1::this_thread::sleep_for(std::__1::chrono::duration<long long, std::__1::ratio<1l, 1000000000l>> const&)","symbolLocation":84,"imageIndex":13},{"imageOffset":448824,"imageIndex":8},{"imageOffset":29412,"symbol":"_pthread_start","symbolLocation":136,"imageIndex":21},{"imageOffset":8444,"symbol":"thread_start","symbolLocation":8,"imageIndex":21}],"threadState":{"x":[{"value":4},{"value":0},{"value":1},{"value":1},{"value":0},{"value":10000000},{"value":52},{"value":0},{"value":8320408352,"symbolLocation":0,"symbol":"clock_sem"},{"value":16387},{"value":17},{"value":5904},{"value":2043},{"value":2045},{"value":3209109628},{"value":3207010430},{"value":334},{"value":8461148912},{"value":0},{"value":6149778976},{"value":6149778976},{"value":105553141389168},{"value":105553155764884},{"value":12},{"value":105553155764816},{"value":105553121158876},{"value":4640616952},{"value":105553124153216},{"value":105553155764816}],"flavor":"ARM_THREAD_STATE64","lr":{"value":6547429104},"cpsr":{"value":1610616832},"fp":{"value":6149778960},"sp":{"value":6149778912},"esr":{"value":1442840704,"description":" Address size fault"},"pc":{"value":6548612328},"far":{"value":0}}},{"id":3522927,"frames":[{"imageOffset":17640,"symbol":"__semwait_signal","symbolLocation":8,"imageIndex":11},{"imageOffset":59120,"symbol":"nanosleep","symbolLocation":220,"imageIndex":12},{"imageOffset":144116,"symbol":"std::__1::this_thread::sleep_for(std::__1::chrono::duration<long long, std::__1::ratio<1l, 1000000000l>> const&)","symbolLocation":84,"imageIndex":13},{"imageOffset":543304,"imageIndex":8},{"imageOffset":544156,"imageIndex":8},{"imageOffset":29412,"symbol":"_pthread_start","symbolLocation":136,"imageIndex":21},{"imageOffset":8444,"symbol":"thread_start","symbolLocation":8,"imageIndex":21}],"threadState":{"x":[{"value":4},{"value":0},{"value":1},{"value":1},{"value":0},{"value":10000000},{"value":52},{"value":0},{"value":8320408352,"symbolLocation":0,"symbol":"clock_sem"},{"value":16387},{"value":17},{"value":2},{"value":0},{"value":0},{"value":0},{"value":0},{"value":334},{"value":8461148912},{"value":0},{"value":6150352672},{"value":6150352672},{"value":5407671608},{"value":1000000},{"value":9223372036000},{"value":9223372036854775807},{"value":105553124088296},{"value":105553124088296},{"value":0},{"value":0}],"flavor":"ARM_THREAD_STATE64","lr":{"value":6547429104},"cpsr":{"value":1610616832},"fp":{"value":6150352656},"sp":{"value":6150352608},"esr":{"value":1442840704,"description":" Address size fault"},"pc":{"value":6548612328},"far":{"value":0}}},{"id":3522928,"name":"ConvoEngine","threadState":{"x":[{"value":260},{"value":0},{"value":1931264},{"value":0},{"value":0},{"value":160},{"value":0},{"value":0},{"value":6150925912},{"value":0},{"value":0},{"value":2},{"value":2},{"value":0},{"value":0},{"value":0},{"value":305},{"value":8461148792},{"value":0},{"value":5388875672},{"value":5388875736},{"value":6150926560},{"value":0},{"value":0},{"value":1931264},{"value":1931265},{"value":1931520},{"value":11},{"value":7}],"flavor":"ARM_THREAD_STATE64","lr":{"value":6548867220},"cpsr":{"value":1610616832},"fp":{"value":6150926032},"sp":{"value":6150925888},"esr":{"value":1442840704,"description":" Address size fault"},"pc":{"value":6548612844},"far":{"value":0}},"frames":[{"imageOffset":18156,"symbol":"__psynch_cvwait","symbolLocation":8,"imageIndex":11},{"imageOffset":30868,"symbol":"_pthread_cond_wait","symbolLocation":1204,"imageIndex":21},{"imageOffset":136568,"symbol":"std::__1::condition_variable::wait(std::__1::unique_lock<std::__1::mutex>&)","symbolLocation":28,"imageIndex":13},{"imageOffset":552472,"imageIndex":8},{"imageOffset":29412,"symbol":"_pthread_start","symbolLocation":136,"imageIndex":21},{"imageOffset":8444,"symbol":"thread_start","symbolLocation":8,"imageIndex":21}]},{"id":3522929,"name":"ConvoEngine","threadState":{"x":[{"value":260},{"value":0},{"value":61952},{"value":0},{"value":0},{"value":160},{"value":0},{"value":0},{"value":6152646232},{"value":0},{"value":0},{"value":2},{"value":2},{"value":0},{"value":0},{"value":0},{"value":305},{"value":8461148792},{"value":0},{"value":5388875952},{"value":5388876016},{"value":6152646880},{"value":0},{"value":0},{"value":61952},{"value":61953},{"value":62208},{"value":11},{"value":9}],"flavor":"ARM_THREAD_STATE64","lr":{"value":6548867220},"cpsr":{"value":1610616832},"fp":{"value":6152646352},"sp":{"value":6152646208},"esr":{"value":1442840704,"description":" Address size fault"},"pc":{"value":6548612844},"far":{"value":0}},"frames":[{"imageOffset":18156,"symbol":"__psynch_cvwait","symbolLocation":8,"imageIndex":11},{"imageOffset":30868,"symbol":"_pthread_cond_wait","symbolLocation":1204,"imageIndex":21},{"imageOffset":136568,"symbol":"std::__1::condition_variable::wait(std::__1::unique_lock<std::__1::mutex>&)","symbolLocation":28,"imageIndex":13},{"imageOffset":552472,"imageIndex":8},{"imageOffset":29412,"symbol":"_pthread_start","symbolLocation":136,"imageIndex":21},{"imageOffset":8444,"symbol":"thread_start","symbolLocation":8,"imageIndex":21}]},{"id":3531716,"frames":[{"imageOffset":8424,"symbol":"start_wqthread","symbolLocation":0,"imageIndex":21}],"threadState":{"x":[{"value":6148632576},{"value":0},{"value":6148096000},{"value":0},{"value":278532},{"value":18446744073709551615},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0}],"flavor":"ARM_THREAD_STATE64","lr":{"value":0},"cpsr":{"value":4096},"fp":{"value":0},"sp":{"value":6148632576},"esr":{"value":0,"description":" Address size fault"},"pc":{"value":6548844776},"far":{"value":0}}},{"id":3531717,"frames":[{"imageOffset":8424,"symbol":"start_wqthread","symbolLocation":0,"imageIndex":21}],"threadState":{"x":[{"value":6149206016},{"value":0},{"value":6148669440},{"value":0},{"value":278532},{"value":18446744073709551615},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0},{"value":0}],"flavor":"ARM_THREAD_STATE64","lr":{"value":0},"cpsr":{"value":4096},"fp":{"value":0},"sp":{"value":6149206016},"esr":{"value":0,"description":" Address size fault"},"pc":{"value":6548844776},"far":{"value":0}}}],
+  "usedImages" : [
+  {
+    "source" : "P",
+    "arch" : "arm64",
+    "base" : 4331421696,
+    "CFBundleShortVersionString" : "0.0.1",
+    "CFBundleIdentifier" : "ai.sequencer.SequencerAI",
+    "size" : 16384,
+    "uuid" : "202a10b3-bc74-3d90-94c4-21ddf0cb9381",
+    "path" : "\/Users\/USER\/Library\/Developer\/Xcode\/DerivedData\/SequencerAI-eqtzejtdpfgahvcbigxlxtvgqtjf\/Build\/Products\/Debug\/SequencerAI.app\/Contents\/MacOS\/SequencerAI",
+    "name" : "SequencerAI",
+    "CFBundleVersion" : "1"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64",
+    "base" : 4379426816,
+    "size" : 19169280,
+    "uuid" : "fe362535-b0f2-3e06-b9c3-211c9708294d",
+    "path" : "\/Users\/USER\/Library\/Developer\/Xcode\/DerivedData\/SequencerAI-eqtzejtdpfgahvcbigxlxtvgqtjf\/Build\/Products\/Debug\/SequencerAI.app\/Contents\/MacOS\/SequencerAI.debug.dylib",
+    "name" : "SequencerAI.debug.dylib"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64e",
+    "base" : 4368236544,
+    "size" : 49152,
+    "uuid" : "3d687e9b-e092-3632-bc1d-74b19d492de0",
+    "path" : "\/usr\/lib\/libobjc-trampolines.dylib",
+    "name" : "libobjc-trampolines.dylib"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64e",
+    "base" : 4506402816,
+    "CFBundleShortVersionString" : "324.6",
+    "CFBundleIdentifier" : "com.apple.AGXMetal13-3",
+    "size" : 6963200,
+    "uuid" : "4127f44c-9853-3b87-b300-dc4614ed8bcc",
+    "path" : "\/System\/Library\/Extensions\/AGXMetal13_3.bundle\/Contents\/MacOS\/AGXMetal13_3",
+    "name" : "AGXMetal13_3",
+    "CFBundleVersion" : "324.6"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64e",
+    "base" : 4529848320,
+    "CFBundleShortVersionString" : "1.14",
+    "CFBundleIdentifier" : "com.apple.audio.units.Components",
+    "size" : 1294336,
+    "uuid" : "ce006ced-ee1c-3174-bba9-1e326231ab55",
+    "path" : "\/System\/Library\/Components\/CoreAudio.component\/Contents\/MacOS\/CoreAudio",
+    "name" : "CoreAudio",
+    "CFBundleVersion" : "1.14"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64",
+    "base" : 4546330624,
+    "CFBundleShortVersionString" : "68608",
+    "CFBundleIdentifier" : "com.arturia.component.Buchla-Easel-V",
+    "size" : 180224,
+    "uuid" : "24251532-9d3e-319c-8f82-694757b039bf",
+    "path" : "\/Library\/Audio\/Plug-Ins\/Components\/Buchla Easel V.component\/Contents\/MacOS\/Buchla Easel V",
+    "name" : "Buchla Easel V",
+    "CFBundleVersion" : "68608"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64",
+    "base" : 4799922176,
+    "CFBundleShortVersionString" : "1.12.0.3420",
+    "CFBundleIdentifier" : "com.Arturia.Buchla-Easel-V.vst3",
+    "size" : 18317312,
+    "uuid" : "7cfa446f-0ea2-367f-ac7d-b48d693df744",
+    "path" : "\/Library\/Audio\/Plug-Ins\/Components\/Buchla Easel V.component\/Contents\/Resources\/plugin.vst3\/Contents\/MacOS\/Buchla Easel V",
+    "name" : "Buchla Easel V",
+    "CFBundleVersion" : "1.12.0.3420"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64",
+    "base" : 4753276928,
+    "size" : 1212416,
+    "uuid" : "c6fdd249-ac24-385a-85a0-d3e91bfbb179",
+    "path" : "\/Library\/Arturia\/*\/libsqlite.dylib",
+    "name" : "libsqlite.dylib"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64",
+    "base" : 4769644544,
+    "size" : 3031040,
+    "uuid" : "79f3b94d-0329-3cf2-9c4d-289fb177dc69",
+    "path" : "\/Library\/Arturia\/*\/libmusiceaselvProcessor.dylib",
+    "name" : "libmusiceaselvProcessor.dylib"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64e",
+    "base" : 4752146432,
+    "CFBundleShortVersionString" : "1.0",
+    "CFBundleIdentifier" : "com.apple.AppleMetalOpenGLRenderer",
+    "size" : 425984,
+    "uuid" : "a969aeaf-d20c-3296-b195-742e2b280d5e",
+    "path" : "\/System\/Library\/Extensions\/AppleMetalOpenGLRenderer.bundle\/Contents\/MacOS\/AppleMetalOpenGLRenderer",
+    "name" : "AppleMetalOpenGLRenderer",
+    "CFBundleVersion" : "1"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64",
+    "base" : 5473845248,
+    "CFBundleShortVersionString" : "1.6.7",
+    "CFBundleIdentifier" : "com.TokyoDawnLabs.TDRKotelnikov",
+    "size" : 5259264,
+    "uuid" : "cb5f27f5-a8c5-33b0-bfa8-968f350fd45f",
+    "path" : "\/Library\/Audio\/Plug-Ins\/Components\/TDR Kotelnikov.component\/Contents\/MacOS\/TDR Kotelnikov",
+    "name" : "TDR Kotelnikov",
+    "CFBundleVersion" : "1.6.7"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64e",
+    "base" : 6548594688,
+    "size" : 241656,
+    "uuid" : "eee9d0d3-dffc-37cb-9ced-b27cd0286d8c",
+    "path" : "\/usr\/lib\/system\/libsystem_kernel.dylib",
+    "name" : "libsystem_kernel.dylib"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64e",
+    "base" : 6547369984,
+    "size" : 532476,
+    "uuid" : "92699527-645f-3d8d-aed8-1cfb0c034e15",
+    "path" : "\/usr\/lib\/system\/libsystem_c.dylib",
+    "name" : "libsystem_c.dylib"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64e",
+    "base" : 6547902464,
+    "size" : 581628,
+    "uuid" : "bbab286c-2e51-3d64-9ae3-a4102935fe32",
+    "path" : "\/usr\/lib\/libc++.1.dylib",
+    "name" : "libc++.1.dylib"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64e",
+    "base" : 8113741824,
+    "CFBundleShortVersionString" : "1.0",
+    "CFBundleIdentifier" : "com.apple.audio.AVFAudio",
+    "size" : 1257472,
+    "uuid" : "4b44cee7-1f08-3bc7-b65b-340dd2f79f04",
+    "path" : "\/System\/Library\/Frameworks\/AVFAudio.framework\/Versions\/A\/AVFAudio",
+    "name" : "AVFAudio"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64e",
+    "base" : 9217638400,
+    "CFBundleShortVersionString" : "6.3.5.1",
+    "CFBundleIdentifier" : "com.apple.SwiftUICore",
+    "size" : 12689408,
+    "uuid" : "dac7a57b-d767-339a-a565-2eb382e758aa",
+    "path" : "\/System\/Library\/Frameworks\/SwiftUICore.framework\/Versions\/A\/SwiftUICore",
+    "name" : "SwiftUICore",
+    "CFBundleVersion" : "6.3.5.1"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64e",
+    "base" : 7334490112,
+    "CFBundleShortVersionString" : "6.3.5.1",
+    "CFBundleIdentifier" : "com.apple.SwiftUI",
+    "size" : 24813568,
+    "uuid" : "680539f6-0829-3a16-9151-d8345b0936d4",
+    "path" : "\/System\/Library\/Frameworks\/SwiftUI.framework\/Versions\/A\/SwiftUI",
+    "name" : "SwiftUI",
+    "CFBundleVersion" : "6.3.5.1"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64e",
+    "base" : 6611922944,
+    "CFBundleShortVersionString" : "6.9",
+    "CFBundleIdentifier" : "com.apple.AppKit",
+    "size" : 21221376,
+    "uuid" : "b88a44c1-d617-33dc-90ed-b6ab417c428e",
+    "path" : "\/System\/Library\/Frameworks\/AppKit.framework\/Versions\/C\/AppKit",
+    "name" : "AppKit",
+    "CFBundleVersion" : "2575.40.6"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64e",
+    "base" : 6545170432,
+    "size" : 532288,
+    "uuid" : "398a133c-9bcb-317f-a064-a40d3cea3c0f",
+    "path" : "\/usr\/lib\/dyld",
+    "name" : "dyld"
+  },
+  {
+    "size" : 0,
+    "source" : "A",
+    "base" : 0,
+    "uuid" : "00000000-0000-0000-0000-000000000000"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64e",
+    "base" : 6547066880,
+    "size" : 290816,
+    "uuid" : "5576e4fd-aad2-3608-8c8f-4eec421236f9",
+    "path" : "\/usr\/lib\/system\/libdispatch.dylib",
+    "name" : "libdispatch.dylib"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64e",
+    "base" : 6548836352,
+    "size" : 53248,
+    "uuid" : "642faf7a-874e-37e6-8aba-2b0cc09a3025",
+    "path" : "\/usr\/lib\/system\/libsystem_pthread.dylib",
+    "name" : "libsystem_pthread.dylib"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64e",
+    "base" : 7013531648,
+    "CFBundleShortVersionString" : "2.0",
+    "CFBundleIdentifier" : "com.apple.audio.midi.CoreMIDI",
+    "size" : 757760,
+    "uuid" : "ccb045b1-4cfc-3fbb-bdd7-44a103588428",
+    "path" : "\/System\/Library\/Frameworks\/CoreMIDI.framework\/Versions\/A\/CoreMIDI",
+    "name" : "CoreMIDI",
+    "CFBundleVersion" : "88"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64e",
+    "base" : 6549303296,
+    "CFBundleShortVersionString" : "6.9",
+    "CFBundleIdentifier" : "com.apple.CoreFoundation",
+    "size" : 5197824,
+    "uuid" : "190e6a36-fcaa-3ea3-94bb-7009c44653da",
+    "path" : "\/System\/Library\/Frameworks\/CoreFoundation.framework\/Versions\/A\/CoreFoundation",
+    "name" : "CoreFoundation",
+    "CFBundleVersion" : "3302.1.400"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64e",
+    "base" : 6734635008,
+    "CFBundleShortVersionString" : "1.0",
+    "CFBundleIdentifier" : "com.apple.audio.caulk",
+    "size" : 163840,
+    "uuid" : "a307ba82-97de-37d1-99b7-bf68ac23c35c",
+    "path" : "\/System\/Library\/PrivateFrameworks\/caulk.framework\/Versions\/A\/caulk",
+    "name" : "caulk"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64e",
+    "base" : 6586122240,
+    "CFBundleShortVersionString" : "1.0",
+    "CFBundleIdentifier" : "com.apple.audio.AudioToolboxCore",
+    "size" : 3874816,
+    "uuid" : "3573e5a3-0c97-33bd-82ec-8b2a0e152826",
+    "path" : "\/System\/Library\/PrivateFrameworks\/AudioToolboxCore.framework\/Versions\/A\/AudioToolboxCore",
+    "name" : "AudioToolboxCore"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64e",
+    "base" : 6592159744,
+    "CFBundleShortVersionString" : "5.0",
+    "CFBundleIdentifier" : "com.apple.audio.CoreAudio",
+    "size" : 7651328,
+    "uuid" : "214b90dc-87e8-30a8-b682-c2c1883f9635",
+    "path" : "\/System\/Library\/Frameworks\/CoreAudio.framework\/Versions\/A\/CoreAudio",
+    "name" : "CoreAudio",
+    "CFBundleVersion" : "5.0"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64e",
+    "base" : 6831591424,
+    "size" : 5914624,
+    "uuid" : "a0ebe73e-3b7b-329e-985c-e884aba916df",
+    "path" : "\/usr\/lib\/swift\/libswiftCore.dylib",
+    "name" : "libswiftCore.dylib"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64e",
+    "base" : 6704451584,
+    "CFBundleShortVersionString" : "1.8",
+    "CFBundleIdentifier" : "com.apple.CoreVideo",
+    "size" : 397312,
+    "uuid" : "0fcfe924-013c-3974-9fdf-58f9a8d71845",
+    "path" : "\/System\/Library\/Frameworks\/CoreVideo.framework\/Versions\/A\/CoreVideo",
+    "name" : "CoreVideo",
+    "CFBundleVersion" : "672.10"
+  }
+],
+  "sharedCache" : {
+  "base" : 6544359424,
+  "size" : 4865835008,
+  "uuid" : "5700d77a-6190-36e0-884d-fee6d586d62f"
+},
+  "vmSummary" : "ReadOnly portion of Libraries: Total=1.7G resident=0K(0%) swapped_out_or_unallocated=1.7G(100%)\nWritable regions: Total=2.3G written=1028K(0%) resident=1028K(0%) swapped_out=0K(0%) unallocated=2.3G(100%)\n\n                                VIRTUAL   REGION \nREGION TYPE                        SIZE    COUNT (non-coalesced) \n===========                     =======  ======= \nAccelerate framework               256K        2 \nActivity Tracing                   256K        1 \nAttributeGraph Data               1024K        1 \nCG image                           384K       16 \nColorSync                          752K       39 \nCoreAnimation                     1760K      108 \nCoreGraphics                        32K        2 \nCoreUI image data                 2752K       35 \nFoundation                          16K        1 \nKernel Alloc Once                   32K        1 \nMALLOC                             2.2G      108 \nMALLOC guard page                  384K       24 \nMALLOC_LARGE (reserved)           18.1M        2         reserved VM address space (unallocated)\nOpenGL GLSL                        256K        3 \nSTACK GUARD                       56.5M       30 \nStack                             23.4M       31 \nVM_ALLOCATE                       13.5M       42 \n__AUTH                            5195K      667 \n__AUTH_CONST                      70.1M      910 \n__CTF                               824        1 \n__DATA                            25.3M      901 \n__DATA_CONST                      25.8M      928 \n__DATA_DIRTY                      2755K      334 \n__FONT_DATA                        2352        1 \n__GLSLBUILTINS                    5174K        1 \n__INFO_FILTER                         8        1 \n__LINKEDIT                       633.5M       12 \n__OBJC_RW                         2374K        1 \n__TEXT                             1.0G      948 \n__TPRO_CONST                       272K        2 \nmapped file                      468.4M       51 \nowned unmapped memory              576K        1 \npage table in kernel              1028K        1 \nshared memory                      9.8M       24 \n===========                     =======  ======= \nTOTAL                              4.6G     5230 \nTOTAL, minus reserved VM space     4.6G     5230 \n",
+  "legacyInfo" : {
+  "threadTriggered" : {
+    "queue" : "ai.sequencer.SequencerAI.TickClock"
+  }
+},
+  "logWritingSignature" : "354e852771e7b118a92ccf2c6652c0134da14eb6",
+  "trialInfo" : {
+  "rollouts" : [
+    {
+      "rolloutId" : "639124e81d92412bfb4880b3",
+      "factorPackIds" : {
+
+      },
+      "deploymentId" : 240000012
+    },
+    {
+      "rolloutId" : "64628732bf2f5257dedc8988",
+      "factorPackIds" : {
+
+      },
+      "deploymentId" : 240000001
+    }
+  ],
+  "experiments" : [
+
+  ]
+}
+}

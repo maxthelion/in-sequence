@@ -19,7 +19,9 @@ struct TrackSourceClipPanel: View {
     let hasSavedRandomizeSettings: Bool
     let randomizePanel: () -> AnyView
     let onRandomizeClip: () -> Void
+    let onOpenHistory: () -> Void
     let onToggleRandomizePanel: () -> Void
+    let onRemoveSource: () -> Void
 
     var body: some View {
         ClipContentPreview(
@@ -37,7 +39,9 @@ struct TrackSourceClipPanel: View {
             hasSavedRandomizeSettings: hasSavedRandomizeSettings,
             randomizePanel: randomizePanel,
             onRandomize: onRandomizeClip,
+            onOpenHistory: onOpenHistory,
             onToggleRandomizePanel: onToggleRandomizePanel,
+            onRemoveSource: onRemoveSource,
             playingStepIndex: playingStepIndex
         )
         .frame(maxWidth: .infinity, alignment: .leading)

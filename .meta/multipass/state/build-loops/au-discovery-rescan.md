@@ -1,7 +1,7 @@
 # au-discovery-rescan
 
 - loop: `build/au-discovery-rescan`
-- status: active
+- status: complete
 - branch: `feature/au-discovery-rescan`
 - worktree: `.worktrees/au-discovery-rescan`
 - created: 2026-06-16T19:52:14.407Z
@@ -18,6 +18,50 @@
 
 This is the durable build-loop summary. Transient inboxes, runs, and evidence
 live under `.meta/multipass/runtime/loops/build/au-discovery-rescan/`.
+
+## 2026-07-04 Reconciled Complete By Supersession
+
+source:
+`.meta/multipass/runtime/loops/project/act/2026-07-04T17-51Z-au-discovery-rescan-reconciled.md`
+
+The build lane is now terminal `status: complete` for capacity/readiness
+purposes. It was not reconstructed because current `main` already contains the
+AU discovery/rescan product work and resolved owner-bug evidence:
+
+- `54d46ae7 Re-integrate AU plugin rescan onto current main`
+- `9cd7cd13 Dedupe mixer/phrase studio UI helpers`
+- `2c0d84ea fix(ui): clarify create-track sound and library actions`
+
+Current `main` includes non-blocking runtime rescan APIs on
+`AudioInstrumentChoiceCache` and `AudioEffectChoiceCache`,
+`EngineController.rescanAudioPluginChoices()`, a shared
+`StudioPluginRescanHeader` mounted in AU instrument/effect pickers, and focused
+cache/controller tests. The July 4 create-track feedback also moved AU
+instruments to the top and put the rescan action on the AU row.
+
+The preserved branch `feature/au-discovery-rescan` remains at
+`754e210fe1bd98cc4daf25a5101a47ee41373c9a`, is based on old
+`23c2715c`, and is not contained in current `main`. Its old blocker was
+runtime visual acceptance (`capture-permission-or-focus`), not product rework.
+Treat it as historical implementation/evidence material, not a live
+continuation target. Future AU visual acceptance should be routed as a fresh
+current-main request if needed; do not merge, delete, or recreate the old
+branch/worktree from this summary.
+
+## Process Lock (superseded)
+
+2026-07-04T17:20Z process-fixer repair:
+`.meta/multipass/runtime/loops/project/act/2026-07-04T17-20Z-stale-build-capacity-registry-repair.md`
+
+The configured worktree `.worktrees/au-discovery-rescan` is absent from
+`git worktree list`, and there is no pending AU build-loop inbox work. The
+local branch `feature/au-discovery-rescan` is preserved at `754e210f`; it is
+ahead of current `main` and is not contained in current `main`.
+
+Coordination state now marks the loop `locked` by `process` so it does not
+consume ordinary build capacity while the worktree is missing. Do not recreate
+the worktree, route builders, mark complete, merge, push, or delete branches
+from this summary alone.
 
 ## Compact Build Intent
 

@@ -413,14 +413,14 @@ struct SlicerSourceWidget: View {
             return "Slicer destination"
         }
         let length = sample.lengthSeconds.map { String(format: "%.2fs", $0) } ?? "--"
-        return "\(sample.category.displayName) • \(length) • \(effectiveSliceSet.userSliceCount) slices"
+        return "\(sample.category.displayName) • \(length)"
     }
 
     private var analysisSummary: String {
-        guard let analysisDraft else {
+        guard analysisDraft != nil else {
             return "\(analysisBars * 16) step clip"
         }
-        return "\(analysisDraft.userSliceCount) slices • \(analysisBars * 16) steps"
+        return "\(analysisBars * 16) steps"
     }
 
     private var divider: some View {

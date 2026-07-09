@@ -1,0 +1,75 @@
+id: pm/drum-kit-matrix-sound-implementation-prep
+kind: pm
+status: active
+feature: drum-kit-matrix-sound-implementation-prep
+source_intent:
+  - .meta/multipass/runtime/inbox/claimed/2026-07-06T201943621Z-process-fixer.md
+  - .meta/multipass/runtime/loops/project/decide/2026-07-06T20-19Z-start-drum-kit-matrix-implementation-pm.md
+  - .meta/multipass/state/bug-intake.md
+  - .meta/multipass/runtime/loops/build/drum-kit-matrix-sound-prep/decide/2026-07-06T15-47Z-accept-seam-check-no-builder.md
+  - .meta/multipass/runtime/loops/project/act/2026-07-06T16-11Z-drum-kit-matrix-sound-prep-capacity-closeout.md
+  - docs/roadmap/drum-kit-matrix-sound-prep
+runtime:
+  root: .meta/multipass/runtime/loops/pm/drum-kit-matrix-sound-implementation-prep
+  activity: activity.ndjson
+artifacts:
+  durable_summary: .meta/multipass/state/pm-loops/drum-kit-matrix-sound-implementation-prep.md
+  product_docs: docs/roadmap/drum-kit-matrix-sound-implementation-prep
+work:
+  branch: main
+  worktree: .
+phases:
+  observe: observe
+  orient: orient
+  decide: decide
+  act: act
+  evidence: evidence
+freshness:
+  output_state: PM implementation-prep lane for current bug-intake G5 Drum Kit / Kit Matrix / Drum Part Sound, not product implementation or build-loop promotion.
+  stale_when:
+    - linked G5 drum kit, kit matrix, drum-part sound, kit FX, or AU affordance bug reports receive resolution evidence.
+    - docs/roadmap/drum-kit-matrix-sound-implementation-prep artifacts change.
+    - active build-loop evidence consumes this implementation-prep scope after an accepted spec/plan/implementation-handoff exists.
+    - product-owner decision changes the intended drum kit matrix or drum-part sound workflow.
+
+actors:
+  observe:
+    - actor: pm-readiness-observer
+      cadence: 2h
+      prompt: project/actors/pm-readiness-observer/prompt.md
+      actions: project/actors/pm-readiness-observer/actions.yaml
+      tick: >
+        Observe Drum Kit / Kit Matrix / Drum Part Sound implementation prep
+        readiness for current bug-intake G5. Reuse the closed
+        build/drum-kit-matrix-sound-prep seam evidence as context, identify
+        which G5 reports remain true current-main violations, and record
+        missing readiness gates or product-owner locks. Do not write inbox
+        requests or modify roadmap artifacts.
+  orient:
+    - actor: pm-orienter
+      cadence: 30m
+      prompt: project/actors/pm-orienter/prompt.md
+      actions: project/actors/pm-orienter/actions.yaml
+      tick: >
+        Interpret Drum Kit / Kit Matrix / Drum Part Sound observations against
+        bug-intake G5, the accepted read-only seam-check evidence from
+        build/drum-kit-matrix-sound-prep, current main, and boundaries with AU
+        runtime safety, mixer/FX redesign, slicer/header compression, Scenes
+        IA, and Track/Phrase Perform interaction. Identify the next PM
+        artifact gap or lock. Do not schedule build work.
+  decide:
+    - actor: pm-decider
+      cadence: 30m
+      prompt: project/actors/pm-decider/prompt.md
+      actions: project/actors/pm-decider/actions.yaml
+      tick: >
+        Decide one bounded PM-loop action for Drum Kit / Kit Matrix / Drum
+        Part Sound implementation prep from the latest PM orientation. Route
+        only PM artifact work or a loop-local lock; do not promote a build
+        loop.
+  act:
+    - actor: pm-artifact-author
+      cadence: on_inbox
+      prompt: project/actors/pm-artifact-author/prompt.md
+      actions: project/actors/pm-artifact-author/actions.yaml
+      resource_keys: mutate:pm:drum-kit-matrix-sound-implementation-prep

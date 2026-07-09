@@ -44,10 +44,6 @@ struct StudioPanel<Content: View, Accessory: View>: View {
                                 .studioText(.bodyEmphasis)
                                 .tracking(1.1)
                                 .foregroundStyle(StudioTheme.text)
-
-                            Rectangle()
-                                .fill(accent)
-                                .frame(width: 36, height: 2)
                         }
 
                         Spacer()
@@ -67,8 +63,8 @@ struct StudioPanel<Content: View, Accessory: View>: View {
         }
         .padding(contentPadding)
         // Bold-flat pass: a panel is pure grouping — no fill at all. Content
-        // sits directly on the single near-black ground; the header rule and
-        // spacing do the separating.
+        // sits directly on the single near-black ground; spacing does the
+        // separating.
     }
 }
 

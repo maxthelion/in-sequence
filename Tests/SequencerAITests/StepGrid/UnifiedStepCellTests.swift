@@ -21,6 +21,8 @@ final class UnifiedStepCellTests: XCTestCase {
         XCTAssertGreaterThan(configuration.playingBorderInset, 0.5)
         XCTAssertTrue(configuration.usesBarInOutlineValueTreatment)
         XCTAssertEqual(configuration.valueBarInset, 3, accuracy: 0.0001)
+        XCTAssertGreaterThan(configuration.valueBarCornerRadius, 0)
+        XCTAssertGreaterThan(configuration.valueBarCornerRadius, configuration.valueBarInset)
     }
 
     func test_selectedOffCellIsUnfilledButSelected() {

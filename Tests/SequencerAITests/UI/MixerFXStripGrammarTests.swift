@@ -46,6 +46,22 @@ final class MixerFXStripGrammarTests: XCTestCase {
         XCTAssertTrue(editor.contains("session.removeSendBusInsert"))
     }
 
+    func test_fxEditorModalKeepsLongTitlesFromPushingOutControls() throws {
+        let modal = try Self.source(named: "Sources/UI/Theme/StudioModal.swift")
+        let header = try XCTUnwrap(Self.body(after: "private var header", in: modal))
+        let fxSheet = try Self.source(named: "Sources/UI/FX/FXInsertEditorSheet.swift")
+
+        XCTAssertTrue(header.contains(".lineLimit(1)"))
+        XCTAssertTrue(header.contains(".truncationMode(.tail)"))
+        XCTAssertTrue(header.contains(".frame(maxWidth: .infinity, alignment: .leading)"))
+        XCTAssertTrue(header.contains("headerAccessory") && header.contains(".fixedSize()"))
+        XCTAssertTrue(header.contains("StudioModalCloseButton(action: onClose)") && header.contains(".fixedSize()"))
+        XCTAssertTrue(
+            fxSheet.contains("minWidth: 560"),
+            "The shared FX editor needs enough width for AU names while the title still truncates before controls."
+        )
+    }
+
     private static func source(named relativePath: String) throws -> String {
         let url = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()

@@ -7,6 +7,7 @@ struct TrackWorkspaceView: View {
     @Environment(EngineController.self) private var engineController
     @State private var editingTrackID: UUID?
     @State private var stepGridWorkspaceModel = TrackStepGridWorkspaceModel()
+    @State private var displayedPatternSlotsByTrackID: [UUID: Int] = [:]
     @State private var draftTrackName = ""
     /// Drives the delete-track confirmation on the single-track detail header.
     @State private var isConfirmingTrackDelete = false
@@ -48,11 +49,23 @@ struct TrackWorkspaceView: View {
         })
     }
 
-    private var selectedPatternIndexBinding: Binding<Int> {
+    private var displayedPatternIndex: Int {
+        displayedPatternSlotsByTrackID[track.id] ?? session.store.selectedPatternIndex(for: track.id)
+    }
+
+    private var displayedPatternIndexBinding: Binding<Int> {
         Binding(
-            get: { session.store.selectedPatternIndex(for: track.id) },
-            set: { session.setSelectedPatternIndex($0, for: track.id) }
+            get: { displayedPatternIndex },
+            set: { newValue in
+                displayedPatternSlotsByTrackID[track.id] = min(max(newValue, 0), TrackPatternBank.slotCount - 1)
+            }
         )
+    }
+
+    private func setPlayingPatternIndex(_ slotIndex: Int) {
+        let clamped = min(max(slotIndex, 0), TrackPatternBank.slotCount - 1)
+        session.setSelectedPatternIndex(clamped, for: track.id)
+        displayedPatternSlotsByTrackID[track.id] = clamped
     }
 
     private var sourceAccent: Color {
@@ -142,6 +155,14 @@ struct TrackWorkspaceView: View {
                     SliceTrackWorkspaceView(
                         document: $document,
                         accent: sourceAccent,
+                        displayedPatternIndex: displayedPatternIndex,
+                        stepGridWorkspaceModel: stepGridWorkspaceModel
+                    )
+                } else if track.trackType == .chord {
+                    ChordTrackWorkspaceView(
+                        document: $document,
+                        accent: sourceAccent,
+                        displayedPatternIndex: displayedPatternIndex,
                         stepGridWorkspaceModel: stepGridWorkspaceModel
                     )
                 } else {
@@ -152,6 +173,7 @@ struct TrackWorkspaceView: View {
                     TrackSourceEditorView(
                         document: $document,
                         accent: sourceAccent,
+                        displayedPatternIndex: displayedPatternIndex,
                         stepGridWorkspaceModel: stepGridWorkspaceModel
                     )
                         .frame(minWidth: 0, maxWidth: .infinity, alignment: .topLeading)
@@ -199,10 +221,12 @@ struct TrackWorkspaceView: View {
             }
         } patternSlotControls: {
             TrackPatternSlotPalette(
-                selectedSlot: selectedPatternIndexBinding,
+                selectedSlot: displayedPatternIndexBinding,
                 occupiedSlots: occupiedPatternSlots,
                 bypassState: .notApplicable,
                 onBypassToggle: { _ in },
+                playingSlot: session.store.selectedPatternIndex(for: track.id),
+                onPlayingSlotSelect: setPlayingPatternIndex,
                 accent: sourceAccent
             )
         }
@@ -274,7 +298,7 @@ struct TrackWorkspaceView: View {
 
     @ViewBuilder
     private var trackNameEditor: some View {
-        let nameStyle: StudioTypography = (track.trackType == .audioInput || track.trackType == .slice) ? .title : .display
+        let nameStyle: StudioTypography = .title
         if isEditingSelectedTrackName {
             TextField("Track Name", text: $draftTrackName)
                 .textFieldStyle(.roundedBorder)
@@ -440,9 +464,9 @@ struct CompactTrackDetailHeader<Title: View, Trailing: View, PatternControls: Vi
             patternSlotControls()
         }
         .padding(StudioMetrics.Spacing.standard)
-        .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.section, style: .continuous))
+        .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.section, style: .continuous)
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
                 .stroke(accent.opacity(StudioOpacity.hoverFill), lineWidth: StudioMetrics.borderWidth)
         )
     }
@@ -465,7 +489,11 @@ extension Notification.Name {
     static let phraseMatrixVisualCommand = Notification.Name("SequencerAIPhraseMatrixVisualCommand")
     static let phraseMatrixRenderedVisualState = Notification.Name("SequencerAIPhraseMatrixRenderedVisualState")
     static let trackSourceEditorVisualCommand = Notification.Name("SequencerAITrackSourceEditorVisualCommand")
+    static let trackSourceEditorRenderedVisualState = Notification.Name("SequencerAITrackSourceEditorRenderedVisualState")
+    static let trackSourceGeneratorRenderedVisualState = Notification.Name("SequencerAITrackSourceGeneratorRenderedVisualState")
     static let sliceTrackWorkspaceVisualCommand = Notification.Name("SequencerAISliceTrackWorkspaceVisualCommand")
+    static let chordTrackWorkspaceVisualCommand = Notification.Name("SequencerAIChordTrackWorkspaceVisualCommand")
+    static let chordTrackWorkspaceRenderedVisualState = Notification.Name("SequencerAIChordTrackWorkspaceRenderedVisualState")
     static let audioInputTrackWorkspaceVisualCommand = Notification.Name("SequencerAIAudioInputTrackWorkspaceVisualCommand")
     static let workspaceDetailVisualCommand = Notification.Name("SequencerAIWorkspaceDetailVisualCommand")
     static let scenesWorkspaceVisualCommand = Notification.Name("SequencerAIScenesWorkspaceVisualCommand")
@@ -811,7 +839,7 @@ private struct AudioInputRuntimePanel: View {
                 .foregroundStyle(StudioTheme.mutedText)
 
             writeTargetOption(
-                title: "Rolling capture",
+                title: "Capture Buffer",
                 isSelected: true,
                 isEnabled: true,
                 help: "Each capture replaces the live buffer."
@@ -848,21 +876,6 @@ private struct AudioInputRuntimePanel: View {
 
     private var playbackSourceContent: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .bottom, spacing: 12) {
-                Text(runtime?.hasRecordedLoop == true ? "Rolling capture" : "No captured buffer")
-                    .studioText(.subtitle)
-                    .foregroundStyle(StudioTheme.text)
-                    .help("Plays back the selected pattern's captured buffer.")
-
-                Spacer()
-
-                Button("Choose...") {}
-                    .buttonStyle(.borderless)
-                    .studioText(.microEmphasis)
-                    .disabled(true)
-                    .help("Saved buffer selection is not yet modeled.")
-            }
-
             AudioInputSignalPanel(
                 runtime: runtime,
                 accent: runtime?.isSilent == true ? StudioTheme.mutedText : accent,
@@ -886,10 +899,13 @@ private struct AudioInputRuntimePanel: View {
     @ViewBuilder
     private var macrosTab: some View {
         if track.macros.isEmpty {
-            Text("No Macros")
-                .studioText(.placeholderTitle)
-                .foregroundStyle(StudioTheme.mutedText)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            StudioEmptyWell(
+                title: "Macros",
+                systemImage: "slider.horizontal.3",
+                accent: accent,
+                minHeight: 148,
+                help: "Assign M1-M8 controls from routable parameters."
+            )
                 .help("Assign M1-M8 controls from routable parameters.")
         } else {
             MacroKnobRow(document: $document, trackID: track.id)
@@ -1017,6 +1033,16 @@ private struct AudioInputSignalPanel: View {
         return runtime.waveformBuckets
     }
 
+    private var waveformStepCount: Int {
+        let bars: Int
+        if runtime?.armState == .recording {
+            bars = runtime?.armedRecordBarLength ?? runtime?.recordBarLength ?? 1
+        } else {
+            bars = runtime?.recordedLoopBarLength ?? runtime?.recordBarLength ?? 1
+        }
+        return max(1, bars) * 16
+    }
+
     /// Live input states (idle/armed with input monitoring) have no engine
     /// bucket stream, so the monitor builds a rolling waveform from the live
     /// level snapshots — the same visual grammar as the slicer and the
@@ -1059,7 +1085,11 @@ private struct AudioInputSignalPanel: View {
                     WaveformView(
                         buckets: waveformBuckets,
                         fillColor: accent,
-                        inactiveColor: StudioTheme.border.opacity(0.7)
+                        inactiveColor: StudioTheme.border.opacity(0.7),
+                        stepCount: waveformStepCount,
+                        barStepInterval: 16,
+                        playheadFraction: runtime?.armState == .recording ? CGFloat(progress) : nil,
+                        showsTimelineRuler: true
                     )
                     .padding(StudioMetrics.Spacing.standard)
                 } else if showsRollingLiveWaveform {
@@ -1067,7 +1097,9 @@ private struct AudioInputSignalPanel: View {
                         WaveformView(
                             buckets: liveBuckets,
                             fillColor: accent,
-                            inactiveColor: StudioTheme.border.opacity(0.7)
+                            inactiveColor: StudioTheme.border.opacity(0.7),
+                            stepCount: 16,
+                            barStepInterval: 16
                         )
 
                         AudioInputLevelMeters(level: level, accent: accent)

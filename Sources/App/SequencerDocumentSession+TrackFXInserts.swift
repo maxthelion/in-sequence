@@ -49,4 +49,28 @@ extension SequencerDocumentSession {
             inserts[index].bypassed = bypassed
         }
     }
+
+    /// Update one insert in place while preserving the scoped engine update path.
+    @discardableResult
+    func updateFXInsert(trackID: UUID, insertID: UUID, _ update: (inout TrackFXInsert) -> Void) -> Bool {
+        mutateTrackFXInserts(trackID: trackID) { inserts in
+            guard let index = inserts.firstIndex(where: { $0.id == insertID }) else {
+                return
+            }
+            update(&inserts[index])
+        }
+    }
+
+    /// Persist the full-state blob captured from an AU effect editor window.
+    @discardableResult
+    func setFXInsertAUEffectStateBlob(trackID: UUID, insertID: UUID, stateBlob: Data?) -> Bool {
+        mutateTrackFXInserts(trackID: trackID) { inserts in
+            guard let index = inserts.firstIndex(where: { $0.id == insertID }),
+                  case let .auEffect(componentID, _) = inserts[index].kind
+            else {
+                return
+            }
+            inserts[index].kind = .auEffect(componentID: componentID, stateBlob: stateBlob)
+        }
+    }
 }

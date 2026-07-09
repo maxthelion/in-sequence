@@ -25,6 +25,7 @@ struct TrackSourceSourceTabContent: View {
     let hasSavedRandomizeSettings: Bool
     let randomizePanel: () -> AnyView
     let onRandomizeClip: () -> Void
+    let onOpenHistory: () -> Void
     let onToggleRandomizePanel: () -> Void
     let onShowSourcePicker: () -> Void
     let onBackOutSourcePicker: () -> Void
@@ -53,8 +54,6 @@ struct TrackSourceSourceTabContent: View {
     var body: some View {
         switch displayState {
         case .occupiedClip:
-            sourceSection
-
             if sourcePickerStep == nil {
                 TrackSourceClipPanel(
                     previewClipContent: previewClipContent,
@@ -73,13 +72,15 @@ struct TrackSourceSourceTabContent: View {
                     hasSavedRandomizeSettings: hasSavedRandomizeSettings,
                     randomizePanel: randomizePanel,
                     onRandomizeClip: onRandomizeClip,
-                    onToggleRandomizePanel: onToggleRandomizePanel
+                    onOpenHistory: onOpenHistory,
+                    onToggleRandomizePanel: onToggleRandomizePanel,
+                    onRemoveSource: onRemoveSource
                 )
+            } else {
+                sourceSection
             }
 
         case .occupiedGenerator:
-            sourceSection
-
             if sourcePickerStep == nil, let selectedGenerator {
                 // WS4 supersedes the WS3 interim GENERATED/READ-ONLY badge:
                 // the always-visible RESULT STRIP + Bake dice in the editor
@@ -95,32 +96,22 @@ struct TrackSourceSourceTabContent: View {
                     layout: .sourceContained,
                     onUpdate: onUpdateGeneratorParams,
                     onSwitchKind: { onSwitchGeneratorKind(selectedGenerator, $0) },
-                    onBakeToClip: onBakeGeneratorToClip
+                    onBakeToClip: onBakeGeneratorToClip,
+                    onRemoveSource: onRemoveSource
                 )
+            } else {
+                sourceSection
             }
 
         case .empty:
-            sourceSection
+            addSourcePicker(step: sourcePickerStep ?? .root)
         }
     }
 
     @ViewBuilder
     private var sourceSection: some View {
         if let sourcePickerStep {
-            TrackSourceContainedSourcePicker(
-                step: sourcePickerStep,
-                accent: accent,
-                compatibleGenerators: compatibleGenerators,
-                compatibleClips: compatibleClips,
-                onBack: handlePickerBack,
-                onCancel: onBackOutSourcePicker,
-                onShowGeneratorPool: onShowSourceGeneratorPool,
-                onShowClipPool: onShowSourceClipPool,
-                onCreateBlankGenerator: onCreateBlankGeneratorSource,
-                onSelectGenerator: onAssignGeneratorSource,
-                onCreateBlankClip: onCreateBlankClipSource,
-                onSelectClip: onAssignClipSource
-            )
+            addSourcePicker(step: sourcePickerStep)
         } else {
             TrackSourceSourceWell(
                 sourceMode: sourceMode,
@@ -131,6 +122,23 @@ struct TrackSourceSourceTabContent: View {
                 onRemoveSource: onRemoveSource
             )
         }
+    }
+
+    private func addSourcePicker(step: TrackSourceContainedSourcePickerStep) -> some View {
+        TrackSourceContainedSourcePicker(
+            step: step,
+            accent: accent,
+            compatibleGenerators: compatibleGenerators,
+            compatibleClips: compatibleClips,
+            onBack: handlePickerBack,
+            onCancel: onBackOutSourcePicker,
+            onShowGeneratorPool: onShowSourceGeneratorPool,
+            onShowClipPool: onShowSourceClipPool,
+            onCreateBlankGenerator: onCreateBlankGeneratorSource,
+            onSelectGenerator: onAssignGeneratorSource,
+            onCreateBlankClip: onCreateBlankClipSource,
+            onSelectClip: onAssignClipSource
+        )
     }
 
     private func handlePickerBack() {

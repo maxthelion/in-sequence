@@ -7,7 +7,7 @@ struct UnifiedStepCell: View {
     let isPlaying: Bool
     let isSelected: Bool
     let content: StepCellContent
-    let accent: Color
+    var accent: Color = StudioTheme.transportAccent
     let onTap: () -> Void
     let onDrag: ((Double) -> Void)?
     let onSelect: () -> Void
@@ -43,6 +43,7 @@ struct UnifiedStepCell: View {
     private static let geometry = UnifiedStepCellGeometry()
     private static let cornerRadius: CGFloat = 6
     private static let valueBarInset: CGFloat = 3
+    private static let valueBarCornerRadius: CGFloat = 4
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -91,7 +92,7 @@ struct UnifiedStepCell: View {
     private var valueBar: some View {
         if let fraction = visualConfiguration.valueFraction {
             let availableHeight = Self.geometry.size.height - (Self.valueBarInset * 2)
-            Rectangle()
+            RoundedRectangle(cornerRadius: Self.valueBarCornerRadius, style: .continuous)
                 .fill(visualConfiguration.valueBarColor)
                 .frame(height: availableHeight * fraction)
                 .frame(maxWidth: .infinity, alignment: .bottom)
@@ -215,9 +216,12 @@ struct UnifiedStepCell: View {
             .strokeBorder(visualConfiguration.outlineColor, lineWidth: StudioMetrics.borderWidth)
 
         if isPlaying {
-            backgroundShape
-                .inset(by: visualConfiguration.playingBorderInset)
-                .strokeBorder(accent.opacity(0.96), lineWidth: StudioMetrics.borderWidth)
+            Capsule()
+                .fill(accent)
+                .frame(height: 3)
+                .padding(.horizontal, 7)
+                .padding(.bottom, 3)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
         }
 
         if isSelected {
@@ -306,6 +310,7 @@ struct UnifiedStepCellVisualConfiguration {
     let playingBorderInset: CGFloat
     let usesBarInOutlineValueTreatment: Bool
     let valueBarInset: CGFloat
+    let valueBarCornerRadius: CGFloat
 
     init(
         visualState: StepVisualState,
@@ -323,6 +328,7 @@ struct UnifiedStepCellVisualConfiguration {
         self.playingBorderInset = isSelected ? 3 : 0.5
         self.usesBarInOutlineValueTreatment = isValueBarContent
         self.valueBarInset = 3
+        self.valueBarCornerRadius = 4
 
         // Bold-flat pass, like the reference's pad rows: an inactive step is
         // outline-only on the ground; an active step is a fully solid accent

@@ -124,6 +124,35 @@ enum ClipRandomizeBaker {
                 }
             )
             .normalized
+        case let .chordReferences(stepPattern, slotIDs, inversions, chordIDs, velocities, lengthSteps):
+            let stepCount = max(1, stepPattern.count)
+            let sourceSlotIDs = slotIDs.isEmpty ? Array(repeating: ChordPalette.default.slots.first?.id, count: stepCount) : slotIDs
+            let bakedPattern = (0..<stepCount).map { stepIndex in
+                fraction(seed: seed, step: stepIndex, salt: 0) < resolved.density
+            }
+            let bakedSlotIDs: [UUID?] = (0..<stepCount).map { stepIndex in
+                sourceSlotIDs[index(seed: seed, step: stepIndex, salt: 1, upperBound: sourceSlotIDs.count)]
+            }
+            let bakedInversions = (0..<stepCount).map { stepIndex in
+                inversions.indices.contains(stepIndex) ? inversions[stepIndex] : 0
+            }
+            let bakedVelocities = (0..<stepCount).map { stepIndex in
+                velocities.indices.contains(stepIndex) ? velocities[stepIndex] : 96
+            }
+            let bakedLengths = (0..<stepCount).map { stepIndex in
+                lengthSteps.indices.contains(stepIndex) ? lengthSteps[stepIndex] : 4
+            }
+            return ClipContent.chordReferences(
+                stepPattern: bakedPattern,
+                slotIDs: bakedSlotIDs,
+                inversions: bakedInversions,
+                chordIDs: chordIDs.isEmpty ? Array(repeating: nil, count: stepCount) : (0..<stepCount).map { stepIndex in
+                    chordIDs.indices.contains(stepIndex) ? chordIDs[stepIndex] : nil
+                },
+                velocities: bakedVelocities,
+                lengthSteps: bakedLengths
+            )
+            .normalized
         case let .sliceTriggers(stepPattern, sliceIndexes, _, _):
             let stepCount = max(1, stepPattern.count)
             let sourceIndexes = sliceIndexes.isEmpty ? [0] : sliceIndexes.map { max(0, $0) }
@@ -389,6 +418,14 @@ struct SliceTriggerSteps: Equatable, Sendable {
 
 enum ClipContent: Equatable, Hashable, Sendable {
     case noteGrid(lengthSteps: Int, steps: [ClipStep])
+    case chordReferences(
+        stepPattern: [Bool],
+        slotIDs: [UUID?],
+        inversions: [Int],
+        chordIDs: [ChordID?],
+        velocities: [Int],
+        lengthSteps: [Int]
+    )
     case sliceTriggers(
         stepPattern: [Bool],
         sliceIndexes: [Int],
@@ -401,6 +438,8 @@ enum ClipContent: Equatable, Hashable, Sendable {
         switch self {
         case let .noteGrid(lengthSteps, _):
             return max(1, lengthSteps)
+        case let .chordReferences(stepPattern, _, _, _, _, _):
+            return max(1, stepPattern.count)
         case let .sliceTriggers(stepPattern, _, _, _):
             return max(1, stepPattern.count)
         }
@@ -423,6 +462,18 @@ extension ClipContent {
             sliceIndexes: Array(repeating: 0, count: resolvedLength),
             stepModes: Array(repeating: .single, count: resolvedLength),
             stepParameters: Array(repeating: .default, count: resolvedLength)
+        )
+    }
+
+    static func emptyChordReferences(lengthSteps: Int, defaultSlotID: UUID? = ChordPalette.default.slots.first?.id) -> ClipContent {
+        let resolvedLength = max(1, lengthSteps)
+        return .chordReferences(
+            stepPattern: Array(repeating: false, count: resolvedLength),
+            slotIDs: Array(repeating: defaultSlotID, count: resolvedLength),
+            inversions: Array(repeating: 0, count: resolvedLength),
+            chordIDs: Array(repeating: nil, count: resolvedLength),
+            velocities: Array(repeating: 96, count: resolvedLength),
+            lengthSteps: Array(repeating: 4, count: resolvedLength)
         )
     }
 
@@ -471,6 +522,8 @@ extension ClipContent {
         switch self {
         case let .noteGrid(lengthSteps, _):
             return max(1, lengthSteps)
+        case let .chordReferences(stepPattern, _, _, _, _, _):
+            return max(1, stepPattern.count)
         case let .sliceTriggers(stepPattern, _, _, _):
             return max(1, stepPattern.count)
         }
@@ -487,6 +540,17 @@ extension ClipContent {
                 return .empty
             }
             return .noteGrid(lengthSteps: resolvedLength, steps: normalizedSteps)
+        case let .chordReferences(stepPattern, slotIDs, inversions, chordIDs, velocities, lengthSteps):
+            let resolvedPattern = stepPattern.isEmpty ? [false] : stepPattern
+            let count = resolvedPattern.count
+            return .chordReferences(
+                stepPattern: resolvedPattern,
+                slotIDs: Self.syncedChordSlotIDs(slotIDs, stepCount: count),
+                inversions: Self.syncedChordInversions(inversions, stepCount: count),
+                chordIDs: Self.syncedChordIDs(chordIDs, stepCount: count),
+                velocities: Self.syncedChordVelocities(velocities, stepCount: count),
+                lengthSteps: Self.syncedChordLengths(lengthSteps, stepCount: count)
+            )
         case let .sliceTriggers(stepPattern, sliceIndexes, stepModes, stepParameters):
             let resolvedPattern = stepPattern.isEmpty ? [false] : stepPattern
             let resolvedIndexes = Self.syncedSliceIndexes(sliceIndexes, stepCount: resolvedPattern.count)
@@ -524,6 +588,35 @@ extension ClipContent {
         }
         let normalizedIndex = ((stepIndex % lengthSteps) + lengthSteps) % lengthSteps
         return steps[normalizedIndex]
+    }
+
+    func resolvedChordNoteGrid(palette: ChordPalette) -> ClipContent {
+        switch normalized {
+        case let .chordReferences(stepPattern, slotIDs, inversions, chordIDs, velocities, lengthSteps):
+            let steps = stepPattern.indices.map { index -> ClipStep in
+                guard stepPattern[index] else { return .empty }
+                let pitches = palette.normalized.voicedPitches(
+                    slotID: slotIDs.indices.contains(index) ? slotIDs[index] : nil,
+                    inversion: inversions.indices.contains(index) ? inversions[index] : 0,
+                    chordIDOverride: chordIDs.indices.contains(index) ? chordIDs[index] : nil
+                )
+                guard !pitches.isEmpty else { return .empty }
+                let velocity = velocities.indices.contains(index) ? velocities[index] : 96
+                let length = lengthSteps.indices.contains(index) ? lengthSteps[index] : 4
+                return ClipStep(
+                    main: ClipLane(
+                        chance: 1,
+                        notes: pitches.map {
+                            ClipStepNote(pitch: $0, velocity: velocity, lengthSteps: length).normalized
+                        }
+                    ),
+                    fill: nil
+                )
+            }
+            return ClipContent.noteGrid(lengthSteps: max(1, stepPattern.count), steps: steps).normalized
+        case .noteGrid, .sliceTriggers:
+            return normalized
+        }
     }
 }
 
@@ -570,6 +663,15 @@ extension ClipContent: Codable {
         case stepParameters
     }
 
+    private enum ChordReferencesCodingKeys: String, CodingKey {
+        case stepPattern
+        case slotIDs
+        case inversions
+        case chordIDs
+        case velocities
+        case lengthSteps
+    }
+
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: DynamicCodingKey.self)
         guard let key = container.allKeys.first else {
@@ -605,6 +707,16 @@ extension ClipContent: Codable {
                 stepModes: try nested.decodeIfPresent([SliceTriggerStepMode].self, forKey: .stepModes) ?? [],
                 stepParameters: try nested.decodeIfPresent([SliceTriggerStepParameters].self, forKey: .stepParameters) ?? []
             ).normalized
+        case "chordReferences":
+            let nested = try container.nestedContainer(keyedBy: ChordReferencesCodingKeys.self, forKey: key)
+            self = ClipContent.chordReferences(
+                stepPattern: try nested.decode([Bool].self, forKey: .stepPattern),
+                slotIDs: try nested.decodeIfPresent([UUID?].self, forKey: .slotIDs) ?? [],
+                inversions: try nested.decodeIfPresent([Int].self, forKey: .inversions) ?? [],
+                chordIDs: try nested.decodeIfPresent([ChordID?].self, forKey: .chordIDs) ?? [],
+                velocities: try nested.decodeIfPresent([Int].self, forKey: .velocities) ?? [],
+                lengthSteps: try nested.decodeIfPresent([Int].self, forKey: .lengthSteps) ?? []
+            ).normalized
         default:
             throw DecodingError.dataCorruptedError(
                 forKey: key,
@@ -622,6 +734,14 @@ extension ClipContent: Codable {
             var nested = container.nestedContainer(keyedBy: NoteGridCodingKeys.self, forKey: DynamicCodingKey("noteGrid"))
             try nested.encode(lengthSteps, forKey: .lengthSteps)
             try nested.encode(steps, forKey: .steps)
+        case let .chordReferences(stepPattern, slotIDs, inversions, chordIDs, velocities, lengthSteps):
+            var nested = container.nestedContainer(keyedBy: ChordReferencesCodingKeys.self, forKey: DynamicCodingKey("chordReferences"))
+            try nested.encode(stepPattern, forKey: .stepPattern)
+            try nested.encode(slotIDs, forKey: .slotIDs)
+            try nested.encode(inversions, forKey: .inversions)
+            try nested.encode(chordIDs, forKey: .chordIDs)
+            try nested.encode(velocities, forKey: .velocities)
+            try nested.encode(lengthSteps, forKey: .lengthSteps)
         case let .sliceTriggers(stepPattern, sliceIndexes, stepModes, stepParameters):
             var nested = container.nestedContainer(keyedBy: SliceTriggersCodingKeys.self, forKey: DynamicCodingKey("sliceTriggers"))
             try nested.encode(stepPattern, forKey: .stepPattern)
@@ -629,6 +749,55 @@ extension ClipContent: Codable {
             try nested.encode(stepModes, forKey: .stepModes)
             try nested.encode(stepParameters, forKey: .stepParameters)
         }
+    }
+
+    private static func syncedChordSlotIDs(_ slotIDs: [UUID?], stepCount: Int) -> [UUID?] {
+        let count = max(1, stepCount)
+        if slotIDs.count == count { return slotIDs }
+        if slotIDs.count < count {
+            let fallback = slotIDs.first ?? ChordPalette.default.slots.first?.id
+            return slotIDs + Array(repeating: fallback, count: count - slotIDs.count)
+        }
+        return Array(slotIDs.prefix(count))
+    }
+
+    private static func syncedChordInversions(_ inversions: [Int], stepCount: Int) -> [Int] {
+        let count = max(1, stepCount)
+        let clamped = inversions.map { min(max($0, -4), 4) }
+        if clamped.count == count { return clamped }
+        if clamped.count < count {
+            return clamped + Array(repeating: 0, count: count - clamped.count)
+        }
+        return Array(clamped.prefix(count))
+    }
+
+    private static func syncedChordIDs(_ chordIDs: [ChordID?], stepCount: Int) -> [ChordID?] {
+        let count = max(1, stepCount)
+        if chordIDs.count == count { return chordIDs }
+        if chordIDs.count < count {
+            return chordIDs + Array(repeating: nil, count: count - chordIDs.count)
+        }
+        return Array(chordIDs.prefix(count))
+    }
+
+    private static func syncedChordVelocities(_ velocities: [Int], stepCount: Int) -> [Int] {
+        let count = max(1, stepCount)
+        let clamped = velocities.map { min(max($0, 1), 127) }
+        if clamped.count == count { return clamped }
+        if clamped.count < count {
+            return clamped + Array(repeating: 96, count: count - clamped.count)
+        }
+        return Array(clamped.prefix(count))
+    }
+
+    private static func syncedChordLengths(_ lengths: [Int], stepCount: Int) -> [Int] {
+        let count = max(1, stepCount)
+        let clamped = lengths.map { max(1, $0) }
+        if clamped.count == count { return clamped }
+        if clamped.count < count {
+            return clamped + Array(repeating: 4, count: count - clamped.count)
+        }
+        return Array(clamped.prefix(count))
     }
 
     private static func syncedSliceIndexes(_ indexes: [Int], stepCount: Int) -> [Int] {

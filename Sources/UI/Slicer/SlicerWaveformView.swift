@@ -11,7 +11,13 @@ struct SlicerWaveformView: View {
     var body: some View {
         GeometryReader { geo in
             ZStack(alignment: .leading) {
-                WaveformView(buckets: buckets, fillColor: accent, inactiveColor: StudioTheme.border.opacity(0.65))
+                WaveformView(
+                    buckets: buckets,
+                    fillColor: accent,
+                    inactiveColor: StudioTheme.border.opacity(0.65),
+                    stepCount: max(1, Int((sliceSet.bars ?? 1).rounded()) * 16),
+                    barStepInterval: 16
+                )
 
                 ForEach(sliceSet.markers) { marker in
                     boundaryLine(marker: marker, width: geo.size.width)

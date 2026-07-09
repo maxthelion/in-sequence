@@ -7,7 +7,7 @@ struct SamplerDestinationWidget: View {
     /// binding so the session can dispatch to the engine via `.scopedRuntime(.filter(...))`.
     let sampleEngine: SamplePlaybackSink
     let trackID: UUID
-    let accent: Color
+    var accent: Color = StudioTheme.transportAccent
     @Binding var filterSettings: SamplerFilterSettings
     var onManageMacros: () -> Void = {}
     var onRemove: () -> Void = {}
@@ -120,13 +120,6 @@ struct SamplerDestinationWidget: View {
             }
 
             Spacer(minLength: 8)
-
-            StudioCircleIconButton(
-                systemName: "slider.horizontal.3",
-                size: StudioMetrics.ControlSize.medium,
-                help: "View built-in sampler macros",
-                action: onManageMacros
-            )
 
             StudioCircleIconButton(
                 systemName: isAuditioning ? "stop.fill" : "play.fill",
@@ -672,12 +665,6 @@ private struct WaveformRegionMarkers: View {
             let stopX = CGFloat(min(max(stop, 0), 1)) * width
 
             ZStack(alignment: .topLeading) {
-                // Shaded active region between start and stop.
-                Rectangle()
-                    .fill(StudioTheme.subtleFill)
-                    .frame(width: max(0, stopX - startX), height: height)
-                    .offset(x: startX)
-
                 marker(at: startX, height: height)
                 marker(at: stopX, height: height)
             }

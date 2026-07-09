@@ -160,3 +160,39 @@ struct StudioAddCard: View {
         .accessibilityLabel(help.isEmpty ? label : help)
     }
 }
+
+/// Non-interactive empty-state well that shares the add-card surface grammar
+/// without implying an action.
+struct StudioEmptyWell: View {
+    let title: String
+    var systemImage: String = "plus"
+    var accent: Color = StudioTheme.transportAccent
+    var minHeight: CGFloat = 132
+    var help: String = ""
+
+    var body: some View {
+        VStack(spacing: 10) {
+            Image(systemName: systemImage)
+                .font(.system(size: 18, weight: .bold))
+                .foregroundStyle(accent)
+                .frame(width: StudioMetrics.ControlSize.large, height: StudioMetrics.ControlSize.large)
+                .overlay(
+                    Circle()
+                        .stroke(accent.opacity(StudioOpacity.mediumStroke), lineWidth: StudioMetrics.borderWidth)
+                )
+
+            Text(title)
+                .studioText(.labelBold)
+                .foregroundStyle(StudioTheme.text)
+        }
+        .frame(maxWidth: .infinity, minHeight: minHeight)
+        .padding(StudioMetrics.Spacing.comfortable)
+        .background(StudioTheme.background, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
+                .stroke(accent.opacity(StudioOpacity.hoverFill), style: StrokeStyle(lineWidth: StudioMetrics.borderWidth, dash: StudioAddCard.dashPattern))
+        )
+        .help(help.isEmpty ? title : help)
+        .accessibilityLabel(help.isEmpty ? title : help)
+    }
+}

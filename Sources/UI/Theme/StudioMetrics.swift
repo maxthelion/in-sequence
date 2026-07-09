@@ -4,6 +4,7 @@ enum StudioMetrics {
     /// The one outline weight: outlines must read as drawn lines on the
     /// near-black ground, so every standard control stroke uses this.
     static let borderWidth: CGFloat = 1.5
+    static let emphasisBorderWidth: CGFloat = 2
 
     /// Matrix grids (track/phrase matrices, perform-layer grids, the cell
     /// editor) are a fixed 8 columns wide — the canonical "pattern" width.

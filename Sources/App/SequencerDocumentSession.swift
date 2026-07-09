@@ -670,4 +670,11 @@ final class SequencerDocumentSession {
         previous.kind == current.kind &&
         previous.isEnabled != current.isEnabled
     }
+
+    func setMixerBusAUEffectStateBlob(_ insertID: UUID, busID: UUID, stateBlob: Data?) {
+        updateMixerBusInsert(insertID, busID: busID) { insert in
+            guard case let .auEffect(componentID, _) = insert.kind else { return }
+            insert.kind = .auEffect(componentID: componentID, stateBlob: stateBlob)
+        }
+    }
 }

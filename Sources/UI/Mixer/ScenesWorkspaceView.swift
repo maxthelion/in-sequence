@@ -494,14 +494,52 @@ struct ScenesWorkspaceView: View {
     }
 
     private var sceneEditorHeader: some View {
-        HStack(alignment: .center, spacing: 14) {
-            Text("\(sceneNumber(for: selectedScene.id) ?? 0)")
-                .font(.system(size: 38, weight: .black, design: .rounded))
-                .monospacedDigit()
+        CompactTrackDetailHeader(accent: StudioTheme.transportAccent) {
+            Text("Scene \(sceneNumber(for: selectedScene.id) ?? 0)")
+                .studioText(.title)
                 .foregroundStyle(StudioTheme.text)
-
-            Spacer()
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+        } trailing: {
+            sceneClearOrRemoveButton
         }
+    }
+
+    private var sceneClearOrRemoveButton: some View {
+        Button {
+            clearOrRemoveSelectedScene()
+        } label: {
+            Image(systemName: "trash")
+                .font(.system(size: 13, weight: .bold))
+                .foregroundStyle(StudioTheme.text)
+                .frame(width: 34, height: 34)
+                .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                        .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+                )
+                .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .help(masterBus.scenes.count > 2 ? "Remove this scene" : "Clear this scene")
+        .accessibilityIdentifier("scene-editor-clear-remove")
+        .accessibilityLabel(masterBus.scenes.count > 2 ? "Remove scene" : "Clear scene")
+    }
+
+    private func clearOrRemoveSelectedScene() {
+        let sceneID = selectedScene.id
+        if masterBus.scenes.count > 2 {
+            session.removeMasterBusScene(sceneID)
+            selectedSceneID = nil
+            selectedInsertID = nil
+            return
+        }
+
+        session.updateMasterBusScene(sceneID) { scene in
+            scene.inserts = []
+            scene.macroBindings = []
+        }
+        selectedInsertID = nil
     }
 
     // Only rendered when at least one insert exists (empty scenes use the

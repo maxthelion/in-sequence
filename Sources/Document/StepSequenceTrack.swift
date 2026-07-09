@@ -75,6 +75,7 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
     var recordBarLength: Int
     var inputChannel: AudioInputChannel
     var noteRepeatInterval: NoteRepeatInterval
+    var chordPalette: ChordPalette
 
     private enum CodingKeys: String, CodingKey {
         case id
@@ -96,6 +97,7 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         case recordBarLength
         case inputChannel
         case noteRepeatInterval
+        case chordPalette
     }
 
     static let allowedRecordBarLengths: Set<Int> = [1, 2, 4, 8]
@@ -120,7 +122,8 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         filter: .init(),
         recordBarLength: Self.defaultRecordBarLength,
         inputChannel: Self.defaultInputChannel,
-        noteRepeatInterval: NoteRepeatInterval.defaultValue
+        noteRepeatInterval: NoteRepeatInterval.defaultValue,
+        chordPalette: .default
     )
 
     init(
@@ -142,7 +145,8 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         filter: SamplerFilterSettings = .init(),
         recordBarLength: Int = Self.defaultRecordBarLength,
         inputChannel: AudioInputChannel = Self.defaultInputChannel,
-        noteRepeatInterval: NoteRepeatInterval = NoteRepeatInterval.defaultValue
+        noteRepeatInterval: NoteRepeatInterval = NoteRepeatInterval.defaultValue,
+        chordPalette: ChordPalette = .default
     ) {
         self.id = id
         self.name = name
@@ -163,6 +167,7 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         self.recordBarLength = Self.normalizedRecordBarLength(recordBarLength)
         self.inputChannel = inputChannel
         self.noteRepeatInterval = noteRepeatInterval
+        self.chordPalette = chordPalette.normalized
     }
 
     var activeStepCount: Int {
@@ -238,6 +243,7 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
         recordBarLength = Self.normalizedRecordBarLength(decodedRecordBarLength ?? Self.defaultRecordBarLength)
         inputChannel = (try? container.decodeIfPresent(AudioInputChannel.self, forKey: .inputChannel)) ?? Self.defaultInputChannel
         noteRepeatInterval = (try? container.decodeIfPresent(NoteRepeatInterval.self, forKey: .noteRepeatInterval)) ?? .defaultValue
+        chordPalette = ((try? container.decodeIfPresent(ChordPalette.self, forKey: .chordPalette)) ?? nil)?.normalized ?? .default
     }
 
     func encode(to encoder: Encoder) throws {
@@ -263,6 +269,9 @@ struct StepSequenceTrack: Codable, Equatable, Sendable {
             try container.encode(inputChannel, forKey: .inputChannel)
         }
         try container.encode(noteRepeatInterval, forKey: .noteRepeatInterval)
+        if trackType == .chord {
+            try container.encode(chordPalette.normalized, forKey: .chordPalette)
+        }
     }
 
     var defaultDestination: Destination {

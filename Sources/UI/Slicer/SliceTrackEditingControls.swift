@@ -652,7 +652,13 @@ struct SliceTrackWaveformEditor: View {
 
             ZStack(alignment: .topLeading) {
                 ZStack(alignment: .leading) {
-                    WaveformView(buckets: visibleBuckets, fillColor: accent, inactiveColor: StudioTheme.border.opacity(0.65))
+                    WaveformView(
+                        buckets: visibleBuckets,
+                        fillColor: accent,
+                        inactiveColor: StudioTheme.border.opacity(0.65),
+                        stepCount: max(1, Int((sliceSet.bars ?? 1).rounded()) * 16),
+                        barStepInterval: 16
+                    )
                         .frame(width: contentWidth, height: contentHeight)
 
                     if let selectedMarker {
@@ -718,12 +724,13 @@ struct SliceTrackWaveformEditor: View {
         if intersectsVisibleRange(marker) {
             let start = xPosition(for: marker.startFrame, width: width)
             let end = xPosition(for: marker.endFrame, width: width)
-            // Colour identifies, it never floods (ux-canon rule 12): the
-            // selected region is a neutral wash; identity stays in the solid
-            // amber/violet boundary lines.
-            Rectangle()
-                .fill(StudioTheme.borderSubtleFill)
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous)
+                .fill(Color.clear)
                 .frame(width: max(2, end - start))
+                .overlay(
+                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous)
+                        .stroke(accent, style: StrokeStyle(lineWidth: 2, dash: [4, 3]))
+                )
                 .offset(x: start)
         }
     }

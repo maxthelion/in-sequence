@@ -170,6 +170,7 @@ struct MixerWorkspaceView: View {
                     RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
                         .stroke(accent.opacity(StudioOpacity.softStroke), style: StrokeStyle(lineWidth: StudioMetrics.borderWidth, dash: [5, 5]))
                 )
+                .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
                 .help("Add FX to \(sendBus.name)")
                 .accessibilityLabel("Add FX to \(sendBus.name)")
             } else {
@@ -324,6 +325,7 @@ struct MixerWorkspaceView: View {
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
                 .stroke(StudioTheme.border.opacity(0.8), lineWidth: StudioMetrics.borderWidth)
         )
+        .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
     }
 
     private func sendInsertBinding<Value>(

@@ -1,5 +1,127 @@
 # Integration Log
 
+## 2026-07-06T19:49Z Track Setup Surface Compression
+
+- Request:
+  `.meta/multipass/runtime/inbox/claimed/2026-07-06T194400877Z-integrator.md`
+- Evidence:
+  `.meta/multipass/runtime/loops/project/act/2026-07-06T19-49Z-track-setup-surface-compression-integration-merged.md`
+- Candidate: `feature/track-setup-surface-compression` in
+  `.worktrees/track-setup-surface-compression` at
+  `9517f95430acc78dd5ff930ca68371fbb7df5df1`
+  (`Compact track setup clip controls`).
+- Operation: verified the candidate worktree was clean and exact, confirmed the
+  changed files matched the recorded evidence, confirmed the dirty root had no
+  overlap with the two candidate product files, merge-tested against current
+  local `main`, then merged with a normal merge commit
+  `859b3193d637da0fc29c95caa0deb0d6e0f7e420`.
+- Checks: `git diff --check HEAD^..HEAD` passed; `scripts/diagnostics/ux-canon-lint.sh`
+  passed with 0 violations. No visual automation was run.
+- Result: `merged`. The directly scoped clip-header report
+  `docs/bugs/20260706-113305-move-lane-length-layer-chooser-randomize` is
+  marked `Status: RESOLVED 859b3193`. The build loop is closed as complete /
+  non-capacity-consuming. Remaining accepted risk is
+  `capture-permission-or-focus` exact-state screenshot coverage for the touched
+  track clip/sample-player surfaces.
+
+## 2026-07-05T15:57Z Track Phrase Perform Mini Cells Follow-Up
+
+- Request:
+  `.meta/multipass/runtime/inbox/claimed/2026-07-05T124932787Z-integrator.md`
+- Evidence:
+  `.meta/multipass/runtime/loops/project/act/2026-07-05T15-57Z-track-phrase-perform-mini-cells-integration-confirmed.md`
+- Candidate: `feature/track-phrase-perform-mini-cells` in
+  `.worktrees/track-phrase-perform-mini-cells` at `9c1744ba`
+  (`Route pattern mini-cells through quantise policy`).
+- Operation: no new merge; local `main` already contained the exact candidate
+  after the earlier 13:32Z fast-forward merge.
+- Checks: `scripts/diagnostics/ux-canon-lint.sh`; focused `xcodebuild test`
+  for `SequencerDocumentSessionQuantisedToggleTests` (16/0) and
+  `TrackPerformSelectionStateTests` (22/0). Initial parallel retry hit an Xcode
+  build DB lock, and one isolated `/tmp` DerivedData retry hit `errno=28`; the
+  final warmed serial focused checks passed.
+- Result: `integrated-confirmed`. Root remains dirty with unrelated
+  coordination/doc/bug artifacts and no dirty overlap with candidate files.
+  Residual evidence risk remains: no live screenshot/click capture is paired.
+  Product-owner attention is not needed.
+
+## 2026-07-05T13:32Z Track Phrase Perform Mini Cells
+
+- Request:
+  `.meta/multipass/runtime/inbox/claimed/2026-07-05T123450703Z-integrator.md`
+- Evidence:
+  `.meta/multipass/runtime/loops/project/act/2026-07-05T13-32Z-track-phrase-perform-mini-cells-integration-merged.md`
+- Candidate: `feature/track-phrase-perform-mini-cells` in
+  `.worktrees/track-phrase-perform-mini-cells` at
+  `9c1744ba2247b9613909194710d9f1ba02da7ed7`
+  (`Route pattern mini-cells through quantise policy`).
+- Operation: verified the build-loop `feature_complete_merge_candidate`
+  decision, verified the candidate worktree was clean, confirmed local `main`
+  was an ancestor and that root dirt did not overlap candidate product/test
+  files, then fast-forward merged local `main` from
+  `04a0e0716b7cbc301c9cc91cf3c6972a6e163023` to
+  `9c1744ba2247b9613909194710d9f1ba02da7ed7`.
+- Checks: post-merge `scripts/diagnostics/ux-canon-lint.sh` passed with 0
+  violations. Post-merge focused `xcodebuild test` for
+  `TrackPerformSelectionStateTests` and
+  `SequencerDocumentSessionQuantisedToggleTests` was attempted twice but did
+  not reach test execution: first CodeSign returned an internal signing
+  subsystem error, then an isolated DerivedData retry failed with
+  `No space left on device (28)` while copying XCTest frameworks/result-bundle
+  logs. Disk was observed at `73Mi` free / `100%` capacity.
+- Result: `merged`. Local `main` is now ahead of local `origin/main` by 8
+  commits. Pre-merge exact-commit reviewer evidence remains the passing focused
+  test evidence: 22 `TrackPerformSelectionStateTests`, 16
+  `SequencerDocumentSessionQuantisedToggleTests`, architecture pass, and
+  testing pass for `9c1744ba`. Remaining evidence gaps are
+  `disk-exhausted-post-merge-check` and `missing-visual-evidence`.
+  Product-owner attention is not needed; machine disk cleanup is needed before
+  useful further Xcode verification.
+
+## 2026-07-05T05:42Z Mixer Strip Follow-up
+
+- Request:
+  `.meta/multipass/runtime/inbox/claimed/2026-07-05T053631150Z-integrator.md`
+- Evidence:
+  `.meta/multipass/runtime/loops/project/act/2026-07-05T05-42Z-mixer-strip-followup-integration-merged.md`
+- Candidate: `feature/mixer-strip-followup` in
+  `.worktrees/mixer-strip-followup` at
+  `04a0e0716b7cbc301c9cc91cf3c6972a6e163023`
+- Operation: verified root `SequencerAI.xcodeproj/project.pbxproj` had no
+  dirty overlap after the repair, verified the candidate worktree was clean and
+  `main` was an ancestor, then fast-forward merged local `main` from
+  `341eef833a623da265c6b13b41440dc63032c382` to
+  `04a0e0716b7cbc301c9cc91cf3c6972a6e163023`.
+- Checks: post-merge `scripts/diagnostics/ux-canon-lint.sh` passed with 0
+  violations; post-merge focused `xcodebuild test` for
+  `MixerMasterOutputTests`,
+  `StudioMixerStripScaffoldTests/test_stripSlotsFitCompactRotaryPanControl`,
+  and `MixerFXStripGrammarTests` passed with 14 tests, 0 failures.
+- Result: `merged`. Local `main` is now ahead of local `origin/main` by 6
+  commits. Unrelated root dirt was preserved. Remaining evidence gap is
+  `capture-permission-or-focus`; product-owner attention is not needed.
+
+## 2026-07-05T05:10Z Mixer Strip Follow-up
+
+- Request:
+  `.meta/multipass/runtime/inbox/claimed/2026-07-05T045122872Z-integrator.md`
+- Evidence:
+  `.meta/multipass/runtime/loops/project/act/2026-07-05T05-10Z-mixer-strip-followup-integration-blocked.md`
+- Candidate: `feature/mixer-strip-followup` in
+  `.worktrees/mixer-strip-followup` at
+  `04a0e0716b7cbc301c9cc91cf3c6972a6e163023`
+- Operation: verified exact clean candidate, confirmed current local `main`
+  `341eef833a623da265c6b13b41440dc63032c382` is an ancestor and the branch is
+  `0` behind / `6` ahead, reran focused readiness checks, and did not merge.
+- Checks: `scripts/diagnostics/ux-canon-lint.sh` passed with 0 violations;
+  focused `xcodebuild test` for `MixerMasterOutputTests`,
+  `StudioMixerStripScaffoldTests/test_stripSlotsFitCompactRotaryPanControl`,
+  and `MixerFXStripGrammarTests` passed with 14 tests, 0 failures.
+- Result: `blocked`. Root `main` has pre-existing unrelated dirty state with a
+  direct candidate-path overlap in `SequencerAI.xcodeproj/project.pbxproj`.
+  Candidate remains clean and mechanically fast-forwardable once that overlap is
+  resolved or intentionally isolated. Product-owner attention is not needed.
+
 ## 2026-06-16T12:57Z Routing Source / Mixer Split Follow-up
 
 - Request:

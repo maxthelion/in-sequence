@@ -2,7 +2,8 @@
 
 - updated: 2026-06-07T11:12Z
 - loop: `pm/autoslice-algorithm`
-- status: active; PM artifact package complete; project-level promotion setup routed but not yet completed
+- status: complete; PM handoff consumed by `build/autoslice-algorithm`, whose
+  Phase 0 output is complete and locally merged on `main`
 - feature: `autoslice-algorithm`
 - backlog item: 13
 - registry manifest:
@@ -21,7 +22,21 @@
 - pending promotion setup request:
   `.meta/multipass/runtime/inbox/pending/2026-06-07T110540816Z-process-fixer.md`
 
-## Current Interpretation
+## 2026-07-04 Recovery Update
+
+Autoslice Algorithm is no longer active PM supply. The stale June 7
+interpretation below described the state before build-loop setup and
+integration. Current authority is
+`.meta/multipass/state/build-loops/autoslice-algorithm.md`: Phase 0 landed on
+`main` at merge commit `c9962f5825240028e22d74e40bb68d5bc2d0c217`, containing
+exact output commit `f93b54c8ce9df3c155a9cc61246581a0f1cd34df`; the build
+manifest is `status: complete`.
+
+Do not count `pm/autoslice-algorithm` as a ready or unpromoted PM candidate.
+Future production slicer UI, waveform, audition/playback, persistence, or
+slice-model integration should be scoped as fresh work.
+
+## Historical Interpretation
 
 Autoslice Algorithm is an isolated algorithm/readiness lane for smarter
 autoslicing. It supports the product goal of turning loop material into useful,

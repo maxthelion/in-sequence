@@ -154,15 +154,27 @@ The fill flag chooses between the main lane and fill lane when the clip has fill
 For `.generator(generatorID, modifierGeneratorID, modifierBypassed)`:
 
 1. look up the `GeneratorPoolEntry`;
-2. call `GeneratedSourceEvaluator.evaluateSourceStep(...)`;
-3. optionally pass the source notes through a modifier generator;
+2. call `GeneratedSourceEvaluator.evaluateStep(...)` so the source generator's
+   own trigger, pitch, and note-shape stages all run;
+3. optionally pass the realized source notes through a separate modifier
+   generator;
 4. return `[GeneratedNote]`.
 
 `GeneratedSourceEvaluator` owns generator semantics: trigger stages, pitch stages, progression chords, drum voices, slices, probability, and generator-local evaluation state.
 
+Generator source pitch state is keyed as generator-source state for the selected
+pattern slot and source generator id. It is also mirrored into the legacy
+per-track lane so existing precompute and cold-boundary fallback continuity
+still observe the realized source pitch.
+
 ## Modifier Path
 
 Both clip and generator sources may have a modifier generator.
+
+For generator sources, the modifier is a second processing stage. It is not how
+the source generator's own Pitch tab works. Older slots may retain a
+source-generator id as their modifier id; runtime treats that self-link as
+legacy source state rather than an extra processor to run after the source.
 
 If the modifier is present and not bypassed:
 
@@ -181,6 +193,24 @@ is called with:
 - RNG.
 
 This keeps source selection and source processing distinct.
+
+Modifier pitch state is keyed separately as generator-modifier state for the
+selected pattern slot and modifier generator id. It does not share the source
+generator's pitch-memory lane, so stateful pitch algorithms can evolve
+independently on source and modifier stages.
+
+## Generator Bake Path
+
+Baking a generator source creates concrete clip content by running
+`EngineController.resolvedStepNotes(...)` over the bar, including chord context
+and any active modifier stage. The slot switches to clip mode and points at the
+baked clip, while retaining the generator id as an inactive recipe so the user
+can switch that pattern back to live generation.
+
+Self-modifier state that only existed to make legacy generator-source pitch work
+is not left active on the baked clip. Bypassed separate modifiers are retained
+because they did not shape the baked audio; active separate modifiers are frozen
+into the clip content and not left live on the baked clip.
 
 ## Note Conversion And Dispatch
 

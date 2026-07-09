@@ -34,6 +34,7 @@ struct GeneratorParamsEditorView: View {
     let onUpdate: (GeneratorParams) -> Void
     let onSwitchKind: ((GeneratorKind) -> Void)?
     let onBakeToClip: (() -> Void)?
+    let onRemoveSource: (() -> Void)?
 
     @State private var selectedStageTab: StageTab = .trigger
 
@@ -46,7 +47,8 @@ struct GeneratorParamsEditorView: View {
         layout: LayoutMode = .stacked,
         onUpdate: @escaping (GeneratorParams) -> Void,
         onSwitchKind: ((GeneratorKind) -> Void)? = nil,
-        onBakeToClip: (() -> Void)? = nil
+        onBakeToClip: (() -> Void)? = nil,
+        onRemoveSource: (() -> Void)? = nil
     ) {
         self.generator = generator
         self.inputClipChoices = inputClipChoices
@@ -57,6 +59,7 @@ struct GeneratorParamsEditorView: View {
         self.onUpdate = onUpdate
         self.onSwitchKind = onSwitchKind
         self.onBakeToClip = onBakeToClip
+        self.onRemoveSource = onRemoveSource
     }
 
     var body: some View {
@@ -103,21 +106,6 @@ struct GeneratorParamsEditorView: View {
             if generator.kind == .progressionChordGenerator {
                 sourceSection
             } else {
-                // TRIGGER | PITCH stage tabs (prototype 14b) in the inset-track
-                // solid-thumb family — never a native segmented picker.
-                StudioSegmentedControl(
-                    title: nil,
-                    selection: $selectedStageTab,
-                    segments: StageTab.allCases.map { tab in
-                        StudioSegment(
-                            title: tab.title,
-                            value: tab,
-                            accessibilityIdentifier: "generator-stage-\(tab.rawValue)"
-                        )
-                    },
-                    accent: accent
-                )
-
                 switch selectedStageTab {
                 case .trigger:
                     sourceSection
@@ -138,25 +126,33 @@ struct GeneratorParamsEditorView: View {
             default:
                 break
             }
+            postRenderedGeneratorVisualState()
         }
+        .onAppear {
+            postRenderedGeneratorVisualState()
+        }
+        .onChange(of: selectedStageTab) { _, _ in
+            postRenderedGeneratorVisualState()
+        }
+    }
+
+    private func postRenderedGeneratorVisualState() {
+        NotificationCenter.default.post(
+            name: .trackSourceGeneratorRenderedVisualState,
+            object: nil,
+            userInfo: [
+                "stage": selectedStageTab.rawValue,
+                "kind": generator.kind.rawValue,
+                "sourceMode": "\(sourceMode)"
+            ]
+        )
     }
 
     private var generatorHeader: some View {
         HStack(spacing: 10) {
-            // Themed generator picker — the stock white native pop-up was a
-            // Rule 6 finding (design review 22e).
-            StudioMenuPicker(
-                title: nil,
-                selection: Binding(
-                    get: { generator.kind },
-                    set: { onSwitchKind?($0) }
-                ),
-                options: GeneratorKind.allCases
-                    .filter { $0.compatibleWith.contains(generator.trackType) }
-                    .map { StudioMenuPickerOption(label: $0.label, value: $0) },
-                help: "Switch generator mode without replacing this pattern source"
-            )
-            .disabled(onSwitchKind == nil)
+            if generator.kind != .progressionChordGenerator {
+                generatorStageSelector
+            }
 
             if let followingChipValue {
                 GeneratorHeaderChip(title: "FOLLOWING", value: followingChipValue, accent: accent)
@@ -180,7 +176,38 @@ struct GeneratorParamsEditorView: View {
             .buttonStyle(.plain)
             .disabled(onBakeToClip == nil)
             .help("Bake generator result to clip")
+
+            if let onRemoveSource {
+                StudioCircleIconButton(
+                    systemName: "xmark",
+                    size: StudioMetrics.ControlSize.medium,
+                    help: "Remove generator",
+                    action: onRemoveSource
+                )
+                .accessibilityIdentifier("generator-source-remove")
+            }
         }
+    }
+
+    private var generatorStageSelector: some View {
+        StudioSegmentedControl(
+            title: nil,
+            selection: $selectedStageTab,
+            segments: StageTab.allCases.map { tab in
+                StudioSegment(
+                    title: tab.title,
+                    value: tab,
+                    accessibilityIdentifier: "generator-stage-\(tab.rawValue)"
+                )
+            },
+            accent: accent,
+            layout: StudioSegmentedControl.Layout(
+                fillsWidth: false,
+                minWidth: 64,
+                minHeight: 28,
+                horizontalPadding: 10
+            )
+        )
     }
 
     private var followingChipValue: String? {
@@ -202,28 +229,30 @@ struct GeneratorParamsEditorView: View {
             switch generator.params {
             case let .mono(trigger, _, shape):
                 sourceEditorContainer(title: "Generator Source", eyebrow: stepDisplayLabel(trigger.stepStage)) {
-                    VStack(alignment: .leading, spacing: 16) {
-                        StepAlgoEditor(stage: trigger.stepStage, accent: accent) { nextStage in
+                    triggerAndShapeEditor(
+                        stepStage: trigger.stepStage,
+                        shape: shape,
+                        onStageChange: { nextStage in
                             onUpdate(.mono(trigger: .native(nextStage), pitch: monoPitchStage, shape: shape))
-                        }
-
-                        NoteShapeEditor(shape: shape, accent: accent) { nextShape in
+                        },
+                        onShapeChange: { nextShape in
                             onUpdate(.mono(trigger: trigger, pitch: monoPitchNode, shape: nextShape))
                         }
-                    }
+                    )
                 }
 
             case let .poly(trigger, _, shape):
                 sourceEditorContainer(title: "Generator Source", eyebrow: stepDisplayLabel(trigger.stepStage)) {
-                    VStack(alignment: .leading, spacing: 16) {
-                        StepAlgoEditor(stage: trigger.stepStage, accent: accent) { nextStage in
+                    triggerAndShapeEditor(
+                        stepStage: trigger.stepStage,
+                        shape: shape,
+                        onStageChange: { nextStage in
                             onUpdate(.poly(trigger: .native(nextStage), pitches: polyPitchNodes, shape: shape))
-                        }
-
-                        NoteShapeEditor(shape: shape, accent: accent) { nextShape in
+                        },
+                        onShapeChange: { nextShape in
                             onUpdate(.poly(trigger: trigger, pitches: polyPitchNodes, shape: nextShape))
                         }
-                    }
+                    )
                 }
 
             case let .progressionChords(params):
@@ -263,6 +292,149 @@ struct GeneratorParamsEditorView: View {
                 }
             }
         }
+    }
+
+    private func triggerAndShapeEditor(
+        stepStage: StepStage,
+        shape: NoteShape,
+        onStageChange: @escaping (StepStage) -> Void,
+        onShapeChange: @escaping (NoteShape) -> Void
+    ) -> some View {
+        let visibleStage = visibleTriggerStage(for: stepStage)
+
+        return Group {
+            if case let .euclidean(pulses, steps, offset) = visibleStage.algo {
+                let safeSteps = max(1, steps)
+                let safePulses = min(max(0, pulses), safeSteps)
+
+                VStack(alignment: .leading, spacing: 14) {
+                    triggerKindSelector(stage: visibleStage, onStageChange: onStageChange)
+
+                    LazyVGrid(columns: triggerAndShapeColumns, alignment: .leading, spacing: 12) {
+                        StudioRotaryKnob(
+                            title: "Pulses",
+                            value: Double(safePulses),
+                            range: 0...Double(safeSteps),
+                            accent: accent,
+                            size: 56
+                        ) {
+                            onStageChange(StepStage(algo: .euclidean(pulses: Int($0.rounded()), steps: safeSteps, offset: offset), basePitch: visibleStage.basePitch))
+                        }
+
+                        StudioRotaryKnob(
+                            title: "Steps",
+                            value: Double(safeSteps),
+                            range: 1...32,
+                            accent: accent,
+                            size: 56
+                        ) { newValue in
+                            let nextSteps = Int(newValue.rounded())
+                            onStageChange(StepStage(algo: .euclidean(pulses: min(safePulses, nextSteps), steps: nextSteps, offset: offset), basePitch: visibleStage.basePitch))
+                        }
+
+                        StudioRotaryKnob(
+                            title: "Offset",
+                            value: Double(offset),
+                            range: -32...32,
+                            accent: accent,
+                            size: 56
+                        ) {
+                            onStageChange(StepStage(algo: .euclidean(pulses: safePulses, steps: safeSteps, offset: Int($0.rounded())), basePitch: visibleStage.basePitch))
+                        }
+
+                        StudioRotaryKnob(
+                            title: "Pitch",
+                            value: Double(visibleStage.basePitch),
+                            range: 0...127,
+                            accent: accent,
+                            size: 56
+                        ) {
+                            onStageChange(StepStage(algo: visibleStage.algo, basePitch: Int($0.rounded())))
+                        }
+
+                        StudioRotaryKnob(
+                            title: "Velocity",
+                            value: Double(shape.velocity),
+                            range: 1...127,
+                            accent: accent,
+                            size: 56
+                        ) { newValue in
+                            onShapeChange(NoteShape(velocity: Int(newValue.rounded()), gateLength: shape.gateLength, accent: shape.accent))
+                        }
+
+                        StudioRotaryKnob(
+                            title: "Gate",
+                            value: Double(shape.gateLength),
+                            range: 1...16,
+                            accent: accent,
+                            size: 56
+                        ) { newValue in
+                            onShapeChange(NoteShape(velocity: shape.velocity, gateLength: Int(newValue.rounded()), accent: shape.accent))
+                        }
+                    }
+                }
+            } else {
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .bottom, spacing: 18) {
+                        StepAlgoEditor(stage: stepStage, accent: accent, maximumControlColumns: 4) { nextStage in
+                            onStageChange(nextStage)
+                        }
+                            .frame(width: 580, alignment: .leading)
+                        NoteShapeEditor(shape: shape, accent: accent, knobSize: 56, spacing: 12) { nextShape in
+                            onShapeChange(nextShape)
+                        }
+                    }
+
+                    VStack(alignment: .leading, spacing: 16) {
+                        StepAlgoEditor(stage: stepStage, accent: accent) { nextStage in
+                            onStageChange(nextStage)
+                        }
+
+                        NoteShapeEditor(shape: shape, accent: accent) { nextShape in
+                            onShapeChange(nextShape)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private var triggerAndShapeColumns: [GridItem] {
+        Array(
+            repeating: GridItem(.flexible(minimum: 56, maximum: 96), spacing: 12, alignment: .top),
+            count: 6
+        )
+    }
+
+    private func visibleTriggerStage(for stage: StepStage) -> StepStage {
+        if case .manual = stage.algo {
+            return StepStage(
+                algo: StepAlgoKind.euclidean.defaultAlgo(current: stage.algo),
+                basePitch: stage.basePitch
+            )
+        }
+        return stage
+    }
+
+    private func triggerKindSelector(
+        stage: StepStage,
+        onStageChange: @escaping (StepStage) -> Void
+    ) -> some View {
+        StudioSegmentedControl(
+            title: nil,
+            selection: Binding(
+                get: { stage.algo.kind },
+                set: { onStageChange(StepStage(algo: $0.defaultAlgo(current: stage.algo), basePitch: stage.basePitch)) }
+            ),
+            segments: [.euclidean, .weighted].map { kind in
+                StudioSegment(
+                    title: kind.title,
+                    value: kind,
+                    accessibilityIdentifier: "generator-trigger-source-\(kind.rawValue)"
+                )
+            },
+            accent: accent
+        )
     }
 
     @ViewBuilder

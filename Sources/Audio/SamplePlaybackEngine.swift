@@ -593,7 +593,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         // Hard Rule 4: schedule the RESIDENT PCM buffer (warm-from-RAM). The
         // live trigger path always supplies a warmed `pcmBuffer`; the file
         // fallback below is reserved for the URL/audition path with no buffer.
-        scheduleResidentOrFileSegment(
+        guard scheduleResidentOrFileSegment(
             voice,
             file: file,
             pcmBuffer: pcmBuffer,
@@ -602,7 +602,16 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
             transforms: nil,
             playbackFormat: voice.outputFormat(forBus: 0),
             at: effectiveWhen
-        )
+        ) else {
+            deferPreparedTrackRepair(trackID: trackID, scheduled: scheduled)
+            SequencerTimingProbe.sampleFastPath(
+                trackID: trackID,
+                scheduled: scheduled,
+                actual: ProcessInfo.processInfo.systemUptime,
+                result: "schedule-failed"
+            )
+            return nil
+        }
         guard startVoiceSafely(voice, at: effectiveWhen) else {
             deferPreparedTrackRepair(trackID: trackID, scheduled: scheduled)
             SequencerTimingProbe.sampleFastPath(
@@ -740,7 +749,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
     /// and play, so the ObjC catcher is the only airtight guard: a failed
     /// start drops the trigger instead of killing the app.
     private func startVoiceSafely(_ voice: AVAudioPlayerNode, at when: AVAudioTime? = nil) -> Bool {
-        guard audioGraph.isNodePlayableNow(voice) else { return false }
+        guard canIssuePlayerNodeCommand(voice, operation: "play") else { return false }
         if let exception = SEQRunCatchingObjCException({
             if let when {
                 voice.play(at: when)
@@ -749,6 +758,15 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
             }
         }) {
             DevActivity.trace(DevActivity.audioGraph, "dropped sample trigger: play threw \(exception.name.rawValue): \(exception.reason ?? "no reason")")
+            return false
+        }
+        return true
+    }
+
+    private func canIssuePlayerNodeCommand(_ voice: AVAudioPlayerNode, operation: String) -> Bool {
+        guard audioGraph.isNodePlayableNow(voice) else { return false }
+        guard audioGraph.renderPosition != nil else {
+            DevActivity.trace(DevActivity.audioGraph, "dropped sample trigger: \(operation) before valid render position")
             return false
         }
         return true
@@ -791,7 +809,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         // the in-RAM sub-range (sample start / length); the file fallback only
         // engages when no resident buffer exists (URL/audition path).
         let frameRange = Self.sampleFrameRange(file: file, settings: settings, params: params)
-        scheduleResidentOrFileSegment(
+        guard scheduleResidentOrFileSegment(
             voice,
             file: file,
             pcmBuffer: pcmBuffer,
@@ -800,7 +818,9 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
             transforms: nil,
             playbackFormat: voice.outputFormat(forBus: 0),
             at: when
-        )
+        ) else {
+            return false
+        }
         return startVoiceSafely(voice, at: when)
     }
 
@@ -835,7 +855,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
             attackMs: sliceParameters.attackMs,
             releaseMs: sliceParameters.releaseMs
         )
-        scheduleResidentOrFileSegment(
+        guard scheduleResidentOrFileSegment(
             voice,
             file: file,
             pcmBuffer: pcmBuffer,
@@ -844,7 +864,9 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
             transforms: transforms,
             playbackFormat: voice.outputFormat(forBus: 0),
             at: when
-        )
+        ) else {
+            return false
+        }
         return startVoiceSafely(voice, at: when)
     }
 
@@ -870,7 +892,8 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         transforms: SliceBufferTransforms?,
         playbackFormat: AVAudioFormat,
         at when: AVAudioTime?
-    ) {
+    ) -> Bool {
+        guard canIssuePlayerNodeCommand(voice, operation: "schedule") else { return false }
         if let buffer = residentTriggerBuffer(
             pcmBuffer: pcmBuffer,
             fileFormat: file.processingFormat,
@@ -879,24 +902,35 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
             frameCount: frameCount,
             transforms: transforms
         ) {
-            voice.scheduleBuffer(buffer, at: when, options: [], completionHandler: nil)
+            if let exception = SEQRunCatchingObjCException({
+                voice.scheduleBuffer(buffer, at: when, options: [], completionHandler: nil)
+            }) {
+                DevActivity.trace(DevActivity.audioGraph, "dropped sample trigger: scheduleBuffer threw \(exception.name.rawValue): \(exception.reason ?? "no reason")")
+                return false
+            }
             #if DEBUG
             residentBufferScheduleCountForTesting += 1
             #endif
-            return
+            return true
         }
 
         // realtime-allow-file-stream: bounded large-loop / no-resident-buffer fallback only; warmed PreparedSampleAsset triggers always take the resident scheduleBuffer branch above (verified: EngineController dispatches sampleAsset assets carrying pcmBuffer). Test: SamplePlaybackEngineResidentBufferTests.
-        voice.scheduleSegment(
-            file,
-            startingFrame: startFrame,
-            frameCount: frameCount,
-            at: when,
-            completionHandler: nil
-        )
+        if let exception = SEQRunCatchingObjCException({
+            voice.scheduleSegment(
+                file,
+                startingFrame: startFrame,
+                frameCount: frameCount,
+                at: when,
+                completionHandler: nil
+            )
+        }) {
+            DevActivity.trace(DevActivity.audioGraph, "dropped sample trigger: scheduleSegment threw \(exception.name.rawValue): \(exception.reason ?? "no reason")")
+            return false
+        }
         #if DEBUG
         fileSegmentScheduleCountForTesting += 1
         #endif
+        return true
     }
 
     /// Build the resident sub-range buffer for a trigger from the warmed
@@ -1143,7 +1177,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
 
             switch branch {
             case let .prepareBus(busID):
-                prepareBusVoicePool(trackID: trackID, busID: busID)
+                prepareBusVoicePool(trackID: trackID, busID: busID, liveRouteSwitch: true)
                 if let pool = withLifecycleLock({ busVoicePools[trackID] }) {
                     publishBusTrackFastPathIfConnected(trackID: trackID, busID: busID, pool: pool)
                 }
@@ -1169,7 +1203,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
                 // "defer only the teardown, rebuild now" regression
                 // (route-to-master → silence) is avoided.
                 DevActivity.trace(DevActivity.audioGraph, "route-to-master teardownBus start track=\(trackID.uuidString)")
-                rampOutgoingThenSwitch(outgoing: [pool.trackSumMixer]) { [self] in
+                rampOutgoingThenSwitch(outgoing: [pool.trackSumMixer], liveRouteSwitch: true) { [self] in
                     teardownBusVoicePool(pool)
                     prepareTrack(trackID: trackID)
                     // Bring the new MASTER route's chokepoint (the track mixer) up
@@ -1360,6 +1394,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
     @MainActor
     private func rampOutgoingThenSwitch(
         outgoing chokepoints: [AVAudioMixerNode],
+        liveRouteSwitch: Bool = false,
         switchAndBringUp: @escaping @MainActor () -> Void
     ) {
         // Mirror MainAudioGraph.connectTrackOutput's gate: a chokepoint can only
@@ -1369,11 +1404,12 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         // / setup / repair (no input or no output edge yet) is silent, so the
         // switch runs synchronously (no dip, deterministic post-state) — that
         // keeps pure-setup paths and offline render unchanged.
+        let playbackStarted = withLifecycleLock { isStarted }
         let sounding = chokepoints.filter { node in
-            node.engine === audioGraph.engine
-                && audioGraph.engine.isRunning
-                && audioGraph.engine.inputConnectionPoint(for: node, inputBus: 0) != nil
-                && !audioGraph.engine.outputConnectionPoints(for: node, outputBus: 0).isEmpty
+            liveRouteSwitch
+                && node.engine === audioGraph.engine
+                && playbackStarted
+                && (nodeHasAnyInputConnection(node) || node.outputVolume > 0.001)
         }
         guard !sounding.isEmpty else {
             // Nothing currently passing audio to fade — run the switch now.
@@ -1391,6 +1427,16 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         group.notify(queue: .main) {
             MainActor.assumeIsolated { switchAndBringUp() }
         }
+    }
+
+    @MainActor
+    private func nodeHasAnyInputConnection(_ node: AVAudioNode) -> Bool {
+        for bus in AVAudioNodeBus(0)..<AVAudioNodeBus(32) {
+            if audioGraph.engine.inputConnectionPoint(for: node, inputBus: bus) != nil {
+                return true
+            }
+        }
+        return false
     }
 
     /// Bring a freshly-built route's chokepoint up from silence to its configured
@@ -1469,7 +1515,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
     /// `@MainActor`; takes the lock internally only for the dictionary
     /// snapshot/publish points, never across the graph mutation.
     @MainActor
-    private func prepareBusVoicePool(trackID: UUID, busID: UUID) {
+    private func prepareBusVoicePool(trackID: UUID, busID: UUID, liveRouteSwitch: Bool = false) {
         // Snapshot existing state and tear down any stale track-route nodes
         // under the lock; drop the track from the fast-path so the tick path
         // can't touch the pool while we rebuild it.
@@ -1598,7 +1644,11 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
             publishBusTrackFastPathIfConnected(trackID: trackID, busID: busID, pool: pool)
         }
 
-        rampOutgoingThenSwitch(outgoing: outgoingChokepoints, switchAndBringUp: buildBusRoute)
+        rampOutgoingThenSwitch(
+            outgoing: outgoingChokepoints,
+            liveRouteSwitch: liveRouteSwitch,
+            switchAndBringUp: buildBusRoute
+        )
     }
 
     @MainActor
