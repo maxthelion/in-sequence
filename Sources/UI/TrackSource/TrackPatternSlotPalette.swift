@@ -29,6 +29,8 @@ struct TrackPatternSlotPalette: View {
         occupiedSlots: Set<Int>,
         bypassState: BypassState,
         onBypassToggle: @escaping (Int) -> Void,
+        playingSlot: Int? = nil,
+        onPlayingSlotSelect: @escaping (Int) -> Void = { _ in },
         accent: Color = StudioTheme.transportAccent,
         destinationMode: DestinationMode? = nil,
         onDestinationSelect: @escaping (Int) -> Void = { _ in }
@@ -37,6 +39,8 @@ struct TrackPatternSlotPalette: View {
         self.occupiedSlots = occupiedSlots
         self.bypassState = bypassState
         self.onBypassToggle = onBypassToggle
+        self.playingSlot = playingSlot
+        self.onPlayingSlotSelect = onPlayingSlotSelect
         self.accent = accent
         self.destinationMode = destinationMode
         self.onDestinationSelect = onDestinationSelect
