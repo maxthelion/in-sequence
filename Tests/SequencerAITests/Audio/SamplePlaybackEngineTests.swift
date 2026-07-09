@@ -386,7 +386,7 @@ final class SamplePlaybackEngineTests: XCTestCase {
                 "voiceFilterToMixer": true,
                 "mixerToTrackFilter": false,
                 "trackFilterHasOutput": true,
-                "voicePlayable": false,
+                "voicePlayable": true,
             ]
         )
     }
@@ -415,7 +415,7 @@ final class SamplePlaybackEngineTests: XCTestCase {
                 "voiceFilterToMixer": true,
                 "mixerToTrackFilter": false,
                 "trackFilterHasOutput": true,
-                "voicePlayable": false,
+                "voicePlayable": true,
             ]
         )
     }
@@ -543,8 +543,13 @@ final class SamplePlaybackEngineTests: XCTestCase {
         }
 
         wait(for: [returned], timeout: 2)
-        // The failed fast path defers the track (drops it from the fast path).
-        XCTAssertEqual(engine.deferredPreparedTrackRepairIDsForTesting, [trackID])
+        // Depending on main-queue timing, the bounded repair may already have
+        // completed while XCTest drained the background expectation. Assert the
+        // track is either in that one deferred episode or already healed.
+        XCTAssertTrue(
+            engine.deferredPreparedTrackRepairIDsForTesting == [trackID] ||
+                engine.isFirstPreparedVoiceConnectedForTesting(trackID: trackID)
+        )
 
         // The bounded backstop schedules the self-heal with a small backoff
         // (asyncAfter), so poll the main queue until it runs: it re-prepares the

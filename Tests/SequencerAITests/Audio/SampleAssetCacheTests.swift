@@ -49,19 +49,50 @@ final class SampleAssetCacheTests: XCTestCase {
         }
     }
 
-    func test_memoryBudgetEvictsInactiveAssetsButKeepsPinnedAssets() throws {
+    func test_memoryBudgetRejectsSingleAssetLargerThanResidentCeiling() throws {
+        let sample = try makeSample(fileName: "oversized.wav")
+        let cache = SampleAssetCache(memoryBudgetBytes: 1)
+
+        cache.retain(sampleIDs: [sample.id])
+        let asset = try XCTUnwrap(cache.warm(sample: sample, libraryRoot: libraryRoot))
+
+        XCTAssertEqual(cache.readiness(sampleID: sample.id), .ready)
+        XCTAssertNil(asset.pcmBuffer)
+        XCTAssertEqual(cache.currentByteSizeForTesting, 0)
+    }
+
+    func test_memoryBudgetEvictsInactiveResidentAsset() throws {
         let pinned = try makeSample(fileName: "pinned.wav")
         let inactive = try makeSample(fileName: "inactive.wav")
-        let cache = SampleAssetCache(memoryBudgetBytes: 1)
+        let cache = SampleAssetCache(memoryBudgetBytes: 20_000)
 
         cache.retain(sampleIDs: [pinned.id])
         XCTAssertNotNil(cache.warm(sample: pinned, libraryRoot: libraryRoot))
-        XCTAssertNotNil(cache.warm(sample: inactive, libraryRoot: libraryRoot))
+        XCTAssertNil(cache.warm(sample: inactive, libraryRoot: libraryRoot))
 
         XCTAssertEqual(cache.readiness(sampleID: pinned.id), .ready)
         XCTAssertEqual(cache.readiness(sampleID: inactive.id), .stale)
-        XCTAssertNotNil(cache.asset(sampleID: pinned.id))
+        XCTAssertNotNil(cache.asset(sampleID: pinned.id)?.pcmBuffer)
         XCTAssertNil(cache.asset(sampleID: inactive.id))
+        XCTAssertLessThanOrEqual(cache.currentByteSizeForTesting, 20_000)
+    }
+
+    func test_memoryBudgetDemotesPinnedWorkingSetWithoutUnboundedGrowth() throws {
+        let first = try makeSample(fileName: "first-pinned.wav")
+        let second = try makeSample(fileName: "second-pinned.wav")
+        let cache = SampleAssetCache(memoryBudgetBytes: 20_000)
+
+        cache.retain(sampleIDs: [first.id, second.id])
+        XCTAssertNotNil(cache.warm(sample: first, libraryRoot: libraryRoot))
+        XCTAssertNotNil(cache.warm(sample: second, libraryRoot: libraryRoot))
+
+        let residentCount = [first, second].compactMap {
+            cache.asset(sampleID: $0.id)?.pcmBuffer
+        }.count
+        XCTAssertEqual(residentCount, 1)
+        XCTAssertEqual(cache.readiness(sampleID: first.id), .ready)
+        XCTAssertEqual(cache.readiness(sampleID: second.id), .ready)
+        XCTAssertLessThanOrEqual(cache.currentByteSizeForTesting, 20_000)
     }
 
     private func makeSample(fileName: String) throws -> AudioSample {

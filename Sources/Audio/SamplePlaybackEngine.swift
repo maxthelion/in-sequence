@@ -236,6 +236,34 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
     private let audioGraph: MainAudioGraph
     private let previewNode = AVAudioPlayerNode()
     private let lifecycleLock = NSLock()
+    /// Serializes player scheduling with stop/disconnect/detach. Readiness flags
+    /// prevent new selections during a rebuild, but a tick may already have
+    /// selected a voice before the flag is withdrawn. This lock closes that
+    /// final command-lifetime window; it is never taken by the render callback.
+    private let playerCommandLock = NSRecursiveLock()
+    private let residentTriggerBufferCacheLock = NSLock()
+    private static let residentTriggerBufferCacheBudgetBytes = 32 * 1_024 * 1_024
+    private static let residentTriggerBufferCacheEntryLimit = 256
+    private struct ResidentTriggerBufferKey: Hashable {
+        let sourceID: ObjectIdentifier
+        let startFrame: AVAudioFramePosition
+        let frameCount: AVAudioFrameCount
+        let sampleRateBits: UInt64
+        let channelCount: AVAudioChannelCount
+        let commonFormat: UInt
+        let interleaved: Bool
+        let reverse: Bool
+        let attackBits: UInt64
+        let releaseBits: UInt64
+    }
+    private struct ResidentTriggerBufferCacheEntry {
+        let source: AVAudioPCMBuffer
+        let buffer: AVAudioPCMBuffer
+        let byteSize: Int
+    }
+    private var residentTriggerBufferCache: [ResidentTriggerBufferKey: ResidentTriggerBufferCacheEntry] = [:]
+    private var residentTriggerBufferCacheOrder: [ResidentTriggerBufferKey] = []
+    private var residentTriggerBufferCacheBytes = 0
     private var fileCache: [URL: AVAudioFile] = [:]
     private var isStarted = false
     private var trackVoicePools: [UUID: TrackVoicePool] = [:]
@@ -296,11 +324,12 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
     /// every trigger. A default forward slice / one-shot MUST land here.
     private(set) var residentBufferScheduleCountForTesting = 0
     /// Number of triggered voices that fell back to streaming a file segment
-    /// (`scheduleSegment(file:)`) because no resident buffer was available. On
-    /// the live trigger path (always a warmed `PreparedSampleAsset`) this must
-    /// stay 0; it only moves for the legacy URL/audition path that has no PCM
-    /// buffer. Lets a test assert the resident path is the default.
+    /// (`scheduleSegment(file:)`) because no resident buffer was available.
+    /// This is reserved for legacy URL playback and assets that exceed the
+    /// resident working-set budget. Lets tests assert the resident path remains
+    /// the default for normal prepared samples.
     private(set) var fileSegmentScheduleCountForTesting = 0
+    private(set) var residentTriggerBufferBuildCountForTesting = 0
     #endif
 
     var preparedTrackIDs: Set<UUID> {
@@ -340,17 +369,19 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
             return (true, Array(trackVoicePools.values), Array(busVoicePools.values))
         }
         guard shouldStop else { return }
-        for pool in pools {
-            for voice in pool.voices {
-                voice.stop()
+        withPlayerCommandLock {
+            for pool in pools {
+                for voice in pool.voices {
+                    voice.stop()
+                }
             }
-        }
-        for pool in busPools {
-            for voice in pool.voices {
-                voice.stop()
+            for pool in busPools {
+                for voice in pool.voices {
+                    voice.stop()
+                }
             }
+            previewNode.stop()
         }
-        previewNode.stop()
     }
 
     /// Phase-1 warm engine: silence all voices for a transport stop but leave the
@@ -363,17 +394,19 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
             guard isStarted else { return ([], []) }
             return (Array(trackVoicePools.values), Array(busVoicePools.values))
         }
-        for pool in pools {
-            for voice in pool.voices {
-                voice.stop()
+        withPlayerCommandLock {
+            for pool in pools {
+                for voice in pool.voices {
+                    voice.stop()
+                }
             }
-        }
-        for pool in busPools {
-            for voice in pool.voices {
-                voice.stop()
+            for pool in busPools {
+                for voice in pool.voices {
+                    voice.stop()
+                }
             }
+            previewNode.stop()
         }
-        previewNode.stop()
     }
 
     func prepareTrack(trackID: UUID) {
@@ -589,20 +622,22 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
             return nil
         }
 
-        voice.stop()
-        // Hard Rule 4: schedule the RESIDENT PCM buffer (warm-from-RAM). The
-        // live trigger path always supplies a warmed `pcmBuffer`; the file
-        // fallback below is reserved for the URL/audition path with no buffer.
-        guard scheduleResidentOrFileSegment(
-            voice,
-            file: file,
-            pcmBuffer: pcmBuffer,
-            startFrame: frameRange.startFrame,
-            frameCount: frameRange.frameLength,
-            transforms: nil,
-            playbackFormat: voice.outputFormat(forBus: 0),
-            at: effectiveWhen
-        ) else {
+        let didSchedule = withPlayerCommandLock {
+            guard scheduleResidentOrFileSegment(
+                voice,
+                file: file,
+                pcmBuffer: pcmBuffer,
+                startFrame: frameRange.startFrame,
+                frameCount: frameRange.frameLength,
+                transforms: nil,
+                playbackFormat: voice.outputFormat(forBus: 0),
+                at: effectiveWhen
+            ) else {
+                return false
+            }
+            return ensureVoiceStartedSafely(voice)
+        }
+        guard didSchedule else {
             deferPreparedTrackRepair(trackID: trackID, scheduled: scheduled)
             SequencerTimingProbe.sampleFastPath(
                 trackID: trackID,
@@ -612,17 +647,6 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
             )
             return nil
         }
-        guard startVoiceSafely(voice, at: effectiveWhen) else {
-            deferPreparedTrackRepair(trackID: trackID, scheduled: scheduled)
-            SequencerTimingProbe.sampleFastPath(
-                trackID: trackID,
-                scheduled: scheduled,
-                actual: ProcessInfo.processInfo.systemUptime,
-                result: "schedule-failed"
-            )
-            return nil
-        }
-
         SequencerTimingProbe.sampleFastPath(
             trackID: trackID,
             scheduled: scheduled,
@@ -763,6 +787,16 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         return true
     }
 
+    private func ensureVoiceStartedSafely(_ voice: AVAudioPlayerNode) -> Bool {
+        voice.isPlaying || startVoiceSafely(voice)
+    }
+
+    private func withPlayerCommandLock<T>(_ body: () throws -> T) rethrows -> T {
+        playerCommandLock.lock()
+        defer { playerCommandLock.unlock() }
+        return try body()
+    }
+
     private func canIssuePlayerNodeCommand(_ voice: AVAudioPlayerNode, operation: String) -> Bool {
         guard audioGraph.isNodePlayableNow(voice) else { return false }
         guard audioGraph.renderPosition != nil else {
@@ -794,34 +828,32 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         params: [BuiltinMacroKind: Double]?,
         at when: AVAudioTime?
     ) -> Bool {
-        voice.stop()
+        withPlayerCommandLock {
+            if let voiceFilter {
+                // Apply built-in macro voice params (set by TrackMacroApplier for the current step).
+                let gainDB = params?[.sampleGain] ?? settings.gain
+                voice.volume = linearGain(dB: gainDB)
+                voice.pan = 0
+                voice.rate = 1
+                voiceFilter.apply(SamplerFilterSettings())
+            }
 
-        if let voiceFilter {
-            // Apply built-in macro voice params (set by TrackMacroApplier for the current step).
-            let gainDB = params?[.sampleGain] ?? settings.gain
-            voice.volume = linearGain(dB: gainDB)
-            voice.pan = 0
-            voice.rate = 1
-            voiceFilter.apply(SamplerFilterSettings())
+            // Hard Rule 4: triggered playback reads the RESIDENT PCM buffer.
+            let frameRange = Self.sampleFrameRange(file: file, settings: settings, params: params)
+            guard scheduleResidentOrFileSegment(
+                voice,
+                file: file,
+                pcmBuffer: pcmBuffer,
+                startFrame: frameRange.startFrame,
+                frameCount: frameRange.frameLength,
+                transforms: nil,
+                playbackFormat: voice.outputFormat(forBus: 0),
+                at: when
+            ) else {
+                return false
+            }
+            return ensureVoiceStartedSafely(voice)
         }
-
-        // Hard Rule 4: triggered playback reads the RESIDENT PCM buffer. Schedule
-        // the in-RAM sub-range (sample start / length); the file fallback only
-        // engages when no resident buffer exists (URL/audition path).
-        let frameRange = Self.sampleFrameRange(file: file, settings: settings, params: params)
-        guard scheduleResidentOrFileSegment(
-            voice,
-            file: file,
-            pcmBuffer: pcmBuffer,
-            startFrame: frameRange.startFrame,
-            frameCount: frameRange.frameLength,
-            transforms: nil,
-            playbackFormat: voice.outputFormat(forBus: 0),
-            at: when
-        ) else {
-            return false
-        }
-        return startVoiceSafely(voice, at: when)
     }
 
     private func scheduleAndStartSlice(
@@ -838,36 +870,35 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         reverse: Bool,
         sliceParameters: SliceTriggerStepParameters
     ) -> Bool {
-        voice.stop()
-        if let voiceFilter {
-            let gainDB = params?[.sampleGain] ?? settings.gain
-            voice.volume = linearGain(dB: gainDB)
-            voice.pan = Float(sliceParameters.pan)
-            voice.rate = Float(playbackRate(forSemitoneOffset: settings.transpose))
-            voiceFilter.setCutoff(hz: cutoffHz(for: sliceParameters.filter))
-        }
+        withPlayerCommandLock {
+            if let voiceFilter {
+                let gainDB = params?[.sampleGain] ?? settings.gain
+                voice.volume = linearGain(dB: gainDB)
+                voice.pan = Float(sliceParameters.pan)
+                voice.rate = Float(playbackRate(forSemitoneOffset: settings.transpose))
+                voiceFilter.setCutoff(hz: cutoffHz(for: sliceParameters.filter))
+            }
 
-        // Hard Rule 4: ALL slice triggers play the resident sub-range buffer from
-        // RAM — the default forward case included (previously this streamed the
-        // file). Reverse / envelope still operate on that same resident buffer.
-        let transforms = SliceBufferTransforms(
-            reverse: reverse,
-            attackMs: sliceParameters.attackMs,
-            releaseMs: sliceParameters.releaseMs
-        )
-        guard scheduleResidentOrFileSegment(
-            voice,
-            file: file,
-            pcmBuffer: pcmBuffer,
-            startFrame: startFrame,
-            frameCount: AVAudioFrameCount(max(1, endFrame - startFrame)),
-            transforms: transforms,
-            playbackFormat: voice.outputFormat(forBus: 0),
-            at: when
-        ) else {
-            return false
+            // Hard Rule 4: all slice triggers use the resident sub-range buffer.
+            let transforms = SliceBufferTransforms(
+                reverse: reverse,
+                attackMs: sliceParameters.attackMs,
+                releaseMs: sliceParameters.releaseMs
+            )
+            guard scheduleResidentOrFileSegment(
+                voice,
+                file: file,
+                pcmBuffer: pcmBuffer,
+                startFrame: startFrame,
+                frameCount: AVAudioFrameCount(max(1, endFrame - startFrame)),
+                transforms: transforms,
+                playbackFormat: voice.outputFormat(forBus: 0),
+                at: when
+            ) else {
+                return false
+            }
+            return ensureVoiceStartedSafely(voice)
         }
-        return startVoiceSafely(voice, at: when)
     }
 
     /// The single trigger-scheduling site. Schedules a RESIDENT `AVAudioPCMBuffer`
@@ -879,10 +910,9 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
     /// The `scheduleSegment(file:)` branch is the bounded, explicit exception for
     /// a trigger whose source has NO resident buffer: today only the legacy
     /// URL/audition path (`play(sampleURL:)`, `playSlice(sampleURL:)`) and any
-    /// asset whose PCM load was skipped because the audio was too large to make
-    /// resident (`SampleAssetCache.loadPCMBuffer` returns nil over the frame cap)
-    /// — i.e. large/long loops, exactly the case the rule reserves streaming for.
-    /// The live cache-warmed trigger path never reaches it.
+    /// asset whose PCM load was skipped or demoted because the audio exceeds the
+    /// bounded resident working set — i.e. large/long audio, the case the rule
+    /// reserves streaming for.
     private func scheduleResidentOrFileSegment(
         _ voice: AVAudioPlayerNode,
         file: AVAudioFile,
@@ -903,7 +933,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
             transforms: transforms
         ) {
             if let exception = SEQRunCatchingObjCException({
-                voice.scheduleBuffer(buffer, at: when, options: [], completionHandler: nil)
+                voice.scheduleBuffer(buffer, at: when, options: .interrupts, completionHandler: nil)
             }) {
                 DevActivity.trace(DevActivity.audioGraph, "dropped sample trigger: scheduleBuffer threw \(exception.name.rawValue): \(exception.reason ?? "no reason")")
                 return false
@@ -914,8 +944,9 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
             return true
         }
 
-        // realtime-allow-file-stream: bounded large-loop / no-resident-buffer fallback only; warmed PreparedSampleAsset triggers always take the resident scheduleBuffer branch above (verified: EngineController dispatches sampleAsset assets carrying pcmBuffer). Test: SamplePlaybackEngineResidentBufferTests.
+        voice.stop()
         if let exception = SEQRunCatchingObjCException({
+            // realtime-allow-file-stream: bounded large/over-budget or legacy URL fallback only; normal prepared samples take the resident scheduleBuffer branch above. Test: SamplePlaybackEngineResidentBufferTests.
             voice.scheduleSegment(
                 file,
                 startingFrame: startFrame,
@@ -944,57 +975,141 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
         frameCount: AVAudioFrameCount,
         transforms: SliceBufferTransforms?
     ) -> AVAudioPCMBuffer? {
+        guard let source = pcmBuffer else { return nil }
+        guard startFrame >= 0,
+              startFrame < AVAudioFramePosition(source.frameLength)
+        else {
+            return nil
+        }
+        let available = AVAudioFrameCount(
+            AVAudioFramePosition(source.frameLength) - startFrame
+        )
+        let clampedCount = max(1, min(frameCount, available))
+        let effectiveTransforms = transforms ?? SliceBufferTransforms(
+            reverse: false,
+            attackMs: 0,
+            releaseMs: 0
+        )
+
+        // The common one-shot path can schedule the warmed source buffer
+        // directly. No sub-range allocation, copy, or format conversion occurs
+        // on a trigger.
+        if startFrame == 0,
+           clampedCount == source.frameLength,
+           effectiveTransforms.isIdentity,
+           source.format == playbackFormat
+        {
+            return source
+        }
+
+        let key = ResidentTriggerBufferKey(
+            sourceID: ObjectIdentifier(source),
+            startFrame: startFrame,
+            frameCount: clampedCount,
+            sampleRateBits: playbackFormat.sampleRate.bitPattern,
+            channelCount: playbackFormat.channelCount,
+            commonFormat: playbackFormat.commonFormat.rawValue,
+            interleaved: playbackFormat.isInterleaved,
+            reverse: effectiveTransforms.reverse,
+            attackBits: effectiveTransforms.attackMs.bitPattern,
+            releaseBits: effectiveTransforms.releaseMs.bitPattern
+        )
+        if let cached = residentTriggerBufferCacheLock.withLock({
+            residentTriggerBufferCache[key]?.buffer
+        }) {
+            return cached
+        }
+
         guard let buffer = sliceBuffer(
             pcmBuffer: pcmBuffer,
             fileFormat: fileFormat,
             playbackFormat: playbackFormat,
             startFrame: startFrame,
-            frameCount: frameCount
+            frameCount: clampedCount
         ) else {
             return nil
         }
-        if let transforms, !transforms.isIdentity {
-            if transforms.reverse {
+        if !effectiveTransforms.isIdentity {
+            if effectiveTransforms.reverse {
                 Self.reverse(buffer)
             }
             applyEnvelope(
                 to: buffer,
-                attackMs: transforms.attackMs,
-                releaseMs: transforms.releaseMs
+                attackMs: effectiveTransforms.attackMs,
+                releaseMs: effectiveTransforms.releaseMs
             )
         }
+        #if DEBUG
+        residentTriggerBufferBuildCountForTesting += 1
+        #endif
+        cacheResidentTriggerBuffer(buffer, source: source, key: key)
         return buffer
     }
 
+    private func cacheResidentTriggerBuffer(
+        _ buffer: AVAudioPCMBuffer,
+        source: AVAudioPCMBuffer,
+        key: ResidentTriggerBufferKey
+    ) {
+        let bytesPerFrame = Int(buffer.format.streamDescription.pointee.mBytesPerFrame)
+        let channels = buffer.format.isInterleaved ? 1 : Int(buffer.format.channelCount)
+        let byteSize = Int(buffer.frameLength) * max(1, bytesPerFrame) * max(1, channels)
+        guard byteSize <= Self.residentTriggerBufferCacheBudgetBytes else { return }
+        residentTriggerBufferCacheLock.withLock {
+            if residentTriggerBufferCache[key] == nil {
+                residentTriggerBufferCache[key] = ResidentTriggerBufferCacheEntry(
+                    source: source,
+                    buffer: buffer,
+                    byteSize: byteSize
+                )
+                residentTriggerBufferCacheOrder.append(key)
+                residentTriggerBufferCacheBytes += byteSize
+            }
+            while (residentTriggerBufferCacheBytes > Self.residentTriggerBufferCacheBudgetBytes ||
+                   residentTriggerBufferCache.count > Self.residentTriggerBufferCacheEntryLimit),
+                  let oldest = residentTriggerBufferCacheOrder.first
+            {
+                residentTriggerBufferCacheOrder.removeFirst()
+                if let removed = residentTriggerBufferCache.removeValue(forKey: oldest) {
+                    residentTriggerBufferCacheBytes -= removed.byteSize
+                }
+            }
+        }
+    }
+
     func stopVoice(_ handle: VoiceHandle) {
-        withLifecycleLock {
+        let voice: AVAudioPlayerNode? = withLifecycleLock {
             for pool in trackVoicePools.values {
                 guard let index = pool.handles.firstIndex(of: handle.id) else {
                     continue
                 }
-                pool.voices[index].stop()
-                return
+                return pool.voices[index]
             }
             for pool in busVoicePools.values {
                 guard let index = pool.handles.firstIndex(of: handle.id) else {
                     continue
                 }
-                pool.voices[index].stop()
-                return
+                return pool.voices[index]
             }
+            return nil
+        }
+        if let voice {
+            withPlayerCommandLock { voice.stop() }
         }
     }
 
     func stopAllMainVoices() {
         let (pools, busPools) = withLifecycleLock { (Array(trackVoicePools.values), Array(busVoicePools.values)) }
-        for pool in pools {
-            for voice in pool.voices {
-                voice.stop()
+        withPlayerCommandLock {
+            for pool in pools {
+                for voice in pool.voices {
+                    voice.stop()
+                }
             }
-        }
-        for pool in busPools {
-            for voice in pool.voices {
-                voice.stop()
+            for pool in busPools {
+                for voice in pool.voices {
+                    voice.stop()
+                }
             }
         }
     }
@@ -1709,8 +1824,11 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
 
     @MainActor
     private func teardownTrackVoicePool(_ pool: TrackVoicePool) {
+        playerCommandLock.lock()
+        defer { playerCommandLock.unlock() }
         for voice in pool.voices {
             voice.stop()
+            voice.reset()
             // realtime-allow-graph-mutation: prepared route switch setup only, not tick dispatch. Test: RealtimePathLintTests.
             audioGraph.disconnectOutput(voice)
             // realtime-allow-graph-mutation: prepared route switch setup only, not tick dispatch. Test: RealtimePathLintTests.
@@ -1726,8 +1844,11 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
 
     @MainActor
     private func teardownBusVoicePool(_ pool: BusVoicePool) {
+        playerCommandLock.lock()
+        defer { playerCommandLock.unlock() }
         for voice in pool.voices {
             voice.stop()
+            voice.reset()
             // realtime-allow-graph-mutation: prepared route switch setup only, not tick dispatch. Test: RealtimePathLintTests.
             audioGraph.disconnectOutput(voice)
             // realtime-allow-graph-mutation: prepared route switch setup only, not tick dispatch. Test: RealtimePathLintTests.
@@ -2365,6 +2486,8 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
     /// flag under the lock.
     @MainActor
     private func repairPreparedTrackGraph(trackID: UUID, pool: TrackVoicePool) {
+        playerCommandLock.lock()
+        defer { playerCommandLock.unlock() }
         let started = ProcessInfo.processInfo.systemUptime
         var mutationCount = 0
         defer {
@@ -2388,6 +2511,8 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
             let voice = pool.voices[index]
             guard index < pool.voiceFilters.count else { continue }
             let filter = pool.voiceFilters[index]
+            voice.stop()
+            voice.reset()
             if outputConnectionExists(from: voice) {
                 // realtime-allow-graph-mutation: exceptional prepared graph repair only; normal playback uses fast path and logs repair. Test: RealtimePathLintTests.
                 audioGraph.disconnectOutput(voice)

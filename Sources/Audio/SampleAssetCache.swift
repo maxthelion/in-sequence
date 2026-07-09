@@ -31,12 +31,24 @@ final class PreparedSampleAsset: @unchecked Sendable {
         self.estimatedByteSize = Self.estimatedByteSize(file: file, pcmBuffer: pcmBuffer)
     }
 
+    func fileOnlyCopy() -> PreparedSampleAsset {
+        PreparedSampleAsset(
+            sampleID: sampleID,
+            name: name,
+            url: url,
+            fileIdentity: fileIdentity,
+            file: file,
+            pcmBuffer: nil
+        )
+    }
+
     private static func estimatedByteSize(file: AVAudioFile, pcmBuffer: AVAudioPCMBuffer?) -> Int {
         guard let pcmBuffer else {
             return 0
         }
-        let bytesPerFrame = Int(file.processingFormat.streamDescription.pointee.mBytesPerFrame)
-        return Int(pcmBuffer.frameLength) * max(1, bytesPerFrame)
+        let bytesPerFrame = Int(pcmBuffer.format.streamDescription.pointee.mBytesPerFrame)
+        let channelMultiplier = pcmBuffer.format.isInterleaved ? 1 : Int(pcmBuffer.format.channelCount)
+        return Int(pcmBuffer.frameLength) * max(1, bytesPerFrame) * max(1, channelMultiplier)
     }
 }
 
@@ -152,9 +164,15 @@ final class SampleAssetCache {
     func retain(sampleIDs: Set<UUID>) {
         lock.withLock {
             pinnedSampleIDs = sampleIDs
-            evictUnpinnedOverBudget()
+            enforceMemoryBudget()
         }
     }
+
+    #if DEBUG
+    var currentByteSizeForTesting: Int {
+        lock.withLock { currentByteSize }
+    }
+    #endif
 
     func removeAll() {
         lock.withLock {
@@ -193,7 +211,7 @@ final class SampleAssetCache {
                 return cached
             }
             let file = try fileOpener(url)
-            let buffer = Self.loadPCMBuffer(from: file)
+            let buffer = Self.loadPCMBuffer(from: file, maxResidentBytes: memoryBudgetBytes)
             file.framePosition = 0
             let asset = PreparedSampleAsset(
                 sampleID: sample.id,
@@ -203,7 +221,7 @@ final class SampleAssetCache {
                 file: file,
                 pcmBuffer: buffer
             )
-            lock.withLock {
+            let retainedAsset = lock.withLock { () -> PreparedSampleAsset? in
                 if let previous = entriesBySampleID[sample.id]?.asset {
                     currentByteSize -= previous.estimatedByteSize
                 }
@@ -213,7 +231,8 @@ final class SampleAssetCache {
                     lastAccessed: ProcessInfo.processInfo.systemUptime
                 )
                 currentByteSize += asset.estimatedByteSize
-                evictUnpinnedOverBudget()
+                enforceMemoryBudget()
+                return entriesBySampleID[sample.id]?.asset
             }
             SequencerTimingProbe.sampleAssetCacheLoad(
                 sampleID: sample.id,
@@ -222,7 +241,7 @@ final class SampleAssetCache {
                 frames: Int64(file.length),
                 result: buffer == nil ? "file-only" : "memory"
             )
-            return asset
+            return retainedAsset
         } catch {
             lock.withLock {
                 entriesBySampleID[sample.id] = CacheEntry(
@@ -242,12 +261,15 @@ final class SampleAssetCache {
         }
     }
 
-    private func evictUnpinnedOverBudget() {
+    private func enforceMemoryBudget() {
         guard currentByteSize > memoryBudgetBytes else { return }
-        let candidates = entriesBySampleID
-            .filter { !pinnedSampleIDs.contains($0.key) && $0.value.asset != nil }
+        let unpinnedCandidates = entriesBySampleID
+            .filter {
+                !pinnedSampleIDs.contains($0.key) &&
+                    ($0.value.asset?.estimatedByteSize ?? 0) > 0
+            }
             .sorted { $0.value.lastAccessed < $1.value.lastAccessed }
-        for candidate in candidates {
+        for candidate in unpinnedCandidates {
             guard currentByteSize > memoryBudgetBytes else { break }
             guard let asset = entriesBySampleID[candidate.key]?.asset else { continue }
             entriesBySampleID[candidate.key] = CacheEntry(
@@ -262,11 +284,51 @@ final class SampleAssetCache {
                 reason: "memory-budget"
             )
         }
+
+        // The budget is a real process-memory ceiling, not a promise that every
+        // active sample remains resident. If the pinned working set itself is
+        // too large, retain the prepared file metadata but demote least-recently
+        // used resident buffers to the explicit large/over-budget streaming
+        // path. This keeps active tracks functional without allowing pinned
+        // assets to grow memory without bound.
+        let pinnedCandidates = entriesBySampleID
+            .filter {
+                pinnedSampleIDs.contains($0.key) &&
+                    ($0.value.asset?.estimatedByteSize ?? 0) > 0
+            }
+            .sorted { $0.value.lastAccessed < $1.value.lastAccessed }
+        for candidate in pinnedCandidates {
+            guard currentByteSize > memoryBudgetBytes else { break }
+            guard let asset = entriesBySampleID[candidate.key]?.asset else { continue }
+            entriesBySampleID[candidate.key] = CacheEntry(
+                readiness: .ready,
+                asset: asset.fileOnlyCopy(),
+                lastAccessed: candidate.value.lastAccessed
+            )
+            currentByteSize -= asset.estimatedByteSize
+            SequencerTimingProbe.sampleAssetCacheEviction(
+                sampleID: candidate.key,
+                bytes: asset.estimatedByteSize,
+                reason: "pinned-working-set-over-budget"
+            )
+        }
     }
 
-    private static func loadPCMBuffer(from file: AVAudioFile) -> AVAudioPCMBuffer? {
+    private static func loadPCMBuffer(
+        from file: AVAudioFile,
+        maxResidentBytes: Int
+    ) -> AVAudioPCMBuffer? {
+        let bytesPerFrame = Int(file.processingFormat.streamDescription.pointee.mBytesPerFrame)
+        let channelMultiplier = file.processingFormat.isInterleaved
+            ? 1
+            : Int(file.processingFormat.channelCount)
+        let estimatedBytes = file.length.multipliedReportingOverflow(
+            by: AVAudioFramePosition(max(1, bytesPerFrame) * max(1, channelMultiplier))
+        )
         guard file.length > 0,
               file.length <= AVAudioFramePosition(AVAudioFrameCount.max),
+              !estimatedBytes.overflow,
+              estimatedBytes.partialValue <= AVAudioFramePosition(maxResidentBytes),
               let buffer = AVAudioPCMBuffer(
                   pcmFormat: file.processingFormat,
                   frameCapacity: AVAudioFrameCount(file.length)

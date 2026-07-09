@@ -162,6 +162,34 @@ final class SamplePlaybackEngineResidentBufferTests: XCTestCase {
         XCTAssertEqual(engine.fileSegmentScheduleCountForTesting, 0)
     }
 
+    func test_repeatedResidentSlice_reusesPreparedTriggerBuffer() throws {
+        guard let engine = makeEngine() else { throw XCTSkip("audio engine unavailable") }
+        defer { engine.stop() }
+        let trackID = UUID()
+        engine.prepareTrack(trackID: trackID)
+        let asset = try makeResidentAsset()
+
+        for _ in 0..<2 {
+            _ = engine.playSlice(
+                sampleAsset: asset,
+                startFrame: 256,
+                endFrame: 2_304,
+                settings: .default,
+                trackID: trackID,
+                at: nil,
+                reverse: false,
+                stepParameters: nil
+            )
+        }
+
+        XCTAssertEqual(engine.residentBufferScheduleCountForTesting, 2)
+        XCTAssertEqual(
+            engine.residentTriggerBufferBuildCountForTesting,
+            1,
+            "identical triggers must not allocate and copy a fresh PCM buffer each time"
+        )
+    }
+
     // MARK: - Warm-before-trigger
 
     /// Warm-before-trigger: when the slice's source is warmed (resident asset),
