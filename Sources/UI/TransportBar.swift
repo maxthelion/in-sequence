@@ -208,36 +208,54 @@ struct TransportBar: View {
         return engineController.effectiveCrossfader
     }
 
-    /// Compact read-only transport indicator: scene slots A and B with the
-    /// crossfader thumb showing the live x-fader position between them.
-    private func sceneCrossfaderIndicator(value: Double) -> some View {
+    /// Compact scene-perform launcher. The miniature crossfader preserves the
+    /// live A/B position while the whole control opens Phrase > Scenes.
+    private func sceneCrossfaderButton(value: Double) -> some View {
         let clamped = min(max(value, 0), 1)
         let trackWidth: CGFloat = 40
         let thumbWidth: CGFloat = 10
         let thumbHeight: CGFloat = 8
-        return HStack(spacing: 6) {
-            Text("A")
-                .studioText(.eyebrowBold)
-                .foregroundStyle(clamped <= 0.5 ? StudioTheme.transportAccent : StudioTheme.mutedText)
-            ZStack(alignment: .leading) {
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous)
-                    .fill(StudioTheme.border)
-                    .frame(width: trackWidth, height: 3)
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous)
-                    .fill(StudioTheme.text)
-                    .frame(width: thumbWidth, height: thumbHeight)
-                    .offset(x: CGFloat(clamped) * (trackWidth - thumbWidth))
+        let aPercent = Int(((1 - clamped) * 100).rounded())
+        let bPercent = Int((clamped * 100).rounded())
+        return Button {
+            session.requestScenePerform()
+        } label: {
+            HStack(spacing: 6) {
+                Text("A")
+                    .studioText(.eyebrowBold)
+                    .foregroundStyle(clamped <= 0.5 ? StudioTheme.transportAccent : StudioTheme.mutedText)
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous)
+                        .fill(StudioTheme.border)
+                        .frame(width: trackWidth, height: 3)
+                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous)
+                        .fill(StudioTheme.text)
+                        .frame(width: thumbWidth, height: thumbHeight)
+                        .offset(x: CGFloat(clamped) * (trackWidth - thumbWidth))
+                }
+                .frame(width: trackWidth, height: thumbHeight)
+                Text("B")
+                    .studioText(.eyebrowBold)
+                    .foregroundStyle(clamped >= 0.5 ? StudioTheme.transportAccent : StudioTheme.mutedText)
             }
-            .frame(width: trackWidth, height: thumbHeight)
-            Text("B")
-                .studioText(.eyebrowBold)
-                .foregroundStyle(clamped >= 0.5 ? StudioTheme.transportAccent : StudioTheme.mutedText)
+            .padding(.horizontal, 8)
+            .frame(height: 28)
+            .background(
+                StudioTheme.subtleFill,
+                in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                    .stroke(StudioTheme.transportAccent.opacity(StudioOpacity.mediumStroke), lineWidth: StudioMetrics.borderWidth)
+            )
+            .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
         }
+        .buttonStyle(.plain)
         .fixedSize()
-        .help("Scene crossfader — A \(Int(((1 - clamped) * 100).rounded()))% / B \(Int((clamped * 100).rounded()))%")
+        .help("Open scene perform — A \(aPercent)% / B \(bPercent)%")
         .accessibilityIdentifier("transport-scene-crossfader")
-        .accessibilityLabel("Scene crossfader")
-        .accessibilityValue("A \(Int(((1 - clamped) * 100).rounded())) percent, B \(Int((clamped * 100).rounded())) percent")
+        .accessibilityLabel("Open scene perform")
+        .accessibilityValue("A \(aPercent) percent, B \(bPercent) percent")
     }
 
     var body: some View {
@@ -315,10 +333,7 @@ struct TransportBar: View {
             .accessibilityIdentifier("transport-swing")
             .layoutPriority(2)
 
-            TransportModePicker(selection: transportModeBinding)
-                .layoutPriority(2)
-
-            phraseNavigationControl
+            transportPhraseChain
 
             Rectangle()
                 .fill(StudioTheme.border)
@@ -335,7 +350,7 @@ struct TransportBar: View {
             documentEditCommands
 
             if let crossfader = sceneCrossfaderValue {
-                sceneCrossfaderIndicator(value: crossfader)
+                sceneCrossfaderButton(value: crossfader)
             }
 
             Spacer()
@@ -380,29 +395,60 @@ struct TransportBar: View {
         engineController.setSwing(min(1, max(0, next)))
     }
 
+    private var transportPhraseChain: some View {
+        HStack(spacing: 0) {
+            TransportModePicker(selection: transportModeBinding)
+
+            transportChainDivider
+
+            phraseNavigationControl
+        }
+        .background(
+            StudioTheme.subtleFill,
+            in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+        .layoutPriority(2)
+    }
+
+    private var transportChainDivider: some View {
+        Rectangle()
+            .fill(StudioTheme.border)
+            .frame(width: 1, height: 28)
+            .accessibilityHidden(true)
+    }
+
     private var phraseNavigationControl: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 0) {
             // CURRENT phrase button: tap opens the phrase; embedded matrix icon
             // opens the launch grid to schedule a new phrase; a thin progress
             // bar runs along the bottom (no text).
             phraseButton(
                 title: phrasePresentation.currentName,
-                accent: StudioTheme.transportAccent,
                 isPrimary: phrasePresentation.hasCurrent,
                 openPhraseID: phrasePresentation.currentID,
                 showProgress: true
             )
 
-            // Chevron conveys "current → next".
-            Image(systemName: "chevron.compact.right")
-                .font(.system(size: 12, weight: .bold))
-                .foregroundStyle(StudioTheme.mutedText)
-                .accessibilityHidden(true)
+            HStack(spacing: 0) {
+                transportChainDivider
+
+                Image(systemName: "chevron.compact.right")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(StudioTheme.mutedText)
+                    .frame(width: 20, height: 28)
+                    .accessibilityHidden(true)
+
+                transportChainDivider
+            }
 
             // NEXT / QUEUED phrase button.
             phraseButton(
                 title: phrasePresentation.nextName,
-                accent: phrasePresentation.hasNext ? StudioTheme.transportAccent : StudioTheme.border,
                 isPrimary: phrasePresentation.hasNext,
                 openPhraseID: phrasePresentation.nextID,
                 showProgress: false
@@ -419,12 +465,10 @@ struct TransportBar: View {
             guard let command = notification.object as? String else { return }
             applyVisualPhraseNavigationCommand(command)
         }
-        .layoutPriority(1)
     }
 
     private func phraseButton(
         title: String,
-        accent: Color,
         isPrimary: Bool,
         openPhraseID: UUID?,
         showProgress: Bool
@@ -462,14 +506,9 @@ struct TransportBar: View {
                 .help("Schedule a phrase")
                 .accessibilityLabel("Schedule a phrase")
             }
-            .frame(width: 96, alignment: .leading)
             .padding(.horizontal, 8)
-            .padding(.top, 5)
-            .padding(.bottom, showProgress ? 6 : 5)
-            .background(
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                    .fill(StudioTheme.subtleFill)
-            )
+            .frame(width: 96, height: 28, alignment: .leading)
+            .background(showProgress && isPrimary ? StudioTheme.borderSubtleFill : Color.clear)
             .overlay(alignment: .bottom) {
                 if showProgress {
                     TransportPhraseProgressBar(phrase: currentPhrase)
@@ -477,11 +516,7 @@ struct TransportBar: View {
                         .padding(.bottom, 3)
                 }
             }
-            .overlay(
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                    .stroke(isPrimary ? accent.opacity(StudioOpacity.mediumStroke) : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
-            )
-            .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .disabled(phrases.isEmpty)
@@ -560,7 +595,7 @@ private struct TransportModePicker: View {
     @Binding var selection: TransportMode
 
     var body: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 0) {
             ForEach(TransportMode.allCases, id: \.self) { mode in
                 Button {
                     selection = mode
@@ -571,22 +606,18 @@ private struct TransportModePicker: View {
                         .studioText(.eyebrow)
                         .foregroundStyle(selection == mode ? StudioTheme.background : StudioTheme.mutedText)
                         .lineLimit(1)
-                        .fixedSize()
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 5)
-                        .background(
-                            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                                .fill(selection == mode ? StudioTheme.transportAccent : Color.clear)
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                                .stroke(selection == mode ? StudioTheme.transportAccent : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
-                        )
-                        // Unselected modes have a clear fill; pin the hit area to
-                        // the whole control so taps don't require the glyph.
-                        .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+                        .frame(width: 44, height: 28)
+                        .background(selection == mode ? StudioTheme.transportAccent : Color.clear)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+
+                if mode != TransportMode.allCases.last {
+                    Rectangle()
+                        .fill(StudioTheme.border)
+                        .frame(width: 1, height: 28)
+                        .accessibilityHidden(true)
+                }
             }
         }
         .accessibilityIdentifier("transport-mode")

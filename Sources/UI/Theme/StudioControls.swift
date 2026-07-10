@@ -237,10 +237,25 @@ struct StudioStepperButtons: View {
     let onDown: () -> Void
 
     var body: some View {
-        VStack(spacing: 2) {
+        VStack(spacing: 0) {
             stepButton(systemName: symbols.up, help: upHelp, action: onUp)
+
+            Rectangle()
+                .fill(StudioTheme.border)
+                .frame(height: 1)
+
             stepButton(systemName: symbols.down, help: downHelp, action: onDown)
         }
+        .frame(width: 18)
+        .background(
+            StudioTheme.subtleFill,
+            in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous)
+                .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous))
     }
 
     private func stepButton(systemName: String, help: String, action: @escaping () -> Void) -> some View {
@@ -249,16 +264,18 @@ struct StudioStepperButtons: View {
                 .font(.system(size: 8, weight: .black))
                 .foregroundStyle(StudioTheme.text)
                 .frame(width: 18, height: 13)
-                .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous)
-                        .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
-                )
                 .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(StudioStepperSegmentButtonStyle())
         .help(help)
         .accessibilityLabel(help)
+    }
+}
+
+private struct StudioStepperSegmentButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .background(configuration.isPressed ? StudioTheme.borderSubtleFill : Color.clear)
     }
 }
 
