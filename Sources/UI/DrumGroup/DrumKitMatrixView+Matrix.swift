@@ -58,10 +58,14 @@ extension DrumKitMatrixView {
         let memberID = fillPreviewMemberID(model)
         let isActive = memberID.map { session.isTrackFillPreviewActive(trackID: $0) } ?? false
         let isAvailable = memberID.map { session.isTrackFillPreviewAvailable(trackID: $0) } ?? false
+        let presentation = DrumKitFillModePresentation(
+            isAvailable: isAvailable,
+            requestedFill: isActive
+        )
         return StudioSegmentedControl(
             title: nil,
             selection: Binding(
-                get: { isActive },
+                get: { presentation.isFillSelected },
                 set: { newValue in
                     if let memberID { session.setTrackFillPreview(trackID: memberID, active: newValue) }
                 }
@@ -77,6 +81,11 @@ extension DrumKitMatrixView {
             ? "Switch all rows between NORMAL playback and the FILL lane preview"
             : "Fill preview is available for clip-backed kits only in v1")
         .accessibilityIdentifier("kit-fill-mode")
+        .task(id: isAvailable) {
+            if !isAvailable, isActive, let memberID {
+                session.setTrackFillPreview(trackID: memberID, active: false)
+            }
+        }
     }
 
     /// Shared chip geometry for the matrix top-bar value selectors (layer,

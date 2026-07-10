@@ -169,11 +169,12 @@ struct DrumKitMatrixRowView<DetailPanel: View>: View {
         StepGridView(
             stepStates: states,
             indexOffset: pageOffset,
-            accent: accent,
+            // Read-only is communicated by the badge and disabled interaction;
+            // active content remains fully opaque and neutral-white.
+            accent: StudioTheme.text,
             advanceStep: { _ in }
         )
         .allowsHitTesting(false)
-        .opacity(0.55)
     }
 
     private func cellContent(steps: [ClipStep], index: Int) -> StepCellContent {

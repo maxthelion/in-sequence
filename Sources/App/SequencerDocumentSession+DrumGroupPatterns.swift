@@ -32,9 +32,25 @@ extension SequencerDocumentSession {
         toGroup groupID: TrackGroupID,
         slotIndex: Int
     ) -> Bool {
-        batch(impact: .fullEngineApply, changed: .full) { s in
+        applyPatternTemplate(template, toGroup: groupID, slotIndexes: [slotIndex])
+    }
+
+    /// Apply one template to several transient kit targets as one document
+    /// mutation and one engine update. Active phrase pattern indexes are not
+    /// part of the mutation and therefore remain unchanged.
+    @discardableResult
+    func applyPatternTemplate(
+        _ template: PatternTemplate,
+        toGroup groupID: TrackGroupID,
+        slotIndexes: [Int]
+    ) -> Bool {
+        let targetSlotIndexes = Set(slotIndexes)
+            .filter { (0..<TrackPatternBank.slotCount).contains($0) }
+            .sorted()
+        guard !targetSlotIndexes.isEmpty else { return false }
+        return batch(impact: .fullEngineApply, changed: .full) { s in
             var p = s.exportToProject()
-            p.applyPatternTemplate(template, toGroup: groupID, slotIndex: slotIndex)
+            p.applyPatternTemplate(template, toGroup: groupID, slotIndexes: targetSlotIndexes)
             s.importFromProject(p)
         }
     }

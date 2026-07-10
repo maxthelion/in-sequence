@@ -1,5 +1,52 @@
 import Foundation
 
+/// Transient template-target selection for the kit pattern palette. It never
+/// enters the document: a normal secondary click replaces the target set,
+/// Shift-secondary-click adds to it, and an Apply request with no targets
+/// enters the visual prompt state instead of guessing at the active pattern.
+struct DrumKitPatternTargetSelection: Equatable {
+    private(set) var slotIndexes: Set<Int> = []
+    private(set) var isPrompting = false
+
+    mutating func select(slotIndex: Int, additive: Bool) {
+        guard (0..<TrackPatternBank.slotCount).contains(slotIndex) else { return }
+        if additive {
+            slotIndexes.insert(slotIndex)
+        } else {
+            slotIndexes = [slotIndex]
+        }
+        isPrompting = false
+    }
+
+    /// Returns whether the chooser should open now.
+    @discardableResult
+    mutating func requestTemplateChooser() -> Bool {
+        guard !slotIndexes.isEmpty else {
+            isPrompting = true
+            return false
+        }
+        isPrompting = false
+        return true
+    }
+
+    mutating func clear() {
+        slotIndexes = []
+        isPrompting = false
+    }
+}
+
+/// Keeps the segmented Fill control honest when its backing source becomes
+/// unavailable. A stale engine flag must not leave a disabled Fill segment
+/// looking selected.
+struct DrumKitFillModePresentation: Equatable {
+    let isAvailable: Bool
+    let requestedFill: Bool
+
+    var isFillSelected: Bool {
+        isAvailable && requestedFill
+    }
+}
+
 /// Pure value/derivation model for the kit matrix. Resolves a drum group's
 /// members into ordered rows, each carrying its active pattern slot's content
 /// (editable note grid, generator badge, or read-only source), plus the

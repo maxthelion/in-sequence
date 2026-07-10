@@ -16,10 +16,35 @@ import SwiftUI
 @MainActor
 final class DrumKitMatrixEditingTests: XCTestCase {
 
-    func test_barPagerUsesCompactOneBasedBarLabels() {
-        XCTAssertEqual(DrumKitMatrixView.barPageTitle(0), "1")
-        XCTAssertEqual(DrumKitMatrixView.barPageTitle(1), "2")
-        XCTAssertEqual(DrumKitMatrixView.barPageTitle(3), "4")
+    func test_templateTargetSelection_promptsReplacesAndAdds() {
+        var selection = DrumKitPatternTargetSelection()
+
+        XCTAssertFalse(selection.requestTemplateChooser())
+        XCTAssertTrue(selection.isPrompting)
+
+        selection.select(slotIndex: 2, additive: false)
+        XCTAssertEqual(selection.slotIndexes, [2])
+        XCTAssertFalse(selection.isPrompting)
+        XCTAssertTrue(selection.requestTemplateChooser())
+
+        selection.select(slotIndex: 5, additive: true)
+        XCTAssertEqual(selection.slotIndexes, [2, 5])
+
+        selection.select(slotIndex: 1, additive: false)
+        XCTAssertEqual(selection.slotIndexes, [1])
+
+        selection.clear()
+        XCTAssertTrue(selection.slotIndexes.isEmpty)
+        XCTAssertFalse(selection.isPrompting)
+    }
+
+    func test_fillPresentation_fallsBackToNormalWhenUnavailable() {
+        XCTAssertFalse(
+            DrumKitFillModePresentation(isAvailable: false, requestedFill: true).isFillSelected
+        )
+        XCTAssertTrue(
+            DrumKitFillModePresentation(isAvailable: true, requestedFill: true).isFillSelected
+        )
     }
 
     func test_matrixLayerMenuExposesEveryEditableLayerInOrder() {
@@ -529,6 +554,48 @@ final class DrumKitMatrixEditingTests: XCTestCase {
         XCTAssertEqual(
             noteGridMainStepPattern(try XCTUnwrap(slotContent(session, trackID: memberIDs[1], slotIndex: 0))),
             template.patterns["snare"]
+        )
+    }
+
+    func test_applyPatternTemplate_multiSlotIsAtomicAndLeavesActivePatternUnchanged() throws {
+        let (session, box) = makeSession()
+        let template = DrumKitFixtures.factoryTemplate(named: "808")
+        let groupID = makeDrumGroup(in: session)
+        let memberIDs = try XCTUnwrap(
+            session.store.trackGroups.first(where: { $0.id == groupID })?.memberIDs
+        )
+        session.setDrumGroupSelectedPatternIndex(5, groupID: groupID)
+        session.flushToDocumentSync()
+        let documentBefore = box.document.project
+
+        let changed = session.applyPatternTemplate(
+            template,
+            toGroup: groupID,
+            slotIndexes: [1, 3, 3]
+        )
+
+        XCTAssertTrue(changed)
+        XCTAssertEqual(box.document.project, documentBefore)
+        XCTAssertEqual(
+            memberIDs.map { session.store.selectedPatternIndex(for: $0) },
+            Array(repeating: 5, count: memberIDs.count)
+        )
+
+        for slotIndex in [1, 3] {
+            for (memberID, tag) in zip(memberIDs, ["kick", "snare", "hat-closed"]) {
+                XCTAssertEqual(
+                    noteGridMainStepPattern(
+                        try XCTUnwrap(slotContent(session, trackID: memberID, slotIndex: slotIndex))
+                    ),
+                    template.patterns[tag]
+                )
+            }
+        }
+
+        session.flushToDocumentSync()
+        XCTAssertEqual(
+            memberIDs.map { box.document.project.selectedPatternIndex(for: $0) },
+            Array(repeating: 5, count: memberIDs.count)
         )
     }
 

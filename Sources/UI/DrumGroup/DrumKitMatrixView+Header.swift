@@ -45,9 +45,11 @@ extension DrumKitMatrixView {
 
                 if let model, !model.rows.isEmpty {
                     headerActionButton(title: "Apply Template", systemImage: "square.grid.2x2") {
-                        isPresentingTemplateChooser = true
+                        if patternTemplateTargets.requestTemplateChooser() {
+                            isPresentingTemplateChooser = true
+                        }
                     }
-                    .help("Apply a pattern template into pattern slot P\((model.groupSelectedSlotIndex ?? 0) + 1)")
+                    .help(templateApplyHelp)
                 }
 
                 captureButton
@@ -71,13 +73,14 @@ extension DrumKitMatrixView {
     /// kit supports only KIT-level patterns, so the former Linked / MIXED /
     /// Re-link controls are gone — selecting a slot applies it across the kit.
     func headerPatternPalette(_ model: DrumKitMatrixModel) -> some View {
-        TrackPatternSlotPalette(
+        let isCaptureDestination = isCaptureOpen && isSelectingCaptureSaveSlot
+        return TrackPatternSlotPalette(
             selectedSlot: groupPatternSlotBinding(model),
             occupiedSlots: model.occupiedSlotIndexes,
             bypassState: .notApplicable,
             onBypassToggle: { _ in },
             accent: accent,
-            destinationMode: isCaptureOpen && isSelectingCaptureSaveSlot
+            destinationMode: isCaptureDestination
                 ? TrackPatternSlotPalette.DestinationMode(
                     pendingReplaceSlot: historyTargetSlotIndex(model),
                     accent: accent
@@ -85,8 +88,26 @@ extension DrumKitMatrixView {
                 : nil,
             onDestinationSelect: { slotIndex in
                 saveKitHistoryClipSet(model, slotIndex: slotIndex)
+            },
+            targetMode: isCaptureDestination
+                ? nil
+                : TrackPatternSlotPalette.TargetMode(
+                    selectedSlots: patternTemplateTargets.slotIndexes,
+                    isPrompting: patternTemplateTargets.isPrompting,
+                    accent: accent
+                ),
+            onTargetSelect: { slotIndex, additive in
+                patternTemplateTargets.select(slotIndex: slotIndex, additive: additive)
             }
         )
+    }
+
+    private var templateApplyHelp: String {
+        let slots = patternTemplateTargets.slotIndexes.sorted().map { "P\($0 + 1)" }
+        guard !slots.isEmpty else {
+            return "Select template targets with right-click; hold Shift to add"
+        }
+        return "Choose a template for \(slots.joined(separator: ", "))"
     }
 
     func headerActionButton(
@@ -179,48 +200,85 @@ extension DrumKitMatrixView {
         .accessibilityLabel("Perform kit")
     }
 
-    /// Bar pager: one numbered chip per 16-step bar, shown only when
-    /// the kit's longest row spans more than one bar. Selecting a page moves the
-    /// visible 16-step window for every part row in lockstep. Locked grammar:
-    /// a VALUE selector — the shared inset-track solid-thumb control INSIDE
-    /// the well, with the BAR eyebrow beside the track (prototype 09).
-    @ViewBuilder
+    /// Fixed eight-indicator bar pager. Clips shorter than 128 steps keep the
+    /// same compact footprint with unavailable bars dimmed. Legacy longer clips
+    /// retain access through eight-bar banks selected by the chevrons.
     func barPager(_ model: DrumKitMatrixModel) -> some View {
-        // Scan the rows for the longest length ONCE, then reuse it for both the
-        // page count and the clamped current page.
         let longest = longestRowLength(model)
         let pageCount = barPageCount(longestRowLength: longest)
-        if pageCount > 1 {
-            let current = clampedPage(longestRowLength: longest)
-            HStack(spacing: 6) {
-                Text("BAR")
-                    .studioText(.eyebrow)
-                    .tracking(0.8)
-                    .foregroundStyle(StudioTheme.mutedText)
+        let current = clampedPage(longestRowLength: longest)
+        let indicators = DrumKitBarPaging.indicators(pageCount: pageCount, currentPage: current)
+        let previousBank = DrumKitBarPaging.previousBankPage(currentPage: current)
+        let nextBank = DrumKitBarPaging.nextBankPage(pageCount: pageCount, currentPage: current)
 
-                StudioSegmentedControl(
-                    title: nil,
-                    selection: Binding(
-                        get: { current },
-                        set: { barPage = $0 }
-                    ),
-                    segments: (0..<pageCount).map { page in
-                        let title = Self.barPageTitle(page)
-                        return StudioSegment(
-                            title: title,
-                            value: page,
-                            accessibilityLabel: "Bar \(title)",
-                            help: "Show bar \(title)"
-                        )
-                    },
-                    accent: accent,
-                    layout: Self.matrixSelectorLayout(minWidth: 56)
-                )
+        return HStack(spacing: 6) {
+            Text("BAR")
+                .studioText(.eyebrow)
+                .tracking(0.8)
+                .foregroundStyle(StudioTheme.mutedText)
+
+            if pageCount > DrumKitBarPaging.indicatorCount {
+                barBankButton(systemImage: "chevron.left", targetPage: previousBank)
+            }
+
+            HStack(spacing: 4) {
+                ForEach(indicators, id: \.page) { indicator in
+                    Button {
+                        barPage = indicator.page
+                    } label: {
+                        RoundedRectangle(cornerRadius: 3, style: .continuous)
+                            .fill(barIndicatorFill(indicator.state))
+                            .frame(width: 18, height: 7)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(indicator.state == .unavailable)
+                    .help(indicator.state == .unavailable
+                        ? "Bar \(indicator.page + 1) is unavailable"
+                        : "Show bar \(indicator.page + 1)")
+                    .accessibilityLabel("Bar \(indicator.page + 1)")
+                    .accessibilityValue(barIndicatorAccessibilityValue(indicator.state))
+                }
+            }
+
+            if pageCount > DrumKitBarPaging.indicatorCount {
+                barBankButton(systemImage: "chevron.right", targetPage: nextBank)
             }
         }
     }
 
-    static func barPageTitle(_ page: Int) -> String {
-        "\(page + 1)"
+    private func barIndicatorFill(_ state: DrumKitBarPaging.Indicator.State) -> Color {
+        switch state {
+        case .current:
+            return accent
+        case .available:
+            return StudioTheme.neutral
+        case .unavailable:
+            return StudioTheme.disabledSubtleFill
+        }
+    }
+
+    private func barIndicatorAccessibilityValue(_ state: DrumKitBarPaging.Indicator.State) -> String {
+        switch state {
+        case .current:
+            return "Current"
+        case .available:
+            return "Available"
+        case .unavailable:
+            return "Unavailable"
+        }
+    }
+
+    private func barBankButton(systemImage: String, targetPage: Int?) -> some View {
+        Button {
+            if let targetPage { barPage = targetPage }
+        } label: {
+            Image(systemName: systemImage)
+                .font(.system(size: 9, weight: .bold))
+                .frame(width: 16, height: 16)
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(targetPage == nil ? StudioTheme.mutedText : StudioTheme.text)
+        .disabled(targetPage == nil)
+        .help(systemImage == "chevron.left" ? "Previous eight bars" : "Next eight bars")
     }
 }

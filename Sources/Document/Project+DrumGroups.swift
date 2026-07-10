@@ -261,9 +261,25 @@ extension Project {
         toGroup groupID: TrackGroupID,
         slotIndex: Int
     ) {
+        applyPatternTemplate(template, toGroup: groupID, slotIndexes: [slotIndex])
+    }
+
+    /// Multi-target form used by the kit matrix. Every selected slot is
+    /// updated inside the caller's one document/session batch; invalid and
+    /// duplicate indexes are ignored. This never changes phrase pattern
+    /// selection, so applying to background slots leaves playback untouched.
+    mutating func applyPatternTemplate(
+        _ template: PatternTemplate,
+        toGroup groupID: TrackGroupID,
+        slotIndexes: [Int]
+    ) {
         guard let group = trackGroups.first(where: { $0.id == groupID }) else {
             return
         }
+        let targetSlotIndexes = Set(slotIndexes)
+            .filter { (0..<TrackPatternBank.slotCount).contains($0) }
+            .sorted()
+        guard !targetSlotIndexes.isEmpty else { return }
 
         var consumedTags = Set<VoiceTag>()
         for memberID in group.memberIDs {
@@ -279,21 +295,23 @@ extension Project {
             // occurrence is skipped because its slot holds a generator.
             consumedTags.insert(tag)
 
-            guard patternBank(for: memberID).slot(at: slotIndex).sourceRef.mode != .generator else {
-                continue
-            }
+            for slotIndex in targetSlotIndexes {
+                guard patternBank(for: memberID).slot(at: slotIndex).sourceRef.mode != .generator else {
+                    continue
+                }
 
-            let clip = ClipPoolEntry(
-                id: UUID(),
-                name: track.name,
-                trackType: .monoMelodic,
-                content: .stepSequence(
-                    stepPattern: stepPattern,
-                    pitches: [DrumKitNoteMap.baselineNote]
+                let clip = ClipPoolEntry(
+                    id: UUID(),
+                    name: track.name,
+                    trackType: .monoMelodic,
+                    content: .stepSequence(
+                        stepPattern: stepPattern,
+                        pitches: [DrumKitNoteMap.baselineNote]
+                    )
                 )
-            )
-            clipPool.append(clip)
-            setPatternClipID(clip.id, for: memberID, slotIndex: slotIndex)
+                clipPool.append(clip)
+                setPatternClipID(clip.id, for: memberID, slotIndex: slotIndex)
+            }
         }
     }
 }

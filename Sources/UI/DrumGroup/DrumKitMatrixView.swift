@@ -243,6 +243,7 @@ struct DrumKitMatrixView: View {
     @State var isLayerSwitcherOpen = false
     @State var isPresentingRoutingEditor = false
     @State var isPresentingTemplateChooser = false
+    @State var patternTemplateTargets = DrumKitPatternTargetSelection()
     /// Which kit-bus tab is shown (Matrix · FX · Macros · Mixer). Ignored while
     /// `isCaptureOpen` is true — Capture replaces the tab body (AC14 header).
     @State var kitTab: DrumKitTab = .matrix
@@ -438,6 +439,7 @@ struct DrumKitMatrixView: View {
             postRenderedVisualState(isVisible: true)
         }
         .onChange(of: navigationState) {
+            patternTemplateTargets.clear()
             postRenderedVisualState(isVisible: true)
         }
         .onReceive(NotificationCenter.default.publisher(for: .drumKitMatrixVisualCommand)) { notification in
@@ -490,7 +492,7 @@ struct DrumKitMatrixView: View {
            let group = session.store.trackGroups.first(where: { $0.id == model.groupID }) {
             DrumKitTemplateChooserSheet(
                 groupName: model.groupName,
-                targetSlotIndex: model.groupSelectedSlotIndex ?? model.rows.first?.patternSlotIndex ?? 0,
+                targetSlotIndexes: patternTemplateTargets.slotIndexes.sorted(),
                 accent: accent,
                 previewProvider: { template, slotIndex in
                     PatternTemplateApplicationPreview(
@@ -502,8 +504,9 @@ struct DrumKitMatrixView: View {
                         slotIndex: slotIndex
                     )
                 },
-                onApply: { template, slotIndex in
-                    session.applyPatternTemplate(template, toGroup: group.id, slotIndex: slotIndex)
+                onApply: { template, slotIndexes in
+                    session.applyPatternTemplate(template, toGroup: group.id, slotIndexes: slotIndexes)
+                    patternTemplateTargets.clear()
                     isPresentingTemplateChooser = false
                 },
                 onCancel: {
