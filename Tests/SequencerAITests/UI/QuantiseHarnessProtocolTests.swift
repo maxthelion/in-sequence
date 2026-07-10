@@ -180,6 +180,28 @@ final class QuantiseHarnessProtocolTests: XCTestCase {
         )
     }
 
+    func test_randomizeRerollAndCloseKeepTheAppliedClip() throws {
+        let fixture = makeFixture()
+        apply(["trackFillSource": "clip", "trackRandomizeRoll": "on"], fixture: fixture)
+        let pattern = fixture.session.store.selectedPattern(for: fixture.session.store.selectedTrackID)
+        let clipID = try XCTUnwrap(pattern.sourceRef.clipID)
+        let first = try XCTUnwrap(fixture.session.store.clipEntry(id: clipID)?.randomizeSettings)
+
+        apply(["trackRandomizeRoll": "on"], fixture: fixture)
+        let rerolled = try XCTUnwrap(fixture.session.store.clipEntry(id: clipID)?.randomizeSettings)
+        XCTAssertNotEqual(rerolled.lastSeed, first.lastSeed, "Re-Roll must apply a fresh deterministic harness seed.")
+
+        apply(["trackRandomizeSheet": "open"], fixture: fixture)
+        apply(["trackRandomizeSheet": "close"], fixture: fixture)
+
+        XCTAssertEqual(
+            fixture.session.store.clipEntry(id: clipID)?.randomizeSettings,
+            rerolled,
+            "Close dismisses the panel without rolling back the already-applied clip."
+        )
+        XCTAssertEqual(try statusDictionary(fixture: fixture)["trackRandomizeSheet"], "closed")
+    }
+
     func test_trackClipLayerCommandsAreViewStateOnlyAndReportStatus() throws {
         let fixture = makeFixture()
         apply(["trackFillSource": "clip"], fixture: fixture)

@@ -16,6 +16,14 @@ import SwiftUI
 @MainActor
 final class DrumKitMatrixEditingTests: XCTestCase {
 
+    func test_visualCommandParsesDeterministicStepSelection() {
+        XCTAssertEqual(
+            DrumKitVisualCommand(rawValue: "select-step:0:2"),
+            .selectStep(memberIndex: 0, stepIndex: 2)
+        )
+        XCTAssertNil(DrumKitVisualCommand(rawValue: "select-step:bad:2"))
+    }
+
     // MARK: - Helpers
 
     private final class DocumentBox {

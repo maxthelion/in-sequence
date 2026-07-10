@@ -48,6 +48,7 @@ enum DrumKitVisualCommand: Equatable {
     case back
     case expandPart(index: Int)
     case selectIndex(index: Int)
+    case selectStep(memberIndex: Int, stepIndex: Int)
     case layer(DrumKitMatrixLayer)
     case fillMode(Bool)
     case bar(page: Int)
@@ -94,6 +95,8 @@ enum DrumKitVisualCommand: Equatable {
                 self = .expandPart(index: index)
             } else if let index = Self.intArgument(rawValue, prefix: "select-index:") {
                 self = .selectIndex(index: index)
+            } else if let selection = Self.stepSelection(rawValue) {
+                self = .selectStep(memberIndex: selection.memberIndex, stepIndex: selection.stepIndex)
             } else if rawValue.hasPrefix("layer:"),
                       let layer = DrumKitMatrixLayer(rawValue: String(rawValue.dropFirst("layer:".count))) {
                 self = .layer(layer)
@@ -121,6 +124,16 @@ enum DrumKitVisualCommand: Equatable {
               let value = Int(rawArgument)
         else { return nil }
         return value
+    }
+
+    private static func stepSelection(_ rawValue: String) -> (memberIndex: Int, stepIndex: Int)? {
+        let parts = rawValue.split(separator: ":")
+        guard parts.count == 3,
+              parts[0] == "select-step",
+              let memberIndex = Int(parts[1]),
+              let stepIndex = Int(parts[2])
+        else { return nil }
+        return (memberIndex, stepIndex)
     }
 }
 
@@ -237,6 +250,13 @@ extension DrumKitMatrixView {
         case let .selectIndex(index):
             if let model, model.rows.indices.contains(index) {
                 onSelectPart(model.rows[index].memberID)
+                postRenderedVisualState(isVisible: true)
+            }
+        case let .selectStep(memberIndex, stepIndex):
+            if let model,
+               model.rows.indices.contains(memberIndex),
+               stepIndex >= 0 {
+                toggleStepSelection(row: model.rows[memberIndex], stepIndex: stepIndex)
                 postRenderedVisualState(isVisible: true)
             }
         case let .layer(layer):

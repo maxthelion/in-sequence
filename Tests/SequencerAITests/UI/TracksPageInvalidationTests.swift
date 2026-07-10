@@ -371,6 +371,43 @@ final class TracksPageInvalidationTests: XCTestCase {
         )
     }
 
+    func test_trackNavigatorCardEdgeTogglesSelectionThroughHostedUI() throws {
+        let harness = try makeHarness(mode: .setup)
+        defer { harness.window.close() }
+        let firstTrackID = try XCTUnwrap(harness.session.store.tracks.first?.id)
+        harness.session.tracksSelectionMode = true
+        harness.session.tracksSelection.removeAll()
+        drainMainRunLoop(seconds: 0.05)
+
+        harness.window.makeKeyAndOrderFront(nil)
+        drainMainRunLoop(seconds: 0.02)
+        click(host: harness.hostingView, window: harness.window, at: NSPoint(x: 12, y: 90))
+
+        XCTAssertTrue(
+            harness.session.tracksSelection.contains(firstTrackID),
+            "A click near the visible card's left edge must select the card, not fall through its padding."
+        )
+    }
+
+    private func click(host: NSView, window: NSWindow, at point: NSPoint) {
+        let location = host.convert(point, to: nil)
+        for type in [NSEvent.EventType.leftMouseDown, .leftMouseUp] {
+            guard let event = NSEvent.mouseEvent(
+                with: type,
+                location: location,
+                modifierFlags: [],
+                timestamp: ProcessInfo.processInfo.systemUptime,
+                windowNumber: window.windowNumber,
+                context: nil,
+                eventNumber: 0,
+                clickCount: 1,
+                pressure: type == .leftMouseDown ? 1 : 0
+            ) else { continue }
+            window.sendEvent(event)
+        }
+        drainMainRunLoop(seconds: 0.02)
+    }
+
     func test_generatorTriggerEditorExposesEuclideanControlsWithoutManualOrDisclosure() throws {
         let source = try String(
             contentsOf: repoRoot.appendingPathComponent("Sources/UI/TrackSource/Generator/StepAlgoEditor.swift"),

@@ -87,8 +87,9 @@ CAPTURES=$(cat <<'TABLE'
 01b-transport-swing-set|workspace=phrase,swing=0.4|workspace=phrase;swing=0.4;transport=stop
 02-tracks-navigator|workspace=tracks,tracksSelectionMode=off,swing=0.0|workspace=tracks;tracksSelectionMode=off;swing=0;transport=stop
 02a-tracks-selection-actions|workspace=tracks,tracksSelectionMode=on,tracksSelectionCount=1|workspace=tracks;tracksSelectionMode=on;tracksClearSelection=true;tracksSelect=first;tracksPrimeClipboard=true;transport=stop
-02aa-tracks-filter-drum-kits|workspace=tracks,tracksFilter=drumKits|workspace=tracks;tracksSelectionMode=off;tracksFilter=drumKits;transport=stop
-02ab-tracks-filter-drum-parts|workspace=tracks,tracksFilter=drumParts|workspace=tracks;tracksSelectionMode=off;tracksFilter=drumParts;transport=stop
+02aa-tracks-filter-drum-kits|workspace=tracks,tracksFilter=drumKits,drumGroup0MemberCount=4|workspace=tracks;tracksSelectionMode=off;createDefault808=all;tracksFilter=drumKits;transport=stop
+02ab-tracks-filter-drum-parts|workspace=tracks,tracksFilter=drumParts,drumGroup0MemberCount=4|workspace=tracks;tracksSelectionMode=off;tracksFilter=drumParts;transport=stop
+02ac-tracks-filter-all|workspace=tracks,tracksFilter=all,drumGroup0MemberCount=4|workspace=tracks;tracksSelectionMode=off;tracksFilter=all;transport=stop
 02b-tracks-layer-perform-nav|workspace=phrase,phraseWorkspaceTab=layers,performScopeCount=1|workspace=tracks;tracksSelectionMode=on;tracksClearSelection=true;tracksSelect=first;tracksAction=layerPerform;transport=stop
 02c-create-track-modal|workspace=tracks,tracksCreateTrackModalVisible=true|workspace=tracks;tracksCreateTrackModal=open;transport=stop
 02d-add-drum-group-modal|workspace=tracks,tracksAddDrumGroupModalVisible=true,tracksAddDrumGroupFixture=blank|workspace=tracks;tracksFilter=all;tracksAddDrumGroupModal=open;tracksAddDrumGroupFixture=blank;transport=stop
@@ -161,7 +162,7 @@ CAPTURES=$(cat <<'TABLE'
 # 22h RETIRED: the chord-following command currently mutates generator state but
 # does not expose a distinct visual from 22g in the Source tab.
 23-track-slicer|workspace=track,selectedTrackType=slice|addTrack=slice;transport=stop
-23a-track-slicer-populated|workspace=track,selectedTrackType=slice,slicerFixture=populated,slicerSliceCount=8,slicerClipStepCount=16,slicerClipActiveStepCount=8,slicerLayer=steps|slicerFixture=populated;slicerLayer=steps;workspaceScroll=top;transport=stop
+23a-track-slicer-populated|workspace=track,selectedTrackType=slice,slicerFixture=populated,slicerSliceCount=8,slicerClipStepCount=16,slicerClipActiveStepCount=8,slicerLayer=steps|slicerFixture=populated;slicerLayer=steps;slicerSelectStep=2;workspaceScroll=top;transport=stop
 23b-track-slicer-velocity-layer|workspace=track,selectedTrackType=slice,slicerFixture=populated,slicerSliceCount=8,slicerLayer=velocity|slicerFixture=populated;slicerLayer=velocity;workspaceScroll=bottom;transport=stop
 23ba-track-slicer-length-layer|workspace=track,selectedTrackType=slice,slicerFixture=populated,slicerSliceCount=8,slicerLayer=gate|slicerFixture=populated;slicerLayer=gate;workspaceScroll=bottom;transport=stop
 23c-track-slicer-chance-layer|workspace=track,selectedTrackType=slice,slicerFixture=populated,slicerSliceCount=8,slicerLayer=chance|slicerFixture=populated;slicerLayer=chance;workspaceScroll=bottom;transport=stop
@@ -192,7 +193,7 @@ CAPTURES=$(cat <<'TABLE'
 27c-audio-playback|workspace=track,audioInputArmState=hasLoop,audioInputMonitorMode=loop,audioInputTab=source|audioInputState=playback;audioInputTab=source;transport=stop
 # 28b RETIRED: the default kit route now lands on the same kit matrix surface
 # as 29; keep the explicit kit-matrix row as the canonical capture.
-29-drum-kit-matrix|workspace=track,drumKitMatrixRenderedVisible=true|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;transport=stop
+29-drum-kit-matrix|workspace=track,drumKitMatrixRenderedVisible=true|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixCommand=select-step:0:2;transport=stop
 29e-drum-kit-matrix-fill-lane|workspace=track,drumKitMatrixRenderedVisible=true,drumKitMatrixRenderedFillMode=fill|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixCommand=fill-mode:fill;transport=stop
 # 30 RETIRED: the kit-matrix 16/32 display toggle was removed; the view ignores
 # `display-32`, so this row duplicated row 29 while failing its status wait.
