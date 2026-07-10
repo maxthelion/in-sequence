@@ -288,7 +288,7 @@ extension DrumKitMatrixView {
             }
         case let .templateTarget(slotIndex, additive):
             clearDrumStepSelection()
-            patternTemplateTargets.select(slotIndex: slotIndex, additive: additive)
+            patternTemplateTargets.set(slotIndex: slotIndex, additive: additive)
             postRenderedVisualState(isVisible: true)
         case .templateTargetPrompt:
             clearDrumStepSelection()

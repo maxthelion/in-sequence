@@ -39,6 +39,12 @@ final class DrumKitMatrixEditingTests: XCTestCase {
         selection.select(slotIndex: 1, additive: false)
         XCTAssertTrue(selection.slotIndexes.isEmpty)
 
+        selection.set(slotIndex: 3, additive: false)
+        selection.set(slotIndex: 3, additive: false)
+        selection.set(slotIndex: 6, additive: true)
+        selection.set(slotIndex: 6, additive: true)
+        XCTAssertEqual(selection.slotIndexes, [3, 6])
+
         selection.clear()
         XCTAssertTrue(selection.slotIndexes.isEmpty)
         XCTAssertFalse(selection.isPrompting)

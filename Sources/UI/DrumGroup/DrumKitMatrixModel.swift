@@ -15,6 +15,19 @@ struct DrumKitPatternTargetSelection: Equatable {
         isPrompting = false
     }
 
+    /// Deterministic fixture/setup selection. Unlike the user gesture above,
+    /// replaying the same command is intentionally idempotent because visual
+    /// commands may be posted more than once while a surface mounts.
+    mutating func set(slotIndex: Int, additive: Bool) {
+        guard (0..<TrackPatternBank.slotCount).contains(slotIndex) else { return }
+        if additive {
+            slotIndexes.insert(slotIndex)
+        } else {
+            slotIndexes = [slotIndex]
+        }
+        isPrompting = false
+    }
+
     /// Returns whether the chooser should open now.
     @discardableResult
     mutating func requestTemplateChooser() -> Bool {
