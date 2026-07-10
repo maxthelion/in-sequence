@@ -18,11 +18,12 @@ final class GeneratorPoolEntryTests: XCTestCase {
         XCTAssertEqual(polyEntry?.kind, .polyGenerator)
     }
 
-    func test_default_pool_includes_progression_chord_generator() {
-        let progressionEntry = GeneratorPoolEntry.defaultPool.first(where: { $0.kind == .progressionChordGenerator })
+    func test_default_pool_includes_chord_track_generator_not_legacy_progression() {
+        let chordEntry = GeneratorPoolEntry.defaultPool.first(where: { $0.kind == .chordGenerator })
 
-        XCTAssertEqual(progressionEntry?.trackType, .polyMelodic)
-        XCTAssertEqual(progressionEntry?.name, "Progression Chords")
+        XCTAssertEqual(chordEntry?.trackType, .chord)
+        XCTAssertEqual(chordEntry?.name, "Random Chords")
+        XCTAssertFalse(GeneratorPoolEntry.defaultPool.contains { $0.kind == .progressionChordGenerator })
     }
 
     func test_default_poly_generator_has_active_steps() {
@@ -117,5 +118,21 @@ final class GeneratorPoolEntryTests: XCTestCase {
         XCTAssertEqual(roundTripTrigger, .native(.defaultMono))
         XCTAssertEqual(pitches, [.native(.pool(root: 65, scale: .naturalMinor, spread: 12, selection: .balanced, deviation: .none))])
         XCTAssertEqual(shape.velocity, 88)
+    }
+
+    func test_legacy_progression_entry_round_trips_without_conversion() throws {
+        let legacy = GeneratorPoolEntry(
+            id: UUID(),
+            name: "Legacy Progression",
+            trackType: .polyMelodic,
+            kind: .progressionChordGenerator,
+            params: .progressionChords(.default)
+        )
+
+        let data = try JSONEncoder().encode(legacy)
+        let decoded = try JSONDecoder().decode(GeneratorPoolEntry.self, from: data)
+
+        XCTAssertEqual(decoded, legacy)
+        XCTAssertFalse(decoded.kind.isCreatable)
     }
 }

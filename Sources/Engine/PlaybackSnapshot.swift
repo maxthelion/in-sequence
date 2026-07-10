@@ -16,6 +16,11 @@ struct ResolvedTrackDestination: Equatable, Sendable {
     let pitchOffset: Int
 }
 
+struct ChordGeneratorPlaybackKey: Equatable, Hashable, Sendable {
+    let trackID: UUID
+    let generatorID: UUID
+}
+
 struct PlaybackSnapshot: Equatable, Sendable {
     // NOTE: `project` has been removed. The tick path reads typed fields only.
     // Phase 1b of the live-store v2 remediation.
@@ -23,6 +28,9 @@ struct PlaybackSnapshot: Equatable, Sendable {
     let clipPool: [ClipPoolEntry]
     let sliceSetPool: [SliceSet]
     let generatorPool: [GeneratorPoolEntry]
+    /// Palette slots resolved to immutable pitches during compilation. The
+    /// evaluator never reaches into live UI or store state.
+    let chordGeneratorChoicesByKey: [ChordGeneratorPlaybackKey: [ResolvedChordGeneratorChoice]]
     /// Ordered track list, carried from `LiveSequencerStoreState.tracks`.
     /// The tick path iterates this instead of `currentDocumentModel.tracks` (Phase 1b).
     let tracks: [StepSequenceTrack]
@@ -43,6 +51,12 @@ struct PlaybackSnapshot: Equatable, Sendable {
     func generatorEntry(id: UUID?) -> GeneratorPoolEntry? {
         guard let id else { return nil }
         return generatorPool.first(where: { $0.id == id })
+    }
+
+    func chordGeneratorChoices(trackID: UUID, generatorID: UUID) -> [ResolvedChordGeneratorChoice] {
+        chordGeneratorChoicesByKey[
+            ChordGeneratorPlaybackKey(trackID: trackID, generatorID: generatorID)
+        ] ?? []
     }
 
     func sliceSet(id: UUID?) -> SliceSet? {
@@ -67,6 +81,7 @@ struct PlaybackSnapshot: Equatable, Sendable {
             clipPool: clipPool,
             sliceSetPool: sliceSetPool,
             generatorPool: generatorPool,
+            chordGeneratorChoicesByKey: chordGeneratorChoicesByKey,
             tracks: tracks,
             resolvedDestinationsByTrackID: resolvedDestinationsByTrackID,
             trackOrder: trackOrder,

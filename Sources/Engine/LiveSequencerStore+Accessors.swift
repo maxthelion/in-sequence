@@ -150,7 +150,9 @@ extension LiveSequencerStore {
     /// Matches `Project.compatibleGenerators(for:)`.
     func compatibleGenerators(for track: StepSequenceTrack) -> [GeneratorPoolEntry] {
         generatorPool.filter {
-            $0.trackType == track.trackType && $0.kind.compatibleWith.contains(track.trackType)
+            $0.kind.isCreatable
+                && $0.trackType == track.trackType
+                && $0.kind.compatibleWith.contains(track.trackType)
         }
     }
 

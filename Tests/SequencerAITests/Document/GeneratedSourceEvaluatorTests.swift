@@ -199,6 +199,82 @@ final class GeneratedSourceEvaluatorTests: XCTestCase {
         XCTAssertEqual(nextBar.map(\.length), [16, 16, 16])
     }
 
+    func test_chord_generator_is_deterministic_for_same_seed_and_resolved_choices() {
+        let (params, choices) = chordGeneratorFixture()
+
+        let first = GeneratedSourceEvaluator.previewNotes(
+            for: params,
+            clipChoices: [],
+            count: 32,
+            chordChoices: choices
+        )
+        let second = GeneratedSourceEvaluator.previewNotes(
+            for: params,
+            clipChoices: [],
+            count: 32,
+            chordChoices: choices
+        )
+
+        XCTAssertEqual(first, second)
+        XCTAssertFalse(first.flatMap { $0 }.isEmpty)
+    }
+
+    func test_chord_generator_respects_enabled_pool_and_inversion_bounds() throws {
+        let first = ChordPaletteSlot(name: "C", root: 60, chordID: .majorTriad)
+        let second = ChordPaletteSlot(name: "Dm", root: 62, chordID: .minorTriad)
+        let palette = ChordPalette(slots: [first, second])
+        let params = ChordGeneratorParams(
+            trigger: .native(.euclidean(pulses: 1, steps: 1, offset: 0)),
+            enabledSlotIDs: [second.id],
+            minimumInversion: 1,
+            maximumInversion: 1,
+            shape: NoteShape(velocity: 91, gateLength: 3, accent: false)
+        )
+        let choices = params.resolvedChoices(in: palette)
+        let expected = try XCTUnwrap(choices.first?.pitches(forInversion: 1))
+
+        let result = GeneratedSourceEvaluator.previewNotes(
+            for: GeneratorParams.chordGenerator(params),
+            clipChoices: [],
+            count: 8,
+            chordChoices: choices
+        ).flatMap { $0 }
+
+        XCTAssertEqual(Set(result.map(\.pitch)), Set(expected))
+        XCTAssertTrue(result.allSatisfy { $0.velocity == 91 && $0.length == 3 })
+        XCTAssertTrue(result.allSatisfy { expected.contains($0.pitch) })
+    }
+
+    func test_chord_generator_rest_and_empty_choice_set_emit_nothing() {
+        let (params, choices) = chordGeneratorFixture(
+            trigger: .native(.euclidean(pulses: 1, steps: 2, offset: 0))
+        )
+        var rng = PreviewRNG()
+        var state = GeneratedSourceEvaluationState()
+
+        let rest = GeneratedSourceEvaluator.evaluateStep(
+            for: params,
+            stepIndex: 1,
+            clipChoices: [],
+            chordContext: nil,
+            state: &state,
+            chordChoices: choices,
+            rng: &rng
+        )
+        let emptyPool = GeneratedSourceEvaluator.evaluateStep(
+            for: params,
+            stepIndex: 0,
+            clipChoices: [],
+            chordContext: nil,
+            state: &state,
+            chordChoices: [],
+            rng: &rng
+        )
+
+        XCTAssertTrue(rest.isEmpty)
+        XCTAssertTrue(emptyPool.isEmpty)
+    }
+
     func test_previewNotes_matches_direct_evaluator_loop_for_deterministic_fixture() {
         let params = GeneratorParams.mono(
             trigger: .native(.euclidean(pulses: 2, steps: 4, offset: 0)),
@@ -529,5 +605,21 @@ final class GeneratedSourceEvaluatorTests: XCTestCase {
         return Set((max(0, root - spread)...min(127, root + spread)).filter {
             intervals.contains((($0 - root) % 12 + 12) % 12)
         })
+    }
+
+    private func chordGeneratorFixture(
+        trigger: TriggerStageNode = .native(.euclidean(pulses: 4, steps: 8, offset: 0))
+    ) -> (GeneratorParams, [ResolvedChordGeneratorChoice]) {
+        let first = ChordPaletteSlot(name: "C", root: 60, chordID: .majorTriad)
+        let second = ChordPaletteSlot(name: "F", root: 65, chordID: .major7th)
+        let palette = ChordPalette(slots: [first, second])
+        let params = ChordGeneratorParams(
+            trigger: trigger,
+            enabledSlotIDs: [first.id, second.id],
+            minimumInversion: 0,
+            maximumInversion: 2,
+            shape: .default
+        )
+        return (.chordGenerator(params), params.resolvedChoices(in: palette))
     }
 }

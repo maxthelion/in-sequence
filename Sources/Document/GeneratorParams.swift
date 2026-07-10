@@ -6,6 +6,7 @@ let defaultVoiceTag: VoiceTag = "default"
 enum GeneratorParams: Codable, Equatable, Hashable, Sendable {
     case mono(trigger: TriggerStageNode, pitch: PitchStageNode, shape: NoteShape)
     case poly(trigger: TriggerStageNode, pitches: [PitchStageNode], shape: NoteShape)
+    case chordGenerator(ChordGeneratorParams)
     case progressionChords(ProgressionChordGeneratorParams)
     case drum(triggers: [VoiceTag: TriggerStageNode], shape: NoteShape)
     case template(templateID: UUID)

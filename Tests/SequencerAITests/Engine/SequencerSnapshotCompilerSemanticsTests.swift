@@ -255,6 +255,137 @@ final class SequencerSnapshotCompilerSemanticsTests: XCTestCase {
         }
     }
 
+    func test_chordGenerator_resolvesPaletteChoicesIntoImmutableSnapshotData() throws {
+        let slot = ChordPaletteSlot(name: "Eb min", root: 63, chordID: .minorTriad)
+        let palette = ChordPalette(slots: [slot])
+        let track = StepSequenceTrack(
+            name: "Chord",
+            trackType: .chord,
+            pitches: [60, 64, 67],
+            stepPattern: Array(repeating: true, count: 16),
+            velocity: 100,
+            gateLength: 4,
+            chordPalette: palette
+        )
+        let params = ChordGeneratorParams(
+            trigger: .native(.euclidean(pulses: 1, steps: 1, offset: 0)),
+            enabledSlotIDs: [slot.id],
+            minimumInversion: 0,
+            maximumInversion: 0,
+            shape: .default
+        )
+        let generator = GeneratorPoolEntry(
+            id: UUID(),
+            name: "Random Chords",
+            trackType: .chord,
+            kind: .chordGenerator,
+            params: .chordGenerator(params)
+        )
+        let layers = PhraseLayerDefinition.defaultSet(for: [track])
+        let bank = TrackPatternBank(
+            trackID: track.id,
+            slots: [TrackPatternSlot(slotIndex: 0, sourceRef: .generator(generator.id))]
+        )
+        let phrase = PhraseModel.default(tracks: [track], layers: layers, generatorPool: [generator], clipPool: [])
+        var project = Project(
+            version: 1,
+            tracks: [track],
+            generatorPool: [generator],
+            clipPool: [],
+            layers: layers,
+            routes: [],
+            patternBanks: [bank],
+            selectedTrackID: track.id,
+            phrases: [phrase],
+            selectedPhraseID: phrase.id
+        )
+
+        let snapshot = SequencerSnapshotCompiler.compile(project: project)
+        let compiled = try XCTUnwrap(
+            snapshot.chordGeneratorChoices(trackID: track.id, generatorID: generator.id).first
+        )
+        XCTAssertEqual(compiled.slotID, slot.id)
+        XCTAssertEqual(compiled.pitches(forInversion: 0), [63, 66, 70])
+
+        project.tracks[0].chordPalette.slots[0].root = 72
+        XCTAssertEqual(
+            snapshot.chordGeneratorChoices(trackID: track.id, generatorID: generator.id)
+                .first?.pitches(forInversion: 0),
+            [63, 66, 70]
+        )
+
+        var state = GeneratedSourceEvaluationState()
+        var rng = PreviewRNG()
+        let notes = EngineController.resolvedStepNotes(
+            for: track.id,
+            in: snapshot,
+            phraseID: snapshot.selectedPhraseID,
+            stepIndex: 0,
+            chordContext: nil,
+            state: &state,
+            rng: &rng
+        )
+        XCTAssertEqual(notes.map(\.pitch), [63, 66, 70])
+    }
+
+    func test_legacyProgressionPolyProject_decodesAndPlaysWithoutSourceLoss() throws {
+        let track = StepSequenceTrack(
+            name: "Legacy Poly",
+            trackType: .polyMelodic,
+            pitches: [60, 64, 67],
+            stepPattern: Array(repeating: true, count: 16),
+            velocity: 100,
+            gateLength: 4
+        )
+        let generator = GeneratorPoolEntry(
+            id: UUID(),
+            name: "Legacy Progression",
+            trackType: .polyMelodic,
+            kind: .progressionChordGenerator,
+            params: .progressionChords(.default)
+        )
+        let layers = PhraseLayerDefinition.defaultSet(for: [track])
+        let bank = TrackPatternBank(
+            trackID: track.id,
+            slots: [TrackPatternSlot(slotIndex: 0, sourceRef: .generator(generator.id))]
+        )
+        let phrase = PhraseModel.default(tracks: [track], layers: layers, generatorPool: [generator], clipPool: [])
+        let project = Project(
+            version: 1,
+            tracks: [track],
+            generatorPool: [generator],
+            clipPool: [],
+            layers: layers,
+            routes: [],
+            patternBanks: [bank],
+            selectedTrackID: track.id,
+            phrases: [phrase],
+            selectedPhraseID: phrase.id
+        )
+
+        let data = try JSONEncoder().encode(project)
+        let decoded = try JSONDecoder().decode(Project.self, from: data)
+        XCTAssertEqual(decoded.generatorEntry(id: generator.id), generator)
+        XCTAssertEqual(
+            decoded.patternBank(for: track.id).slot(at: 0).sourceRef.generatorID,
+            generator.id
+        )
+
+        let snapshot = SequencerSnapshotCompiler.compile(project: decoded)
+        var state = GeneratedSourceEvaluationState()
+        var rng = PreviewRNG()
+        let notes = EngineController.resolvedStepNotes(
+            for: track.id,
+            in: snapshot,
+            phraseID: snapshot.selectedPhraseID,
+            stepIndex: 0,
+            chordContext: nil,
+            state: &state,
+            rng: &rng
+        )
+        XCTAssertEqual(notes.map(\.pitch), [60, 63, 67])
+    }
+
     // MARK: - New: modifier present in compiled slot program
 
     /// A slot with a clip source AND a modifier generator compiles to a `.clip` SlotProgram

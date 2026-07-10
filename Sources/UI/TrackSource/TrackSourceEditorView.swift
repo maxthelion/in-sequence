@@ -553,6 +553,7 @@ struct TrackSourceEditorView: View {
             stepGridCoordinator: stepGridWorkspaceModel.coordinator,
             generatedSourceInputClips: generatedSourceInputClips,
             harmonicSidechainClips: harmonicSidechainClips,
+            chordPalette: track.chordPalette,
             onAssignMacroSlot: prepareAndPresentMacroSlotPicker(slotIndex:),
             canRandomizeClip: canRandomizeSelectedClip,
             isRandomizePanelVisible: isRandomizePanelVisible,

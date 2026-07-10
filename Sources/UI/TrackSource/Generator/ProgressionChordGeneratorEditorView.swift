@@ -1,5 +1,90 @@
 import SwiftUI
 
+struct ChordGeneratorChordsEditorView: View {
+    let params: ChordGeneratorParams
+    let palette: ChordPalette
+    let accent: Color
+    let onUpdate: (GeneratorParams) -> Void
+
+    private var normalized: ChordGeneratorParams { params.normalized }
+    private var slots: [ChordPaletteSlot] { palette.normalized.slots }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: 112), spacing: 8)],
+                alignment: .leading,
+                spacing: 8
+            ) {
+                ForEach(slots) { slot in
+                    slotButton(slot)
+                }
+            }
+
+            HStack(alignment: .top, spacing: 12) {
+                SourceParameterStepperRow(
+                    title: "Min inversion",
+                    value: normalized.minimumInversion,
+                    range: -3...normalized.maximumInversion
+                ) { value in
+                    update { $0.minimumInversion = value }
+                }
+
+                SourceParameterStepperRow(
+                    title: "Max inversion",
+                    value: normalized.maximumInversion,
+                    range: normalized.minimumInversion...3
+                ) { value in
+                    update { $0.maximumInversion = value }
+                }
+            }
+        }
+        .accessibilityIdentifier("chord-generator-chords-stage")
+    }
+
+    private func slotButton(_ slot: ChordPaletteSlot) -> some View {
+        let isEnabled = normalized.enabledSlotIDs.contains(slot.id)
+        return Button {
+            update { next in
+                if isEnabled {
+                    next.enabledSlotIDs.removeAll { $0 == slot.id }
+                } else {
+                    next.enabledSlotIDs.append(slot.id)
+                }
+            }
+        } label: {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(slot.displayName)
+                    .studioText(.bodyBold)
+                Text(ChordDefinition.for(id: slot.chordID)?.name ?? slot.chordID.rawValue)
+                    .studioText(.label)
+            }
+            .foregroundStyle(isEnabled ? StudioTheme.background : StudioTheme.text)
+            .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
+            .padding(.horizontal, 10)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .background(
+            isEnabled ? accent : StudioTheme.background,
+            in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                .stroke(isEnabled ? accent : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+        )
+        .accessibilityLabel(slot.displayName)
+        .accessibilityValue(isEnabled ? "Included" : "Excluded")
+        .accessibilityIdentifier("chord-generator-slot-\(slot.id.uuidString)")
+    }
+
+    private func update(_ mutation: (inout ChordGeneratorParams) -> Void) {
+        var next = normalized
+        mutation(&next)
+        onUpdate(.chordGenerator(next.normalized))
+    }
+}
+
 struct ProgressionChordGeneratorEditorView: View {
     let params: ProgressionChordGeneratorParams
     let accent: Color

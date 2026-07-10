@@ -3,8 +3,10 @@ import XCTest
 @testable import SequencerAI
 
 final class GeneratorKindTests: XCTestCase {
-    func test_generator_kind_has_four_cases() {
-        XCTAssertEqual(GeneratorKind.allCases.count, 4)
+    func test_generator_kind_has_five_serialized_cases_and_four_creatable_cases() {
+        XCTAssertEqual(GeneratorKind.allCases.count, 5)
+        XCTAssertEqual(GeneratorKind.creatableKinds.count, 4)
+        XCTAssertFalse(GeneratorKind.progressionChordGenerator.isCreatable)
     }
 
     func test_every_kind_has_label_and_default_params() {
@@ -12,7 +14,7 @@ final class GeneratorKindTests: XCTestCase {
             XCTAssertFalse(kind.label.isEmpty)
 
             switch kind.defaultParams {
-            case .mono, .poly, .progressionChords, .drum, .template, .slice:
+            case .mono, .poly, .chordGenerator, .progressionChords, .drum, .template, .slice:
                 XCTAssertTrue(true)
             }
         }
@@ -28,6 +30,11 @@ final class GeneratorKindTests: XCTestCase {
 
     func test_progression_chord_generator_targets_poly_tracks() {
         XCTAssertEqual(GeneratorKind.progressionChordGenerator.compatibleWith, [.polyMelodic])
+    }
+
+    func test_chord_generator_targets_only_chord_tracks() {
+        XCTAssertEqual(GeneratorKind.chordGenerator.compatibleWith, [.chord])
+        XCTAssertTrue(GeneratorKind.chordGenerator.isCreatable)
     }
 
     func test_new_values_round_trip() throws {

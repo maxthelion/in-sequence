@@ -440,6 +440,7 @@ private func makeStepOrderFixtureSnapshot(stepOrderMap: [UInt8]?) -> (PlaybackSn
             clipPool: [],
             sliceSetPool: [],
             generatorPool: [],
+            chordGeneratorChoicesByKey: [:],
             tracks: [],
             resolvedDestinationsByTrackID: [:],
             trackOrder: [trackID],

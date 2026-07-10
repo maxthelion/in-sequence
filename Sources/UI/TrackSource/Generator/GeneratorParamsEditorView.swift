@@ -28,6 +28,7 @@ struct GeneratorParamsEditorView: View {
     let generator: GeneratorPoolEntry
     let inputClipChoices: [ClipPoolEntry]
     let harmonicSidechainClipChoices: [ClipPoolEntry]
+    let chordPalette: ChordPalette?
     let sourceMode: TrackSourceMode
     let accent: Color
     let layout: LayoutMode
@@ -42,6 +43,7 @@ struct GeneratorParamsEditorView: View {
         generator: GeneratorPoolEntry,
         inputClipChoices: [ClipPoolEntry],
         harmonicSidechainClipChoices: [ClipPoolEntry],
+        chordPalette: ChordPalette? = nil,
         sourceMode: TrackSourceMode,
         accent: Color,
         layout: LayoutMode = .stacked,
@@ -53,6 +55,7 @@ struct GeneratorParamsEditorView: View {
         self.generator = generator
         self.inputClipChoices = inputClipChoices
         self.harmonicSidechainClipChoices = harmonicSidechainClipChoices
+        self.chordPalette = chordPalette
         self.sourceMode = sourceMode
         self.accent = accent
         self.layout = layout
@@ -97,7 +100,8 @@ struct GeneratorParamsEditorView: View {
                 GeneratorResultStrip(
                     notesByStep: GeneratorResultStrip.barContent(
                         for: generator.params,
-                        clipChoices: inputClipChoices
+                        clipChoices: inputClipChoices,
+                        chordChoices: resolvedChordChoices
                     ),
                     accent: accent
                 )
@@ -195,7 +199,7 @@ struct GeneratorParamsEditorView: View {
             selection: $selectedStageTab,
             segments: StageTab.allCases.map { tab in
                 StudioSegment(
-                    title: tab.title,
+                    title: stageTitle(for: tab),
                     value: tab,
                     accessibilityIdentifier: "generator-stage-\(tab.rawValue)"
                 )
@@ -208,6 +212,13 @@ struct GeneratorParamsEditorView: View {
                 horizontalPadding: 10
             )
         )
+    }
+
+    private func stageTitle(for tab: StageTab) -> String {
+        if tab == .pitch, generator.kind == .chordGenerator {
+            return "Chords"
+        }
+        return tab.title
     }
 
     private var followingChipValue: String? {
@@ -251,6 +262,25 @@ struct GeneratorParamsEditorView: View {
                         },
                         onShapeChange: { nextShape in
                             onUpdate(.poly(trigger: trigger, pitches: polyPitchNodes, shape: nextShape))
+                        }
+                    )
+                }
+
+            case let .chordGenerator(params):
+                let normalized = params.normalized
+                sourceEditorContainer(title: "Generator Source", eyebrow: stepDisplayLabel(normalized.trigger.stepStage)) {
+                    triggerAndShapeEditor(
+                        stepStage: normalized.trigger.stepStage,
+                        shape: normalized.shape,
+                        onStageChange: { nextStage in
+                            var next = normalized
+                            next.trigger = .native(nextStage)
+                            onUpdate(.chordGenerator(next.normalized))
+                        },
+                        onShapeChange: { nextShape in
+                            var next = normalized
+                            next.shape = nextShape
+                            onUpdate(.chordGenerator(next.normalized))
                         }
                     )
                 }
@@ -470,6 +500,14 @@ struct GeneratorParamsEditorView: View {
                 }
             }
 
+        case let .chordGenerator(params):
+            ChordGeneratorChordsEditorView(
+                params: params,
+                palette: chordPalette ?? .default,
+                accent: accent,
+                onUpdate: onUpdate
+            )
+
         case .progressionChords:
             modifierEditorContainer(title: "Pitch Modifier", eyebrow: "Not available for chord sources") {
                 // State, not explanation (canon Rule 3): the "why" lives in
@@ -607,6 +645,11 @@ struct GeneratorParamsEditorView: View {
             return nil
         }
     }
+
+    private var resolvedChordChoices: [ResolvedChordGeneratorChoice] {
+        guard case let .chordGenerator(params) = generator.params else { return [] }
+        return params.resolvedChoices(in: chordPalette ?? .default)
+    }
 }
 
 private struct GeneratorHeaderChip: View {
@@ -649,12 +692,14 @@ struct GeneratorResultStrip: View {
     static func barContent(
         for params: GeneratorParams,
         clipChoices: [ClipPoolEntry],
+        chordChoices: [ResolvedChordGeneratorChoice] = [],
         stepCount: Int = 16
     ) -> [[GeneratedNote]] {
         GeneratedSourceEvaluator.previewNotes(
             for: params,
             clipChoices: clipChoices,
-            count: stepCount
+            count: stepCount,
+            chordChoices: chordChoices
         )
     }
 
