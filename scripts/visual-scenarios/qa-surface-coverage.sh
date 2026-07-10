@@ -216,7 +216,8 @@ CAPTURES=$(cat <<'TABLE'
 36-drum-kit-matrix-chance-layer|workspace=track,drumKitMatrixRenderedLayer=chance|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixLayer=chance;transport=stop
 # 37 RETIRED: the pattern-realign command no longer reaches slot 2 in a strict
 # full-suite pass; keep layer/template/read-only kit rows until rebuilt.
-38-drum-kit-matrix-template-chooser|workspace=track,drumKitMatrixRenderedTemplateChooserVisible=true|drumPartHeaderFixture=kit;drumPartHeaderOpenKitView=true;drumKitMatrixTemplateChooser=open;transport=stop
+37a-drum-kit-template-target-prompt|workspace=track,drumKitMatrixRenderedTemplateTargetPrompting=true,drumKitMatrixRenderedTemplateTargetCount=0|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixCommand=template-target-prompt;transport=stop
+38-drum-kit-matrix-template-chooser|workspace=track,drumKitMatrixRenderedTemplateChooserVisible=true,drumKitMatrixRenderedTemplateTargetCount=2|drumPartHeaderFixture=kit;drumPartHeaderOpenKitView=true;drumKitMatrixCommands=template-target:0,template-target-add:2,open-template-chooser;transport=stop
 39-drum-kit-matrix-generator-readonly|workspace=track,drumKitMatrixRenderedVisible=true|drumPartHeaderFixture=kit;drumKitMatrixFixture=generatorAndReadOnly;drumPartHeaderOpenKitView=true;drumKitMatrixTemplateChooser=close;transport=stop
 32-step-order-unassigned|workspace=phrase,workspaceMode=perform,phrasePerformLayerMode=stepOrder,phrasePerformLayerVariant=Identity,stepOrderFixtureState=unassigned|stepOrderFixture=unassigned;workspaceMode=perform;phraseWorkspaceTab=layers;phrasePerformLayer=stepOrder;phrasePerformLayerVariant=Identity;transport=stop
 # 33 RETIRED: assigned/on step-order status is reported, but the current

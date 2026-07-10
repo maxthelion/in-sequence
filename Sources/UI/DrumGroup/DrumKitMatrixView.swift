@@ -553,6 +553,8 @@ struct DrumKitMatrixView: View {
             layer: isVisible ? selectedLayer.rawValue : "none",
             fillMode: isVisible ? matrixNoteLaneLabel(model) : "none",
             groupPatternSlot: isVisible ? (groupSlot.map { "\($0 + 1)" } ?? "mixed") : "none",
+            templateTargetSlots: isVisible ? patternTemplateTargets.slotIndexes.sorted() : [],
+            templateTargetPrompting: isVisible && patternTemplateTargets.isPrompting,
             // Patterns are global across the kit: members always share one slot
             // and can never diverge through the UI, so the kit is always
             // "linked" and the link can never be "broken". The wire keys stay
@@ -768,6 +770,8 @@ struct DrumKitRenderedVisualState: Equatable, Sendable {
     var layer: String
     var fillMode: String
     var groupPatternSlot: String
+    var templateTargetSlots: [Int]
+    var templateTargetPrompting: Bool
     var patternLinked: Bool
     var patternLinkBroken: Bool
     var groupName: String
@@ -804,6 +808,9 @@ struct DrumKitRenderedVisualState: Equatable, Sendable {
             "layer": layer,
             "fillMode": fillMode,
             "groupPatternSlot": groupPatternSlot,
+            "templateTargetSlots": templateTargetSlots.map(String.init).joined(separator: ","),
+            "templateTargetCount": templateTargetSlots.count,
+            "templateTargetPrompting": templateTargetPrompting,
             "patternLinked": patternLinked,
             "patternLinkBroken": patternLinkBroken,
             "groupName": groupName,

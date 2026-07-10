@@ -19,6 +19,9 @@ enum VisualScenarioCommandRunner {
     private static var drumKitMatrixRenderedLayer = "none"
     private static var drumKitMatrixRenderedFillMode = "none"
     private static var drumKitMatrixRenderedGroupPatternSlot = "none"
+    private static var drumKitMatrixRenderedTemplateTargetSlots = "none"
+    private static var drumKitMatrixRenderedTemplateTargetCount = 0
+    private static var drumKitMatrixRenderedTemplateTargetPrompting = false
     private static var drumKitMatrixRenderedGroupName = "none"
     private static var drumKitMatrixRenderedMemberCount = 0
     private static var drumKitMatrixRenderedKitTab = "none"
@@ -248,6 +251,9 @@ enum VisualScenarioCommandRunner {
                 drumKitMatrixRenderedLayer = userInfo["layer"] as? String ?? "none"
                 drumKitMatrixRenderedFillMode = userInfo["fillMode"] as? String ?? "none"
                 drumKitMatrixRenderedGroupPatternSlot = userInfo["groupPatternSlot"] as? String ?? "none"
+                drumKitMatrixRenderedTemplateTargetSlots = userInfo["templateTargetSlots"] as? String ?? "none"
+                drumKitMatrixRenderedTemplateTargetCount = userInfo["templateTargetCount"] as? Int ?? 0
+                drumKitMatrixRenderedTemplateTargetPrompting = userInfo["templateTargetPrompting"] as? Bool ?? false
                 drumKitMatrixRenderedGroupName = userInfo["groupName"] as? String ?? "none"
                 drumKitMatrixRenderedMemberCount = userInfo["memberCount"] as? Int ?? 0
                 drumKitMatrixRenderedKitTab = userInfo["kitTab"] as? String ?? "none"
@@ -1285,6 +1291,9 @@ enum VisualScenarioCommandRunner {
         drumKitMatrixRenderedLayer=\(drumKitMatrixRenderedLayer)
         drumKitMatrixRenderedFillMode=\(drumKitMatrixRenderedFillMode)
         drumKitMatrixRenderedGroupPatternSlot=\(drumKitMatrixRenderedGroupPatternSlot)
+        drumKitMatrixRenderedTemplateTargetSlots=\(drumKitMatrixRenderedTemplateTargetSlots)
+        drumKitMatrixRenderedTemplateTargetCount=\(drumKitMatrixRenderedTemplateTargetCount)
+        drumKitMatrixRenderedTemplateTargetPrompting=\(drumKitMatrixRenderedTemplateTargetPrompting)
         drumKitMatrixRenderedGroupName=\(drumKitMatrixRenderedGroupName)
         drumKitMatrixRenderedMemberCount=\(drumKitMatrixRenderedMemberCount)
         drumKitMatrixRenderedKitTab=\(drumKitMatrixRenderedKitTab)
@@ -2272,6 +2281,7 @@ enum VisualScenarioCommandRunner {
             "close-routing",
             "close-kit-fx-chooser",
             "close-template-chooser",
+            "template-target-clear",
             "close-capture",
             "collapse-row",
             "tab-matrix",
@@ -2286,6 +2296,9 @@ enum VisualScenarioCommandRunner {
         drumGroupRoutingEditorMode = "none"
         drumKitMatrixRenderedKitFXChooserVisible = false
         drumKitMatrixRenderedTemplateChooserState = false
+        drumKitMatrixRenderedTemplateTargetSlots = "none"
+        drumKitMatrixRenderedTemplateTargetCount = 0
+        drumKitMatrixRenderedTemplateTargetPrompting = false
         drumKitMatrixRenderedCaptureOpen = false
         drumKitMatrixRenderedSaveSlotPickerVisible = false
         drumKitMatrixRenderedHistoryCellCount = 0

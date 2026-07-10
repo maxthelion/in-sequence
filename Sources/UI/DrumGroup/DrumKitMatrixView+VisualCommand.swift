@@ -53,6 +53,9 @@ enum DrumKitVisualCommand: Equatable {
     case fillMode(Bool)
     case bar(page: Int)
     case pattern(slotIndex: Int)
+    case templateTarget(slotIndex: Int, additive: Bool)
+    case templateTargetPrompt
+    case templateTargetClear
     case saveSlot(slotIndex: Int)
     case historyLength(steps: Int)
 
@@ -89,6 +92,8 @@ enum DrumKitVisualCommand: Equatable {
         case "source-clip": self = .sourceClip
         case "source-generator": self = .sourceGenerator
         case "back": self = .back
+        case "template-target-prompt": self = .templateTargetPrompt
+        case "template-target-clear": self = .templateTargetClear
         default:
             // Parameterised "<verb>:<value>" commands.
             if let index = Self.intArgument(rawValue, prefix: "expand-part:") {
@@ -108,6 +113,10 @@ enum DrumKitVisualCommand: Equatable {
                 self = .bar(page: page)
             } else if let slotIndex = Self.intArgument(rawValue, prefix: "pattern:") {
                 self = .pattern(slotIndex: slotIndex)
+            } else if let slotIndex = Self.intArgument(rawValue, prefix: "template-target-add:") {
+                self = .templateTarget(slotIndex: slotIndex, additive: true)
+            } else if let slotIndex = Self.intArgument(rawValue, prefix: "template-target:") {
+                self = .templateTarget(slotIndex: slotIndex, additive: false)
             } else if let slotIndex = Self.intArgument(rawValue, prefix: "save-slot:") {
                 self = .saveSlot(slotIndex: slotIndex)
             } else if let steps = Self.intArgument(rawValue, prefix: "history-length:") {
@@ -153,7 +162,7 @@ extension DrumKitMatrixView {
         case .closeRouting:
             isPresentingRoutingEditor = false
         case .openTemplateChooser:
-            isPresentingTemplateChooser = true
+            isPresentingTemplateChooser = patternTemplateTargets.requestTemplateChooser()
             postRenderedVisualState(isVisible: true)
         case .closeTemplateChooser:
             isPresentingTemplateChooser = false
@@ -277,6 +286,17 @@ extension DrumKitMatrixView {
                 session.setDrumGroupSelectedPatternIndex(slotIndex, groupID: navigationState.groupID)
                 postRenderedVisualState(isVisible: true)
             }
+        case let .templateTarget(slotIndex, additive):
+            patternTemplateTargets.select(slotIndex: slotIndex, additive: additive)
+            postRenderedVisualState(isVisible: true)
+        case .templateTargetPrompt:
+            patternTemplateTargets.clear()
+            _ = patternTemplateTargets.requestTemplateChooser()
+            isPresentingTemplateChooser = false
+            postRenderedVisualState(isVisible: true)
+        case .templateTargetClear:
+            patternTemplateTargets.clear()
+            postRenderedVisualState(isVisible: true)
         case let .saveSlot(slotIndex):
             if (0..<TrackPatternBank.slotCount).contains(slotIndex), let model {
                 saveKitHistoryClipSet(model, slotIndex: slotIndex)
