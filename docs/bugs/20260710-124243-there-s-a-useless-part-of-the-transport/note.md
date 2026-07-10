@@ -1,0 +1,3 @@
+There's a useless part of the transport menu. Get rid of it. Add some global copy, paste, clear buttons that are enabled or not based on whether a selection is made. Valid selections include tracks, phrases, phrase cells (in layer mode), scenes, track steps, patterns. Paste only available when target is valid for the type. Probably clean up localised versions of the same concept eg above step sequencer and tracks.
+Status: RESOLVED 43a7cc8f
+Verification: run 20260710-134350-in-sequence-qa-surface-coverage-20260710-ux-batch-43a7cc8f, rows 02a-tracks-selection-actions, 18-track-detail-steps-clip, 37b-drum-kit-template-target-single, and 38-drum-kit-matrix-template-chooser.
