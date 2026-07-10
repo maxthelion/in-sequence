@@ -4,6 +4,14 @@ import XCTest
 @testable import SequencerAI
 
 final class TrackSourceSourceDisplayStateTests: XCTestCase {
+    private var repoRoot: URL {
+        URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+    }
+
     func test_editorTabsUseSingleTrackDetailGrammar() {
         XCTAssertEqual(
             TrackSourceEditorTab.allCases.map(\.title),
@@ -244,6 +252,78 @@ final class TrackSourceSourceDisplayStateTests: XCTestCase {
         XCTAssertEqual(layout.stepDivision(at: 15), .step)
         XCTAssertEqual(layout.stepDivision(at: 16), .bar, "A two-bar selection marks the second bar start.")
         XCTAssertEqual(layout.stepDivision(at: 28), .beat)
+    }
+
+    func test_clipHistoryCellAccessibilityRetainsStateWithoutVisibleText() {
+        XCTAssertEqual(
+            ClipHistoryCellPresentation.accessibilityLabel(
+                index: 2,
+                isEmpty: true,
+                isSelectable: false,
+                isSelected: false,
+                lengthLabel: "1 bar"
+            ),
+            "History region 3, unavailable, empty"
+        )
+        XCTAssertEqual(
+            ClipHistoryCellPresentation.accessibilityLabel(
+                index: 15,
+                isEmpty: false,
+                isSelectable: false,
+                isSelected: false,
+                lengthLabel: "1 bar"
+            ),
+            "History region 16, unavailable, live buffer"
+        )
+        XCTAssertEqual(
+            ClipHistoryCellPresentation.accessibilityLabel(
+                index: 4,
+                isEmpty: false,
+                isSelectable: true,
+                isSelected: true,
+                lengthLabel: "2 bars"
+            ),
+            "History region 5, available, 2 bars, selected"
+        )
+    }
+
+    func test_round4TrackDetailChromeMatchesSingleWellGrammar() throws {
+        let sampler = try String(
+            contentsOf: repoRoot.appendingPathComponent("Sources/UI/SamplerDestinationWidget.swift"),
+            encoding: .utf8
+        )
+        let routing = try String(
+            contentsOf: repoRoot.appendingPathComponent("Sources/UI/TrackSource/TrackRoutingTabContent.swift"),
+            encoding: .utf8
+        )
+        let editor = try String(
+            contentsOf: repoRoot.appendingPathComponent("Sources/UI/TrackSource/TrackSourceEditorView.swift"),
+            encoding: .utf8
+        )
+        let history = try String(
+            contentsOf: repoRoot.appendingPathComponent("Sources/UI/TrackSource/TrackSourceClipHistoryTabContent.swift"),
+            encoding: .utf8
+        )
+
+        let sampleCard = try sourceSection(sampler, from: "private func sampleCard", to: "private func sampleBody")
+        XCTAssertFalse(sampleCard.contains(".background(StudioTheme.subtleFill"), "The sampler should rely on its host tab well instead of drawing a second grey card.")
+        XCTAssertTrue(routing.contains("var contentPadding: CGFloat"))
+        XCTAssertTrue(editor.contains("contentPadding: samplerFillsSoundWell ? 0"), "A populated sampler should reach the Sound tab well's edges.")
+
+        let randomizePanel = try sourceSection(editor, from: "struct ClipRandomizeSettingsPanel", to: "private struct RandomizeChoiceMenu")
+        XCTAssertFalse(randomizePanel.contains("onCancel"), "Immediate randomization has no rollback-style Cancel action.")
+        XCTAssertTrue(randomizePanel.contains("Button(action: onReRoll)"))
+        XCTAssertTrue(randomizePanel.contains("help: \"Close randomize settings\""), "Close should be an accessible icon control in the top row.")
+
+        let historyCell = try sourceSection(history, from: "private struct ClipHistoryMinibarCell", to: "/// Layout math")
+        XCTAssertFalse(historyCell.contains("Text("), "History cells should communicate through thumbnails and accessibility, not visible labels.")
+        XCTAssertTrue(historyCell.contains("ClipHistoryCellPresentation.accessibilityLabel"))
+    }
+
+    private func sourceSection(_ source: String, from start: String, to end: String) throws -> Substring {
+        let startRange = try XCTUnwrap(source.range(of: start))
+        let endRange = try XCTUnwrap(source.range(of: end, range: startRange.upperBound..<source.endIndex))
+        return source[startRange.lowerBound..<endRange.lowerBound]
     }
 
     @MainActor

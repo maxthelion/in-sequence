@@ -172,6 +172,25 @@ struct TrackSourceClipHistoryTabContent: View {
     }
 }
 
+enum ClipHistoryCellPresentation {
+    static func accessibilityLabel(
+        index: Int,
+        isEmpty: Bool,
+        isSelectable: Bool,
+        isSelected: Bool,
+        lengthLabel: String
+    ) -> String {
+        if isEmpty {
+            return "History region \(index + 1), unavailable, empty"
+        }
+        if !isSelectable {
+            return "History region \(index + 1), unavailable, live buffer"
+        }
+        let selection = isSelected ? ", selected" : ""
+        return "History region \(index + 1), available, \(lengthLabel)\(selection)"
+    }
+}
+
 private struct ClipHistoryMinibarCell: View {
     let cell: ClipHistoryTransferViewModel.SourceCell
     let content: ClipContent?
@@ -183,22 +202,8 @@ private struct ClipHistoryMinibarCell: View {
 
     var body: some View {
         Button(action: action) {
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 3) {
-                    Text("\(cell.index + 1)")
-                        .studioText(.microEmphasis)
-                        .foregroundStyle(StudioTheme.text)
-                    Spacer(minLength: 0)
-                    Text(lengthLabel)
-                        .studioText(.micro)
-                        .foregroundStyle(cell.isEmpty ? StudioTheme.mutedText : StudioTheme.text)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.55)
-                }
-
-                ClipHistoryMiniPianoThumbnail(content: content, accent: accent)
-                    .frame(height: 28)
-            }
+            ClipHistoryMiniPianoThumbnail(content: content, accent: accent)
+                .frame(height: 42)
             .frame(maxWidth: .infinity, minHeight: 58, alignment: .leading)
             .padding(5)
             .background(backgroundFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
@@ -213,13 +218,13 @@ private struct ClipHistoryMinibarCell: View {
     }
 
     private var accessibilityLabel: String {
-        if cell.isEmpty {
-            return "History region \(cell.index + 1), empty"
-        }
-        if !cell.isSelectable {
-            return "History region \(cell.index + 1), live buffer"
-        }
-        return "History region \(cell.index + 1), \(lengthLabel)"
+        ClipHistoryCellPresentation.accessibilityLabel(
+            index: cell.index,
+            isEmpty: cell.isEmpty,
+            isSelectable: cell.isSelectable,
+            isSelected: isSelected,
+            lengthLabel: lengthLabel
+        )
     }
 
     /// Colour identifies, it never floods (ux-canon rule 12): region tiles
