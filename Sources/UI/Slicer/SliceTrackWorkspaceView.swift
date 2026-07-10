@@ -152,6 +152,11 @@ struct SliceTrackWorkspaceView: View {
             guard let command = notification.object as? String else { return }
             applyVisualCommand(command)
         }
+        .documentEditTarget(
+            isActive: selectedLowerTab == .steps && currentSample != nil && stepGridCoordinator != nil,
+            revision: documentEditTargetRevision,
+            makeTarget: makeDocumentEditTarget
+        )
     }
 
     // MARK: - Full-width playback waveform (default view)
@@ -220,16 +225,8 @@ struct SliceTrackWorkspaceView: View {
                 sliceLayerChip
                 StepGridBatchActionBar(
                     hasSelection: stepGridCoordinator?.isSelectionActive ?? false,
-                    canPaste: stepGridCoordinator?.clipboard != nil,
-                    onClear: {
+                    onErase: {
                         _ = stepGridCoordinator?.clearSelectedSteps(track: track)
-                    },
-                    onCopy: {
-                        guard let currentClip else { return }
-                        stepGridCoordinator?.copySelectedSteps(from: currentClip, track: track)
-                    },
-                    onPaste: {
-                        _ = stepGridCoordinator?.pasteClipboard(track: track)
                     }
                 )
                 Spacer(minLength: 0)
@@ -1094,6 +1091,24 @@ struct SliceTrackWorkspaceView: View {
 }
 
 private extension SliceTrackWorkspaceView {
+    var documentEditTargetRevision: StepGridDocumentEditTargetRevision {
+        StepGridDocumentEditTargetRevision(
+            clipID: currentClip?.id,
+            trackID: track.id,
+            selectedStepIndexes: stepGridCoordinator?.selection.selectedStepIndexes ?? []
+        )
+    }
+
+    func makeDocumentEditTarget() -> DocumentEditCommandController.Target {
+        guard let stepGridCoordinator else {
+            preconditionFailure("An active slicer step editor requires a step-grid coordinator")
+        }
+        return stepGridCoordinator.documentEditTarget(
+            track: track,
+            loadClip: { clipID in session.store.clipEntry(id: clipID) }
+        )
+    }
+
     var stepGridCoordinator: StepGridCoordinator? {
         stepGridWorkspaceModel.coordinator
     }

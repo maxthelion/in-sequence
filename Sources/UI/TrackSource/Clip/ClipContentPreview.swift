@@ -156,6 +156,8 @@ struct ClipMacroLayerTab: Equatable, Identifiable {
 }
 
 struct ClipContentPreview: View {
+    @Environment(SequencerDocumentSession.self) private var session
+
     let content: ClipContent
     let defaultNote: ClipStepNote
     /// The ONE chrome accent of the surface (track identity colour): thumbs
@@ -336,6 +338,31 @@ struct ClipContentPreview: View {
             guard let command = notification.object as? String else { return }
             applyVisualCommand(command)
         }
+        .documentEditTarget(
+            isActive: isEditable,
+            revision: documentEditTargetRevision,
+            makeTarget: makeDocumentEditTarget
+        )
+    }
+
+    private var documentEditTargetRevision: StepGridDocumentEditTargetRevision {
+        StepGridDocumentEditTargetRevision(
+            clipID: stepGridCoordinator?.selection.clipID,
+            trackID: session.store.selectedTrack.id,
+            selectedStepIndexes: stepGridCoordinator?.selection.selectedStepIndexes ?? []
+        )
+    }
+
+    private func makeDocumentEditTarget() -> DocumentEditCommandController.Target {
+        guard let stepGridCoordinator else {
+            preconditionFailure("An editable clip preview requires a step-grid coordinator")
+        }
+        return stepGridCoordinator.documentEditTarget(
+            track: session.store.selectedTrack,
+            macroBindings: macroBindings,
+            defaultNote: defaultNote,
+            loadClip: { clipID in session.store.clipEntry(id: clipID) }
+        )
     }
 
     private func applyVisualCommand(_ command: String) {
@@ -767,21 +794,8 @@ struct ClipContentPreview: View {
 
             StepGridBatchActionBar(
                 hasSelection: stepGridCoordinator?.isSelectionActive ?? false,
-                canPaste: stepGridCoordinator?.clipboard != nil,
-                onClear: {
+                onErase: {
                     _ = stepGridCoordinator?.clearSelectedSteps(macroBindings: macroBindings)
-                },
-                onCopy: {
-                    stepGridCoordinator?.copySelectedSteps(
-                        from: macroPreviewClip(lengthSteps: lengthSteps, steps: steps),
-                        macroBindings: macroBindings
-                    )
-                },
-                onPaste: {
-                    _ = stepGridCoordinator?.pasteClipboard(
-                        macroBindings: macroBindings,
-                        defaultNote: defaultNote
-                    )
                 }
             )
 

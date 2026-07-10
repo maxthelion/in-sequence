@@ -73,9 +73,7 @@ final class StepGridCoordinatorTests: XCTestCase {
         coordinator.toggleSelection(at: 1)
         coordinator.toggleSelection(at: 3)
 
-        coordinator.copySelectedSteps(from: mutator.clip, track: track)
-
-        let clipboard = try XCTUnwrap(coordinator.clipboard)
+        let clipboard = try XCTUnwrap(coordinator.copySelectedSteps(from: mutator.clip, track: track))
         XCTAssertEqual(clipboard.sourceClipID, clipID)
         XCTAssertEqual(clipboard.steps.count, 2)
 
@@ -102,11 +100,10 @@ final class StepGridCoordinatorTests: XCTestCase {
         let coordinator = StepGridCoordinator(clipID: clipID, clipMutator: mutator)
         [1, 3].forEach { coordinator.toggleSelection(at: $0) }
 
-        coordinator.copySelectedSteps(from: mutator.clip, track: track)
+        let clipboard = try XCTUnwrap(coordinator.copySelectedSteps(from: mutator.clip, track: track))
 
         XCTAssertEqual(mutator.mutationCount, 0)
         XCTAssertEqual(mutator.clip, clip)
-        let clipboard = try XCTUnwrap(coordinator.clipboard)
         XCTAssertEqual(Set(clipboard.steps.keys), [1, 3])
         XCTAssertEqual(try XCTUnwrap(clipboard.steps[1]?.velocity), 48.0 / 127.0, accuracy: 0.0001)
         XCTAssertEqual(try XCTUnwrap(clipboard.steps[1]?.chance), 0.35, accuracy: 0.0001)
@@ -223,7 +220,7 @@ final class StepGridCoordinatorTests: XCTestCase {
         let mutator = RecordingClipMutator(clip: clip)
         let coordinator = StepGridCoordinator(clipID: clipID, clipMutator: mutator)
         [1, 4].forEach { coordinator.toggleSelection(at: $0) }
-        coordinator.copySelectedSteps(from: mutator.clip, track: track)
+        let clipboard = try XCTUnwrap(coordinator.copySelectedSteps(from: mutator.clip, track: track))
 
         coordinator.clearSelectedSteps(track: track)
         XCTAssertEqual(mutator.mutationCount, 1)
@@ -232,7 +229,7 @@ final class StepGridCoordinatorTests: XCTestCase {
         XCTAssertNil(mutator.clip.macroLanes[binding.id]?.values[1] ?? nil)
 
         [1, 4].forEach { coordinator.toggleSelection(at: $0) }
-        coordinator.pasteClipboard(track: track)
+        coordinator.pasteClipboard(clipboard, track: track)
 
         XCTAssertEqual(mutator.mutationCount, 2)
         XCTAssertEqual(Self.activeIndexes(in: mutator.clip), [1, 4])
@@ -278,17 +275,14 @@ final class StepGridCoordinatorTests: XCTestCase {
         let sourceMutator = RecordingClipMutator(clip: sourceClip)
         let sourceCoordinator = StepGridCoordinator(clipID: clipID, clipMutator: sourceMutator)
         [1, 4].forEach { sourceCoordinator.toggleSelection(at: $0) }
-        sourceCoordinator.copySelectedSteps(from: sourceMutator.clip, track: track)
-
-        var clipboard = try XCTUnwrap(sourceCoordinator.clipboard)
+        var clipboard = try XCTUnwrap(sourceCoordinator.copySelectedSteps(from: sourceMutator.clip, track: track))
         clipboard.steps[99] = try XCTUnwrap(clipboard.steps[1])
 
         let destinationMutator = RecordingClipMutator(clip: Self.makeNoteClip(id: clipID))
         let destinationCoordinator = StepGridCoordinator(clipID: clipID, clipMutator: destinationMutator)
-        destinationCoordinator.clipboard = clipboard
         [1, 4].forEach { destinationCoordinator.toggleSelection(at: $0) }
 
-        let didPaste = destinationCoordinator.pasteClipboard(track: track)
+        let didPaste = destinationCoordinator.pasteClipboard(clipboard, track: track)
 
         XCTAssertTrue(didPaste)
         XCTAssertEqual(destinationMutator.mutationCount, 1)
@@ -300,6 +294,148 @@ final class StepGridCoordinatorTests: XCTestCase {
         XCTAssertEqual(try XCTUnwrap(pastedLane.values[1]), 0.12, accuracy: 0.0001)
         XCTAssertEqual(try XCTUnwrap(pastedLane.values[4]), 0.88, accuracy: 0.0001)
         XCTAssertEqual(pastedLane.values.count, 8)
+    }
+
+    func test_documentEditTargetStoresDetachedStepClipboardInStepsDomain() throws {
+        let clipID = UUID()
+        let track = Self.makeTrack()
+        var clip = Self.makeNoteClip(id: clipID, activeIndexes: [1])
+        Self.setNoteStep(in: &clip, at: 1, velocity: 48, chance: 0.35)
+        let mutator = RecordingClipMutator(clip: clip)
+        let coordinator = StepGridCoordinator(clipID: clipID, clipMutator: mutator)
+        coordinator.toggleSelection(at: 1)
+        let controller = DocumentEditCommandController()
+        controller.register(target: coordinator.documentEditTarget(
+            track: track,
+            loadClip: { id in id == clipID ? mutator.clip : nil }
+        ))
+
+        XCTAssertTrue(controller.copy())
+        let payload = try XCTUnwrap(controller.clipboardPayload)
+        XCTAssertEqual(payload.domain, .steps)
+        let clipboard = try XCTUnwrap(payload.value(as: StepClipboard.self))
+        XCTAssertEqual(clipboard.sourceTrackType, .monoMelodic)
+        XCTAssertEqual(clipboard.sourceContentKind, .noteGrid)
+        XCTAssertEqual(try XCTUnwrap(clipboard.steps[1]?.velocity), 48.0 / 127.0, accuracy: 0.0001)
+
+        Self.setNoteStep(in: &mutator.clip, at: 1, velocity: 96, chance: 0.8)
+
+        let detached = try XCTUnwrap(controller.clipboardPayload?.value(as: StepClipboard.self))
+        XCTAssertEqual(try XCTUnwrap(detached.steps[1]?.velocity), 48.0 / 127.0, accuracy: 0.0001)
+        XCTAssertEqual(try XCTUnwrap(detached.steps[1]?.chance), 0.35, accuracy: 0.0001)
+    }
+
+    func test_documentEditTargetClearOnlyClearsSelection() {
+        let clipID = UUID()
+        let track = Self.makeTrack()
+        let mutator = RecordingClipMutator(clip: Self.makeNoteClip(id: clipID, activeIndexes: [1, 4]))
+        let originalClip = mutator.clip
+        let coordinator = StepGridCoordinator(clipID: clipID, clipMutator: mutator)
+        [1, 4].forEach { coordinator.toggleSelection(at: $0) }
+        let controller = DocumentEditCommandController()
+        controller.register(target: coordinator.documentEditTarget(
+            track: track,
+            loadClip: { id in id == clipID ? mutator.clip : nil }
+        ))
+
+        XCTAssertTrue(controller.clearSelection())
+
+        XCTAssertFalse(coordinator.isSelectionActive)
+        XCTAssertEqual(mutator.mutationCount, 0)
+        XCTAssertEqual(mutator.clip, originalClip)
+    }
+
+    func test_documentEditTargetPasteDoesNotRequireSourceClipToRemainAvailable() {
+        let sourceClipID = UUID()
+        let destinationClipID = UUID()
+        let track = Self.makeTrack()
+        let sourceMutator = RecordingClipMutator(
+            clip: Self.makeNoteClip(id: sourceClipID, activeIndexes: [2])
+        )
+        let sourceCoordinator = StepGridCoordinator(clipID: sourceClipID, clipMutator: sourceMutator)
+        sourceCoordinator.toggleSelection(at: 2)
+        let controller = DocumentEditCommandController()
+        controller.register(target: sourceCoordinator.documentEditTarget(
+            track: track,
+            loadClip: { id in id == sourceClipID ? sourceMutator.clip : nil }
+        ))
+        XCTAssertTrue(controller.copy())
+
+        let destinationMutator = RecordingClipMutator(
+            clip: Self.makeNoteClip(id: destinationClipID)
+        )
+        let destinationCoordinator = StepGridCoordinator(
+            clipID: destinationClipID,
+            clipMutator: destinationMutator
+        )
+        destinationCoordinator.toggleSelection(at: 2)
+        controller.register(target: destinationCoordinator.documentEditTarget(
+            track: track,
+            loadClip: { id in id == destinationClipID ? destinationMutator.clip : nil }
+        ))
+
+        XCTAssertTrue(controller.availability.canPaste)
+        XCTAssertTrue(controller.paste())
+        XCTAssertEqual(Self.activeIndexes(in: destinationMutator.clip), [2])
+    }
+
+    func test_documentEditTargetPasteRequiresSelectionAndCompatibleClipAndTrack() {
+        let sourceClipID = UUID()
+        let destinationClipID = UUID()
+        let sourceTrack = Self.makeTrack()
+        let sourceMutator = RecordingClipMutator(
+            clip: Self.makeNoteClip(id: sourceClipID, activeIndexes: [1])
+        )
+        let destinationMutator = RecordingClipMutator(
+            clip: Self.makeNoteClip(id: destinationClipID)
+        )
+        let sourceCoordinator = StepGridCoordinator(clipID: sourceClipID, clipMutator: sourceMutator)
+        sourceCoordinator.toggleSelection(at: 1)
+        let controller = DocumentEditCommandController()
+        let loadNoteClip: (ClipID) -> ClipPoolEntry? = { id in
+            if id == sourceClipID { return sourceMutator.clip }
+            if id == destinationClipID { return destinationMutator.clip }
+            return nil
+        }
+        controller.register(target: sourceCoordinator.documentEditTarget(
+            track: sourceTrack,
+            loadClip: loadNoteClip
+        ))
+        XCTAssertTrue(controller.copy())
+
+        let destinationCoordinator = StepGridCoordinator(
+            clipID: destinationClipID,
+            clipMutator: destinationMutator
+        )
+        controller.register(target: destinationCoordinator.documentEditTarget(
+            track: Self.makeTrack(),
+            loadClip: loadNoteClip
+        ))
+        XCTAssertFalse(controller.availability.canPaste)
+
+        destinationCoordinator.toggleSelection(at: 1)
+
+        XCTAssertTrue(controller.availability.canPaste)
+        XCTAssertTrue(controller.paste())
+        XCTAssertEqual(destinationMutator.mutationCount, 1)
+        XCTAssertEqual(Self.activeIndexes(in: destinationMutator.clip), [1])
+
+        let sliceClipID = UUID()
+        let sliceMutator = RecordingClipMutator(clip: Self.makeSliceClip(id: sliceClipID))
+        let sliceCoordinator = StepGridCoordinator(clipID: sliceClipID, clipMutator: sliceMutator)
+        sliceCoordinator.toggleSelection(at: 1)
+        controller.register(target: sliceCoordinator.documentEditTarget(
+            track: Self.makeTrack(trackType: .slice),
+            loadClip: { id in
+                if id == sourceClipID { return sourceMutator.clip }
+                if id == sliceClipID { return sliceMutator.clip }
+                return nil
+            }
+        ))
+
+        XCTAssertFalse(controller.availability.canPaste)
+        XCTAssertFalse(controller.paste())
+        XCTAssertEqual(sliceMutator.mutationCount, 0)
     }
 
     func test_derivedFlagsMatchSelectionAndEditableLayerState() {
@@ -670,9 +806,7 @@ final class StepGridCoordinatorTests: XCTestCase {
         let coordinator = StepGridCoordinator(clipID: clipID, clipMutator: mutator)
         [0, 3].forEach { coordinator.toggleSelection(at: $0) }
 
-        coordinator.copySelectedSteps(from: mutator.clip, track: track)
-
-        let clipboard = try XCTUnwrap(coordinator.clipboard)
+        let clipboard = try XCTUnwrap(coordinator.copySelectedSteps(from: mutator.clip, track: track))
         let first = try XCTUnwrap(clipboard.steps[0])
         XCTAssertTrue(first.active)
         XCTAssertEqual(first.sliceIndex, 3)
@@ -689,7 +823,7 @@ final class StepGridCoordinatorTests: XCTestCase {
         XCTAssertFalse(coordinator.isSelectionActive)
 
         [0, 3].forEach { coordinator.toggleSelection(at: $0) }
-        coordinator.pasteClipboard(track: track)
+        coordinator.pasteClipboard(clipboard, track: track)
 
         XCTAssertEqual(mutator.mutationCount, 2)
         XCTAssertEqual(Self.sliceStepPattern(in: mutator.clip), [true, false, true, false])
@@ -697,33 +831,28 @@ final class StepGridCoordinatorTests: XCTestCase {
         XCTAssertEqual(Self.sliceStepModes(in: mutator.clip), [.runFromHere, .single, .single, .runFromHere])
     }
 
-    func test_workspaceCoordinatorClearsSelectionButKeepsClipboardOnActiveClipChange() {
+    func test_workspaceCoordinatorClearsSelectionOnActiveClipChange() {
         let firstClipID = UUID()
         let secondClipID = UUID()
-        let track = Self.makeTrack()
         let mutator = RecordingClipMutator(clip: Self.makeNoteClip(id: firstClipID, activeIndexes: [1]))
         let workspace = TrackStepGridWorkspaceModel()
         let coordinator = workspace.coordinator(for: firstClipID, clipMutator: mutator, editableLayers: [.velocity, .chance])
         coordinator.toggleSelection(at: 1)
-        coordinator.copySelectedSteps(from: mutator.clip, track: track)
 
         let sameCoordinator = workspace.coordinator(for: secondClipID, clipMutator: mutator, editableLayers: [.velocity])
 
         XCTAssertTrue(coordinator === sameCoordinator)
         XCTAssertEqual(coordinator.selection.clipID, secondClipID)
         XCTAssertFalse(coordinator.isSelectionActive)
-        XCTAssertNotNil(coordinator.clipboard)
         XCTAssertEqual(coordinator.editableLayers, [.velocity])
     }
 
-    func test_workspaceResetDiscardsCoordinatorSelectionAndClipboard() {
+    func test_workspaceResetDiscardsCoordinatorSelection() {
         let clipID = UUID()
-        let track = Self.makeTrack()
         let mutator = RecordingClipMutator(clip: Self.makeNoteClip(id: clipID, activeIndexes: [1]))
         let workspace = TrackStepGridWorkspaceModel()
         let coordinator = workspace.coordinator(for: clipID, clipMutator: mutator, editableLayers: [.velocity, .chance])
         coordinator.toggleSelection(at: 1)
-        coordinator.copySelectedSteps(from: mutator.clip, track: track)
 
         workspace.reset()
 
@@ -855,10 +984,14 @@ final class StepGridCoordinatorTests: XCTestCase {
         return indexes.compactMap { stepParameters[$0].gain }
     }
 
-    private static func makeTrack(macros: [TrackMacroBinding] = []) -> StepSequenceTrack {
+    private static func makeTrack(
+        macros: [TrackMacroBinding] = [],
+        trackType: TrackType = .monoMelodic
+    ) -> StepSequenceTrack {
         StepSequenceTrack(
             id: UUID(),
             name: "Track",
+            trackType: trackType,
             pitches: [60],
             stepPattern: Array(repeating: false, count: 8),
             velocity: 100,

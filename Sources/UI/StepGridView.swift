@@ -191,6 +191,7 @@ struct StepGridBatchActionAvailability: Equatable, Sendable {
     let hasSelection: Bool
     let hasClipboard: Bool
 
+    var canErase: Bool { hasSelection }
     var canClear: Bool { hasSelection }
     var canCopy: Bool { hasSelection }
     var canPaste: Bool { hasSelection && hasClipboard }
@@ -199,9 +200,24 @@ struct StepGridBatchActionAvailability: Equatable, Sendable {
 struct StepGridBatchActionBar: View {
     let hasSelection: Bool
     let canPaste: Bool
-    let onClear: () -> Void
-    let onCopy: () -> Void
-    let onPaste: () -> Void
+    let onErase: () -> Void
+    let onCopy: (() -> Void)?
+    let onPaste: (() -> Void)?
+
+    init(
+        hasSelection: Bool,
+        canPaste: Bool = false,
+        onErase: (() -> Void)? = nil,
+        onClear: (() -> Void)? = nil,
+        onCopy: (() -> Void)? = nil,
+        onPaste: (() -> Void)? = nil
+    ) {
+        self.hasSelection = hasSelection
+        self.canPaste = canPaste
+        self.onErase = onErase ?? onClear ?? {}
+        self.onCopy = onCopy
+        self.onPaste = onPaste
+    }
 
     private var availability: StepGridBatchActionAvailability {
         StepGridBatchActionAvailability(hasSelection: hasSelection, hasClipboard: canPaste)
@@ -209,9 +225,13 @@ struct StepGridBatchActionBar: View {
 
     var body: some View {
         HStack(spacing: StudioMetrics.Spacing.tight) {
-            actionButton("Clear", systemImage: "xmark", isEnabled: availability.canClear, action: onClear)
-            actionButton("Copy", systemImage: "doc.on.doc", isEnabled: availability.canCopy, action: onCopy)
-            actionButton("Paste", systemImage: "doc.on.clipboard", isEnabled: availability.canPaste, action: onPaste)
+            actionButton("Erase", systemImage: "eraser", isEnabled: availability.canErase, action: onErase)
+            if let onCopy {
+                actionButton("Copy", systemImage: "doc.on.doc", isEnabled: availability.canCopy, action: onCopy)
+            }
+            if let onPaste {
+                actionButton("Paste", systemImage: "doc.on.clipboard", isEnabled: availability.canPaste, action: onPaste)
+            }
         }
         .fixedSize()
         .frame(minHeight: 30)

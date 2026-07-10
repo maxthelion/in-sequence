@@ -254,6 +254,11 @@ struct ChordTrackWorkspaceView: View {
             }
             .presentationBackground(.clear)
         }
+        .documentEditTarget(
+            isActive: selectedTab == .steps && recipeClip != nil && stepGridCoordinator != nil,
+            revision: documentEditTargetRevision,
+            makeTarget: makeDocumentEditTarget
+        )
     }
 
     private var paletteBar: some View {
@@ -507,16 +512,8 @@ struct ChordTrackWorkspaceView: View {
                 }
                 StepGridBatchActionBar(
                     hasSelection: stepGridCoordinator?.isSelectionActive ?? false,
-                    canPaste: stepGridCoordinator?.clipboard != nil,
-                    onClear: {
+                    onErase: {
                         _ = stepGridCoordinator?.clearSelectedSteps(track: track)
-                    },
-                    onCopy: {
-                        guard let recipeClip else { return }
-                        stepGridCoordinator?.copySelectedSteps(from: recipeClip, track: track)
-                    },
-                    onPaste: {
-                        _ = stepGridCoordinator?.pasteClipboard(track: track)
                     }
                 )
                 Spacer(minLength: 0)
@@ -1199,6 +1196,24 @@ struct ChordTrackWorkspaceView: View {
             editableLayers: [.chord, .length]
         )
         coordinator.updateActiveLayer(selectedLayer == .length ? .length : .chord)
+    }
+
+    private var documentEditTargetRevision: StepGridDocumentEditTargetRevision {
+        StepGridDocumentEditTargetRevision(
+            clipID: recipeClip?.id,
+            trackID: track.id,
+            selectedStepIndexes: stepGridCoordinator?.selection.selectedStepIndexes ?? []
+        )
+    }
+
+    private func makeDocumentEditTarget() -> DocumentEditCommandController.Target {
+        guard let stepGridCoordinator else {
+            preconditionFailure("An active chord step editor requires a step-grid coordinator")
+        }
+        return stepGridCoordinator.documentEditTarget(
+            track: track,
+            loadClip: { clipID in session.store.clipEntry(id: clipID) }
+        )
     }
 
     private var stepGridCoordinator: StepGridCoordinator? {
