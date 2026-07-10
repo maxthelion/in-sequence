@@ -68,9 +68,9 @@ status_file="${command_file}.status"
 WB="120,80,1100,780"
 capture_filter="${QA_SURFACE_CAPTURE_FILTER:-}"
 startup_wait_seconds="${QA_SURFACE_STARTUP_WAIT_SECONDS:-45}"
-launch_grace_seconds="${QA_SURFACE_LAUNCH_GRACE_SECONDS:-1}"
-default_settle_seconds="${QA_SURFACE_SETTLE_SECONDS:-0.35}"
-slow_settle_seconds="${QA_SURFACE_SLOW_SETTLE_SECONDS:-1.5}"
+launch_grace_seconds="${QA_SURFACE_LAUNCH_GRACE_SECONDS:-0.5}"
+default_settle_seconds="${QA_SURFACE_SETTLE_SECONDS:-0.25}"
+slow_settle_seconds="${QA_SURFACE_SLOW_SETTLE_SECONDS:-1.2}"
 captured_count=0
 executed_row_count=0
 skipped_rows=()
@@ -548,15 +548,21 @@ cleanup() {
   # (The note-repeat release cleanup was retired with the tracks-matrix
   # note-repeat surface — note repeat is no longer engaged from here.)
   write_visual_command "transport=stop" 2>/dev/null || true
-  sleep 2
+  wait_for_visual_command_ack 2 >/dev/null 2>&1 || true
   if [ -n "${pid:-}" ]; then
     kill "$pid" 2>/dev/null || true
-    sleep 1
-    kill -9 "$pid" 2>/dev/null || true
+    for _ in 1 2 3 4 5; do
+      kill -0 "$pid" 2>/dev/null || break
+      sleep 0.1
+    done
+    kill -0 "$pid" 2>/dev/null && kill -9 "$pid" 2>/dev/null || true
   elif [ -n "${launched_pid:-}" ]; then
     kill "$launched_pid" 2>/dev/null || true
-    sleep 1
-    kill -9 "$launched_pid" 2>/dev/null || true
+    for _ in 1 2 3 4 5; do
+      kill -0 "$launched_pid" 2>/dev/null || break
+      sleep 0.1
+    done
+    kill -0 "$launched_pid" 2>/dev/null && kill -9 "$launched_pid" 2>/dev/null || true
   fi
   if [ "$command_file_from_env" != true ]; then
     launchctl unsetenv SEQUENCER_AI_VISUAL_COMMAND_FILE >/dev/null 2>&1 || true
