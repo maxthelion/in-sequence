@@ -169,3 +169,12 @@ final class DocumentEditCommandController {
         return true
     }
 }
+
+extension DocumentEditCommandController.Domain {
+    static let tracks: Self = "tracks"
+    static let phrases: Self = "phrases"
+    static let phraseCells: Self = "phrase-cells"
+    static let scenes: Self = "scenes"
+    static let steps: Self = "steps"
+    static let patterns: Self = "patterns"
+}

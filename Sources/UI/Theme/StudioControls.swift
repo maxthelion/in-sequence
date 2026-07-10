@@ -163,6 +163,69 @@ struct StudioCommandButton: View {
     }
 }
 
+private struct DocumentEditTargetModifier<Revision: Equatable>: ViewModifier {
+    @Environment(SequencerDocumentSession.self) private var session
+    @State private var ownership: DocumentEditCommandController.OwnershipToken?
+
+    let isActive: Bool
+    let revision: Revision
+    let makeTarget: () -> DocumentEditCommandController.Target
+
+    func body(content: Content) -> some View {
+        content
+            .onAppear { synchronizeTarget() }
+            .onChange(of: isActive) { _, _ in synchronizeTarget() }
+            .onChange(of: revision) { _, _ in synchronizeTarget() }
+            .onDisappear { unregisterTarget() }
+    }
+
+    private func synchronizeTarget() {
+        let controller = session.documentEditCommands
+        guard isActive else {
+            unregisterTarget()
+            return
+        }
+
+        let target = makeTarget()
+        if let ownership {
+            if !controller.update(target: target, ownership: ownership) {
+                self.ownership = controller.register(target: target)
+            }
+        } else {
+            ownership = controller.register(target: target)
+        }
+        if let ownership {
+            controller.availabilityDidChange(ownership: ownership)
+        }
+    }
+
+    private func unregisterTarget() {
+        guard let ownership else { return }
+        _ = session.documentEditCommands.unregister(ownership: ownership)
+        self.ownership = nil
+    }
+}
+
+extension View {
+    /// Register the visible surface's real selection with the transport edit
+    /// commands. `revision` refreshes captured closures when local selection or
+    /// target compatibility changes; ownership tokens keep disappearing views
+    /// from unregistering a newer surface.
+    func documentEditTarget<Revision: Equatable>(
+        isActive: Bool,
+        revision: Revision,
+        makeTarget: @escaping () -> DocumentEditCommandController.Target
+    ) -> some View {
+        modifier(
+            DocumentEditTargetModifier(
+                isActive: isActive,
+                revision: revision,
+                makeTarget: makeTarget
+            )
+        )
+    }
+}
+
 /// Vertically stacked increment/decrement buttons (the BPM stepper, layer
 /// cycler, and friends). `symbols` defaults to plus/minus; pass chevrons for
 /// cycling semantics.
