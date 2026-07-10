@@ -81,9 +81,13 @@ final class DocumentEditCommandController {
         var target: Target
     }
 
-    private var activeRegistration: Registration?
+    private var registrations: [Registration] = []
     private var availabilityRevision: UInt64 = 0
     private(set) var clipboardPayload: ClipboardPayload?
+
+    private var activeRegistration: Registration? {
+        registrations.last
+    }
 
     var availability: Availability {
         _ = availabilityRevision
@@ -102,7 +106,7 @@ final class DocumentEditCommandController {
     @discardableResult
     func register(target: Target) -> OwnershipToken {
         let token = OwnershipToken(id: UUID())
-        activeRegistration = Registration(token: token, target: target)
+        registrations.append(Registration(token: token, target: target))
         return token
     }
 
@@ -110,21 +114,22 @@ final class DocumentEditCommandController {
     /// overwrite the current target with a stale update.
     @discardableResult
     func update(target: Target, ownership token: OwnershipToken) -> Bool {
-        guard activeRegistration?.token == token else {
+        guard registrations.last?.token == token else {
             return false
         }
-        activeRegistration?.target = target
+        registrations[registrations.count - 1].target = target
         return true
     }
 
-    /// Removes a target only while its ownership token is current.
+    /// Removes an owned target, restoring the next enclosing target when active.
     @discardableResult
     func unregister(ownership token: OwnershipToken) -> Bool {
-        guard activeRegistration?.token == token else {
+        guard let index = registrations.firstIndex(where: { $0.token == token }) else {
             return false
         }
-        activeRegistration = nil
-        return true
+        let wasActive = index == registrations.count - 1
+        registrations.remove(at: index)
+        return wasActive
     }
 
     /// Allows an active adapter to publish a selection change whose state is

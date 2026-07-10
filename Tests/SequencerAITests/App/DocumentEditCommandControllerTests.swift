@@ -120,6 +120,24 @@ final class DocumentEditCommandControllerTests: XCTestCase {
         XCTAssertEqual(controller.availability, .unavailable)
     }
 
+    func testUnregisteringNestedTargetRestoresParentTarget() {
+        let controller = DocumentEditCommandController()
+        let parent = controller.register(target: makeTarget(canCopy: { true }))
+        let child = controller.register(target: makeTarget(canCopy: { false }, canClear: { true }))
+
+        XCTAssertEqual(
+            controller.availability,
+            .init(canCopy: false, canPaste: false, canClear: true)
+        )
+        XCTAssertTrue(controller.unregister(ownership: child))
+        XCTAssertEqual(
+            controller.availability,
+            .init(canCopy: true, canPaste: false, canClear: false)
+        )
+        XCTAssertTrue(controller.unregister(ownership: parent))
+        XCTAssertEqual(controller.availability, .unavailable)
+    }
+
     func testCopyPasteAndClearExecuteTheirSuppliedClosures() {
         let controller = DocumentEditCommandController()
         var hasSelection = true
