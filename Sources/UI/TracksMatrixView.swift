@@ -364,7 +364,8 @@ struct TracksMatrixView: View {
                 options: TracksNavigatorFilter.allCases.map {
                     StudioMenuPickerOption(label: $0.title, value: $0)
                 },
-                help: "Filter tracks by type"
+                help: "Filter tracks by type",
+                symbolName: "line.3.horizontal.decrease.circle"
             )
             .accessibilityIdentifier("tracks-type-filter")
 
@@ -785,8 +786,7 @@ private struct KitMatrixCard: View {
                 Text(group.name)
                     .studioText(.subtitle)
                     .foregroundStyle(isSelected ? StudioTheme.background : StudioTheme.text)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
+                    .lineLimit(2)
 
                 Spacer(minLength: 0)
 
@@ -1088,8 +1088,7 @@ private struct TrackMatrixCard: View {
                 Text(track.name)
                     .studioText(.subtitle)
                     .foregroundStyle(isSelected ? StudioTheme.background : StudioTheme.text)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
+                    .lineLimit(2)
 
                 Spacer(minLength: 0)
 

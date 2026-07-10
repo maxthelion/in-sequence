@@ -129,7 +129,7 @@ private struct StepGridCell: View {
         // outline/fill is the control (one less nesting level). Selection
         // alone draws the outer accent line.
         .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
                 .stroke(isSelected ? accent : Color.clear, lineWidth: 2)
         )
         .background {
@@ -139,7 +139,7 @@ private struct StepGridCell: View {
             EmptyView()
             #endif
         }
-        .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
+        .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
         .studioSelectOnRightClick {
             selectAction?()
         }

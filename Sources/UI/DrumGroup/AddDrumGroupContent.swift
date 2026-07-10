@@ -145,6 +145,8 @@ struct AddDrumGroupContent: View {
                 )
             )
             .textFieldStyle(.plain)
+            .foregroundStyle(StudioTheme.text)
+            .tint(Self.surfaceAccent)
             .frame(maxWidth: 180)
 
             tagMenu(at: index)
@@ -188,6 +190,8 @@ struct AddDrumGroupContent: View {
             menuLabel(PatternTemplateApplicationPreview.tagLabel(currentTag))
         }
         .menuStyle(.borderlessButton)
+        .foregroundStyle(StudioTheme.text)
+        .tint(StudioTheme.text)
         .frame(width: 130)
         .help("Part tag — the join key for kits, templates, and sound pools")
     }
@@ -210,6 +214,8 @@ struct AddDrumGroupContent: View {
             menuLabel(soundLabel(for: member, category: category))
         }
         .menuStyle(.borderlessButton)
+        .foregroundStyle(StudioTheme.text)
+        .tint(StudioTheme.text)
         .frame(width: 190)
         .disabled(pool.isEmpty)
         .help(pool.isEmpty ? "No sample pool for this tag — the part is created without a destination" : "Swap this part's sound from its tag's pool")

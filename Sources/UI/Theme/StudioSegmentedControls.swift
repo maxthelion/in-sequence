@@ -212,6 +212,7 @@ struct StudioMenuPicker<Value: Hashable>: View {
     @Binding var selection: Value
     let options: [StudioMenuPickerOption<Value>]
     var help: String = ""
+    var symbolName: String? = nil
 
     private var selectedLabel: String {
         options.first { $0.value == selection }?.label ?? "—"
@@ -240,6 +241,11 @@ struct StudioMenuPicker<Value: Hashable>: View {
             }
         } label: {
             HStack(spacing: 6) {
+                if let symbolName {
+                    Image(systemName: symbolName)
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(StudioTheme.text)
+                }
                 Text(selectedLabel)
                     .studioText(.labelBold)
                     .foregroundStyle(StudioTheme.text)
@@ -265,6 +271,8 @@ struct StudioMenuPicker<Value: Hashable>: View {
         }
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)
+        .foregroundStyle(StudioTheme.text)
+        .tint(StudioTheme.text)
         .fixedSize()
         .help(help)
         .accessibilityLabel("\(title ?? help) \(selectedLabel)")
