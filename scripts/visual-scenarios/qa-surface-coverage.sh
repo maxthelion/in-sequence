@@ -138,7 +138,7 @@ CAPTURES=$(cat <<'TABLE'
 # navigation + selection; layer perform launches scoped from the selection
 # (covered by the phrase-perform rows 08-13b). The trackPerformLayer* status
 # fields no longer exist.
-18-track-detail-steps-clip|workspace=track|trackFillSource=clip;trackSourceTab=steps-clip;trackSelectStep=2;transport=stop
+18-track-detail-steps-clip|workspace=track,selectedTrackGroupName=none,drumPartHeaderVisible=false|drumPartHeaderFixture=nonKit;trackFillSource=clip;trackSourceTab=steps-clip;trackSelectStep=2;transport=stop
 19-track-sampler-sound-populated|workspace=track,trackSourceTab=sound,trackSourceEditorRenderedVisible=true,trackSourceEditorRenderedTab=sound,selectedTrackSoundDestinationKind=sample|trackSoundSource=sample;trackSourceTab=sound;transport=stop
 19a-track-sound-empty|workspace=track,trackSourceTab=sound,trackSourceEditorRenderedVisible=true,trackSourceEditorRenderedTab=sound,selectedTrackSoundDestinationKind=none|trackSoundSource=empty;trackSourceTab=sound;transport=stop
 20-track-fill-preview-active|workspace=track,trackSourceTab=steps-clip,selectedTrackFillPreviewActive=true|trackFillSource=clip;trackFillPreview=on;trackSourceTab=steps-clip;transport=stop
