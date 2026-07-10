@@ -99,6 +99,21 @@ final class UnifiedStepCellTests: XCTestCase {
         XCTAssertEqual(selectedStep, 17)
     }
 
+    func test_batchActionsStayVisibleButRequireSelectionAndClipboard() {
+        let idle = StepGridBatchActionAvailability(hasSelection: false, hasClipboard: true)
+        XCTAssertFalse(idle.canClear)
+        XCTAssertFalse(idle.canCopy)
+        XCTAssertFalse(idle.canPaste)
+
+        let selected = StepGridBatchActionAvailability(hasSelection: true, hasClipboard: false)
+        XCTAssertTrue(selected.canClear)
+        XCTAssertTrue(selected.canCopy)
+        XCTAssertFalse(selected.canPaste)
+
+        let ready = StepGridBatchActionAvailability(hasSelection: true, hasClipboard: true)
+        XCTAssertTrue(ready.canPaste)
+    }
+
     func test_valueFractionsClampToUnitRange() {
         let low = UnifiedStepCellVisualConfiguration(
             visualState: .on,
@@ -258,26 +273,40 @@ final class UnifiedStepCellTests: XCTestCase {
 
     // MARK: - WS3 layer system
 
-    func test_pitchCellContentEncodesDegreeOctaveBandAndCornerBadge() {
-        // Centre register (octave 4-5 in the /12 convention): mid dot, no badge.
+    func test_pitchCellContentUsesDAWNoteNamesAndRestsStayBlank() {
         XCTAssertEqual(
             ClipNoteGridStepEditing.pitchContent(for: 60),
-            .pitchLabel(degree: "1", octaveBand: 1, badge: nil)
+            .optionLabel(text: "C4")
         )
-        // Low register.
         XCTAssertEqual(
             ClipNoteGridStepEditing.pitchContent(for: 39),
-            .pitchLabel(degree: "b3", octaveBand: 0, badge: nil)
+            .optionLabel(text: "D#2")
         )
-        // Past +/-2 from centre the corner badge appears (spec: badge past +/-2).
         XCTAssertEqual(
             ClipNoteGridStepEditing.pitchContent(for: 84),
-            .pitchLabel(degree: "1", octaveBand: 2, badge: "+3")
+            .optionLabel(text: "C6")
         )
         XCTAssertEqual(
             ClipNoteGridStepEditing.pitchContent(for: 12),
-            .pitchLabel(degree: "1", octaveBand: 0, badge: "-3")
+            .optionLabel(text: "C0")
         )
+
+        let restContent = ClipContent.emptyNoteGrid(lengthSteps: 1)
+        XCTAssertEqual(
+            ClipNoteGridStepEditing.pitchContent(at: 0, in: restContent),
+            .optionLabel(text: "")
+        )
+    }
+
+    func test_pitchKeyboardMapsOctavesAndClampsMidiBoundaries() {
+        XCTAssertEqual(StepPitchKeyboardModel(octave: 4).midiNote(forPitchClass: 0), 60)
+        XCTAssertEqual(StepPitchKeyboardModel(octave: 4).midiNote(forPitchClass: 11), 71)
+        XCTAssertEqual(StepPitchKeyboardModel(octave: -20).octave, -1)
+        XCTAssertEqual(StepPitchKeyboardModel(octave: 20).octave, 9)
+        XCTAssertEqual(StepPitchKeyboardModel(octave: -1).midiNote(forPitchClass: 0), 0)
+        XCTAssertEqual(StepPitchKeyboardModel(octave: 9).midiNote(forPitchClass: 7), 127)
+        XCTAssertNil(StepPitchKeyboardModel(octave: 9).midiNote(forPitchClass: 8))
+        XCTAssertNil(StepPitchKeyboardModel(octave: 4).midiNote(forPitchClass: 12))
     }
 
     /// AC2 (WS3): ONE quick-switch component serves the mono and slicer
@@ -461,8 +490,8 @@ private struct SliceStepStripVisualEvidenceView: View {
                     onTap: { _ in }
                 )
 
-                SliceStepBatchActionBar(
-                    isVisible: true,
+                StepGridBatchActionBar(
+                    hasSelection: true,
                     canPaste: true,
                     onClear: {},
                     onCopy: {},
@@ -621,8 +650,8 @@ private struct BatchActionLayoutProbeView: View {
             )
             .background(StepStripFrameProbe(recorder: frameRecorder))
 
-            SliceStepBatchActionBar(
-                isVisible: batchActionBarVisible,
+            StepGridBatchActionBar(
+                hasSelection: batchActionBarVisible,
                 canPaste: true,
                 onClear: {},
                 onCopy: {},

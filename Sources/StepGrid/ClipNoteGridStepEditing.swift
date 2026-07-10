@@ -867,6 +867,30 @@ enum ClipNoteGridStepEditing {
         return steps[safe: index].flatMap { noteLane.lane(in: $0) }?.notes.first?.pitch
     }
 
+    static func isTriggered(
+        at index: Int,
+        in content: ClipContent,
+        noteLane: StepGridNoteLane = .main
+    ) -> Bool {
+        guard case let .noteGrid(_, steps) = content.normalized,
+              let step = steps[safe: index]
+        else {
+            return false
+        }
+        return noteLane.lane(in: step) != nil
+    }
+
+    static func setPitchIfTriggered(
+        _ pitch: Int,
+        at index: Int,
+        entry: inout ClipPoolEntry,
+        noteLane: StepGridNoteLane,
+        defaultNote: ClipStepNote
+    ) {
+        guard isTriggered(at: index, in: entry.content, noteLane: noteLane) else { return }
+        setPitch(pitch, at: index, entry: &entry, noteLane: noteLane, defaultNote: defaultNote)
+    }
+
     static func pitchFraction(at index: Int, in content: ClipContent, noteLane: StepGridNoteLane = .main) -> Double {
         guard let pitch = pitchValue(at: index, in: content, noteLane: noteLane) else { return 0 }
         return clampedUnit(Double(pitch) / 127)
@@ -874,33 +898,18 @@ enum ClipNoteGridStepEditing {
 
     static func pitchContent(at index: Int, in content: ClipContent, noteLane: StepGridNoteLane = .main) -> StepCellContent {
         guard let pitch = pitchValue(at: index, in: content, noteLane: noteLane) else {
-            return .pitchLabel(degree: "-", octaveBand: 1, badge: nil)
+            return .optionLabel(text: "")
         }
         return pitchContent(for: pitch)
     }
 
     static func pitchDisplayValue(at index: Int, in content: ClipContent, noteLane: StepGridNoteLane = .main) -> String {
-        guard let pitch = pitchValue(at: index, in: content, noteLane: noteLane) else { return "-" }
-        let content = pitchContent(for: pitch)
-        if case let .pitchLabel(degree, _, badge) = content {
-            return "\(degree)\(badge ?? "")"
-        }
-        return "\(pitch)"
+        guard let pitch = pitchValue(at: index, in: content, noteLane: noteLane) else { return "" }
+        return DAWNoteName.string(forMIDINote: pitch) ?? ""
     }
 
     static func pitchContent(for pitch: Int) -> StepCellContent {
-        let octave = pitch / 12
-        let band: Int
-        if octave <= 3 {
-            band = 0
-        } else if octave <= 5 {
-            band = 1
-        } else {
-            band = 2
-        }
-        let centerOffset = octave - 4
-        let badge = abs(centerOffset) > 2 ? (centerOffset > 0 ? "+\(centerOffset)" : "\(centerOffset)") : nil
-        return .pitchLabel(degree: scaleDegreeLabel(for: pitch), octaveBand: band, badge: badge)
+        .optionLabel(text: DAWNoteName.string(forMIDINote: min(max(pitch, 0), 127)) ?? "")
     }
 
     static func chordLabel(at index: Int, in content: ClipContent, noteLane: StepGridNoteLane = .main) -> String {

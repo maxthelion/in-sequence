@@ -218,6 +218,20 @@ struct SliceTrackWorkspaceView: View {
                 laneSelector
                 lengthSelector
                 sliceLayerChip
+                StepGridBatchActionBar(
+                    hasSelection: stepGridCoordinator?.isSelectionActive ?? false,
+                    canPaste: stepGridCoordinator?.clipboard != nil,
+                    onClear: {
+                        _ = stepGridCoordinator?.clearSelectedSteps(track: track)
+                    },
+                    onCopy: {
+                        guard let currentClip else { return }
+                        stepGridCoordinator?.copySelectedSteps(from: currentClip, track: track)
+                    },
+                    onPaste: {
+                        _ = stepGridCoordinator?.pasteClipboard(track: track)
+                    }
+                )
                 Spacer(minLength: 0)
             }
             if isLayerSwitcherOpen {
@@ -237,19 +251,20 @@ struct SliceTrackWorkspaceView: View {
 
     private var laneSelector: some View {
         StudioSegmentedControl(
-            title: "Lane",
+            title: nil,
             selection: $selectedLane,
             segments: SliceTrackLane.allCases.map { lane in
                 StudioSegment(title: lane.title, value: lane, isEnabled: lane == .normal)
             },
             accent: accent,
-            layout: .init(fillsWidth: false, minWidth: 64)
+            layout: .init(fillsWidth: false, minWidth: 64),
+            accessibilityLabel: { "Lane \($0.title)" }
         )
     }
 
     private var lengthSelector: some View {
         StudioSegmentedControl(
-            title: "Length",
+            title: nil,
             selection: Binding(
                 get: { clipContent.stepCount },
                 set: { resizeClip(to: $0) }
@@ -258,7 +273,8 @@ struct SliceTrackWorkspaceView: View {
                 StudioSegment(title: "\(length)", value: length)
             },
             accent: accent,
-            layout: .init(fillsWidth: false, minWidth: 44)
+            layout: .init(fillsWidth: false, minWidth: 44),
+            accessibilityLabel: { "Length \($0.title) steps" }
         )
     }
 
@@ -268,7 +284,7 @@ struct SliceTrackWorkspaceView: View {
     // until per-step engine params land (see NOTE in the strip).
     private var sliceLayerChip: some View {
         StepLayerQuickSwitchChip(
-            title: "Layer",
+            title: "",
             selection: $selectedLayer,
             isOpen: $isLayerSwitcherOpen,
             options: SliceTrackClipLayer.allCases.map { layer in
@@ -333,21 +349,6 @@ struct SliceTrackWorkspaceView: View {
                         coordinator?.clearSelection()
                     }
                 }
-
-                SliceStepBatchActionBar(
-                    isVisible: coordinator?.shouldShowBatchActionBar ?? false,
-                    canPaste: coordinator?.clipboard != nil,
-                    onClear: {
-                        _ = coordinator?.clearSelectedSteps(track: track)
-                    },
-                    onCopy: {
-                        guard let clip = currentClip else { return }
-                        coordinator?.copySelectedSteps(from: clip, track: track)
-                    },
-                    onPaste: {
-                        _ = coordinator?.pasteClipboard(track: track)
-                    }
-                )
 
                 if pageCount(for: steps.count) > 1 {
                     HStack(spacing: 8) {

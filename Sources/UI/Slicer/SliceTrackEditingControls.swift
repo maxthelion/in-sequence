@@ -507,6 +507,10 @@ struct SliceStepStrip: View {
                         RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
                             .stroke(isSelected(absoluteIndex) ? accent : Color.clear, lineWidth: 2)
                     )
+                    .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
+                    .studioSelectOnRightClick {
+                        onSelect(absoluteIndex)
+                    }
                     .accessibilityElement(children: .combine)
                     .accessibilityLabel("Slice step \(absoluteIndex + 1)")
                 }
@@ -602,29 +606,6 @@ struct StepGridEscapeKeyHandler: NSViewRepresentable {
                 self.monitor = nil
             }
         }
-    }
-}
-
-struct SliceStepBatchActionBar: View {
-    let isVisible: Bool
-    let canPaste: Bool
-    let onClear: () -> Void
-    let onCopy: () -> Void
-    let onPaste: () -> Void
-
-    var body: some View {
-        HStack(spacing: 8) {
-            Button("Clear", action: onClear)
-            Button("Copy", action: onCopy)
-            Button("Paste", action: onPaste)
-                .disabled(!canPaste)
-        }
-        .buttonStyle(.bordered)
-        .controlSize(.small)
-        .frame(maxWidth: .infinity, minHeight: 30, maxHeight: 30, alignment: .leading)
-        .opacity(isVisible ? 1 : 0)
-        .allowsHitTesting(isVisible)
-        .accessibilityLabel("Step batch actions")
     }
 }
 

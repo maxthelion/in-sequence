@@ -45,13 +45,12 @@ struct PatternIndexCellPreview: View {
                     Spacer(minLength: 0)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, StudioMetrics.Spacing.tight)
-                .padding(.vertical, StudioMetrics.Spacing.compact)
+                .padding(StudioMetrics.Spacing.hairline)
                 .frame(height: metrics.valueHeight)
                 .background(cellFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
             }
         }
-        .accessibilityElement()
+        .accessibilityElement(children: onSelectSlot == nil ? .ignore : .contain)
         .accessibilityLabel(isMixed ? "Mixed pattern slots" : "Pattern \(summary)")
     }
 
@@ -64,7 +63,7 @@ struct PatternIndexCellPreview: View {
 
     private var pillHeight: CGFloat {
         // Four pill rows plus the cell padding must fit metrics.valueHeight.
-        let inset = StudioMetrics.Spacing.compact * 2 + StudioMetrics.Spacing.hairline * 3
+        let inset = StudioMetrics.Spacing.hairline * 5
         return max(8, (metrics.valueHeight - inset) / 4)
     }
 
@@ -100,20 +99,28 @@ struct PatternIndexCellPreview: View {
                 onSelectSlot(index)
             } label: {
                 label
+                    .frame(maxWidth: .infinity)
+                    .frame(height: pillHeight)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous))
+            .frame(maxWidth: .infinity)
+            .frame(height: pillHeight)
+            .contentShape(Rectangle())
             .help("P\(index + 1)")
             .accessibilityLabel("Pattern slot \(index + 1)")
+            .accessibilityIdentifier("phrase-pattern-slot-\(index + 1)")
         } else {
             label
+                .frame(maxWidth: .infinity)
+                .frame(height: pillHeight)
         }
     }
 
     private func slotCellLabel(_ index: Int) -> some View {
         RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous)
             .fill(slotFill(for: index))
-            .frame(height: pillHeight)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .overlay(
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous)
                     .stroke(slotStroke(for: index), lineWidth: StudioMetrics.borderWidth)

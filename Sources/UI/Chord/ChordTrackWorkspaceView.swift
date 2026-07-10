@@ -490,12 +490,26 @@ struct ChordTrackWorkspaceView: View {
 
     private var stepsTab: some View {
         VStack(alignment: .leading, spacing: 14) {
-            HStack(spacing: 12) {
+            HStack(alignment: .center, spacing: 12) {
                 lengthSelector
                 layerChip
                 if chordPageCount > 1 {
                     pageSelector
                 }
+                StepGridBatchActionBar(
+                    hasSelection: stepGridCoordinator?.isSelectionActive ?? false,
+                    canPaste: stepGridCoordinator?.clipboard != nil,
+                    onClear: {
+                        _ = stepGridCoordinator?.clearSelectedSteps(track: track)
+                    },
+                    onCopy: {
+                        guard let recipeClip else { return }
+                        stepGridCoordinator?.copySelectedSteps(from: recipeClip, track: track)
+                    },
+                    onPaste: {
+                        _ = stepGridCoordinator?.pasteClipboard(track: track)
+                    }
+                )
                 Spacer(minLength: 0)
             }
             if isLayerSwitcherOpen {
@@ -507,7 +521,7 @@ struct ChordTrackWorkspaceView: View {
 
     private var lengthSelector: some View {
         StudioSegmentedControl(
-            title: "Length",
+            title: nil,
             selection: Binding(
                 get: { chordContent.stepCount },
                 set: { resizeChordClip(to: $0) }
@@ -516,13 +530,14 @@ struct ChordTrackWorkspaceView: View {
                 StudioSegment(title: "\(length)", value: length)
             },
             accent: accent,
-            layout: .init(fillsWidth: false, minWidth: 44)
+            layout: .init(fillsWidth: false, minWidth: 44),
+            accessibilityLabel: { "Length \($0.title) steps" }
         )
     }
 
     private var layerChip: some View {
         StepLayerQuickSwitchChip(
-            title: "Layer",
+            title: "",
             selection: $selectedLayer,
             isOpen: $isLayerSwitcherOpen,
             options: layerQuickSwitchOptions,
@@ -576,7 +591,7 @@ struct ChordTrackWorkspaceView: View {
             stepStates: states,
             indexOffset: chordPageStart,
             playingStepIndex: nil,
-            selectedStepIndexes: [selectedStepIndex],
+            selectedStepIndexes: stepGridCoordinator?.selection.selectedStepIndexes ?? [],
             accent: accent,
             contentProvider: { index, state in
                 switch selectedLayer {
@@ -593,6 +608,10 @@ struct ChordTrackWorkspaceView: View {
             },
             onSelectStep: { index in
                 selectedStepIndex = index
+                stepGridCoordinator?.toggleSelection(at: index)
+            },
+            onBackgroundTap: {
+                stepGridCoordinator?.clearSelection()
             }
         ) { index in
             selectedStepIndex = index
@@ -605,6 +624,11 @@ struct ChordTrackWorkspaceView: View {
                 incrementInversion(at: index)
             case .chordType:
                 cycleChordType(at: index)
+            }
+        }
+        .background {
+            StepGridEscapeKeyHandler(isEnabled: stepGridCoordinator?.isSelectionActive ?? false) {
+                stepGridCoordinator?.clearSelection()
             }
         }
     }
@@ -1160,11 +1184,16 @@ struct ChordTrackWorkspaceView: View {
             stepGridWorkspaceModel.reset()
             return
         }
-        _ = stepGridWorkspaceModel.coordinator(
+        let coordinator = stepGridWorkspaceModel.coordinator(
             for: clipID,
             clipMutator: session,
-            editableLayers: [.chord]
+            editableLayers: [.chord, .length]
         )
+        coordinator.updateActiveLayer(selectedLayer == .length ? .length : .chord)
+    }
+
+    private var stepGridCoordinator: StepGridCoordinator? {
+        stepGridWorkspaceModel.coordinator
     }
 
     private func prepareAndPresentMacroSlotPicker(slotIndex: Int) {

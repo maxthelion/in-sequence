@@ -323,9 +323,12 @@ final class StepGridCoordinator {
     }
 
     func copySelectedSteps(from clip: ClipPoolEntry, track: StepSequenceTrack) {
+        copySelectedSteps(from: clip, macroBindings: track.macros)
+    }
+
+    func copySelectedSteps(from clip: ClipPoolEntry, macroBindings: [TrackMacroBinding]) {
         let sourceClipID = selection.clipID
         let indexes = selection.selectedStepIndexes.sorted()
-        let macroBindings = track.macros
         let steps = Dictionary(uniqueKeysWithValues: indexes.map { index in
             (index, ClipNoteGridStepEditing.clipboardEntry(at: index, in: clip, macroBindings: macroBindings))
         })
@@ -334,8 +337,13 @@ final class StepGridCoordinator {
 
     @discardableResult
     func clearSelectedSteps(track: StepSequenceTrack) -> Bool {
+        clearSelectedSteps(macroBindings: track.macros)
+    }
+
+    @discardableResult
+    func clearSelectedSteps(macroBindings: [TrackMacroBinding]) -> Bool {
         let indexes = selection.selectedStepIndexes.sorted()
-        let macroBindings = track.macros
+        guard !indexes.isEmpty else { return false }
 
         let didMutate = commitEdit { entry in
             for index in indexes {
@@ -353,9 +361,17 @@ final class StepGridCoordinator {
         track: StepSequenceTrack,
         defaultNote: ClipStepNote = ClipStepNote(pitch: 60, velocity: 100, lengthSteps: 4)
     ) -> Bool {
+        pasteClipboard(macroBindings: track.macros, defaultNote: defaultNote)
+    }
+
+    @discardableResult
+    func pasteClipboard(
+        macroBindings: [TrackMacroBinding],
+        defaultNote: ClipStepNote = ClipStepNote(pitch: 60, velocity: 100, lengthSteps: 4)
+    ) -> Bool {
         guard let clipboard else { return false }
+        guard isSelectionActive else { return false }
         let entries = clipboard.steps
-        let macroBindings = track.macros
         let normalizedDefaultNote = defaultNote.normalized
 
         return commitEdit { entry in
@@ -365,6 +381,47 @@ final class StepGridCoordinator {
                     at: index,
                     entry: &entry,
                     macroBindings: macroBindings,
+                    defaultNote: normalizedDefaultNote
+                )
+            }
+        }
+    }
+
+    func selectedTriggeredStepIndexes(
+        in clip: ClipPoolEntry,
+        noteLane: StepGridNoteLane = .main
+    ) -> [Int] {
+        selection.selectedStepIndexes
+            .filter { ClipNoteGridStepEditing.isTriggered(at: $0, in: clip.content, noteLane: noteLane) }
+            .sorted()
+    }
+
+    func canWritePitch(
+        in clip: ClipPoolEntry,
+        noteLane: StepGridNoteLane = .main
+    ) -> Bool {
+        !selectedTriggeredStepIndexes(in: clip, noteLane: noteLane).isEmpty
+    }
+
+    @discardableResult
+    func writePitchToSelectedTriggeredSteps(
+        _ midiNote: Int,
+        in clip: ClipPoolEntry,
+        noteLane: StepGridNoteLane = .main,
+        defaultNote: ClipStepNote = ClipStepNote(pitch: 60, velocity: 100, lengthSteps: 4)
+    ) -> Bool {
+        let indexes = selectedTriggeredStepIndexes(in: clip, noteLane: noteLane)
+        guard !indexes.isEmpty else { return false }
+        let pitch = min(max(midiNote, 0), 127)
+        let normalizedDefaultNote = defaultNote.normalized
+
+        return commitEdit { entry in
+            for index in indexes {
+                ClipNoteGridStepEditing.setPitchIfTriggered(
+                    pitch,
+                    at: index,
+                    entry: &entry,
+                    noteLane: noteLane,
                     defaultNote: normalizedDefaultNote
                 )
             }
