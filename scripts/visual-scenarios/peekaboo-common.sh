@@ -262,16 +262,25 @@ wait_for_window_title() {
 
 ensure_new_document() {
   local pid="$1"
-  "$PEEKABOO_BIN" app switch --to "$APP_NAME" --no-remote >/dev/null || true
   sleep 0.5
 
   local title
   title="$(window_json "$pid" | jq -r '.data.windows[0].window_title')"
   if [ "$title" = "Open" ]; then
-    local x y
+    local x y height click_x click_y
     x="$(window_field "$pid" x)"
     y="$(window_field "$pid" y)"
-    click_point "$pid" "$((x + 227))" "$((y + 421))"
+    height="$(window_field "$pid" height)"
+    click_x="$((x + 230))"
+    click_y="$((y + height - 30))"
+    action_log "Open chooser visible; clicking New Document at ${click_x},${click_y}."
+    if ! run_with_timeout "$PEEKABOO_ACTION_TIMEOUT_SECONDS" \
+      "$PEEKABOO_BIN" click --coords "${click_x},${click_y}" --pid "$pid" \
+      --space-switch --no-remote --json \
+      >/dev/null 2>>"$PEEKABOO_OUTPUT_DIR/peekaboo-actions.err"; then
+      action_log "PID-targeted New Document click failed; falling back to CoreGraphics."
+      run_with_timeout "$PEEKABOO_ACTION_TIMEOUT_SECONDS" cg_click_point "$click_x" "$click_y"
+    fi
     sleep 1
   fi
 

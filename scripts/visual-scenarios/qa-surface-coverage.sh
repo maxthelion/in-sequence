@@ -449,6 +449,24 @@ ensure_document_window() {
   return 1
 }
 
+ensure_single_document_window() {
+  local pid="$1"
+  local windows_json
+  local document_window_count
+  windows_json="$(window_json "$pid")"
+  document_window_count="$(
+    printf '%s\n' "$windows_json" \
+      | jq '[.data.windows[] | select((.window_title // "") != "" and .window_title != "Open")] | length'
+  )"
+  if [ "$document_window_count" -ne 1 ]; then
+    action_log "ERROR: expected one driven document window, found ${document_window_count}"
+    printf '%s\n' "$windows_json" \
+      | jq -r '.data.windows[] | "window \(.window_id): \(.window_title // "untitled")"' \
+      | while IFS= read -r description; do action_log "  ${description}"; done
+    return 1
+  fi
+}
+
 write_notes() {
   mkdir -p "$output_dir"
   {
@@ -556,12 +574,23 @@ if [ ! -x "$app_executable" ]; then
   echo "App executable not found at $app_executable" >&2
   exit 2
 fi
-"$app_executable" "$runtime_fixture_path" >>"$output_dir/app-open.log" 2>&1 &
+# The DocumentGroup new-document closure reads SEQUENCER_AI_NEW_DOCUMENT_FIXTURE.
+# Passing the fixture path here as a document argument as well opens a second
+# window with a second command runner, making status/capture ownership race.
+"$app_executable" \
+  -ApplePersistenceIgnoreState YES \
+  -NSQuitAlwaysKeepsWindows NO \
+  >>"$output_dir/app-open.log" 2>&1 &
 launched_pid="$!"
 sleep 3
 
 pid="$launched_pid"
 last_completed_row="startup"
+
+# With state restoration disabled, DocumentGroup presents its Open/New chooser.
+# Create exactly one env-seeded document before writing commands; otherwise a
+# restored document and a new document can each mount a command runner.
+ensure_new_document "$pid"
 
 # Size the freshly-launched window BEFORE the peekaboo gate. Without saved
 # window state the app opens at a tiny default size that peekaboo filters out
@@ -573,6 +602,7 @@ transport=stop"
 ensure_document_window "$pid"
 wait_for_visual_command_ack "$startup_wait_seconds"
 wait_for_status "workspace" "phrase" "$startup_wait_seconds"
+ensure_single_document_window "$pid"
 
 while IFS= read -r row; do
   [ -n "$row" ] || continue
