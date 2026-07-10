@@ -440,7 +440,7 @@ struct TransportBar: View {
             .overlay(alignment: .bottomLeading) {
                 if phrasePresentation.hasCurrent {
                     TransportPhraseProgressBar(phrase: currentPhrase)
-                        .frame(width: 72)
+                        .frame(width: 48)
                         .padding(.leading, 29)
                         .padding(.bottom, 3)
                 }
