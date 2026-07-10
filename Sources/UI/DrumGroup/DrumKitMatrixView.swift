@@ -661,11 +661,6 @@ struct DrumKitMatrixView: View {
                 Spacer(minLength: 0)
 
                 addPartButton(model)
-
-                headerActionButton(title: "Apply Template…", systemImage: "square.grid.2x2") {
-                    isPresentingTemplateChooser = true
-                }
-                .help("Apply a pattern template into pattern slot P\((model.groupSelectedSlotIndex ?? 0) + 1)")
             }
 
             if isLayerSwitcherOpen {
