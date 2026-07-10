@@ -103,6 +103,10 @@ final class LiveSequencerStore {
 
     /// Track groups, ordered as stored.
     private var storeTrackGroups: [TrackGroup] = []
+    private var storePerformanceTrackGroups: [PerformanceTrackGroup?] = Array(
+        repeating: nil,
+        count: PerformanceTrackGroup.slotCount
+    )
 
     /// Generator pool indexed by ID. `storeGeneratorOrder` preserves insertion order.
     private var storeGeneratorsByID: [UUID: GeneratorPoolEntry] = [:]
@@ -165,6 +169,7 @@ final class LiveSequencerStore {
         storeVersion = project.version
         storeTracks = project.tracks
         storeTrackGroups = project.trackGroups
+        storePerformanceTrackGroups = project.performanceTrackGroups
         storeLayers = project.layers
         storeRoutes = project.routes
         storeBuses = MixerBus.normalizedCollection(project.buses)
@@ -233,6 +238,7 @@ final class LiveSequencerStore {
             version: storeVersion,
             tracks: storeTracks,
             trackGroups: storeTrackGroups,
+            performanceTrackGroups: storePerformanceTrackGroups,
             generatorPool: orderedGenerators,
             clipPool: orderedClips,
             layers: storeLayers,
@@ -603,6 +609,13 @@ final class LiveSequencerStore {
         revision &+= 1
     }
 
+    func replacePerformanceTrackGroups(_ groups: [PerformanceTrackGroup?]) {
+        let normalized = PerformanceTrackGroup.normalizedBank(groups, tracks: storeTracks)
+        guard normalized != storePerformanceTrackGroups else { return }
+        storePerformanceTrackGroups = normalized
+        revision &+= 1
+    }
+
     @discardableResult
     func appendMixerBus(name: String? = nil, color: String? = nil) -> UUID {
         var project = exportToProject()
@@ -755,6 +768,7 @@ final class LiveSequencerStore {
 
     var tracks: [StepSequenceTrack] { storeTracks }
     var trackGroups: [TrackGroup] { storeTrackGroups }
+    var performanceTrackGroups: [PerformanceTrackGroup?] { storePerformanceTrackGroups }
     var layers: [PhraseLayerDefinition] { storeLayers }
     var routes: [Route] { storeRoutes }
     var buses: [MixerBus] { storeBuses }

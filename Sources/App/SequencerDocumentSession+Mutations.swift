@@ -1698,6 +1698,26 @@ extension SequencerDocumentSession {
         tracksSelection.removeAll()
     }
 
+    @discardableResult
+    func setPerformanceTrackGroup(slotIndex: Int, memberIDs: Set<UUID>) -> PerformanceTrackGroup? {
+        guard !memberIDs.isEmpty else { return nil }
+        var created: PerformanceTrackGroup?
+        batch(impact: .snapshotOnly, changed: .none) { store in
+            var project = store.exportToProject()
+            created = project.setPerformanceTrackGroup(slotIndex: slotIndex, memberIDs: memberIDs)
+            store.replacePerformanceTrackGroups(project.performanceTrackGroups)
+        }
+        return created
+    }
+
+    func clearPerformanceTrackGroup(slotIndex: Int) {
+        batch(impact: .snapshotOnly, changed: .none) { store in
+            var project = store.exportToProject()
+            project.clearPerformanceTrackGroup(slotIndex: slotIndex)
+            store.replacePerformanceTrackGroups(project.performanceTrackGroups)
+        }
+    }
+
     /// Duplicate selected navigator tracks. Track copy/paste is a document
     /// mutation, so it uses the same project round-trip as append/remove.
     @discardableResult

@@ -1,6 +1,29 @@
 import Foundation
 
 extension Project {
+    @discardableResult
+    mutating func setPerformanceTrackGroup(slotIndex: Int, memberIDs: Set<UUID>) -> PerformanceTrackGroup? {
+        guard (0..<PerformanceTrackGroup.slotCount).contains(slotIndex) else { return nil }
+        let orderedMembers = tracks.map(\.id).filter { memberIDs.contains($0) }
+        guard !orderedMembers.isEmpty else { return nil }
+        performanceTrackGroups = PerformanceTrackGroup.normalizedBank(performanceTrackGroups, tracks: tracks)
+        let existing = performanceTrackGroups[slotIndex]
+        let group = PerformanceTrackGroup(
+            id: existing?.id ?? UUID(),
+            name: existing?.name ?? "Group \(slotIndex + 1)",
+            color: existing?.color ?? "#14C8E5",
+            memberIDs: orderedMembers
+        )
+        performanceTrackGroups[slotIndex] = group
+        return group
+    }
+
+    mutating func clearPerformanceTrackGroup(slotIndex: Int) {
+        guard (0..<PerformanceTrackGroup.slotCount).contains(slotIndex) else { return }
+        performanceTrackGroups = PerformanceTrackGroup.normalizedBank(performanceTrackGroups, tracks: tracks)
+        performanceTrackGroups[slotIndex] = nil
+    }
+
     mutating func appendTrack(trackType: TrackType = .monoMelodic) {
         let nextTrack = StepSequenceTrack(
             name: Self.defaultTrackName(for: trackType, index: tracks.count + 1),

@@ -188,6 +188,11 @@ enum TracksNavigatorPresentation {
     }
 }
 
+private struct CreatePerformanceTrackGroupRequest: Identifiable {
+    let id = UUID()
+    let memberIDs: Set<UUID>
+}
+
 private extension TracksNavigatorFilter {
     func includes(_ trackType: TrackType) -> Bool {
         switch (self, trackType) {
@@ -239,6 +244,7 @@ struct TracksMatrixView: View {
     @State private var copiedTrackIDs: Set<UUID> = []
     @State private var trackFilter: TracksNavigatorFilter = .all
     @State private var pendingDeleteTrackIDs: Set<UUID> = []
+    @State private var createPerformanceTrackGroupRequest: CreatePerformanceTrackGroupRequest?
     /// AC18: a linked drum kit collapses to ONE cell; an unlinked kit expands
     /// to its per-part cells (linked↔collapsed, unlinked↔expanded). The Expand
     /// affordance on a collapsed cell adds the group to this transient set,
@@ -306,6 +312,10 @@ struct TracksMatrixView: View {
                 onDismiss: { createTrackStep = nil }
             )
             .presentationBackground(.clear)
+        }
+        .sheet(item: $createPerformanceTrackGroupRequest) { request in
+            createPerformanceTrackGroupSheet(request)
+                .presentationBackground(.clear)
         }
         .onAppear {
             // Drain any command applied while this view was still mounting
@@ -421,7 +431,7 @@ struct TracksMatrixView: View {
                     identifier: "tracks-action-perform"
                 ) { requestPhrasePerform(trackIDs: visibleSelection) }
 
-                deferredGroupButton
+                createTrackGroupButton(trackIDs: visibleSelection)
 
                 deleteSelectionButton(trackIDs: visibleSelection)
             }
@@ -524,31 +534,84 @@ struct TracksMatrixView: View {
         .help(title)
     }
 
-    /// Create performance group is intentionally disabled: the durable
-    /// performance-group object is deferred until its own spec lands.
-    private var deferredGroupButton: some View {
-        HStack(spacing: 6) {
-            Text("Create performance group")
-                .studioText(.microEmphasis)
-                .tracking(0.8)
-                .foregroundStyle(StudioTheme.mutedText)
-            Text("SOON")
-                .studioText(.micro)
-                .tracking(0.8)
-                .foregroundStyle(StudioTheme.background)
-                .padding(.horizontal, 6)
-                .padding(.vertical, 2)
-                .background(StudioTheme.mutedText, in: Capsule())
+    private func createTrackGroupButton(trackIDs: Set<UUID>) -> some View {
+        selectionActionButton(
+            title: "Create Track Group",
+            accent: StudioTheme.transportAccent,
+            identifier: "tracks-action-create-group"
+        ) {
+            createPerformanceTrackGroupRequest = CreatePerformanceTrackGroupRequest(memberIDs: trackIDs)
         }
-        .frame(height: 32)
-        .padding(.horizontal, 14)
-        .overlay(
-            Capsule()
-                .stroke(StudioTheme.border, style: StrokeStyle(lineWidth: StudioMetrics.borderWidth, dash: [4, 4]))
-        )
-        .opacity(0.55)
         .accessibilityIdentifier("tracks-action-create-group")
-        .help("Performance groups are coming soon")
+        .help("Save the selected tracks into one of 16 performance group slots")
+    }
+
+    private func createPerformanceTrackGroupSheet(
+        _ request: CreatePerformanceTrackGroupRequest
+    ) -> some View {
+        let selectedTracks = session.store.tracks.filter { request.memberIDs.contains($0.id) }
+        return StudioModal(
+            title: "Create Track Group",
+            subtitle: selectedTracks.map(\.name).joined(separator: ", "),
+            accent: StudioTheme.transportAccent,
+            minWidth: 520,
+            onClose: { createPerformanceTrackGroupRequest = nil }
+        ) {
+            VStack(alignment: .leading, spacing: StudioMetrics.Spacing.standard) {
+                HStack(spacing: 8) {
+                    ForEach(selectedTracks, id: \.id) { track in
+                        Text(track.name)
+                            .studioText(.microEmphasis)
+                            .foregroundStyle(StudioTheme.text)
+                            .padding(.horizontal, 9)
+                            .frame(height: 28)
+                            .background(StudioTheme.subtleFill, in: Capsule())
+                            .overlay(Capsule().stroke(StudioTheme.trackAccent(for: track, groups: session.store.trackGroups), lineWidth: StudioMetrics.borderWidth))
+                    }
+                }
+
+                LazyVGrid(
+                    columns: Array(repeating: GridItem(.flexible(minimum: 86), spacing: 10), count: 4),
+                    spacing: 10
+                ) {
+                    ForEach(0..<PerformanceTrackGroup.slotCount, id: \.self) { index in
+                        performanceTrackGroupSlot(index: index, memberIDs: request.memberIDs)
+                    }
+                }
+            }
+            .accessibilityIdentifier("create-track-group-slot-matrix")
+        }
+    }
+
+    private func performanceTrackGroupSlot(index: Int, memberIDs: Set<UUID>) -> some View {
+        let existing = session.store.performanceTrackGroups[index]
+        return Button {
+            guard session.setPerformanceTrackGroup(slotIndex: index, memberIDs: memberIDs) != nil else { return }
+            createPerformanceTrackGroupRequest = nil
+            session.tracksSelection.removeAll()
+            session.tracksSelectionMode = false
+        } label: {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("\(index + 1)")
+                    .studioText(.eyebrowBold)
+                    .foregroundStyle(StudioTheme.transportAccent)
+                Text(existing?.name ?? "Empty")
+                    .studioText(.labelBold)
+                    .foregroundStyle(existing == nil ? StudioTheme.mutedText : StudioTheme.text)
+                    .lineLimit(1)
+            }
+            .padding(StudioMetrics.Spacing.compact)
+            .frame(maxWidth: .infinity, minHeight: 72, alignment: .topLeading)
+            .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                    .stroke(existing == nil ? StudioTheme.border : StudioTheme.transportAccent, lineWidth: StudioMetrics.borderWidth)
+            )
+            .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .help(existing == nil ? "Save as track group \(index + 1)" : "Replace \(existing?.name ?? "track group")")
+        .accessibilityIdentifier("create-track-group-slot-\(index + 1)")
     }
 
     /// Queue the one navigator Perform action into Phrase -> Layers, scoped to

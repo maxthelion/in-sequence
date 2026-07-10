@@ -191,6 +191,58 @@ final class ProjectNormalizationTests: XCTestCase {
         XCTAssertFalse(project.phrases.isEmpty)
     }
 
+    func test_performanceTrackGroupBank_isFixedSizeOrderedAndPrunesStaleMembers() {
+        let first = StepSequenceTrack.default
+        var second = StepSequenceTrack.default
+        second.id = UUID()
+        second.name = "Second"
+        let staleID = UUID()
+        let group = PerformanceTrackGroup(
+            name: "Pair",
+            memberIDs: [second.id, staleID, first.id, second.id]
+        )
+
+        let bank = PerformanceTrackGroup.normalizedBank([nil, group], tracks: [first, second])
+
+        XCTAssertEqual(bank.count, PerformanceTrackGroup.slotCount)
+        XCTAssertNil(bank[0])
+        XCTAssertEqual(bank[1]?.memberIDs, [second.id, first.id])
+    }
+
+    func test_projectTrackGroupSlot_usesProjectTrackOrderAndSurvivesCodableRoundTrip() throws {
+        var project = Project.empty
+        project.appendTrack(trackType: .polyMelodic)
+        let orderedIDs = project.tracks.map(\.id)
+
+        let created = project.setPerformanceTrackGroup(
+            slotIndex: 6,
+            memberIDs: Set(orderedIDs.reversed())
+        )
+
+        XCTAssertEqual(created?.memberIDs, orderedIDs)
+        let decoded = try JSONDecoder().decode(Project.self, from: JSONEncoder().encode(project))
+        XCTAssertEqual(decoded.performanceTrackGroups.count, PerformanceTrackGroup.slotCount)
+        XCTAssertEqual(decoded.performanceTrackGroups[6]?.memberIDs, orderedIDs)
+    }
+
+    func test_removingTrack_prunesPerformanceGroupAndClearsEmptySlot() {
+        var project = Project.empty
+        project.appendTrack(trackType: .monoMelodic)
+        let removedID = project.tracks.last!.id
+        _ = project.setPerformanceTrackGroup(slotIndex: 2, memberIDs: [removedID])
+
+        project.removeTrack(id: removedID)
+
+        XCTAssertNil(project.performanceTrackGroups[2])
+    }
+
+    func test_legacyDecodeWithoutPerformanceTrackGroups_createsEmptyBank() throws {
+        let project = try JSONDecoder().decode(Project.self, from: Data("{\"version\":1,\"tracks\":[]}".utf8))
+
+        XCTAssertEqual(project.performanceTrackGroups.count, PerformanceTrackGroup.slotCount)
+        XCTAssertTrue(project.performanceTrackGroups.allSatisfy { $0 == nil })
+    }
+
     private func generatorPoolJSON() throws -> String {
         try jsonString(for: GeneratorPoolEntry.defaultPool)
     }
