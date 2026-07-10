@@ -179,7 +179,7 @@ extension DrumKitMatrixView {
         .accessibilityLabel("Perform kit")
     }
 
-    /// Bar pager: one chip per 16-step bar (1–16, 17–32, …), shown only when
+    /// Bar pager: one numbered chip per 16-step bar, shown only when
     /// the kit's longest row spans more than one bar. Selecting a page moves the
     /// visible 16-step window for every part row in lockstep. Locked grammar:
     /// a VALUE selector — the shared inset-track solid-thumb control INSIDE
@@ -210,7 +210,7 @@ extension DrumKitMatrixView {
                             title: title,
                             value: page,
                             accessibilityLabel: "Bar \(title)",
-                            help: "Show steps \(title)"
+                            help: "Show bar \(title)"
                         )
                     },
                     accent: accent,
@@ -221,8 +221,6 @@ extension DrumKitMatrixView {
     }
 
     static func barPageTitle(_ page: Int) -> String {
-        let lower = page * stepsPerBar + 1
-        let upper = (page + 1) * stepsPerBar
-        return "\(lower)–\(upper)"
+        "\(page + 1)"
     }
 }

@@ -19,24 +19,34 @@ extension DrumKitMatrixView {
         )
     }
 
-    /// Matrix-wide layer selector: the same layer set the single-track step
-    /// editor offers (steps, velocity, chance), applied to every part row.
-    /// Locked grammar: a VALUE selector — the shared inset-track solid-thumb
-    /// control INSIDE the well, never the pill-row grammar.
+    /// Matrix-wide layer selector using the same compact disclosure grammar as
+    /// the single-track step editor. The disclosed row keeps every available
+    /// layer visible without making four controls compete with matrix actions.
     var layerSelector: some View {
-        StudioSegmentedControl(
-            title: nil,
+        StepLayerQuickSwitchChip(
+            title: "",
             selection: $selectedLayer,
-            segments: DrumKitMatrixLayer.allCases.map { layer in
-                StudioSegment(
-                    title: layer.title,
-                    value: layer,
-                    accessibilityLabel: "Step layer \(layer.title)"
-                )
-            },
-            accent: accent,
-            layout: Self.matrixSelectorLayout(minWidth: 64)
+            isOpen: $isLayerSwitcherOpen,
+            options: matrixLayerOptions,
+            accent: accent
         )
+        .accessibilityIdentifier("kit-matrix-layer-selector")
+    }
+
+    var matrixLayerOptions: [StepLayerQuickSwitchOption<DrumKitMatrixLayer>] {
+        DrumKitMatrixLayer.allCases.map { layer in
+            StepLayerQuickSwitchOption(id: layer.rawValue, title: layer.title, value: layer)
+        }
+    }
+
+    var layerOptions: some View {
+        StepLayerQuickSwitchOptions(
+            selection: $selectedLayer,
+            isOpen: $isLayerSwitcherOpen,
+            options: matrixLayerOptions,
+            accent: accent
+        )
+        .accessibilityIdentifier("kit-matrix-layer-options")
     }
 
     /// Kit-level FILL / NORMAL control for the matrix top bar (applies to all

@@ -716,7 +716,7 @@ extension DrumKitMatrixView {
         VStack(alignment: .leading, spacing: 10) {
             kitPartLevelRow(row)
             if let model {
-                kitBusOutputRow(model)
+                kitBusOutputControl(model)
             }
         }
     }

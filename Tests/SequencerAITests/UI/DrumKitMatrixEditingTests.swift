@@ -16,6 +16,16 @@ import SwiftUI
 @MainActor
 final class DrumKitMatrixEditingTests: XCTestCase {
 
+    func test_barPagerUsesCompactOneBasedBarLabels() {
+        XCTAssertEqual(DrumKitMatrixView.barPageTitle(0), "1")
+        XCTAssertEqual(DrumKitMatrixView.barPageTitle(1), "2")
+        XCTAssertEqual(DrumKitMatrixView.barPageTitle(3), "4")
+    }
+
+    func test_matrixLayerMenuExposesEveryEditableLayerInOrder() {
+        XCTAssertEqual(DrumKitMatrixLayer.allCases.map(\.title), ["Steps", "Velocity", "Length", "Chance"])
+    }
+
     func test_visualCommandParsesDeterministicStepSelection() {
         XCTAssertEqual(
             DrumKitVisualCommand(rawValue: "select-step:0:2"),

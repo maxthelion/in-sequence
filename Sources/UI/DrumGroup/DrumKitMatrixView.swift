@@ -240,6 +240,7 @@ struct DrumKitMatrixView: View {
     /// Which 16-step bar window is visible for every row in lockstep.
     @State var barPage = 0
     @State var selectedLayer: DrumKitMatrixLayer = .steps
+    @State var isLayerSwitcherOpen = false
     @State var isPresentingRoutingEditor = false
     @State var isPresentingTemplateChooser = false
     /// Which kit-bus tab is shown (Matrix · FX · Macros · Mixer). Ignored while
@@ -665,6 +666,10 @@ struct DrumKitMatrixView: View {
                     isPresentingTemplateChooser = true
                 }
                 .help("Apply a pattern template into pattern slot P\((model.groupSelectedSlotIndex ?? 0) + 1)")
+            }
+
+            if isLayerSwitcherOpen {
+                layerOptions
             }
 
             if model.staleMemberCount > 0 {
