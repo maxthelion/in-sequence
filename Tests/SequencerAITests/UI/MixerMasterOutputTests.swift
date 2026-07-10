@@ -130,4 +130,17 @@ final class MixerMasterOutputTests: XCTestCase {
         bus.inserts[0].isEnabled = true
         XCTAssertTrue(bus.inserts[0].isEnabled)
     }
+
+    func test_sceneInsertOrderingPreservesDragMoveSemantics() {
+        let ids = [UUID(), UUID(), UUID(), UUID()]
+
+        XCTAssertEqual(
+            SceneInsertOrdering.reordering(ids, from: IndexSet(integer: 0), to: 3),
+            [ids[1], ids[2], ids[0], ids[3]]
+        )
+        XCTAssertEqual(
+            SceneInsertOrdering.reordering(ids, from: IndexSet(integer: 2), to: 0),
+            [ids[2], ids[0], ids[1], ids[3]]
+        )
+    }
 }

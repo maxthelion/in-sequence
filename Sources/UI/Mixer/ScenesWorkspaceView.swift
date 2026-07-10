@@ -10,6 +10,14 @@ struct AddInsertPickerRequest: Identifiable, Equatable {
     let id = UUID()
 }
 
+enum SceneInsertOrdering {
+    static func reordering(_ ids: [UUID], from source: IndexSet, to destination: Int) -> [UUID] {
+        var reordered = ids
+        reordered.move(fromOffsets: source, toOffset: destination)
+        return reordered
+    }
+}
+
 struct ScenePerformSlotPickerRequest: Identifiable, Equatable {
     enum Slot: String, Equatable {
         case a
@@ -561,6 +569,7 @@ struct ScenesWorkspaceView: View {
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
+            .background(StudioAttachedVerticalScrollChrome())
             .frame(height: insertListHeight)
 
             // Add-FX tile beneath the inserts (same dashed plus-tile grammar as
@@ -1037,8 +1046,11 @@ struct ScenesWorkspaceView: View {
     }
 
     private func moveInserts(from source: IndexSet, to destination: Int) {
-        var ids = selectedScene.inserts.map(\.id)
-        ids.move(fromOffsets: source, toOffset: destination)
+        let ids = SceneInsertOrdering.reordering(
+            selectedScene.inserts.map(\.id),
+            from: source,
+            to: destination
+        )
         session.reorderMasterBusInserts(ids, in: selectedScene.id)
     }
 

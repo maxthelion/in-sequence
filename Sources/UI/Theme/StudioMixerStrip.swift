@@ -26,6 +26,8 @@ enum StudioMixerStripMetrics {
 
     static let slotSpacing: CGFloat = 10
     static let stripPadding: CGFloat = StudioMetrics.Spacing.comfortable
+    static let identityBorderWidth: CGFloat = StudioMetrics.borderWidth
+    static let emphasizedBorderWidth: CGFloat = 2
 
     /// Total rendered height of a strip — slot heights plus inter-slot
     /// spacing plus padding. Sibling tiles (Add Bus) match this so same-kind
@@ -69,8 +71,10 @@ struct StudioMixerStrip<Header: View, Processing: View, Levels: View, Pan: View,
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
                 .stroke(
-                    isHighlighted ? (highlightAccent ?? accent) : accent.opacity(StudioOpacity.accentStroke),
-                    lineWidth: isHighlighted ? 2 : 1
+                    isHighlighted ? (highlightAccent ?? accent) : accent,
+                    lineWidth: isHighlighted
+                        ? StudioMixerStripMetrics.emphasizedBorderWidth
+                        : StudioMixerStripMetrics.identityBorderWidth
                 )
         )
         .opacity(dimsContent ? 0.58 : 1)

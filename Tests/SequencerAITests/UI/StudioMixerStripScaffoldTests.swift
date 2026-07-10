@@ -39,6 +39,61 @@ final class StudioMixerStripScaffoldTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(StudioMixerStripMetrics.panHeight, 34 + 18)
     }
 
+    func test_stripIdentityUsesStandardBorderAndOnlyEmphasisAddsWeight() {
+        XCTAssertEqual(StudioMixerStripMetrics.identityBorderWidth, StudioMetrics.borderWidth)
+        XCTAssertGreaterThan(
+            StudioMixerStripMetrics.emphasizedBorderWidth,
+            StudioMixerStripMetrics.identityBorderWidth
+        )
+    }
+
+    func test_scrollbarChromeHidesWithoutOverflow() {
+        XCTAssertFalse(StudioScrollbarMetrics.isOverflowing(contentLength: 120, viewportLength: 120))
+        XCTAssertFalse(StudioScrollbarMetrics.isOverflowing(contentLength: 121, viewportLength: 120))
+        XCTAssertEqual(
+            StudioScrollbarMetrics.thumbLength(
+                contentLength: 120,
+                viewportLength: 120,
+                trackLength: 100,
+                minimumLength: 34
+            ),
+            100
+        )
+    }
+
+    func test_scrollbarChromeCalculatesOverflowThumbAndClampsOffset() {
+        XCTAssertTrue(StudioScrollbarMetrics.isOverflowing(contentLength: 400, viewportLength: 100))
+        let thumbLength = StudioScrollbarMetrics.thumbLength(
+            contentLength: 400,
+            viewportLength: 100,
+            trackLength: 100,
+            minimumLength: 20
+        )
+        XCTAssertEqual(thumbLength, 25, accuracy: 0.001)
+        XCTAssertEqual(
+            StudioScrollbarMetrics.thumbOffset(
+                contentLength: 400,
+                viewportLength: 100,
+                contentOffset: 150,
+                trackLength: 100,
+                thumbLength: thumbLength
+            ),
+            37.5,
+            accuracy: 0.001
+        )
+        XCTAssertEqual(
+            StudioScrollbarMetrics.thumbOffset(
+                contentLength: 400,
+                viewportLength: 100,
+                contentOffset: 999,
+                trackLength: 100,
+                thumbLength: thumbLength
+            ),
+            75,
+            accuracy: 0.001
+        )
+    }
+
     // MARK: - dB convergence
 
     func test_dBLabelConvergesOnMasterVocabulary() {

@@ -98,4 +98,23 @@ final class DrumGroupPlanFactoryTests: XCTestCase {
             XCTAssertFalse(plan.members.isEmpty, "kit=\(kit.name)")
         }
     }
+
+    func test_creationEditingKeepsPopulatedRowsEditable() {
+        var plan = DrumGroupPlan(name: "Custom", color: "#8AA", members: [])
+        let sampleID = UUID()
+
+        AddDrumGroupPlanEditing.appendBlankPart(to: &plan)
+        AddDrumGroupPlanEditing.renamePart(at: 0, to: "Low Tom", in: &plan)
+        AddDrumGroupPlanEditing.selectSample(sampleID, forPartAt: 0, in: &plan)
+        AddDrumGroupPlanEditing.retagPart(at: 0, as: "tom-low", in: &plan)
+
+        XCTAssertEqual(plan.members.count, 1)
+        XCTAssertEqual(plan.members[0].trackName, "Low Tom")
+        XCTAssertEqual(plan.members[0].tag, "tom-low")
+        XCTAssertNil(plan.members[0].sampleID, "Changing tag invalidates its category-specific sound")
+
+        AddDrumGroupPlanEditing.selectSample(sampleID, forPartAt: 0, in: &plan)
+        AddDrumGroupPlanEditing.removePart(at: 0, from: &plan)
+        XCTAssertTrue(plan.members.isEmpty)
+    }
 }
