@@ -104,17 +104,18 @@ final class DocumentEditCommandControllerTests: XCTestCase {
         XCTAssertEqual(controller.clipboardPayload?.domain, tracksDomain)
     }
 
-    func testStaleOwnerCannotUpdateOrUnregisterReplacement() {
+    func testParentOwnerCanUpdateWithoutReplacingActiveChild() {
         let controller = DocumentEditCommandController()
         let staleToken = controller.register(target: makeTarget(canCopy: { false }))
         let currentToken = controller.register(target: makeTarget(canCopy: { true }))
 
-        XCTAssertFalse(controller.update(
-            target: makeTarget(canCopy: { false }),
+        XCTAssertTrue(controller.update(
+            target: makeTarget(canCopy: { true }, canClear: { true }),
             ownership: staleToken
         ))
         XCTAssertFalse(controller.unregister(ownership: staleToken))
         XCTAssertTrue(controller.availability.canCopy)
+        XCTAssertFalse(controller.availability.canClear)
 
         XCTAssertTrue(controller.unregister(ownership: currentToken))
         XCTAssertEqual(controller.availability, .unavailable)

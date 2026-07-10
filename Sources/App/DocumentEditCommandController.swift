@@ -110,14 +110,14 @@ final class DocumentEditCommandController {
         return token
     }
 
-    /// Refreshes closures for a still-active view. A replaced view cannot
-    /// overwrite the current target with a stale update.
+    /// Refreshes an owned registration without changing stack order. An
+    /// enclosing target may update while a nested target remains active.
     @discardableResult
     func update(target: Target, ownership token: OwnershipToken) -> Bool {
-        guard registrations.last?.token == token else {
+        guard let index = registrations.firstIndex(where: { $0.token == token }) else {
             return false
         }
-        registrations[registrations.count - 1].target = target
+        registrations[index].target = target
         return true
     }
 
