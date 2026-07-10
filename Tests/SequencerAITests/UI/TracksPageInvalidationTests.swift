@@ -353,6 +353,22 @@ final class TracksPageInvalidationTests: XCTestCase {
             kitCard.contains(".contextMenu"),
             "Kit cards must not open the old Select/Copy/Expand menu on secondary click."
         )
+        XCTAssertTrue(
+            trackCard.contains(".contentShape(") && trackCard.contains(".onTapGesture"),
+            "The ordinary track card's full visible shape must toggle/open, including its edges."
+        )
+        XCTAssertTrue(
+            kitCard.contains(".contentShape(") && kitCard.contains(".onTapGesture(perform: onOpenKit)"),
+            "The kit card's full visible shape must toggle/open, including its edges."
+        )
+        XCTAssertFalse(
+            trackCard.contains("track-card-select-mark") || trackCard.contains("TrackTypeBadge"),
+            "Selection cards should use a solid fill without checkbox or type-logo chrome."
+        )
+        XCTAssertFalse(
+            kitCard.contains("kit-card-select-mark") || kitCard.contains("square.grid.2x2.fill"),
+            "Kit selection cards should use the same solid-fill grammar without a checkbox or logo."
+        )
     }
 
     func test_generatorTriggerEditorExposesEuclideanControlsWithoutManualOrDisclosure() throws {
@@ -797,6 +813,156 @@ final class TracksPageInvalidationTests: XCTestCase {
                 qaScript.contains("history-save-open") &&
                 !qaScript.contains("29f-drum-kit-capture-save-slot|workspace=track,drumKitMatrixRenderedCaptureOpen=true,drumKitMatrixRenderedSaveSlotPickerVisible=true|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixCommands=open-capture,history-fixture,history-audition-on"),
             "The QA capture row should cover save-slot targeting without opening the removed audition state."
+        )
+    }
+}
+
+final class TracksNavigatorPresentationTests: XCTestCase {
+    func test_filtersClassifyEveryTrackCategoryWithGroupMembershipTakingPrecedence() {
+        let fixture = makeFixture()
+
+        XCTAssertEqual(trackIDs(for: .mono, fixture: fixture), [fixture.mono.id])
+        XCTAssertEqual(trackIDs(for: .poly, fixture: fixture), [fixture.poly.id])
+        XCTAssertEqual(trackIDs(for: .chord, fixture: fixture), [fixture.chord.id])
+        XCTAssertEqual(trackIDs(for: .slicer, fixture: fixture), [fixture.slicer.id])
+        XCTAssertEqual(trackIDs(for: .audio, fixture: fixture), [fixture.audio.id])
+        XCTAssertEqual(
+            TracksNavigatorPresentation.items(
+                tracks: fixture.tracks,
+                groups: [fixture.group],
+                filter: .drumKits
+            ),
+            [.kit(fixture.group.id)]
+        )
+        XCTAssertEqual(
+            trackIDs(for: .drumParts, fixture: fixture),
+            [fixture.groupedPoly.id, fixture.groupedMono.id],
+            "Group member order wins, and grouped melodic tracks classify only as drum parts."
+        )
+    }
+
+    func test_allAndDrumFiltersPreserveStablePresentationOrderWithoutMutatingInput() {
+        let fixture = makeFixture()
+        let originalTracks = fixture.tracks
+        let originalGroups = [fixture.group]
+
+        let collapsed = TracksNavigatorPresentation.items(
+            tracks: fixture.tracks,
+            groups: originalGroups,
+            filter: .all
+        )
+        XCTAssertEqual(
+            collapsed,
+            [
+                .track(fixture.mono.id), .track(fixture.poly.id),
+                .track(fixture.chord.id), .track(fixture.slicer.id),
+                .track(fixture.audio.id), .kit(fixture.group.id)
+            ]
+        )
+
+        let expanded = TracksNavigatorPresentation.items(
+            tracks: fixture.tracks,
+            groups: originalGroups,
+            filter: .all,
+            forceExpandedGroups: [fixture.group.id]
+        )
+        XCTAssertEqual(
+            Array(expanded.suffix(3)),
+            [.kit(fixture.group.id), .track(fixture.groupedPoly.id), .track(fixture.groupedMono.id)]
+        )
+        XCTAssertEqual(fixture.tracks, originalTracks)
+        XCTAssertEqual(originalGroups, [fixture.group])
+    }
+
+    func test_visibleTrackIDsExpandKitRepresentativesWithoutChangingSelectionOrGroupState() {
+        let fixture = makeFixture()
+        let items = TracksNavigatorPresentation.items(
+            tracks: fixture.tracks,
+            groups: [fixture.group],
+            filter: .drumKits
+        )
+        let selection = Set([fixture.mono.id, fixture.groupedMono.id])
+
+        XCTAssertEqual(
+            TracksNavigatorPresentation.visibleTrackIDs(
+                in: items,
+                tracks: fixture.tracks,
+                groups: [fixture.group]
+            ),
+            [fixture.groupedPoly.id, fixture.groupedMono.id]
+        )
+        XCTAssertEqual(selection, Set([fixture.mono.id, fixture.groupedMono.id]))
+        XCTAssertTrue(fixture.group.isPatternLinked)
+    }
+
+    private func trackIDs(
+        for filter: TracksNavigatorFilter,
+        fixture: Fixture
+    ) -> [UUID] {
+        TracksNavigatorPresentation.items(
+            tracks: fixture.tracks,
+            groups: [fixture.group],
+            filter: filter
+        ).compactMap { item in
+            guard case .track(let id) = item else { return nil }
+            return id
+        }
+    }
+
+    private struct Fixture {
+        let mono: StepSequenceTrack
+        let poly: StepSequenceTrack
+        let chord: StepSequenceTrack
+        let slicer: StepSequenceTrack
+        let audio: StepSequenceTrack
+        let groupedMono: StepSequenceTrack
+        let groupedPoly: StepSequenceTrack
+        let group: TrackGroup
+
+        var tracks: [StepSequenceTrack] {
+            [mono, groupedMono, poly, chord, slicer, audio, groupedPoly]
+        }
+    }
+
+    private func makeFixture() -> Fixture {
+        let groupID = UUID()
+        let mono = track("Mono", type: .monoMelodic)
+        let groupedMono = track("Kick", type: .monoMelodic, groupID: groupID)
+        let poly = track("Poly", type: .polyMelodic)
+        let chord = track("Chord", type: .chord)
+        let slicer = track("Slicer", type: .slice)
+        let audio = track("Audio", type: .audioInput)
+        let groupedPoly = track("Snare", type: .polyMelodic, groupID: groupID)
+        let group = TrackGroup(
+            id: groupID,
+            name: "Kit",
+            memberIDs: [groupedPoly.id, groupedMono.id]
+        )
+        return Fixture(
+            mono: mono,
+            poly: poly,
+            chord: chord,
+            slicer: slicer,
+            audio: audio,
+            groupedMono: groupedMono,
+            groupedPoly: groupedPoly,
+            group: group
+        )
+    }
+
+    private func track(
+        _ name: String,
+        type: TrackType,
+        groupID: TrackGroupID? = nil
+    ) -> StepSequenceTrack {
+        StepSequenceTrack(
+            name: name,
+            trackType: type,
+            pitches: [60],
+            stepPattern: [true, false, false, false],
+            groupID: groupID,
+            velocity: 100,
+            gateLength: 4
         )
     }
 }

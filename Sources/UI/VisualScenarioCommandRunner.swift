@@ -55,6 +55,7 @@ enum VisualScenarioCommandRunner {
     private static var tracksAddDrumGroupModalVisible = false
     private static var tracksAddSliceTrackModalVisible = false
     private static var tracksTrackSoundModalVisible = false
+    private static var tracksNavigatorFilterState = TracksNavigatorFilter.all.rawValue
     private static var stepOrderFixtureState = "none"
     private static var trackSourceTabState = "none"
     private static var trackSourceEditorRenderedVisible = false
@@ -398,6 +399,14 @@ enum VisualScenarioCommandRunner {
             session.tracksSelectionMode = rawSelectionMode == "on"
             section.wrappedValue = .tracks
         }
+        if let rawFilter = command["tracksFilter"],
+           let filter = TracksNavigatorFilter(rawValue: rawFilter) {
+            tracksNavigatorFilterState = filter.rawValue
+            section.wrappedValue = .tracks
+            let visualCommand = "filter:\(filter.rawValue)"
+            pendingTracksMatrixCommands.append(visualCommand)
+            postRepeatedVisualCommand(name: .tracksMatrixVisualCommand, object: visualCommand)
+        }
         // Clear runs BEFORE select so a capture row can reset to a known
         // selection deterministically (rows share session state).
         if command["tracksClearSelection"] == "true" {
@@ -419,22 +428,14 @@ enum VisualScenarioCommandRunner {
             pendingTracksMatrixCommands.append("copy-selection")
             postRepeatedVisualCommand(name: .tracksMatrixVisualCommand, object: "copy-selection")
         }
-        // Drive the tracks actions nav: stash the selection as the perform
-        // scope and request navigation to Phrase Layers, exactly as the By
-        // Track / By Value buttons do. `WorkspaceDetailView` and
-        // `PhraseWorkspaceView` then complete the navigation.
+        // Drive the tracks action bar's one Perform command. Legacy action
+        // values remain accepted, but all now enter Phrase Layers in By Track
+        // mode; By Value remains selectable from that destination surface.
         if let rawAction = command["tracksAction"] {
-            let mode: PhraseLayerEditMode? = {
-                switch rawAction {
-                case "layerPerform", "byTrack": return .byTrack
-                case "sameValue", "byValue": return .byValue
-                default: return nil
-                }
-            }()
-            if let mode {
+            if ["perform", "layerPerform", "byTrack", "sameValue", "byValue"].contains(rawAction) {
                 session.requestPhrasePerform(
                     tab: .layers,
-                    layerEditMode: mode,
+                    layerEditMode: .byTrack,
                     trackIDs: session.tracksSelection
                 )
             }
@@ -1218,6 +1219,7 @@ enum VisualScenarioCommandRunner {
         tracksAddDrumGroupModalVisible=\(tracksAddDrumGroupModalVisible)
         tracksAddSliceTrackModalVisible=\(tracksAddSliceTrackModalVisible)
         tracksTrackSoundModalVisible=\(tracksTrackSoundModalVisible)
+        tracksFilter=\(tracksNavigatorFilterState)
         masterGain=\(session.store.masterBus.masterOutputGain)
         firstTrackSendA=\(session.store.tracks.first?.mix.sendA ?? 0)
         firstTrackSendB=\(session.store.tracks.first?.mix.sendB ?? 0)

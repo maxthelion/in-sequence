@@ -270,6 +270,34 @@ final class WorkspaceModeTests: XCTestCase {
         )
     }
 
+    func test_tracksPerformCommandRoutesToPhraseLayersByTrackWithSelectionScope() throws {
+        let fixture = makeFixture()
+        let selected = fixture.session.store.tracks.prefix(2).map(\.id)
+        fixture.session.tracksSelection = Set(selected)
+
+        apply(["tracksAction": "perform"], fixture: fixture)
+
+        let request = try XCTUnwrap(fixture.session.pendingPhrasePerform)
+        XCTAssertEqual(request.tab, .layers)
+        XCTAssertEqual(request.layerEditMode, .byTrack)
+        XCTAssertEqual(request.trackIDs, Set(selected))
+    }
+
+    func test_tracksFilterCommandNavigatesWithoutMutatingDocumentOrSelectionAndReportsStatus() throws {
+        let fixture = makeFixture()
+        let projectBefore = fixture.session.store.exportToProject()
+        let selected = fixture.session.store.selectedTrackID
+        fixture.session.tracksSelection = [selected]
+
+        apply(["tracksFilter": TracksNavigatorFilter.drumParts.rawValue], fixture: fixture)
+
+        XCTAssertEqual(fixture.sectionBox.section, .tracks)
+        XCTAssertEqual(fixture.session.tracksSelection, [selected])
+        XCTAssertEqual(fixture.session.store.exportToProject(), projectBefore)
+        let status = try statusDictionary(fixture: fixture, section: .tracks)
+        XCTAssertEqual(status["tracksFilter"], TracksNavigatorFilter.drumParts.rawValue)
+    }
+
     /// AC4: the bespoke tracks-perform layer surface is gone, so the QA status
     /// must no longer report any `trackPerformLayer*` selector/variant field.
     func test_status_noLongerReportsTrackPerformLayerSelector() throws {
@@ -324,9 +352,9 @@ final class WorkspaceModeTests: XCTestCase {
         )
     }
 
-    // MARK: - The tracks page observes the global mode
+    // MARK: - The tracks navigator is independent of the global mode
 
-    func test_tracksPage_reEvaluatesWhenGlobalModeChanges() throws {
+    func test_tracksPage_doesNotReEvaluateWhenGlobalModeChanges() throws {
         let box = DocumentBox()
         let engine = EngineController(client: nil, endpoint: nil)
         let session = SequencerDocumentSession(
@@ -372,11 +400,10 @@ final class WorkspaceModeTests: XCTestCase {
         session.workspaceMode = .perform
         RunLoop.main.run(until: Date().addingTimeInterval(0.05))
 
-        XCTAssertGreaterThan(
+        XCTAssertEqual(
             TracksPageInvalidationProbe.pageBodyEvaluations, 0,
-            "Flipping the GLOBAL workspace mode must re-evaluate the tracks " +
-            "page — zero evaluations means the page is no longer wired to the " +
-            "one session-owned mode."
+            "Tracks is a mode-independent navigator; changing global mode " +
+            "must not invalidate its page body."
         )
     }
 }

@@ -84,6 +84,122 @@ enum TracksWorkspaceMode: String, CaseIterable, Identifiable {
     }
 }
 
+enum TracksNavigatorFilter: String, CaseIterable, Identifiable {
+    case all
+    case mono
+    case poly
+    case chord
+    case slicer
+    case audio
+    case drumKits
+    case drumParts
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .all: return "All"
+        case .mono: return "Mono"
+        case .poly: return "Poly"
+        case .chord: return "Chord"
+        case .slicer: return "Slicer"
+        case .audio: return "Audio"
+        case .drumKits: return "Drum Kits"
+        case .drumParts: return "Drum Parts"
+        }
+    }
+}
+
+enum TracksNavigatorPresentationItem: Equatable, Identifiable {
+    case track(UUID)
+    case kit(TrackGroupID)
+
+    var id: String {
+        switch self {
+        case .track(let id): return "track-\(id.uuidString)"
+        case .kit(let id): return "kit-\(id.uuidString)"
+        }
+    }
+}
+
+enum TracksNavigatorPresentation {
+    static func items(
+        tracks: [StepSequenceTrack],
+        groups: [TrackGroup],
+        filter: TracksNavigatorFilter,
+        forceExpandedGroups: Set<TrackGroupID> = []
+    ) -> [TracksNavigatorPresentationItem] {
+        let ungroupedTracks = tracks.filter { $0.groupID == nil }
+
+        switch filter {
+        case .all:
+            var result = ungroupedTracks.map { TracksNavigatorPresentationItem.track($0.id) }
+            for group in groups {
+                result.append(.kit(group.id))
+                if !group.isPatternLinked || forceExpandedGroups.contains(group.id) {
+                    result.append(contentsOf: members(of: group, tracks: tracks).map {
+                        TracksNavigatorPresentationItem.track($0.id)
+                    })
+                }
+            }
+            return result
+
+        case .drumKits:
+            return groups.map { .kit($0.id) }
+
+        case .drumParts:
+            return groups.flatMap { group in
+                members(of: group, tracks: tracks).map {
+                    TracksNavigatorPresentationItem.track($0.id)
+                }
+            }
+
+        case .mono, .poly, .chord, .slicer, .audio:
+            return ungroupedTracks.compactMap { track in
+                filter.includes(track.trackType) ? .track(track.id) : nil
+            }
+        }
+    }
+
+    static func visibleTrackIDs(
+        in items: [TracksNavigatorPresentationItem],
+        tracks: [StepSequenceTrack],
+        groups: [TrackGroup]
+    ) -> [UUID] {
+        let tracksByID = Dictionary(uniqueKeysWithValues: tracks.map { ($0.id, $0) })
+        let groupsByID = Dictionary(uniqueKeysWithValues: groups.map { ($0.id, $0) })
+        return items.flatMap { item -> [UUID] in
+            switch item {
+            case .track(let trackID):
+                return tracksByID[trackID] == nil ? [] : [trackID]
+            case .kit(let groupID):
+                guard let group = groupsByID[groupID] else { return [] }
+                return group.memberIDs.filter { tracksByID[$0] != nil }
+            }
+        }
+    }
+
+    private static func members(
+        of group: TrackGroup,
+        tracks: [StepSequenceTrack]
+    ) -> [StepSequenceTrack] {
+        let tracksByID = Dictionary(uniqueKeysWithValues: tracks.map { ($0.id, $0) })
+        return group.memberIDs.compactMap { tracksByID[$0] }
+    }
+}
+
+private extension TracksNavigatorFilter {
+    func includes(_ trackType: TrackType) -> Bool {
+        switch (self, trackType) {
+        case (.mono, .monoMelodic), (.poly, .polyMelodic), (.chord, .chord),
+             (.slicer, .slice), (.audio, .audioInput):
+            return true
+        default:
+            return false
+        }
+    }
+}
+
 struct TracksWorkspaceView: View {
     @Binding var document: SeqAIDocument
     @Binding var selectedLayerID: String
@@ -121,6 +237,8 @@ struct TracksMatrixView: View {
     /// Transient track clipboard for navigator copy/paste. Stores IDs only;
     /// Paste resolves them against the current document before duplicating.
     @State private var copiedTrackIDs: Set<UUID> = []
+    @State private var trackFilter: TracksNavigatorFilter = .all
+    @State private var pendingDeleteTrackIDs: Set<UUID> = []
     /// AC18: a linked drum kit collapses to ONE cell; an unlinked kit expands
     /// to its per-part cells (linked↔collapsed, unlinked↔expanded). The Expand
     /// affordance on a collapsed cell adds the group to this transient set,
@@ -129,23 +247,24 @@ struct TracksMatrixView: View {
 
     private let columns = StudioMetrics.Grid.matrixColumns(spacing: 12, minimum: 112, maximum: 190)
 
-    private var groupedSections: [GroupedTrackSection] {
-        session.store.trackGroups.map { group in
-            let members = session.store.tracksInGroup(group.id)
-            return GroupedTrackSection(group: group, members: members)
-        }
-    }
-
-    private var ungroupedTracks: [StepSequenceTrack] {
-        session.store.tracks.filter { $0.groupID == nil }
-    }
-
     var body: some View {
         #if DEBUG
         let _ = { TracksPageInvalidationProbe.pageBodyEvaluations += 1 }()
         #endif
         let tracks = session.store.tracks
+        let groups = session.store.trackGroups
         let selectedTrackID = session.store.selectedTrackID
+        let presentationItems = TracksNavigatorPresentation.items(
+            tracks: tracks,
+            groups: groups,
+            filter: trackFilter,
+            forceExpandedGroups: forceExpandedGroups
+        )
+        let visibleTrackIDs = TracksNavigatorPresentation.visibleTrackIDs(
+            in: presentationItems,
+            tracks: tracks,
+            groups: groups
+        )
         // The top-nav pill already names this page; the panel renders no
         // header of its own (ux-canon rule 1). This is a plain navigator —
         // tap a tile to open it (selection OFF), or build a multi-selection
@@ -158,7 +277,10 @@ struct TracksMatrixView: View {
                 contentPadding: 0
             ) {
                 VStack(alignment: .leading, spacing: 18) {
-                    selectionTopBar(trackCount: tracks.count)
+                    selectionTopBar(
+                        trackCount: tracks.count,
+                        visibleTrackIDs: visibleTrackIDs
+                    )
 
                     if tracks.isEmpty {
                         StudioPlaceholderTile(
@@ -167,7 +289,12 @@ struct TracksMatrixView: View {
                         )
                         .help("Create a mono, poly, slice, or drum-kit bundle to start building the matrix")
                     } else {
-                        matrixSections(tracks: tracks, selectedTrackID: selectedTrackID)
+                        matrixSections(
+                            items: presentationItems,
+                            tracks: tracks,
+                            groups: groups,
+                            selectedTrackID: selectedTrackID
+                        )
                     }
                 }
             }
@@ -201,6 +328,12 @@ struct TracksMatrixView: View {
     /// status (set when the command is applied); this just sets the @State so
     /// the sheet renders at the requested step.
     private func applyModalVisualCommand(_ command: String) {
+        if command.hasPrefix("filter:"),
+           let filter = TracksNavigatorFilter(rawValue: String(command.dropFirst("filter:".count))) {
+            trackFilter = filter
+            return
+        }
+
         if command == "copy-selection" {
             copyTracksSelection()
             return
@@ -217,13 +350,24 @@ struct TracksMatrixView: View {
     }
 
     /// A single horizontal bar with the Select toggle. With selection mode ON
-    /// and ≥1 track selected, the Clear control and the action buttons (By
-    /// Track / By Value / Create performance group) appear inline — there
+    /// and ≥1 visible track selected, the Clear control and action buttons
+    /// (Copy / Perform / Create performance group) appear inline — there
     /// is no separate actions section and no "N selected" text.
-    private func selectionTopBar(trackCount: Int) -> some View {
+    private func selectionTopBar(trackCount: Int, visibleTrackIDs: [UUID]) -> some View {
         let isOn = session.tracksSelectionMode
-        let hasSelection = !session.tracksSelection.isEmpty
+        let visibleSelection = Set(visibleTrackIDs.filter { session.tracksSelection.contains($0) })
+        let hasSelection = !visibleSelection.isEmpty
         return HStack(spacing: 10) {
+            StudioMenuPicker(
+                title: nil,
+                selection: $trackFilter,
+                options: TracksNavigatorFilter.allCases.map {
+                    StudioMenuPickerOption(label: $0.title, value: $0)
+                },
+                help: "Filter tracks by type"
+            )
+            .accessibilityIdentifier("tracks-type-filter")
+
             Button {
                 session.toggleTracksSelectionMode()
             } label: {
@@ -260,7 +404,7 @@ struct TracksMatrixView: View {
                     title: "Copy",
                     accent: StudioTheme.transportAccent,
                     identifier: "tracks-action-copy"
-                ) { copyTracksSelection() }
+                ) { copyTracksSelection(visibleSelection) }
 
                 if canPasteTracks {
                     selectionActionButton(
@@ -270,23 +414,15 @@ struct TracksMatrixView: View {
                     ) { pasteCopiedTracks() }
                 }
 
-                // Peer toggles route into the phrase Layers surface, so they
-                // use the phrase affordance role rather than old category hues.
                 selectionActionButton(
-                    title: "By Track",
+                    title: "Perform",
                     accent: StudioTheme.phraseAccent,
-                    identifier: "tracks-action-by-track"
-                ) { requestPhrasePerform(mode: .byTrack) }
-
-                selectionActionButton(
-                    title: "By Value",
-                    accent: StudioTheme.phraseAccent,
-                    identifier: "tracks-action-by-value"
-                ) { requestPhrasePerform(mode: .byValue) }
+                    identifier: "tracks-action-perform"
+                ) { requestPhrasePerform(trackIDs: visibleSelection) }
 
                 deferredGroupButton
 
-                deleteSelectionButton
+                deleteSelectionButton(trackIDs: visibleSelection)
             }
 
             Spacer(minLength: 0)
@@ -297,28 +433,31 @@ struct TracksMatrixView: View {
             titleVisibility: .visible
         ) {
             Button("Delete", role: .destructive) {
-                let ids = session.tracksSelection
+                let ids = pendingDeleteTrackIDs
                 isConfirmingSelectionDelete = false
+                pendingDeleteTrackIDs.removeAll()
                 session.removeTracks(ids: ids)
             }
             Button("Cancel", role: .cancel) {
                 isConfirmingSelectionDelete = false
+                pendingDeleteTrackIDs.removeAll()
             }
         } message: {
-            Text("This removes the selected track\(session.tracksSelection.count == 1 ? "" : "s") from the project. This cannot be undone.")
+            Text("This removes the selected track\(pendingDeleteTrackIDs.count == 1 ? "" : "s") from the project. This cannot be undone.")
         }
     }
 
     private var deleteConfirmTitle: String {
-        let count = session.tracksSelection.count
+        let count = pendingDeleteTrackIDs.count
         return "Delete \(count) track\(count == 1 ? "" : "s")?"
     }
 
     /// Selection-action Delete: removes the selected tracks after a
     /// confirmation. Styled as a true destructive action.
-    private var deleteSelectionButton: some View {
+    private func deleteSelectionButton(trackIDs: Set<UUID>) -> some View {
         let destructiveAccent = StudioTheme.danger // ux-canon-allow: semantic destructive delete action uses the danger role
         return Button {
+            pendingDeleteTrackIDs = trackIDs
             isConfirmingSelectionDelete = true
         } label: {
             HStack(spacing: 6) {
@@ -362,8 +501,7 @@ struct TracksMatrixView: View {
         }
     }
 
-    /// A compact selection action button. By Track / By Value navigate to the
-    /// phrase Layers surface with the selected tracks preloaded as scope.
+    /// A compact selection action button used by navigator commands.
     private func selectionActionButton(
         title: String,
         accent: Color,
@@ -412,18 +550,18 @@ struct TracksMatrixView: View {
         .help("Performance groups are coming soon")
     }
 
-    /// By Track / By Value: stash the current selection as the phrase layer
-    /// scope and queue navigation into Phrase -> Layers.
-    private func requestPhrasePerform(mode: PhraseLayerEditMode) {
+    /// Queue the one navigator Perform action into Phrase -> Layers, scoped to
+    /// the visible selected tracks and starting in By Track mode.
+    private func requestPhrasePerform(trackIDs: Set<UUID>) {
         session.requestPhrasePerform(
             tab: .layers,
-            layerEditMode: mode,
-            trackIDs: session.tracksSelection
+            layerEditMode: .byTrack,
+            trackIDs: trackIDs
         )
     }
 
-    private func copyTracksSelection() {
-        copiedTrackIDs = session.tracksSelection
+    private func copyTracksSelection(_ trackIDs: Set<UUID>? = nil) {
+        copiedTrackIDs = trackIDs ?? session.tracksSelection
     }
 
     private func copySingleTrack(_ trackID: UUID) {
@@ -462,24 +600,32 @@ struct TracksMatrixView: View {
     /// cells when expanded), then the add-track tile. Kit cells reuse the same
     /// cell chrome + footprint as normal track cells — no surrounding wrapper
     /// section. The expand/collapse affordance lives ON the kit cell itself.
-    private func matrixSections(tracks: [StepSequenceTrack], selectedTrackID: UUID) -> some View {
-        LazyVGrid(columns: columns, spacing: 14) {
-            ForEach(ungroupedTracks, id: \.id) { track in
-                #if DEBUG
-                let _ = { TracksPageInvalidationProbe.cardContentEvaluations += 1 }()
-                #endif
-                trackCell(track, group: nil, selectedTrackID: selectedTrackID)
-            }
-
-            ForEach(groupedSections) { section in
-                kitCell(section: section, selectedTrackID: selectedTrackID)
-
-                if !isGroupCollapsed(section.group) {
-                    ForEach(section.members, id: \.id) { member in
+    private func matrixSections(
+        items: [TracksNavigatorPresentationItem],
+        tracks: [StepSequenceTrack],
+        groups: [TrackGroup],
+        selectedTrackID: UUID
+    ) -> some View {
+        let tracksByID = Dictionary(uniqueKeysWithValues: tracks.map { ($0.id, $0) })
+        let groupsByID = Dictionary(uniqueKeysWithValues: groups.map { ($0.id, $0) })
+        return LazyVGrid(columns: columns, spacing: 14) {
+            ForEach(items) { item in
+                switch item {
+                case .track(let trackID):
+                    if let track = tracksByID[trackID] {
                         #if DEBUG
                         let _ = { TracksPageInvalidationProbe.cardContentEvaluations += 1 }()
                         #endif
-                        trackCell(member, group: section.group, selectedTrackID: selectedTrackID)
+                        let group = track.groupID.flatMap { groupsByID[$0] }
+                        trackCell(track, group: group, selectedTrackID: selectedTrackID)
+                    }
+                case .kit(let groupID):
+                    if let group = groupsByID[groupID] {
+                        let section = GroupedTrackSection(
+                            group: group,
+                            members: group.memberIDs.compactMap { tracksByID[$0] }
+                        )
+                        kitCell(section: section, selectedTrackID: selectedTrackID)
                     }
                 }
             }
@@ -636,21 +782,15 @@ private struct KitMatrixCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 10) {
-                Image(systemName: "square.grid.2x2.fill")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(StudioTheme.background)
-                    .frame(width: 30, height: 30)
-                    .background(accent, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
+                Text(group.name)
+                    .studioText(.subtitle)
+                    .foregroundStyle(isSelected ? StudioTheme.background : StudioTheme.text)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
 
                 Spacer(minLength: 0)
 
-                if isSelectionMode {
-                    Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                        .font(.system(size: 16, weight: .bold))
-                        .foregroundStyle(isSelected ? accent : StudioTheme.mutedText)
-                        .frame(width: 26, height: 26)
-                        .accessibilityIdentifier("kit-card-select-mark")
-                } else if isCollapsed {
+                if !isSelectionMode, isCollapsed {
                     // The expand/collapse affordance lives ON the cell.
                     Button(action: onToggleExpand) {
                         Image(systemName: isCollapsed
@@ -693,32 +833,22 @@ private struct KitMatrixCard: View {
             Spacer(minLength: 0)
 
             VStack(alignment: .leading, spacing: 4) {
-                Text(group.name)
-                    .studioText(.subtitle)
-                    .foregroundStyle(StudioTheme.text)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-
                 HStack(spacing: 6) {
-                    Text("KIT")
                     Text("\(partNames.count) PARTS")
                     Text(patternSlotLabel)
                 }
                 .studioText(.micro)
                 .tracking(0.8)
-                .foregroundStyle(StudioTheme.mutedText)
+                .foregroundStyle(isSelected ? StudioTheme.background : StudioTheme.mutedText)
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
             }
         }
         .frame(maxWidth: .infinity, minHeight: 132, alignment: .topLeading)
         .padding(StudioMetrics.Spacing.comfortable)
-        // Rule 12.1: containers are never tinted — selection reads from the
-        // accent OUTLINE + the solid check badge, never a solid card flood
-        // (design review 02a).
         .background(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                .fill(StudioTheme.subtleFill)
+                .fill(isSelected ? accent : StudioTheme.subtleFill)
         )
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
@@ -732,7 +862,11 @@ private struct KitMatrixCard: View {
         .studioSelectOnRightClick {
             onSelectKit()
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(group.name)
+        .accessibilityValue("Drum kit, \(partNames.count) parts\(isSelected ? ", selected" : "")")
         .accessibilityIdentifier("kit-collapsed-cell")
+        .help("\(group.name), drum kit")
     }
 
     private var emptyPartAction: some View {
@@ -766,25 +900,25 @@ private struct KitMatrixCard: View {
             ForEach(Array(shown.enumerated()), id: \.offset) { _, name in
                 Text(name)
                     .studioText(.micro)
-                    .foregroundStyle(StudioTheme.mutedText)
+                    .foregroundStyle(isSelected ? StudioTheme.background : StudioTheme.mutedText)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 4)
                     .frame(maxWidth: .infinity)
-                    .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
-                    .overlay(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous).stroke(accent.opacity(StudioOpacity.accentStroke), lineWidth: StudioMetrics.borderWidth))
+                    .background(isSelected ? accent : StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous).stroke(isSelected ? StudioTheme.background : accent.opacity(StudioOpacity.accentStroke), lineWidth: StudioMetrics.borderWidth))
             }
 
             if overflow > 0 {
                 Text("+\(overflow)")
                     .studioText(.micro)
                     .tracking(0.6)
-                    .foregroundStyle(accent)
+                    .foregroundStyle(isSelected ? StudioTheme.background : accent)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 4)
-                    .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
-                    .overlay(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous).stroke(accent, lineWidth: StudioMetrics.borderWidth))
+                    .background(isSelected ? accent : StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous).stroke(isSelected ? StudioTheme.background : accent, lineWidth: StudioMetrics.borderWidth))
             }
         }
         .accessibilityIdentifier("kit-part-thumbnails")
@@ -948,60 +1082,34 @@ private struct TrackMatrixCard: View {
         return StudioTheme.trackAccent(for: track)
     }
 
-    private var typeLabel: String {
-        track.trackType.label.uppercased()
-    }
-
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 10) {
-                TrackTypeBadge(trackType: track.trackType, accent: accent)
+                Text(track.name)
+                    .studioText(.subtitle)
+                    .foregroundStyle(isSelected ? StudioTheme.background : StudioTheme.text)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
 
                 Spacer(minLength: 0)
 
-                if isSelectionMode {
-                    // In selection mode the tile carries a checkbox instead of
-                    // the mute toggle — the whole tile toggles membership.
-                    Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                        .font(.system(size: 16, weight: .bold))
-                        .foregroundStyle(isSelected ? accent : StudioTheme.mutedText)
-                        .frame(width: 26, height: 26)
-                        .accessibilityIdentifier("track-card-select-mark")
-                } else if isMuted {
+                if isMuted {
                     Image(systemName: "speaker.slash.fill")
                         .font(.system(size: 12, weight: .bold))
-                        .foregroundStyle(StudioTheme.background)
+                        .foregroundStyle(isSelected ? StudioTheme.background : accent)
                         .frame(width: 26, height: 26)
-                        .background(accent, in: Circle())
-                        .overlay(Circle().stroke(accent, lineWidth: StudioMetrics.borderWidth))
+                        .overlay(Circle().stroke(isSelected ? StudioTheme.background : accent, lineWidth: StudioMetrics.borderWidth))
                         .accessibilityIdentifier("track-card-muted")
                 }
             }
 
             Spacer(minLength: 0)
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(track.name)
-                    .studioText(.subtitle)
-                    .foregroundStyle(StudioTheme.text)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-
-                Text(typeLabel)
-                    .studioText(.micro)
-                    .tracking(0.8)
-                    .foregroundStyle(StudioTheme.mutedText)
-                    .lineLimit(1)
-            }
         }
         .frame(maxWidth: .infinity, minHeight: 132, alignment: .topLeading)
         .padding(StudioMetrics.Spacing.comfortable)
-        // Rule 12.1: containers are never tinted — selection reads from the
-        // accent OUTLINE + the solid check badge, never a solid card flood
-        // (design review 02a).
         .background(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                .fill(StudioTheme.subtleFill)
+                .fill(isSelected ? accent : StudioTheme.subtleFill)
         )
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
@@ -1014,6 +1122,10 @@ private struct TrackMatrixCard: View {
         .studioSelectOnRightClick {
             onContextSelect()
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(track.name)
+        .accessibilityValue("\(group == nil ? track.trackType.label : "Drum part")\(isSelected ? ", selected" : "")")
+        .help("\(track.name), \(group == nil ? track.trackType.label : "drum part")")
     }
 
     private var strokeColor: Color {
@@ -1309,33 +1421,5 @@ struct TrackPerformRuntimeLayerControl: View {
         isTrackingMomentaryPress = false
         momentaryPressStartedAt = nil
         onRelease()
-    }
-}
-
-private struct TrackTypeBadge: View {
-    let trackType: TrackType
-    let accent: Color
-
-    private var icon: String {
-        switch trackType {
-        case .monoMelodic:
-            return "waveform.path"
-        case .polyMelodic:
-            return "pianokeys"
-        case .chord:
-            return "pianokeys"
-        case .slice:
-            return "waveform"
-        case .audioInput:
-            return "dot.radiowaves.left.and.right"
-        }
-    }
-
-    var body: some View {
-        Image(systemName: icon)
-            .font(.system(size: 14, weight: .semibold))
-            .foregroundStyle(StudioTheme.background)
-            .frame(width: 30, height: 30)
-            .background(accent, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
     }
 }
