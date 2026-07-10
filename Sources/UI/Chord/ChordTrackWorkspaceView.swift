@@ -379,7 +379,6 @@ struct ChordTrackWorkspaceView: View {
                 updateProgressionRoot(root)
             }
             .frame(minWidth: 420, maxWidth: .infinity)
-            .layoutPriority(1)
 
             StudioSegmentedControl(
                 title: "Scale",
@@ -391,9 +390,10 @@ struct ChordTrackWorkspaceView: View {
                     StudioSegment(title: Scale.for(id: scaleID)?.name ?? scaleID.rawValue, value: scaleID)
                 },
                 accent: accent,
-                layout: .init(fillsWidth: true, minWidth: 64)
+                layout: .init(fillsWidth: true, minWidth: 80, horizontalPadding: 5, minimumScaleFactor: 0.72)
             )
-            .frame(minWidth: 320, idealWidth: 400, maxWidth: 440)
+            .frame(width: 440)
+            .layoutPriority(1)
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
