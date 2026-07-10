@@ -62,6 +62,9 @@ status_file="${command_file}.status"
 WB="120,80,1100,780"
 capture_filter="${QA_SURFACE_CAPTURE_FILTER:-}"
 startup_wait_seconds="${QA_SURFACE_STARTUP_WAIT_SECONDS:-45}"
+launch_grace_seconds="${QA_SURFACE_LAUNCH_GRACE_SECONDS:-1}"
+default_settle_seconds="${QA_SURFACE_SETTLE_SECONDS:-0.35}"
+slow_settle_seconds="${QA_SURFACE_SLOW_SETTLE_SECONDS:-1.5}"
 captured_count=0
 executed_row_count=0
 skipped_rows=()
@@ -88,7 +91,7 @@ CAPTURES=$(cat <<'TABLE'
 02-tracks-navigator|workspace=tracks,tracksSelectionMode=off,swing=0.0|workspace=tracks;tracksSelectionMode=off;swing=0;transport=stop
 02a-tracks-selection-actions|workspace=tracks,tracksSelectionMode=on,tracksSelectionCount=1|workspace=tracks;tracksSelectionMode=on;tracksClearSelection=true;tracksSelect=first;tracksPrimeClipboard=true;transport=stop
 02ae-create-track-group|workspace=tracks,tracksCreateTrackGroupModalVisible=true|workspace=tracks;tracksSelectionMode=on;tracksClearSelection=true;tracksSelect=first;tracksCreateTrackGroupModal=open;transport=stop
-02aa-tracks-filter-drum-kits|workspace=tracks,tracksFilter=drumKits,drumGroup0MemberCount=4|workspace=tracks;tracksSelectionMode=off;createDefault808=all;tracksFilter=drumKits;transport=stop
+02aa-tracks-filter-drum-kits|workspace=tracks,tracksFilter=drumKits,drumGroup0MemberCount=4,tracksCreateTrackGroupModalVisible=false|workspace=tracks;tracksCreateTrackGroupModal=close;tracksSelectionMode=off;createDefault808=all;tracksFilter=drumKits;transport=stop
 02ab-tracks-filter-drum-parts|workspace=tracks,tracksFilter=drumParts,drumGroup0MemberCount=4|workspace=tracks;tracksSelectionMode=off;tracksFilter=drumParts;transport=stop
 02ac-tracks-filter-all|workspace=tracks,tracksFilter=all,drumGroup0MemberCount=4|workspace=tracks;tracksSelectionMode=off;tracksFilter=all;transport=stop
 02b-tracks-layer-perform-nav|workspace=phrase,phraseWorkspaceTab=layers,performScopeCount=1|workspace=tracks;tracksSelectionMode=on;tracksClearSelection=true;tracksSelect=first;tracksAction=layerPerform;removeDefault808=true;transport=stop
@@ -403,17 +406,19 @@ $payload"
     return 1
   fi
 
-  # Most surfaces render well within 0.8s. The expanded kit-row detail rows
+  # Status acknowledgement means the command reached the mounted runner, so
+  # ordinary SwiftUI surfaces only need one short render settle. Expanded
+  # kit-row detail rows
   # build a drum-group fixture AND render all cold when run standalone, so the
   # expanded-row detail mounts (and observes its visual commands) late — the
   # runner re-fires those posts, so give these rows a longer settle so the
   # intended surface is on screen at capture time. Harness-only timing; no
   # product behaviour changes.
-  local settle=0.8
+  local settle="$default_settle_seconds"
   case "$name" in
-    01-*|01a-*|01b-*|02-*|02a-*|02b-*) settle=3.5 ;;
-    19-*|19a-*|22a-*|22e-*|22f-*|29d-*) settle=3.5 ;;
-    29g-*) settle=2.8 ;;
+    01-*|01a-*|01b-*|02-*|02a-*|02b-*) settle="$slow_settle_seconds" ;;
+    19-*|19a-*|22a-*|22e-*|22f-*|29d-*) settle="$slow_settle_seconds" ;;
+    29g-*) settle=1.4 ;;
   esac
   sleep "$settle"
   capture_state "$pid" "$name"
@@ -583,7 +588,7 @@ fi
   -NSQuitAlwaysKeepsWindows NO \
   >>"$output_dir/app-open.log" 2>&1 &
 launched_pid="$!"
-sleep 3
+sleep "$launch_grace_seconds"
 
 pid="$launched_pid"
 last_completed_row="startup"

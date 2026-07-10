@@ -264,5 +264,13 @@ final class QuantiseHarnessProtocolTests: XCTestCase {
             VisualScenarioCommandRunner.drainPendingTracksMatrixCommands()
                 .contains("create-track-group:open")
         )
+
+        apply(["tracksCreateTrackGroupModal": "close"], fixture: fixture)
+
+        XCTAssertEqual(try statusDictionary(fixture: fixture)["tracksCreateTrackGroupModalVisible"], "false")
+        XCTAssertTrue(
+            VisualScenarioCommandRunner.drainPendingTracksMatrixCommands()
+                .contains("create-track-group:close")
+        )
     }
 }
