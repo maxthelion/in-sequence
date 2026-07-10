@@ -369,7 +369,7 @@ struct ChordTrackWorkspaceView: View {
     }
 
     private var progressionConfigPanel: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        HStack(alignment: .bottom, spacing: 14) {
             ChordRootKeyboard(
                 selectedRoot: palette.progressionRoot,
                 progressionRoot: palette.progressionRoot,
@@ -378,6 +378,7 @@ struct ChordTrackWorkspaceView: View {
             ) { root in
                 updateProgressionRoot(root)
             }
+            .frame(maxWidth: .infinity)
 
             StudioSegmentedControl(
                 title: "Scale",
@@ -391,9 +392,10 @@ struct ChordTrackWorkspaceView: View {
                 accent: accent,
                 layout: .init(fillsWidth: false, minWidth: 88)
             )
+            .frame(width: 440)
         }
         .padding(14)
-        .frame(maxWidth: 620, alignment: .leading)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             StudioTheme.panelFill,
             in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.section, style: .continuous)
