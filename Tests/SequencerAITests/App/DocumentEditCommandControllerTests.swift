@@ -231,6 +231,116 @@ final class DocumentEditCommandControllerTests: XCTestCase {
             debounceInterval: .seconds(100)
         )
         return (session, documentBox)
+    func testTracksClipboardResolvesDetachedIDsAgainstLiveTracks() {
+        let liveID = UUID()
+        let deletedID = UUID()
+        let clipboard = TracksDocumentEditClipboard(trackIDs: [liveID, deletedID])
+
+        XCTAssertEqual(clipboard.resolvedTrackIDs(in: [liveID]), [liveID])
+        XCTAssertTrue(clipboard.resolvedTrackIDs(in: []).isEmpty)
+    }
+
+    func testPhraseCellClipboardPasteCompatibilityRequiresMatchingLayer() {
+        let controller = DocumentEditCommandController()
+        let clipboard = PhraseCellDocumentEditClipboard(
+            layerID: "pattern",
+            cell: .steps([.index(1), .index(2)])
+        )
+        controller.register(target: makeTarget(copy: {
+            .init(domain: .phraseCells, snapshot: clipboard)
+        }))
+        XCTAssertTrue(controller.copy())
+
+        controller.register(target: .init(
+            canCopy: { false },
+            canClear: { false },
+            isPasteCompatible: { payload in
+                payload.value(as: PhraseCellDocumentEditClipboard.self)?
+                    .isCompatible(with: "mute") == true
+            },
+            copy: { nil },
+            paste: { _ in },
+            clearSelection: {}
+        ))
+        XCTAssertFalse(controller.availability.canPaste)
+
+        controller.register(target: .init(
+            canCopy: { false },
+            canClear: { false },
+            isPasteCompatible: { payload in
+                payload.value(as: PhraseCellDocumentEditClipboard.self)?
+                    .isCompatible(with: "pattern") == true
+            },
+            copy: { nil },
+            paste: { _ in },
+            clearSelection: {}
+        ))
+        XCTAssertTrue(controller.availability.canPaste)
+    }
+
+    func testPhraseCellSelectionLifecycleScopesAdditiveSelectionAndClear() {
+        let phraseID = UUID()
+        let otherPhraseID = UUID()
+        let firstTrackID = UUID()
+        let secondTrackID = UUID()
+        var selection = PhraseCellDocumentSelection()
+
+        selection.select(
+            phraseID: phraseID,
+            layerID: "pattern",
+            trackID: firstTrackID,
+            additive: false
+        )
+        selection.select(
+            phraseID: phraseID,
+            layerID: "pattern",
+            trackID: secondTrackID,
+            additive: true
+        )
+        XCTAssertEqual(
+            selection.matchingTrackIDs(
+                phraseID: phraseID,
+                layerID: "pattern",
+                liveTrackIDs: [firstTrackID, secondTrackID]
+            ),
+            [firstTrackID, secondTrackID]
+        )
+
+        selection.select(
+            phraseID: phraseID,
+            layerID: "mute",
+            trackID: secondTrackID,
+            additive: true
+        )
+        XCTAssertEqual(selection.count, 1, "Changing layer starts a new cell selection")
+        selection.reconcile(
+            phraseID: otherPhraseID,
+            layerID: "mute",
+            liveTrackIDs: [secondTrackID]
+        )
+        XCTAssertTrue(selection.isEmpty, "Changing phrase clears transient cell selection")
+
+        selection.select(
+            phraseID: phraseID,
+            layerID: "pattern",
+            trackID: firstTrackID,
+            additive: false
+        )
+        selection.reconcile(
+            phraseID: phraseID,
+            layerID: "pattern",
+            liveTrackIDs: []
+        )
+        XCTAssertTrue(selection.isEmpty, "Removing selected tracks clears the selection")
+
+        selection.select(
+            phraseID: phraseID,
+            layerID: "pattern",
+            trackID: firstTrackID,
+            additive: false
+        )
+        selection.clear()
+        XCTAssertTrue(selection.isEmpty)
     }
 
     private func makeTarget(

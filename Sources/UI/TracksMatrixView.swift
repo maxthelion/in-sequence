@@ -224,6 +224,19 @@ struct TracksWorkspaceView: View {
     }
 }
 
+struct TracksDocumentEditClipboard: Equatable {
+    let trackIDs: Set<UUID>
+
+    func resolvedTrackIDs(in liveTrackIDs: [UUID]) -> Set<UUID> {
+        trackIDs.intersection(liveTrackIDs)
+    }
+}
+
+private struct TracksDocumentEditRevision: Equatable {
+    let selection: Set<UUID>
+    let liveTrackIDs: [UUID]
+}
+
 struct TracksMatrixView: View {
     @Binding var document: SeqAIDocument
     @Binding var selectedLayerID: String
@@ -239,9 +252,6 @@ struct TracksMatrixView: View {
     @State private var createTrackStep: CreateTrackFlowStep?
     /// Drives the delete confirmation for the selection-action bar.
     @State private var isConfirmingSelectionDelete = false
-    /// Transient track clipboard for navigator copy/paste. Stores IDs only;
-    /// Paste resolves them against the current document before duplicating.
-    @State private var copiedTrackIDs: Set<UUID> = []
     @State private var trackFilter: TracksNavigatorFilter = .all
     @State private var pendingDeleteTrackIDs: Set<UUID> = []
     @State private var createPerformanceTrackGroupRequest: CreatePerformanceTrackGroupRequest?
@@ -331,6 +341,14 @@ struct TracksMatrixView: View {
             VisualScenarioCommandRunner.pendingTracksMatrixCommands = []
             applyModalVisualCommand(command)
         }
+        .documentEditTarget(
+            isActive: true,
+            revision: TracksDocumentEditRevision(
+                selection: session.tracksSelection,
+                liveTrackIDs: tracks.map(\.id)
+            ),
+            makeTarget: tracksDocumentEditTarget
+        )
     }
 
     /// Capture-harness hook: drive the ONE creation flow to a target step (or
@@ -345,7 +363,7 @@ struct TracksMatrixView: View {
         }
 
         if command == "copy-selection" {
-            copyTracksSelection()
+            _ = session.documentEditCommands.copy()
             return
         }
 
@@ -375,8 +393,8 @@ struct TracksMatrixView: View {
     }
 
     /// A single horizontal bar with the Select toggle. With selection mode ON
-    /// and ≥1 visible track selected, the Clear control and action buttons
-    /// (Copy / Perform / Create performance group) appear inline — there
+    /// and ≥1 visible track selected, the Perform / Create performance group
+    /// action buttons appear inline — there
     /// is no separate actions section and no "N selected" text.
     private func selectionTopBar(trackCount: Int, visibleTrackIDs: [UUID]) -> some View {
         let isOn = session.tracksSelectionMode
@@ -421,25 +439,6 @@ struct TracksMatrixView: View {
             .help(isOn ? "Exit selection mode" : "Select tracks to perform together")
 
             if isOn, hasSelection {
-                clearButton
-
-                Divider()
-                    .frame(height: 22)
-
-                selectionActionButton(
-                    title: "Copy",
-                    accent: StudioTheme.transportAccent,
-                    identifier: "tracks-action-copy"
-                ) { copyTracksSelection(visibleSelection) }
-
-                if canPasteTracks {
-                    selectionActionButton(
-                        title: "Paste",
-                        accent: StudioTheme.transportAccent,
-                        identifier: "tracks-action-paste"
-                    ) { pasteCopiedTracks() }
-                }
-
                 selectionActionButton(
                     title: "Perform",
                     accent: StudioTheme.phraseAccent,
@@ -502,29 +501,6 @@ struct TracksMatrixView: View {
         .buttonStyle(.plain)
         .accessibilityIdentifier("tracks-action-delete")
         .help("Delete the selected tracks")
-    }
-
-    private var clearButton: some View {
-        Button {
-            session.tracksSelection.removeAll()
-        } label: {
-            Text("CLEAR")
-                .studioText(.micro)
-                .tracking(0.8)
-                .foregroundStyle(StudioTheme.mutedText)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .overlay(Capsule().stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth))
-        }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("tracks-select-clear")
-        .help("Clear selection")
-    }
-
-    private var canPasteTracks: Bool {
-        !copiedTrackIDs.isEmpty && copiedTrackIDs.contains { copiedID in
-            session.store.tracks.contains { $0.id == copiedID }
-        }
     }
 
     /// A compact selection action button used by navigator commands.
@@ -627,20 +603,39 @@ struct TracksMatrixView: View {
         )
     }
 
-    private func copyTracksSelection(_ trackIDs: Set<UUID>? = nil) {
-        copiedTrackIDs = trackIDs ?? session.tracksSelection
-    }
-
-    private func copySingleTrack(_ trackID: UUID) {
-        copiedTrackIDs = [trackID]
-    }
-
-    private func pasteCopiedTracks() {
-        let liveIDs = Set(session.store.tracks.map(\.id))
-        let resolvedIDs = copiedTrackIDs.intersection(liveIDs)
-        guard !resolvedIDs.isEmpty else { return }
-        let createdIDs = session.duplicateTracks(ids: resolvedIDs)
-        copiedTrackIDs = Set(createdIDs)
+    private func tracksDocumentEditTarget() -> DocumentEditCommandController.Target {
+        .init(
+            canCopy: {
+                !TracksDocumentEditClipboard(trackIDs: session.tracksSelection)
+                    .resolvedTrackIDs(in: session.store.tracks.map(\.id))
+                    .isEmpty
+            },
+            canClear: { !session.tracksSelection.isEmpty },
+            isPasteCompatible: { payload in
+                guard payload.domain == .tracks,
+                      let clipboard = payload.value(as: TracksDocumentEditClipboard.self)
+                else { return false }
+                return !clipboard.resolvedTrackIDs(in: session.store.tracks.map(\.id)).isEmpty
+            },
+            copy: {
+                let clipboard = TracksDocumentEditClipboard(trackIDs: session.tracksSelection)
+                let resolvedIDs = clipboard.resolvedTrackIDs(in: session.store.tracks.map(\.id))
+                guard !resolvedIDs.isEmpty else { return nil }
+                return .init(
+                    domain: .tracks,
+                    snapshot: TracksDocumentEditClipboard(trackIDs: resolvedIDs)
+                )
+            },
+            paste: { payload in
+                guard let clipboard = payload.value(as: TracksDocumentEditClipboard.self) else { return }
+                let resolvedIDs = clipboard.resolvedTrackIDs(in: session.store.tracks.map(\.id))
+                guard !resolvedIDs.isEmpty else { return }
+                _ = session.duplicateTracks(ids: resolvedIDs)
+            },
+            clearSelection: {
+                session.tracksSelection.removeAll()
+            }
+        )
     }
 
     private func selectTrackForActions(_ trackID: UUID, additive: Bool = false) {

@@ -97,12 +97,24 @@ extension Project {
             return
         }
 
-        var duplicate = phrases[index]
+        _ = insertPhraseCopy(phrases[index], below: phraseID)
+    }
+
+    /// Insert a detached phrase snapshot below a live target. Every insertion
+    /// receives a fresh identity so repeated pastes remain independent.
+    @discardableResult
+    mutating func insertPhraseCopy(_ snapshot: PhraseModel, below targetPhraseID: UUID) -> UUID? {
+        guard let targetIndex = phrases.firstIndex(where: { $0.id == targetPhraseID }) else {
+            return nil
+        }
+
+        var duplicate = snapshot
         duplicate.id = UUID()
-        duplicate.name = "\(phrases[index].name) Copy"
-        let insertionIndex = min(index + 1, phrases.count)
+        duplicate.name = "\(snapshot.name) Copy"
+        let insertionIndex = min(targetIndex + 1, phrases.count)
         phrases.insert(duplicate.synced(with: tracks, layers: layers), at: insertionIndex)
         selectedPhraseID = duplicate.id
+        return duplicate.id
     }
 
     mutating func removeSelectedPhrase() {

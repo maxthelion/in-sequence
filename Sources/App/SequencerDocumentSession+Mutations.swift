@@ -874,6 +874,20 @@ extension SequencerDocumentSession {
         dispatchImpact(.snapshotOnly)
     }
 
+    /// Paste a detached phrase snapshot below a currently live target.
+    @discardableResult
+    func insertPhraseCopy(_ snapshot: PhraseModel, below targetPhraseID: UUID) -> UUID? {
+        var project = store.exportToProject()
+        guard let insertedID = project.insertPhraseCopy(snapshot, below: targetPhraseID) else {
+            return nil
+        }
+        store.replacePhrases(project.phrases, selectedPhraseID: insertedID)
+        guard store.revision > revision else { return insertedID }
+        guard !isInBatch else { return insertedID }
+        dispatchImpact(.snapshotOnly)
+        return insertedID
+    }
+
     /// Remove phrase by ID (guard: must have >1 phrase). Publishes one snapshot.
     func removePhrase(id phraseID: UUID) {
         var p = store.exportToProject()

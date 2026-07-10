@@ -6,6 +6,113 @@ private enum PhraseTrackScopeChoice: Hashable {
     case group(Int)
 }
 
+struct PhraseDocumentEditClipboard: Equatable {
+    let phrase: PhraseModel
+}
+
+struct PhraseCellDocumentEditClipboard: Equatable {
+    let layerID: String
+    let cell: PhraseCell
+
+    func isCompatible(with layerID: String) -> Bool {
+        self.layerID == layerID
+    }
+}
+
+struct PhraseCellDocumentSelection: Equatable {
+    private(set) var phraseID: UUID?
+    private(set) var layerID: String?
+    private(set) var trackIDs: Set<UUID> = []
+
+    var isEmpty: Bool { trackIDs.isEmpty }
+    var count: Int { trackIDs.count }
+    var first: UUID? { trackIDs.first }
+
+    mutating func select(phraseID: UUID, layerID: String, trackID: UUID, additive: Bool) {
+        if self.phraseID != phraseID || self.layerID != layerID || !additive {
+            trackIDs.removeAll()
+        }
+        self.phraseID = phraseID
+        self.layerID = layerID
+        trackIDs.insert(trackID)
+    }
+
+    func contains(_ trackID: UUID) -> Bool {
+        trackIDs.contains(trackID)
+    }
+
+    func matchingTrackIDs(phraseID: UUID, layerID: String, liveTrackIDs: [UUID]) -> [UUID] {
+        guard self.phraseID == phraseID, self.layerID == layerID else { return [] }
+        return liveTrackIDs.filter { trackIDs.contains($0) }
+    }
+
+    mutating func reconcile(phraseID: UUID, layerID: String?, liveTrackIDs: [UUID]) {
+        guard self.phraseID == phraseID, self.layerID == layerID, layerID != nil else {
+            clear()
+            return
+        }
+        trackIDs.formIntersection(liveTrackIDs)
+        if trackIDs.isEmpty {
+            clear()
+        }
+    }
+
+    mutating func clear() {
+        phraseID = nil
+        layerID = nil
+        trackIDs.removeAll()
+    }
+}
+
+private struct PhraseDocumentEditRevision: Equatable {
+    let selectedPhraseID: UUID
+    let phraseIDs: [UUID]
+    let activeLayerID: String?
+    let cellSelection: PhraseCellDocumentSelection
+    let usesCellTarget: Bool
+}
+
+private struct PhraseCellSelectionContext: Equatable {
+    let phraseID: UUID
+    let layerID: String?
+    let liveTrackIDs: [UUID]
+    let isCellSurfaceVisible: Bool
+}
+
+@MainActor
+private func phraseDocumentEditTarget(
+    session: SequencerDocumentSession
+) -> DocumentEditCommandController.Target {
+    .init(
+        canCopy: {
+            session.store.phrases.contains { $0.id == session.store.selectedPhraseID }
+        },
+        canClear: { false },
+        isPasteCompatible: { payload in
+            payload.domain == .phrases
+                && payload.value(as: PhraseDocumentEditClipboard.self) != nil
+                && session.store.phrases.contains { $0.id == session.store.selectedPhraseID }
+        },
+        copy: {
+            guard let phrase = session.store.phrases.first(where: { $0.id == session.store.selectedPhraseID }) else {
+                return nil
+            }
+            return .init(
+                domain: .phrases,
+                snapshot: PhraseDocumentEditClipboard(phrase: phrase)
+            )
+        },
+        paste: { payload in
+            guard let clipboard = payload.value(as: PhraseDocumentEditClipboard.self) else { return }
+            _ = session.insertPhraseCopy(
+                clipboard.phrase,
+                below: session.store.selectedPhraseID
+            )
+        },
+        clearSelection: {}
+    )
+}
+
 enum PhraseSceneHardSwitch {
     static func crossfaderValue(for slot: ScenePerformSlotPickerRequest.Slot) -> Double {
         slot == .a ? 0 : 1
@@ -35,8 +142,7 @@ struct PhraseWorkspaceView: View {
     @State private var phraseLatchMode: TrackPerformLatchMode = .momentary
     @State private var phraseLatchLengthBars: Int?
     @State private var scalarDragBase: (phraseID: UUID, trackID: UUID, value: Double)?
-    @State private var phraseLayerSelection: Set<UUID> = []
-    @State private var copiedPhraseLayerCell: PhraseLayerCellClipboard?
+    @State private var phraseLayerSelection = PhraseCellDocumentSelection()
 
     private let phraseColumnWidth: CGFloat = 118
     private let trackColumnWidth: CGFloat = 126
@@ -148,10 +254,29 @@ struct PhraseWorkspaceView: View {
         return phraseTab.rawValue
     }
 
+    private var phraseCellSelectionContext: PhraseCellSelectionContext {
+        PhraseCellSelectionContext(
+            phraseID: session.store.selectedPhraseID,
+            layerID: activeMatrixLayer?.id,
+            liveTrackIDs: scopedLayerTracks.map(\.id),
+            isCellSurfaceVisible: phraseTab == .layers && phraseLayerEditMode == .byTrack
+        )
+    }
+
+    private var documentEditRevision: PhraseDocumentEditRevision {
+        PhraseDocumentEditRevision(
+            selectedPhraseID: session.store.selectedPhraseID,
+            phraseIDs: phrases.map(\.id),
+            activeLayerID: activeMatrixLayer?.id,
+            cellSelection: phraseLayerSelection,
+            usesCellTarget: usesPhraseCellDocumentEditTarget
+        )
+    }
+
     var body: some View {
         // The top-nav pill already names this page; the panel renders no
         // header of its own (ux-canon rule 1).
-        StudioPanel(
+        let content = StudioPanel(
             title: "Phrase Matrix",
             accent: activeLayerAccent,
             showsHeader: false,
@@ -253,13 +378,12 @@ struct PhraseWorkspaceView: View {
         }
         .onChange(of: phrases.map(\.id)) {
             dismissInvalidEditorTarget()
+            reconcilePhraseCellSelection()
             applyVisualControlsOpenIndex()
         }
         .onChange(of: tracks.map(\.id)) {
             dismissInvalidEditorTarget()
-            phraseLayerSelection = phraseLayerSelection.filter { trackID in
-                tracks.contains { $0.id == trackID }
-            }
+            reconcilePhraseCellSelection()
         }
         .onChange(of: layers.map(\.id)) {
             dismissInvalidEditorTarget()
@@ -267,6 +391,7 @@ struct PhraseWorkspaceView: View {
             postRenderedMatrixVisualState(isVisible: true)
         }
         .onChange(of: selectedLayerID) {
+            reconcilePhraseCellSelection()
             postRenderedMatrixVisualState(isVisible: true)
         }
         .onChange(of: performanceLayerSelection.mode) {
@@ -275,6 +400,7 @@ struct PhraseWorkspaceView: View {
                 selectedLayerID = layerID
             }
             performanceLayerSelection.reconcileVariant()
+            reconcilePhraseCellSelection()
             postRenderedMatrixVisualState(isVisible: true)
         }
         .onChange(of: performanceLayerSelection.variantLabel) {
@@ -287,6 +413,26 @@ struct PhraseWorkspaceView: View {
             VisualScenarioCommandRunner.pendingPhraseMatrixCommands = []
             applyMatrixVisualCommand(command)
         }
+
+        return content
+        .onChange(of: phraseCellSelectionContext) {
+            if phraseCellSelectionContext.isCellSurfaceVisible {
+                reconcilePhraseCellSelection()
+            } else {
+                phraseLayerSelection.clear()
+            }
+        }
+        .documentEditTarget(
+            isActive: true,
+            revision: documentEditRevision,
+            makeTarget: makeDocumentEditTarget
+        )
+    }
+
+    private func makeDocumentEditTarget() -> DocumentEditCommandController.Target {
+        usesPhraseCellDocumentEditTarget
+            ? phraseCellDocumentEditTarget()
+            : phraseDocumentEditTarget(session: session)
     }
 
     private var phrasePerformanceShell: some View {
@@ -1643,18 +1789,21 @@ struct PhraseWorkspaceView: View {
         )
     }
 
-    private var canPastePhraseLayerValue: Bool {
-        guard let copiedPhraseLayerCell, let activeMatrixLayer else {
-            return false
-        }
-        return copiedPhraseLayerCell.layerID == activeMatrixLayer.id
+    private var usesPhraseCellDocumentEditTarget: Bool {
+        phraseTab == .layers
+            && phraseLayerEditMode == .byTrack
+            && activeMatrixLayer != nil
+            && !phraseLayerSelection.isEmpty
     }
 
     private func selectPhraseLayerTrack(_ trackID: UUID, additive: Bool) {
-        if !additive {
-            phraseLayerSelection.removeAll()
-        }
-        phraseLayerSelection.insert(trackID)
+        guard let activeMatrixLayer else { return }
+        phraseLayerSelection.select(
+            phraseID: session.store.selectedPhraseID,
+            layerID: activeMatrixLayer.id,
+            trackID: trackID,
+            additive: additive
+        )
         session.setSelectedTrackID(trackID)
     }
 
@@ -1668,41 +1817,85 @@ struct PhraseWorkspaceView: View {
         return nil
     }
 
-    private func copyPhraseLayerValue(phrase: PhraseModel, trackID: UUID) {
-        guard let activeMatrixLayer else { return }
-        let inherited = inheritedDefaults(for: phrase.id)
-        copiedPhraseLayerCell = PhraseLayerCellClipboard(
-            layerID: activeMatrixLayer.id,
-            cell: .single(
-                phrase.resolvedValue(
-                    for: activeMatrixLayer,
-                    trackID: trackID,
-                    stepIndex: 0,
-                    inherited: inherited
-                )
-            )
+    private func reconcilePhraseCellSelection() {
+        phraseLayerSelection.reconcile(
+            phraseID: session.store.selectedPhraseID,
+            layerID: activeMatrixLayer?.id,
+            liveTrackIDs: scopedLayerTracks.map(\.id)
         )
-        selectPhraseLayerTrack(trackID, additive: phraseLayerSelection.contains(trackID))
     }
 
-    private func pastePhraseLayerValue(phraseID: UUID, fallbackTrackID: UUID) {
-        guard let copiedPhraseLayerCell,
-              let activeMatrixLayer,
-              copiedPhraseLayerCell.layerID == activeMatrixLayer.id
-        else {
-            return
-        }
-
-        let scopedIDs = Set(scopedLayerTracks.map(\.id))
-        let targetIDs = phraseLayerSelection.isEmpty
-            ? [fallbackTrackID]
-            : scopedLayerTracks.map(\.id).filter { phraseLayerSelection.contains($0) && scopedIDs.contains($0) }
-        guard !targetIDs.isEmpty else { return }
-        session.setPhraseCell(
-            copiedPhraseLayerCell.cell,
-            layerID: activeMatrixLayer.id,
-            trackIDs: targetIDs,
-            phraseID: phraseID
+    private func phraseCellDocumentEditTarget() -> DocumentEditCommandController.Target {
+        .init(
+            canCopy: {
+                guard let activeMatrixLayer else { return false }
+                return !phraseLayerSelection.matchingTrackIDs(
+                    phraseID: session.store.selectedPhraseID,
+                    layerID: activeMatrixLayer.id,
+                    liveTrackIDs: scopedLayerTracks.map(\.id)
+                ).isEmpty
+            },
+            canClear: { !phraseLayerSelection.isEmpty },
+            isPasteCompatible: { payload in
+                guard payload.domain == .phraseCells,
+                      let clipboard = payload.value(as: PhraseCellDocumentEditClipboard.self),
+                      let activeMatrixLayer,
+                      clipboard.isCompatible(with: activeMatrixLayer.id)
+                else { return false }
+                return !phraseLayerSelection.matchingTrackIDs(
+                    phraseID: session.store.selectedPhraseID,
+                    layerID: activeMatrixLayer.id,
+                    liveTrackIDs: scopedLayerTracks.map(\.id)
+                ).isEmpty
+            },
+            copy: {
+                guard let activeMatrixLayer,
+                      let phrase = session.store.phrases.first(where: { $0.id == session.store.selectedPhraseID })
+                else { return nil }
+                let matchingIDs = phraseLayerSelection.matchingTrackIDs(
+                    phraseID: phrase.id,
+                    layerID: activeMatrixLayer.id,
+                    liveTrackIDs: scopedLayerTracks.map(\.id)
+                )
+                guard let trackID = matchingIDs.first else { return nil }
+                let inherited = inheritedDefaults(for: phrase.id)
+                return .init(
+                    domain: .phraseCells,
+                    snapshot: PhraseCellDocumentEditClipboard(
+                        layerID: activeMatrixLayer.id,
+                        cell: .single(
+                            phrase.resolvedValue(
+                                for: activeMatrixLayer,
+                                trackID: trackID,
+                                stepIndex: 0,
+                                inherited: inherited
+                            )
+                        )
+                    )
+                )
+            },
+            paste: { payload in
+                guard let clipboard = payload.value(as: PhraseCellDocumentEditClipboard.self),
+                      let activeMatrixLayer,
+                      clipboard.isCompatible(with: activeMatrixLayer.id)
+                else { return }
+                let phraseID = session.store.selectedPhraseID
+                let targetIDs = phraseLayerSelection.matchingTrackIDs(
+                    phraseID: phraseID,
+                    layerID: activeMatrixLayer.id,
+                    liveTrackIDs: scopedLayerTracks.map(\.id)
+                )
+                guard !targetIDs.isEmpty else { return }
+                session.setPhraseCell(
+                    clipboard.cell,
+                    layerID: activeMatrixLayer.id,
+                    trackIDs: targetIDs,
+                    phraseID: phraseID
+                )
+            },
+            clearSelection: {
+                phraseLayerSelection.clear()
+            }
         )
     }
 
@@ -1826,21 +2019,12 @@ struct PhraseWorkspaceView: View {
                         }
                     }
                     .contextMenu {
-                        if activeLayer?.valueType != .patternIndex && activeLayer != nil {
+                        if activeLayer != nil {
                             Button("Select") {
                                 selectPhraseLayerTrack(track.id, additive: false)
                             }
                             Button("Add to Selection") {
                                 selectPhraseLayerTrack(track.id, additive: true)
-                            }
-                            Divider()
-                            Button("Copy Value") {
-                                copyPhraseLayerValue(phrase: displayedPhrase, trackID: track.id)
-                            }
-                            if canPastePhraseLayerValue {
-                                Button("Paste Value") {
-                                    pastePhraseLayerValue(phraseID: displayedPhrase.id, fallbackTrackID: track.id)
-                                }
                             }
                             if phraseLayerSingleSelectionID(fallbackTrackID: track.id) != nil {
                                 Divider()
@@ -2346,6 +2530,17 @@ struct SongWorkspaceView: View {
         }
         .padding(StudioMetrics.Spacing.workspaceInset)
         .accessibilityIdentifier("song-workspace")
+        .documentEditTarget(
+            isActive: true,
+            revision: PhraseDocumentEditRevision(
+                selectedPhraseID: session.store.selectedPhraseID,
+                phraseIDs: phrases.map(\.id),
+                activeLayerID: nil,
+                cellSelection: PhraseCellDocumentSelection(),
+                usesCellTarget: false
+            ),
+            makeTarget: { phraseDocumentEditTarget(session: session) }
+        )
     }
 
     private var songHeader: some View {
@@ -2592,11 +2787,6 @@ private enum PhraseCellTool: String, Equatable {
             return "Cell clicks open automation editing for the selected layer"
         }
     }
-}
-
-private struct PhraseLayerCellClipboard: Equatable {
-    let layerID: String
-    let cell: PhraseCell
 }
 
 enum PhraseLayerEditMode: String, CaseIterable, Identifiable {
