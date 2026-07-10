@@ -52,6 +52,7 @@ enum VisualScenarioCommandRunner {
     private static var phraseSceneSelectVisible = false
     private static var phraseCaptureVisible = false
     private static var tracksCreateTrackModalVisible = false
+    private static var tracksCreateTrackGroupModalVisible = false
     private static var tracksAddDrumGroupModalVisible = false
     private static var tracksAddDrumGroupFixtureState = "none"
     private static var tracksAddSliceTrackModalVisible = false
@@ -542,6 +543,14 @@ enum VisualScenarioCommandRunner {
         )
         applyStepOrderFixture(command: command, section: section, session: session, engineController: engineController)
         applyPhraseMatrixFixture(command: command, section: section, session: session)
+        if let rawSlot = command["performanceTrackGroupFixture"],
+           let slotIndex = Int(rawSlot),
+           (0..<PerformanceTrackGroup.slotCount).contains(slotIndex) {
+            _ = session.setPerformanceTrackGroup(
+                slotIndex: slotIndex,
+                memberIDs: Set(session.store.tracks.prefix(2).map(\.id))
+            )
+        }
         applyTracksMatrixModalCommand(command: command, section: section)
         applyPhrasePerformOverlayFixture(command: command, section: section, session: session)
         applyTrackPerformLayerMatrixFixture(command: command, section: section, session: session)
@@ -1243,11 +1252,13 @@ enum VisualScenarioCommandRunner {
         phraseSceneViewMode=\(phraseSceneViewModeState)
         phraseCaptureVisible=\(phraseCaptureVisible)
         tracksCreateTrackModalVisible=\(tracksCreateTrackModalVisible)
+        tracksCreateTrackGroupModalVisible=\(tracksCreateTrackGroupModalVisible)
         tracksAddDrumGroupModalVisible=\(tracksAddDrumGroupModalVisible)
         tracksAddDrumGroupFixture=\(tracksAddDrumGroupFixtureState)
         tracksAddSliceTrackModalVisible=\(tracksAddSliceTrackModalVisible)
         tracksTrackSoundModalVisible=\(tracksTrackSoundModalVisible)
         tracksFilter=\(tracksNavigatorFilterState)
+        performanceTrackGroupCount=\(session.store.performanceTrackGroups.compactMap { $0 }.count)
         masterGain=\(session.store.masterBus.masterOutputGain)
         firstTrackSendA=\(session.store.tracks.first?.mix.sendA ?? 0)
         firstTrackSendB=\(session.store.tracks.first?.mix.sendB ?? 0)
@@ -1729,6 +1740,7 @@ enum VisualScenarioCommandRunner {
         section: Binding<WorkspaceSection>
     ) {
         guard command["tracksCreateTrackModal"] != nil ||
+              command["tracksCreateTrackGroupModal"] != nil ||
               command["tracksAddDrumGroupModal"] != nil ||
               command["tracksAddDrumGroupFixture"] != nil ||
               command["tracksAddSliceTrackModal"] != nil ||
@@ -1746,6 +1758,7 @@ enum VisualScenarioCommandRunner {
         switch command["tracksCreateTrackModal"] {
         case "open", "visible", "true":
             tracksCreateTrackModalVisible = true
+            tracksCreateTrackGroupModalVisible = false
             tracksAddDrumGroupModalVisible = false
             tracksAddSliceTrackModalVisible = false
             tracksTrackSoundModalVisible = false
@@ -1757,10 +1770,26 @@ enum VisualScenarioCommandRunner {
             break
         }
 
+        switch command["tracksCreateTrackGroupModal"] {
+        case "open", "visible", "true":
+            tracksCreateTrackGroupModalVisible = true
+            tracksCreateTrackModalVisible = false
+            tracksAddDrumGroupModalVisible = false
+            tracksAddSliceTrackModalVisible = false
+            tracksTrackSoundModalVisible = false
+            posts.append("create-track-group:open")
+        case "close", "hidden", "false":
+            tracksCreateTrackGroupModalVisible = false
+            posts.append("create-track-group:close")
+        default:
+            break
+        }
+
         switch command["tracksAddDrumGroupModal"] {
         case "open", "visible", "true":
             tracksAddDrumGroupModalVisible = true
             tracksCreateTrackModalVisible = false
+            tracksCreateTrackGroupModalVisible = false
             tracksAddSliceTrackModalVisible = false
             tracksTrackSoundModalVisible = false
             posts.append("add-drum-group-modal:open")
@@ -1781,6 +1810,7 @@ enum VisualScenarioCommandRunner {
         case "open", "visible", "true":
             tracksAddSliceTrackModalVisible = true
             tracksCreateTrackModalVisible = false
+            tracksCreateTrackGroupModalVisible = false
             tracksAddDrumGroupModalVisible = false
             tracksTrackSoundModalVisible = false
             posts.append("add-slice-track-modal:open")
@@ -1796,6 +1826,7 @@ enum VisualScenarioCommandRunner {
         case "open", "visible", "true":
             tracksTrackSoundModalVisible = true
             tracksCreateTrackModalVisible = false
+            tracksCreateTrackGroupModalVisible = false
             tracksAddDrumGroupModalVisible = false
             tracksAddSliceTrackModalVisible = false
             posts.append("track-sound-modal:open")

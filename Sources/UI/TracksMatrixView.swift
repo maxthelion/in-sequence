@@ -349,8 +349,23 @@ struct TracksMatrixView: View {
             return
         }
 
+        if command == "create-track-group:open" {
+            guard !session.tracksSelection.isEmpty else { return }
+            createTrackStep = nil
+            createPerformanceTrackGroupRequest = CreatePerformanceTrackGroupRequest(
+                memberIDs: session.tracksSelection
+            )
+            return
+        }
+
+        if command == "create-track-group:close" {
+            createPerformanceTrackGroupRequest = nil
+            return
+        }
+
         switch CreateTrackFlowStep.action(forVisualCommand: command) {
         case .present(let step):
+            createPerformanceTrackGroupRequest = nil
             createTrackStep = step
         case .close:
             createTrackStep = nil

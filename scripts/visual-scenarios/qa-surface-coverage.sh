@@ -87,6 +87,7 @@ CAPTURES=$(cat <<'TABLE'
 01b-transport-swing-set|workspace=phrase,swing=0.4|workspace=phrase;swing=0.4;transport=stop
 02-tracks-navigator|workspace=tracks,tracksSelectionMode=off,swing=0.0|workspace=tracks;tracksSelectionMode=off;swing=0;transport=stop
 02a-tracks-selection-actions|workspace=tracks,tracksSelectionMode=on,tracksSelectionCount=1|workspace=tracks;tracksSelectionMode=on;tracksClearSelection=true;tracksSelect=first;tracksPrimeClipboard=true;transport=stop
+02ae-create-track-group|workspace=tracks,tracksCreateTrackGroupModalVisible=true|workspace=tracks;tracksSelectionMode=on;tracksClearSelection=true;tracksSelect=first;tracksCreateTrackGroupModal=open;transport=stop
 02aa-tracks-filter-drum-kits|workspace=tracks,tracksFilter=drumKits,drumGroup0MemberCount=4|workspace=tracks;tracksSelectionMode=off;createDefault808=all;tracksFilter=drumKits;transport=stop
 02ab-tracks-filter-drum-parts|workspace=tracks,tracksFilter=drumParts,drumGroup0MemberCount=4|workspace=tracks;tracksSelectionMode=off;tracksFilter=drumParts;transport=stop
 02ac-tracks-filter-all|workspace=tracks,tracksFilter=all,drumGroup0MemberCount=4|workspace=tracks;tracksSelectionMode=off;tracksFilter=all;transport=stop
@@ -116,6 +117,7 @@ CAPTURES=$(cat <<'TABLE'
 # surface. `phraseSceneSelect=a` still mutates state for legacy command files,
 # but there is no `phraseSceneSelectVisible=true` surface to screenshot.
 06b-phrase-scenes-perform-slots|workspace=phrase,phraseWorkspaceTab=scenes,phraseSceneViewMode=slots|workspace=phrase;workspaceMode=perform;phraseWorkspaceTab=scenes;phraseSceneSelect=close;phraseSceneViewMode=slots;transport=stop
+06ba-phrase-scenes-hard-switch|workspace=phrase,phraseWorkspaceTab=scenes,phraseSceneViewMode=slots|workspace=phrase;workspaceMode=perform;phraseWorkspaceTab=scenes;phraseSceneViewMode=slots;phraseSceneSelect=b;transport=stop
 # 06c RETIRED: `phraseSceneMembershipFixture=split` changes runner/store state
 # but the current Scenes tab pixels match the base scenes capture exactly.
 07-library|workspace=library|workspace=library;transport=stop
@@ -130,9 +132,8 @@ CAPTURES=$(cat <<'TABLE'
 11-phrase-layer-selector-open|workspace=phrase,phraseWorkspaceTab=layers,phrasePerformLayerSelectorVisible=true|phraseMatrixTrackCount=8;phraseMatrixPhraseCount=8;phraseWorkspaceTab=layers;phrasePerformLayerSelector=open;transport=stop
 # 12 RETIRED: duplicate of the canonical phrase-scenes capture in row 06.
 13-phrase-global-apply|workspace=phrase,phraseWorkspaceTab=globalApply|phraseMatrixTrackCount=8;phraseMatrixPhraseCount=8;phraseWorkspaceTab=globalApply;transport=stop
-13a-phrase-global-apply-track-selector|workspace=phrase,phraseWorkspaceTab=globalApply,phraseGlobalApplyTrackSelectorVisible=true|phraseMatrixTrackCount=8;phraseMatrixPhraseCount=8;phraseWorkspaceTab=globalApply;phraseGlobalApplyTrackSelector=open;transport=stop
+13a-phrase-global-apply-track-group|workspace=phrase,phraseWorkspaceTab=globalApply,performanceTrackGroupCount=1|phraseMatrixTrackCount=8;phraseMatrixPhraseCount=8;performanceTrackGroupFixture=0;phraseWorkspaceTab=globalApply;phraseGlobalApplyTrackSelector=open;transport=stop
 13b-phrase-perform-capture|workspace=phrase,workspaceMode=perform,phraseCaptureVisible=true|phraseMatrixTrackCount=8;phraseMatrixPhraseCount=8;workspaceMode=perform;phraseWorkspaceTab=layers;phraseCapture=open;transport=stop
-13c-phrase-global-apply-selected|workspace=phrase,phraseWorkspaceTab=globalApply,phraseGlobalApplyTrackSelectorVisible=true|phraseMatrixTrackCount=8;phraseCapture=close;phraseWorkspaceTab=globalApply;phraseGlobalApplyTrackSelector=open;phraseGlobalApplySelect=2;transport=stop
 # 14-17 RETIRED: the tracks Perform LAYER surface (TRACK LAYER selector +
 # mute/fill/note-repeat layer cells) was removed. Tracks Perform is now
 # navigation + selection; layer perform launches scoped from the selection

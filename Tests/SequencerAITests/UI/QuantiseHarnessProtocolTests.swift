@@ -237,4 +237,32 @@ final class QuantiseHarnessProtocolTests: XCTestCase {
         let closedStatus = try statusDictionary(fixture: fixture)
         XCTAssertEqual(closedStatus["slicerLayerSwitcher"], "closed")
     }
+
+    func test_performanceTrackGroupFixturePersistsTwoTrackScopeAndReportsStatus() throws {
+        let fixture = makeFixture()
+
+        apply(
+            [
+                "phraseMatrixTrackCount": "3",
+                "performanceTrackGroupFixture": "0",
+            ],
+            fixture: fixture
+        )
+
+        XCTAssertEqual(fixture.session.store.performanceTrackGroups[0]?.memberIDs.count, 2)
+        XCTAssertEqual(try statusDictionary(fixture: fixture)["performanceTrackGroupCount"], "1")
+    }
+
+    func test_createTrackGroupModalCommandQueuesTracksSurfaceCommand() throws {
+        let fixture = makeFixture()
+        fixture.session.tracksSelection = [fixture.session.store.selectedTrackID]
+
+        apply(["tracksCreateTrackGroupModal": "open"], fixture: fixture)
+
+        XCTAssertEqual(try statusDictionary(fixture: fixture)["tracksCreateTrackGroupModalVisible"], "true")
+        XCTAssertTrue(
+            VisualScenarioCommandRunner.drainPendingTracksMatrixCommands()
+                .contains("create-track-group:open")
+        )
+    }
 }
