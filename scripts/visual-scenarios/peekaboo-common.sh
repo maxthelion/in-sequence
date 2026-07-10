@@ -267,13 +267,24 @@ ensure_new_document() {
   local title
   title="$(window_json "$pid" | jq -r '.data.windows[0].window_title')"
   if [ "$title" = "Open" ]; then
+    action_log "Open chooser visible; invoking New Document with Cmd-N."
+    if run_with_timeout "$PEEKABOO_ACTION_TIMEOUT_SECONDS" \
+      "$PEEKABOO_BIN" hotkey --keys "cmd,n" --pid "$pid" \
+      --space-switch --no-remote --json \
+      >/dev/null 2>>"$PEEKABOO_OUTPUT_DIR/peekaboo-actions.err"; then
+      sleep 1
+      title="$(window_json "$pid" | jq -r '.data.windows[0].window_title')"
+    fi
+  fi
+
+  if [ "$title" = "Open" ]; then
     local x y height click_x click_y
     x="$(window_field "$pid" x)"
     y="$(window_field "$pid" y)"
     height="$(window_field "$pid" height)"
     click_x="$((x + 230))"
     click_y="$((y + height - 30))"
-    action_log "Open chooser visible; clicking New Document at ${click_x},${click_y}."
+    action_log "Cmd-N did not dismiss the chooser; clicking New Document at ${click_x},${click_y}."
     if ! run_with_timeout "$PEEKABOO_ACTION_TIMEOUT_SECONDS" \
       "$PEEKABOO_BIN" click --coords "${click_x},${click_y}" --pid "$pid" \
       --space-switch --no-remote --json \

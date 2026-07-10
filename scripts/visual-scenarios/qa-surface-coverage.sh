@@ -91,7 +91,7 @@ CAPTURES=$(cat <<'TABLE'
 # so every later capture keeps the neutral transport.
 01b-transport-swing-set|workspace=phrase,swing=0.4|workspace=phrase;swing=0.4;transport=stop
 02-tracks-navigator|workspace=tracks,tracksSelectionMode=off,swing=0.0|workspace=tracks;tracksSelectionMode=off;swing=0;transport=stop
-02a-tracks-selection-actions|workspace=tracks,tracksSelectionMode=on,tracksSelectionCount=1|workspace=tracks;tracksSelectionMode=on;tracksClearSelection=true;tracksSelect=first;tracksPrimeClipboard=true;transport=stop
+02a-tracks-selection-actions|workspace=tracks,tracksSelectionMode=on,tracksSelectionCount=1,documentEditCanCopy=true,documentEditCanPaste=true,documentEditCanClear=true,documentEditClipboardDomain=tracks|workspace=tracks;tracksSelectionMode=on;tracksClearSelection=true;tracksSelect=first;tracksPrimeClipboard=true;transport=stop
 02ae-create-track-group|workspace=tracks,tracksCreateTrackGroupModalVisible=true|workspace=tracks;tracksSelectionMode=on;tracksClearSelection=true;tracksSelect=first;tracksCreateTrackGroupModal=open;transport=stop
 02aa-tracks-filter-drum-kits|workspace=tracks,tracksFilter=drumKits,drumGroup0MemberCount=4,tracksCreateTrackGroupModalVisible=false|workspace=tracks;tracksCreateTrackGroupModal=close;tracksSelectionMode=off;createDefault808=all;tracksFilter=drumKits;transport=stop
 02ab-tracks-filter-drum-parts|workspace=tracks,tracksFilter=drumParts,drumGroup0MemberCount=4|workspace=tracks;tracksSelectionMode=off;tracksFilter=drumParts;transport=stop
@@ -144,7 +144,7 @@ CAPTURES=$(cat <<'TABLE'
 # navigation + selection; layer perform launches scoped from the selection
 # (covered by the phrase-perform rows 08-13b). The trackPerformLayer* status
 # fields no longer exist.
-18-track-detail-steps-clip|workspace=track,selectedTrackGroupName=none,drumPartHeaderVisible=false|selectTrackType=monoMelodic;trackFillSource=clip;trackSourceTab=steps-clip;trackSelectStep=2;transport=stop
+18-track-detail-steps-clip|workspace=track,selectedTrackGroupName=none,drumPartHeaderVisible=false,documentEditCanCopy=true,documentEditCanClear=true|selectTrackType=monoMelodic;trackFillSource=clip;trackSourceTab=steps-clip;trackSelectStep=2;transport=stop
 19-track-sampler-sound-populated|workspace=track,trackSourceTab=sound,trackSourceEditorRenderedVisible=true,trackSourceEditorRenderedTab=sound,selectedTrackSoundDestinationKind=sample|trackSoundSource=sample;trackSourceTab=sound;transport=stop
 19a-track-sound-empty|workspace=track,trackSourceTab=sound,trackSourceEditorRenderedVisible=true,trackSourceEditorRenderedTab=sound,selectedTrackSoundDestinationKind=none|trackSoundSource=empty;trackSourceTab=sound;transport=stop
 20-track-fill-preview-active|workspace=track,trackSourceTab=steps-clip,selectedTrackFillPreviewActive=true|trackFillSource=clip;trackFillPreview=on;trackSourceTab=steps-clip;transport=stop
@@ -217,7 +217,8 @@ CAPTURES=$(cat <<'TABLE'
 # 37 RETIRED: the pattern-realign command no longer reaches slot 2 in a strict
 # full-suite pass; keep layer/template/read-only kit rows until rebuilt.
 37a-drum-kit-template-target-prompt|workspace=track,drumKitMatrixRenderedTemplateTargetPrompting=true,drumKitMatrixRenderedTemplateTargetCount=0|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixCommand=template-target-prompt;transport=stop
-38-drum-kit-matrix-template-chooser|workspace=track,drumKitMatrixRenderedTemplateChooserVisible=true,drumKitMatrixRenderedTemplateTargetCount=2|drumPartHeaderFixture=kit;drumPartHeaderOpenKitView=true;drumKitMatrixCommands=template-target:0,template-target-add:2,open-template-chooser;transport=stop
+37b-drum-kit-template-target-single|workspace=track,drumKitMatrixRenderedTemplateTargetCount=1,documentEditCanCopy=true,documentEditCanClear=true|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixCommand=template-target:0;transport=stop
+38-drum-kit-matrix-template-chooser|workspace=track,drumKitMatrixRenderedTemplateChooserVisible=true,drumKitMatrixRenderedTemplateTargetCount=2,documentEditCanCopy=false,documentEditCanClear=true|drumPartHeaderFixture=kit;drumPartHeaderOpenKitView=true;drumKitMatrixCommands=template-target:0,template-target-add:2,open-template-chooser;transport=stop
 39-drum-kit-matrix-generator-readonly|workspace=track,drumKitMatrixRenderedVisible=true|drumPartHeaderFixture=kit;drumKitMatrixFixture=generatorAndReadOnly;drumPartHeaderOpenKitView=true;drumKitMatrixTemplateChooser=close;transport=stop
 32-step-order-unassigned|workspace=phrase,workspaceMode=perform,phrasePerformLayerMode=stepOrder,phrasePerformLayerVariant=Identity,stepOrderFixtureState=unassigned|stepOrderFixture=unassigned;workspaceMode=perform;phraseWorkspaceTab=layers;phrasePerformLayer=stepOrder;phrasePerformLayerVariant=Identity;transport=stop
 # 33 RETIRED: assigned/on step-order status is reported, but the current
@@ -555,6 +556,8 @@ cleanup() {
     launchctl unsetenv SEQUENCER_AI_VISUAL_COMMAND_FILE >/dev/null 2>&1 || true
     launchctl unsetenv SEQUENCER_AI_NEW_DOCUMENT_FIXTURE >/dev/null 2>&1 || true
   fi
+  launchctl unsetenv SEQUENCER_AI_MATERIALIZE_FIXTURE_SAMPLES >/dev/null 2>&1 || true
+  launchctl unsetenv LLVM_PROFILE_FILE >/dev/null 2>&1 || true
   if [ "$command_file_from_env" != true ]; then
     defaults delete "$bundle_id" VisualScenarioCommandFile >/dev/null 2>&1 || true
   fi
@@ -582,12 +585,10 @@ cp "$fixture_source_path" "$runtime_fixture_path"
 
 if [ "$command_file_from_env" != true ]; then
   launchctl setenv SEQUENCER_AI_VISUAL_COMMAND_FILE "$command_file" >/dev/null
-  launchctl setenv SEQUENCER_AI_NEW_DOCUMENT_FIXTURE "$runtime_fixture_path" >/dev/null
-  launchctl setenv SEQUENCER_AI_MATERIALIZE_FIXTURE_SAMPLES 1 >/dev/null
   defaults write "$bundle_id" VisualScenarioCommandFile "$command_file"
 fi
+launchctl setenv SEQUENCER_AI_MATERIALIZE_FIXTURE_SAMPLES 1 >/dev/null
 export SEQUENCER_AI_VISUAL_COMMAND_FILE="$command_file"
-export SEQUENCER_AI_NEW_DOCUMENT_FIXTURE="$runtime_fixture_path"
 export SEQUENCER_AI_MATERIALIZE_FIXTURE_SAMPLES=1
 
 if [ -n "${SEQUENCER_AI_VISUAL_APP_PATH:-}" ]; then
@@ -606,23 +607,41 @@ if [ ! -x "$app_executable" ]; then
   echo "App executable not found at $app_executable" >&2
   exit 2
 fi
-# The DocumentGroup new-document closure reads SEQUENCER_AI_NEW_DOCUMENT_FIXTURE.
-# Passing the fixture path here as a document argument as well opens a second
-# window with a second command runner, making status/capture ownership race.
-LLVM_PROFILE_FILE="$output_dir/SequencerAI-%p.profraw" "$app_executable" \
+# Launch through Launch Services so the app receives the normal macOS app
+# lifecycle. Invoking the executable directly can exit before SwiftUI creates a
+# document window on current macOS builds. Opening the sandboxed fixture as the
+# document bypasses the Open chooser and mounts exactly one command runner.
+launchctl setenv LLVM_PROFILE_FILE "$output_dir/SequencerAI-%p.profraw" >/dev/null
+existing_app_pids="$(pgrep -x "$APP_NAME" || true)"
+open -na "$app_path" "$runtime_fixture_path" --args \
   -ApplePersistenceIgnoreState YES \
   -NSQuitAlwaysKeepsWindows NO \
-  >>"$output_dir/app-open.log" 2>&1 &
-launched_pid="$!"
+  >>"$output_dir/app-open.log" 2>&1
+launched_pid=""
+launch_deadline=$((SECONDS + startup_wait_seconds))
+while [ "$SECONDS" -lt "$launch_deadline" ]; do
+  while IFS= read -r candidate_pid; do
+    [ -n "$candidate_pid" ] || continue
+    if ! printf '%s\n' "$existing_app_pids" | grep -qx "$candidate_pid"; then
+      launched_pid="$candidate_pid"
+      break
+    fi
+  done < <(pgrep -x "$APP_NAME" | sort -nr)
+  [ -n "$launched_pid" ] && break
+  sleep 0.25
+done
+if [ -z "$launched_pid" ]; then
+  echo "Timed out waiting for $APP_NAME to launch from $app_path." >&2
+  exit 1
+fi
 sleep "$launch_grace_seconds"
 
 pid="$launched_pid"
 last_completed_row="startup"
 
-# With state restoration disabled, DocumentGroup presents its Open/New chooser.
-# Create exactly one env-seeded document before writing commands; otherwise a
-# restored document and a new document can each mount a command runner.
-ensure_new_document "$pid"
+# The fixture is the sole document argument, so no chooser interaction or
+# synthetic click is needed before the command runner can acknowledge work.
+ensure_document_window "$pid"
 
 # Size the freshly-launched window BEFORE the peekaboo gate. Without saved
 # window state the app opens at a tiny default size that peekaboo filters out
@@ -631,7 +650,6 @@ ensure_new_document "$pid"
 write_visual_command "windowFrame=$WB
 workspace=phrase
 transport=stop"
-ensure_document_window "$pid"
 wait_for_visual_command_ack "$startup_wait_seconds"
 wait_for_status "workspace" "phrase" "$startup_wait_seconds"
 ensure_single_document_window "$pid"
