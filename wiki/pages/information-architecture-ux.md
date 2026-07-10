@@ -72,6 +72,10 @@ It owns:
 - scene application/cue behavior;
 - compact performance controls that relate to scene state.
 
+Primary-clicking a populated scene matrix cell assigns that scene to its A or
+B slot without moving the crossfader. Secondary-clicking performs a hard
+switch as well: A lands at 0%, B at 100%.
+
 It should not become the general mixer, and it should not hide phrase-arrangement controls that belong in the phrase workspace.
 
 ### Live / Track Perform
@@ -164,6 +168,10 @@ drum surfaces: primary click edits the step; secondary click selects or toggles
 the whole step cell without changing its value. Selected steps expose the
 shared Clear, Copy, and Paste action row. Paste stays disabled until both a
 selection and clipboard content exist.
+
+Phrase layer selection keeps the Layers/Scenes navigation visible. Choosing a
+layer is a one-click, select-and-close operation; selection is carried by the
+cell treatment rather than a separate check badge.
 
 ### Conditional Scroll Chrome
 

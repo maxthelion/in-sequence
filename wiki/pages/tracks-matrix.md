@@ -44,7 +44,9 @@ This keeps the matrix dense enough to scan without duplicating destination contr
 
 The add card opens the shared creation flow for Mono, Poly, Chord, Slicer,
 Audio, and Drum Group choices. A selected roster set exposes one Perform
-command, which opens Phrase > Layers scoped to that set in By Track mode.
+command, which opens Phrase > Layers scoped to that set in By Track mode. It
+also exposes Create Track Group, which saves the selection into one of sixteen
+document-owned performance slots through a 4x4 picker.
 
 `Add Drum Group` opens a modal that builds a `DrumGroupPlan`.
 
@@ -55,6 +57,19 @@ are applied after creation from the kit page.
 Submitting the sheet calls `addDrumGroup(plan:)`, which appends the grouped bundle of mono tracks and creates the corresponding `TrackGroup`.
 
 After creation, the new track (or first drum-kit member) becomes selected and the app routes into the single-track workspace.
+
+## Performance track groups
+
+`PerformanceTrackGroup` is deliberately separate from the routing-oriented
+`TrackGroup` below. A performance group is a named, reusable ordered set of
+track IDs used to scope Phrase Layers in either By Track or By Value mode.
+The project owns a fixed bank of sixteen optional slots; legacy documents
+decode with an empty bank, and deleting tracks prunes stale members and clears
+groups that become empty.
+
+Phrase exposes one scope menu: All Tracks, an optional Current Selection for a
+direct Perform handoff, then occupied saved-group slots. It does not maintain a
+second per-track checkbox sheet.
 
 ## Group treatment
 
