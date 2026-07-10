@@ -46,7 +46,13 @@ esac
 
 bundle_id="ai.sequencer.SequencerAI"
 app_command_dir="$HOME/Library/Containers/$bundle_id/Data/tmp/sequencer-ai-visual-commands"
-runtime_fixture_path="${SEQUENCER_AI_QA_RUNTIME_FIXTURE:-$app_command_dir/qa-surface-coverage-fixture.seqai}"
+runtime_fixture_from_env=false
+if [ -n "${SEQUENCER_AI_QA_RUNTIME_FIXTURE:-}" ]; then
+  runtime_fixture_path="$SEQUENCER_AI_QA_RUNTIME_FIXTURE"
+  runtime_fixture_from_env=true
+else
+  runtime_fixture_path="$app_command_dir/qa-surface-coverage-fixture.seqai"
+fi
 command_file_from_env=false
 if [ -n "${SEQUENCER_AI_VISUAL_COMMAND_FILE:-}" ]; then
   command_file="$SEQUENCER_AI_VISUAL_COMMAND_FILE"
@@ -570,6 +576,44 @@ trap cleanup EXIT
 # ---------------------------------------------------------------------------
 
 mkdir -p "$output_dir"
+
+if [ -n "${SEQUENCER_AI_VISUAL_APP_PATH:-}" ]; then
+  app_path="$SEQUENCER_AI_VISUAL_APP_PATH"
+  : >"$output_dir/app-open.log"
+  printf 'using SEQUENCER_AI_VISUAL_APP_PATH=%s\n' "$app_path" >>"$output_dir/app-open.log"
+else
+  app_path="$(
+    cd "$REPO_ROOT"
+    scripts/open-latest-build.sh --print 2>"$output_dir/app-open.log"
+  )"
+fi
+printf 'app_path=%s\n' "$app_path" >>"$output_dir/app-open.log"
+app_executable="$app_path/Contents/MacOS/$APP_NAME"
+if [ ! -x "$app_executable" ]; then
+  echo "App executable not found at $app_executable" >&2
+  exit 2
+fi
+
+# Unsigned/ad-hoc debug builds are not sandboxed. Sending those builds into
+# ~/Library/Containers triggers macOS's protected app-data consent dialog on
+# every rebuilt signature, which makes unattended capture impossible. Keep
+# their command channel in ordinary temp storage; signed sandboxed builds still
+# use their own container because the sandbox cannot watch an arbitrary path.
+if ! codesign -d --entitlements :- "$app_path" 2>&1 \
+  | grep -q 'com.apple.security.app-sandbox'; then
+  app_command_dir="${TMPDIR:-/tmp}/in-sequence-visual-commands/qa-${USER:-user}"
+  if [ "$command_file_from_env" != true ]; then
+    command_file="$app_command_dir/qa-surface-coverage-command.env"
+    status_file="${command_file}.status"
+  fi
+  if [ "$runtime_fixture_from_env" != true ]; then
+    runtime_fixture_path="$app_command_dir/qa-surface-coverage-fixture.seqai"
+  fi
+  printf 'command_storage=ordinary-temp (unsandboxed app)\n' >>"$output_dir/app-open.log"
+else
+  printf 'command_storage=app-container (sandboxed app)\n' >>"$output_dir/app-open.log"
+fi
+
 # A full run starts from a clean output dir so retired/renamed rows never leave
 # stale PNGs behind (the gallery shows whatever is in the dir). Filtered runs
 # (QA_SURFACE_CAPTURE_FILTER set) only refresh their subset, so they must NOT
@@ -590,23 +634,6 @@ fi
 launchctl setenv SEQUENCER_AI_MATERIALIZE_FIXTURE_SAMPLES 1 >/dev/null
 export SEQUENCER_AI_VISUAL_COMMAND_FILE="$command_file"
 export SEQUENCER_AI_MATERIALIZE_FIXTURE_SAMPLES=1
-
-if [ -n "${SEQUENCER_AI_VISUAL_APP_PATH:-}" ]; then
-  app_path="$SEQUENCER_AI_VISUAL_APP_PATH"
-  : >"$output_dir/app-open.log"
-  printf 'using SEQUENCER_AI_VISUAL_APP_PATH=%s\n' "$app_path" >>"$output_dir/app-open.log"
-else
-  app_path="$(
-    cd "$REPO_ROOT"
-    scripts/open-latest-build.sh --print 2>"$output_dir/app-open.log"
-  )"
-fi
-printf 'app_path=%s\n' "$app_path" >>"$output_dir/app-open.log"
-app_executable="$app_path/Contents/MacOS/$APP_NAME"
-if [ ! -x "$app_executable" ]; then
-  echo "App executable not found at $app_executable" >&2
-  exit 2
-fi
 # Launch through Launch Services so the app receives the normal macOS app
 # lifecycle. Invoking the executable directly can exit before SwiftUI creates a
 # document window on current macOS builds. Opening the sandboxed fixture as the
