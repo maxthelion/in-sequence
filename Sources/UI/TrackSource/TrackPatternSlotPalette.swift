@@ -206,7 +206,7 @@ struct TrackPatternSlotPalette: View {
                 return StudioTheme.text
             }
             if targetMode.isPrompting {
-                return interactionPulse ? targetMode.accent : StudioTheme.border
+                return interactionPulse ? targetMode.accent : StudioTheme.text
             }
         }
         if isBypassed {
