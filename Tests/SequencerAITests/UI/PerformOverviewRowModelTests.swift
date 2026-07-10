@@ -4,7 +4,7 @@ import XCTest
 
 /// Row-model anatomy for the perform-overview dashboard (wireframes §9 + §1):
 /// one row per ungrouped track and one row per kit group, kit rows carrying
-/// the single violet accent and aggregating their parts, audio-in rows
+/// one stable group identity accent and aggregating their parts, audio-in rows
 /// exposing the monitor cell, and the cell order pattern/fill/repeat/mute for
 /// instruments and kits. These pin the pure presentation contract the
 /// dashboard renders, so the layout can be reasoned about without hosting.
@@ -42,7 +42,7 @@ final class PerformOverviewRowModelTests: XCTestCase {
         XCTAssertEqual(rows.map(\.id), [lead.id.uuidString, pad.id.uuidString, chop.id.uuidString])
     }
 
-    func test_rows_oneKitRowPerGroup_collapsesMembersIntoVioletRowWithPartStrip() {
+    func test_rows_oneKitRowPerGroup_collapsesMembersIntoIdentityRowWithPartStrip() {
         let groupID = UUID()
         let kick = track("Kick", groupID: groupID)
         let snare = track("Snare", groupID: groupID)
@@ -56,7 +56,11 @@ final class PerformOverviewRowModelTests: XCTestCase {
         XCTAssertEqual(kitRow.kind, .kit)
         XCTAssertEqual(kitRow.title, "Kit")
         XCTAssertNil(kitRow.trackType, "kit rows have no single track-type identity")
-        XCTAssertEqual(kitRow.accent, StudioTheme.violet, "kit row carries the ONE violet accent (§1)")
+        XCTAssertEqual(
+            kitRow.accentHex,
+            TrackPalette.identityHex(for: group.id),
+            "legacy invalid group colors fall back to the stable group identity accent"
+        )
         XCTAssertEqual(kitRow.trackIDs, [kick.id, snare.id, hat.id], "row fans out to every member")
         XCTAssertEqual(kitRow.parts.map(\.name), ["Kick", "Snare", "Hat"], "part strip aggregates members")
         XCTAssertEqual(kitRow.parts.map(\.id), [kick.id, snare.id, hat.id])
@@ -97,7 +101,7 @@ final class PerformOverviewRowModelTests: XCTestCase {
         let row = rows[0]
         XCTAssertEqual(row.kind, .audioInput)
         XCTAssertEqual(row.cells, [.monitor, .mute], "audio-in rows are monitor + mute only this slice")
-        XCTAssertEqual(row.accent, StudioTheme.success)
+        XCTAssertEqual(row.accentHex, TrackPalette.identityHex(for: mic.id))
     }
 
     func test_cellOrdering_isPatternFillRepeatMuteForInstrumentsAndKits() {
@@ -118,9 +122,17 @@ final class PerformOverviewRowModelTests: XCTestCase {
     }
 
     func test_instrumentAccents_followTrackTypeIdentity() {
-        XCTAssertEqual(PerformOverviewRowModel.rows(tracks: [track("Mono", type: .monoMelodic)], groups: [])[0].accent, StudioTheme.cyan)
-        XCTAssertEqual(PerformOverviewRowModel.rows(tracks: [track("Poly", type: .polyMelodic)], groups: [])[0].accent, StudioTheme.amber)
-        XCTAssertEqual(PerformOverviewRowModel.rows(tracks: [track("Slice", type: .slice)], groups: [])[0].accent, StudioTheme.violet)
+        let tracks = [
+            track("Mono", type: .monoMelodic),
+            track("Poly", type: .polyMelodic),
+            track("Chord", type: .chord),
+            track("Slice", type: .slice),
+        ]
+
+        for track in tracks {
+            let row = PerformOverviewRowModel.rows(tracks: [track], groups: [])[0]
+            XCTAssertEqual(row.accentHex, TrackPalette.identityHex(for: track.id))
+        }
     }
 
     func test_primaryTrackID_isFirstMember() {

@@ -272,6 +272,12 @@ struct DrumKitMatrixView: View {
     /// AC21 accordion: which part row is expanded inline (nil == all compact).
     /// Transient UI state; expanding does not change link/pattern state.
     @State var expandedPartID: UUID?
+    /// Secondary-click step selection is scoped to one drum part at a time.
+    /// The selection and clipboard are transient editor state, shared by the
+    /// compact and expanded presentations of that part.
+    @State var selectedStepMemberID: UUID?
+    @State var selectedDrumStepIndexes: Set<Int> = []
+    @State var drumStepClipboard: StepClipboard?
     /// Selected mini-tab inside the expanded row's inline detail panel.
     @State var expandedRowTab: DrumKitRowTab = .stepsClip
     /// "+ FX" picker target for the expanded part's per-track FX chain (AC21
@@ -642,6 +648,14 @@ struct DrumKitMatrixView: View {
                 fillModeControl(model)
 
                 barPager(model)
+
+                StepGridBatchActionBar(
+                    hasSelection: selectedDrumRow(in: model) != nil && !selectedDrumStepIndexes.isEmpty,
+                    canPaste: drumStepClipboard != nil,
+                    onClear: { clearSelectedDrumSteps(in: model) },
+                    onCopy: { copySelectedDrumSteps(in: model) },
+                    onPaste: { pasteDrumStepClipboard(in: model) }
+                )
 
                 Spacer(minLength: 0)
 

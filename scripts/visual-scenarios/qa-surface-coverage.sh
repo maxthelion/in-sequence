@@ -87,9 +87,12 @@ CAPTURES=$(cat <<'TABLE'
 01b-transport-swing-set|workspace=phrase,swing=0.4|workspace=phrase;swing=0.4;transport=stop
 02-tracks-navigator|workspace=tracks,tracksSelectionMode=off,swing=0.0|workspace=tracks;tracksSelectionMode=off;swing=0;transport=stop
 02a-tracks-selection-actions|workspace=tracks,tracksSelectionMode=on,tracksSelectionCount=1|workspace=tracks;tracksSelectionMode=on;tracksClearSelection=true;tracksSelect=first;tracksPrimeClipboard=true;transport=stop
+02aa-tracks-filter-drum-kits|workspace=tracks,tracksFilter=drumKits|workspace=tracks;tracksSelectionMode=off;tracksFilter=drumKits;transport=stop
+02ab-tracks-filter-drum-parts|workspace=tracks,tracksFilter=drumParts|workspace=tracks;tracksSelectionMode=off;tracksFilter=drumParts;transport=stop
 02b-tracks-layer-perform-nav|workspace=phrase,phraseWorkspaceTab=layers,performScopeCount=1|workspace=tracks;tracksSelectionMode=on;tracksClearSelection=true;tracksSelect=first;tracksAction=layerPerform;transport=stop
 02c-create-track-modal|workspace=tracks,tracksCreateTrackModalVisible=true|workspace=tracks;tracksCreateTrackModal=open;transport=stop
-02d-add-drum-group-modal|workspace=tracks,tracksAddDrumGroupModalVisible=true|workspace=tracks;tracksAddDrumGroupModal=open;transport=stop
+02d-add-drum-group-modal|workspace=tracks,tracksAddDrumGroupModalVisible=true,tracksAddDrumGroupFixture=blank|workspace=tracks;tracksFilter=all;tracksAddDrumGroupModal=open;tracksAddDrumGroupFixture=blank;transport=stop
+02da-add-drum-group-populated|workspace=tracks,tracksAddDrumGroupModalVisible=true,tracksAddDrumGroupFixture=populated|workspace=tracks;tracksAddDrumGroupModal=open;tracksAddDrumGroupFixture=populated;transport=stop
 02e-add-slice-track-loop-picker|workspace=tracks,tracksAddSliceTrackModalVisible=true|workspace=tracks;tracksAddDrumGroupModal=close;tracksAddSliceTrackModal=open;transport=stop
 02f-create-track-sound-step|workspace=tracks,tracksTrackSoundModalVisible=true|workspace=tracks;tracksAddSliceTrackModal=close;tracksTrackSoundModal=open;transport=stop
 # 03/03a RETIRED: the tracks view is now a plain NAVIGATOR (track tiles +
@@ -103,6 +106,7 @@ CAPTURES=$(cat <<'TABLE'
 05-scenes-browse|workspace=scenes,scenesMode=browseEdit|scenesMode=browseEdit;transport=stop
 05a-scenes-edit-empty|workspace=scenes,scenesMode=browseEdit,sceneEditorFixture=empty|scenesMode=browseEdit;sceneEditorFixture=empty;transport=stop
 05b-scenes-edit-content|workspace=scenes,scenesMode=browseEdit,sceneEditorFixture=content|scenesMode=browseEdit;sceneEditorFixture=content;transport=stop
+05ba-scenes-edit-overflow|workspace=scenes,scenesMode=browseEdit,sceneEditorFixture=overflow|scenesMode=browseEdit;sceneEditorFixture=overflow;transport=stop
 05c-scenes-add-fx|workspace=scenes,scenesMode=browseEdit,sceneEditorFixture=content,scenesAddFXModalVisible=true|scenesMode=browseEdit;sceneEditorFixture=content;scenesAddFXModal=open;transport=stop
 05d-scenes-bitcrusher-editor|workspace=scenes,scenesMode=browseEdit,sceneEditorFixture=content,scenesSelectedInsertIndex=1|scenesMode=browseEdit;sceneEditorFixture=content;scenesAddFXModal=close;scenesSelectInsert=1;transport=stop
 05e-scenes-browse-fx|workspace=scenes,scenesMode=browseEdit,sceneEditorFixture=browse-content|scenesMode=browseEdit;sceneEditorFixture=browse-content;transport=stop
@@ -133,7 +137,7 @@ CAPTURES=$(cat <<'TABLE'
 # navigation + selection; layer perform launches scoped from the selection
 # (covered by the phrase-perform rows 08-13b). The trackPerformLayer* status
 # fields no longer exist.
-18-track-detail-steps-clip|workspace=track|trackFillSource=clip;trackSourceTab=steps-clip;transport=stop
+18-track-detail-steps-clip|workspace=track|trackFillSource=clip;trackSourceTab=steps-clip;trackSelectStep=2;transport=stop
 19-track-sampler-sound-populated|workspace=track,trackSourceTab=sound,trackSourceEditorRenderedVisible=true,trackSourceEditorRenderedTab=sound,selectedTrackSoundDestinationKind=sample|trackSoundSource=sample;trackSourceTab=sound;transport=stop
 19a-track-sound-empty|workspace=track,trackSourceTab=sound,trackSourceEditorRenderedVisible=true,trackSourceEditorRenderedTab=sound,selectedTrackSoundDestinationKind=none|trackSoundSource=empty;trackSourceTab=sound;transport=stop
 20-track-fill-preview-active|workspace=track,trackSourceTab=steps-clip,selectedTrackFillPreviewActive=true|trackFillSource=clip;trackFillPreview=on;trackSourceTab=steps-clip;transport=stop
@@ -153,7 +157,7 @@ CAPTURES=$(cat <<'TABLE'
 22d-track-layer-quick-switch|workspace=track,trackClipLayerSwitcher=open|trackFillSource=clip;trackSourceTab=steps-clip;trackClipLayerSwitcher=open;transport=stop
 22e-track-generator-trigger-tab|workspace=track,trackSourceTab=source,trackSourceEditorRenderedVisible=true,trackSourceEditorRenderedTab=steps-clip,trackGeneratorStage=trigger,trackSourceGeneratorRenderedStage=trigger|trackFillSource=generator;trackSourceTab=source;trackGeneratorStage=trigger;transport=stop
 22f-track-generator-pitch-tab|workspace=track,trackSourceTab=source,trackSourceEditorRenderedVisible=true,trackSourceEditorRenderedTab=steps-clip,trackGeneratorStage=pitch,trackSourceGeneratorRenderedStage=pitch|trackFillSource=generator;trackSourceTab=source;trackGeneratorStage=pitch;transport=stop
-22g-track-generator-chord-instrument|workspace=track,trackSourceTab=source,trackGeneratorKind=progressionChordGenerator|addTrack=polyMelodic;trackFillSource=generator;trackGeneratorKind=progressionChordGenerator;trackSourceTab=source;transport=stop
+22g-track-generator-chord-instrument|workspace=track,selectedTrackType=chord,trackSourceTab=source,trackGeneratorKind=chordGenerator|addTrack=chord;trackFillSource=generator;trackGeneratorKind=chordGenerator;trackSourceTab=source;trackGeneratorStage=pitch;transport=stop
 # 22h RETIRED: the chord-following command currently mutates generator state but
 # does not expose a distinct visual from 22g in the Source tab.
 23-track-slicer|workspace=track,selectedTrackType=slice|addTrack=slice;transport=stop

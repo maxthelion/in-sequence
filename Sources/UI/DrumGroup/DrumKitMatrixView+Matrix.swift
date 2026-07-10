@@ -167,6 +167,7 @@ extension DrumKitMatrixView {
                         pageOffset: pageOffset,
                         stepsPerBar: Self.stepsPerBar,
                         accent: accent,
+                        selectedStepIndexes: selectedStepIndexes(for: row),
                         isExpanded: expandedPartID == row.memberID,
                         onTapStep: { stepIndex in
                             commitTap(row: row, stepIndex: stepIndex)
@@ -174,6 +175,10 @@ extension DrumKitMatrixView {
                         onDragStep: { stepIndex, fraction in
                             commitDrag(row: row, stepIndex: stepIndex, fraction: fraction)
                         },
+                        onSelectStep: { stepIndex in
+                            toggleStepSelection(row: row, stepIndex: stepIndex)
+                        },
+                        onClearSelection: clearDrumStepSelection,
                         onToggleExpand: {
                             toggleExpand(memberID: row.memberID)
                         },
@@ -185,6 +190,83 @@ extension DrumKitMatrixView {
             }
         }
         .scrollIndicators(.never)
+    }
+
+    func selectedStepIndexes(for row: DrumKitMatrixModel.Row) -> Set<Int> {
+        selectedStepMemberID == row.memberID ? selectedDrumStepIndexes : []
+    }
+
+    func toggleStepSelection(row: DrumKitMatrixModel.Row, stepIndex: Int) {
+        if selectedStepMemberID != row.memberID {
+            selectedStepMemberID = row.memberID
+            selectedDrumStepIndexes.removeAll()
+        }
+        if selectedDrumStepIndexes.contains(stepIndex) {
+            selectedDrumStepIndexes.remove(stepIndex)
+        } else {
+            selectedDrumStepIndexes.insert(stepIndex)
+        }
+        if selectedDrumStepIndexes.isEmpty {
+            selectedStepMemberID = nil
+        }
+    }
+
+    func clearDrumStepSelection() {
+        selectedStepMemberID = nil
+        selectedDrumStepIndexes.removeAll()
+    }
+
+    func selectedDrumRow(in model: DrumKitMatrixModel) -> DrumKitMatrixModel.Row? {
+        guard let selectedStepMemberID else { return nil }
+        return model.rows.first { $0.memberID == selectedStepMemberID }
+    }
+
+    func copySelectedDrumSteps(in model: DrumKitMatrixModel) {
+        guard let row = selectedDrumRow(in: model),
+              case let .editable(clipID?, _, _) = row.content,
+              let clip = session.store.clipEntry(id: clipID),
+              let track = memberTrack(row.memberID)
+        else { return }
+
+        let entries = Dictionary(uniqueKeysWithValues: selectedDrumStepIndexes.sorted().map { index in
+            (index, ClipNoteGridStepEditing.clipboardEntry(at: index, in: clip, macroBindings: track.macros))
+        })
+        drumStepClipboard = StepClipboard(sourceClipID: clipID, steps: entries)
+    }
+
+    func clearSelectedDrumSteps(in model: DrumKitMatrixModel) {
+        guard let row = selectedDrumRow(in: model),
+              let track = memberTrack(row.memberID)
+        else { return }
+        let indexes = selectedDrumStepIndexes.sorted()
+        session.ensureClipAndMutate(
+            at: PatternSlotAddress(trackID: row.memberID, slotIndex: row.patternSlotIndex)
+        ) { _, entry in
+            for index in indexes {
+                ClipNoteGridStepEditing.clearStep(at: index, entry: &entry, macroBindings: track.macros)
+            }
+        }
+        clearDrumStepSelection()
+    }
+
+    func pasteDrumStepClipboard(in model: DrumKitMatrixModel) {
+        guard let row = selectedDrumRow(in: model),
+              let track = memberTrack(row.memberID),
+              let drumStepClipboard
+        else { return }
+        session.ensureClipAndMutate(
+            at: PatternSlotAddress(trackID: row.memberID, slotIndex: row.patternSlotIndex)
+        ) { _, entry in
+            for (index, clipboardEntry) in drumStepClipboard.steps {
+                ClipNoteGridStepEditing.paste(
+                    clipboardEntry,
+                    at: index,
+                    entry: &entry,
+                    macroBindings: track.macros,
+                    defaultNote: row.defaultNote
+                )
+            }
+        }
     }
 
     /// Toggle a row's inline accordion (AC21). Resets the mini-tab to Steps/Clip

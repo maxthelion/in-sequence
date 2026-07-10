@@ -274,6 +274,12 @@ struct ScenesWorkspaceView: View {
             selectedInsertID = firstInsertID
             session.setActiveMasterScene(sceneID)
 
+        case "overflow":
+            let (sceneID, firstInsertID) = populateVisualContentScene(insertCount: 8)
+            selectedSceneID = sceneID
+            selectedInsertID = firstInsertID
+            session.setActiveMasterScene(sceneID)
+
         case "browse-content":
             // Same populated scene, but stay on the browser grid so the
             // per-card FX chips + duplicate/delete cluster are capturable.
@@ -287,15 +293,27 @@ struct ScenesWorkspaceView: View {
         }
     }
 
-    private func populateVisualContentScene() -> (sceneID: UUID, firstInsertID: UUID) {
+    private func populateVisualContentScene(insertCount: Int = 2) -> (sceneID: UUID, firstInsertID: UUID) {
         let sceneID = ensureVisualScene(preferredIndex: 1, name: "Scene With Inserts")
         var filter = MasterBusInsert.filter()
         filter.name = "Visual Filter"
         var bitcrusher = MasterBusInsert.bitcrusher()
         bitcrusher.name = "Visual Crusher"
+        let inserts = (0..<max(2, insertCount)).map { index -> MasterBusInsert in
+            if index == 0 { return filter }
+            if index == 1 { return bitcrusher }
+            if index.isMultiple(of: 2) {
+                var insert = MasterBusInsert.filter()
+                insert.name = "Filter \(index / 2 + 1)"
+                return insert
+            }
+            var insert = MasterBusInsert.bitcrusher()
+            insert.name = "Crusher \(index / 2 + 1)"
+            return insert
+        }
         session.updateMasterBusScene(sceneID) { scene in
             scene.name = "Scene With Inserts"
-            scene.inserts = [filter, bitcrusher]
+            scene.inserts = inserts
             scene.macroBindings = [
                 MasterSceneMacroBinding(
                     slotIndex: 0,

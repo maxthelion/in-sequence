@@ -35,6 +35,12 @@ struct AddDrumGroupContent: View {
             footer
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
+        .onReceive(NotificationCenter.default.publisher(for: .tracksMatrixVisualCommand)) { notification in
+            guard let command = notification.object as? String,
+                  command.hasPrefix("add-drum-group-fixture:")
+            else { return }
+            applyVisualFixture(String(command.dropFirst("add-drum-group-fixture:".count)))
+        }
     }
 
     // MARK: - Step 1: Sounds
@@ -304,6 +310,18 @@ struct AddDrumGroupContent: View {
         }
         plan.sharedDestination = nil
         plan.busRouting = .dedicatedBus
+    }
+
+    private func applyVisualFixture(_ fixture: String) {
+        selectedKitID = nil
+        switch fixture {
+        case "blank":
+            plan = DrumGroupPlan(name: "Drum Group", color: "#8AA", members: [])
+        case "populated":
+            plan = .blankDefault
+        default:
+            return
+        }
     }
 
     /// Canonical tag list — `DrumKitNoteMap.table`'s keys, sorted for a

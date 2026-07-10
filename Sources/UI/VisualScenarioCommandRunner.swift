@@ -53,6 +53,7 @@ enum VisualScenarioCommandRunner {
     private static var phraseCaptureVisible = false
     private static var tracksCreateTrackModalVisible = false
     private static var tracksAddDrumGroupModalVisible = false
+    private static var tracksAddDrumGroupFixtureState = "none"
     private static var tracksAddSliceTrackModalVisible = false
     private static var tracksTrackSoundModalVisible = false
     private static var tracksNavigatorFilterState = TracksNavigatorFilter.all.rawValue
@@ -1217,6 +1218,7 @@ enum VisualScenarioCommandRunner {
         phraseCaptureVisible=\(phraseCaptureVisible)
         tracksCreateTrackModalVisible=\(tracksCreateTrackModalVisible)
         tracksAddDrumGroupModalVisible=\(tracksAddDrumGroupModalVisible)
+        tracksAddDrumGroupFixture=\(tracksAddDrumGroupFixtureState)
         tracksAddSliceTrackModalVisible=\(tracksAddSliceTrackModalVisible)
         tracksTrackSoundModalVisible=\(tracksTrackSoundModalVisible)
         tracksFilter=\(tracksNavigatorFilterState)
@@ -1702,6 +1704,7 @@ enum VisualScenarioCommandRunner {
     ) {
         guard command["tracksCreateTrackModal"] != nil ||
               command["tracksAddDrumGroupModal"] != nil ||
+              command["tracksAddDrumGroupFixture"] != nil ||
               command["tracksAddSliceTrackModal"] != nil ||
               command["tracksTrackSoundModal"] != nil
         else { return }
@@ -1742,6 +1745,12 @@ enum VisualScenarioCommandRunner {
             break
         }
 
+        if let rawFixture = command["tracksAddDrumGroupFixture"],
+           ["blank", "populated"].contains(rawFixture) {
+            tracksAddDrumGroupFixtureState = rawFixture
+            posts.append("add-drum-group-fixture:\(rawFixture)")
+        }
+
         switch command["tracksAddSliceTrackModal"] {
         case "open", "visible", "true":
             tracksAddSliceTrackModalVisible = true
@@ -1778,6 +1787,9 @@ enum VisualScenarioCommandRunner {
         pendingTracksMatrixCommands = posts
         for post in posts {
             NotificationCenter.default.post(name: .tracksMatrixVisualCommand, object: post)
+            if post.hasPrefix("add-drum-group-fixture:") {
+                postRepeatedVisualCommand(name: .tracksMatrixVisualCommand, object: post)
+            }
         }
     }
 
@@ -2777,7 +2789,7 @@ enum VisualScenarioCommandRunner {
         }
 
         if let rawFixture = command["sceneEditorFixture"],
-           ["empty", "content", "browse-content"].contains(rawFixture) {
+           ["empty", "content", "overflow", "browse-content"].contains(rawFixture) {
             session.workspaceMode = .setup
             sceneEditorFixtureState = rawFixture
             postRepeatedVisualCommand(name: .scenesWorkspaceVisualCommand, object: "mode:\(ScenesWorkspaceMode.browseEdit.rawValue)")

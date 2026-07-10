@@ -14,11 +14,14 @@ struct DrumKitMatrixRowView<DetailPanel: View>: View {
     /// Fixed grid width — always 16 columns.
     let stepsPerBar: Int
     let accent: Color
+    let selectedStepIndexes: Set<Int>
     /// Whether this row's inline accordion detail panel is open (AC21).
     let isExpanded: Bool
     /// Receives the ABSOLUTE step index (pageOffset + grid column).
     let onTapStep: (Int) -> Void
     let onDragStep: (Int, Double) -> Void
+    let onSelectStep: (Int) -> Void
+    let onClearSelection: () -> Void
     /// Toggle the inline accordion for this row (the name button / chevron).
     let onToggleExpand: () -> Void
     /// The inline detail panel content (mini-tabs), owned by the parent so it
@@ -121,6 +124,7 @@ struct DrumKitMatrixRowView<DetailPanel: View>: View {
             StepGridView(
                 stepStates: states,
                 indexOffset: pageOffset,
+                selectedStepIndexes: selectedStepIndexes,
                 accent: accent,
                 contentProvider: { index, _ in
                     cellContent(steps: steps, index: index)
@@ -128,6 +132,8 @@ struct DrumKitMatrixRowView<DetailPanel: View>: View {
                 onValueDrag: layer == .steps ? nil : { index, fraction in
                     onDragStep(index, fraction)
                 },
+                onSelectStep: onSelectStep,
+                onBackgroundTap: onClearSelection,
                 advanceStep: { index in
                     onTapStep(index)
                 }

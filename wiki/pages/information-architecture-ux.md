@@ -153,6 +153,25 @@ For example:
 - mixer edits signal routing and effects;
 - preferences edits hardware/device setup.
 
+### Direct Manipulation And Hit Areas
+
+The complete visible shape of a control is interactive. Pattern mini-cells,
+step cells, track cards, menu rows, and icon buttons must not leave padding or
+decorative subregions that only respond when the label or glyph is hit.
+
+Step grids share one selection contract across melodic, chord, slicer, and
+drum surfaces: primary click edits the step; secondary click selects or toggles
+the whole step cell without changing its value. Selected steps expose the
+shared Clear, Copy, and Paste action row. Paste stays disabled until both a
+selection and clipboard content exist.
+
+### Conditional Scroll Chrome
+
+Contained editors use the shared themed scroll views. The track/thumb is hidden
+when all content fits and appears only for genuine overflow. Converting a list
+to custom scroll chrome must preserve ordering gestures, keyboard focus, and
+accessibility order.
+
 ### Stub Off-Path Prototype Areas
 
 Roadmap prototypes should keep off-path areas visibly stubbed. The prototype guidelines live in `docs/roadmap/prototype-guidelines.md` if present, and in `docs/working-through-a-roadmap.md`.

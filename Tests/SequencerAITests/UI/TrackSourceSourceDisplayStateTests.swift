@@ -638,9 +638,9 @@ final class TrackSourceSourceDisplayStateTests: XCTestCase {
             presentation.rootGroups.flatMap { [$0.primary.title, $0.secondary.title] },
             [
                 "New Blank Generator",
-                "Select Generator From Pool",
+                "Generator Pool",
                 "New Blank Clip",
-                "Select Clip From Pool"
+                "Clip Pool"
             ]
         )
         XCTAssertEqual(presentation.rootGroups.first?.primary.id, .createBlankGenerator)

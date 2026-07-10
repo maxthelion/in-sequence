@@ -2,7 +2,7 @@
 title: "Generator Algos"
 category: "architecture"
 tags: [generator, composition, musical, patterns, migration]
-summary: "The generated-source model for sequencer-ai: trigger and pitch stages, musical lookup tables, shared evaluation, and the current three-kind pool shape."
+summary: "The generated-source model: trigger/pitch stages, chord-palette generation, shared evaluation, and compatibility boundaries."
 last-modified-by: codex
 ---
 
@@ -77,6 +77,8 @@ The serializable generated-source pieces live under `Sources/Document/`:
 
 - `mono`
 - `poly`
+- `chordGenerator`
+- `progressionChordGenerator` (legacy decode/playback only)
 - `drum`
 - `slice`
 - `template`
@@ -100,10 +102,11 @@ V1 ships one named sidechain:
 
 ## Generator kinds and pool entries
 
-`GeneratorKind` now uses the current three-case roster:
+The user-creatable `GeneratorKind` roster is:
 
 - `monoGenerator`
 - `polyGenerator`
+- `chordGenerator`
 - `sliceGenerator`
 
 Each `GeneratorPoolEntry` carries:
@@ -114,20 +117,27 @@ Each `GeneratorPoolEntry` carries:
 - `kind`
 - `params`
 
-`GeneratorPoolEntry.defaultPool` seeds three valid project defaults:
+`GeneratorPoolEntry.defaultPool` seeds valid project defaults for:
 
-- one mono generator
-- one poly generator
-- one slice generator
+- mono tracks
+- poly tracks
+- chord tracks
+- slicer tracks
 
 ## Current stance
 
-The repo now assumes the fresh model only:
+The chord generator is offered only to Chord tracks. Its Trigger stage chooses
+firing steps; its Chords stage chooses stable chord-palette slot IDs and bounded
+inversion variation. Runtime evaluation resolves those choices into immutable
+snapshot data and uses the seeded evaluation context, so identical input and
+seed produce identical notes without UI lookup or unseeded randomness on the
+playback path.
 
-- no legacy `GeneratorKind` decode shims
-- no compatibility-only backfill paths for old generator payloads
-- generator pool/UI expose the current three-kind roster (`monoGenerator`, `polyGenerator`, `sliceGenerator`)
-- `GeneratorParams.template` remains as an internal deferred payload shape, not an exposed pool kind
+`progressionChordGenerator` remains serialized and playable so existing Poly
+projects round-trip without source loss, but it is hidden from new creation and
+kind switching. There is no automatic conversion: its manual progression shape
+cannot always be represented by the random palette-choice model without losing
+intent. `GeneratorParams.template` remains an internal deferred payload shape.
 
 ## Runtime stance
 

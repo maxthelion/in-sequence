@@ -25,43 +25,32 @@ The matrix is intentionally not a second full track editor. It is for:
 
 ## Layout
 
-The surface is split into sections:
+The roster is presentation-filterable without changing document order or group
+state. Its filter offers All, Mono, Poly, Chord, Slicer, Audio, Drum Kits, and
+Drum Parts. Group members classify as Drum Parts before their underlying
+melodic type is considered, so they do not leak into Mono or Poly results.
 
-- `Ungrouped` for standalone tracks
-- one section per `TrackGroup`
+Drum Kits presents one card per group. Drum Parts presents the member cards
+directly without expanding or mutating the group.
 
-Each group section can collapse to a compact member summary or expand to show its member cards inline.
-
-Cards stay small and identity-focused:
-
-- track name
-- track type
-- current pattern slot
-- destination kind
-- optional group badge / tint
+Cards stay small and identity-focused. The name is the primary label; track
+type remains available to accessibility/help rather than as a logo and footer.
+In selection mode, a selected track or kit uses its solid identity accent and a
+dark foreground instead of a checkbox plus competing outline.
 
 This keeps the matrix dense enough to scan without duplicating destination controls, generator settings, or full routing editors.
 
 ## Creation actions
 
-The top action row exposes the current type model directly:
-
-- `Add Mono`
-- `Add Poly`
-- `Add Slice`
-- `Add Drum Group`
-
-The first three append one flat track each.
+The add card opens the shared creation flow for Mono, Poly, Chord, Slicer,
+Audio, and Drum Group choices. A selected roster set exposes one Perform
+command, which opens Phrase > Layers scoped to that set in By Track mode.
 
 `Add Drum Group` opens a modal that builds a `DrumGroupPlan`.
 
-That flow supports:
-
-- blank starter groups
-- preset-backed groups from `DrumKitPreset`
-- optional clip prepopulation
-- optional shared destination selection
-- per-member `Routes to shared` control
+That flow supports blank or kit-backed groups and editable part names, tags,
+and sounds. New groups route through their dedicated kit bus. Pattern templates
+are applied after creation from the kit page.
 
 Submitting the sheet calls `addDrumGroup(plan:)`, which appends the grouped bundle of mono tracks and creates the corresponding `TrackGroup`.
 
