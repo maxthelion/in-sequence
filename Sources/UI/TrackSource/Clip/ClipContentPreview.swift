@@ -744,7 +744,12 @@ struct ClipContentPreview: View {
                     StudioSegment(title: "\(option)", value: option, isEnabled: isEditable)
                 },
                 accent: accent,
-                layout: .init(fillsWidth: false, minWidth: 44),
+                layout: .init(
+                    fillsWidth: false,
+                    minWidth: 28,
+                    horizontalPadding: StudioMetrics.Spacing.hairline,
+                    minimumScaleFactor: nil
+                ),
                 accessibilityLabel: { "Length \($0.title) steps" }
             )
 

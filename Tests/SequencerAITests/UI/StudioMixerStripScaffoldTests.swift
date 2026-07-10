@@ -167,6 +167,23 @@ final class StudioMixerStripScaffoldTests: XCTestCase {
         XCTAssertEqual(StudioSlideControlModel.value(forLocationX: 50, width: 0, range: range), 0)
     }
 
+    func test_slideControlAccessibilityAdjustmentUsesRequestedStepAndClamps() {
+        let range: ClosedRange<Double> = 0...1
+        XCTAssertEqual(
+            StudioSlideControlModel.adjustedValue(0.4, incrementing: true, step: 0.05, range: range),
+            0.45,
+            accuracy: 0.0001
+        )
+        XCTAssertEqual(
+            StudioSlideControlModel.adjustedValue(0.02, incrementing: false, step: 0.05, range: range),
+            0
+        )
+        XCTAssertEqual(
+            StudioSlideControlModel.adjustedValue(0.98, incrementing: true, step: 0.05, range: range),
+            1
+        )
+    }
+
     func test_panLabelUsesCompactVocabulary() {
         XCTAssertEqual(StudioSlideControlModel.panLabel(for: 0), "C")
         XCTAssertEqual(StudioSlideControlModel.panLabel(for: -0.5), "L50")

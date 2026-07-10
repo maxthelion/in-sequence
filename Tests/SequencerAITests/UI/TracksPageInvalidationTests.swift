@@ -852,6 +852,91 @@ final class TracksPageInvalidationTests: XCTestCase {
             "The QA capture row should cover save-slot targeting without opening the removed audition state."
         )
     }
+
+    func test_createTrackGroupSheetOmitsSelectedTrackPills() throws {
+        let source = try String(
+            contentsOf: repoRoot.appendingPathComponent("Sources/UI/TracksMatrixView.swift"),
+            encoding: .utf8
+        )
+        let sheet = try XCTUnwrap(
+            source.slice(
+                from: "private func createPerformanceTrackGroupSheet",
+                to: "    private func performanceTrackGroupSlot"
+            )
+        )
+
+        XCTAssertTrue(sheet.contains("LazyVGrid("))
+        XCTAssertFalse(sheet.contains("ForEach(selectedTracks"))
+        XCTAssertFalse(sheet.contains("Capsule()"))
+    }
+
+    func test_addDrumGroupMenusHideNativeIndicators() throws {
+        let source = try String(
+            contentsOf: repoRoot.appendingPathComponent("Sources/UI/DrumGroup/AddDrumGroupContent.swift"),
+            encoding: .utf8
+        )
+        let menus = try XCTUnwrap(
+            source.slice(from: "private func tagMenu", to: "    private func soundLabel")
+        )
+
+        XCTAssertEqual(menus.components(separatedBy: ".menuIndicator(.hidden)").count - 1, 2)
+        XCTAssertEqual(menus.components(separatedBy: "Image(systemName: \"chevron.down\")").count - 1, 1)
+    }
+
+    func test_phraseCrossfaderUsesRoundedSharedSlideControl() throws {
+        let source = try String(
+            contentsOf: repoRoot.appendingPathComponent("Sources/UI/PhraseWorkspaceView.swift"),
+            encoding: .utf8
+        )
+        let crossfader = try XCTUnwrap(
+            source.slice(from: "private func phraseSceneCrossfader", to: "    // Slots mode:")
+        )
+
+        XCTAssertTrue(crossfader.contains("StudioSlideControl("))
+        XCTAssertTrue(crossfader.contains("chrome: .roundedRectangle"))
+        XCTAssertFalse(source.contains("private struct PhraseSceneCrossfaderTrack"))
+    }
+
+    func test_clipLengthControlUsesCompressedSegmentGeometry() throws {
+        let source = try String(
+            contentsOf: repoRoot.appendingPathComponent("Sources/UI/TrackSource/Clip/ClipContentPreview.swift"),
+            encoding: .utf8
+        )
+        let controls = try XCTUnwrap(
+            source.slice(from: "private func clipHeaderControls", to: "    private func pitchKeyboard")
+        )
+
+        XCTAssertTrue(controls.contains("minWidth: 28"))
+        XCTAssertTrue(controls.contains("horizontalPadding: StudioMetrics.Spacing.hairline"))
+    }
+
+    func test_sliceSourceModalUsesSharedStudioControlsAndTrackAccent() throws {
+        let source = try String(
+            contentsOf: repoRoot.appendingPathComponent("Sources/UI/Slicer/SliceTrackWorkspaceView.swift"),
+            encoding: .utf8
+        )
+        let sharedControls = try String(
+            contentsOf: repoRoot.appendingPathComponent("Sources/UI/Theme/StudioControls.swift"),
+            encoding: .utf8
+        )
+        let modal = try XCTUnwrap(
+            source.slice(from: "private var sliceModal", to: "    // MARK: - Slice browsing")
+        )
+        let detection = try XCTUnwrap(
+            source.slice(from: "private func autoDetectControls", to: "    // Slice count")
+        )
+
+        XCTAssertTrue(modal.contains("StudioSlideControl("))
+        XCTAssertTrue(modal.contains("chrome: .roundedRectangle"))
+        XCTAssertTrue(detection.contains("StudioSegmentedControl("))
+        XCTAssertTrue(modal.contains("StudioCommandButton("))
+        XCTAssertTrue(modal.contains("accent: accent"))
+        XCTAssertFalse(modal.contains("\n            Slider("))
+        XCTAssertFalse(detection.contains("\n                    Slider("))
+        XCTAssertFalse(detection.contains("Picker("))
+        XCTAssertFalse(modal.contains(".buttonStyle(.bordered"))
+        XCTAssertTrue(sharedControls.contains("struct StudioCommandButton: View"))
+    }
 }
 
 final class TracksNavigatorPresentationTests: XCTestCase {

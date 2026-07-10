@@ -89,6 +89,80 @@ struct StudioIconActionButton: View {
     }
 }
 
+/// Shared text command chrome for modal and workflow actions. Primary commands
+/// use one solid surface accent; secondary commands remain outline-only, with
+/// an optional accent for contextual utilities such as Normalize.
+struct StudioCommandButton: View {
+    enum Role {
+        case primary
+        case secondary
+    }
+
+    let title: String
+    let systemImage: String
+    var role: Role = .secondary
+    var accent: Color? = nil
+    var fillsWidth = false
+    var isEnabled = true
+    var help: String = ""
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Label(title, systemImage: systemImage)
+                .studioText(.labelBold)
+                .foregroundStyle(foreground)
+                .lineLimit(1)
+                .padding(.horizontal, StudioMetrics.Spacing.comfortable)
+                .frame(maxWidth: fillsWidth ? .infinity : nil, minHeight: StudioMetrics.ControlSize.large)
+                .background(fill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                        .stroke(stroke, lineWidth: StudioMetrics.borderWidth)
+                )
+                .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .disabled(!isEnabled)
+        .help(help)
+        .accessibilityLabel(title)
+    }
+
+    private var resolvedAccent: Color {
+        accent ?? StudioTheme.transportAccent
+    }
+
+    private var foreground: Color {
+        guard isEnabled else { return StudioTheme.mutedText }
+        switch role {
+        case .primary:
+            return StudioTheme.background
+        case .secondary:
+            return accent ?? StudioTheme.text
+        }
+    }
+
+    private var fill: Color {
+        guard isEnabled else { return StudioTheme.disabledSubtleFill }
+        switch role {
+        case .primary:
+            return resolvedAccent
+        case .secondary:
+            return StudioTheme.subtleFill
+        }
+    }
+
+    private var stroke: Color {
+        guard isEnabled else { return StudioTheme.border }
+        switch role {
+        case .primary:
+            return resolvedAccent
+        case .secondary:
+            return accent ?? StudioTheme.border
+        }
+    }
+}
+
 /// Vertically stacked increment/decrement buttons (the BPM stepper, layer
 /// cycler, and friends). `symbols` defaults to plus/minus; pass chevrons for
 /// cycling semantics.

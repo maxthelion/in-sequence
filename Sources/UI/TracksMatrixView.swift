@@ -564,34 +564,22 @@ struct TracksMatrixView: View {
     private func createPerformanceTrackGroupSheet(
         _ request: CreatePerformanceTrackGroupRequest
     ) -> some View {
-        let selectedTracks = session.store.tracks.filter { request.memberIDs.contains($0.id) }
+        let memberNames = session.store.tracks
+            .filter { request.memberIDs.contains($0.id) }
+            .map(\.name)
         return StudioModal(
             title: "Create Track Group",
-            subtitle: selectedTracks.map(\.name).joined(separator: ", "),
+            subtitle: memberNames.joined(separator: ", "),
             accent: StudioTheme.transportAccent,
             minWidth: 520,
             onClose: { createPerformanceTrackGroupRequest = nil }
         ) {
-            VStack(alignment: .leading, spacing: StudioMetrics.Spacing.standard) {
-                HStack(spacing: 8) {
-                    ForEach(selectedTracks, id: \.id) { track in
-                        Text(track.name)
-                            .studioText(.microEmphasis)
-                            .foregroundStyle(StudioTheme.text)
-                            .padding(.horizontal, 9)
-                            .frame(height: 28)
-                            .background(StudioTheme.subtleFill, in: Capsule())
-                            .overlay(Capsule().stroke(StudioTheme.trackAccent(for: track, groups: session.store.trackGroups), lineWidth: StudioMetrics.borderWidth))
-                    }
-                }
-
-                LazyVGrid(
-                    columns: Array(repeating: GridItem(.flexible(minimum: 86), spacing: 10), count: 4),
-                    spacing: 10
-                ) {
-                    ForEach(0..<PerformanceTrackGroup.slotCount, id: \.self) { index in
-                        performanceTrackGroupSlot(index: index, memberIDs: request.memberIDs)
-                    }
+            LazyVGrid(
+                columns: Array(repeating: GridItem(.flexible(minimum: 86), spacing: 10), count: 4),
+                spacing: 10
+            ) {
+                ForEach(0..<PerformanceTrackGroup.slotCount, id: \.self) { index in
+                    performanceTrackGroupSlot(index: index, memberIDs: request.memberIDs)
                 }
             }
             .accessibilityIdentifier("create-track-group-slot-matrix")

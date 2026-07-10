@@ -567,12 +567,14 @@ struct SliceTrackWorkspaceView: View {
                 // re-normalizes the current marker frames. Only meaningful when a
                 // sample is loaded.
                 if let sample = currentSample {
-                    Button {
+                    StudioCommandButton(
+                        title: "Normalize",
+                        systemImage: "waveform.path",
+                        accent: accent,
+                        help: "Normalize slice markers"
+                    ) {
                         normalizeWhole(sample: sample)
-                    } label: {
-                        Label("Normalize", systemImage: "waveform.path")
                     }
-                    .buttonStyle(.bordered)
                 }
             },
             content: {
@@ -636,44 +638,87 @@ struct SliceTrackWorkspaceView: View {
     }
 
     private var viewControls: some View {
-        HStack(spacing: 12) {
-            Label("Zoom", systemImage: "plus.magnifyingglass")
-                .studioText(.label)
-                .foregroundStyle(StudioTheme.mutedText)
-            Slider(value: $waveformZoom, in: 1...8)
-            Label("Scroll", systemImage: "arrow.left.and.right")
-                .studioText(.label)
-                .foregroundStyle(StudioTheme.mutedText)
-            Slider(value: $waveformScroll, in: 0...1)
-                .disabled(waveformZoom <= 1.01)
+        HStack(alignment: .top, spacing: StudioMetrics.Spacing.roomy) {
+            sliceModalSlider(
+                title: "Zoom",
+                systemImage: "plus.magnifyingglass",
+                value: $waveformZoom,
+                range: 1...8,
+                valueLabel: String(format: "%.1fx", waveformZoom),
+                accessibilityStep: 0.25
+            )
+            sliceModalSlider(
+                title: "Scroll",
+                systemImage: "arrow.left.and.right",
+                value: $waveformScroll,
+                range: 0...1,
+                valueLabel: "\(Int((waveformScroll * 100).rounded()))%",
+                isEnabled: waveformZoom > 1.01,
+                accessibilityStep: 0.05
+            )
         }
+    }
+
+    private func sliceModalSlider(
+        title: String,
+        systemImage: String,
+        value: Binding<Double>,
+        range: ClosedRange<Double>,
+        valueLabel: String,
+        isEnabled: Bool = true,
+        accessibilityStep: Double
+    ) -> some View {
+        VStack(alignment: .leading, spacing: StudioMetrics.Spacing.tight) {
+            HStack(spacing: StudioMetrics.Spacing.tight) {
+                Label(title, systemImage: systemImage)
+                    .studioText(.labelBold)
+                    .foregroundStyle(isEnabled ? StudioTheme.text : StudioTheme.mutedText)
+                Spacer(minLength: StudioMetrics.Spacing.tight)
+                Text(valueLabel)
+                    .studioText(.microEmphasis)
+                    .monospacedDigit()
+                    .foregroundStyle(isEnabled ? accent : StudioTheme.mutedText)
+            }
+
+            StudioSlideControl(
+                value: value.wrappedValue,
+                range: range,
+                fillStyle: .fromLeading,
+                chrome: .roundedRectangle,
+                accent: accent,
+                help: title,
+                isEnabled: isEnabled,
+                accessibilityStep: accessibilityStep,
+                onChange: { value.wrappedValue = $0 }
+            )
+        }
+        .frame(maxWidth: .infinity)
     }
 
     private func sliceModalActionBar(sample: AudioSample) -> some View {
         HStack(spacing: 12) {
-            Button {
+            StudioCommandButton(
+                title: "Cancel",
+                systemImage: "xmark",
+                fillsWidth: true,
+                help: "Cancel slicing"
+            ) {
                 analysisDraft = nil
                 analysisMessage = nil
                 isPresentingSliceModal = false
-            } label: {
-                Text("Cancel")
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 6)
             }
-            .buttonStyle(.bordered)
-            .controlSize(.large)
 
-            Button {
+            StudioCommandButton(
+                title: "Apply",
+                systemImage: "checkmark",
+                role: .primary,
+                accent: accent,
+                fillsWidth: true,
+                help: "Apply slices"
+            ) {
                 applyAnalysis(sample: sample)
                 isPresentingSliceModal = false
-            } label: {
-                Text("Apply")
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 6)
             }
-            .buttonStyle(.borderedProminent)
-            .tint(accent)
-            .controlSize(.large)
         }
     }
 
@@ -831,38 +876,42 @@ struct SliceTrackWorkspaceView: View {
 
     private func autoDetectControls(sample: AudioSample) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 12) {
-                Picker("Method", selection: $analysisMode) {
-                    Text("Transients").tag(SliceMode.transient)
-                    Text("Grid").tag(SliceMode.grid)
-                }
-                .pickerStyle(.segmented)
+            HStack(alignment: .bottom, spacing: StudioMetrics.Spacing.comfortable) {
+                StudioSegmentedControl(
+                    title: "Method",
+                    selection: $analysisMode,
+                    segments: [
+                        StudioSegment(title: "Transients", value: SliceMode.transient),
+                        StudioSegment(title: "Grid", value: SliceMode.grid),
+                    ],
+                    accent: accent,
+                    layout: .init(fillsWidth: false, minWidth: 78),
+                    accessibilityLabel: { "Slice method \($0.title)" }
+                )
                 .frame(width: 220)
 
-                Picker("Bars", selection: $analysisBars) {
-                    Text("1").tag(1)
-                    Text("2").tag(2)
-                    Text("4").tag(4)
-                }
-                .pickerStyle(.segmented)
+                StudioSegmentedControl(
+                    title: "Bars",
+                    selection: $analysisBars,
+                    segments: [1, 2, 4].map { StudioSegment(title: "\($0)", value: $0) },
+                    accent: accent,
+                    layout: .init(fillsWidth: false, minWidth: 34),
+                    accessibilityLabel: { "Analysis bars \($0.title)" }
+                )
                 .frame(width: 160)
 
                 Spacer()
-
-                EmptyView()
             }
 
             if analysisMode == .transient {
-                HStack(spacing: 10) {
-                    Text("Sensitivity")
-                        .studioText(.label)
-                        .foregroundStyle(StudioTheme.mutedText)
-                    Slider(value: $analysisSensitivity, in: 0.15...0.75)
-                    Text(String(format: "%.2f", analysisSensitivity))
-                        .studioText(.labelBold)
-                        .foregroundStyle(StudioTheme.text)
-                        .frame(width: 44, alignment: .trailing)
-                }
+                sliceModalSlider(
+                    title: "Sensitivity",
+                    systemImage: "slider.horizontal.3",
+                    value: $analysisSensitivity,
+                    range: 0.15...0.75,
+                    valueLabel: String(format: "%.2f", analysisSensitivity),
+                    accessibilityStep: 0.05
+                )
             }
         }
         // Seed the draft as soon as the controls appear so the waveform shows a

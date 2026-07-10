@@ -190,6 +190,7 @@ struct AddDrumGroupContent: View {
             menuLabel(PatternTemplateApplicationPreview.tagLabel(currentTag))
         }
         .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
         .foregroundStyle(StudioTheme.text)
         .tint(StudioTheme.text)
         .frame(width: 130)
@@ -214,6 +215,7 @@ struct AddDrumGroupContent: View {
             menuLabel(soundLabel(for: member, category: category))
         }
         .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
         .foregroundStyle(StudioTheme.text)
         .tint(StudioTheme.text)
         .frame(width: 190)

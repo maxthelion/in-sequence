@@ -892,9 +892,16 @@ struct PhraseWorkspaceView: View {
                     .foregroundStyle(StudioTheme.phraseAccent)
                     .frame(width: 14, alignment: .leading)
 
-                PhraseSceneCrossfaderTrack(value: value) { nextValue in
-                    setPhraseSceneCrossfader(nextValue)
-                }
+                StudioSlideControl(
+                    value: value,
+                    range: 0...1,
+                    fillStyle: .fromLeading,
+                    chrome: .roundedRectangle,
+                    accent: StudioTheme.phraseAccent,
+                    help: "Phrase scene crossfader",
+                    accessibilityStep: 0.05,
+                    onChange: setPhraseSceneCrossfader
+                )
                 .frame(height: 42)
 
                 Text("B")
@@ -2771,66 +2778,6 @@ private struct PhraseMatrixEmptyTrackHeaderCell: View {
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
                     .stroke(StudioTheme.border.opacity(StudioOpacity.ghostStroke), style: StrokeStyle(lineWidth: StudioMetrics.borderWidth, dash: [5, 5]))
             )
-    }
-}
-
-private struct PhraseSceneCrossfaderTrack: View {
-    let value: Double
-    let onChange: (Double) -> Void
-
-    private var clampedValue: Double {
-        min(max(value, 0), 1)
-    }
-
-    var body: some View {
-        GeometryReader { proxy in
-            let width = max(proxy.size.width, 1)
-            let thumbX = width * clampedValue
-
-            ZStack(alignment: .leading) {
-                Capsule()
-                    .fill(StudioTheme.borderStrongFill)
-                    .frame(height: 10)
-                    .frame(maxWidth: .infinity)
-                    .frame(maxHeight: .infinity)
-
-                Capsule()
-                    .fill(StudioTheme.phraseAccent)
-                    .frame(width: thumbX, height: 10)
-                    .frame(maxHeight: .infinity, alignment: .center)
-
-                Circle()
-                    .fill(StudioTheme.phraseAccent)
-                    .frame(width: 28, height: 28)
-                    .overlay(
-                        Circle()
-                            .stroke(StudioTheme.ghostFill, lineWidth: 2)
-                    )
-                    .offset(x: min(max(thumbX - 14, 0), width - 28))
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .contentShape(Rectangle())
-            .gesture(
-                DragGesture(minimumDistance: 0)
-                    .onChanged { drag in
-                        let x = min(max(drag.location.x, 0), width)
-                        onChange(Double(x / width))
-                    }
-            )
-        }
-        .accessibilityElement()
-        .accessibilityLabel("Phrase scene crossfader")
-        .accessibilityValue("\(Int((clampedValue * 100).rounded())) percent")
-        .accessibilityAdjustableAction { direction in
-            switch direction {
-            case .increment:
-                onChange(min(clampedValue + 0.05, 1))
-            case .decrement:
-                onChange(max(clampedValue - 0.05, 0))
-            @unknown default:
-                break
-            }
-        }
     }
 }
 
