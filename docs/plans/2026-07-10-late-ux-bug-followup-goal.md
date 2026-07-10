@@ -128,3 +128,31 @@ Run focused UI/document tests after each round and the full serial
 single-window harness, absorb it through bug-reporter, inspect every named row,
 then mark all thirteen database and file-backed reports resolved with the final
 commit and absorbed run ID.
+
+## Completion
+
+Status: COMPLETE
+
+- All five implementation rounds landed on `codex/20260710-ux-batch` through
+  `e4a38cb0`.
+- The follow-up was audited together with the twelve earlier July 10 reports;
+  all twenty-five database-backed bugs are fixed, and their primary-checkout
+  notes carry the same resolved commit/run evidence.
+- Focused document/UI/capture coverage passed: 83 tests, 0 failures. The UX,
+  realtime-path, realtime-RNG, and runtime-ownership lints also passed.
+- The full serial suite was attempted. Its final selected segment reported 293
+  tests passed and one skipped, but `xcodebuild` still exited failed after
+  environment-sensitive HAL/manual-render meter and routing tests plus the
+  lint self-test harness failed earlier in the run. Those failures are outside
+  this UI batch; the corresponding direct lint commands are green.
+- The single-window harness recorded 93/93 rows with zero skips. Visual review
+  caught and corrected a duplicate drum template action, chord-control overlap,
+  truncated scale text, and create-group modal leakage before publication.
+- Clean absorbed evidence:
+  `20260710-103642-in-sequence-qa-surface-coverage-20260710-ux-batch-e4a38cb0`
+  at
+  `http://localhost:4747/gallery?run=20260710-103642-in-sequence-qa-surface-coverage-20260710-ux-batch-e4a38cb0`.
+- Capture startup/default settles are shorter, modal state is explicitly reset,
+  and instrumented Debug profile output is kept out of the worktree. Drum rows
+  retain their longer remount acknowledgement because that is still required
+  for deterministic state.
