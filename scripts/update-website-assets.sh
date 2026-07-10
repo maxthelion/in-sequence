@@ -17,6 +17,8 @@ Modes:
 
 Options:
   --dmg FILE          DMG to upload for downloads. Defaults to newest dist/developer-id/*.dmg.
+  --build-commit SHA  Commit used to build the DMG. Inferred from a standard DMG filename.
+  --build-branch NAME Branch used to build the DMG. Defaults to the current branch.
   --website-dir DIR   Website checkout. Default: ../inseq-website
   --run-id RUN_ID     Capture run to publish. Passed to website gallery:update.
   --min-rows N        Minimum capture rows when selecting latest run. Default: website script default.
@@ -47,6 +49,8 @@ latest_dmg() {
 
 mode=""
 dmg=""
+build_commit=""
+build_branch=""
 website_dir=""
 run_id=""
 min_rows=""
@@ -68,6 +72,14 @@ while [[ $# -gt 0 ]]; do
       ;;
     --dmg)
       dmg="${2:-}"
+      shift 2
+      ;;
+    --build-commit)
+      build_commit="${2:-}"
+      shift 2
+      ;;
+    --build-branch)
+      build_branch="${2:-}"
       shift 2
       ;;
     --website-dir)
@@ -114,18 +126,18 @@ if [[ "$mode" == "captures" || "$mode" == "all" ]]; then
     echo "Website checkout not found at: $website_dir" >&2
     exit 1
   fi
-  capture_args=()
+  capture_command=(npm --prefix "$website_dir" run gallery:update --)
   if [[ -n "$run_id" ]]; then
-    capture_args+=(--run-id "$run_id")
+    capture_command+=(--run-id "$run_id")
   fi
   if [[ -n "$min_rows" ]]; then
-    capture_args+=(--min-rows "$min_rows")
+    capture_command+=(--min-rows "$min_rows")
   fi
   if [[ "$dry_run" == "1" ]]; then
-    capture_args+=(--dry-run)
+    capture_command+=(--dry-run)
   fi
   echo "Updating website captures via $website_dir"
-  npm --prefix "$website_dir" run gallery:update -- "${capture_args[@]}"
+  "${capture_command[@]}"
 fi
 
 if [[ "$mode" == "download" || "$mode" == "all" ]]; then
@@ -136,12 +148,22 @@ if [[ "$mode" == "download" || "$mode" == "all" ]]; then
     echo "No DMG found. Pass --dmg FILE or create one with scripts/package-developer-id.sh." >&2
     exit 1
   fi
+  if [[ -z "$build_commit" && "$(basename "$dmg")" =~ -([0-9a-fA-F]{7,40})-developer-id\.dmg$ ]]; then
+    build_commit="${BASH_REMATCH[1]}"
+  fi
+  if [[ -z "$build_branch" ]]; then
+    build_branch="$(git -C "$root" rev-parse --abbrev-ref HEAD)"
+  fi
   download_args=(
     "$dmg"
     --bucket in-seq-builds
     --prefix releases/developer-id
     --latest-key releases/developer-id/latest.json
+    --branch "$build_branch"
   )
+  if [[ -n "$build_commit" ]]; then
+    download_args+=(--commit "$build_commit")
+  fi
   if [[ "$dry_run" == "1" ]]; then
     download_args+=(--dry-run)
   fi

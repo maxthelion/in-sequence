@@ -21,6 +21,8 @@ Options:
   --latest-key KEY            Also write latest release JSON to this key.
                               Env: R2_DISTRIBUTION_LATEST_KEY
   --content-type TYPE         Defaults from extension
+  --commit COMMIT             Build commit recorded in latest JSON. Defaults to HEAD.
+  --branch BRANCH             Build branch recorded in latest JSON. Defaults to current branch.
   --dry-run                   Print planned upload without writing to R2
 
 Env files are loaded, when present, from:
@@ -178,6 +180,8 @@ function parseArgs(argv) {
     key: "",
     latestKey: "",
     contentType: "",
+    commit: "",
+    branch: "",
     dryRun: false,
   };
 
@@ -204,6 +208,10 @@ function parseArgs(argv) {
       options.latestKey = argv[++i] || "";
     } else if (arg === "--content-type") {
       options.contentType = argv[++i] || "";
+    } else if (arg === "--commit") {
+      options.commit = argv[++i] || "";
+    } else if (arg === "--branch") {
+      options.branch = argv[++i] || "";
     } else if (arg === "--dry-run") {
       options.dryRun = true;
     } else if (!options.file) {
@@ -251,8 +259,8 @@ async function main() {
   if (!options.dryRun) await putObject(cfg, key, body, contentType);
 
   const publicBase = (process.env.R2_DISTRIBUTION_PUBLIC_BASE_URL || process.env.R2_PUBLIC_BASE_URL || "").replace(/\/+$/, "");
-  const commit = git(["rev-parse", "--short=12", "HEAD"], "");
-  const branch = git(["rev-parse", "--abbrev-ref", "HEAD"], "");
+  const commit = options.commit || git(["rev-parse", "--short=12", "HEAD"], "");
+  const branch = options.branch || git(["rev-parse", "--abbrev-ref", "HEAD"], "");
   const result = {
     file,
     name: "In Sequence",

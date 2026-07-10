@@ -1,5 +1,13 @@
 # Website Asset Publishing
 
+The marketing website lives in the neighboring `../inseq-website` checkout.
+Check the currently published download with:
+
+```sh
+scripts/latest-build.sh
+scripts/latest-build.sh --json
+```
+
 Use `scripts/update-website-assets.sh` from this repo when an agent needs to refresh the public In-Sequence website assets.
 
 ## Captures
@@ -29,6 +37,8 @@ scripts/update-website-assets.sh --download --dmg dist/developer-id/InSequence-.
 ```
 
 If `--dmg` is omitted, the newest `dist/developer-id/*.dmg` is used.
+Standard DMG names include the build commit, which the wrapper records in the
+latest marker. For a nonstandard filename, pass `--build-commit SHA` explicitly.
 
 This delegates to `scripts/r2-upload-artifact.mjs`, uploading to:
 
@@ -45,3 +55,6 @@ scripts/update-website-assets.sh --all --dmg dist/developer-id/InSequence-...dmg
 ```
 
 Use `--dry-run` to verify both sides without writing to R2.
+
+See [`wiki/pages/website-publishing.md`](../wiki/pages/website-publishing.md)
+for the full architecture, public endpoints, and agent workflow.

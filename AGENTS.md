@@ -178,6 +178,16 @@ verification, and the expected `In Sequence` distributed bundle name.
 
 ## Website Asset Publishing
 
+The marketing website is the neighboring `../inseq-website` checkout. It uses
+absorbed Bug Reporter captures for its gallery and exposes the current
+notarized Developer ID DMG as its download. Agents can discover the published
+build without inspecting local package directories:
+
+```sh
+scripts/latest-build.sh
+scripts/latest-build.sh --json
+```
+
 Use `scripts/update-website-assets.sh` to update the public website after the
 underlying artifacts already exist:
 
@@ -203,7 +213,10 @@ publisher, using absorbed Bug Reporter runs. The download path uploads to the
 This wrapper does not build, sign, or notarize. When a fresh downloadable build
 is required, first run `scripts/package-developer-id.sh` from a clean checkout
 or temporary worktree, then pass the resulting DMG to `--download` or `--all`.
-Full usage is in
+The website serves release metadata at `/api/releases/latest` and the binary at
+`/download/latest`. Full architecture and operating instructions are in
+[`wiki/pages/website-publishing.md`](wiki/pages/website-publishing.md), with a
+short command reference in
 [`docs/website-asset-publishing.md`](docs/website-asset-publishing.md).
 
 ## Audio Engine Hard Rules
