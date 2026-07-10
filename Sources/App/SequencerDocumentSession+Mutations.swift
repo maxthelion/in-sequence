@@ -565,6 +565,15 @@ extension SequencerDocumentSession {
         return createdID
     }
 
+    @discardableResult
+    func insertMasterBusSceneCopy(of snapshot: MasterBusScene) -> UUID {
+        var createdID = snapshot.id
+        mutateMasterBus { masterBus in
+            createdID = masterBus.insertSceneCopy(of: snapshot)
+        }
+        return createdID
+    }
+
     func removeMasterBusScene(_ sceneID: UUID) {
         mutateMasterBus { masterBus in
             masterBus.removeScene(id: sceneID)

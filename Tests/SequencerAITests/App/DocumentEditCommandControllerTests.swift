@@ -1,5 +1,14 @@
+import SwiftUI
 import XCTest
 @testable import SequencerAI
+
+private final class SceneDocumentEditDocumentBox {
+    var document: SeqAIDocument
+
+    init(document: SeqAIDocument) {
+        self.document = document
+    }
+}
 
 @MainActor
 final class DocumentEditCommandControllerTests: XCTestCase {
@@ -143,6 +152,85 @@ final class DocumentEditCommandControllerTests: XCTestCase {
         XCTAssertEqual(clearCount, 1)
         XCTAssertFalse(controller.availability.canCopy)
         XCTAssertFalse(controller.availability.canClear)
+    }
+
+    func testSceneTargetCopiesDetachedSnapshotAndPastesIndependentScene() throws {
+        let fixture = makeSession()
+        defer { SequencerDocumentSessionRegistry.unregister(fixture.session) }
+        let controller = fixture.session.documentEditCommands
+        let sourceID = fixture.session.store.masterBus.activeSceneID
+        fixture.session.setMasterSceneName(sourceID, name: "Copied Before Edit")
+        let sourceInsert = MasterBusInsert.filter()
+        fixture.session.addMasterBusInsert(sourceInsert, to: sourceID)
+        fixture.session.upsertMasterSceneMacroBinding(
+            MasterSceneMacroBinding(slotIndex: 0, target: .filterCutoff(insertID: sourceInsert.id)),
+            in: sourceID
+        )
+        var pastedID: UUID?
+
+        controller.register(target: SceneDocumentEditCommandTarget(
+            session: fixture.session,
+            sceneID: sourceID,
+            didPaste: { pastedID = $0 },
+            clearSelection: {}
+        ).target)
+
+        XCTAssertTrue(controller.copy())
+        fixture.session.setMasterSceneName(sourceID, name: "Edited After Copy")
+        XCTAssertTrue(controller.paste())
+
+        let pasted = try XCTUnwrap(pastedID.flatMap { fixture.session.store.masterBus.scene(id: $0) })
+        let pastedInsert = try XCTUnwrap(pasted.inserts.first)
+        XCTAssertEqual(pasted.name, "Copied Before Edit Copy")
+        XCTAssertNotEqual(pasted.id, sourceID)
+        XCTAssertNotEqual(pastedInsert.id, sourceInsert.id)
+        guard case let .filterCutoff(targetInsertID) = try XCTUnwrap(pasted.macroBindings.first).target else {
+            return XCTFail("Expected a filterCutoff macro target")
+        }
+        XCTAssertEqual(targetInsertID, pastedInsert.id)
+    }
+
+    func testSceneTargetRequiresSelectionAndClearOnlyRunsSelectionCallback() {
+        let fixture = makeSession()
+        defer { SequencerDocumentSessionRegistry.unregister(fixture.session) }
+        let controller = fixture.session.documentEditCommands
+        let sourceID = fixture.session.store.masterBus.activeSceneID
+        var didClear = false
+
+        controller.register(target: SceneDocumentEditCommandTarget(
+            session: fixture.session,
+            sceneID: sourceID,
+            didPaste: { _ in },
+            clearSelection: { didClear = true }
+        ).target)
+        XCTAssertTrue(controller.copy())
+
+        let scenesBeforeClear = fixture.session.store.masterBus.scenes
+        XCTAssertTrue(controller.clearSelection())
+        XCTAssertTrue(didClear)
+        XCTAssertEqual(fixture.session.store.masterBus.scenes, scenesBeforeClear)
+
+        controller.register(target: SceneDocumentEditCommandTarget(
+            session: fixture.session,
+            sceneID: nil,
+            didPaste: { _ in XCTFail("Paste must require a selected scene target") },
+            clearSelection: {}
+        ).target)
+        XCTAssertEqual(controller.availability, .unavailable)
+        XCTAssertFalse(controller.paste())
+    }
+
+    private func makeSession() -> (session: SequencerDocumentSession, documentBox: SceneDocumentEditDocumentBox) {
+        let documentBox = SceneDocumentEditDocumentBox(document: SeqAIDocument(project: .empty))
+        let session = SequencerDocumentSession(
+            document: Binding(
+                get: { documentBox.document },
+                set: { documentBox.document = $0 }
+            ),
+            engineController: EngineController(client: nil, endpoint: nil),
+            debounceInterval: .seconds(100)
+        )
+        return (session, documentBox)
     }
 
     private func makeTarget(

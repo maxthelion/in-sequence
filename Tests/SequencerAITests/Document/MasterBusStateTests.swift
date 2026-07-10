@@ -328,6 +328,35 @@ final class MasterBusStateTests: XCTestCase {
         XCTAssertEqual(state.activeSceneID, newSceneID)
     }
 
+    func test_insertSceneCopy_remapsIdentityWithoutChangingActiveOrABSelection() throws {
+        var state = MasterBusState.default
+        let activeSceneID = state.activeSceneID
+        let abSelection = try XCTUnwrap(state.abSelection)
+        let insert = MasterBusInsert.filter()
+        let snapshot = MasterBusScene(
+            name: "Detached",
+            inserts: [insert],
+            macroBindings: [
+                MasterSceneMacroBinding(slotIndex: 0, target: .filterCutoff(insertID: insert.id))
+            ]
+        )
+
+        let pastedID = state.insertSceneCopy(of: snapshot)
+
+        let pasted = try XCTUnwrap(state.scene(id: pastedID))
+        let pastedInsert = try XCTUnwrap(pasted.inserts.first)
+        let pastedBinding = try XCTUnwrap(pasted.macroBindings.first)
+        XCTAssertNotEqual(pasted.id, snapshot.id)
+        XCTAssertNotEqual(pastedInsert.id, insert.id)
+        XCTAssertNotEqual(pastedBinding.id, snapshot.macroBindings[0].id)
+        guard case let .filterCutoff(targetInsertID) = pastedBinding.target else {
+            return XCTFail("Expected a filterCutoff macro target")
+        }
+        XCTAssertEqual(targetInsertID, pastedInsert.id)
+        XCTAssertEqual(state.activeSceneID, activeSceneID)
+        XCTAssertEqual(state.abSelection, abSelection)
+    }
+
     func test_removingScenes_keepsTwoABSlots() {
         var state = MasterBusState.default
         let addedID = state.addScene(name: "Third")

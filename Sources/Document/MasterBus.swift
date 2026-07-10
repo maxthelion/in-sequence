@@ -61,6 +61,16 @@ struct MasterBusState: Codable, Equatable, Sendable {
         return newScene.id
     }
 
+    /// Inserts a detached scene snapshot without changing playback or A/B state.
+    @discardableResult
+    mutating func insertSceneCopy(of snapshot: MasterBusScene) -> UUID {
+        var newScene = snapshot.duplicatedForNewScene()
+        newScene.name = resolvedNewSceneName(base: "\(snapshot.name) Copy")
+        scenes.append(newScene.normalized())
+        normalize()
+        return newScene.id
+    }
+
     mutating func removeScene(id: UUID) {
         guard scenes.count > 2 else { return }
         scenes.removeAll { $0.id == id }

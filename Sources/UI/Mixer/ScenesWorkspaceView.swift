@@ -10,6 +10,57 @@ struct AddInsertPickerRequest: Identifiable, Equatable {
     let id = UUID()
 }
 
+struct SceneDocumentEditSnapshot: Equatable {
+    let scene: MasterBusScene
+}
+
+@MainActor
+struct SceneDocumentEditCommandTarget {
+    let session: SequencerDocumentSession
+    let sceneID: UUID?
+    let didPaste: (UUID) -> Void
+    let clearSelection: () -> Void
+
+    var target: DocumentEditCommandController.Target {
+        .init(
+            canCopy: { [self] in hasSceneTarget },
+            canClear: { [self] in hasSceneTarget },
+            isPasteCompatible: { [self] payload in
+                hasSceneTarget
+                    && payload.domain == .scenes
+                    && payload.value(as: SceneDocumentEditSnapshot.self) != nil
+            },
+            copy: { [self] in
+                guard let sceneID,
+                      let scene = session.store.masterBus.scene(id: sceneID)
+                else {
+                    return nil
+                }
+                return .init(
+                    domain: .scenes,
+                    snapshot: SceneDocumentEditSnapshot(scene: scene)
+                )
+            },
+            paste: { [self] payload in
+                guard hasSceneTarget,
+                      let snapshot = payload.value(as: SceneDocumentEditSnapshot.self)
+                else {
+                    return
+                }
+                didPaste(session.insertMasterBusSceneCopy(of: snapshot.scene))
+            },
+            clearSelection: { [self] in
+                guard hasSceneTarget else { return }
+                clearSelection()
+            }
+        )
+    }
+
+    private var hasSceneTarget: Bool {
+        sceneID.flatMap { session.store.masterBus.scene(id: $0) } != nil
+    }
+}
+
 enum SceneInsertOrdering {
     static func reordering(_ ids: [UUID], from source: IndexSet, to destination: Int) -> [UUID] {
         var reordered = ids
@@ -105,6 +156,20 @@ struct ScenesWorkspaceView: View {
         // the borderless scene-browser panel had no outer padding, so it sat
         // tighter to the left/top than the other pages.
         .padding(StudioMetrics.Spacing.workspaceInset)
+        .documentEditTarget(
+            isActive: selectedSceneID != nil,
+            revision: selectedSceneID
+        ) {
+            SceneDocumentEditCommandTarget(
+                session: session,
+                sceneID: selectedSceneID,
+                didPaste: { newSceneID in
+                    selectedSceneID = newSceneID
+                    selectedInsertID = masterBus.scene(id: newSceneID)?.inserts.first?.id
+                },
+                clearSelection: clearSceneSelection
+            ).target
+        }
         .onAppear {
             selectedInsertID = selectedSceneID.flatMap { masterBus.scene(id: $0)?.inserts.first?.id }
         }
@@ -566,6 +631,15 @@ struct ScenesWorkspaceView: View {
             scene.macroBindings = []
         }
         selectedInsertID = nil
+    }
+
+    private func clearSceneSelection() {
+        selectedSceneID = nil
+        selectedInsertID = nil
+        auMacroSlotPickerRequest = nil
+        sceneMacroTargetPickerRequest = nil
+        scenePerformSlotPickerRequest = nil
+        addInsertPickerRequest = nil
     }
 
     // Only rendered when at least one insert exists (empty scenes use the
