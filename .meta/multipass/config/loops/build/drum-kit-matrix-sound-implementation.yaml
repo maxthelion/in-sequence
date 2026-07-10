@@ -1,6 +1,6 @@
 id: build/drum-kit-matrix-sound-implementation
 kind: build
-status: active
+status: complete
 feature: drum-kit-matrix-sound-implementation
 worktree: .worktrees/drum-kit-matrix-sound-implementation
 branch: feature/drum-kit-matrix-sound-implementation

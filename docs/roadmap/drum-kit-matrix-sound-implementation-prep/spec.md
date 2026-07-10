@@ -16,6 +16,10 @@ sources:
   - docs/bugs/20260623-132043-add-kit-effect-modal-blocks-the-view
   - docs/bugs/20260624-161342-i-should-also-be-able-to-load-an-au-as-t
   - docs/bugs/20260629-101345-drum-part-sound-source-empty-vs-none-and-load-au-affordance
+  - docs/bugs/20260707-110157-on-the-kit-view-the-name-of-the-drum-par
+  - docs/bugs/20260707-110758-the-sound-page-for-a-sampler-is-missing
+  - docs/bugs/20260707-110401-include-the-generator-mode-for-drum-part
+  - docs/bugs/20260707-111802-the-capture-page-for-a-kit-is-quite-bugg
 ---
 
 # Drum Kit Matrix Sound Implementation Prep Spec
@@ -67,6 +71,9 @@ Treat these as already covered unless fresh evidence contradicts them:
   grey slab backgrounds around the part controls or row content.
 - Part names remain visible in the left column; value/layer states do not push
   names above rows or into vertical clipping.
+- July 7 intake correction: the drum-part name in kit view belongs near the top
+  of the part row, larger than secondary labels, so expanding the part does not
+  move the name. Remove the grey explanatory subtext from that row.
 - Pattern mismatch, per-part pattern state, and similar controls that contradict
   kit-level global patterns must not reappear.
 
@@ -75,10 +82,29 @@ Treat these as already covered unless fresh evidence contradicts them:
 - Preserve the distinct Sound states:
   `.none` means no sound source, `.sample` with a valid sample is a sampler,
   `.sample` with a missing item is recovery, and `.auInstrument` is an AU panel.
-- The AU load affordance is visible and compact for a drum part, but this slice
-  does not claim real-AU acoustic or runtime validation.
+- July 7 intake correction: the sampler Sound page shows the sampler waveform.
+  It does not show the bottom AU-load button, and it does not show the config
+  button next to play that navigates to macros.
+- Empty Sound source uses two side-by-side dashed plus boxes for Sample and AU.
+  Remove the literal `no sound source` prose.
 - Clearing sampler or AU still returns to the no-sound-source chooser.
 - `.inheritGroup` and dormant filter behavior are not redesigned.
+
+### July 7 Intake Classification
+
+- Accepted into this builder slice: drum-part name placement, removal of grey
+  row subtext, sampler waveform restoration, removal of the bottom AU button,
+  removal of the play-adjacent config-to-macros button, and the side-by-side
+  dashed Sample/AU empty chooser.
+- Follow-up / separate PM scope: generator-mode capture coverage for drum
+  parts, Euclidean mono controls for drum-part generator mode, removal of the
+  modifier aspect from that generator surface, and the request to remove the
+  word `source`.
+- Follow-up / separate PM scope: kit capture page history/navigation/save
+  behavior, including mini clip-history bar, save-to-pattern pulsing, history
+  selection display, and capture-page close/navigation grammar.
+- The follow-up items above are not silently added to this builder acceptance
+  gate. They need separate PM classification or an explicit build-loop route.
 
 ### Kit FX, Macros, Mixer, And Modal Consistency
 
@@ -115,7 +141,9 @@ AC4. Drum-part rows and matrix layers remove low-contrast grey backgrounds while
 remaining legible at the supported minimum width.
 
 AC5. Drum-part Sound keeps distinct `.none`, sampler, missing-sample, and AU
-states, with compact Sample/AU choices and clear return-to-none behavior.
+states, restores the sampler waveform, removes the bottom AU-load and
+config-to-macros buttons, uses side-by-side dashed Sample/AU empty-choice boxes,
+and keeps clear return-to-none behavior.
 
 AC6. Kit FX empty/populated states and add-effect modal behavior match the
 existing Scene/Track FX grammar closely enough for visual review.
@@ -133,3 +161,7 @@ AC10. Evidence includes focused tests for changed routing/state decisions, a UX
 canon lint, and visual evidence or an explicit `capture-permission-or-focus`
 gap for add-kit modal, kit matrix/part rows, Sound states, FX, Macros, and
 Mixer/Routing.
+
+AC11. Evidence classifies July 7 generator-mode capture and kit
+capture/history/save notes as follow-up or separate PM scope unless a later
+accepted artifact explicitly expands the builder slice.

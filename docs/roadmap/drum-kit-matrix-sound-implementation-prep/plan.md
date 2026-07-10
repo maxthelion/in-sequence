@@ -17,12 +17,16 @@ implementation gaps:
 1. Reconfirm current-main coverage from the closed seam check.
 2. Fix the add-drum-kit modal and kit-page Add Part affordance.
 3. Tighten drum-part row contrast and kit-matrix global-pattern consistency.
-4. Preserve and verify drum-part Sound source routing.
+4. Preserve and verify drum-part Sound source routing while applying the July 7
+   sampler Sound-page correction.
 5. Align kit FX, Macros, and Mixer visuals with comparable track/scene surfaces.
 6. Record bug-gap classification and evidence.
 
 Stop if the work would require AU runtime changes, broad mixer redesign,
 non-kit header compression, Scenes IA, or Track/Phrase Perform changes.
+Also stop before absorbing generator-mode drum-part capture or kit
+capture/history/save behavior into this slice; those July 7 reports are
+follow-up or separate PM scope unless a later artifact routes them.
 
 ## Step 1: Baseline Seam Check
 
@@ -69,6 +73,8 @@ complaints:
 - keep 16 steps, bar pager, and left part-name column;
 - prevent per-part pattern mismatch UI from returning;
 - remove low-contrast grey part-row backgrounds;
+- put the drum-part name near the top of the row, larger than secondary labels,
+  keep it stable during expansion, and remove the grey explanatory subtext;
 - keep labels and controls fitting at supported minimum width;
 - keep capture cleanup untouched unless current code regressed against its
   resolved-status contract.
@@ -81,6 +87,11 @@ matrix and a value/layer state such as velocity.
 Treat the Sound tab as a state-routing preservation area:
 
 - retain distinct `.none`, resolved sampler, missing sample, and AU panels;
+- restore the sampler waveform on sampler pages;
+- remove the bottom AU-load button and the play-adjacent config-to-macros
+  button;
+- replace the empty `no sound source` prose with two side-by-side dashed plus
+  boxes for Sample and AU;
 - keep Sample and AU actions compact and obviously clickable;
 - ensure clear/remove returns to `.none`;
 - avoid real-AU acoustic claims and do not alter engine hard-rule surfaces.
@@ -124,6 +135,8 @@ The build loop should leave a compact evidence note with:
 - checks run and results;
 - visual paths or explicit visual evidence gap;
 - G5 bug classification after the slice;
+- explicit July 7 classification: accepted part-name/Sound-page deltas versus
+  follow-up generator-mode capture and kit capture/history/save behavior;
 - any remaining process-resolution-only bugs;
 - explicit statement that no AU runtime safety or human-present AU validation
   was claimed.

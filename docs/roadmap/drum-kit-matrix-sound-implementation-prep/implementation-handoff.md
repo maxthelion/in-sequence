@@ -31,7 +31,8 @@ Implement only:
 
 - add-drum-kit modal cleanup and kit-page Add Part affordance;
 - matrix and drum-part visual compression where current main still violates G5;
-- preservation/verification of distinct Sound source states;
+- preservation/verification of distinct Sound source states plus the July 7
+  sampler Sound-page correction;
 - kit-local FX, Macros, and Mixer visual consistency.
 
 Do not broaden into:
@@ -42,6 +43,9 @@ Do not broaden into:
 - slicer/header compression;
 - Scenes IA;
 - Track/Phrase Perform interaction;
+- generator-mode drum-part capture, Euclidean mono generator controls, or
+  modifier-removal work for drum-part generator mode;
+- kit capture/history/save interaction redesign;
 - process-resolution closeout for bugs already fixed.
 
 ## First Builder Move
@@ -51,9 +55,9 @@ Start with a read-only current-main classification note:
 | Bucket | Expected Examples |
 |---|---|
 | Already satisfied | flat kit grid, 16-step kit matrix, left part names, removed old redundant titles, distinct `.none` Sound chooser |
-| Implementation gap | July 5 add-kit modal, kit-page Add Part, grey drum-part rows, kit macros copy/background, kit mixer/routing consistency |
+| Implementation gap | July 5 add-kit modal, kit-page Add Part, grey drum-part rows, stable larger top-aligned drum-part names with grey subtext removed, sampler waveform restored, bottom AU-load button removed, config-to-macros button removed, side-by-side dashed Sample/AU empty chooser, kit macros copy/background, kit mixer/routing consistency |
 | Process only | bug folders with resolved-status text but no `resolution.md` |
-| Out of scope | human-present AU validation, AU runtime safety, broad mixer/FX redesign |
+| Out of scope | human-present AU validation, AU runtime safety, broad mixer/FX redesign, generator-mode drum-part capture/control additions, kit capture/history/save redesign |
 
 Then edit the smallest kit-local surfaces needed to satisfy `spec.md`.
 
@@ -67,6 +71,9 @@ Before completion, provide:
 - visual evidence or explicit `capture-permission-or-focus` gap for add-kit
   modal, kit page/Add Part, kit matrix part rows, Sound states, FX, Macros, and
   Mixer/Routing;
+- explicit July 7 classification separating accepted part-name/Sound-page
+  deltas from generator-mode capture and kit capture/history/save follow-up
+  scope;
 - confirmation that no AU runtime/acoustic claim was made.
 
 ## Product-Owner Attention
