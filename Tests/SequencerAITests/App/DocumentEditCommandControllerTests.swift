@@ -249,6 +249,8 @@ final class DocumentEditCommandControllerTests: XCTestCase {
             debounceInterval: .seconds(100)
         )
         return (session, documentBox)
+    }
+
     func testTracksClipboardResolvesDetachedIDsAgainstLiveTracks() {
         let liveID = UUID()
         let deletedID = UUID()
