@@ -583,7 +583,7 @@ fi
 # The DocumentGroup new-document closure reads SEQUENCER_AI_NEW_DOCUMENT_FIXTURE.
 # Passing the fixture path here as a document argument as well opens a second
 # window with a second command runner, making status/capture ownership race.
-"$app_executable" \
+LLVM_PROFILE_FILE="$output_dir/SequencerAI-%p.profraw" "$app_executable" \
   -ApplePersistenceIgnoreState YES \
   -NSQuitAlwaysKeepsWindows NO \
   >>"$output_dir/app-open.log" 2>&1 &
