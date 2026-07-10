@@ -195,6 +195,64 @@ private extension View {
 
 // MARK: - Themed menu picker
 
+/// Shared label chrome for compact disclosure controls. `StudioMenuPicker`
+/// uses this directly; action buttons that open a custom modal can reuse the
+/// same visual language without falling back to bespoke picker styling.
+struct StudioDisclosureLabel: View {
+    let title: String
+    var detail: String? = nil
+    var symbolName: String? = nil
+    var relationshipSymbolName: String = "chevron.compact.right"
+    var minimumWidth: CGFloat = 0
+
+    var body: some View {
+        HStack(spacing: 6) {
+            if let symbolName {
+                Image(systemName: symbolName)
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(StudioTheme.text)
+            }
+
+            Text(title)
+                .studioText(.labelBold)
+                .foregroundStyle(StudioTheme.text)
+                .lineLimit(1)
+                .truncationMode(.tail)
+
+            if let detail {
+                Image(systemName: relationshipSymbolName)
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(StudioTheme.mutedText)
+
+                Text(detail)
+                    .studioText(.label)
+                    .foregroundStyle(StudioTheme.mutedText)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+            }
+
+            Spacer(minLength: 4)
+
+            Image(systemName: "chevron.down")
+                .font(.system(size: 8, weight: .bold))
+                // ux-canon-allow: chevron affordance glyph — mutedText is
+                // the caption token, not stateful chrome.
+                .foregroundStyle(StudioTheme.mutedText)
+        }
+        .padding(.horizontal, 10)
+        .frame(minWidth: minimumWidth, minHeight: 28)
+        .background(
+            StudioTheme.subtleFill,
+            in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
+                .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+        )
+        .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
+    }
+}
+
 /// One option of `StudioMenuPicker`.
 struct StudioMenuPickerOption<Value: Hashable> {
     let label: String
@@ -240,34 +298,10 @@ struct StudioMenuPicker<Value: Hashable>: View {
                 Button(option.label) { selection = option.value }
             }
         } label: {
-            HStack(spacing: 6) {
-                if let symbolName {
-                    Image(systemName: symbolName)
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundStyle(StudioTheme.text)
-                }
-                Text(selectedLabel)
-                    .studioText(.labelBold)
-                    .foregroundStyle(StudioTheme.text)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-                Image(systemName: "chevron.down")
-                    .font(.system(size: 8, weight: .bold))
-                    // ux-canon-allow: chevron affordance glyph — mutedText is
-                    // the caption token, not stateful chrome.
-                    .foregroundStyle(StudioTheme.mutedText)
-            }
-            .padding(.horizontal, 10)
-            .frame(minHeight: 28)
-            .background(
-                StudioTheme.subtleFill,
-                in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
+            StudioDisclosureLabel(
+                title: selectedLabel,
+                symbolName: symbolName
             )
-            .overlay(
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
-                    .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
-            )
-            .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
         }
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)

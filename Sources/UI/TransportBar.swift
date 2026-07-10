@@ -333,7 +333,10 @@ struct TransportBar: View {
             .accessibilityIdentifier("transport-swing")
             .layoutPriority(2)
 
-            transportPhraseChain
+            transportModeControl
+                .layoutPriority(2)
+
+            phraseNavigationControl
 
             Rectangle()
                 .fill(StudioTheme.border)
@@ -395,67 +398,58 @@ struct TransportBar: View {
         engineController.setSwing(min(1, max(0, next)))
     }
 
-    private var transportPhraseChain: some View {
-        HStack(spacing: 0) {
-            TransportModePicker(selection: transportModeBinding)
-
-            transportChainDivider
-
-            phraseNavigationControl
-        }
-        .background(
-            StudioTheme.subtleFill,
-            in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+    private var transportModeControl: some View {
+        StudioSegmentedControl(
+            title: nil,
+            selection: transportModeBinding,
+            segments: TransportMode.allCases.map { mode in
+                StudioSegment(
+                    title: mode.label,
+                    value: mode,
+                    accessibilityIdentifier: "transport-mode-\(mode.label.lowercased())",
+                    accessibilityLabel: "Transport mode \(mode.label)"
+                )
+            },
+            accent: StudioTheme.transportAccent,
+            layout: StudioSegmentedControl.Layout(
+                fillsWidth: false,
+                minWidth: 42,
+                minHeight: 22,
+                horizontalPadding: 6,
+                minimumScaleFactor: nil
+            )
         )
-        .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
-        .layoutPriority(2)
-    }
-
-    private var transportChainDivider: some View {
-        Rectangle()
-            .fill(StudioTheme.border)
-            .frame(width: 1, height: 28)
-            .accessibilityHidden(true)
+        .accessibilityIdentifier("transport-mode")
     }
 
     private var phraseNavigationControl: some View {
-        HStack(spacing: 0) {
-            // CURRENT phrase button: tap opens the phrase; embedded matrix icon
-            // opens the launch grid to schedule a new phrase; a thin progress
-            // bar runs along the bottom (no text).
-            phraseButton(
-                title: phrasePresentation.currentName,
-                isPrimary: phrasePresentation.hasCurrent,
-                openPhraseID: phrasePresentation.currentID,
-                showProgress: true
-            )
-
-            HStack(spacing: 0) {
-                transportChainDivider
-
-                Image(systemName: "chevron.compact.right")
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundStyle(StudioTheme.mutedText)
-                    .frame(width: 20, height: 28)
-                    .accessibilityHidden(true)
-
-                transportChainDivider
+        Button {
+            if !phrases.isEmpty {
+                phrasePickerPresented = true
             }
-
-            // NEXT / QUEUED phrase button.
-            phraseButton(
-                title: phrasePresentation.nextName,
-                isPrimary: phrasePresentation.hasNext,
-                openPhraseID: phrasePresentation.nextID,
-                showProgress: false
+        } label: {
+            StudioDisclosureLabel(
+                title: phrasePresentation.currentName,
+                detail: phrasePresentation.nextName,
+                symbolName: "square.grid.3x3",
+                relationshipSymbolName: phrasePresentation.nextLabel == "QUEUED"
+                    ? "clock.fill"
+                    : "chevron.compact.right",
+                minimumWidth: 196
             )
+            .overlay(alignment: .bottomLeading) {
+                if phrasePresentation.hasCurrent {
+                    TransportPhraseProgressBar(phrase: currentPhrase)
+                        .frame(width: 72)
+                        .padding(.leading, 29)
+                        .padding(.bottom, 3)
+                }
+            }
         }
+        .buttonStyle(.plain)
+        .fixedSize()
+        .disabled(phrases.isEmpty)
         .help(phrases.isEmpty ? "No phrases available" : phrasePresentation.helpText)
-        .accessibilityElement(children: .contain)
         .accessibilityLabel(phrasePresentation.helpText)
         .accessibilityIdentifier("transport-phrase-navigation")
         .sheet(isPresented: $phrasePickerPresented) {
@@ -465,61 +459,6 @@ struct TransportBar: View {
             guard let command = notification.object as? String else { return }
             applyVisualPhraseNavigationCommand(command)
         }
-    }
-
-    private func phraseButton(
-        title: String,
-        isPrimary: Bool,
-        openPhraseID: UUID?,
-        showProgress: Bool
-    ) -> some View {
-        // Tapping the body opens the phrase; the trailing matrix icon is a
-        // separate tap target that opens the launch grid for scheduling.
-        Button {
-            if let openPhraseID {
-                session.setSelectedPhraseID(openPhraseID)
-            } else if !phrases.isEmpty {
-                phrasePickerPresented = true
-            }
-        } label: {
-            HStack(spacing: 5) {
-                Text(title)
-                    .studioText(.microEmphasis)
-                    .foregroundStyle(isPrimary ? StudioTheme.text : StudioTheme.mutedText)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-
-                Spacer(minLength: 4)
-
-                // Matrix icon: schedule a new phrase in this slot.
-                Button {
-                    if !phrases.isEmpty {
-                        phrasePickerPresented = true
-                    }
-                } label: {
-                    Image(systemName: "square.grid.3x3")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundStyle(StudioTheme.mutedText)
-                }
-                .buttonStyle(.plain)
-                .disabled(phrases.isEmpty)
-                .help("Schedule a phrase")
-                .accessibilityLabel("Schedule a phrase")
-            }
-            .padding(.horizontal, 8)
-            .frame(width: 96, height: 28, alignment: .leading)
-            .background(showProgress && isPrimary ? StudioTheme.borderSubtleFill : Color.clear)
-            .overlay(alignment: .bottom) {
-                if showProgress {
-                    TransportPhraseProgressBar(phrase: currentPhrase)
-                        .padding(.horizontal, 4)
-                        .padding(.bottom, 3)
-                }
-            }
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .disabled(phrases.isEmpty)
     }
 
     private func phrase(for phraseID: UUID) -> PhraseModel? {
@@ -590,39 +529,6 @@ extension Notification.Name {
     static let transportPhraseNavigationVisualCommand = Notification.Name("SequencerAITransportPhraseNavigationVisualCommand")
 }
 
-
-private struct TransportModePicker: View {
-    @Binding var selection: TransportMode
-
-    var body: some View {
-        HStack(spacing: 0) {
-            ForEach(TransportMode.allCases, id: \.self) { mode in
-                Button {
-                    selection = mode
-                } label: {
-                    // Bold-flat pass: the selected mode is a solid accent
-                    // block with dark text; unselected is outline-only.
-                    Text(mode.label)
-                        .studioText(.eyebrow)
-                        .foregroundStyle(selection == mode ? StudioTheme.background : StudioTheme.mutedText)
-                        .lineLimit(1)
-                        .frame(width: 44, height: 28)
-                        .background(selection == mode ? StudioTheme.transportAccent : Color.clear)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-
-                if mode != TransportMode.allCases.last {
-                    Rectangle()
-                        .fill(StudioTheme.border)
-                        .frame(width: 1, height: 28)
-                        .accessibilityHidden(true)
-                }
-            }
-        }
-        .accessibilityIdentifier("transport-mode")
-    }
-}
 
 private struct TransportButtonStyle: ButtonStyle {
     let accent: Color
