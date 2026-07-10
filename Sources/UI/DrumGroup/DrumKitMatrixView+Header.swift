@@ -79,10 +79,11 @@ extension DrumKitMatrixView {
             occupiedSlots: model.occupiedSlotIndexes,
             bypassState: .notApplicable,
             onBypassToggle: { _ in },
+            playingSlot: playingPatternSlot(model),
             accent: accent,
             destinationMode: isCaptureDestination
                 ? TrackPatternSlotPalette.DestinationMode(
-                    pendingReplaceSlot: historyTargetSlotIndex(model),
+                    pendingReplaceSlot: nil,
                     accent: accent
                 )
                 : nil,
@@ -101,6 +102,22 @@ extension DrumKitMatrixView {
                 patternTemplateTargets.select(slotIndex: slotIndex, additive: additive)
             }
         )
+    }
+
+    private func playingPatternSlot(_ model: DrumKitMatrixModel) -> Int? {
+        guard engineController.isRunning else { return nil }
+        let playhead = PhrasePlayhead(
+            phrase: session.store.selectedPhrase,
+            transportTickIndex: engineController.transportTickIndex
+        )
+        let slots = Set(model.rows.map { row in
+            engineController.activePatternSlotOverride(for: row.memberID)
+                ?? playhead.patternIndex(
+                    for: row.memberID,
+                    patternLayer: session.store.patternLayer
+                )
+        })
+        return slots.count == 1 ? slots.first : nil
     }
 
     private var templateApplyHelp: String {

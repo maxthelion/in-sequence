@@ -35,7 +35,7 @@ extension DrumKitMatrixView {
             get: { model.groupSelectedSlotIndex ?? -1 },
             set: { newValue in
                 guard (0..<TrackPatternBank.slotCount).contains(newValue) else { return }
-                session.setDrumGroupSelectedPatternIndex(newValue, groupID: navigationState.groupID)
+                displayedPatternSlotIndex = newValue
             }
         )
     }

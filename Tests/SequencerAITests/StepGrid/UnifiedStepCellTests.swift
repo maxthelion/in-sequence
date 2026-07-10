@@ -5,6 +5,50 @@ import XCTest
 @testable import SequencerAI
 
 final class UnifiedStepCellTests: XCTestCase {
+    func test_studioSelectionGestureSingleTargetContract() {
+        XCTAssertEqual(
+            StudioSelectionGesture.singleSelection.selection(targeting: 2, in: []),
+            [2]
+        )
+        XCTAssertEqual(
+            StudioSelectionGesture.singleSelection.selection(targeting: 2, in: [2]),
+            []
+        )
+        XCTAssertEqual(
+            StudioSelectionGesture.singleSelection.selection(targeting: 2, in: [1, 2]),
+            [2]
+        )
+        XCTAssertEqual(
+            StudioSelectionGesture.additiveToggle.selection(targeting: 2, in: [1]),
+            [1, 2]
+        )
+        XCTAssertEqual(
+            StudioSelectionGesture.additiveToggle.selection(targeting: 2, in: [1, 2]),
+            [1]
+        )
+    }
+
+    func test_studioSelectionGestureSetTargetContract() {
+        let kit: Set<Int> = [2, 3]
+
+        XCTAssertEqual(
+            StudioSelectionGesture.singleSelection.selection(targeting: kit, in: [1]),
+            kit
+        )
+        XCTAssertEqual(
+            StudioSelectionGesture.singleSelection.selection(targeting: kit, in: kit),
+            []
+        )
+        XCTAssertEqual(
+            StudioSelectionGesture.additiveToggle.selection(targeting: kit, in: [1, 2]),
+            [1, 2, 3]
+        )
+        XCTAssertEqual(
+            StudioSelectionGesture.additiveToggle.selection(targeting: kit, in: [1, 2, 3]),
+            [1]
+        )
+    }
+
     func test_compoundPlayingSelectedValueCellKeepsAllSignals() {
         let configuration = UnifiedStepCellVisualConfiguration(
             visualState: .on,

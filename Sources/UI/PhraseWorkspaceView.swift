@@ -37,6 +37,24 @@ struct PhraseCellDocumentSelection: Equatable {
         trackIDs.insert(trackID)
     }
 
+    mutating func applySelectionGesture(
+        _ gesture: StudioSelectionGesture,
+        phraseID: UUID,
+        layerID: String,
+        trackID: UUID
+    ) {
+        let matchesScope = self.phraseID == phraseID && self.layerID == layerID
+        let scopedSelection = matchesScope ? trackIDs : []
+        trackIDs = gesture.selection(targeting: trackID, in: scopedSelection)
+
+        if trackIDs.isEmpty {
+            clear()
+        } else {
+            self.phraseID = phraseID
+            self.layerID = layerID
+        }
+    }
+
     func contains(_ trackID: UUID) -> Bool {
         trackIDs.contains(trackID)
     }
@@ -1611,7 +1629,7 @@ struct PhraseWorkspaceView: View {
 
         switch activeMatrixLayer.valueType {
         case .boolean:
-            if NSEvent.modifierFlags.contains(.shift) {
+            if NSEvent.modifierFlags.contains(.option) {
                 cascadeBooleanValue(phraseID: phraseID, trackID: trackID)
             } else {
                 toggleBooleanCell(phraseID: phraseID, trackID: trackID)
@@ -1625,10 +1643,8 @@ struct PhraseWorkspaceView: View {
 
     private func handlePhraseLayerCellTap(on phraseID: UUID, trackID: UUID) {
         let flags = NSEvent.modifierFlags
-        let isAdditiveSelection = flags.contains(.command)
-            || (flags.contains(.shift) && activeMatrixLayer?.valueType != .boolean)
-        if isAdditiveSelection {
-            selectPhraseLayerTrack(trackID, additive: !phraseLayerSelection.isEmpty)
+        if flags.contains(.command) {
+            applyPhraseLayerSelectionGesture(.additiveToggle, trackID: trackID)
             session.setSelectedPhraseAndTrackID(phraseID: phraseID, trackID: trackID)
             return
         }
@@ -1690,7 +1706,7 @@ struct PhraseWorkspaceView: View {
         )
     }
 
-    /// Shift-click: toggle the value, write it as an explicit value on THIS
+    /// Option-click: toggle the value, write it as an explicit value on THIS
     /// phrase, and convert every *following* phrase's cell to inherit it.
     /// Inheritance is forward-only — earlier phrases are never touched, and the
     /// clicked phrase + its following inheritors all resolve to the new value
@@ -1803,6 +1819,20 @@ struct PhraseWorkspaceView: View {
             layerID: activeMatrixLayer.id,
             trackID: trackID,
             additive: additive
+        )
+        session.setSelectedTrackID(trackID)
+    }
+
+    private func applyPhraseLayerSelectionGesture(
+        _ gesture: StudioSelectionGesture,
+        trackID: UUID
+    ) {
+        guard let activeMatrixLayer else { return }
+        phraseLayerSelection.applySelectionGesture(
+            gesture,
+            phraseID: session.store.selectedPhraseID,
+            layerID: activeMatrixLayer.id,
+            trackID: trackID
         )
         session.setSelectedTrackID(trackID)
     }
@@ -2010,13 +2040,15 @@ struct PhraseWorkspaceView: View {
                     .simultaneousGesture(
                         scalarDragGesture(phrase: displayedPhrase, track: track, layer: activeLayer)
                     )
-                    .studioSelectOnRightClick {
-                        if activeLayer?.valueType == .patternIndex || activeLayer == nil {
-                            openFiniteChoicePicker(phraseID: displayedPhrase.id, trackID: track.id)
-                        } else {
-                            selectPhraseLayerTrack(track.id, additive: phraseLayerSelection.contains(track.id))
-                            session.setSelectedPhraseAndTrackID(phraseID: displayedPhrase.id, trackID: track.id)
+                    .studioSelectionGesture { gesture in
+                        guard activeLayer != nil else {
+                            if gesture == .singleSelection {
+                                openFiniteChoicePicker(phraseID: displayedPhrase.id, trackID: track.id)
+                            }
+                            return
                         }
+                        applyPhraseLayerSelectionGesture(gesture, trackID: track.id)
+                        session.setSelectedPhraseAndTrackID(phraseID: displayedPhrase.id, trackID: track.id)
                     }
                     .contextMenu {
                         if activeLayer != nil {
@@ -3200,7 +3232,7 @@ private struct PhraseGridCell: View {
                     lineWidth: StudioMetrics.borderWidth
                 )
         )
-        .help(isInherited ? "Follows the layer default. Click to set its own value; shift-click to push a value into this and the following phrases." : "")
+        .help(isInherited ? "Follows the layer default. Click to set its own value; Option-click to push a value into this and the following phrases." : "")
     }
 
     @ViewBuilder

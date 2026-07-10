@@ -1932,6 +1932,13 @@ final class EngineController: RouterDispatcher {
         quantisedToggleScheduler.activePatternSlotOverrides()
     }
 
+    /// The currently committed performance override for a track. UI playback
+    /// indicators use this ahead of the phrase layer so they show what the
+    /// engine is actually resolving, not merely the viewed pattern slot.
+    func activePatternSlotOverride(for trackID: UUID) -> Int? {
+        quantisedToggleScheduler.activePatternSlotOverrides()[trackID]
+    }
+
     func quantisedFillCueIsActiveForTesting(trackID: UUID, atTick tick: UInt64) -> Bool {
         quantisedToggleScheduler.activeFillCueTrackIDs(atTick: tick).contains(trackID)
     }

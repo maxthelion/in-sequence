@@ -680,6 +680,8 @@ extension DrumKitMatrixView {
             historySaveMessage = "No captured history"
         }
         isSelectingCaptureSaveSlot = false
+        isCaptureOpen = false
+        patternTemplateTargets.clear()
         stopKitAudition()
         postRenderedVisualState(isVisible: true)
     }

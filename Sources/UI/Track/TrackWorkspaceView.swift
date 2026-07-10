@@ -5,6 +5,7 @@ private struct TrackPatternEditTargetRevision: Equatable {
     var sessionRevision: UInt64
     var trackID: UUID
     var displayedSlotIndex: Int
+    var selectedSlotIndexes: Set<Int>
 }
 
 struct TrackWorkspaceView: View {
@@ -14,6 +15,7 @@ struct TrackWorkspaceView: View {
     @State private var editingTrackID: UUID?
     @State private var stepGridWorkspaceModel = TrackStepGridWorkspaceModel()
     @State private var displayedPatternSlotsByTrackID: [UUID: Int] = [:]
+    @State private var selectedPatternSlotsByTrackID: [UUID: Set<Int>] = [:]
     @State private var draftTrackName = ""
     /// Drives the delete-track confirmation on the single-track detail header.
     @State private var isConfirmingTrackDelete = false
@@ -46,12 +48,7 @@ struct TrackWorkspaceView: View {
     private var occupiedPatternSlots: Set<Int> {
         let bank = session.store.patternBank(for: track.id)
         return Set(bank.slots.compactMap { slot in
-            guard let clip = session.store.clipEntry(id: slot.sourceRef.clipID),
-                  !clipIsEmpty(clip.content)
-            else {
-                return nil
-            }
-            return slot.slotIndex
+            slot.sourceRef.isEmpty ? nil : slot.slotIndex
         })
     }
 
@@ -68,10 +65,28 @@ struct TrackWorkspaceView: View {
         )
     }
 
-    private func setPlayingPatternIndex(_ slotIndex: Int) {
+    private var selectedPatternSlotIndexes: Set<Int> {
+        selectedPatternSlotsByTrackID[track.id] ?? []
+    }
+
+    private var playingPatternIndex: Int? {
+        guard engineController.isRunning else { return nil }
+        if let override = engineController.activePatternSlotOverride(for: track.id) {
+            return override
+        }
+        return PhrasePlayhead(
+            phrase: session.store.selectedPhrase,
+            transportTickIndex: engineController.transportTickIndex
+        ).patternIndex(for: track.id, patternLayer: session.store.patternLayer)
+    }
+
+    private func selectPatternSlot(_ slotIndex: Int, additive: Bool) {
         let clamped = min(max(slotIndex, 0), TrackPatternBank.slotCount - 1)
-        session.setSelectedPatternIndex(clamped, for: track.id)
-        displayedPatternSlotsByTrackID[track.id] = clamped
+        let gesture: StudioSelectionGesture = additive ? .additiveToggle : .singleSelection
+        selectedPatternSlotsByTrackID[track.id] = gesture.selection(
+            targeting: clamped,
+            in: selectedPatternSlotIndexes
+        )
     }
 
     private var sourceAccent: Color {
@@ -132,7 +147,8 @@ struct TrackWorkspaceView: View {
                 revision: TrackPatternEditTargetRevision(
                     sessionRevision: session.revision,
                     trackID: track.id,
-                    displayedSlotIndex: displayedPatternIndex
+                    displayedSlotIndex: displayedPatternIndex,
+                    selectedSlotIndexes: selectedPatternSlotIndexes
                 ),
                 makeTarget: makeDisplayedPatternEditTarget
             )
@@ -140,16 +156,23 @@ struct TrackWorkspaceView: View {
 
     private func makeDisplayedPatternEditTarget() -> DocumentEditCommandController.Target {
         let trackID = track.id
-        let slotIndex = displayedPatternIndex
+        let selectedSlotIndexes = selectedPatternSlotIndexes
+        let sourceSlotIndex = selectedSlotIndexes.count == 1
+            ? selectedSlotIndexes.first!
+            : displayedPatternIndex
+        let destinationSlotIndexes = selectedSlotIndexes.isEmpty
+            ? Set([displayedPatternIndex])
+            : selectedSlotIndexes
         return DocumentEditCommandController.Target(
             canCopy: {
-                session.store.exportToProject().detachedPatternSlotClipboard(
+                guard selectedSlotIndexes.count <= 1 else { return false }
+                return session.store.exportToProject().detachedPatternSlotClipboard(
                     trackIDs: [trackID],
-                    slotIndex: slotIndex,
+                    slotIndex: sourceSlotIndex,
                     scope: .singleTrack
                 ) != nil
             },
-            canClear: { false },
+            canClear: { !selectedSlotIndexes.isEmpty },
             isPasteCompatible: { payload in
                 guard payload.domain == .patterns,
                       let clipboard = payload.value(as: PatternSlotClipboard.self)
@@ -159,14 +182,14 @@ struct TrackWorkspaceView: View {
                 return session.store.exportToProject().canPastePatternSlotClipboard(
                     clipboard,
                     toTrackIDs: [trackID],
-                    slotIndexes: [slotIndex],
+                    slotIndexes: destinationSlotIndexes,
                     targetScope: .singleTrack
                 )
             },
             copy: {
                 guard let clipboard = session.store.exportToProject().detachedPatternSlotClipboard(
                     trackIDs: [trackID],
-                    slotIndex: slotIndex,
+                    slotIndex: sourceSlotIndex,
                     scope: .singleTrack
                 ) else {
                     return nil
@@ -182,22 +205,28 @@ struct TrackWorkspaceView: View {
                 else {
                     return
                 }
-                pastePatternClipboard(clipboard, trackID: trackID, slotIndex: slotIndex)
+                pastePatternClipboard(
+                    clipboard,
+                    trackID: trackID,
+                    slotIndexes: destinationSlotIndexes
+                )
             },
-            clearSelection: {}
+            clearSelection: {
+                selectedPatternSlotsByTrackID[trackID] = []
+            }
         )
     }
 
     private func pastePatternClipboard(
         _ clipboard: PatternSlotClipboard,
         trackID: UUID,
-        slotIndex: Int
+        slotIndexes: Set<Int>
     ) {
         var project = session.store.exportToProject()
         guard project.pastePatternSlotClipboard(
             clipboard,
             toTrackIDs: [trackID],
-            slotIndexes: [slotIndex],
+            slotIndexes: slotIndexes,
             targetScope: .singleTrack
         ) else {
             return
@@ -309,9 +338,14 @@ struct TrackWorkspaceView: View {
                 occupiedSlots: occupiedPatternSlots,
                 bypassState: .notApplicable,
                 onBypassToggle: { _ in },
-                playingSlot: session.store.selectedPatternIndex(for: track.id),
-                onPlayingSlotSelect: setPlayingPatternIndex,
-                accent: sourceAccent
+                playingSlot: playingPatternIndex,
+                accent: sourceAccent,
+                targetMode: TrackPatternSlotPalette.TargetMode(
+                    selectedSlots: selectedPatternSlotIndexes,
+                    isPrompting: false,
+                    accent: sourceAccent
+                ),
+                onTargetSelect: selectPatternSlot
             )
         }
         .confirmationDialog(

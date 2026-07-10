@@ -73,8 +73,10 @@ struct StepGridView: View {
                             { value in drag(absoluteIndex, value) }
                         },
                         action: { advanceStep(absoluteIndex) },
-                        selectAction: onSelectStep.map { select in
-                            { select(absoluteIndex) }
+                        selectAction: onSelectStep.map { _ in
+                            { gesture in
+                                applySelectionGesture(gesture, targeting: absoluteIndex)
+                            }
                         },
                         octaveTapAction: onOctaveTap.map { octave in
                             { octave(absoluteIndex) }
@@ -90,6 +92,38 @@ struct StepGridView: View {
     func isStepSelected(_ absoluteIndex: Int) -> Bool {
         selectedStepIndexes.contains(absoluteIndex)
     }
+
+    private func applySelectionGesture(
+        _ gesture: StudioSelectionGesture,
+        targeting stepIndex: Int
+    ) {
+        guard let onSelectStep else { return }
+        let nextSelection = gesture.selection(
+            targeting: stepIndex,
+            in: selectedStepIndexes
+        )
+        guard nextSelection != selectedStepIndexes else { return }
+
+        if gesture == .additiveToggle {
+            onSelectStep(stepIndex)
+            return
+        }
+
+        if let onBackgroundTap {
+            onBackgroundTap()
+            if nextSelection.contains(stepIndex) {
+                onSelectStep(stepIndex)
+            }
+            return
+        }
+
+        for removedIndex in selectedStepIndexes.subtracting(nextSelection).sorted() {
+            onSelectStep(removedIndex)
+        }
+        for addedIndex in nextSelection.subtracting(selectedStepIndexes).sorted() {
+            onSelectStep(addedIndex)
+        }
+    }
 }
 
 private struct StepGridCell: View {
@@ -101,7 +135,7 @@ private struct StepGridCell: View {
     let content: StepCellContent
     let valueDragAction: ((Double) -> Void)?
     let action: () -> Void
-    let selectAction: (() -> Void)?
+    let selectAction: ((StudioSelectionGesture) -> Void)?
     let octaveTapAction: (() -> Void)?
 
     var body: some View {
@@ -118,7 +152,7 @@ private struct StepGridCell: View {
                 accent: accent,
                 onTap: performAction,
                 onDrag: valueDragAction,
-                onSelect: { selectAction?() },
+                onSelect: { selectAction?(.additiveToggle) },
                 onOctaveTap: octaveTapAction
             )
         }
@@ -140,9 +174,7 @@ private struct StepGridCell: View {
             #endif
         }
         .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
-        .studioSelectOnRightClick {
-            selectAction?()
-        }
+        .studioSelectionGesture(selectAction)
         .onChange(of: state) { oldValue, newValue in
             #if DEBUG
             StepGridTapDiagnostics.log(
@@ -155,7 +187,7 @@ private struct StepGridCell: View {
         .accessibilityLabel("Step \(index + 1)")
         .accessibilityValue(accessibilityText)
         .accessibilityAction(named: "Select Step") {
-            selectAction?()
+            selectAction?(.additiveToggle)
         }
     }
 

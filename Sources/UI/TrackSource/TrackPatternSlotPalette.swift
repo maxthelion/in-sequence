@@ -23,7 +23,6 @@ struct TrackPatternSlotPalette: View {
     let bypassState: BypassState
     let onBypassToggle: (Int) -> Void
     var playingSlot: Int?
-    var onPlayingSlotSelect: (Int) -> Void = { _ in }
     var accent: Color = StudioTheme.transportAccent
     var destinationMode: DestinationMode?
     var onDestinationSelect: (Int) -> Void = { _ in }
@@ -38,7 +37,6 @@ struct TrackPatternSlotPalette: View {
         bypassState: BypassState,
         onBypassToggle: @escaping (Int) -> Void,
         playingSlot: Int? = nil,
-        onPlayingSlotSelect: @escaping (Int) -> Void = { _ in },
         accent: Color = StudioTheme.transportAccent,
         destinationMode: DestinationMode? = nil,
         onDestinationSelect: @escaping (Int) -> Void = { _ in },
@@ -50,7 +48,6 @@ struct TrackPatternSlotPalette: View {
         self.bypassState = bypassState
         self.onBypassToggle = onBypassToggle
         self.playingSlot = playingSlot
-        self.onPlayingSlotSelect = onPlayingSlotSelect
         self.accent = accent
         self.destinationMode = destinationMode
         self.onDestinationSelect = onDestinationSelect
@@ -123,17 +120,20 @@ struct TrackPatternSlotPalette: View {
                             .offset(y: 6)
                     }
                 }
-            }
-            .buttonStyle(.plain)
-            .background {
-                TrackPatternSlotRightClickProbe { additive in
-                    guard destinationMode == nil else { return }
-                    if targetMode != nil {
-                        onTargetSelect(slotIndex, additive)
-                    } else {
-                        onPlayingSlotSelect(slotIndex)
+                .overlay(alignment: .topLeading) {
+                    if occupiedSlots.contains(slotIndex) {
+                        Capsule()
+                            .fill(hasSolidFill(for: slotIndex, isBypassed: isBypassed) ? StudioTheme.background : accent)
+                            .frame(width: 11, height: 4)
+                            .padding(6)
+                            .accessibilityHidden(true)
                     }
                 }
+            }
+            .buttonStyle(.plain)
+            .studioSelectionGesture { gesture in
+                guard destinationMode == nil, targetMode != nil else { return }
+                onTargetSelect(slotIndex, gesture == .additiveToggle)
             }
             .accessibilityLabel(slotAccessibilityLabel(slotIndex: slotIndex, isBypassed: isBypassed, bypassApplicable: bypassApplicable))
 
@@ -158,17 +158,17 @@ struct TrackPatternSlotPalette: View {
     private func slotAccessibilityLabel(slotIndex: Int, isBypassed: Bool, bypassApplicable: Bool) -> String {
         let slotNumber = slotIndex + 1
         if destinationMode != nil {
-            return "Save capture to slot \(slotNumber)"
+            return "Save capture to slot \(slotNumber), \(occupiedSlots.contains(slotIndex) ? "contains data" : "empty")"
         }
         if targetMode?.selectedSlots.contains(slotIndex) == true {
-            return "Slot \(slotNumber), template target"
+            return "Slot \(slotNumber), selected, \(occupiedSlots.contains(slotIndex) ? "contains data" : "empty")"
         }
         if bypassApplicable {
             return isBypassed
                 ? "Slot \(slotNumber), clip source"
                 : "Slot \(slotNumber), generator source"
         }
-        return "Slot \(slotNumber)"
+        return "Slot \(slotNumber), \(occupiedSlots.contains(slotIndex) ? "contains data" : "empty")"
     }
 
     /// Colour identifies, it never floods (ux-canon rule 12): a slot pad is
@@ -250,36 +250,5 @@ struct TrackPatternSlotPalette: View {
 
     private var shouldPulse: Bool {
         destinationMode != nil || targetMode?.isPrompting == true
-    }
-}
-
-private struct TrackPatternSlotRightClickProbe: NSViewRepresentable {
-    let action: (Bool) -> Void
-
-    func makeNSView(context: Context) -> NSView {
-        let view = RightClickView()
-        view.action = action
-        return view
-    }
-
-    func updateNSView(_ nsView: NSView, context: Context) {
-        guard let view = nsView as? RightClickView else { return }
-        view.action = action
-    }
-
-    final class RightClickView: NSView {
-        var action: ((Bool) -> Void)?
-
-        override func mouseDown(with event: NSEvent) {
-            if event.type == .rightMouseDown || event.modifierFlags.contains(.control) {
-                action?(event.modifierFlags.contains(.shift))
-            } else {
-                super.mouseDown(with: event)
-            }
-        }
-
-        override func rightMouseDown(with event: NSEvent) {
-            action?(event.modifierFlags.contains(.shift))
-        }
     }
 }

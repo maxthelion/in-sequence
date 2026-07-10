@@ -10,6 +10,16 @@ struct DrumKitPatternTargetSelection: Equatable {
 
     mutating func select(slotIndex: Int, additive: Bool) {
         guard (0..<TrackPatternBank.slotCount).contains(slotIndex) else { return }
+        let gesture: StudioSelectionGesture = additive ? .additiveToggle : .singleSelection
+        slotIndexes = gesture.selection(targeting: slotIndex, in: slotIndexes)
+        isPrompting = false
+    }
+
+    /// Deterministic fixture/setup selection. Unlike the user gesture above,
+    /// replaying the same command is intentionally idempotent because visual
+    /// commands may be posted more than once while a surface mounts.
+    mutating func set(slotIndex: Int, additive: Bool) {
+        guard (0..<TrackPatternBank.slotCount).contains(slotIndex) else { return }
         if additive {
             slotIndexes.insert(slotIndex)
         } else {
@@ -143,6 +153,7 @@ struct DrumKitMatrixModel: Equatable {
         trackGroups: [TrackGroup],
         layers: [PhraseLayerDefinition],
         selectedPhrase: PhraseModel,
+        displayedPatternSlotIndex: Int? = nil,
         patternBanks: [TrackPatternBank],
         clipPool: [ClipPoolEntry],
         generatorPool: [GeneratorPoolEntry]
@@ -168,7 +179,8 @@ struct DrumKitMatrixModel: Equatable {
         self.displayStepCount = resolvedDisplayStepCount
         self.staleMemberCount = staleMemberCount
         self.rows = orderedMembers.map { track in
-            let patternSlotIndex = selectedPhrase.patternIndex(for: track.id, layers: layers)
+            let patternSlotIndex = displayedPatternSlotIndex
+                ?? selectedPhrase.patternIndex(for: track.id, layers: layers)
             let patternBank = Self.patternBank(
                 for: track,
                 patternBanks: patternBanks,

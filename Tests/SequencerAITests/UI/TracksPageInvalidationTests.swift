@@ -338,16 +338,16 @@ final class TracksPageInvalidationTests: XCTestCase {
         )
 
         XCTAssertTrue(
-            trackCard.contains(".studioSelectOnRightClick"),
-            "Track cards should still select on secondary click."
+            trackCard.contains(".studioSelectionGesture"),
+            "Track cards should share secondary-click and Shift-click selection semantics."
         )
         XCTAssertFalse(
             trackCard.contains(".contextMenu"),
             "Track cards must not open the old Select/Copy/Mute menu on secondary click."
         )
         XCTAssertTrue(
-            kitCard.contains(".studioSelectOnRightClick"),
-            "Kit cards should still select on secondary click."
+            kitCard.contains(".studioSelectionGesture"),
+            "Kit cards should share secondary-click and Shift-click selection semantics."
         )
         XCTAssertFalse(
             kitCard.contains(".contextMenu"),
@@ -371,31 +371,42 @@ final class TracksPageInvalidationTests: XCTestCase {
         )
     }
 
-    func test_trackNavigatorCardEdgeTogglesSelectionThroughHostedUI() throws {
+    func test_trackNavigatorCardEdgeShiftClickTogglesSelectionThroughHostedUI() throws {
         let harness = try makeHarness(mode: .setup)
         defer { harness.window.close() }
         let firstTrackID = try XCTUnwrap(harness.session.store.tracks.first?.id)
-        harness.session.tracksSelectionMode = true
+        harness.session.tracksSelectionMode = false
         harness.session.tracksSelection.removeAll()
         drainMainRunLoop(seconds: 0.05)
 
         harness.window.makeKeyAndOrderFront(nil)
         drainMainRunLoop(seconds: 0.02)
-        click(host: harness.hostingView, window: harness.window, at: NSPoint(x: 12, y: 90))
+        click(
+            host: harness.hostingView,
+            window: harness.window,
+            at: NSPoint(x: 12, y: 90),
+            modifierFlags: [.shift]
+        )
 
         XCTAssertTrue(
             harness.session.tracksSelection.contains(firstTrackID),
-            "A click near the visible card's left edge must select the card, not fall through its padding."
+            "A Shift-click near the visible card's left edge must select the card, not fall through its padding."
         )
+        XCTAssertTrue(harness.session.tracksSelectionMode)
     }
 
-    private func click(host: NSView, window: NSWindow, at point: NSPoint) {
+    private func click(
+        host: NSView,
+        window: NSWindow,
+        at point: NSPoint,
+        modifierFlags: NSEvent.ModifierFlags = []
+    ) {
         let location = host.convert(point, to: nil)
         for type in [NSEvent.EventType.leftMouseDown, .leftMouseUp] {
             guard let event = NSEvent.mouseEvent(
                 with: type,
                 location: location,
-                modifierFlags: [],
+                modifierFlags: modifierFlags,
                 timestamp: ProcessInfo.processInfo.systemUptime,
                 windowNumber: window.windowNumber,
                 context: nil,
@@ -403,7 +414,7 @@ final class TracksPageInvalidationTests: XCTestCase {
                 clickCount: 1,
                 pressure: type == .leftMouseDown ? 1 : 0
             ) else { continue }
-            window.sendEvent(event)
+            NSApp.sendEvent(event)
         }
         drainMainRunLoop(seconds: 0.02)
     }

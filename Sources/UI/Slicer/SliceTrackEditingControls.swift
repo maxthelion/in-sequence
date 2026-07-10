@@ -508,8 +508,8 @@ struct SliceStepStrip: View {
                             .stroke(isSelected(absoluteIndex) ? accent : Color.clear, lineWidth: 2)
                     )
                     .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
-                    .studioSelectOnRightClick {
-                        onSelect(absoluteIndex)
+                    .studioSelectionGesture { gesture in
+                        applySelectionGesture(gesture, targeting: absoluteIndex)
                     }
                     .accessibilityElement(children: .combine)
                     .accessibilityLabel("Slice step \(absoluteIndex + 1)")
@@ -529,6 +529,37 @@ struct SliceStepStrip: View {
 
     private func isSelected(_ absoluteIndex: Int) -> Bool {
         selectedStepIndexes.contains(absoluteIndex) || selectedStepIndex == absoluteIndex
+    }
+
+    private func applySelectionGesture(
+        _ gesture: StudioSelectionGesture,
+        targeting stepIndex: Int
+    ) {
+        let nextSelection = gesture.selection(
+            targeting: stepIndex,
+            in: selectedStepIndexes
+        )
+        guard nextSelection != selectedStepIndexes else { return }
+
+        if gesture == .additiveToggle {
+            onSelect(stepIndex)
+            return
+        }
+
+        if let onBackgroundTap {
+            onBackgroundTap()
+            if nextSelection.contains(stepIndex) {
+                onSelect(stepIndex)
+            }
+            return
+        }
+
+        for removedIndex in selectedStepIndexes.subtracting(nextSelection).sorted() {
+            onSelect(removedIndex)
+        }
+        for addedIndex in nextSelection.subtracting(selectedStepIndexes).sorted() {
+            onSelect(addedIndex)
+        }
     }
 }
 
