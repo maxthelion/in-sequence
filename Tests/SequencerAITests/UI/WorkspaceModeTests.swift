@@ -435,4 +435,9 @@ final class WorkspaceModeTests: XCTestCase {
             "must not invalidate its page body."
         )
     }
+
+    func test_phraseSceneHardSwitch_mapsSlotsToCrossfaderEndpoints() {
+        XCTAssertEqual(PhraseSceneHardSwitch.crossfaderValue(for: .a), 0)
+        XCTAssertEqual(PhraseSceneHardSwitch.crossfaderValue(for: .b), 1)
+    }
 }

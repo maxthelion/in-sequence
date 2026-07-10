@@ -1,5 +1,17 @@
 import SwiftUI
 
+private enum PhraseTrackScopeChoice: Hashable {
+    case all
+    case currentSelection
+    case group(Int)
+}
+
+enum PhraseSceneHardSwitch {
+    static func crossfaderValue(for slot: ScenePerformSlotPickerRequest.Slot) -> Double {
+        slot == .a ? 0 : 1
+    }
+}
+
 struct PhraseWorkspaceView: View {
     @Binding var document: SeqAIDocument
     @Binding private var visualControlsOpenIndex: Int?
@@ -17,6 +29,7 @@ struct PhraseWorkspaceView: View {
     @State private var phraseCellTool: PhraseCellTool = .value
     @State private var globalApplyScope = TrackPerformSelectionState()
     @State private var isPresentingGlobalApplyTrackSelector = false
+    @State private var trackScopeChoice: PhraseTrackScopeChoice = .all
     @State private var phraseSceneSlotPickerRequest: ScenePerformSlotPickerRequest?
     @State private var isPresentingPhraseCapture = false
     @State private var finiteChoiceTarget: PhraseFiniteChoiceTarget?
@@ -110,10 +123,19 @@ struct PhraseWorkspaceView: View {
 
     private var phraseLayerTrackScopeIDs: [UUID] {
         let orderedTrackIDs = tracks.map(\.id)
-        if globalApplyScope.isEmpty {
+        let requestedIDs: Set<UUID>
+        switch trackScopeChoice {
+        case .all:
             return orderedTrackIDs
+        case .currentSelection:
+            requestedIDs = session.performTrackScope
+        case .group(let slotIndex):
+            guard session.store.performanceTrackGroups.indices.contains(slotIndex),
+                  let group = session.store.performanceTrackGroups[slotIndex]
+            else { return orderedTrackIDs }
+            requestedIDs = Set(group.memberIDs)
         }
-        return orderedTrackIDs.filter { globalApplyScope.contains($0) }
+        return orderedTrackIDs.filter { requestedIDs.contains($0) }
     }
 
     private var selectedPhraseForEditing: PhraseModel {
@@ -137,13 +159,8 @@ struct PhraseWorkspaceView: View {
             contentPadding: 0
         ) {
             VStack(alignment: .leading, spacing: 8) {
-                // The phrase-local tab row sits ABOVE the perform-copy bar.
-                // While the layer selector is
-                // open the tabs are hidden so the selection reads as part of the
-                // layer button.
-                if !(isPresentingPerformanceLayerSelection && phraseTab == .layers) {
-                    phraseTabBar
-                }
+                // Navigation remains stable while a value chooser is open.
+                phraseTabBar
                 phrasePerformanceShell
                 switch phraseTab {
                 case .layers:
@@ -569,28 +586,42 @@ struct PhraseWorkspaceView: View {
     // selection count; tapping it opens the selector and tapping it again closes
     // it. Bug 20260622-181714: it now lives in the perform bar, not the top menu.
     private var globalApplyTrackScopeButton: some View {
-        Button {
-            isPresentingGlobalApplyTrackSelector.toggle()
-            postRenderedMatrixVisualState(isVisible: true)
-        } label: {
-            HStack(spacing: 8) {
-                Image(systemName: "slider.horizontal.3")
-                    .font(.system(size: 12, weight: .bold))
-                Text(globalApplyScopeTitle.uppercased())
-                    .studioText(.microEmphasis)
-                    .tracking(0.8)
-            }
-            .foregroundStyle(isPresentingGlobalApplyTrackSelector ? StudioTheme.background : StudioTheme.text)
-            .frame(width: 148, height: 36)
-            .background(isPresentingGlobalApplyTrackSelector ? StudioTheme.phraseAccent : StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
-                    .stroke(isPresentingGlobalApplyTrackSelector ? StudioTheme.phraseAccent : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
-            )
-        }
-        .buttonStyle(.plain)
+        StudioMenuPicker(
+            title: nil,
+            selection: Binding(
+                get: { trackScopeChoice },
+                set: { choice in
+                    applyTrackScopeChoice(choice)
+                    postRenderedMatrixVisualState(isVisible: true)
+                }
+            ),
+            options: phraseTrackScopeOptions,
+            help: "Choose a track group",
+            symbolName: "person.3.sequence.fill"
+        )
         .accessibilityIdentifier("phrase-layer-track-scope-button")
-        .help(phraseLayerEditMode == .byTrack ? "Choose which tracks are visible in By Track" : "Choose which tracks receive By Value changes")
+        .help(phraseLayerEditMode == .byTrack ? "Choose the track group visible in By Track" : "Choose the track group receiving By Value changes")
+    }
+
+    private var phraseTrackScopeOptions: [StudioMenuPickerOption<PhraseTrackScopeChoice>] {
+        var options: [StudioMenuPickerOption<PhraseTrackScopeChoice>] = [
+            StudioMenuPickerOption(label: "All Tracks", value: PhraseTrackScopeChoice.all)
+        ]
+        if !session.performTrackScope.isEmpty {
+            options.append(StudioMenuPickerOption(label: "Current Selection", value: PhraseTrackScopeChoice.currentSelection))
+        }
+        for (index, group) in session.store.performanceTrackGroups.enumerated() {
+            guard let group else { continue }
+            options.append(StudioMenuPickerOption(label: "\(index + 1) · \(group.name)", value: PhraseTrackScopeChoice.group(index)))
+        }
+        return options
+    }
+
+    private func applyTrackScopeChoice(_ choice: PhraseTrackScopeChoice) {
+        trackScopeChoice = choice
+        isPresentingGlobalApplyTrackSelector = false
+        globalApplyScope = TrackPerformSelectionState(selectedTrackIDs: Set(phraseLayerTrackScopeIDs))
+        trackPage = 0
     }
 
     private var phraseScenesSurface: some View {
@@ -810,6 +841,10 @@ struct PhraseWorkspaceView: View {
                 )
         }
         .buttonStyle(.plain)
+        .studioSelectOnRightClick {
+            setPhraseScene(scene.id, for: slot)
+            setPhraseSceneCrossfader(PhraseSceneHardSwitch.crossfaderValue(for: slot))
+        }
         .help("\(slot.title): \(scene.name)")
         .accessibilityLabel("\(slot.title) scene \(sceneNumber), \(scene.name)")
     }
@@ -1083,6 +1118,11 @@ struct PhraseWorkspaceView: View {
         // for the phrase surfaces regardless of any intervening navigation.
         session.performTrackScope = pending.trackIDs
         globalApplyScope = TrackPerformSelectionState(selectedTrackIDs: pending.trackIDs)
+        let matchingGroupIndex = session.store.performanceTrackGroups.firstIndex { group in
+            guard let group else { return false }
+            return Set(group.memberIDs) == pending.trackIDs
+        }
+        trackScopeChoice = matchingGroupIndex.map(PhraseTrackScopeChoice.group) ?? .currentSelection
         clampTrackPage()
         session.pendingPhrasePerform = nil
         postRenderedMatrixVisualState(isVisible: true)
@@ -1177,7 +1217,9 @@ struct PhraseWorkspaceView: View {
         if command == "global-apply-track-selector:open" {
             phraseTab = .layers
             phraseLayerEditMode = .byValue
-            isPresentingGlobalApplyTrackSelector = true
+            isPresentingGlobalApplyTrackSelector = false
+            trackScopeChoice = session.store.performanceTrackGroups.firstIndex(where: { $0 != nil })
+                .map(PhraseTrackScopeChoice.group) ?? .all
             postRenderedMatrixVisualState(isVisible: true)
             return
         }
@@ -1197,12 +1239,14 @@ struct PhraseWorkspaceView: View {
            let count = Int(rawCount) {
             phraseTab = .layers
             phraseLayerEditMode = .byValue
-            isPresentingGlobalApplyTrackSelector = true
+            isPresentingGlobalApplyTrackSelector = false
             var scope = TrackPerformSelectionState()
             for track in tracks.prefix(max(0, count)) {
                 scope.add(track.id)
             }
             globalApplyScope = scope
+            session.performTrackScope = Set(tracks.prefix(max(0, count)).map(\.id))
+            trackScopeChoice = .currentSelection
             postRenderedMatrixVisualState(isVisible: true)
             return
         }
@@ -1840,13 +1884,9 @@ struct PhraseWorkspaceView: View {
         VStack(alignment: .leading, spacing: 14) {
             globalApplyScopeBar
 
-            if isPresentingGlobalApplyTrackSelector {
-                globalApplyTrackSelector
-            } else {
-                LazyVGrid(columns: globalApplyColumns, alignment: .leading, spacing: 10) {
-                    ForEach(globalApplyOptions) { option in
-                        globalApplyActionCell(option)
-                    }
+            LazyVGrid(columns: globalApplyColumns, alignment: .leading, spacing: 10) {
+                ForEach(globalApplyOptions) { option in
+                    globalApplyActionCell(option)
                 }
             }
         }
@@ -1992,11 +2032,7 @@ struct PhraseWorkspaceView: View {
     }
 
     private var globalApplyScopeTrackIDs: [UUID] {
-        let orderedTrackIDs = tracks.map(\.id)
-        if globalApplyScope.isEmpty {
-            return orderedTrackIDs
-        }
-        return orderedTrackIDs.filter { globalApplyScope.contains($0) }
+        phraseLayerTrackScopeIDs
     }
 
     private var globalApplyScopeCount: Int {
@@ -2108,14 +2144,7 @@ struct PhraseWorkspaceView: View {
     }
 
     private func choosePerformanceLayer(_ option: PerformanceLayerOption) {
-        let isAlreadySelected = performanceLayerSelection.mode == option.mode
-            && performanceLayerSelection.variantLabel == option.variantLabel
-        if isAlreadySelected, option.variantLabel != nil {
-            // Variant cells toggle: off returns to normal pattern playback.
-            performanceLayerSelection.select(.pattern, variantLabel: nil)
-        } else {
-            performanceLayerSelection.select(option.mode, variantLabel: option.variantLabel)
-        }
+        performanceLayerSelection.select(option.mode, variantLabel: option.variantLabel)
         if let layerID = performanceLayerSelection.mode.phraseLayerID,
            matrixSelectableLayers.contains(where: { $0.id == layerID }) {
             selectedLayerID = layerID
