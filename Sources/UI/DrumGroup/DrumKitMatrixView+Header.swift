@@ -97,6 +97,7 @@ extension DrumKitMatrixView {
                     accent: accent
                 ),
             onTargetSelect: { slotIndex, additive in
+                clearDrumStepSelection()
                 patternTemplateTargets.select(slotIndex: slotIndex, additive: additive)
             }
         )

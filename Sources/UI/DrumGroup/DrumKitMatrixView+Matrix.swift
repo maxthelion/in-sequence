@@ -1,5 +1,26 @@
 import SwiftUI
 
+enum DrumKitStepClipboardTransfer {
+    struct Destination: Equatable {
+        var stepIndex: Int
+        var entry: StepClipboardEntry
+    }
+
+    static func destinations(
+        clipboard: StepClipboard,
+        selectedStepIndexes: Set<Int>,
+        writableStepIndexes: Range<Int>
+    ) -> [Destination] {
+        let sourceEntries = clipboard.steps.sorted { $0.key < $1.key }.map(\.value)
+        let destinationIndexes = selectedStepIndexes
+            .filter(writableStepIndexes.contains)
+            .sorted()
+        return zip(destinationIndexes, sourceEntries).map { stepIndex, entry in
+            Destination(stepIndex: stepIndex, entry: entry)
+        }
+    }
+}
+
 // Matrix-tab content for the kit matrix: the kit-level pattern slot binding
 // (the pills themselves now live in the header box), the layer selector,
 // mismatch/stale/empty states, and the matrix rows list + accordion toggle.
@@ -216,6 +237,12 @@ extension DrumKitMatrixView {
     }
 
     func toggleStepSelection(row: DrumKitMatrixModel.Row, stepIndex: Int) {
+        guard case let .editable(_, _, steps) = row.content,
+              steps.indices.contains(stepIndex)
+        else {
+            return
+        }
+        patternTemplateTargets.clear()
         if selectedStepMemberID != row.memberID {
             selectedStepMemberID = row.memberID
             selectedDrumStepIndexes.removeAll()
@@ -240,20 +267,24 @@ extension DrumKitMatrixView {
         return model.rows.first { $0.memberID == selectedStepMemberID }
     }
 
-    func copySelectedDrumSteps(in model: DrumKitMatrixModel) {
+    func selectedDrumStepClipboard(in model: DrumKitMatrixModel) -> StepClipboard? {
         guard let row = selectedDrumRow(in: model),
-              case let .editable(clipID?, _, _) = row.content,
+              case let .editable(clipID?, _, steps) = row.content,
               let clip = session.store.clipEntry(id: clipID),
               let track = memberTrack(row.memberID)
-        else { return }
+        else {
+            return nil
+        }
 
-        let entries = Dictionary(uniqueKeysWithValues: selectedDrumStepIndexes.sorted().map { index in
+        let writableIndexes = selectedDrumStepIndexes.filter(steps.indices.contains).sorted()
+        guard !writableIndexes.isEmpty else { return nil }
+        let entries = Dictionary(uniqueKeysWithValues: writableIndexes.map { index in
             (index, ClipNoteGridStepEditing.clipboardEntry(at: index, in: clip, macroBindings: track.macros))
         })
-        drumStepClipboard = StepClipboard(sourceClipID: clipID, steps: entries)
+        return StepClipboard(sourceClipID: clipID, steps: entries)
     }
 
-    func clearSelectedDrumSteps(in model: DrumKitMatrixModel) {
+    func eraseSelectedDrumSteps(in model: DrumKitMatrixModel) {
         guard let row = selectedDrumRow(in: model),
               let track = memberTrack(row.memberID)
         else { return }
@@ -268,23 +299,164 @@ extension DrumKitMatrixView {
         clearDrumStepSelection()
     }
 
-    func pasteDrumStepClipboard(in model: DrumKitMatrixModel) {
+    func canPasteDrumStepClipboard(_ clipboard: StepClipboard, in model: DrumKitMatrixModel) -> Bool {
         guard let row = selectedDrumRow(in: model),
+              case let .editable(_, _, steps) = row.content,
+              !DrumKitStepClipboardTransfer.destinations(
+                  clipboard: clipboard,
+                  selectedStepIndexes: selectedDrumStepIndexes,
+                  writableStepIndexes: steps.indices
+              ).isEmpty
+        else {
+            return false
+        }
+        return true
+    }
+
+    func pasteDrumStepClipboard(_ clipboard: StepClipboard, in model: DrumKitMatrixModel) {
+        guard let row = selectedDrumRow(in: model),
+              case let .editable(_, _, steps) = row.content,
               let track = memberTrack(row.memberID),
-              let drumStepClipboard
+              canPasteDrumStepClipboard(clipboard, in: model)
         else { return }
+        let destinations = DrumKitStepClipboardTransfer.destinations(
+            clipboard: clipboard,
+            selectedStepIndexes: selectedDrumStepIndexes,
+            writableStepIndexes: steps.indices
+        )
         session.ensureClipAndMutate(
             at: PatternSlotAddress(trackID: row.memberID, slotIndex: row.patternSlotIndex)
         ) { _, entry in
-            for (index, clipboardEntry) in drumStepClipboard.steps {
+            for destination in destinations {
                 ClipNoteGridStepEditing.paste(
-                    clipboardEntry,
-                    at: index,
+                    destination.entry,
+                    at: destination.stepIndex,
                     entry: &entry,
                     macroBindings: track.macros,
                     defaultNote: row.defaultNote
                 )
             }
+        }
+    }
+
+    func makeDocumentEditTarget() -> DocumentEditCommandController.Target {
+        DocumentEditCommandController.Target(
+            canCopy: {
+                guard let model else { return false }
+                if !selectedDrumStepIndexes.isEmpty {
+                    return selectedDrumStepClipboard(in: model) != nil
+                }
+                guard patternTemplateTargets.slotIndexes.count == 1,
+                      let slotIndex = patternTemplateTargets.slotIndexes.first
+                else {
+                    return false
+                }
+                return session.store.exportToProject().detachedPatternSlotClipboard(
+                    trackIDs: model.rows.map(\.memberID),
+                    slotIndex: slotIndex,
+                    scope: .drumKit
+                ) != nil
+            },
+            canClear: {
+                !selectedDrumStepIndexes.isEmpty
+                    || !patternTemplateTargets.slotIndexes.isEmpty
+                    || patternTemplateTargets.isPrompting
+            },
+            isPasteCompatible: { payload in
+                guard let model else { return false }
+                if !selectedDrumStepIndexes.isEmpty {
+                    guard payload.domain == .steps,
+                          let clipboard = payload.value(as: StepClipboard.self)
+                    else {
+                        return false
+                    }
+                    return canPasteDrumStepClipboard(clipboard, in: model)
+                }
+                guard !patternTemplateTargets.slotIndexes.isEmpty,
+                      payload.domain == .patterns,
+                      let clipboard = payload.value(as: PatternSlotClipboard.self)
+                else {
+                    return false
+                }
+                return session.store.exportToProject().canPastePatternSlotClipboard(
+                    clipboard,
+                    toTrackIDs: model.rows.map(\.memberID),
+                    slotIndexes: patternTemplateTargets.slotIndexes,
+                    targetScope: .drumKit
+                )
+            },
+            copy: {
+                guard let model else { return nil }
+                if !selectedDrumStepIndexes.isEmpty {
+                    guard let clipboard = selectedDrumStepClipboard(in: model) else { return nil }
+                    return DocumentEditCommandController.ClipboardPayload(
+                        domain: .steps,
+                        snapshot: clipboard
+                    )
+                }
+                guard patternTemplateTargets.slotIndexes.count == 1,
+                      let slotIndex = patternTemplateTargets.slotIndexes.first,
+                      let clipboard = session.store.exportToProject().detachedPatternSlotClipboard(
+                          trackIDs: model.rows.map(\.memberID),
+                          slotIndex: slotIndex,
+                          scope: .drumKit
+                      )
+                else {
+                    return nil
+                }
+                return DocumentEditCommandController.ClipboardPayload(
+                    domain: .patterns,
+                    snapshot: clipboard
+                )
+            },
+            paste: { payload in
+                guard let model else { return }
+                if !selectedDrumStepIndexes.isEmpty {
+                    guard payload.domain == .steps,
+                          let clipboard = payload.value(as: StepClipboard.self)
+                    else {
+                        return
+                    }
+                    pasteDrumStepClipboard(clipboard, in: model)
+                    return
+                }
+                guard payload.domain == .patterns,
+                      let clipboard = payload.value(as: PatternSlotClipboard.self)
+                else {
+                    return
+                }
+                pastePatternClipboard(
+                    clipboard,
+                    trackIDs: model.rows.map(\.memberID),
+                    slotIndexes: patternTemplateTargets.slotIndexes
+                )
+            },
+            clearSelection: {
+                if !selectedDrumStepIndexes.isEmpty {
+                    clearDrumStepSelection()
+                } else {
+                    patternTemplateTargets.clear()
+                }
+            }
+        )
+    }
+
+    func pastePatternClipboard(
+        _ clipboard: PatternSlotClipboard,
+        trackIDs: [UUID],
+        slotIndexes: Set<Int>
+    ) {
+        var project = session.store.exportToProject()
+        guard project.pastePatternSlotClipboard(
+            clipboard,
+            toTrackIDs: trackIDs,
+            slotIndexes: slotIndexes,
+            targetScope: .drumKit
+        ) else {
+            return
+        }
+        session.batch(impact: .fullEngineApply, changed: .full) { store in
+            _ = store.replaceProject(project)
         }
     }
 

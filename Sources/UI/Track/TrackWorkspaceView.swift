@@ -1,6 +1,12 @@
 import AVFoundation
 import SwiftUI
 
+private struct TrackPatternEditTargetRevision: Equatable {
+    var sessionRevision: UInt64
+    var trackID: UUID
+    var displayedSlotIndex: Int
+}
+
 struct TrackWorkspaceView: View {
     @Binding var document: SeqAIDocument
     @Environment(SequencerDocumentSession.self) private var session
@@ -121,6 +127,84 @@ struct TrackWorkspaceView: View {
                     break
                 }
             }
+            .documentEditTarget(
+                isActive: kitNavigationState == nil && track.trackType != .audioInput,
+                revision: TrackPatternEditTargetRevision(
+                    sessionRevision: session.revision,
+                    trackID: track.id,
+                    displayedSlotIndex: displayedPatternIndex
+                ),
+                makeTarget: makeDisplayedPatternEditTarget
+            )
+    }
+
+    private func makeDisplayedPatternEditTarget() -> DocumentEditCommandController.Target {
+        let trackID = track.id
+        let slotIndex = displayedPatternIndex
+        return DocumentEditCommandController.Target(
+            canCopy: {
+                session.store.exportToProject().detachedPatternSlotClipboard(
+                    trackIDs: [trackID],
+                    slotIndex: slotIndex,
+                    scope: .singleTrack
+                ) != nil
+            },
+            canClear: { false },
+            isPasteCompatible: { payload in
+                guard payload.domain == .patterns,
+                      let clipboard = payload.value(as: PatternSlotClipboard.self)
+                else {
+                    return false
+                }
+                return session.store.exportToProject().canPastePatternSlotClipboard(
+                    clipboard,
+                    toTrackIDs: [trackID],
+                    slotIndexes: [slotIndex],
+                    targetScope: .singleTrack
+                )
+            },
+            copy: {
+                guard let clipboard = session.store.exportToProject().detachedPatternSlotClipboard(
+                    trackIDs: [trackID],
+                    slotIndex: slotIndex,
+                    scope: .singleTrack
+                ) else {
+                    return nil
+                }
+                return DocumentEditCommandController.ClipboardPayload(
+                    domain: .patterns,
+                    snapshot: clipboard
+                )
+            },
+            paste: { payload in
+                guard payload.domain == .patterns,
+                      let clipboard = payload.value(as: PatternSlotClipboard.self)
+                else {
+                    return
+                }
+                pastePatternClipboard(clipboard, trackID: trackID, slotIndex: slotIndex)
+            },
+            clearSelection: {}
+        )
+    }
+
+    private func pastePatternClipboard(
+        _ clipboard: PatternSlotClipboard,
+        trackID: UUID,
+        slotIndex: Int
+    ) {
+        var project = session.store.exportToProject()
+        guard project.pastePatternSlotClipboard(
+            clipboard,
+            toTrackIDs: [trackID],
+            slotIndexes: [slotIndex],
+            targetScope: .singleTrack
+        ) else {
+            return
+        }
+        session.batch(impact: .fullEngineApply, changed: .full) { store in
+            _ = store.replaceProject(project)
+        }
     }
 
     @ViewBuilder

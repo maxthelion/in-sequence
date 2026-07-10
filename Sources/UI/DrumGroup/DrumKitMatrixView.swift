@@ -90,6 +90,15 @@ struct ExpandedSoundPresetTarget: Identifiable {
     var id: UUID { memberID }
 }
 
+struct DrumKitDocumentEditTargetRevision: Equatable {
+    var sessionRevision: UInt64
+    var selectedStepMemberID: UUID?
+    var selectedStepIndexes: Set<Int>
+    var patternSlotIndexes: Set<Int>
+    var patternIsPrompting: Bool
+    var isCaptureOpen: Bool
+}
+
 enum DrumKitMatrixLayer: String, CaseIterable, Identifiable {
     case steps
     case velocity
@@ -275,11 +284,11 @@ struct DrumKitMatrixView: View {
     /// Transient UI state; expanding does not change link/pattern state.
     @State var expandedPartID: UUID?
     /// Secondary-click step selection is scoped to one drum part at a time.
-    /// The selection and clipboard are transient editor state, shared by the
-    /// compact and expanded presentations of that part.
+    /// The selection is transient editor state, shared by the compact and
+    /// expanded presentations of that part. Clipboard ownership is document-
+    /// session global through `DocumentEditCommandController`.
     @State var selectedStepMemberID: UUID?
     @State var selectedDrumStepIndexes: Set<Int> = []
-    @State var drumStepClipboard: StepClipboard?
     /// Selected mini-tab inside the expanded row's inline detail panel.
     @State var expandedRowTab: DrumKitRowTab = .stepsClip
     /// "+ FX" picker target for the expanded part's per-track FX chain (AC21
@@ -446,6 +455,18 @@ struct DrumKitMatrixView: View {
             guard let command = notification.object as? String else { return }
             applyVisualCommand(command)
         }
+        .documentEditTarget(
+            isActive: !isCaptureOpen,
+            revision: DrumKitDocumentEditTargetRevision(
+                sessionRevision: session.revision,
+                selectedStepMemberID: selectedStepMemberID,
+                selectedStepIndexes: selectedDrumStepIndexes,
+                patternSlotIndexes: patternTemplateTargets.slotIndexes,
+                patternIsPrompting: patternTemplateTargets.isPrompting,
+                isCaptureOpen: isCaptureOpen
+            ),
+            makeTarget: makeDocumentEditTarget
+        )
     }
 
     private var content: some View {
@@ -655,12 +676,12 @@ struct DrumKitMatrixView: View {
 
                 barPager(model)
 
-                StepGridBatchActionBar(
-                    hasSelection: selectedDrumRow(in: model) != nil && !selectedDrumStepIndexes.isEmpty,
-                    canPaste: drumStepClipboard != nil,
-                    onClear: { clearSelectedDrumSteps(in: model) },
-                    onCopy: { copySelectedDrumSteps(in: model) },
-                    onPaste: { pasteDrumStepClipboard(in: model) }
+                StudioCommandButton(
+                    title: "Erase",
+                    systemImage: "trash",
+                    isEnabled: selectedDrumRow(in: model) != nil && !selectedDrumStepIndexes.isEmpty,
+                    help: "Erase selected drum steps",
+                    action: { eraseSelectedDrumSteps(in: model) }
                 )
 
                 Spacer(minLength: 0)

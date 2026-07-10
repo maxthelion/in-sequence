@@ -1,5 +1,24 @@
 import Foundation
 
+struct PatternSlotClipboard: Equatable, Sendable {
+    enum Scope: Equatable, Sendable {
+        case singleTrack
+        case drumKit
+    }
+
+    struct Item: Equatable, Sendable {
+        var voiceTag: VoiceTag?
+        var trackType: TrackType
+        var name: String?
+        var sourceRef: SourceRef
+        var clips: [ClipPoolEntry]
+        var generators: [GeneratorPoolEntry]
+    }
+
+    var scope: Scope
+    var items: [Item]
+}
+
 extension Project {
     @discardableResult
     mutating func setPerformanceTrackGroup(slotIndex: Int, memberIDs: Set<UUID>) -> PerformanceTrackGroup? {
@@ -358,5 +377,194 @@ extension Project {
             trackType: template.trackType,
             content: template.content
         )
+    }
+}
+
+extension Project {
+    func detachedPatternSlotClipboard(
+        trackIDs: [UUID],
+        slotIndex: Int,
+        scope: PatternSlotClipboard.Scope
+    ) -> PatternSlotClipboard? {
+        guard (0..<TrackPatternBank.slotCount).contains(slotIndex),
+              !trackIDs.isEmpty,
+              scope == .drumKit || trackIDs.count == 1
+        else {
+            return nil
+        }
+
+        let resolvedTracks = trackIDs.compactMap { trackID in
+            tracks.first(where: { $0.id == trackID })
+        }
+        guard resolvedTracks.count == trackIDs.count else { return nil }
+
+        var items: [PatternSlotClipboard.Item] = []
+        for track in resolvedTracks {
+            guard let bank = patternBanks.first(where: { $0.trackID == track.id }) else {
+                return nil
+            }
+            let slot = bank.slot(at: slotIndex)
+            let clipIDs = Self.orderedUniqueIDs([
+                slot.sourceRef.clipID,
+                slot.sourceRef.sourceClipID,
+            ])
+            let generatorIDs = Self.orderedUniqueIDs([
+                slot.sourceRef.generatorID,
+                slot.sourceRef.modifierGeneratorID,
+            ])
+            let clips = clipIDs.compactMap { id in clipPool.first(where: { $0.id == id }) }
+            let generators = generatorIDs.compactMap { id in generatorPool.first(where: { $0.id == id }) }
+            guard clips.count == clipIDs.count, generators.count == generatorIDs.count else {
+                return nil
+            }
+
+            items.append(
+                PatternSlotClipboard.Item(
+                    voiceTag: track.voiceTag,
+                    trackType: track.trackType,
+                    name: slot.name,
+                    sourceRef: slot.sourceRef,
+                    clips: clips,
+                    generators: generators
+                )
+            )
+        }
+
+        return PatternSlotClipboard(scope: scope, items: items)
+    }
+
+    func canPastePatternSlotClipboard(
+        _ clipboard: PatternSlotClipboard,
+        toTrackIDs trackIDs: [UUID],
+        slotIndexes: Set<Int>,
+        targetScope: PatternSlotClipboard.Scope
+    ) -> Bool {
+        guard clipboard.scope == targetScope,
+              !slotIndexes.isEmpty,
+              slotIndexes.allSatisfy({ (0..<TrackPatternBank.slotCount).contains($0) })
+        else {
+            return false
+        }
+        return patternClipboardDestinations(clipboard, trackIDs: trackIDs) != nil
+    }
+
+    @discardableResult
+    mutating func pastePatternSlotClipboard(
+        _ clipboard: PatternSlotClipboard,
+        toTrackIDs trackIDs: [UUID],
+        slotIndexes: Set<Int>,
+        targetScope: PatternSlotClipboard.Scope
+    ) -> Bool {
+        guard clipboard.scope == targetScope,
+              let destinations = patternClipboardDestinations(clipboard, trackIDs: trackIDs),
+              !slotIndexes.isEmpty,
+              slotIndexes.allSatisfy({ (0..<TrackPatternBank.slotCount).contains($0) })
+        else {
+            return false
+        }
+
+        for slotIndex in slotIndexes.sorted() {
+            for destination in destinations {
+                guard let bankIndex = patternBanks.firstIndex(where: { $0.trackID == destination.trackID }) else {
+                    return false
+                }
+                let clonedSlot = clonedPatternSlot(
+                    from: destination.item,
+                    destinationSlotIndex: slotIndex
+                )
+                patternBanks[bankIndex].setSlot(clonedSlot, at: slotIndex)
+            }
+        }
+        return true
+    }
+
+    private func patternClipboardDestinations(
+        _ clipboard: PatternSlotClipboard,
+        trackIDs: [UUID]
+    ) -> [(item: PatternSlotClipboard.Item, trackID: UUID)]? {
+        guard !clipboard.items.isEmpty else { return nil }
+        switch clipboard.scope {
+        case .singleTrack:
+            guard clipboard.items.count == 1, trackIDs.count == 1 else { return nil }
+        case .drumKit:
+            guard clipboard.items.count == trackIDs.count, !trackIDs.isEmpty else { return nil }
+        }
+
+        let destinationTracks = trackIDs.compactMap { trackID in
+            tracks.first(where: { $0.id == trackID })
+        }
+        guard destinationTracks.count == trackIDs.count,
+              destinationTracks.allSatisfy({ track in
+                  patternBanks.contains(where: { $0.trackID == track.id })
+              })
+        else {
+            return nil
+        }
+
+        let orderedItems: [PatternSlotClipboard.Item]
+        if clipboard.scope == .drumKit,
+           clipboard.items.allSatisfy({ $0.voiceTag != nil }),
+           Set(clipboard.items.compactMap(\.voiceTag)).count == clipboard.items.count,
+           destinationTracks.allSatisfy({ $0.voiceTag != nil }) {
+            let itemsByTag = Dictionary(uniqueKeysWithValues: clipboard.items.compactMap { item in
+                item.voiceTag.map { ($0, item) }
+            })
+            guard destinationTracks.allSatisfy({ itemsByTag[$0.voiceTag ?? ""] != nil }) else {
+                return nil
+            }
+            orderedItems = destinationTracks.compactMap { itemsByTag[$0.voiceTag ?? ""] }
+        } else {
+            orderedItems = clipboard.items
+        }
+
+        guard zip(orderedItems, destinationTracks).allSatisfy({ item, track in
+            item.trackType == track.trackType
+        }) else {
+            return nil
+        }
+
+        return zip(orderedItems, destinationTracks).map { item, track in
+            (item: item, trackID: track.id)
+        }
+    }
+
+    private mutating func clonedPatternSlot(
+        from item: PatternSlotClipboard.Item,
+        destinationSlotIndex: Int
+    ) -> TrackPatternSlot {
+        var clipIDMap: [UUID: UUID] = [:]
+        for sourceClip in item.clips {
+            var clone = sourceClip
+            clone.id = UUID()
+            clipIDMap[sourceClip.id] = clone.id
+            clipPool.append(clone)
+        }
+
+        var generatorIDMap: [UUID: UUID] = [:]
+        for sourceGenerator in item.generators {
+            var clone = sourceGenerator
+            clone.id = UUID()
+            generatorIDMap[sourceGenerator.id] = clone.id
+            generatorPool.append(clone)
+        }
+
+        var sourceRef = item.sourceRef
+        sourceRef.clipID = sourceRef.clipID.flatMap { clipIDMap[$0] }
+        sourceRef.sourceClipID = sourceRef.sourceClipID.flatMap { clipIDMap[$0] }
+        sourceRef.generatorID = sourceRef.generatorID.flatMap { generatorIDMap[$0] }
+        sourceRef.modifierGeneratorID = sourceRef.modifierGeneratorID.flatMap { generatorIDMap[$0] }
+        return TrackPatternSlot(
+            slotIndex: destinationSlotIndex,
+            name: item.name,
+            sourceRef: sourceRef
+        )
+    }
+
+    private static func orderedUniqueIDs(_ ids: [UUID?]) -> [UUID] {
+        var seen: Set<UUID> = []
+        return ids.compactMap { id in
+            guard let id, seen.insert(id).inserted else { return nil }
+            return id
+        }
     }
 }

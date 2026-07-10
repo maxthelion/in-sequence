@@ -59,6 +59,41 @@ final class DrumKitMatrixEditingTests: XCTestCase {
         XCTAssertNil(DrumKitVisualCommand(rawValue: "select-step:bad:2"))
     }
 
+    func test_stepClipboardPasteMapsOnlyToSelectedWritableSteps() {
+        let first = StepClipboardEntry(
+            active: true,
+            velocity: 96,
+            length: .steps(2),
+            chance: 0.75,
+            macroOverrides: [:],
+            sliceIndex: nil,
+            sliceMode: nil
+        )
+        let second = StepClipboardEntry(
+            active: false,
+            velocity: nil,
+            length: .natural,
+            chance: nil,
+            macroOverrides: [:],
+            sliceIndex: nil,
+            sliceMode: nil
+        )
+        let clipboard = StepClipboard(
+            sourceClipID: UUID(),
+            steps: [1: first, 6: second]
+        )
+
+        let destinations = DrumKitStepClipboardTransfer.destinations(
+            clipboard: clipboard,
+            selectedStepIndexes: [3, 7, 99],
+            writableStepIndexes: 0..<8
+        )
+
+        XCTAssertEqual(destinations.map(\.stepIndex), [3, 7])
+        XCTAssertEqual(destinations.map(\.entry), [first, second])
+        XCTAssertFalse(destinations.contains(where: { $0.stepIndex == 99 }))
+    }
+
     // MARK: - Helpers
 
     private final class DocumentBox {
