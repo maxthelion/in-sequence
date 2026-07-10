@@ -571,6 +571,17 @@ enum VisualScenarioCommandRunner {
         applyLibraryCommand(command: command, section: section, session: session)
         applyWorkspaceScrollCommand(command: command)
 
+        switch command["documentEditCommand"] {
+        case "copy":
+            _ = session.documentEditCommands.copy()
+        case "paste":
+            _ = session.documentEditCommands.paste()
+        case "clear", "clear-selection":
+            _ = session.documentEditCommands.clearSelection()
+        default:
+            break
+        }
+
         switch command["transport"] {
         case "play":
             engineController.start()
@@ -1182,6 +1193,10 @@ enum VisualScenarioCommandRunner {
         performScopeCount=\(session.performTrackScope.count)
         tracksSelectionMode=\(session.tracksSelectionMode ? "on" : "off")
         tracksSelectionCount=\(session.tracksSelection.count)
+        documentEditCanCopy=\(session.documentEditCommands.availability.canCopy)
+        documentEditCanPaste=\(session.documentEditCommands.availability.canPaste)
+        documentEditCanClear=\(session.documentEditCommands.availability.canClear)
+        documentEditClipboardDomain=\(session.documentEditCommands.clipboardPayload?.domain.rawValue ?? "none")
         quantisePending=\(quantisePendingStatus(session: session, engineController: engineController))
         quantiseFillCueActive=\(quantiseFillCueActiveStatus(session: session, engineController: engineController))
         transport=\(engineController.isRunning ? "play" : "stop")

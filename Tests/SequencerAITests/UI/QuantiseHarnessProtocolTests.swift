@@ -109,6 +109,32 @@ final class QuantiseHarnessProtocolTests: XCTestCase {
         )
     }
 
+    func test_statusEmitsDocumentEditAvailabilityAndClipboardDomain() throws {
+        let fixture = makeFixture()
+        let controller = fixture.session.documentEditCommands
+        controller.register(
+            target: .init(
+                canCopy: { true },
+                canClear: { true },
+                isPasteCompatible: { $0.domain == .tracks },
+                copy: { .init(domain: .tracks, snapshot: [UUID()]) },
+                paste: { _ in },
+                clearSelection: {}
+            )
+        )
+
+        var status = try statusDictionary(fixture: fixture)
+        XCTAssertEqual(status["documentEditCanCopy"], "true")
+        XCTAssertEqual(status["documentEditCanPaste"], "false")
+        XCTAssertEqual(status["documentEditCanClear"], "true")
+        XCTAssertEqual(status["documentEditClipboardDomain"], "none")
+
+        XCTAssertTrue(controller.copy())
+        status = try statusDictionary(fixture: fixture)
+        XCTAssertEqual(status["documentEditCanPaste"], "true")
+        XCTAssertEqual(status["documentEditClipboardDomain"], "tracks")
+    }
+
     func test_trackFillEngagedCommandWritesSelectedPhraseFillFlagAndStatus() throws {
         let fixture = makeFixture()
         let track = fixture.session.store.selectedTrack
