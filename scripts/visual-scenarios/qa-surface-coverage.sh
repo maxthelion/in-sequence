@@ -73,6 +73,8 @@ app_crash_after=""
 scenario_status="started; no captures completed yet"
 visual_command_sequence=0
 last_visual_command_id=""
+drum_matrix_mounted=false
+drum_matrix_fixture=""
 
 # ---------------------------------------------------------------------------
 # Capture table. Fields separated by |, newlines in payload encoded as ;
@@ -349,40 +351,52 @@ transport=stop"
     wait_for_status "phraseGlobalApplyTrackSelectorVisible" "false" 10
   fi
 
-  if [[ "$name" == *drum-kit-matrix* ]] &&
-     [[ "$payload" != *"drumKitMatrixCommand=openRouting"* ]] &&
-     [[ "$payload" != *"drumKitMatrixCommand=open-routing"* ]]; then
-    write_visual_command "windowFrame=$WB
-drumKitMatrixCommand=closeRouting
-transport=stop"
-    wait_for_visual_command_ack 10
-    wait_for_status "drumKitMatrixRenderedRoutingEditorVisible" "false" 10
-  fi
+  if [[ "$payload" == *"drumPartHeaderOpenKitView=true"* ]]; then
+    local requested_fixture
+    requested_fixture="$(printf '%s\n' "$payload" | awk -F= '$1 == "drumKitMatrixFixture" { print $2; exit }')"
+    if [ -z "$requested_fixture" ]; then
+      requested_fixture="${drum_matrix_fixture:-default}"
+    fi
 
-  if [[ "$name" == *drum-kit-matrix* ]] &&
-     [[ "$payload" == *"drumPartHeaderOpenKitView=true"* ]]; then
     local prime_payload="drumPartHeaderFixture=kit
 drumPartHeaderOpenKitView=true
 transport=stop"
-    if [[ "$payload" == *"drumKitMatrixFixture=generatorAndReadOnly"* ]]; then
+    if [ "$requested_fixture" = "generatorAndReadOnly" ]; then
       prime_payload="drumPartHeaderFixture=kit
 drumKitMatrixFixture=generatorAndReadOnly
 drumPartHeaderOpenKitView=true
 transport=stop"
-    elif [[ "$payload" == *"drumKitMatrixFixture=mixed"* ]]; then
+    elif [ "$requested_fixture" = "mixed" ]; then
       prime_payload="drumPartHeaderFixture=kit
 drumKitMatrixFixture=mixed
 drumPartHeaderOpenKitView=true
 transport=stop"
     fi
 
-    write_visual_command "windowFrame=$WB
+    if [ "$drum_matrix_mounted" = true ] && [ "$drum_matrix_fixture" = "$requested_fixture" ]; then
+      write_visual_command "windowFrame=$WB
+drumKitMatrixCommand=reset-for-capture
+transport=stop"
+      wait_for_visual_command_ack 10
+    else
+      write_visual_command "windowFrame=$WB
 $prime_payload"
-    # This primer opens/rebuilds the kit matrix. Wait for it before writing the
-    # row command; otherwise two near-identical file updates can race the
-    # command watcher and leave the row one visualCommandID behind.
-    wait_for_visual_command_ack 25 || true
-    sleep 0.8
+      # Mount once per fixture. The row payload below deliberately omits the
+      # fixture/open keys so it cannot trigger a second rebuild.
+      if wait_for_visual_command_ack 25; then
+        drum_matrix_mounted=true
+        drum_matrix_fixture="$requested_fixture"
+        sleep "$default_settle_seconds"
+      fi
+    fi
+
+    if [ "$drum_matrix_mounted" = true ] && [ "$drum_matrix_fixture" = "$requested_fixture" ]; then
+      payload="$(printf '%s\n' "$payload" | awk -F= '
+        $1 != "drumPartHeaderFixture" &&
+        $1 != "drumKitMatrixFixture" &&
+        $1 != "drumPartHeaderOpenKitView"
+      ')"
+    fi
   fi
 
   local wait_failed=false

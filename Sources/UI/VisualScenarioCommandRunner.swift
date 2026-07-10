@@ -2027,6 +2027,8 @@ enum VisualScenarioCommandRunner {
         else { return }
 
         switch command["drumKitMatrixCommand"] {
+        case "resetForCapture", "reset-for-capture":
+            resetDrumKitMatrixCaptureSurface()
         case "display16", "display-16":
             drumKitMatrixDisplayStepCount = 16
             NotificationCenter.default.post(name: .drumKitMatrixVisualCommand, object: "display-16")
@@ -2230,30 +2232,7 @@ enum VisualScenarioCommandRunner {
             // stale open-routing / row-tab does not bleed into this row's
             // freshly-mounted matrix. The current row's kit commands are
             // appended after this reset (applyDrumKitMatrixCommand runs later).
-            pendingDrumKitMatrixCommands = []
-            // Invalidate any still-in-flight async re-post Tasks a PRIOR row
-            // scheduled (29d's `open-kit-fx-chooser` re-asserts run for ~1.5s
-            // and would otherwise re-open the chooser AFTER the close below).
-            // applyDrumKitMatrixCommand (called later this apply) captures the
-            // bumped epoch for THIS row's own re-posts.
-            drumKitMatrixCommandEpoch += 1
-            NotificationCenter.default.post(name: .drumKitMatrixVisualCommand, object: "close-routing")
-            NotificationCenter.default.post(name: .drumKitMatrixVisualCommand, object: "close-kit-fx-chooser")
-            NotificationCenter.default.post(name: .drumKitMatrixVisualCommand, object: "close-capture")
-            NotificationCenter.default.post(name: .drumKitMatrixVisualCommand, object: "collapse-row")
-            NotificationCenter.default.post(name: .drumKitMatrixVisualCommand, object: "tab-matrix")
-            drumKitMatrixRoutingEditorVisualState = false
-            drumKitMatrixRenderedRoutingEditorState = false
-            drumGroupRoutingEditorRenderedState = false
-            drumGroupRoutingEditorMode = "none"
-            drumKitMatrixRenderedKitFXChooserVisible = false
-            drumKitMatrixRenderedCaptureOpen = false
-            drumKitMatrixRenderedSaveSlotPickerVisible = false
-            drumKitMatrixRenderedHistoryCellCount = 0
-            drumKitMatrixRenderedRowExpanded = false
-            drumKitMatrixRenderedExpandedRowTab = "none"
-            drumKitMatrixRenderedExpandedSourceMode = "none"
-            drumKitMatrixRenderedKitTab = "none"
+            resetDrumKitMatrixCaptureSurface()
             let model = DrumPartWorkspaceHeaderModel(
                 selectedTrack: session.store.selectedTrack,
                 tracks: session.store.tracks,
@@ -2280,6 +2259,40 @@ enum VisualScenarioCommandRunner {
                 applyDrumKitMatrixMutation(mutation, session: session)
             }
         }
+    }
+
+    /// Return an already-mounted kit matrix to its neutral capture state
+    /// without rebuilding its fixture or navigating away and back. Adjacent QA
+    /// rows use this to keep one matrix mounted while still preventing sheets,
+    /// expanded rows, and late repeated commands from leaking between images.
+    private static func resetDrumKitMatrixCaptureSurface() {
+        pendingDrumKitMatrixCommands = []
+        drumKitMatrixCommandEpoch += 1
+        for command in [
+            "close-routing",
+            "close-kit-fx-chooser",
+            "close-template-chooser",
+            "close-capture",
+            "collapse-row",
+            "tab-matrix",
+            "fill-mode:normal",
+            "bar:0"
+        ] {
+            NotificationCenter.default.post(name: .drumKitMatrixVisualCommand, object: command)
+        }
+        drumKitMatrixRoutingEditorVisualState = false
+        drumKitMatrixRenderedRoutingEditorState = false
+        drumGroupRoutingEditorRenderedState = false
+        drumGroupRoutingEditorMode = "none"
+        drumKitMatrixRenderedKitFXChooserVisible = false
+        drumKitMatrixRenderedTemplateChooserState = false
+        drumKitMatrixRenderedCaptureOpen = false
+        drumKitMatrixRenderedSaveSlotPickerVisible = false
+        drumKitMatrixRenderedHistoryCellCount = 0
+        drumKitMatrixRenderedRowExpanded = false
+        drumKitMatrixRenderedExpandedRowTab = "none"
+        drumKitMatrixRenderedExpandedSourceMode = "none"
+        drumKitMatrixRenderedKitTab = "none"
     }
 
     /// Drives the Steps/Clip/Sound/FX/Macros/Mixer tab on the track editor
