@@ -142,12 +142,7 @@ struct TrackSourceEditorView: View {
     private var selectedPattern: TrackPatternSlot { bank.slot(at: selectedPatternIndex) }
     private var occupiedPatternSlots: Set<Int> {
         Set(bank.slots.compactMap { slot in
-            guard let clip = session.store.clipEntry(id: slot.sourceRef.clipID),
-                  !clipIsEmpty(clip.content)
-            else {
-                return nil
-            }
-            return slot.slotIndex
+            slot.sourceRef.isEmpty ? nil : slot.slotIndex
         })
     }
     private var selectedSourceMode: TrackSourceMode { selectedPattern.sourceRef.mode }
@@ -1119,8 +1114,8 @@ struct TrackSourceEditorView: View {
         }
 
         showClipHistoryToast("Saved capture to P\(slotIndex + 1)")
-        resetClipHistoryDestinationMode()
-        refreshClipHistoryModel()
+        resetClipHistoryModel()
+        selectedTab = .stepsClip
     }
 
     private func resetClipHistoryModel() {

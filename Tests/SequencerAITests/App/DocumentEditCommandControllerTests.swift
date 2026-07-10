@@ -364,6 +364,74 @@ final class DocumentEditCommandControllerTests: XCTestCase {
         XCTAssertTrue(selection.isEmpty)
     }
 
+    func testPhraseCellSelectionToggleContractAppliesToEveryLayerType() {
+        let phraseID = UUID()
+        let firstTrackID = UUID()
+        let secondTrackID = UUID()
+
+        for layerID in ["mute", "pattern", "velocity"] {
+            var selection = PhraseCellDocumentSelection()
+
+            selection.applySelectionGesture(
+                .singleSelection,
+                phraseID: phraseID,
+                layerID: layerID,
+                trackID: firstTrackID
+            )
+            XCTAssertTrue(selection.contains(firstTrackID), "Secondary click should start a one-cell \(layerID) selection")
+
+            selection.applySelectionGesture(
+                .singleSelection,
+                phraseID: phraseID,
+                layerID: layerID,
+                trackID: firstTrackID
+            )
+            XCTAssertTrue(selection.isEmpty, "Secondary click should toggle off a sole \(layerID) selection")
+
+            selection.applySelectionGesture(
+                .singleSelection,
+                phraseID: phraseID,
+                layerID: layerID,
+                trackID: firstTrackID
+            )
+            selection.applySelectionGesture(
+                .additiveToggle,
+                phraseID: phraseID,
+                layerID: layerID,
+                trackID: secondTrackID
+            )
+            XCTAssertEqual(selection.count, 2, "Shift-click should additively toggle \(layerID) cells on")
+
+            selection.applySelectionGesture(
+                .additiveToggle,
+                phraseID: phraseID,
+                layerID: layerID,
+                trackID: firstTrackID
+            )
+            XCTAssertFalse(selection.contains(firstTrackID), "Shift-click should additively toggle \(layerID) cells off")
+            XCTAssertTrue(selection.contains(secondTrackID))
+
+            selection.applySelectionGesture(
+                .singleSelection,
+                phraseID: phraseID,
+                layerID: layerID,
+                trackID: firstTrackID
+            )
+            XCTAssertTrue(selection.contains(firstTrackID), "Secondary click should replace a \(layerID) selection")
+            XCTAssertFalse(selection.contains(secondTrackID))
+
+            selection.applySelectionGesture(
+                .additiveToggle,
+                phraseID: phraseID,
+                layerID: layerID,
+                trackID: firstTrackID
+            )
+            XCTAssertTrue(selection.isEmpty)
+            XCTAssertNil(selection.phraseID)
+            XCTAssertNil(selection.layerID)
+        }
+    }
+
     private func makeTarget(
         canCopy: @escaping () -> Bool = { true },
         canClear: @escaping () -> Bool = { false },

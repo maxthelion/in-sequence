@@ -253,6 +253,9 @@ struct DrumKitMatrixView: View {
     @State var isPresentingRoutingEditor = false
     @State var isPresentingTemplateChooser = false
     @State var patternTemplateTargets = DrumKitPatternTargetSelection()
+    /// The pattern being inspected/edited. Playback is resolved independently
+    /// from the phrase playhead and rendered as the palette's bottom rail.
+    @State var displayedPatternSlotIndex: Int? = nil
     /// Which kit-bus tab is shown (Matrix · FX · Macros · Mixer). Ignored while
     /// `isCaptureOpen` is true — Capture replaces the tab body (AC14 header).
     @State var kitTab: DrumKitTab = .matrix
@@ -315,6 +318,7 @@ struct DrumKitMatrixView: View {
             trackGroups: session.store.trackGroups,
             layers: session.store.layers,
             selectedPhrase: session.store.selectedPhrase,
+            displayedPatternSlotIndex: displayedPatternSlotIndex,
             patternBanks: Array(session.store.patternBanksByTrackID.values),
             clipPool: session.store.clipPool,
             generatorPool: session.store.generatorPool

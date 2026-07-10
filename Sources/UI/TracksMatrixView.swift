@@ -283,8 +283,8 @@ struct TracksMatrixView: View {
         )
         // The top-nav pill already names this page; the panel renders no
         // header of its own (ux-canon rule 1). This is a plain navigator —
-        // tap a tile to open it (selection OFF), or build a multi-selection
-        // for the actions nav (selection ON). No perform chrome lives here.
+        // Tap a tile to open it; secondary click or Shift-tap builds a
+        // multi-selection for the actions nav. No perform chrome lives here.
         VStack(alignment: .leading, spacing: 18) {
             StudioPanel(
                 title: "Tracks",
@@ -638,22 +638,30 @@ struct TracksMatrixView: View {
         )
     }
 
-    private func selectTrackForActions(_ trackID: UUID, additive: Bool = false) {
-        session.tracksSelectionMode = true
-        if !additive {
-            session.tracksSelection.removeAll()
-        }
-        session.tracksSelection.insert(trackID)
-        session.setSelectedTrackID(trackID)
+    private func applyTrackSelection(
+        _ trackID: UUID,
+        gesture: StudioSelectionGesture
+    ) {
+        applyTracksSelection([trackID], gesture: gesture)
     }
 
-    private func selectTracksForActions(_ trackIDs: [UUID], additive: Bool = false) {
+    private func applyTracksSelection(
+        _ trackIDs: [UUID],
+        gesture: StudioSelectionGesture
+    ) {
         guard let firstTrackID = trackIDs.first else { return }
-        session.tracksSelectionMode = true
-        if !additive {
+        let nextSelection = gesture.selection(
+            targeting: Set(trackIDs),
+            in: session.tracksSelection
+        )
+
+        if nextSelection.isEmpty {
             session.tracksSelection.removeAll()
+            session.tracksSelectionMode = false
+        } else {
+            session.tracksSelectionMode = true
+            session.tracksSelection = nextSelection
         }
-        trackIDs.forEach { session.tracksSelection.insert($0) }
         session.setSelectedTrackID(firstTrackID)
     }
 
@@ -735,8 +743,8 @@ struct TracksMatrixView: View {
             isFocused: section.members.contains { $0.id == selectedTrackID },
             isSelectionMode: session.tracksSelectionMode,
             isSelected: kitSelected,
-            onSelectKit: {
-                selectTracksForActions(memberIDs, additive: kitSelected)
+            onSelectKit: { gesture in
+                applyTracksSelection(memberIDs, gesture: gesture)
             },
             onAddPart: {
                 if let createdID = session.addDefaultDrumPart(groupID: section.group.id) {
@@ -745,11 +753,7 @@ struct TracksMatrixView: View {
                 }
             },
             onOpenKit: {
-                if session.tracksSelectionMode {
-                    session.toggleTracksSelected(memberIDs)
-                } else if NSApp.currentEvent?.modifierFlags.contains(.shift) == true {
-                    selectTracksForActions(memberIDs, additive: !session.tracksSelection.isEmpty)
-                } else if let representativeTrackID {
+                if let representativeTrackID {
                     session.setSelectedTrackID(representativeTrackID)
                     onOpenTrack()
                 }
@@ -773,18 +777,12 @@ struct TracksMatrixView: View {
             isFocused: track.id == selectedTrackID,
             isSelectionMode: session.tracksSelectionMode,
             isSelected: session.tracksSelection.contains(track.id),
-            onContextSelect: {
-                selectTrackForActions(track.id, additive: session.tracksSelection.contains(track.id))
+            onSelect: { gesture in
+                applyTrackSelection(track.id, gesture: gesture)
             }
         ) {
-            if session.tracksSelectionMode {
-                session.toggleTrackSelected(track.id)
-            } else if NSApp.currentEvent?.modifierFlags.contains(.shift) == true {
-                selectTrackForActions(track.id, additive: !session.tracksSelection.isEmpty)
-            } else {
-                session.setSelectedTrackID(track.id)
-                onOpenTrack()
-            }
+            session.setSelectedTrackID(track.id)
+            onOpenTrack()
         }
     }
 
@@ -831,7 +829,7 @@ private struct KitMatrixCard: View {
     let isFocused: Bool
     var isSelectionMode: Bool = false
     var isSelected: Bool = false
-    let onSelectKit: () -> Void
+    let onSelectKit: (StudioSelectionGesture) -> Void
     let onAddPart: () -> Void
     let onOpenKit: () -> Void
     let onToggleExpand: () -> Void
@@ -920,8 +918,8 @@ private struct KitMatrixCard: View {
         )
         .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
         .onTapGesture(perform: onOpenKit)
-        .studioSelectOnRightClick {
-            onSelectKit()
+        .studioSelectionGesture { gesture in
+            onSelectKit(gesture)
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(group.name)
@@ -1129,7 +1127,7 @@ private struct TrackMatrixCard: View {
     let isFocused: Bool
     var isSelectionMode: Bool = false
     var isSelected: Bool = false
-    let onContextSelect: () -> Void
+    let onSelect: (StudioSelectionGesture) -> Void
     let onTap: () -> Void
 
     // Identity hue (bug 20260629-100436): a grouped part shares its kit's hue so
@@ -1179,8 +1177,8 @@ private struct TrackMatrixCard: View {
         .onTapGesture {
             onTap()
         }
-        .studioSelectOnRightClick {
-            onContextSelect()
+        .studioSelectionGesture { gesture in
+            onSelect(gesture)
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(track.name)
