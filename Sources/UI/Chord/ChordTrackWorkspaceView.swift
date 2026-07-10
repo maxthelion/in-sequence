@@ -387,7 +387,7 @@ struct ChordTrackWorkspaceView: View {
                     set: { updateProgressionScale($0) }
                 ),
                 segments: configScaleIDs.map { scaleID in
-                    StudioSegment(title: Scale.for(id: scaleID)?.name ?? scaleID.rawValue, value: scaleID)
+                    StudioSegment(title: configScaleLabel(scaleID), value: scaleID)
                 },
                 accent: accent,
                 layout: .init(fillsWidth: true, minWidth: 80, horizontalPadding: 5, minimumScaleFactor: 0.72)
@@ -405,6 +405,12 @@ struct ChordTrackWorkspaceView: View {
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.section, style: .continuous)
                 .stroke(accent.opacity(StudioOpacity.accentStroke), lineWidth: StudioMetrics.borderWidth)
         )
+    }
+
+    private func configScaleLabel(_ scaleID: ScaleID) -> String {
+        scaleID == .minorPentatonic
+            ? "Min. Pent."
+            : Scale.for(id: scaleID)?.name ?? scaleID.rawValue
     }
 
     private var progressionChooserPanel: some View {
