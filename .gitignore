@@ -33,8 +33,7 @@ Pods/
 !.meta/multipass/multipass.yaml
 !.meta/multipass/config/
 !.meta/multipass/config/**
-!.meta/multipass/state/
-!.meta/multipass/state/**
+.meta/multipass/state/
 .meta/multipass/visual-review/
 !.meta/multipass/visual-review/
 .meta/multipass/visual-review/*
