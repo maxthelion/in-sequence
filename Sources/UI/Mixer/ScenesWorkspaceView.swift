@@ -586,9 +586,12 @@ struct ScenesWorkspaceView: View {
                 .onMove(perform: moveInserts)
             }
             .listStyle(.plain)
+            .scrollIndicators(.never)
             .scrollContentBackground(.hidden)
-            .background(StudioAttachedVerticalScrollChrome())
             .frame(height: insertListHeight)
+            // Keep List's native scrolling and onMove semantics, but attach
+            // the studio thumb to this fixed insert viewport only.
+            .background(StudioAttachedVerticalScrollChrome())
 
             // Add-FX tile beneath the inserts (same dashed plus-tile grammar as
             // the empty state and the rest of the app).

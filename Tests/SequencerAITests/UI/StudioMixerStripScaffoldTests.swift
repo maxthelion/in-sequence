@@ -94,6 +94,44 @@ final class StudioMixerStripScaffoldTests: XCTestCase {
         )
     }
 
+    func test_scrollChromeDiscoveryChoosesNestedListOverOuterWorkspace() {
+        let target = NSRect(x: 320, y: 140, width: 320, height: 360)
+        let outerWorkspace = NSRect(x: 24, y: 24, width: 1_040, height: 720)
+        let listViewport = NSRect(x: 320, y: 140, width: 320, height: 360)
+
+        XCTAssertEqual(
+            StudioScrollChromeDiscovery.nearestMatchingCandidate(
+                targetRect: target,
+                candidateRects: [outerWorkspace, listViewport]
+            ),
+            1
+        )
+    }
+
+    func test_scrollChromeDiscoveryRejectsNonOverlappingCandidates() {
+        let target = NSRect(x: 320, y: 140, width: 320, height: 360)
+        let unrelated = NSRect(x: 0, y: 0, width: 280, height: 120)
+
+        XCTAssertNil(
+            StudioScrollChromeDiscovery.nearestMatchingCandidate(
+                targetRect: target,
+                candidateRects: [unrelated]
+            )
+        )
+    }
+
+    func test_scrollChromeDiscoveryRejectsOuterWorkspaceWhenListIsNotReady() {
+        let target = NSRect(x: 320, y: 140, width: 320, height: 360)
+        let outerWorkspace = NSRect(x: 24, y: 24, width: 1_040, height: 720)
+
+        XCTAssertNil(
+            StudioScrollChromeDiscovery.nearestMatchingCandidate(
+                targetRect: target,
+                candidateRects: [outerWorkspace]
+            )
+        )
+    }
+
     // MARK: - dB convergence
 
     func test_dBLabelConvergesOnMasterVocabulary() {

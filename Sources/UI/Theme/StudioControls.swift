@@ -175,6 +175,42 @@ enum StudioScrollbarMetrics {
     }
 }
 
+enum StudioScrollChromeDiscovery {
+    /// Returns the candidate whose viewport most closely matches the attached
+    /// SwiftUI view. A List's private scroll view is often a sibling of the
+    /// background representable, so ancestry alone can select the outer
+    /// workspace scroll view instead.
+    static func nearestMatchingCandidate(
+        targetRect: NSRect,
+        candidateRects: [NSRect]
+    ) -> Int? {
+        guard targetRect.width > 0, targetRect.height > 0 else { return nil }
+
+        return candidateRects.enumerated()
+            .filter { _, candidateRect in
+                guard candidateRect.width > 0, candidateRect.height > 0 else { return false }
+                let intersection = candidateRect.intersection(targetRect)
+                let widthDelta = abs(candidateRect.width - targetRect.width)
+                let heightDelta = abs(candidateRect.height - targetRect.height)
+                return !intersection.isNull
+                    && intersection.width >= min(targetRect.width, candidateRect.width) * 0.8
+                    && intersection.height >= min(targetRect.height, candidateRect.height) * 0.8
+                    && widthDelta <= max(32, targetRect.width * 0.2)
+                    && heightDelta <= max(32, targetRect.height * 0.2)
+            }
+            .min { lhs, rhs in
+                geometryDistance(targetRect, lhs.element) < geometryDistance(targetRect, rhs.element)
+            }?.offset
+    }
+
+    private static func geometryDistance(_ targetRect: NSRect, _ candidateRect: NSRect) -> CGFloat {
+        abs(targetRect.minX - candidateRect.minX)
+            + abs(targetRect.maxX - candidateRect.maxX)
+            + abs(targetRect.minY - candidateRect.minY)
+            + abs(targetRect.maxY - candidateRect.maxY)
+    }
+}
+
 struct StudioCustomHorizontalScrollView<Content: View>: NSViewRepresentable {
     private let content: Content
 
@@ -480,6 +516,7 @@ final class StudioScrollChromeAttachmentView: NSView {
 
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
+        postsFrameChangedNotifications = true
         DispatchQueue.main.async { [weak self] in
             self?.attachWhenReady()
         }
@@ -487,23 +524,12 @@ final class StudioScrollChromeAttachmentView: NSView {
 
     func attachWhenReady() {
         guard let window else { return }
-        if scrollView == nil {
-            var candidate = superview
-            while let view = candidate {
-                if let enclosingScrollView = view as? NSScrollView {
-                    attach(to: enclosingScrollView)
-                    updateChrome()
-                    return
-                }
-                candidate = view.superview
-            }
-
-            // SwiftUI may install a `List` background as a sibling of its
-            // private NSScrollView. Match the smallest overlapping scroll
-            // view in this window when ancestry cannot identify it.
-            if let matchingScrollView = matchingScrollView(in: window) {
-                attach(to: matchingScrollView)
-            }
+        // SwiftUI may install a List background as a sibling of its private
+        // NSScrollView. Always compare every visible candidate so an outer
+        // workspace scroll view cannot win merely because it is an ancestor.
+        let candidate = matchingScrollView(in: window)
+        if let candidate, candidate !== scrollView {
+            attach(to: candidate)
         }
         updateChrome()
     }
@@ -534,28 +560,20 @@ final class StudioScrollChromeAttachmentView: NSView {
         if let documentView = scrollView.documentView {
             observe(NSView.frameDidChangeNotification, object: documentView)
         }
+        observeAttachmentFrameChanges()
         updateChrome()
     }
 
     private func matchingScrollView(in window: NSWindow) -> NSScrollView? {
         guard let contentView = window.contentView else { return nil }
         let targetRect = convert(bounds, to: nil)
-        guard targetRect.width > 0, targetRect.height > 0 else { return nil }
-        let targetCenter = NSPoint(x: targetRect.midX, y: targetRect.midY)
-
-        return scrollViews(in: contentView)
-            .filter { candidate in
-                let candidateRect = candidate.convert(candidate.bounds, to: nil)
-                return candidate.window === window
-                    && candidateRect.contains(targetCenter)
-                    && candidateRect.width >= targetRect.width * 0.8
-                    && candidateRect.height >= targetRect.height * 0.8
-            }
-            .min { lhs, rhs in
-                let lhsRect = lhs.convert(lhs.bounds, to: nil)
-                let rhsRect = rhs.convert(rhs.bounds, to: nil)
-                return lhsRect.width * lhsRect.height < rhsRect.width * rhsRect.height
-            }
+        let candidates = scrollViews(in: contentView).filter { $0.window === window }
+        let candidateRects = candidates.map { $0.convert($0.bounds, to: nil) }
+        guard let index = StudioScrollChromeDiscovery.nearestMatchingCandidate(
+            targetRect: targetRect,
+            candidateRects: candidateRects
+        ) else { return nil }
+        return candidates[index]
     }
 
     private func scrollViews(in root: NSView) -> [NSScrollView] {
@@ -576,6 +594,18 @@ final class StudioScrollChromeAttachmentView: NSView {
                 queue: .main
             ) { [weak self] _ in
                 self?.updateChrome()
+            }
+        )
+    }
+
+    private func observeAttachmentFrameChanges() {
+        observers.append(
+            NotificationCenter.default.addObserver(
+                forName: NSView.frameDidChangeNotification,
+                object: self,
+                queue: .main
+            ) { [weak self] _ in
+                self?.attachWhenReady()
             }
         )
     }
