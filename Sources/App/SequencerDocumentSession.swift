@@ -30,6 +30,7 @@ final class SequencerDocumentSession {
     let store: LiveSequencerStore
     let engineController: EngineController
     let snapshotPublisher: SessionSnapshotPublisher
+    let documentEditCommands = DocumentEditCommandController()
     var revision: UInt64 = 0
     var trackFillPreviewState: TrackFillPreviewState = .inactive
     var phrasePerformOverlay = PhrasePerformOverlayState()

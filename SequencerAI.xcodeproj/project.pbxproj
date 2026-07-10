@@ -7,6 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		66DB973FB8944E7C927F4CED /* DocumentEditCommandController.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFFD6ABC1B644809BC6FBE46 /* DocumentEditCommandController.swift */; };
+		72F5DF159021466F8D7FE784 /* TransportDocumentEditCommandTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 576437E07806462CBCEE8125 /* TransportDocumentEditCommandTests.swift */; };
+		F9891280BA224C28846967D5 /* DocumentEditCommandControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71D414AA8A734259B9456CA8 /* DocumentEditCommandControllerTests.swift */; };
 		0070528B27D72E54D9AF6181 /* AlgoPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = B975ACEACBAAF4F6CAEA9886 /* AlgoPreview.swift */; };
 		0077E4E53A46E6D3A4D36087 /* SessionMacroSlotTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B1DBE1A94E5A98378041201 /* SessionMacroSlotTests.swift */; };
 		01E324E638C9160F7D4C2B54 /* TimingProbeReportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7B146024DA530A0A1D00E46 /* TimingProbeReportTests.swift */; };
@@ -612,6 +615,9 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		576437E07806462CBCEE8125 /* TransportDocumentEditCommandTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransportDocumentEditCommandTests.swift; sourceTree = "<group>"; };
+		71D414AA8A734259B9456CA8 /* DocumentEditCommandControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentEditCommandControllerTests.swift; sourceTree = "<group>"; };
+		FFFD6ABC1B644809BC6FBE46 /* DocumentEditCommandController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentEditCommandController.swift; sourceTree = "<group>"; };
 		006D2564FC7B53BBE9D2094C /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		0090AA233C484836881E5A33 /* stale-worktree-branch-cleanup.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "stale-worktree-branch-cleanup.md"; sourceTree = "<group>"; };
 		0097C26CE717B68546B671EB /* TracksMatrixView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TracksMatrixView.swift; sourceTree = "<group>"; };
@@ -3663,6 +3669,7 @@
 				C1D4D208E6008BF470442452 /* AudioRichFixtureTests.swift */,
 				3DDAA6824E1F4946747BDDCC /* AuthorityCompletionTests.swift */,
 				F344B6D0C7393DE8DC4A2A8F /* CreateTrackWithSoundTests.swift */,
+				71D414AA8A734259B9456CA8 /* DocumentEditCommandControllerTests.swift */,
 				8F38EED0B80F1F92C5BF183C /* DebounceSemanticsTests.swift */,
 				AEE5BB6510E7B6DE124C62B2 /* GeneratorBakeSessionTests.swift */,
 				A02F5350AA667365216279FB /* MultiDocumentEngineIsolationTests.swift */,
@@ -4422,6 +4429,7 @@
 				2130F4649C642C3D23A0F342 /* TrackRoutingPathSummaryTests.swift */,
 				D0ED9814F4772023BA0FC68D /* TrackSourceSourceDisplayStateTests.swift */,
 				1A600A820765DFABD27798E4 /* TracksPageInvalidationTests.swift */,
+				576437E07806462CBCEE8125 /* TransportDocumentEditCommandTests.swift */,
 				6F7912BF0F7842228A9D3DDB /* TransportPhraseNavigationPresentationTests.swift */,
 				C04AEE099D6FB9303E4DCB83 /* UIReadsStoreDirectlyTests.swift */,
 				2E4EE5F9164501D8A6E1C39D /* UxCanonLintTests.swift */,
@@ -5991,6 +5999,7 @@
 			children = (
 				38DD2AE8738922C6BAC6342E /* AudioRichFixture.swift */,
 				5FDF991F82BBF57F88DBBD0C /* DevActivityLog.swift */,
+				FFFD6ABC1B644809BC6FBE46 /* DocumentEditCommandController.swift */,
 				4C628A4D3B0C74C813D1B84B /* PhrasePerformOverlayState.swift */,
 				F2BC3CC6385D68B4CC44C164 /* SequencerAIApp.swift */,
 				DDC8B78E1520E54A54C4AA07 /* SequencerAIAppDelegate.swift */,
@@ -7256,6 +7265,7 @@
 				C82C8B203B2D3C1FB02966C4 /* AppDiagnosticEventTests.swift in Sources */,
 				4A33AFFC87916642728CF412 /* AppDiagnosticsTests.swift in Sources */,
 				30CA3FBBAAB964B8C008A690 /* AppSupportBootstrapTests.swift in Sources */,
+				F9891280BA224C28846967D5 /* DocumentEditCommandControllerTests.swift in Sources */,
 				05FA15CE3D3945B8646D3497 /* AudioDeviceSwitchCoordinatorTests.swift in Sources */,
 				F54D9D8F20798C23823EA28F /* AudioFileRefTests.swift in Sources */,
 				4B2D1B510D591955388F3BC0 /* AudioInstrumentChoiceTests.swift in Sources */,
@@ -7505,6 +7515,7 @@
 				7E644B5452556C45E95CE59E /* TrackSourceSourceDisplayStateTests.swift in Sources */,
 				95AF5DC840B4983E9DC22979 /* TrackTypeTests.swift in Sources */,
 				743C9A6E7B10DB1F328845C2 /* TracksPageInvalidationTests.swift in Sources */,
+				72F5DF159021466F8D7FE784 /* TransportDocumentEditCommandTests.swift in Sources */,
 				87CB92062D66D5269A51A25A /* TransportModeTests.swift in Sources */,
 				8905C9C6CCAA9B2BC5160314 /* TransportPhraseNavigationPresentationTests.swift in Sources */,
 				0AC08985C43530B438189884 /* UIReadsStoreDirectlyTests.swift in Sources */,
@@ -7537,6 +7548,7 @@
 				7469A2ECDAFAF848C4F72D02 /* AppDiagnosticEvent.swift in Sources */,
 				8970FA4FE12468FC47E6E588 /* AppDiagnostics.swift in Sources */,
 				D7026E29D862915C2B3D0E97 /* AppSupportBootstrap.swift in Sources */,
+				66DB973FB8944E7C927F4CED /* DocumentEditCommandController.swift in Sources */,
 				60BA921B485848D478F1C9C2 /* AtomicInt.swift in Sources */,
 				FF38CCE557C76B5E6A147E77 /* AudioDeviceCatalog.swift in Sources */,
 				B2C9CFFDA72F0399BEF1CB7B /* AudioDevicePreferenceStore.swift in Sources */,

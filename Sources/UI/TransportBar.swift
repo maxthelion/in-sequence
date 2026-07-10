@@ -100,6 +100,62 @@ struct TransportPhraseProgressPresentation: Equatable {
     }
 }
 
+enum TransportDocumentEditCommand: CaseIterable {
+    case copy
+    case paste
+    case clearSelection
+
+    var accessibilityLabel: String {
+        switch self {
+        case .copy: "Copy"
+        case .paste: "Paste"
+        case .clearSelection: "Clear selection"
+        }
+    }
+
+    var accessibilityIdentifier: String {
+        switch self {
+        case .copy: "transport-copy"
+        case .paste: "transport-paste"
+        case .clearSelection: "transport-clear-selection"
+        }
+    }
+
+    var helpText: String {
+        switch self {
+        case .copy: "Copy selection"
+        case .paste: "Paste into selection"
+        case .clearSelection: "Clear selection"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .copy: "doc.on.doc"
+        case .paste: "doc.on.clipboard"
+        case .clearSelection: "xmark"
+        }
+    }
+
+    func isEnabled(in availability: DocumentEditCommandController.Availability) -> Bool {
+        switch self {
+        case .copy: availability.canCopy
+        case .paste: availability.canPaste
+        case .clearSelection: availability.canClear
+        }
+    }
+
+    @MainActor
+    @discardableResult
+    func perform(on controller: DocumentEditCommandController) -> Bool {
+        switch self {
+        case .copy: controller.copy()
+        case .paste: controller.paste()
+        case .clearSelection: controller.clearSelection()
+        }
+    }
+}
+
 struct TransportBar: View {
     @Environment(EngineController.self) private var engineController
     @Environment(SequencerDocumentSession.self) private var session
@@ -110,13 +166,6 @@ struct TransportBar: View {
             get: { engineController.transportMode },
             set: { engineController.setTransportMode($0) }
         )
-    }
-
-    private var noteActivityIsHot: Bool {
-        guard engineController.lastNoteTriggerUptime > 0 else {
-            return false
-        }
-        return ProcessInfo.processInfo.systemUptime - engineController.lastNoteTriggerUptime < 0.18
     }
 
     private var phrases: [PhraseModel] {
@@ -282,22 +331,7 @@ struct TransportBar: View {
                 .fixedSize()
                 .layoutPriority(2)
 
-            Circle()
-                .fill(noteActivityIsHot ? StudioTheme.transportAccent : StudioTheme.mutedText.opacity(0.35))
-                .frame(width: 8, height: 8)
-                .overlay(
-                    Circle()
-                        .stroke((noteActivityIsHot ? StudioTheme.transportAccent : StudioTheme.border).opacity(0.8), lineWidth: StudioMetrics.borderWidth)
-                )
-                .animation(.easeOut(duration: 0.12), value: noteActivityIsHot)
-                .help(noteActivityIsHot ? "Note triggered" : "No recent note trigger")
-
-            Text(engineController.statusSummary)
-                .foregroundStyle(StudioTheme.mutedText)
-                .studioText(.label)
-                .lineLimit(1)
-                .truncationMode(.tail)
-                .layoutPriority(-1)
+            documentEditCommands
 
             if let crossfader = sceneCrossfaderValue {
                 sceneCrossfaderIndicator(value: crossfader)
@@ -310,6 +344,28 @@ struct TransportBar: View {
         .padding(.trailing, 10)
         .padding(.vertical, 7)
         .frame(minHeight: 46)
+    }
+
+    private var documentEditCommands: some View {
+        let controller = session.documentEditCommands
+        let availability = controller.availability
+        return HStack(spacing: 4) {
+            ForEach(TransportDocumentEditCommand.allCases, id: \.self) { command in
+                Button {
+                    command.perform(on: controller)
+                } label: {
+                    Image(systemName: command.systemImage)
+                        .font(.system(size: 11, weight: .semibold))
+                }
+                .buttonStyle(TransportButtonStyle(accent: StudioTheme.neutral))
+                .disabled(!command.isEnabled(in: availability))
+                .help(command.helpText)
+                .accessibilityLabel(command.accessibilityLabel)
+                .accessibilityIdentifier(command.accessibilityIdentifier)
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("transport-document-edit-commands")
     }
 
     private func stepBPM(by delta: Double) {
