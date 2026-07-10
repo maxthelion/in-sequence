@@ -147,11 +147,6 @@ struct LiveWorkspaceView: View {
                     .tracking(1.0)
                     .foregroundStyle(StudioTheme.text)
 
-                Rectangle()
-                    .fill(accent)
-                    .frame(width: 28, height: 3)
-                    .clipShape(Capsule())
-
                 Text(layerSubtitle(selectedLayer))
                     .studioText(.body)
                     .foregroundStyle(StudioTheme.mutedText)
