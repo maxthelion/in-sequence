@@ -1908,6 +1908,7 @@ private extension LiveSequencerStore {
         clips: Bool = false
     ) {
         replaceTracks(project.tracks)
+        replacePerformanceTrackGroups(project.performanceTrackGroups)
         if trackGroups {
             replaceTrackGroups(project.trackGroups)
         }

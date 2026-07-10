@@ -591,10 +591,13 @@ final class LiveSequencerStore {
     ///
     /// Bumps revision if anything changed.
     func replaceTracks(_ tracks: [StepSequenceTrack]) {
-        guard tracks != storeTracks else {
-            return
-        }
+        let normalizedPerformanceGroups = PerformanceTrackGroup.normalizedBank(
+            storePerformanceTrackGroups,
+            tracks: tracks
+        )
+        guard tracks != storeTracks || normalizedPerformanceGroups != storePerformanceTrackGroups else { return }
         storeTracks = tracks
+        storePerformanceTrackGroups = normalizedPerformanceGroups
         revision &+= 1
     }
 
