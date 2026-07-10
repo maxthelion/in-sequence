@@ -213,21 +213,22 @@ struct TransportBar: View {
     private func sceneCrossfaderIndicator(value: Double) -> some View {
         let clamped = min(max(value, 0), 1)
         let trackWidth: CGFloat = 40
-        let thumb: CGFloat = 8
+        let thumbWidth: CGFloat = 10
+        let thumbHeight: CGFloat = 8
         return HStack(spacing: 6) {
             Text("A")
                 .studioText(.eyebrowBold)
                 .foregroundStyle(clamped <= 0.5 ? StudioTheme.transportAccent : StudioTheme.mutedText)
             ZStack(alignment: .leading) {
-                Capsule()
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous)
                     .fill(StudioTheme.border)
                     .frame(width: trackWidth, height: 3)
-                Circle()
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous)
                     .fill(StudioTheme.text)
-                    .frame(width: thumb, height: thumb)
-                    .offset(x: CGFloat(clamped) * (trackWidth - thumb))
+                    .frame(width: thumbWidth, height: thumbHeight)
+                    .offset(x: CGFloat(clamped) * (trackWidth - thumbWidth))
             }
-            .frame(width: trackWidth, height: thumb)
+            .frame(width: trackWidth, height: thumbHeight)
             Text("B")
                 .studioText(.eyebrowBold)
                 .foregroundStyle(clamped >= 0.5 ? StudioTheme.transportAccent : StudioTheme.mutedText)
@@ -466,7 +467,7 @@ struct TransportBar: View {
             .padding(.top, 5)
             .padding(.bottom, showProgress ? 6 : 5)
             .background(
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
                     .fill(StudioTheme.subtleFill)
             )
             .overlay(alignment: .bottom) {
@@ -477,10 +478,10 @@ struct TransportBar: View {
                 }
             }
             .overlay(
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
                     .stroke(isPrimary ? accent.opacity(StudioOpacity.mediumStroke) : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
             )
-            .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
         }
         .buttonStyle(.plain)
         .disabled(phrases.isEmpty)
@@ -537,10 +538,10 @@ private struct TransportPhraseProgressBar: View {
         // accompanying "bar x/y" text per the rework.
         GeometryReader { geo in
             ZStack(alignment: .leading) {
-                Capsule()
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous)
                     .fill(StudioTheme.borderFaintFill)
 
-                Capsule()
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous)
                     .fill(phrase == nil ? StudioTheme.border : StudioTheme.transportAccent)
                     .frame(width: geo.size.width * CGFloat(progress.fraction))
             }
@@ -574,16 +575,16 @@ private struct TransportModePicker: View {
                         .padding(.horizontal, 8)
                         .padding(.vertical, 5)
                         .background(
-                            Capsule()
+                            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
                                 .fill(selection == mode ? StudioTheme.transportAccent : Color.clear)
                         )
                         .overlay(
-                            Capsule()
+                            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
                                 .stroke(selection == mode ? StudioTheme.transportAccent : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
                         )
                         // Unselected modes have a clear fill; pin the hit area to
-                        // the whole capsule so taps don't require the glyph.
-                        .contentShape(Capsule())
+                        // the whole control so taps don't require the glyph.
+                        .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
                 }
                 .buttonStyle(.plain)
             }
@@ -602,13 +603,13 @@ private struct TransportButtonStyle: ButtonStyle {
         configuration.label
             .foregroundStyle(StudioTheme.text)
             .frame(width: 34, height: 28)
-            .background(configuration.isPressed ? StudioTheme.borderSubtleFill : StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
+            .background(configuration.isPressed ? StudioTheme.borderSubtleFill : StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
             .overlay(
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
                     .stroke(accent.opacity(StudioOpacity.mediumStroke), lineWidth: StudioMetrics.borderWidth)
             )
             // The glyph alone is a small target; make the whole tile tappable.
-            .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
     }
 }
 
