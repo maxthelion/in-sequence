@@ -492,6 +492,13 @@ enum VisualScenarioCommandRunner {
             section.wrappedValue = .track
         }
 
+        if let rawTrackType = command["selectTrackType"],
+           let trackType = TrackType(rawValue: rawTrackType),
+           let track = session.store.tracks.first(where: { $0.trackType == trackType }) {
+            session.setSelectedTrackID(track.id)
+            section.wrappedValue = .track
+        }
+
         if let gainRaw = command["masterGain"],
            let gain = Double(gainRaw) {
             session.setMasterOutputGain(gain)
@@ -588,6 +595,25 @@ enum VisualScenarioCommandRunner {
             if !plan.members.isEmpty {
                 _ = session.addDrumGroup(plan: plan)
             }
+        }
+
+        if command["removeDefault808"] == "true",
+           let group = session.store.trackGroups.first(where: { $0.name == "808" }) {
+            let memberIDs = Set(group.memberIDs)
+            session.batch(impact: .fullEngineApply, changed: .full) { store in
+                var project = store.exportToProject()
+                let fixtureBusIDs = Set(
+                    project.tracks
+                        .filter { memberIDs.contains($0.id) }
+                        .compactMap(\.outputBusID)
+                )
+                project.removeTracks(ids: project.tracks.map(\.id).filter { memberIDs.contains($0) })
+                project.trackGroups.removeAll { $0.id == group.id }
+                project.patternBanks.removeAll { memberIDs.contains($0.trackID) }
+                project.buses.removeAll { fixtureBusIDs.contains($0.id) }
+                store.importFromProject(project)
+            }
+            session.tracksSelection.removeAll()
         }
 
         if let commandID = command["visualCommandID"], !commandID.isEmpty {

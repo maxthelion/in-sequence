@@ -81,6 +81,35 @@ final class WorkspaceModeTests: XCTestCase {
         )
     }
 
+    func test_captureFixtureCanSelectExistingTrackTypeAndRemoveTemporary808Group() throws {
+        let fixture = makeFixture()
+        defer { fixture.engine.shutdown() }
+        fixture.session.appendTrack(trackType: .chord)
+        let chordID = fixture.session.store.selectedTrackID
+        fixture.session.appendTrack(trackType: .slice)
+
+        apply(["selectTrackType": TrackType.chord.rawValue], fixture: fixture)
+
+        XCTAssertEqual(fixture.session.store.selectedTrackID, chordID)
+        XCTAssertEqual(fixture.sectionBox.section, .track)
+
+        let groupID = try XCTUnwrap(
+            fixture.session.addDrumGroup(
+                plan: DrumGroupPlan(
+                    name: "808",
+                    color: "#8AA",
+                    members: [DrumGroupPlan.Member(tag: "kick", trackName: "Kick")]
+                )
+            )
+        )
+        let memberIDs = Set(try XCTUnwrap(fixture.session.store.trackGroups.first { $0.id == groupID }).memberIDs)
+
+        apply(["removeDefault808": "true"], fixture: fixture)
+
+        XCTAssertTrue(fixture.session.store.trackGroups.allSatisfy { $0.id != groupID })
+        XCTAssertTrue(memberIDs.isDisjoint(with: Set(fixture.session.store.tracks.map(\.id))))
+    }
+
     // MARK: - One mode drives both pages
 
     func test_oneGlobalMode_drivesBothPagesVocabularies() {
