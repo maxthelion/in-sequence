@@ -176,6 +176,36 @@ It covers the `seqai-notary` keychain profile, Developer ID signing,
 DMG creation, Cloudflare R2 release upload, notarization, stapling, Gatekeeper
 verification, and the expected `In Sequence` distributed bundle name.
 
+## Website Asset Publishing
+
+Use `scripts/update-website-assets.sh` to update the public website after the
+underlying artifacts already exist:
+
+```sh
+# Publish the latest sufficiently broad Bug Reporter capture run.
+scripts/update-website-assets.sh --captures
+
+# Upload an existing Developer ID DMG and update the latest-download pointer.
+scripts/update-website-assets.sh --download \
+  --dmg dist/developer-id/InSequence-...dmg
+
+# Publish both together.
+scripts/update-website-assets.sh --all \
+  --dmg dist/developer-id/InSequence-...dmg
+```
+
+Use `--dry-run` before a live publication when verifying paths or credentials.
+The capture path delegates to `../inseq-website` and its `gallery:update`
+publisher, using absorbed Bug Reporter runs. The download path uploads to the
+`in-seq-builds` R2 bucket under `releases/developer-id` and updates
+`releases/developer-id/latest.json`.
+
+This wrapper does not build, sign, or notarize. When a fresh downloadable build
+is required, first run `scripts/package-developer-id.sh` from a clean checkout
+or temporary worktree, then pass the resulting DMG to `--download` or `--all`.
+Full usage is in
+[`docs/website-asset-publishing.md`](docs/website-asset-publishing.md).
+
 ## Audio Engine Hard Rules
 
 Audio timing/routing/realtime have **invariants**, not preferences. They are
