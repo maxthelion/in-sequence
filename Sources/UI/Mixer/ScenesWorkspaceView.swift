@@ -239,11 +239,7 @@ struct ScenesWorkspaceView: View {
                     Spacer(minLength: 8)
 
                     Button {
-                        session.workspaceMode = .perform
-                        session.requestPhrasePerform(
-                            tab: .scenes,
-                            trackIDs: Set(session.store.tracks.map(\.id))
-                        )
+                        session.requestScenePerform()
                         onOpenPhraseScenes()
                     } label: {
                         Label("Phrase Perform", systemImage: "square.split.2x2")

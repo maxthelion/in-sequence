@@ -163,6 +163,17 @@ final class SequencerDocumentSession {
         )
     }
 
+    /// Scene perform is always phrase-scoped and spans every track. Keeping
+    /// that launch contract here lets the Scenes workspace and transport use
+    /// the same navigation path.
+    func requestScenePerform() {
+        workspaceMode = .perform
+        requestPhrasePerform(
+            tab: .scenes,
+            trackIDs: Set(store.tracks.map(\.id))
+        )
+    }
+
     /// Debounce interval used for `scheduleFlushToDocument`.
     /// Injectable for tests to avoid real-time waits.
     let debounceInterval: Duration

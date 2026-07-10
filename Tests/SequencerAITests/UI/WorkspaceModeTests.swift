@@ -312,6 +312,19 @@ final class WorkspaceModeTests: XCTestCase {
         XCTAssertEqual(request.trackIDs, Set(selected))
     }
 
+    func test_scenePerformRequestRoutesEveryTrackToPhraseScenes() throws {
+        let fixture = makeFixture()
+        fixture.session.workspaceMode = .setup
+
+        fixture.session.requestScenePerform()
+
+        let request = try XCTUnwrap(fixture.session.pendingPhrasePerform)
+        XCTAssertEqual(fixture.session.workspaceMode, .perform)
+        XCTAssertEqual(request.tab, .scenes)
+        XCTAssertNil(request.layerEditMode)
+        XCTAssertEqual(request.trackIDs, Set(fixture.session.store.tracks.map(\.id)))
+    }
+
     func test_tracksFilterCommandNavigatesWithoutMutatingDocumentOrSelectionAndReportsStatus() throws {
         let fixture = makeFixture()
         let projectBefore = fixture.session.store.exportToProject()
