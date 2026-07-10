@@ -1368,7 +1368,7 @@ final class EngineControllerTests: XCTestCase {
         XCTAssertEqual(events.map(\.length), [3])
     }
 
-    func test_generator_source_without_modifier_emits_unmodified_source_pitch() {
+    func test_generator_source_without_modifier_applies_its_pitch_stage() {
         let audioSink = CapturingAudioSink()
         let controller = EngineController(client: nil, endpoint: nil, audioOutput: audioSink)
         let track = StepSequenceTrack(
@@ -1426,7 +1426,7 @@ final class EngineControllerTests: XCTestCase {
         controller.processTick(tickIndex: 0, now: 0)
 
         let events = audioSink.receivedEvents.flatMap { $0 }
-        XCTAssertEqual(events.map(\.pitch), [61])
+        XCTAssertEqual(events.map(\.pitch), [72])
         XCTAssertEqual(events.map(\.velocity), [88])
         XCTAssertEqual(events.map(\.length), [4])
     }
@@ -1875,8 +1875,12 @@ final class EngineControllerTests: XCTestCase {
             at: libraryRoot.appendingPathComponent("kick", isDirectory: true),
             withIntermediateDirectories: true
         )
-        try Data("not real audio; status scan only".utf8)
-            .write(to: libraryRoot.appendingPathComponent("kick/status-kick.wav"))
+        let sampleURL = libraryRoot.appendingPathComponent("kick/status-kick.wav")
+        let format = try XCTUnwrap(AVAudioFormat(standardFormatWithSampleRate: 48_000, channels: 1))
+        let buffer = try XCTUnwrap(AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 480))
+        buffer.frameLength = 480
+        let file = try AVAudioFile(forWriting: sampleURL, settings: format.settings)
+        try file.write(from: buffer)
         let library = AudioSampleLibrary(libraryRoot: libraryRoot)
         let sampleID = AudioSampleLibrary.stableID(forRelativePath: "kick/status-kick.wav")
         let controller = EngineController(client: nil, endpoint: nil, sampleLibrary: library)

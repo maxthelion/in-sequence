@@ -31,16 +31,16 @@ struct AddDrumGroupContent: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: StudioMetrics.Spacing.standard) {
-            ScrollView {
-                VStack(alignment: .leading, spacing: StudioMetrics.Spacing.roomy) {
-                    soundsSection
-                }
-            }
-            .scrollIndicators(.never)
-
+            soundsSection
             footer
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+        .onReceive(NotificationCenter.default.publisher(for: .tracksMatrixVisualCommand)) { notification in
+            guard let command = notification.object as? String,
+                  command.hasPrefix("add-drum-group-fixture:")
+            else { return }
+            applyVisualFixture(String(command.dropFirst("add-drum-group-fixture:".count)))
+        }
     }
 
     // MARK: - Step 1: Sounds
@@ -65,33 +65,27 @@ struct AddDrumGroupContent: View {
                 kitPickerRow
 
                 VStack(alignment: .leading, spacing: StudioMetrics.Spacing.snug) {
-                    ForEach(plan.members.indices, id: \.self) { index in
-                        partRow(at: index)
+                    if !plan.members.isEmpty {
+                        StudioCustomVerticalScrollView {
+                            LazyVStack(alignment: .leading, spacing: StudioMetrics.Spacing.snug) {
+                                ForEach(plan.members.indices, id: \.self) { index in
+                                    partRow(at: index)
+                                }
+                            }
+                        }
+                        .frame(height: partListHeight)
                     }
 
-                    // Themed outline chip — the stock white-filled bordered
-                    // button was a Rule 6 finding (design review 02d).
-                    Button {
-                        appendBlankPart()
-                    } label: {
-                        HStack(spacing: 6) {
-                            Image(systemName: "plus")
-                                .font(.system(size: 11, weight: .bold))
-                            Text("Add part")
-                                .studioText(.labelBold)
-                        }
-                        .foregroundStyle(StudioTheme.text)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 7)
-                        .background(StudioTheme.subtleFill, in: Capsule())
-                        .overlay(Capsule().stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth))
+                    commandButton(title: "Add Part", isPrimary: false, help: "Add a blank part") {
+                        AddDrumGroupPlanEditing.appendBlankPart(to: &plan)
                     }
-                    .buttonStyle(.plain)
-                    .help("Add a blank part")
-                    .padding(.top, 4)
                 }
             }
         }
+    }
+
+    private var partListHeight: CGFloat {
+        min(CGFloat(plan.members.count) * 64, 320)
     }
 
     private var kitPickerRow: some View {
@@ -146,12 +140,13 @@ struct AddDrumGroupContent: View {
                 text: Binding(
                     get: { plan.members[safeIndex: index]?.trackName ?? "" },
                     set: { newValue in
-                        guard plan.members.indices.contains(index) else { return }
-                        plan.members[index].trackName = newValue
+                        AddDrumGroupPlanEditing.renamePart(at: index, to: newValue, in: &plan)
                     }
                 )
             )
-            .textFieldStyle(.roundedBorder)
+            .textFieldStyle(.plain)
+            .foregroundStyle(StudioTheme.text)
+            .tint(Self.surfaceAccent)
             .frame(maxWidth: 180)
 
             tagMenu(at: index)
@@ -161,16 +156,25 @@ struct AddDrumGroupContent: View {
             Spacer(minLength: 0)
 
             Button {
-                guard plan.members.indices.contains(index) else { return }
-                plan.members.remove(at: index)
+                AddDrumGroupPlanEditing.removePart(at: index, from: &plan)
             } label: {
-                Image(systemName: "minus.circle")
+                Image(systemName: "xmark")
+                    .font(.system(size: 10, weight: .bold))
                     .foregroundStyle(StudioTheme.mutedText)
+                    .frame(width: StudioMetrics.ControlSize.small, height: StudioMetrics.ControlSize.small)
+                    .overlay(Circle().stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth))
             }
             .buttonStyle(.plain)
             .help("Remove part")
         }
-        .padding(.vertical, 2)
+        .padding(.horizontal, StudioMetrics.Spacing.comfortable)
+        .padding(.vertical, 10)
+        .frame(maxWidth: .infinity, minHeight: 56, alignment: .leading)
+        .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
+                .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+        )
     }
 
     private func tagMenu(at index: Int) -> some View {
@@ -179,16 +183,16 @@ struct AddDrumGroupContent: View {
         return Menu {
             ForEach(Self.canonicalTags, id: \.self) { tag in
                 Button(PatternTemplateApplicationPreview.tagLabel(tag)) {
-                    guard plan.members.indices.contains(index) else { return }
-                    plan.members[index].tag = tag
-                    // Sound pools are per-tag; a tag change invalidates the pick.
-                    plan.members[index].sampleID = nil
+                    AddDrumGroupPlanEditing.retagPart(at: index, as: tag, in: &plan)
                 }
             }
         } label: {
             menuLabel(PatternTemplateApplicationPreview.tagLabel(currentTag))
         }
         .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .foregroundStyle(StudioTheme.text)
+        .tint(StudioTheme.text)
         .frame(width: 130)
         .help("Part tag — the join key for kits, templates, and sound pools")
     }
@@ -200,19 +204,20 @@ struct AddDrumGroupContent: View {
 
         return Menu {
             Button(defaultSoundLabel(category: category)) {
-                guard plan.members.indices.contains(index) else { return }
-                plan.members[index].sampleID = nil
+                AddDrumGroupPlanEditing.selectSample(nil, forPartAt: index, in: &plan)
             }
             ForEach(pool) { sample in
                 Button(sample.name) {
-                    guard plan.members.indices.contains(index) else { return }
-                    plan.members[index].sampleID = sample.id
+                    AddDrumGroupPlanEditing.selectSample(sample.id, forPartAt: index, in: &plan)
                 }
             }
         } label: {
             menuLabel(soundLabel(for: member, category: category))
         }
         .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .foregroundStyle(StudioTheme.text)
+        .tint(StudioTheme.text)
         .frame(width: 190)
         .disabled(pool.isEmpty)
         .help(pool.isEmpty ? "No sample pool for this tag — the part is created without a destination" : "Swap this part's sound from its tag's pool")
@@ -259,32 +264,37 @@ struct AddDrumGroupContent: View {
         HStack {
             Spacer()
 
-            // Primary action carries the surface accent — success-green is a
-            // fenced state colour, not an action fill.
-            Button {
-                plan.busRouting = .dedicatedBus
-                plan.sharedDestination = nil
-                onCreate(plan)
-            } label: {
-                HStack(spacing: 7) {
-                    Image(systemName: "plus")
-                        .font(.system(size: 11, weight: .black))
-                    Text("Create Group")
-                        .studioText(.microEmphasis)
-                        .tracking(0.8)
-                }
-                .foregroundStyle(StudioTheme.background)
-                .frame(height: 32)
-                .padding(.horizontal, 14)
-                .background(Self.surfaceAccent, in: Capsule())
-                .overlay(
-                    Capsule().stroke(Self.surfaceAccent, lineWidth: StudioMetrics.borderWidth)
-                )
+            commandButton(title: "Create Group", isPrimary: true, help: "Create drum group") {
+                onCreate(AddDrumGroupPlanEditing.finalized(plan))
             }
-            .buttonStyle(.plain)
-            .help("Create drum group")
             .accessibilityIdentifier("add-drum-group-create")
         }
+    }
+
+    private func commandButton(
+        title: String,
+        isPrimary: Bool,
+        help: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Text(title)
+                .studioText(.labelBold)
+                .foregroundStyle(isPrimary ? StudioTheme.background : StudioTheme.text)
+                .frame(minWidth: 112, minHeight: 36)
+                .padding(.horizontal, 12)
+                .background(
+                    isPrimary ? Self.surfaceAccent : StudioTheme.subtleFill,
+                    in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                        .stroke(isPrimary ? Self.surfaceAccent : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+                )
+                .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .help(help)
     }
 
     // MARK: - Actions
@@ -310,19 +320,60 @@ struct AddDrumGroupContent: View {
         plan.busRouting = .dedicatedBus
     }
 
-    private func appendBlankPart() {
-        let nextIndex = plan.members.count + 1
-        plan.members.append(
-            DrumGroupPlan.Member(
-                tag: "kick",
-                trackName: "Part \(nextIndex)"
-            )
-        )
+    private func applyVisualFixture(_ fixture: String) {
+        selectedKitID = nil
+        switch fixture {
+        case "blank":
+            plan = DrumGroupPlan(name: "Drum Group", color: "#8AA", members: [])
+        case "populated":
+            plan = .blankDefault
+        default:
+            return
+        }
     }
 
     /// Canonical tag list — `DrumKitNoteMap.table`'s keys, sorted for a
     /// stable menu order.
     private static let canonicalTags: [VoiceTag] = DrumKitNoteMap.table.keys.sorted()
+}
+
+enum AddDrumGroupPlanEditing {
+    static func appendBlankPart(to plan: inout DrumGroupPlan) {
+        plan.members.append(
+            DrumGroupPlan.Member(
+                tag: "kick",
+                trackName: "Part \(plan.members.count + 1)"
+            )
+        )
+    }
+
+    static func renamePart(at index: Int, to name: String, in plan: inout DrumGroupPlan) {
+        guard plan.members.indices.contains(index) else { return }
+        plan.members[index].trackName = name
+    }
+
+    static func retagPart(at index: Int, as tag: VoiceTag, in plan: inout DrumGroupPlan) {
+        guard plan.members.indices.contains(index) else { return }
+        plan.members[index].tag = tag
+        plan.members[index].sampleID = nil
+    }
+
+    static func selectSample(_ sampleID: UUID?, forPartAt index: Int, in plan: inout DrumGroupPlan) {
+        guard plan.members.indices.contains(index) else { return }
+        plan.members[index].sampleID = sampleID
+    }
+
+    static func removePart(at index: Int, from plan: inout DrumGroupPlan) {
+        guard plan.members.indices.contains(index) else { return }
+        plan.members.remove(at: index)
+    }
+
+    static func finalized(_ plan: DrumGroupPlan) -> DrumGroupPlan {
+        var finalized = plan
+        finalized.busRouting = .dedicatedBus
+        finalized.sharedDestination = nil
+        return finalized
+    }
 }
 
 private extension Array {

@@ -94,4 +94,25 @@ final class SourceRefNormalizationTests: XCTestCase {
         XCTAssertNil(normalized.modifierGeneratorID)
         XCTAssertFalse(normalized.modifierBypassed)
     }
+
+    func test_normalized_preserves_legacy_progression_as_poly_source() {
+        let generatorID = UUID()
+        let legacy = GeneratorPoolEntry(
+            id: generatorID,
+            name: "Legacy Progression",
+            trackType: .polyMelodic,
+            kind: .progressionChordGenerator,
+            params: .progressionChords(.default)
+        )
+
+        let normalized = SourceRef.generator(generatorID).normalized(
+            trackType: .polyMelodic,
+            generatorPool: [legacy],
+            clipPool: []
+        )
+
+        XCTAssertEqual(normalized.mode, .generator)
+        XCTAssertEqual(normalized.generatorID, generatorID)
+        XCTAssertNil(normalized.modifierGeneratorID)
+    }
 }

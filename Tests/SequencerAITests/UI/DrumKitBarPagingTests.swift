@@ -65,4 +65,27 @@ final class DrumKitBarPagingTests: XCTestCase {
             1
         )
     }
+
+    func test_indicators_areAlwaysEightWithUnavailableTail() {
+        let indicators = DrumKitBarPaging.indicators(pageCount: 3, currentPage: 1)
+
+        XCTAssertEqual(indicators.count, 8)
+        XCTAssertEqual(indicators.map(\.page), Array(0..<8))
+        XCTAssertEqual(
+            indicators.map(\.state),
+            [.available, .current, .available, .unavailable, .unavailable, .unavailable, .unavailable, .unavailable]
+        )
+    }
+
+    func test_indicators_bankLegacyPagesBeyond128Steps() {
+        let indicators = DrumKitBarPaging.indicators(pageCount: 11, currentPage: 9)
+
+        XCTAssertEqual(indicators.map(\.page), Array(8..<16))
+        XCTAssertEqual(indicators[1].state, .current)
+        XCTAssertEqual(indicators[2].state, .available)
+        XCTAssertEqual(indicators[3].state, .unavailable)
+        XCTAssertEqual(DrumKitBarPaging.previousBankPage(currentPage: 9), 0)
+        XCTAssertNil(DrumKitBarPaging.nextBankPage(pageCount: 11, currentPage: 9))
+        XCTAssertEqual(DrumKitBarPaging.nextBankPage(pageCount: 17, currentPage: 9), 16)
+    }
 }

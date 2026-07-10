@@ -3807,6 +3807,10 @@ final class EngineController: RouterDispatcher {
             guard let generator = playbackSnapshot.generatorEntry(id: generatorID) else {
                 return []
             }
+            let chordChoices = playbackSnapshot.chordGeneratorChoices(
+                trackID: trackID,
+                generatorID: generatorID
+            )
             let sourceNotes = GeneratedSourceEvaluator.evaluateStep(
                 for: generator.params,
                 stepIndex: resolved.sourceStepIndex,
@@ -3814,6 +3818,7 @@ final class EngineController: RouterDispatcher {
                 chordContext: chordContext,
                 state: &state,
                 stateScope: .generatorSource(slotIndex: effectiveSlotIndex, generatorID: generatorID),
+                chordChoices: chordChoices,
                 rng: &rng
             )
 
@@ -3932,7 +3937,11 @@ final class EngineController: RouterDispatcher {
             sourceHits: GeneratedSourceEvaluator.densitySourceHits(
                 for: generatorParams,
                 stepCount: stepCount,
-                clipChoices: playbackSnapshot.clipPool
+                clipChoices: playbackSnapshot.clipPool,
+                chordChoices: playbackSnapshot.chordGeneratorChoices(
+                    trackID: trackID,
+                    generatorID: generatorID
+                )
             ),
             fallbackPitch: playbackSnapshot.fallbackPitch(for: trackID)
         )

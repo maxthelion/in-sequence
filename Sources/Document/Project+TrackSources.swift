@@ -3,7 +3,9 @@ import Foundation
 extension Project {
     func compatibleGenerators(for track: StepSequenceTrack) -> [GeneratorPoolEntry] {
         generatorPool.filter {
-            $0.trackType == track.trackType && $0.kind.compatibleWith.contains(track.trackType)
+            $0.kind.isCreatable
+                && $0.trackType == track.trackType
+                && $0.kind.compatibleWith.contains(track.trackType)
         }
     }
 
@@ -243,7 +245,7 @@ extension Project {
         else {
             return nil
         }
-        guard let templateKind = GeneratorKind.allCases.first(where: { $0.compatibleWith.contains(track.trackType) }) else {
+        guard let templateKind = GeneratorKind.creatableKinds.first(where: { $0.compatibleWith.contains(track.trackType) }) else {
             return nil
         }
 
@@ -253,7 +255,7 @@ extension Project {
             name: "\(templateKind.label) \(nextIndex)",
             trackType: track.trackType,
             kind: templateKind,
-            params: templateKind.defaultParams
+            params: templateKind.defaultParams(for: track)
         )
         generatorPool.append(newEntry)
         assignGeneratorSource(newEntry.id, to: trackID, slotIndex: slotIndex)
@@ -283,7 +285,7 @@ extension Project {
     mutating func createBlankModifierGenerator(trackID: UUID, slotIndex: Int) -> GeneratorPoolEntry? {
         guard let track = tracks.first(where: { $0.id == trackID }),
               patternBanks.contains(where: { $0.trackID == trackID }),
-              let templateKind = GeneratorKind.allCases.first(where: {
+              let templateKind = GeneratorKind.creatableKinds.first(where: {
                   $0.compatibleWith.contains(track.trackType) && $0.supportsModifierStage
               })
         else {
@@ -296,7 +298,7 @@ extension Project {
             name: "\(templateKind.label) \(nextIndex)",
             trackType: track.trackType,
             kind: templateKind,
-            params: templateKind.defaultParams
+            params: templateKind.defaultParams(for: track)
         )
         generatorPool.append(newEntry)
         assignModifierGenerator(newEntry.id, to: trackID, slotIndex: slotIndex)
@@ -344,7 +346,7 @@ extension Project {
         }
 
         let track = tracks[trackIndex]
-        guard let templateKind = GeneratorKind.allCases.first(where: { $0.compatibleWith.contains(track.trackType) }) else {
+        guard let templateKind = GeneratorKind.creatableKinds.first(where: { $0.compatibleWith.contains(track.trackType) }) else {
             return nil
         }
 
@@ -354,7 +356,7 @@ extension Project {
             name: "\(templateKind.label) \(nextIndex)",
             trackType: track.trackType,
             kind: templateKind,
-            params: templateKind.defaultParams
+            params: templateKind.defaultParams(for: track)
         )
         generatorPool.append(newEntry)
 

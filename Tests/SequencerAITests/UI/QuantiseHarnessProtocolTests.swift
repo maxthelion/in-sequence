@@ -109,6 +109,32 @@ final class QuantiseHarnessProtocolTests: XCTestCase {
         )
     }
 
+    func test_statusEmitsDocumentEditAvailabilityAndClipboardDomain() throws {
+        let fixture = makeFixture()
+        let controller = fixture.session.documentEditCommands
+        controller.register(
+            target: .init(
+                canCopy: { true },
+                canClear: { true },
+                isPasteCompatible: { $0.domain == .tracks },
+                copy: { .init(domain: .tracks, snapshot: [UUID()]) },
+                paste: { _ in },
+                clearSelection: {}
+            )
+        )
+
+        var status = try statusDictionary(fixture: fixture)
+        XCTAssertEqual(status["documentEditCanCopy"], "true")
+        XCTAssertEqual(status["documentEditCanPaste"], "false")
+        XCTAssertEqual(status["documentEditCanClear"], "true")
+        XCTAssertEqual(status["documentEditClipboardDomain"], "none")
+
+        XCTAssertTrue(controller.copy())
+        status = try statusDictionary(fixture: fixture)
+        XCTAssertEqual(status["documentEditCanPaste"], "true")
+        XCTAssertEqual(status["documentEditClipboardDomain"], "tracks")
+    }
+
     func test_trackFillEngagedCommandWritesSelectedPhraseFillFlagAndStatus() throws {
         let fixture = makeFixture()
         let track = fixture.session.store.selectedTrack
@@ -180,6 +206,28 @@ final class QuantiseHarnessProtocolTests: XCTestCase {
         )
     }
 
+    func test_randomizeRerollAndCloseKeepTheAppliedClip() throws {
+        let fixture = makeFixture()
+        apply(["trackFillSource": "clip", "trackRandomizeRoll": "on"], fixture: fixture)
+        let pattern = fixture.session.store.selectedPattern(for: fixture.session.store.selectedTrackID)
+        let clipID = try XCTUnwrap(pattern.sourceRef.clipID)
+        let first = try XCTUnwrap(fixture.session.store.clipEntry(id: clipID)?.randomizeSettings)
+
+        apply(["trackRandomizeRoll": "on"], fixture: fixture)
+        let rerolled = try XCTUnwrap(fixture.session.store.clipEntry(id: clipID)?.randomizeSettings)
+        XCTAssertNotEqual(rerolled.lastSeed, first.lastSeed, "Re-Roll must apply a fresh deterministic harness seed.")
+
+        apply(["trackRandomizeSheet": "open"], fixture: fixture)
+        apply(["trackRandomizeSheet": "close"], fixture: fixture)
+
+        XCTAssertEqual(
+            fixture.session.store.clipEntry(id: clipID)?.randomizeSettings,
+            rerolled,
+            "Close dismisses the panel without rolling back the already-applied clip."
+        )
+        XCTAssertEqual(try statusDictionary(fixture: fixture)["trackRandomizeSheet"], "closed")
+    }
+
     func test_trackClipLayerCommandsAreViewStateOnlyAndReportStatus() throws {
         let fixture = makeFixture()
         apply(["trackFillSource": "clip"], fixture: fixture)
@@ -214,5 +262,41 @@ final class QuantiseHarnessProtocolTests: XCTestCase {
         apply(["slicerLayerSwitcher": "close"], fixture: fixture)
         let closedStatus = try statusDictionary(fixture: fixture)
         XCTAssertEqual(closedStatus["slicerLayerSwitcher"], "closed")
+    }
+
+    func test_performanceTrackGroupFixturePersistsTwoTrackScopeAndReportsStatus() throws {
+        let fixture = makeFixture()
+
+        apply(
+            [
+                "phraseMatrixTrackCount": "3",
+                "performanceTrackGroupFixture": "0",
+            ],
+            fixture: fixture
+        )
+
+        XCTAssertEqual(fixture.session.store.performanceTrackGroups[0]?.memberIDs.count, 2)
+        XCTAssertEqual(try statusDictionary(fixture: fixture)["performanceTrackGroupCount"], "1")
+    }
+
+    func test_createTrackGroupModalCommandQueuesTracksSurfaceCommand() throws {
+        let fixture = makeFixture()
+        fixture.session.tracksSelection = [fixture.session.store.selectedTrackID]
+
+        apply(["tracksCreateTrackGroupModal": "open"], fixture: fixture)
+
+        XCTAssertEqual(try statusDictionary(fixture: fixture)["tracksCreateTrackGroupModalVisible"], "true")
+        XCTAssertTrue(
+            VisualScenarioCommandRunner.drainPendingTracksMatrixCommands()
+                .contains("create-track-group:open")
+        )
+
+        apply(["tracksCreateTrackGroupModal": "close"], fixture: fixture)
+
+        XCTAssertEqual(try statusDictionary(fixture: fixture)["tracksCreateTrackGroupModalVisible"], "false")
+        XCTAssertTrue(
+            VisualScenarioCommandRunner.drainPendingTracksMatrixCommands()
+                .contains("create-track-group:close")
+        )
     }
 }

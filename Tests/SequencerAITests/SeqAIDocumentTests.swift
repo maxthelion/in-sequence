@@ -238,6 +238,49 @@ final class ProjectTests: XCTestCase {
         })
     }
 
+    func test_insert_phrase_copy_uses_detached_snapshot_and_fresh_ids() throws {
+        var model = Project.empty
+        let sourceID = model.selectedPhraseID
+        let trackID = model.selectedTrackID
+        model.setPhraseCell(
+            .steps([.index(1), .index(3), .index(5)]),
+            layerID: "pattern",
+            trackIDs: [trackID],
+            phraseID: sourceID
+        )
+        let snapshot = model.selectedPhrase
+
+        model.updatePhrase(id: sourceID) { phrase in
+            phrase.name = "Changed After Copy"
+            phrase.setCell(.single(.index(7)), for: "pattern", trackID: trackID)
+        }
+
+        let firstPasteID = try XCTUnwrap(model.insertPhraseCopy(snapshot, below: sourceID))
+        let secondPasteID = try XCTUnwrap(model.insertPhraseCopy(snapshot, below: firstPasteID))
+        let firstPaste = try XCTUnwrap(model.phrases.first { $0.id == firstPasteID })
+        let secondPaste = try XCTUnwrap(model.phrases.first { $0.id == secondPasteID })
+
+        XCTAssertNotEqual(firstPasteID, snapshot.id)
+        XCTAssertNotEqual(secondPasteID, snapshot.id)
+        XCTAssertNotEqual(firstPasteID, secondPasteID)
+        XCTAssertEqual(firstPaste.name, "\(snapshot.name) Copy")
+        XCTAssertEqual(secondPaste.name, "\(snapshot.name) Copy")
+        XCTAssertEqual(
+            firstPaste.cell(for: "pattern", trackID: trackID),
+            .steps([.index(1), .index(3), .index(5)])
+        )
+        XCTAssertEqual(firstPaste.cells, secondPaste.cells)
+        XCTAssertEqual(model.selectedPhraseID, secondPasteID)
+
+        model.updatePhrase(id: firstPasteID) { phrase in
+            phrase.setCell(.single(.index(0)), for: "pattern", trackID: trackID)
+        }
+        XCTAssertEqual(
+            model.phrases.first { $0.id == secondPasteID }?.cell(for: "pattern", trackID: trackID),
+            .steps([.index(1), .index(3), .index(5)])
+        )
+    }
+
     func test_codable_roundtrip_preserves_layers_and_cells() throws {
         let track = StepSequenceTrack.default
         let layers = PhraseLayerDefinition.defaultSet(for: [track])

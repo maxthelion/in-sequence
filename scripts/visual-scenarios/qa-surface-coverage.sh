@@ -46,7 +46,13 @@ esac
 
 bundle_id="ai.sequencer.SequencerAI"
 app_command_dir="$HOME/Library/Containers/$bundle_id/Data/tmp/sequencer-ai-visual-commands"
-runtime_fixture_path="${SEQUENCER_AI_QA_RUNTIME_FIXTURE:-$app_command_dir/qa-surface-coverage-fixture.seqai}"
+runtime_fixture_from_env=false
+if [ -n "${SEQUENCER_AI_QA_RUNTIME_FIXTURE:-}" ]; then
+  runtime_fixture_path="$SEQUENCER_AI_QA_RUNTIME_FIXTURE"
+  runtime_fixture_from_env=true
+else
+  runtime_fixture_path="$app_command_dir/qa-surface-coverage-fixture.seqai"
+fi
 command_file_from_env=false
 if [ -n "${SEQUENCER_AI_VISUAL_COMMAND_FILE:-}" ]; then
   command_file="$SEQUENCER_AI_VISUAL_COMMAND_FILE"
@@ -62,6 +68,9 @@ status_file="${command_file}.status"
 WB="120,80,1100,780"
 capture_filter="${QA_SURFACE_CAPTURE_FILTER:-}"
 startup_wait_seconds="${QA_SURFACE_STARTUP_WAIT_SECONDS:-45}"
+launch_grace_seconds="${QA_SURFACE_LAUNCH_GRACE_SECONDS:-0.5}"
+default_settle_seconds="${QA_SURFACE_SETTLE_SECONDS:-0.25}"
+slow_settle_seconds="${QA_SURFACE_SLOW_SETTLE_SECONDS:-1.2}"
 captured_count=0
 executed_row_count=0
 skipped_rows=()
@@ -70,6 +79,8 @@ app_crash_after=""
 scenario_status="started; no captures completed yet"
 visual_command_sequence=0
 last_visual_command_id=""
+drum_matrix_mounted=false
+drum_matrix_fixture=""
 
 # ---------------------------------------------------------------------------
 # Capture table. Fields separated by |, newlines in payload encoded as ;
@@ -86,10 +97,15 @@ CAPTURES=$(cat <<'TABLE'
 # so every later capture keeps the neutral transport.
 01b-transport-swing-set|workspace=phrase,swing=0.4|workspace=phrase;swing=0.4;transport=stop
 02-tracks-navigator|workspace=tracks,tracksSelectionMode=off,swing=0.0|workspace=tracks;tracksSelectionMode=off;swing=0;transport=stop
-02a-tracks-selection-actions|workspace=tracks,tracksSelectionMode=on,tracksSelectionCount=1|workspace=tracks;tracksSelectionMode=on;tracksClearSelection=true;tracksSelect=first;tracksPrimeClipboard=true;transport=stop
-02b-tracks-layer-perform-nav|workspace=phrase,phraseWorkspaceTab=layers,performScopeCount=1|workspace=tracks;tracksSelectionMode=on;tracksClearSelection=true;tracksSelect=first;tracksAction=layerPerform;transport=stop
+02a-tracks-selection-actions|workspace=tracks,tracksSelectionMode=on,tracksSelectionCount=1,documentEditCanCopy=true,documentEditCanPaste=true,documentEditCanClear=true,documentEditClipboardDomain=tracks|workspace=tracks;tracksSelectionMode=on;tracksClearSelection=true;tracksSelect=first;tracksPrimeClipboard=true;transport=stop
+02ae-create-track-group|workspace=tracks,tracksCreateTrackGroupModalVisible=true|workspace=tracks;tracksSelectionMode=on;tracksClearSelection=true;tracksSelect=first;tracksCreateTrackGroupModal=open;transport=stop
+02aa-tracks-filter-drum-kits|workspace=tracks,tracksFilter=drumKits,drumGroup0MemberCount=4,tracksCreateTrackGroupModalVisible=false|workspace=tracks;tracksCreateTrackGroupModal=close;tracksSelectionMode=off;createDefault808=all;tracksFilter=drumKits;transport=stop
+02ab-tracks-filter-drum-parts|workspace=tracks,tracksFilter=drumParts,drumGroup0MemberCount=4|workspace=tracks;tracksSelectionMode=off;tracksFilter=drumParts;transport=stop
+02ac-tracks-filter-all|workspace=tracks,tracksFilter=all,drumGroup0MemberCount=4|workspace=tracks;tracksSelectionMode=off;tracksFilter=all;transport=stop
+02b-tracks-layer-perform-nav|workspace=phrase,phraseWorkspaceTab=layers,performScopeCount=1|workspace=tracks;tracksSelectionMode=on;tracksClearSelection=true;tracksSelect=first;tracksAction=layerPerform;removeDefault808=true;transport=stop
 02c-create-track-modal|workspace=tracks,tracksCreateTrackModalVisible=true|workspace=tracks;tracksCreateTrackModal=open;transport=stop
-02d-add-drum-group-modal|workspace=tracks,tracksAddDrumGroupModalVisible=true|workspace=tracks;tracksAddDrumGroupModal=open;transport=stop
+02d-add-drum-group-modal|workspace=tracks,tracksAddDrumGroupModalVisible=true,tracksAddDrumGroupFixture=blank|workspace=tracks;tracksFilter=all;tracksAddDrumGroupModal=open;tracksAddDrumGroupFixture=blank;transport=stop
+02da-add-drum-group-populated|workspace=tracks,tracksAddDrumGroupModalVisible=true,tracksAddDrumGroupFixture=populated|workspace=tracks;tracksAddDrumGroupModal=open;tracksAddDrumGroupFixture=populated;transport=stop
 02e-add-slice-track-loop-picker|workspace=tracks,tracksAddSliceTrackModalVisible=true|workspace=tracks;tracksAddDrumGroupModal=close;tracksAddSliceTrackModal=open;transport=stop
 02f-create-track-sound-step|workspace=tracks,tracksTrackSoundModalVisible=true|workspace=tracks;tracksAddSliceTrackModal=close;tracksTrackSoundModal=open;transport=stop
 # 03/03a RETIRED: the tracks view is now a plain NAVIGATOR (track tiles +
@@ -103,6 +119,7 @@ CAPTURES=$(cat <<'TABLE'
 05-scenes-browse|workspace=scenes,scenesMode=browseEdit|scenesMode=browseEdit;transport=stop
 05a-scenes-edit-empty|workspace=scenes,scenesMode=browseEdit,sceneEditorFixture=empty|scenesMode=browseEdit;sceneEditorFixture=empty;transport=stop
 05b-scenes-edit-content|workspace=scenes,scenesMode=browseEdit,sceneEditorFixture=content|scenesMode=browseEdit;sceneEditorFixture=content;transport=stop
+05ba-scenes-edit-overflow|workspace=scenes,scenesMode=browseEdit,sceneEditorFixture=overflow|scenesMode=browseEdit;sceneEditorFixture=overflow;transport=stop
 05c-scenes-add-fx|workspace=scenes,scenesMode=browseEdit,sceneEditorFixture=content,scenesAddFXModalVisible=true|scenesMode=browseEdit;sceneEditorFixture=content;scenesAddFXModal=open;transport=stop
 05d-scenes-bitcrusher-editor|workspace=scenes,scenesMode=browseEdit,sceneEditorFixture=content,scenesSelectedInsertIndex=1|scenesMode=browseEdit;sceneEditorFixture=content;scenesAddFXModal=close;scenesSelectInsert=1;transport=stop
 05e-scenes-browse-fx|workspace=scenes,scenesMode=browseEdit,sceneEditorFixture=browse-content|scenesMode=browseEdit;sceneEditorFixture=browse-content;transport=stop
@@ -111,6 +128,7 @@ CAPTURES=$(cat <<'TABLE'
 # surface. `phraseSceneSelect=a` still mutates state for legacy command files,
 # but there is no `phraseSceneSelectVisible=true` surface to screenshot.
 06b-phrase-scenes-perform-slots|workspace=phrase,phraseWorkspaceTab=scenes,phraseSceneViewMode=slots|workspace=phrase;workspaceMode=perform;phraseWorkspaceTab=scenes;phraseSceneSelect=close;phraseSceneViewMode=slots;transport=stop
+06ba-phrase-scenes-hard-switch|workspace=phrase,phraseWorkspaceTab=scenes,phraseSceneViewMode=slots|workspace=phrase;workspaceMode=perform;phraseWorkspaceTab=scenes;phraseSceneViewMode=slots;phraseSceneSelect=b;transport=stop
 # 06c RETIRED: `phraseSceneMembershipFixture=split` changes runner/store state
 # but the current Scenes tab pixels match the base scenes capture exactly.
 07-library|workspace=library|workspace=library;transport=stop
@@ -125,15 +143,14 @@ CAPTURES=$(cat <<'TABLE'
 11-phrase-layer-selector-open|workspace=phrase,phraseWorkspaceTab=layers,phrasePerformLayerSelectorVisible=true|phraseMatrixTrackCount=8;phraseMatrixPhraseCount=8;phraseWorkspaceTab=layers;phrasePerformLayerSelector=open;transport=stop
 # 12 RETIRED: duplicate of the canonical phrase-scenes capture in row 06.
 13-phrase-global-apply|workspace=phrase,phraseWorkspaceTab=globalApply|phraseMatrixTrackCount=8;phraseMatrixPhraseCount=8;phraseWorkspaceTab=globalApply;transport=stop
-13a-phrase-global-apply-track-selector|workspace=phrase,phraseWorkspaceTab=globalApply,phraseGlobalApplyTrackSelectorVisible=true|phraseMatrixTrackCount=8;phraseMatrixPhraseCount=8;phraseWorkspaceTab=globalApply;phraseGlobalApplyTrackSelector=open;transport=stop
+13a-phrase-global-apply-track-group|workspace=phrase,phraseWorkspaceTab=globalApply,performanceTrackGroupCount=1,phraseGlobalApplyTrackSelectorVisible=true|phraseMatrixTrackCount=8;phraseMatrixPhraseCount=8;performanceTrackGroupFixture=0;phraseWorkspaceTab=globalApply;phraseGlobalApplyTrackSelector=open;transport=stop
 13b-phrase-perform-capture|workspace=phrase,workspaceMode=perform,phraseCaptureVisible=true|phraseMatrixTrackCount=8;phraseMatrixPhraseCount=8;workspaceMode=perform;phraseWorkspaceTab=layers;phraseCapture=open;transport=stop
-13c-phrase-global-apply-selected|workspace=phrase,phraseWorkspaceTab=globalApply,phraseGlobalApplyTrackSelectorVisible=true|phraseMatrixTrackCount=8;phraseCapture=close;phraseWorkspaceTab=globalApply;phraseGlobalApplyTrackSelector=open;phraseGlobalApplySelect=2;transport=stop
 # 14-17 RETIRED: the tracks Perform LAYER surface (TRACK LAYER selector +
 # mute/fill/note-repeat layer cells) was removed. Tracks Perform is now
 # navigation + selection; layer perform launches scoped from the selection
 # (covered by the phrase-perform rows 08-13b). The trackPerformLayer* status
 # fields no longer exist.
-18-track-detail-steps-clip|workspace=track|trackFillSource=clip;trackSourceTab=steps-clip;transport=stop
+18-track-detail-steps-clip|workspace=track,selectedTrackGroupName=none,drumPartHeaderVisible=false,documentEditCanCopy=true,documentEditCanClear=true|selectTrackType=monoMelodic;trackFillSource=clip;trackSourceTab=steps-clip;trackSelectStep=2;transport=stop
 19-track-sampler-sound-populated|workspace=track,trackSourceTab=sound,trackSourceEditorRenderedVisible=true,trackSourceEditorRenderedTab=sound,selectedTrackSoundDestinationKind=sample|trackSoundSource=sample;trackSourceTab=sound;transport=stop
 19a-track-sound-empty|workspace=track,trackSourceTab=sound,trackSourceEditorRenderedVisible=true,trackSourceEditorRenderedTab=sound,selectedTrackSoundDestinationKind=none|trackSoundSource=empty;trackSourceTab=sound;transport=stop
 20-track-fill-preview-active|workspace=track,trackSourceTab=steps-clip,selectedTrackFillPreviewActive=true|trackFillSource=clip;trackFillPreview=on;trackSourceTab=steps-clip;transport=stop
@@ -153,11 +170,11 @@ CAPTURES=$(cat <<'TABLE'
 22d-track-layer-quick-switch|workspace=track,trackClipLayerSwitcher=open|trackFillSource=clip;trackSourceTab=steps-clip;trackClipLayerSwitcher=open;transport=stop
 22e-track-generator-trigger-tab|workspace=track,trackSourceTab=source,trackSourceEditorRenderedVisible=true,trackSourceEditorRenderedTab=steps-clip,trackGeneratorStage=trigger,trackSourceGeneratorRenderedStage=trigger|trackFillSource=generator;trackSourceTab=source;trackGeneratorStage=trigger;transport=stop
 22f-track-generator-pitch-tab|workspace=track,trackSourceTab=source,trackSourceEditorRenderedVisible=true,trackSourceEditorRenderedTab=steps-clip,trackGeneratorStage=pitch,trackSourceGeneratorRenderedStage=pitch|trackFillSource=generator;trackSourceTab=source;trackGeneratorStage=pitch;transport=stop
-22g-track-generator-chord-instrument|workspace=track,trackSourceTab=source,trackGeneratorKind=progressionChordGenerator|addTrack=polyMelodic;trackFillSource=generator;trackGeneratorKind=progressionChordGenerator;trackSourceTab=source;transport=stop
+22g-track-generator-chord-instrument|workspace=track,selectedTrackType=chord,trackSourceTab=source,trackGeneratorKind=chordGenerator|addTrack=chord;trackFillSource=generator;trackGeneratorKind=chordGenerator;trackSourceTab=source;trackGeneratorStage=pitch;transport=stop
 # 22h RETIRED: the chord-following command currently mutates generator state but
 # does not expose a distinct visual from 22g in the Source tab.
 23-track-slicer|workspace=track,selectedTrackType=slice|addTrack=slice;transport=stop
-23a-track-slicer-populated|workspace=track,selectedTrackType=slice,slicerFixture=populated,slicerSliceCount=8,slicerClipStepCount=16,slicerClipActiveStepCount=8,slicerLayer=steps|slicerFixture=populated;slicerLayer=steps;workspaceScroll=top;transport=stop
+23a-track-slicer-populated|workspace=track,selectedTrackType=slice,slicerFixture=populated,slicerSliceCount=8,slicerClipStepCount=16,slicerClipActiveStepCount=8,slicerLayer=steps|slicerFixture=populated;slicerLayer=steps;slicerSelectStep=2;workspaceScroll=top;transport=stop
 23b-track-slicer-velocity-layer|workspace=track,selectedTrackType=slice,slicerFixture=populated,slicerSliceCount=8,slicerLayer=velocity|slicerFixture=populated;slicerLayer=velocity;workspaceScroll=bottom;transport=stop
 23ba-track-slicer-length-layer|workspace=track,selectedTrackType=slice,slicerFixture=populated,slicerSliceCount=8,slicerLayer=gate|slicerFixture=populated;slicerLayer=gate;workspaceScroll=bottom;transport=stop
 23c-track-slicer-chance-layer|workspace=track,selectedTrackType=slice,slicerFixture=populated,slicerSliceCount=8,slicerLayer=chance|slicerFixture=populated;slicerLayer=chance;workspaceScroll=bottom;transport=stop
@@ -165,7 +182,7 @@ CAPTURES=$(cat <<'TABLE'
 23e-track-slicer-slice-tab|workspace=track,selectedTrackType=slice,slicerFixture=populated,slicerTab=slice|slicerFixture=populated;slicerLayer=steps;slicerTab=slice;workspaceScroll=bottom;transport=stop
 23f-slice-source-modal|workspace=track,selectedTrackType=slice,slicerFixture=populated,sliceSourceModal=open|slicerFixture=populated;slicerLayer=steps;slicerTab=source;sliceSourceModal=open;transport=stop
 23fa-slice-layer-quick-switch|workspace=track,selectedTrackType=slice,slicerFixture=populated,slicerLayerSwitcher=open|sliceSourceModal=close;slicerFixture=populated;slicerTab=steps;slicerLayer=steps;slicerLayerSwitcher=open;workspaceScroll=bottom;transport=stop
-23h-track-chord-steps|workspace=track,selectedTrackType=chord,chordTrackRenderedVisible=true,chordTrackRenderedTab=steps,chordTrackRenderedLayer=chord,chordTrackRenderedActiveStepCount=4|chordTrackFixture=populated;chordTrackTab=steps;chordTrackLayer=chord;chordTrackSelectStep=4;transport=stop
+23h-track-chord-steps|workspace=track,selectedTrackType=chord,chordTrackRenderedVisible=true,chordTrackRenderedTab=steps,chordTrackRenderedLayer=chord,chordTrackRenderedActiveStepCount=4|selectTrackType=chord;chordTrackFixture=populated;chordTrackTab=steps;chordTrackLayer=chord;chordTrackSelectStep=4;transport=stop
 23i-track-chord-chords-tab|workspace=track,selectedTrackType=chord,chordTrackRenderedVisible=true,chordTrackRenderedTab=chords,chordTrackRenderedPaletteSlotCount=4|chordTrackFixture=populated;chordTrackTab=chords;transport=stop
 23j-track-chord-inversion-layer|workspace=track,selectedTrackType=chord,chordTrackRenderedVisible=true,chordTrackRenderedTab=steps,chordTrackRenderedLayer=inversion,chordTrackRenderedActiveStepCount=4|chordTrackFixture=populated;chordTrackTab=steps;chordTrackLayer=inversion;chordTrackSelectStep=4;transport=stop
 23ja-track-chord-length-layer|workspace=track,selectedTrackType=chord,chordTrackRenderedVisible=true,chordTrackRenderedTab=steps,chordTrackRenderedLayer=length,chordTrackRenderedActiveStepCount=4|chordTrackFixture=populated;chordTrackTab=steps;chordTrackLayer=length;chordTrackSelectStep=4;transport=stop
@@ -188,7 +205,7 @@ CAPTURES=$(cat <<'TABLE'
 27c-audio-playback|workspace=track,audioInputArmState=hasLoop,audioInputMonitorMode=loop,audioInputTab=source|audioInputState=playback;audioInputTab=source;transport=stop
 # 28b RETIRED: the default kit route now lands on the same kit matrix surface
 # as 29; keep the explicit kit-matrix row as the canonical capture.
-29-drum-kit-matrix|workspace=track,drumKitMatrixRenderedVisible=true|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;transport=stop
+29-drum-kit-matrix|workspace=track,drumKitMatrixRenderedVisible=true|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixCommand=select-step:0:2;transport=stop
 29e-drum-kit-matrix-fill-lane|workspace=track,drumKitMatrixRenderedVisible=true,drumKitMatrixRenderedFillMode=fill|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixCommand=fill-mode:fill;transport=stop
 # 30 RETIRED: the kit-matrix 16/32 display toggle was removed; the view ignores
 # `display-32`, so this row duplicated row 29 while failing its status wait.
@@ -205,7 +222,9 @@ CAPTURES=$(cat <<'TABLE'
 36-drum-kit-matrix-chance-layer|workspace=track,drumKitMatrixRenderedLayer=chance|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixLayer=chance;transport=stop
 # 37 RETIRED: the pattern-realign command no longer reaches slot 2 in a strict
 # full-suite pass; keep layer/template/read-only kit rows until rebuilt.
-38-drum-kit-matrix-template-chooser|workspace=track,drumKitMatrixRenderedTemplateChooserVisible=true|drumPartHeaderFixture=kit;drumPartHeaderOpenKitView=true;drumKitMatrixTemplateChooser=open;transport=stop
+37a-drum-kit-template-target-prompt|workspace=track,drumKitMatrixRenderedTemplateTargetPrompting=true,drumKitMatrixRenderedTemplateTargetCount=0|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixCommand=template-target-prompt;transport=stop
+37b-drum-kit-template-target-single|workspace=track,drumKitMatrixRenderedTemplateTargetCount=1,documentEditCanCopy=true,documentEditCanClear=true|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixCommand=template-target:0;transport=stop
+38-drum-kit-matrix-template-chooser|workspace=track,drumKitMatrixRenderedTemplateChooserVisible=true,drumKitMatrixRenderedTemplateTargetCount=2,documentEditCanCopy=false,documentEditCanClear=true|drumPartHeaderFixture=kit;drumPartHeaderOpenKitView=true;drumKitMatrixCommands=template-target:0,template-target-add:2,open-template-chooser;transport=stop
 39-drum-kit-matrix-generator-readonly|workspace=track,drumKitMatrixRenderedVisible=true|drumPartHeaderFixture=kit;drumKitMatrixFixture=generatorAndReadOnly;drumPartHeaderOpenKitView=true;drumKitMatrixTemplateChooser=close;transport=stop
 32-step-order-unassigned|workspace=phrase,workspaceMode=perform,phrasePerformLayerMode=stepOrder,phrasePerformLayerVariant=Identity,stepOrderFixtureState=unassigned|stepOrderFixture=unassigned;workspaceMode=perform;phraseWorkspaceTab=layers;phrasePerformLayer=stepOrder;phrasePerformLayerVariant=Identity;transport=stop
 # 33 RETIRED: assigned/on step-order status is reported, but the current
@@ -329,40 +348,63 @@ run_capture_row() {
   waits="$(printf '%s' "$row" | cut -d'|' -f2)"
   payload="$(printf '%s' "$row" | cut -d'|' -f3- | tr ';' '\n')"
 
-  if [[ "$name" == *drum-kit-matrix* ]] &&
-     [[ "$payload" != *"drumKitMatrixCommand=openRouting"* ]] &&
-     [[ "$payload" != *"drumKitMatrixCommand=open-routing"* ]]; then
+  # The track-group chooser is a sheet. Dismiss it in its own acknowledged
+  # command before the following phrase Capture sheet is requested; swapping
+  # two sheets in one SwiftUI update can strand the second presentation.
+  if [ "$name" = "13b-phrase-perform-capture" ]; then
     write_visual_command "windowFrame=$WB
-drumKitMatrixCommand=closeRouting
+phraseGlobalApplyTrackSelector=close
 transport=stop"
     wait_for_visual_command_ack 10
-    wait_for_status "drumKitMatrixRenderedRoutingEditorVisible" "false" 10
+    wait_for_status "phraseGlobalApplyTrackSelectorVisible" "false" 10
   fi
 
-  if [[ "$name" == *drum-kit-matrix* ]] &&
-     [[ "$payload" == *"drumPartHeaderOpenKitView=true"* ]]; then
+  if [[ "$payload" == *"drumPartHeaderOpenKitView=true"* ]]; then
+    local requested_fixture
+    requested_fixture="$(printf '%s\n' "$payload" | awk -F= '$1 == "drumKitMatrixFixture" { print $2; exit }')"
+    if [ -z "$requested_fixture" ]; then
+      requested_fixture="${drum_matrix_fixture:-default}"
+    fi
+
     local prime_payload="drumPartHeaderFixture=kit
 drumPartHeaderOpenKitView=true
 transport=stop"
-    if [[ "$payload" == *"drumKitMatrixFixture=generatorAndReadOnly"* ]]; then
+    if [ "$requested_fixture" = "generatorAndReadOnly" ]; then
       prime_payload="drumPartHeaderFixture=kit
 drumKitMatrixFixture=generatorAndReadOnly
 drumPartHeaderOpenKitView=true
 transport=stop"
-    elif [[ "$payload" == *"drumKitMatrixFixture=mixed"* ]]; then
+    elif [ "$requested_fixture" = "mixed" ]; then
       prime_payload="drumPartHeaderFixture=kit
 drumKitMatrixFixture=mixed
 drumPartHeaderOpenKitView=true
 transport=stop"
     fi
 
-    write_visual_command "windowFrame=$WB
+    if [ "$drum_matrix_mounted" = true ] && [ "$drum_matrix_fixture" = "$requested_fixture" ]; then
+      write_visual_command "windowFrame=$WB
+drumKitMatrixCommand=reset-for-capture
+transport=stop"
+      wait_for_visual_command_ack 10
+    else
+      write_visual_command "windowFrame=$WB
 $prime_payload"
-    # This primer opens/rebuilds the kit matrix. Wait for it before writing the
-    # row command; otherwise two near-identical file updates can race the
-    # command watcher and leave the row one visualCommandID behind.
-    wait_for_visual_command_ack 25 || true
-    sleep 0.8
+      # Mount once per fixture. The row payload below deliberately omits the
+      # fixture/open keys so it cannot trigger a second rebuild.
+      if wait_for_visual_command_ack 25; then
+        drum_matrix_mounted=true
+        drum_matrix_fixture="$requested_fixture"
+        sleep "$default_settle_seconds"
+      fi
+    fi
+
+    if [ "$drum_matrix_mounted" = true ] && [ "$drum_matrix_fixture" = "$requested_fixture" ]; then
+      payload="$(printf '%s\n' "$payload" | awk -F= '
+        $1 != "drumPartHeaderFixture" &&
+        $1 != "drumKitMatrixFixture" &&
+        $1 != "drumPartHeaderOpenKitView"
+      ')"
+    fi
   fi
 
   local wait_failed=false
@@ -397,17 +439,19 @@ $payload"
     return 1
   fi
 
-  # Most surfaces render well within 0.8s. The expanded kit-row detail rows
+  # Status acknowledgement means the command reached the mounted runner, so
+  # ordinary SwiftUI surfaces only need one short render settle. Expanded
+  # kit-row detail rows
   # build a drum-group fixture AND render all cold when run standalone, so the
   # expanded-row detail mounts (and observes its visual commands) late — the
   # runner re-fires those posts, so give these rows a longer settle so the
   # intended surface is on screen at capture time. Harness-only timing; no
   # product behaviour changes.
-  local settle=0.8
+  local settle="$default_settle_seconds"
   case "$name" in
-    01-*|01a-*|01b-*|02-*|02a-*|02b-*) settle=3.5 ;;
-    19-*|19a-*|22a-*|22e-*|22f-*|29d-*) settle=3.5 ;;
-    29g-*) settle=2.8 ;;
+    01-*|01a-*|01b-*|02-*|02a-*|02b-*) settle="$slow_settle_seconds" ;;
+    19-*|19a-*|22a-*|22e-*|22f-*|29d-*) settle="$slow_settle_seconds" ;;
+    29g-*) settle=1.4 ;;
   esac
   sleep "$settle"
   capture_state "$pid" "$name"
@@ -442,6 +486,24 @@ ensure_document_window() {
 
   echo "Timed out waiting for a document window; last title was '$title'." >&2
   return 1
+}
+
+ensure_single_document_window() {
+  local pid="$1"
+  local windows_json
+  local document_window_count
+  windows_json="$(window_json "$pid")"
+  document_window_count="$(
+    printf '%s\n' "$windows_json" \
+      | jq '[.data.windows[] | select((.window_title // "") != "" and .window_title != "Open")] | length'
+  )"
+  if [ "$document_window_count" -ne 1 ]; then
+    action_log "ERROR: expected one driven document window, found ${document_window_count}"
+    printf '%s\n' "$windows_json" \
+      | jq -r '.data.windows[] | "window \(.window_id): \(.window_title // "untitled")"' \
+      | while IFS= read -r description; do action_log "  ${description}"; done
+    return 1
+  fi
 }
 
 write_notes() {
@@ -486,20 +548,28 @@ cleanup() {
   # (The note-repeat release cleanup was retired with the tracks-matrix
   # note-repeat surface — note repeat is no longer engaged from here.)
   write_visual_command "transport=stop" 2>/dev/null || true
-  sleep 2
+  wait_for_visual_command_ack 2 >/dev/null 2>&1 || true
   if [ -n "${pid:-}" ]; then
     kill "$pid" 2>/dev/null || true
-    sleep 1
-    kill -9 "$pid" 2>/dev/null || true
+    for _ in 1 2 3 4 5; do
+      kill -0 "$pid" 2>/dev/null || break
+      sleep 0.1
+    done
+    kill -0 "$pid" 2>/dev/null && kill -9 "$pid" 2>/dev/null || true
   elif [ -n "${launched_pid:-}" ]; then
     kill "$launched_pid" 2>/dev/null || true
-    sleep 1
-    kill -9 "$launched_pid" 2>/dev/null || true
+    for _ in 1 2 3 4 5; do
+      kill -0 "$launched_pid" 2>/dev/null || break
+      sleep 0.1
+    done
+    kill -0 "$launched_pid" 2>/dev/null && kill -9 "$launched_pid" 2>/dev/null || true
   fi
   if [ "$command_file_from_env" != true ]; then
     launchctl unsetenv SEQUENCER_AI_VISUAL_COMMAND_FILE >/dev/null 2>&1 || true
     launchctl unsetenv SEQUENCER_AI_NEW_DOCUMENT_FIXTURE >/dev/null 2>&1 || true
   fi
+  launchctl unsetenv SEQUENCER_AI_MATERIALIZE_FIXTURE_SAMPLES >/dev/null 2>&1 || true
+  launchctl unsetenv LLVM_PROFILE_FILE >/dev/null 2>&1 || true
   if [ "$command_file_from_env" != true ]; then
     defaults delete "$bundle_id" VisualScenarioCommandFile >/dev/null 2>&1 || true
   fi
@@ -512,28 +582,6 @@ trap cleanup EXIT
 # ---------------------------------------------------------------------------
 
 mkdir -p "$output_dir"
-# A full run starts from a clean output dir so retired/renamed rows never leave
-# stale PNGs behind (the gallery shows whatever is in the dir). Filtered runs
-# (QA_SURFACE_CAPTURE_FILTER set) only refresh their subset, so they must NOT
-# purge the other rows' artifacts.
-if [ -z "$capture_filter" ]; then
-  rm -f "$output_dir"/*.png "$output_dir"/*.status "$output_dir"/*.command.env
-  : > "$output_dir/scenario-actions.log"
-fi
-mkdir -p "$(dirname "$command_file")"
-mkdir -p "$(dirname "$runtime_fixture_path")"
-rm -f "$command_file" "$status_file"
-cp "$fixture_source_path" "$runtime_fixture_path"
-
-if [ "$command_file_from_env" != true ]; then
-  launchctl setenv SEQUENCER_AI_VISUAL_COMMAND_FILE "$command_file" >/dev/null
-  launchctl setenv SEQUENCER_AI_NEW_DOCUMENT_FIXTURE "$runtime_fixture_path" >/dev/null
-  launchctl setenv SEQUENCER_AI_MATERIALIZE_FIXTURE_SAMPLES 1 >/dev/null
-  defaults write "$bundle_id" VisualScenarioCommandFile "$command_file"
-fi
-export SEQUENCER_AI_VISUAL_COMMAND_FILE="$command_file"
-export SEQUENCER_AI_NEW_DOCUMENT_FIXTURE="$runtime_fixture_path"
-export SEQUENCER_AI_MATERIALIZE_FIXTURE_SAMPLES=1
 
 if [ -n "${SEQUENCER_AI_VISUAL_APP_PATH:-}" ]; then
   app_path="$SEQUENCER_AI_VISUAL_APP_PATH"
@@ -551,12 +599,82 @@ if [ ! -x "$app_executable" ]; then
   echo "App executable not found at $app_executable" >&2
   exit 2
 fi
-"$app_executable" "$runtime_fixture_path" >>"$output_dir/app-open.log" 2>&1 &
-launched_pid="$!"
-sleep 3
+
+# Unsigned/ad-hoc debug builds are not sandboxed. Sending those builds into
+# ~/Library/Containers triggers macOS's protected app-data consent dialog on
+# every rebuilt signature, which makes unattended capture impossible. Keep
+# their command channel in ordinary temp storage; signed sandboxed builds still
+# use their own container because the sandbox cannot watch an arbitrary path.
+if ! codesign -d --entitlements :- "$app_path" 2>&1 \
+  | grep -q 'com.apple.security.app-sandbox'; then
+  app_command_dir="${TMPDIR:-/tmp}/in-sequence-visual-commands/qa-${USER:-user}"
+  if [ "$command_file_from_env" != true ]; then
+    command_file="$app_command_dir/qa-surface-coverage-command.env"
+    status_file="${command_file}.status"
+  fi
+  if [ "$runtime_fixture_from_env" != true ]; then
+    runtime_fixture_path="$app_command_dir/qa-surface-coverage-fixture.seqai"
+  fi
+  printf 'command_storage=ordinary-temp (unsandboxed app)\n' >>"$output_dir/app-open.log"
+else
+  printf 'command_storage=app-container (sandboxed app)\n' >>"$output_dir/app-open.log"
+fi
+
+# A full run starts from a clean output dir so retired/renamed rows never leave
+# stale PNGs behind (the gallery shows whatever is in the dir). Filtered runs
+# (QA_SURFACE_CAPTURE_FILTER set) only refresh their subset, so they must NOT
+# purge the other rows' artifacts.
+if [ -z "$capture_filter" ]; then
+  rm -f "$output_dir"/*.png "$output_dir"/*.status "$output_dir"/*.command.env
+  : > "$output_dir/scenario-actions.log"
+fi
+mkdir -p "$(dirname "$command_file")"
+mkdir -p "$(dirname "$runtime_fixture_path")"
+rm -f "$command_file" "$status_file"
+cp "$fixture_source_path" "$runtime_fixture_path"
+
+if [ "$command_file_from_env" != true ]; then
+  launchctl setenv SEQUENCER_AI_VISUAL_COMMAND_FILE "$command_file" >/dev/null
+  defaults write "$bundle_id" VisualScenarioCommandFile "$command_file"
+fi
+launchctl setenv SEQUENCER_AI_MATERIALIZE_FIXTURE_SAMPLES 1 >/dev/null
+export SEQUENCER_AI_VISUAL_COMMAND_FILE="$command_file"
+export SEQUENCER_AI_MATERIALIZE_FIXTURE_SAMPLES=1
+# Launch through Launch Services so the app receives the normal macOS app
+# lifecycle. Invoking the executable directly can exit before SwiftUI creates a
+# document window on current macOS builds. Opening the sandboxed fixture as the
+# document bypasses the Open chooser and mounts exactly one command runner.
+launchctl setenv LLVM_PROFILE_FILE "$output_dir/SequencerAI-%p.profraw" >/dev/null
+existing_app_pids="$(pgrep -x "$APP_NAME" || true)"
+open -na "$app_path" "$runtime_fixture_path" --args \
+  -ApplePersistenceIgnoreState YES \
+  -NSQuitAlwaysKeepsWindows NO \
+  >>"$output_dir/app-open.log" 2>&1
+launched_pid=""
+launch_deadline=$((SECONDS + startup_wait_seconds))
+while [ "$SECONDS" -lt "$launch_deadline" ]; do
+  while IFS= read -r candidate_pid; do
+    [ -n "$candidate_pid" ] || continue
+    if ! printf '%s\n' "$existing_app_pids" | grep -qx "$candidate_pid"; then
+      launched_pid="$candidate_pid"
+      break
+    fi
+  done < <(pgrep -x "$APP_NAME" | sort -nr)
+  [ -n "$launched_pid" ] && break
+  sleep 0.25
+done
+if [ -z "$launched_pid" ]; then
+  echo "Timed out waiting for $APP_NAME to launch from $app_path." >&2
+  exit 1
+fi
+sleep "$launch_grace_seconds"
 
 pid="$launched_pid"
 last_completed_row="startup"
+
+# The fixture is the sole document argument, so no chooser interaction or
+# synthetic click is needed before the command runner can acknowledge work.
+ensure_document_window "$pid"
 
 # Size the freshly-launched window BEFORE the peekaboo gate. Without saved
 # window state the app opens at a tiny default size that peekaboo filters out
@@ -565,9 +683,9 @@ last_completed_row="startup"
 write_visual_command "windowFrame=$WB
 workspace=phrase
 transport=stop"
-ensure_document_window "$pid"
 wait_for_visual_command_ack "$startup_wait_seconds"
 wait_for_status "workspace" "phrase" "$startup_wait_seconds"
+ensure_single_document_window "$pid"
 
 while IFS= read -r row; do
   [ -n "$row" ] || continue

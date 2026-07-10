@@ -353,6 +353,59 @@ final class TracksPageInvalidationTests: XCTestCase {
             kitCard.contains(".contextMenu"),
             "Kit cards must not open the old Select/Copy/Expand menu on secondary click."
         )
+        XCTAssertTrue(
+            trackCard.contains(".contentShape(") && trackCard.contains(".onTapGesture"),
+            "The ordinary track card's full visible shape must toggle/open, including its edges."
+        )
+        XCTAssertTrue(
+            kitCard.contains(".contentShape(") && kitCard.contains(".onTapGesture(perform: onOpenKit)"),
+            "The kit card's full visible shape must toggle/open, including its edges."
+        )
+        XCTAssertFalse(
+            trackCard.contains("track-card-select-mark") || trackCard.contains("TrackTypeBadge"),
+            "Selection cards should use a solid fill without checkbox or type-logo chrome."
+        )
+        XCTAssertFalse(
+            kitCard.contains("kit-card-select-mark") || kitCard.contains("square.grid.2x2.fill"),
+            "Kit selection cards should use the same solid-fill grammar without a checkbox or logo."
+        )
+    }
+
+    func test_trackNavigatorCardEdgeTogglesSelectionThroughHostedUI() throws {
+        let harness = try makeHarness(mode: .setup)
+        defer { harness.window.close() }
+        let firstTrackID = try XCTUnwrap(harness.session.store.tracks.first?.id)
+        harness.session.tracksSelectionMode = true
+        harness.session.tracksSelection.removeAll()
+        drainMainRunLoop(seconds: 0.05)
+
+        harness.window.makeKeyAndOrderFront(nil)
+        drainMainRunLoop(seconds: 0.02)
+        click(host: harness.hostingView, window: harness.window, at: NSPoint(x: 12, y: 90))
+
+        XCTAssertTrue(
+            harness.session.tracksSelection.contains(firstTrackID),
+            "A click near the visible card's left edge must select the card, not fall through its padding."
+        )
+    }
+
+    private func click(host: NSView, window: NSWindow, at point: NSPoint) {
+        let location = host.convert(point, to: nil)
+        for type in [NSEvent.EventType.leftMouseDown, .leftMouseUp] {
+            guard let event = NSEvent.mouseEvent(
+                with: type,
+                location: location,
+                modifierFlags: [],
+                timestamp: ProcessInfo.processInfo.systemUptime,
+                windowNumber: window.windowNumber,
+                context: nil,
+                eventNumber: 0,
+                clickCount: 1,
+                pressure: type == .leftMouseDown ? 1 : 0
+            ) else { continue }
+            window.sendEvent(event)
+        }
+        drainMainRunLoop(seconds: 0.02)
     }
 
     func test_generatorTriggerEditorExposesEuclideanControlsWithoutManualOrDisclosure() throws {
@@ -797,6 +850,241 @@ final class TracksPageInvalidationTests: XCTestCase {
                 qaScript.contains("history-save-open") &&
                 !qaScript.contains("29f-drum-kit-capture-save-slot|workspace=track,drumKitMatrixRenderedCaptureOpen=true,drumKitMatrixRenderedSaveSlotPickerVisible=true|drumPartHeaderFixture=kit;drumKitMatrixFixture=mixed;drumPartHeaderOpenKitView=true;drumKitMatrixCommands=open-capture,history-fixture,history-audition-on"),
             "The QA capture row should cover save-slot targeting without opening the removed audition state."
+        )
+    }
+
+    func test_createTrackGroupSheetOmitsSelectedTrackPills() throws {
+        let source = try String(
+            contentsOf: repoRoot.appendingPathComponent("Sources/UI/TracksMatrixView.swift"),
+            encoding: .utf8
+        )
+        let sheet = try XCTUnwrap(
+            source.slice(
+                from: "private func createPerformanceTrackGroupSheet",
+                to: "    private func performanceTrackGroupSlot"
+            )
+        )
+
+        XCTAssertTrue(sheet.contains("LazyVGrid("))
+        XCTAssertFalse(sheet.contains("ForEach(selectedTracks"))
+        XCTAssertFalse(sheet.contains("Capsule()"))
+    }
+
+    func test_addDrumGroupMenusHideNativeIndicators() throws {
+        let source = try String(
+            contentsOf: repoRoot.appendingPathComponent("Sources/UI/DrumGroup/AddDrumGroupContent.swift"),
+            encoding: .utf8
+        )
+        let menus = try XCTUnwrap(
+            source.slice(from: "private func tagMenu", to: "    private func soundLabel")
+        )
+
+        XCTAssertEqual(menus.components(separatedBy: ".menuIndicator(.hidden)").count - 1, 2)
+        XCTAssertEqual(menus.components(separatedBy: "Image(systemName: \"chevron.down\")").count - 1, 1)
+    }
+
+    func test_phraseCrossfaderUsesRoundedSharedSlideControl() throws {
+        let source = try String(
+            contentsOf: repoRoot.appendingPathComponent("Sources/UI/PhraseWorkspaceView.swift"),
+            encoding: .utf8
+        )
+        let crossfader = try XCTUnwrap(
+            source.slice(from: "private func phraseSceneCrossfader", to: "    // Slots mode:")
+        )
+
+        XCTAssertTrue(crossfader.contains("StudioSlideControl("))
+        XCTAssertTrue(crossfader.contains("chrome: .roundedRectangle"))
+        XCTAssertFalse(source.contains("private struct PhraseSceneCrossfaderTrack"))
+    }
+
+    func test_clipLengthControlUsesCompressedSegmentGeometry() throws {
+        let source = try String(
+            contentsOf: repoRoot.appendingPathComponent("Sources/UI/TrackSource/Clip/ClipContentPreview.swift"),
+            encoding: .utf8
+        )
+        let controls = try XCTUnwrap(
+            source.slice(from: "private func clipHeaderControls", to: "    private func pitchKeyboard")
+        )
+
+        XCTAssertTrue(controls.contains("minWidth: 28"))
+        XCTAssertTrue(controls.contains("horizontalPadding: StudioMetrics.Spacing.hairline"))
+    }
+
+    func test_sliceSourceModalUsesSharedStudioControlsAndTrackAccent() throws {
+        let source = try String(
+            contentsOf: repoRoot.appendingPathComponent("Sources/UI/Slicer/SliceTrackWorkspaceView.swift"),
+            encoding: .utf8
+        )
+        let sharedControls = try String(
+            contentsOf: repoRoot.appendingPathComponent("Sources/UI/Theme/StudioControls.swift"),
+            encoding: .utf8
+        )
+        let modal = try XCTUnwrap(
+            source.slice(from: "private var sliceModal", to: "    // MARK: - Slice browsing")
+        )
+        let detection = try XCTUnwrap(
+            source.slice(from: "private func autoDetectControls", to: "    // Slice count")
+        )
+
+        XCTAssertTrue(modal.contains("StudioSlideControl("))
+        XCTAssertTrue(modal.contains("chrome: .roundedRectangle"))
+        XCTAssertTrue(detection.contains("StudioSegmentedControl("))
+        XCTAssertTrue(modal.contains("StudioCommandButton("))
+        XCTAssertTrue(modal.contains("accent: accent"))
+        XCTAssertFalse(modal.contains("\n            Slider("))
+        XCTAssertFalse(detection.contains("\n                    Slider("))
+        XCTAssertFalse(detection.contains("Picker("))
+        XCTAssertFalse(modal.contains(".buttonStyle(.bordered"))
+        XCTAssertTrue(sharedControls.contains("struct StudioCommandButton: View"))
+    }
+}
+
+final class TracksNavigatorPresentationTests: XCTestCase {
+    func test_filtersClassifyEveryTrackCategoryWithGroupMembershipTakingPrecedence() {
+        let fixture = makeFixture()
+
+        XCTAssertEqual(trackIDs(for: .mono, fixture: fixture), [fixture.mono.id])
+        XCTAssertEqual(trackIDs(for: .poly, fixture: fixture), [fixture.poly.id])
+        XCTAssertEqual(trackIDs(for: .chord, fixture: fixture), [fixture.chord.id])
+        XCTAssertEqual(trackIDs(for: .slicer, fixture: fixture), [fixture.slicer.id])
+        XCTAssertEqual(trackIDs(for: .audio, fixture: fixture), [fixture.audio.id])
+        XCTAssertEqual(
+            TracksNavigatorPresentation.items(
+                tracks: fixture.tracks,
+                groups: [fixture.group],
+                filter: .drumKits
+            ),
+            [.kit(fixture.group.id)]
+        )
+        XCTAssertEqual(
+            trackIDs(for: .drumParts, fixture: fixture),
+            [fixture.groupedPoly.id, fixture.groupedMono.id],
+            "Group member order wins, and grouped melodic tracks classify only as drum parts."
+        )
+    }
+
+    func test_allAndDrumFiltersPreserveStablePresentationOrderWithoutMutatingInput() {
+        let fixture = makeFixture()
+        let originalTracks = fixture.tracks
+        let originalGroups = [fixture.group]
+
+        let collapsed = TracksNavigatorPresentation.items(
+            tracks: fixture.tracks,
+            groups: originalGroups,
+            filter: .all
+        )
+        XCTAssertEqual(
+            collapsed,
+            [
+                .track(fixture.mono.id), .track(fixture.poly.id),
+                .track(fixture.chord.id), .track(fixture.slicer.id),
+                .track(fixture.audio.id), .kit(fixture.group.id)
+            ]
+        )
+
+        let expanded = TracksNavigatorPresentation.items(
+            tracks: fixture.tracks,
+            groups: originalGroups,
+            filter: .all,
+            forceExpandedGroups: [fixture.group.id]
+        )
+        XCTAssertEqual(
+            Array(expanded.suffix(3)),
+            [.kit(fixture.group.id), .track(fixture.groupedPoly.id), .track(fixture.groupedMono.id)]
+        )
+        XCTAssertEqual(fixture.tracks, originalTracks)
+        XCTAssertEqual(originalGroups, [fixture.group])
+    }
+
+    func test_visibleTrackIDsExpandKitRepresentativesWithoutChangingSelectionOrGroupState() {
+        let fixture = makeFixture()
+        let items = TracksNavigatorPresentation.items(
+            tracks: fixture.tracks,
+            groups: [fixture.group],
+            filter: .drumKits
+        )
+        let selection = Set([fixture.mono.id, fixture.groupedMono.id])
+
+        XCTAssertEqual(
+            TracksNavigatorPresentation.visibleTrackIDs(
+                in: items,
+                tracks: fixture.tracks,
+                groups: [fixture.group]
+            ),
+            [fixture.groupedPoly.id, fixture.groupedMono.id]
+        )
+        XCTAssertEqual(selection, Set([fixture.mono.id, fixture.groupedMono.id]))
+        XCTAssertTrue(fixture.group.isPatternLinked)
+    }
+
+    private func trackIDs(
+        for filter: TracksNavigatorFilter,
+        fixture: Fixture
+    ) -> [UUID] {
+        TracksNavigatorPresentation.items(
+            tracks: fixture.tracks,
+            groups: [fixture.group],
+            filter: filter
+        ).compactMap { item in
+            guard case .track(let id) = item else { return nil }
+            return id
+        }
+    }
+
+    private struct Fixture {
+        let mono: StepSequenceTrack
+        let poly: StepSequenceTrack
+        let chord: StepSequenceTrack
+        let slicer: StepSequenceTrack
+        let audio: StepSequenceTrack
+        let groupedMono: StepSequenceTrack
+        let groupedPoly: StepSequenceTrack
+        let group: TrackGroup
+
+        var tracks: [StepSequenceTrack] {
+            [mono, groupedMono, poly, chord, slicer, audio, groupedPoly]
+        }
+    }
+
+    private func makeFixture() -> Fixture {
+        let groupID = UUID()
+        let mono = track("Mono", type: .monoMelodic)
+        let groupedMono = track("Kick", type: .monoMelodic, groupID: groupID)
+        let poly = track("Poly", type: .polyMelodic)
+        let chord = track("Chord", type: .chord)
+        let slicer = track("Slicer", type: .slice)
+        let audio = track("Audio", type: .audioInput)
+        let groupedPoly = track("Snare", type: .polyMelodic, groupID: groupID)
+        let group = TrackGroup(
+            id: groupID,
+            name: "Kit",
+            memberIDs: [groupedPoly.id, groupedMono.id]
+        )
+        return Fixture(
+            mono: mono,
+            poly: poly,
+            chord: chord,
+            slicer: slicer,
+            audio: audio,
+            groupedMono: groupedMono,
+            groupedPoly: groupedPoly,
+            group: group
+        )
+    }
+
+    private func track(
+        _ name: String,
+        type: TrackType,
+        groupID: TrackGroupID? = nil
+    ) -> StepSequenceTrack {
+        StepSequenceTrack(
+            name: name,
+            trackType: type,
+            pitches: [60],
+            stepPattern: [true, false, false, false],
+            groupID: groupID,
+            velocity: 100,
+            gateLength: 4
         )
     }
 }

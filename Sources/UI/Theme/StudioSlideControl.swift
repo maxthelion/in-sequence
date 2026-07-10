@@ -16,6 +16,16 @@ enum StudioSlideControlModel {
         return range.lowerBound + position * (range.upperBound - range.lowerBound)
     }
 
+    static func adjustedValue(
+        _ value: Double,
+        incrementing: Bool,
+        step: Double,
+        range: ClosedRange<Double>
+    ) -> Double {
+        let delta = incrementing ? abs(step) : -abs(step)
+        return min(max(value + delta, range.lowerBound), range.upperBound)
+    }
+
     /// Compact pan vocabulary: L100…L1 / C / R1…R100.
     static func panLabel(for value: Double) -> String {
         if value < -0.005 {
@@ -37,18 +47,48 @@ struct StudioSlideControl: View {
         case fromLeading
     }
 
+    enum Chrome {
+        /// Slim mixer-pan chrome retained for dense strip controls.
+        case compact
+        /// Rounded-rectangle trough and handle for larger modal/workspace controls.
+        case roundedRectangle
+    }
+
     let value: Double
     var range: ClosedRange<Double> = -1...1
     var fillStyle: FillStyle = .fromCenter
+    var chrome: Chrome = .compact
     var accent: Color = StudioTheme.transportAccent
     var leadingLabel: String? = nil
     var trailingLabel: String? = nil
     var help: String = "Pan"
+    var isEnabled = true
+    var accessibilityStep: Double? = nil
     let onChange: (Double) -> Void
     var onEnd: (() -> Void)? = nil
 
     private var normalized: CGFloat {
         CGFloat(StudioSlideControlModel.normalized(value, in: range))
+    }
+
+    private var trackHeight: CGFloat {
+        chrome == .compact ? 5 : 10
+    }
+
+    private var trackCornerRadius: CGFloat {
+        chrome == .compact ? trackHeight / 2 : StudioMetrics.CornerRadius.mini
+    }
+
+    private var thumbSize: CGSize {
+        chrome == .compact ? CGSize(width: 11, height: 11) : CGSize(width: 12, height: 22)
+    }
+
+    private var thumbCornerRadius: CGFloat {
+        chrome == .compact ? thumbSize.width / 2 : StudioMetrics.CornerRadius.mini
+    }
+
+    private var controlAccent: Color {
+        isEnabled ? accent : StudioTheme.border
     }
 
     var body: some View {
@@ -74,41 +114,57 @@ struct StudioSlideControl: View {
         }
         .frame(maxWidth: .infinity)
         .help(help)
+        .allowsHitTesting(isEnabled)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(help)
         .accessibilityValue(trailingLabel ?? "\(Int((normalized * 100).rounded()))")
+        .accessibilityAdjustableAction { direction in
+            guard isEnabled else { return }
+            let step = accessibilityStep ?? (range.upperBound - range.lowerBound) / 20
+            switch direction {
+            case .increment:
+                onChange(StudioSlideControlModel.adjustedValue(value, incrementing: true, step: step, range: range))
+            case .decrement:
+                onChange(StudioSlideControlModel.adjustedValue(value, incrementing: false, step: step, range: range))
+            @unknown default:
+                break
+            }
+        }
     }
 
     private var track: some View {
         GeometryReader { proxy in
             let width = proxy.size.width
             let thumbX = normalized * width
+            let thumbWidth = thumbSize.width
 
             ZStack(alignment: .leading) {
-                // Bold-flat pass: the trough is a solid inset cut with a
-                // drawn outline, not a faint white wash.
-                Capsule(style: .continuous)
+                RoundedRectangle(cornerRadius: trackCornerRadius, style: .continuous)
                     .fill(StudioTheme.inset)
                     .overlay(
-                        Capsule(style: .continuous)
+                        RoundedRectangle(cornerRadius: trackCornerRadius, style: .continuous)
                             .stroke(StudioTheme.border.opacity(StudioOpacity.softStroke), lineWidth: 1)
                     )
-                    .frame(height: 5)
+                    .frame(height: trackHeight)
 
                 if fillStyle == .fromCenter {
-                    Rectangle()
+                    RoundedRectangle(cornerRadius: 1, style: .continuous)
                         .fill(StudioTheme.selectedFill)
-                        .frame(width: 2, height: 11)
+                        .frame(width: 2, height: chrome == .compact ? 11 : 16)
                         .offset(x: width / 2 - 1)
                 }
 
                 fill(width: width)
-                    .frame(height: 5)
+                    .frame(height: trackHeight)
 
-                Circle()
-                    .fill(StudioTheme.text)
-                    .frame(width: 11, height: 11)
-                    .offset(x: min(max(thumbX - 5.5, 0), max(width - 11, 0)))
+                RoundedRectangle(cornerRadius: thumbCornerRadius, style: .continuous)
+                    .fill(chrome == .compact ? StudioTheme.text : controlAccent)
+                    .frame(width: thumbWidth, height: thumbSize.height)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: thumbCornerRadius, style: .continuous)
+                            .stroke(chrome == .compact ? Color.clear : StudioTheme.background, lineWidth: 2)
+                    )
+                    .offset(x: min(max(thumbX - thumbWidth / 2, 0), max(width - thumbWidth, 0)))
             }
             .frame(maxHeight: .infinity, alignment: .center)
             .contentShape(Rectangle())
@@ -122,7 +178,7 @@ struct StudioSlideControl: View {
                     }
             )
         }
-        .frame(height: 18)
+        .frame(height: chrome == .compact ? 18 : 28)
     }
 
     @ViewBuilder
@@ -131,13 +187,13 @@ struct StudioSlideControl: View {
         switch fillStyle {
         case .fromCenter:
             let center = width / 2
-            Capsule(style: .continuous)
-                .fill(accent)
+            RoundedRectangle(cornerRadius: trackCornerRadius, style: .continuous)
+                .fill(controlAccent)
                 .frame(width: abs(thumbX - center))
                 .offset(x: min(thumbX, center))
         case .fromLeading:
-            Capsule(style: .continuous)
-                .fill(accent)
+            RoundedRectangle(cornerRadius: trackCornerRadius, style: .continuous)
+                .fill(controlAccent)
                 .frame(width: thumbX)
         }
     }

@@ -156,6 +156,8 @@ struct ClipMacroLayerTab: Equatable, Identifiable {
 }
 
 struct ClipContentPreview: View {
+    @Environment(SequencerDocumentSession.self) private var session
+
     let content: ClipContent
     let defaultNote: ClipStepNote
     /// The ONE chrome accent of the surface (track identity colour): thumbs
@@ -183,6 +185,7 @@ struct ClipContentPreview: View {
     @State private var selectedLayer: ClipEditorLayer = .mode(.trigger)
     @State private var isLayerSwitcherOpen = false
     @State private var selectedPage = 0
+    @State private var pitchKeyboardOctave: Int
 
     init(
         content: ClipContent,
@@ -224,6 +227,9 @@ struct ClipContentPreview: View {
         self.onRemoveSource = onRemoveSource
         self.playingStepIndex = playingStepIndex
         self._displayedContent = State(initialValue: normalizedContent)
+        self._pitchKeyboardOctave = State(
+            initialValue: StepPitchKeyboardModel(octave: defaultNote.normalized.pitch / 12 - 1).octave
+        )
     }
 
     /// Edits are enabled exactly when a coordinator is attached: the
@@ -332,6 +338,31 @@ struct ClipContentPreview: View {
             guard let command = notification.object as? String else { return }
             applyVisualCommand(command)
         }
+        .documentEditTarget(
+            isActive: isEditable,
+            revision: documentEditTargetRevision,
+            makeTarget: makeDocumentEditTarget
+        )
+    }
+
+    private var documentEditTargetRevision: StepGridDocumentEditTargetRevision {
+        StepGridDocumentEditTargetRevision(
+            clipID: stepGridCoordinator?.selection.clipID,
+            trackID: session.store.selectedTrack.id,
+            selectedStepIndexes: stepGridCoordinator?.selection.selectedStepIndexes ?? []
+        )
+    }
+
+    private func makeDocumentEditTarget() -> DocumentEditCommandController.Target {
+        guard let stepGridCoordinator else {
+            preconditionFailure("An editable clip preview requires a step-grid coordinator")
+        }
+        return stepGridCoordinator.documentEditTarget(
+            track: session.store.selectedTrack,
+            macroBindings: macroBindings,
+            defaultNote: defaultNote,
+            loadClip: { clipID in session.store.clipEntry(id: clipID) }
+        )
     }
 
     private func applyVisualCommand(_ command: String) {
@@ -574,6 +605,10 @@ struct ClipContentPreview: View {
                 }
             }
 
+            if selectedMode == .pitch {
+                pitchKeyboard(lengthSteps: lengthSteps, steps: steps)
+            }
+
             if isRandomizePanelVisible, let randomizePanel {
                 randomizePanel()
             }
@@ -709,19 +744,20 @@ struct ClipContentPreview: View {
         pageCount: Int,
         playheadPage: Int?
     ) -> some View {
-        HStack(alignment: .top, spacing: StudioMetrics.Spacing.standard) {
+        HStack(alignment: .center, spacing: StudioMetrics.Spacing.standard) {
             StudioSegmentedControl(
-                title: "Lane",
+                title: nil,
                 selection: $selectedLane,
                 segments: ClipEditorLane.allCases.map { lane in
                     StudioSegment(title: lane.title, value: lane)
                 },
                 accent: accent,
-                layout: .init(fillsWidth: false, minWidth: 64)
+                layout: .init(fillsWidth: false, minWidth: 64),
+                accessibilityLabel: { "Lane \($0.title)" }
             )
 
             StudioSegmentedControl(
-                title: "Length",
+                title: nil,
                 selection: Binding(
                     get: { lengthSteps },
                     set: { option in
@@ -735,7 +771,13 @@ struct ClipContentPreview: View {
                     StudioSegment(title: "\(option)", value: option, isEnabled: isEditable)
                 },
                 accent: accent,
-                layout: .init(fillsWidth: false, minWidth: 44)
+                layout: .init(
+                    fillsWidth: false,
+                    minWidth: 28,
+                    horizontalPadding: StudioMetrics.Spacing.hairline,
+                    minimumScaleFactor: nil
+                ),
+                accessibilityLabel: { "Length \($0.title) steps" }
             )
 
             if pageCount > 1 {
@@ -743,21 +785,50 @@ struct ClipContentPreview: View {
             }
 
             StepLayerQuickSwitchChip(
-                title: "Layer",
+                title: "",
                 selection: $selectedLayer,
                 isOpen: $isLayerSwitcherOpen,
                 options: layerQuickSwitchOptions,
                 accent: accent
             )
 
+            StepGridBatchActionBar(
+                hasSelection: stepGridCoordinator?.isSelectionActive ?? false,
+                onErase: {
+                    _ = stepGridCoordinator?.clearSelectedSteps(macroBindings: macroBindings)
+                }
+            )
+
             randomizeControls
 
             historyButton
 
-            removeSourceButton
-
             Spacer(minLength: 0)
+
+            removeSourceButton
         }
+    }
+
+    private func pitchKeyboard(lengthSteps: Int, steps: [ClipStep]) -> some View {
+        let clip = macroPreviewClip(lengthSteps: lengthSteps, steps: steps)
+        let canWrite = stepGridCoordinator?.canWritePitch(
+            in: clip,
+            noteLane: selectedLane.noteLane
+        ) ?? false
+
+        return StepPitchKeyboard(
+            octave: $pitchKeyboardOctave,
+            accent: accent,
+            isEnabled: canWrite,
+            onSelectNote: { midiNote in
+                _ = stepGridCoordinator?.writePitchToSelectedTriggeredSteps(
+                    midiNote,
+                    in: clip,
+                    noteLane: selectedLane.noteLane,
+                    defaultNote: defaultNote
+                )
+            }
+        )
     }
 
     @ViewBuilder

@@ -18,6 +18,10 @@ enum SequencerSnapshotCompiler {
         let trackPrograms = Dictionary(uniqueKeysWithValues: state.tracks.map { track in
             (track.id, compileTrackSourceProgram(for: track, patternBanksByTrackID: state.patternBanksByTrackID))
         })
+        let chordGeneratorChoices = compileChordGeneratorChoices(
+            tracks: state.tracks,
+            generatorPool: state.generatorPool
+        )
         let orderedPhrases = state.phraseOrder.compactMap { state.phrasesByID[$0] }
         let inheritedDefaults = PhraseInheritedDefaults.build(phrases: orderedPhrases, layers: state.layers)
         let phraseBuffers = Dictionary(uniqueKeysWithValues: state.phraseOrder.compactMap { id -> (UUID, PhrasePlaybackBuffer)? in
@@ -40,6 +44,7 @@ enum SequencerSnapshotCompiler {
             clipPool: state.clipPool,
             sliceSetPool: state.sliceSetPool,
             generatorPool: state.generatorPool,
+            chordGeneratorChoicesByKey: chordGeneratorChoices,
             tracks: state.tracks,
             resolvedDestinationsByTrackID: resolvedDestinations,
             trackOrder: trackOrder,
@@ -67,6 +72,10 @@ enum SequencerSnapshotCompiler {
         let clipPool = replacingClips(in: previous.clipPool, from: state, changedClipIDs: changed.clipIDs)
         let generatorPool = replacingGenerators(in: previous.generatorPool, from: state, changedGeneratorIDs: changed.generatorIDs)
         let sliceSetPool = replacingSliceSets(in: previous.sliceSetPool, from: state, changedSliceSetIDs: changed.sliceSetIDs)
+        let chordGeneratorChoices = compileChordGeneratorChoices(
+            tracks: tracks,
+            generatorPool: generatorPool
+        )
 
         let clipOwnerByID = makeClipOwnerMap(patternBanks: state.patternBanksByTrackID)
         var clipBuffersByID = previous.clipBuffersByID
@@ -172,6 +181,7 @@ enum SequencerSnapshotCompiler {
             clipPool: clipPool,
             sliceSetPool: sliceSetPool,
             generatorPool: generatorPool,
+            chordGeneratorChoicesByKey: chordGeneratorChoices,
             tracks: tracks,
             resolvedDestinationsByTrackID: resolvedDestinations,
             trackOrder: previous.trackOrder,
@@ -255,6 +265,30 @@ enum SequencerSnapshotCompiler {
                 ResolvedTrackDestination(destination: resolved.destination, pitchOffset: resolved.pitchOffset)
             )
         })
+    }
+
+    private static func compileChordGeneratorChoices(
+        tracks: [StepSequenceTrack],
+        generatorPool: [GeneratorPoolEntry]
+    ) -> [ChordGeneratorPlaybackKey: [ResolvedChordGeneratorChoice]] {
+        var result: [ChordGeneratorPlaybackKey: [ResolvedChordGeneratorChoice]] = [:]
+        let generators = generatorPool.compactMap { entry -> (UUID, ChordGeneratorParams)? in
+            guard entry.kind == .chordGenerator,
+                  entry.trackType == .chord,
+                  case let .chordGenerator(params) = entry.params
+            else {
+                return nil
+            }
+            return (entry.id, params.normalized)
+        }
+
+        for track in tracks where track.trackType == .chord {
+            for (generatorID, params) in generators {
+                let key = ChordGeneratorPlaybackKey(trackID: track.id, generatorID: generatorID)
+                result[key] = params.resolvedChoices(in: track.chordPalette)
+            }
+        }
+        return result
     }
 
     private static func compileClipBuffer(

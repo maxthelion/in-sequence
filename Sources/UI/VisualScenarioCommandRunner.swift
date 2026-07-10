@@ -19,6 +19,9 @@ enum VisualScenarioCommandRunner {
     private static var drumKitMatrixRenderedLayer = "none"
     private static var drumKitMatrixRenderedFillMode = "none"
     private static var drumKitMatrixRenderedGroupPatternSlot = "none"
+    private static var drumKitMatrixRenderedTemplateTargetSlots = "none"
+    private static var drumKitMatrixRenderedTemplateTargetCount = 0
+    private static var drumKitMatrixRenderedTemplateTargetPrompting = false
     private static var drumKitMatrixRenderedGroupName = "none"
     private static var drumKitMatrixRenderedMemberCount = 0
     private static var drumKitMatrixRenderedKitTab = "none"
@@ -52,9 +55,12 @@ enum VisualScenarioCommandRunner {
     private static var phraseSceneSelectVisible = false
     private static var phraseCaptureVisible = false
     private static var tracksCreateTrackModalVisible = false
+    private static var tracksCreateTrackGroupModalVisible = false
     private static var tracksAddDrumGroupModalVisible = false
+    private static var tracksAddDrumGroupFixtureState = "none"
     private static var tracksAddSliceTrackModalVisible = false
     private static var tracksTrackSoundModalVisible = false
+    private static var tracksNavigatorFilterState = TracksNavigatorFilter.all.rawValue
     private static var stepOrderFixtureState = "none"
     private static var trackSourceTabState = "none"
     private static var trackSourceEditorRenderedVisible = false
@@ -245,6 +251,9 @@ enum VisualScenarioCommandRunner {
                 drumKitMatrixRenderedLayer = userInfo["layer"] as? String ?? "none"
                 drumKitMatrixRenderedFillMode = userInfo["fillMode"] as? String ?? "none"
                 drumKitMatrixRenderedGroupPatternSlot = userInfo["groupPatternSlot"] as? String ?? "none"
+                drumKitMatrixRenderedTemplateTargetSlots = userInfo["templateTargetSlots"] as? String ?? "none"
+                drumKitMatrixRenderedTemplateTargetCount = userInfo["templateTargetCount"] as? Int ?? 0
+                drumKitMatrixRenderedTemplateTargetPrompting = userInfo["templateTargetPrompting"] as? Bool ?? false
                 drumKitMatrixRenderedGroupName = userInfo["groupName"] as? String ?? "none"
                 drumKitMatrixRenderedMemberCount = userInfo["memberCount"] as? Int ?? 0
                 drumKitMatrixRenderedKitTab = userInfo["kitTab"] as? String ?? "none"
@@ -398,6 +407,14 @@ enum VisualScenarioCommandRunner {
             session.tracksSelectionMode = rawSelectionMode == "on"
             section.wrappedValue = .tracks
         }
+        if let rawFilter = command["tracksFilter"],
+           let filter = TracksNavigatorFilter(rawValue: rawFilter) {
+            tracksNavigatorFilterState = filter.rawValue
+            section.wrappedValue = .tracks
+            let visualCommand = "filter:\(filter.rawValue)"
+            pendingTracksMatrixCommands.append(visualCommand)
+            postRepeatedVisualCommand(name: .tracksMatrixVisualCommand, object: visualCommand)
+        }
         // Clear runs BEFORE select so a capture row can reset to a known
         // selection deterministically (rows share session state).
         if command["tracksClearSelection"] == "true" {
@@ -419,22 +436,14 @@ enum VisualScenarioCommandRunner {
             pendingTracksMatrixCommands.append("copy-selection")
             postRepeatedVisualCommand(name: .tracksMatrixVisualCommand, object: "copy-selection")
         }
-        // Drive the tracks actions nav: stash the selection as the perform
-        // scope and request navigation to Phrase Layers, exactly as the By
-        // Track / By Value buttons do. `WorkspaceDetailView` and
-        // `PhraseWorkspaceView` then complete the navigation.
+        // Drive the tracks action bar's one Perform command. Legacy action
+        // values remain accepted, but all now enter Phrase Layers in By Track
+        // mode; By Value remains selectable from that destination surface.
         if let rawAction = command["tracksAction"] {
-            let mode: PhraseLayerEditMode? = {
-                switch rawAction {
-                case "layerPerform", "byTrack": return .byTrack
-                case "sameValue", "byValue": return .byValue
-                default: return nil
-                }
-            }()
-            if let mode {
+            if ["perform", "layerPerform", "byTrack", "sameValue", "byValue"].contains(rawAction) {
                 session.requestPhrasePerform(
                     tab: .layers,
-                    layerEditMode: mode,
+                    layerEditMode: .byTrack,
                     trackIDs: session.tracksSelection
                 )
             }
@@ -490,6 +499,13 @@ enum VisualScenarioCommandRunner {
             section.wrappedValue = .track
         }
 
+        if let rawTrackType = command["selectTrackType"],
+           let trackType = TrackType(rawValue: rawTrackType),
+           let track = session.store.tracks.first(where: { $0.trackType == trackType }) {
+            session.setSelectedTrackID(track.id)
+            section.wrappedValue = .track
+        }
+
         if let gainRaw = command["masterGain"],
            let gain = Double(gainRaw) {
             session.setMasterOutputGain(gain)
@@ -533,6 +549,14 @@ enum VisualScenarioCommandRunner {
         )
         applyStepOrderFixture(command: command, section: section, session: session, engineController: engineController)
         applyPhraseMatrixFixture(command: command, section: section, session: session)
+        if let rawSlot = command["performanceTrackGroupFixture"],
+           let slotIndex = Int(rawSlot),
+           (0..<PerformanceTrackGroup.slotCount).contains(slotIndex) {
+            _ = session.setPerformanceTrackGroup(
+                slotIndex: slotIndex,
+                memberIDs: Set(session.store.tracks.prefix(2).map(\.id))
+            )
+        }
         applyTracksMatrixModalCommand(command: command, section: section)
         applyPhrasePerformOverlayFixture(command: command, section: section, session: session)
         applyTrackPerformLayerMatrixFixture(command: command, section: section, session: session)
@@ -546,6 +570,17 @@ enum VisualScenarioCommandRunner {
         applyScenesModeCommand(command: command, section: section, session: session)
         applyLibraryCommand(command: command, section: section, session: session)
         applyWorkspaceScrollCommand(command: command)
+
+        switch command["documentEditCommand"] {
+        case "copy":
+            _ = session.documentEditCommands.copy()
+        case "paste":
+            _ = session.documentEditCommands.paste()
+        case "clear", "clear-selection":
+            _ = session.documentEditCommands.clearSelection()
+        default:
+            break
+        }
 
         switch command["transport"] {
         case "play":
@@ -586,6 +621,25 @@ enum VisualScenarioCommandRunner {
             if !plan.members.isEmpty {
                 _ = session.addDrumGroup(plan: plan)
             }
+        }
+
+        if command["removeDefault808"] == "true",
+           let group = session.store.trackGroups.first(where: { $0.name == "808" }) {
+            let memberIDs = Set(group.memberIDs)
+            session.batch(impact: .fullEngineApply, changed: .full) { store in
+                var project = store.exportToProject()
+                let fixtureBusIDs = Set(
+                    project.tracks
+                        .filter { memberIDs.contains($0.id) }
+                        .compactMap(\.outputBusID)
+                )
+                project.removeTracks(ids: project.tracks.map(\.id).filter { memberIDs.contains($0) })
+                project.trackGroups.removeAll { $0.id == group.id }
+                project.patternBanks.removeAll { memberIDs.contains($0.trackID) }
+                project.buses.removeAll { fixtureBusIDs.contains($0.id) }
+                store.importFromProject(project)
+            }
+            session.tracksSelection.removeAll()
         }
 
         if let commandID = command["visualCommandID"], !commandID.isEmpty {
@@ -1139,6 +1193,10 @@ enum VisualScenarioCommandRunner {
         performScopeCount=\(session.performTrackScope.count)
         tracksSelectionMode=\(session.tracksSelectionMode ? "on" : "off")
         tracksSelectionCount=\(session.tracksSelection.count)
+        documentEditCanCopy=\(session.documentEditCommands.availability.canCopy)
+        documentEditCanPaste=\(session.documentEditCommands.availability.canPaste)
+        documentEditCanClear=\(session.documentEditCommands.availability.canClear)
+        documentEditClipboardDomain=\(session.documentEditCommands.clipboardPayload?.domain.rawValue ?? "none")
         quantisePending=\(quantisePendingStatus(session: session, engineController: engineController))
         quantiseFillCueActive=\(quantiseFillCueActiveStatus(session: session, engineController: engineController))
         transport=\(engineController.isRunning ? "play" : "stop")
@@ -1215,9 +1273,13 @@ enum VisualScenarioCommandRunner {
         phraseSceneViewMode=\(phraseSceneViewModeState)
         phraseCaptureVisible=\(phraseCaptureVisible)
         tracksCreateTrackModalVisible=\(tracksCreateTrackModalVisible)
+        tracksCreateTrackGroupModalVisible=\(tracksCreateTrackGroupModalVisible)
         tracksAddDrumGroupModalVisible=\(tracksAddDrumGroupModalVisible)
+        tracksAddDrumGroupFixture=\(tracksAddDrumGroupFixtureState)
         tracksAddSliceTrackModalVisible=\(tracksAddSliceTrackModalVisible)
         tracksTrackSoundModalVisible=\(tracksTrackSoundModalVisible)
+        tracksFilter=\(tracksNavigatorFilterState)
+        performanceTrackGroupCount=\(session.store.performanceTrackGroups.compactMap { $0 }.count)
         masterGain=\(session.store.masterBus.masterOutputGain)
         firstTrackSendA=\(session.store.tracks.first?.mix.sendA ?? 0)
         firstTrackSendB=\(session.store.tracks.first?.mix.sendB ?? 0)
@@ -1244,6 +1306,9 @@ enum VisualScenarioCommandRunner {
         drumKitMatrixRenderedLayer=\(drumKitMatrixRenderedLayer)
         drumKitMatrixRenderedFillMode=\(drumKitMatrixRenderedFillMode)
         drumKitMatrixRenderedGroupPatternSlot=\(drumKitMatrixRenderedGroupPatternSlot)
+        drumKitMatrixRenderedTemplateTargetSlots=\(drumKitMatrixRenderedTemplateTargetSlots)
+        drumKitMatrixRenderedTemplateTargetCount=\(drumKitMatrixRenderedTemplateTargetCount)
+        drumKitMatrixRenderedTemplateTargetPrompting=\(drumKitMatrixRenderedTemplateTargetPrompting)
         drumKitMatrixRenderedGroupName=\(drumKitMatrixRenderedGroupName)
         drumKitMatrixRenderedMemberCount=\(drumKitMatrixRenderedMemberCount)
         drumKitMatrixRenderedKitTab=\(drumKitMatrixRenderedKitTab)
@@ -1699,7 +1764,9 @@ enum VisualScenarioCommandRunner {
         section: Binding<WorkspaceSection>
     ) {
         guard command["tracksCreateTrackModal"] != nil ||
+              command["tracksCreateTrackGroupModal"] != nil ||
               command["tracksAddDrumGroupModal"] != nil ||
+              command["tracksAddDrumGroupFixture"] != nil ||
               command["tracksAddSliceTrackModal"] != nil ||
               command["tracksTrackSoundModal"] != nil
         else { return }
@@ -1715,6 +1782,7 @@ enum VisualScenarioCommandRunner {
         switch command["tracksCreateTrackModal"] {
         case "open", "visible", "true":
             tracksCreateTrackModalVisible = true
+            tracksCreateTrackGroupModalVisible = false
             tracksAddDrumGroupModalVisible = false
             tracksAddSliceTrackModalVisible = false
             tracksTrackSoundModalVisible = false
@@ -1726,10 +1794,26 @@ enum VisualScenarioCommandRunner {
             break
         }
 
+        switch command["tracksCreateTrackGroupModal"] {
+        case "open", "visible", "true":
+            tracksCreateTrackGroupModalVisible = true
+            tracksCreateTrackModalVisible = false
+            tracksAddDrumGroupModalVisible = false
+            tracksAddSliceTrackModalVisible = false
+            tracksTrackSoundModalVisible = false
+            posts.append("create-track-group:open")
+        case "close", "hidden", "false":
+            tracksCreateTrackGroupModalVisible = false
+            posts.append("create-track-group:close")
+        default:
+            break
+        }
+
         switch command["tracksAddDrumGroupModal"] {
         case "open", "visible", "true":
             tracksAddDrumGroupModalVisible = true
             tracksCreateTrackModalVisible = false
+            tracksCreateTrackGroupModalVisible = false
             tracksAddSliceTrackModalVisible = false
             tracksTrackSoundModalVisible = false
             posts.append("add-drum-group-modal:open")
@@ -1740,10 +1824,17 @@ enum VisualScenarioCommandRunner {
             break
         }
 
+        if let rawFixture = command["tracksAddDrumGroupFixture"],
+           ["blank", "populated"].contains(rawFixture) {
+            tracksAddDrumGroupFixtureState = rawFixture
+            posts.append("add-drum-group-fixture:\(rawFixture)")
+        }
+
         switch command["tracksAddSliceTrackModal"] {
         case "open", "visible", "true":
             tracksAddSliceTrackModalVisible = true
             tracksCreateTrackModalVisible = false
+            tracksCreateTrackGroupModalVisible = false
             tracksAddDrumGroupModalVisible = false
             tracksTrackSoundModalVisible = false
             posts.append("add-slice-track-modal:open")
@@ -1759,6 +1850,7 @@ enum VisualScenarioCommandRunner {
         case "open", "visible", "true":
             tracksTrackSoundModalVisible = true
             tracksCreateTrackModalVisible = false
+            tracksCreateTrackGroupModalVisible = false
             tracksAddDrumGroupModalVisible = false
             tracksAddSliceTrackModalVisible = false
             posts.append("track-sound-modal:open")
@@ -1776,6 +1868,9 @@ enum VisualScenarioCommandRunner {
         pendingTracksMatrixCommands = posts
         for post in posts {
             NotificationCenter.default.post(name: .tracksMatrixVisualCommand, object: post)
+            if post.hasPrefix("add-drum-group-fixture:") {
+                postRepeatedVisualCommand(name: .tracksMatrixVisualCommand, object: post)
+            }
         }
     }
 
@@ -1956,6 +2051,8 @@ enum VisualScenarioCommandRunner {
         else { return }
 
         switch command["drumKitMatrixCommand"] {
+        case "resetForCapture", "reset-for-capture":
+            resetDrumKitMatrixCaptureSurface()
         case "display16", "display-16":
             drumKitMatrixDisplayStepCount = 16
             NotificationCenter.default.post(name: .drumKitMatrixVisualCommand, object: "display-16")
@@ -2159,30 +2256,7 @@ enum VisualScenarioCommandRunner {
             // stale open-routing / row-tab does not bleed into this row's
             // freshly-mounted matrix. The current row's kit commands are
             // appended after this reset (applyDrumKitMatrixCommand runs later).
-            pendingDrumKitMatrixCommands = []
-            // Invalidate any still-in-flight async re-post Tasks a PRIOR row
-            // scheduled (29d's `open-kit-fx-chooser` re-asserts run for ~1.5s
-            // and would otherwise re-open the chooser AFTER the close below).
-            // applyDrumKitMatrixCommand (called later this apply) captures the
-            // bumped epoch for THIS row's own re-posts.
-            drumKitMatrixCommandEpoch += 1
-            NotificationCenter.default.post(name: .drumKitMatrixVisualCommand, object: "close-routing")
-            NotificationCenter.default.post(name: .drumKitMatrixVisualCommand, object: "close-kit-fx-chooser")
-            NotificationCenter.default.post(name: .drumKitMatrixVisualCommand, object: "close-capture")
-            NotificationCenter.default.post(name: .drumKitMatrixVisualCommand, object: "collapse-row")
-            NotificationCenter.default.post(name: .drumKitMatrixVisualCommand, object: "tab-matrix")
-            drumKitMatrixRoutingEditorVisualState = false
-            drumKitMatrixRenderedRoutingEditorState = false
-            drumGroupRoutingEditorRenderedState = false
-            drumGroupRoutingEditorMode = "none"
-            drumKitMatrixRenderedKitFXChooserVisible = false
-            drumKitMatrixRenderedCaptureOpen = false
-            drumKitMatrixRenderedSaveSlotPickerVisible = false
-            drumKitMatrixRenderedHistoryCellCount = 0
-            drumKitMatrixRenderedRowExpanded = false
-            drumKitMatrixRenderedExpandedRowTab = "none"
-            drumKitMatrixRenderedExpandedSourceMode = "none"
-            drumKitMatrixRenderedKitTab = "none"
+            resetDrumKitMatrixCaptureSurface()
             let model = DrumPartWorkspaceHeaderModel(
                 selectedTrack: session.store.selectedTrack,
                 tracks: session.store.tracks,
@@ -2209,6 +2283,44 @@ enum VisualScenarioCommandRunner {
                 applyDrumKitMatrixMutation(mutation, session: session)
             }
         }
+    }
+
+    /// Return an already-mounted kit matrix to its neutral capture state
+    /// without rebuilding its fixture or navigating away and back. Adjacent QA
+    /// rows use this to keep one matrix mounted while still preventing sheets,
+    /// expanded rows, and late repeated commands from leaking between images.
+    private static func resetDrumKitMatrixCaptureSurface() {
+        pendingDrumKitMatrixCommands = []
+        drumKitMatrixCommandEpoch += 1
+        for command in [
+            "close-routing",
+            "close-kit-fx-chooser",
+            "close-template-chooser",
+            "template-target-clear",
+            "close-capture",
+            "collapse-row",
+            "tab-matrix",
+            "fill-mode:normal",
+            "bar:0"
+        ] {
+            NotificationCenter.default.post(name: .drumKitMatrixVisualCommand, object: command)
+        }
+        drumKitMatrixRoutingEditorVisualState = false
+        drumKitMatrixRenderedRoutingEditorState = false
+        drumGroupRoutingEditorRenderedState = false
+        drumGroupRoutingEditorMode = "none"
+        drumKitMatrixRenderedKitFXChooserVisible = false
+        drumKitMatrixRenderedTemplateChooserState = false
+        drumKitMatrixRenderedTemplateTargetSlots = "none"
+        drumKitMatrixRenderedTemplateTargetCount = 0
+        drumKitMatrixRenderedTemplateTargetPrompting = false
+        drumKitMatrixRenderedCaptureOpen = false
+        drumKitMatrixRenderedSaveSlotPickerVisible = false
+        drumKitMatrixRenderedHistoryCellCount = 0
+        drumKitMatrixRenderedRowExpanded = false
+        drumKitMatrixRenderedExpandedRowTab = "none"
+        drumKitMatrixRenderedExpandedSourceMode = "none"
+        drumKitMatrixRenderedKitTab = "none"
     }
 
     /// Drives the Steps/Clip/Sound/FX/Macros/Mixer tab on the track editor
@@ -2775,7 +2887,7 @@ enum VisualScenarioCommandRunner {
         }
 
         if let rawFixture = command["sceneEditorFixture"],
-           ["empty", "content", "browse-content"].contains(rawFixture) {
+           ["empty", "content", "overflow", "browse-content"].contains(rawFixture) {
             session.workspaceMode = .setup
             sceneEditorFixtureState = rawFixture
             postRepeatedVisualCommand(name: .scenesWorkspaceVisualCommand, object: "mode:\(ScenesWorkspaceMode.browseEdit.rawValue)")

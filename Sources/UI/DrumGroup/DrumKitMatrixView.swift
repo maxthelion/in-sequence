@@ -90,6 +90,15 @@ struct ExpandedSoundPresetTarget: Identifiable {
     var id: UUID { memberID }
 }
 
+struct DrumKitDocumentEditTargetRevision: Equatable {
+    var sessionRevision: UInt64
+    var selectedStepMemberID: UUID?
+    var selectedStepIndexes: Set<Int>
+    var patternSlotIndexes: Set<Int>
+    var patternIsPrompting: Bool
+    var isCaptureOpen: Bool
+}
+
 enum DrumKitMatrixLayer: String, CaseIterable, Identifiable {
     case steps
     case velocity
@@ -240,8 +249,10 @@ struct DrumKitMatrixView: View {
     /// Which 16-step bar window is visible for every row in lockstep.
     @State var barPage = 0
     @State var selectedLayer: DrumKitMatrixLayer = .steps
+    @State var isLayerSwitcherOpen = false
     @State var isPresentingRoutingEditor = false
     @State var isPresentingTemplateChooser = false
+    @State var patternTemplateTargets = DrumKitPatternTargetSelection()
     /// Which kit-bus tab is shown (Matrix · FX · Macros · Mixer). Ignored while
     /// `isCaptureOpen` is true — Capture replaces the tab body (AC14 header).
     @State var kitTab: DrumKitTab = .matrix
@@ -272,6 +283,12 @@ struct DrumKitMatrixView: View {
     /// AC21 accordion: which part row is expanded inline (nil == all compact).
     /// Transient UI state; expanding does not change link/pattern state.
     @State var expandedPartID: UUID?
+    /// Secondary-click step selection is scoped to one drum part at a time.
+    /// The selection is transient editor state, shared by the compact and
+    /// expanded presentations of that part. Clipboard ownership is document-
+    /// session global through `DocumentEditCommandController`.
+    @State var selectedStepMemberID: UUID?
+    @State var selectedDrumStepIndexes: Set<Int> = []
     /// Selected mini-tab inside the expanded row's inline detail panel.
     @State var expandedRowTab: DrumKitRowTab = .stepsClip
     /// "+ FX" picker target for the expanded part's per-track FX chain (AC21
@@ -431,12 +448,25 @@ struct DrumKitMatrixView: View {
             postRenderedVisualState(isVisible: true)
         }
         .onChange(of: navigationState) {
+            patternTemplateTargets.clear()
             postRenderedVisualState(isVisible: true)
         }
         .onReceive(NotificationCenter.default.publisher(for: .drumKitMatrixVisualCommand)) { notification in
             guard let command = notification.object as? String else { return }
             applyVisualCommand(command)
         }
+        .documentEditTarget(
+            isActive: !isCaptureOpen,
+            revision: DrumKitDocumentEditTargetRevision(
+                sessionRevision: session.revision,
+                selectedStepMemberID: selectedStepMemberID,
+                selectedStepIndexes: selectedDrumStepIndexes,
+                patternSlotIndexes: patternTemplateTargets.slotIndexes,
+                patternIsPrompting: patternTemplateTargets.isPrompting,
+                isCaptureOpen: isCaptureOpen
+            ),
+            makeTarget: makeDocumentEditTarget
+        )
     }
 
     private var content: some View {
@@ -483,7 +513,7 @@ struct DrumKitMatrixView: View {
            let group = session.store.trackGroups.first(where: { $0.id == model.groupID }) {
             DrumKitTemplateChooserSheet(
                 groupName: model.groupName,
-                targetSlotIndex: model.groupSelectedSlotIndex ?? model.rows.first?.patternSlotIndex ?? 0,
+                targetSlotIndexes: patternTemplateTargets.slotIndexes.sorted(),
                 accent: accent,
                 previewProvider: { template, slotIndex in
                     PatternTemplateApplicationPreview(
@@ -495,8 +525,9 @@ struct DrumKitMatrixView: View {
                         slotIndex: slotIndex
                     )
                 },
-                onApply: { template, slotIndex in
-                    session.applyPatternTemplate(template, toGroup: group.id, slotIndex: slotIndex)
+                onApply: { template, slotIndexes in
+                    session.applyPatternTemplate(template, toGroup: group.id, slotIndexes: slotIndexes)
+                    patternTemplateTargets.clear()
                     isPresentingTemplateChooser = false
                 },
                 onCancel: {
@@ -543,6 +574,8 @@ struct DrumKitMatrixView: View {
             layer: isVisible ? selectedLayer.rawValue : "none",
             fillMode: isVisible ? matrixNoteLaneLabel(model) : "none",
             groupPatternSlot: isVisible ? (groupSlot.map { "\($0 + 1)" } ?? "mixed") : "none",
+            templateTargetSlots: isVisible ? patternTemplateTargets.slotIndexes.sorted() : [],
+            templateTargetPrompting: isVisible && patternTemplateTargets.isPrompting,
             // Patterns are global across the kit: members always share one slot
             // and can never diverge through the UI, so the kit is always
             // "linked" and the link can never be "broken". The wire keys stay
@@ -643,14 +676,21 @@ struct DrumKitMatrixView: View {
 
                 barPager(model)
 
+                StudioCommandButton(
+                    title: "Erase",
+                    systemImage: "trash",
+                    isEnabled: selectedDrumRow(in: model) != nil && !selectedDrumStepIndexes.isEmpty,
+                    help: "Erase selected drum steps",
+                    action: { eraseSelectedDrumSteps(in: model) }
+                )
+
                 Spacer(minLength: 0)
 
                 addPartButton(model)
+            }
 
-                headerActionButton(title: "Apply Template…", systemImage: "square.grid.2x2") {
-                    isPresentingTemplateChooser = true
-                }
-                .help("Apply a pattern template into pattern slot P\((model.groupSelectedSlotIndex ?? 0) + 1)")
+            if isLayerSwitcherOpen {
+                layerOptions
             }
 
             if model.staleMemberCount > 0 {
@@ -751,6 +791,8 @@ struct DrumKitRenderedVisualState: Equatable, Sendable {
     var layer: String
     var fillMode: String
     var groupPatternSlot: String
+    var templateTargetSlots: [Int]
+    var templateTargetPrompting: Bool
     var patternLinked: Bool
     var patternLinkBroken: Bool
     var groupName: String
@@ -787,6 +829,9 @@ struct DrumKitRenderedVisualState: Equatable, Sendable {
             "layer": layer,
             "fillMode": fillMode,
             "groupPatternSlot": groupPatternSlot,
+            "templateTargetSlots": templateTargetSlots.map(String.init).joined(separator: ","),
+            "templateTargetCount": templateTargetSlots.count,
+            "templateTargetPrompting": templateTargetPrompting,
             "patternLinked": patternLinked,
             "patternLinkBroken": patternLinkBroken,
             "groupName": groupName,

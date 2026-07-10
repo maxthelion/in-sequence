@@ -235,6 +235,7 @@ extension SequencerDocumentSession {
     @discardableResult
     func switchGeneratorKind(id generatorID: UUID, to kind: GeneratorKind) -> Bool {
         guard let entry = store.generatorEntry(id: generatorID),
+              kind.isCreatable,
               kind.compatibleWith.contains(entry.trackType)
         else {
             return false

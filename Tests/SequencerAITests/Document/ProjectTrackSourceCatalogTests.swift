@@ -94,7 +94,7 @@ final class ProjectTrackSourceCatalogTests: XCTestCase {
         XCTAssertEqual(Set(project.harmonicSidechainClips().map(\.id)), Set([monoClip.id, polyClip.id]))
     }
 
-    func test_compatibleModifierGenerators_excludes_source_only_progression_chords() {
+    func test_catalog_hides_legacy_progression_and_offers_chord_generator_only_to_chord_tracks() {
         let polyTrack = StepSequenceTrack(
             id: UUID(),
             name: "Poly",
@@ -120,8 +120,58 @@ final class ProjectTrackSourceCatalogTests: XCTestCase {
             selectedPhraseID: phrase.id
         )
 
-        XCTAssertTrue(project.compatibleGenerators(for: polyTrack).contains { $0.kind == GeneratorKind.progressionChordGenerator })
+        XCTAssertFalse(project.compatibleGenerators(for: polyTrack).contains { $0.kind == GeneratorKind.progressionChordGenerator })
         XCTAssertFalse(project.compatibleModifierGenerators(for: polyTrack).contains { $0.kind == GeneratorKind.progressionChordGenerator })
         XCTAssertTrue(project.compatibleModifierGenerators(for: polyTrack).allSatisfy { $0.kind.supportsModifierStage })
+
+        let chordTrack = StepSequenceTrack(
+            name: "Chord",
+            trackType: .chord,
+            pitches: [60, 64, 67],
+            stepPattern: Array(repeating: true, count: 16),
+            velocity: 100,
+            gateLength: 4
+        )
+        XCTAssertEqual(
+            project.compatibleGenerators(for: chordTrack).map(\.kind),
+            [.chordGenerator]
+        )
+        XCTAssertTrue(project.compatibleGenerators(for: polyTrack).allSatisfy { $0.kind != .chordGenerator })
+    }
+
+    func test_createBlankGeneratorSource_seeds_chord_palette_slotIDs() throws {
+        let first = ChordPaletteSlot(name: "Dm", root: 62, chordID: .minorTriad)
+        let second = ChordPaletteSlot(name: "G7", root: 67, chordID: .dominant7th)
+        let track = StepSequenceTrack(
+            name: "Chord",
+            trackType: .chord,
+            pitches: [60, 64, 67],
+            stepPattern: Array(repeating: true, count: 16),
+            velocity: 100,
+            gateLength: 4,
+            chordPalette: ChordPalette(slots: [first, second])
+        )
+        let layers = PhraseLayerDefinition.defaultSet(for: [track])
+        let phrase = PhraseModel.default(tracks: [track], layers: layers, generatorPool: [], clipPool: [])
+        var project = Project(
+            version: 1,
+            tracks: [track],
+            generatorPool: [],
+            clipPool: [],
+            layers: layers,
+            routes: [],
+            patternBanks: [TrackPatternBank.default(for: track, initialClipID: nil)],
+            selectedTrackID: track.id,
+            phrases: [phrase],
+            selectedPhraseID: phrase.id
+        )
+
+        let created = try XCTUnwrap(project.createBlankGeneratorSource(trackID: track.id, slotIndex: 0))
+        XCTAssertEqual(created.kind, .chordGenerator)
+        XCTAssertEqual(created.trackType, .chord)
+        guard case let .chordGenerator(params) = created.params else {
+            return XCTFail("expected chord generator params")
+        }
+        XCTAssertEqual(params.enabledSlotIDs, [first.id, second.id])
     }
 }

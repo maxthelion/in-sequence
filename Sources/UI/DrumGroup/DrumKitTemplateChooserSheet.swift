@@ -1,17 +1,15 @@
 import SwiftUI
 
-/// "Apply Template…" chooser for the kit matrix: lists the global pattern
-/// templates with a tag-intersection preview against this group ("Fills Kick,
-/// Snare — no Clap entry"), applies into the currently selected group pattern
-/// slot, and inserts a confirm step listing overwrites when any targeted
-/// member's slot is non-empty. Generator-backed slots are listed as skipped.
+/// Compact pattern-template chooser for one or more transient kit targets.
+/// Template cells carry miniature pattern renders; overwrite detail is deferred
+/// to the confirmation step where it is actionable.
 struct DrumKitTemplateChooserSheet: View {
     let groupName: String
-    let targetSlotIndex: Int
+    let targetSlotIndexes: [Int]
     var accent: Color = StudioTheme.transportAccent
     let templates: [PatternTemplate]
     let previewProvider: (PatternTemplate, Int) -> PatternTemplateApplicationPreview
-    let onApply: (PatternTemplate, Int) -> Void
+    let onApply: (PatternTemplate, [Int]) -> Void
     let onCancel: () -> Void
 
     @State private var selectedTemplateID: UUID?
@@ -19,15 +17,17 @@ struct DrumKitTemplateChooserSheet: View {
 
     init(
         groupName: String,
-        targetSlotIndex: Int,
+        targetSlotIndexes: [Int],
         accent: Color = StudioTheme.transportAccent,
         templates: [PatternTemplate] = DrumAssetLibrary.shared.templates,
         previewProvider: @escaping (PatternTemplate, Int) -> PatternTemplateApplicationPreview,
-        onApply: @escaping (PatternTemplate, Int) -> Void,
+        onApply: @escaping (PatternTemplate, [Int]) -> Void,
         onCancel: @escaping () -> Void
     ) {
         self.groupName = groupName
-        self.targetSlotIndex = targetSlotIndex
+        self.targetSlotIndexes = Set(targetSlotIndexes)
+            .filter { (0..<TrackPatternBank.slotCount).contains($0) }
+            .sorted()
         self.accent = accent
         self.templates = templates
         self.previewProvider = previewProvider
@@ -39,57 +39,64 @@ struct DrumKitTemplateChooserSheet: View {
         selectedTemplateID.flatMap { id in templates.first(where: { $0.id == id }) }
     }
 
-    private var selectedPreview: PatternTemplateApplicationPreview? {
-        selectedTemplate.map { previewProvider($0, targetSlotIndex) }
+    private var selectedPreviews: [(slotIndex: Int, preview: PatternTemplateApplicationPreview)] {
+        guard let selectedTemplate else { return [] }
+        return targetSlotIndexes.map { slotIndex in
+            (slotIndex, previewProvider(selectedTemplate, slotIndex))
+        }
+    }
+
+    private var targetLabel: String {
+        targetSlotIndexes.map { "P\($0 + 1)" }.joined(separator: " + ")
+    }
+
+    private var canApplySelection: Bool {
+        selectedPreviews.contains { !$0.preview.filledPartNames.isEmpty }
     }
 
     var body: some View {
         StudioModal(
             title: "Apply Template",
             accent: accent,
-            minWidth: 560,
-            minHeight: 460,
+            minWidth: 620,
+            minHeight: 430,
             onClose: onCancel
         ) {
-            if isConfirmingOverwrite, let template = selectedTemplate, let preview = selectedPreview {
-                confirmStep(template: template, preview: preview)
+            if isConfirmingOverwrite, let template = selectedTemplate {
+                confirmStep(template: template, previews: selectedPreviews)
             } else {
                 chooserStep
             }
         }
     }
 
-    // MARK: - Chooser step
-
     private var chooserStep: some View {
-        VStack(alignment: .leading, spacing: StudioMetrics.Spacing.comfortable) {
-            ScrollView {
-                VStack(alignment: .leading, spacing: StudioMetrics.Spacing.snug) {
-                    ForEach(templates) { template in
-                        templateRow(template)
-                    }
+        VStack(alignment: .leading, spacing: StudioMetrics.Spacing.standard) {
+            Text(targetLabel)
+                .studioText(.eyebrow)
+                .tracking(0.8)
+                .foregroundStyle(accent)
 
-                    if templates.isEmpty {
-                        Text("No pattern templates available.")
-                            .studioText(.body)
-                            .foregroundStyle(StudioTheme.mutedText)
-                            .padding(StudioMetrics.Spacing.standard)
+            ScrollView {
+                LazyVGrid(
+                    columns: [GridItem(.adaptive(minimum: 180, maximum: 220), spacing: 10)],
+                    alignment: .leading,
+                    spacing: 10
+                ) {
+                    ForEach(templates) { template in
+                        templateCell(template)
                     }
+                }
+
+                if templates.isEmpty {
+                    Text("No templates")
+                        .studioText(.body)
+                        .foregroundStyle(StudioTheme.mutedText)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(StudioMetrics.Spacing.standard)
                 }
             }
             .scrollIndicators(.never)
-
-            if let preview = selectedPreview, !preview.generatorSkippedPartNames.isEmpty {
-                Text("Skipped (generator slot): \(preview.generatorSkippedPartNames.joined(separator: ", "))")
-                    .studioText(.label)
-                    .foregroundStyle(StudioTheme.mutedText)
-            }
-
-            if let preview = selectedPreview, !preview.duplicateTagSkippedPartNames.isEmpty {
-                Text("Skipped (duplicate tag): \(preview.duplicateTagSkippedPartNames.joined(separator: ", "))")
-                    .studioText(.label)
-                    .foregroundStyle(StudioTheme.mutedText)
-            }
 
             HStack {
                 Spacer()
@@ -97,44 +104,34 @@ struct DrumKitTemplateChooserSheet: View {
                 TrackSourceActionButton(title: "Apply", accent: accent) {
                     requestApply()
                 }
-                .disabled(selectedTemplate == nil || selectedPreview?.filledPartNames.isEmpty != false)
+                .disabled(selectedTemplate == nil || !canApplySelection)
                 .help(applyHelp)
             }
         }
     }
 
     private var applyHelp: String {
-        guard let preview = selectedPreview else {
-            return "Choose a template first"
-        }
-        guard !preview.filledPartNames.isEmpty else {
-            return "This template fills no parts of \(groupName)"
-        }
-        return "Apply into pattern slot P\(targetSlotIndex + 1)"
+        guard selectedTemplate != nil else { return "Choose a template" }
+        guard canApplySelection else { return "This template has no matching parts in \(groupName)" }
+        return "Apply to \(targetLabel)"
     }
 
-    private func templateRow(_ template: PatternTemplate) -> some View {
+    private func templateCell(_ template: PatternTemplate) -> some View {
         let isSelected = selectedTemplateID == template.id
-        let preview = previewProvider(template, targetSlotIndex)
 
         return Button {
             selectedTemplateID = template.id
         } label: {
             VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 8) {
-                    Text(template.name)
-                        .studioText(.bodyBold)
-                        .foregroundStyle(StudioTheme.text)
-
-                    Spacer(minLength: 0)
-                }
+                Text(template.name)
+                    .studioText(.labelBold)
+                    .foregroundStyle(StudioTheme.text)
+                    .lineLimit(1)
 
                 templatePatternPreview(template)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(StudioMetrics.Spacing.compact)
-            // Colour identifies, it never floods (ux-canon rule 12): the
-            // template row stays neutral; selection reads from the outline.
+            .padding(10)
             .background(
                 StudioTheme.subtleFill,
                 in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
@@ -143,13 +140,13 @@ struct DrumKitTemplateChooserSheet: View {
                 RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
                     .stroke(
                         isSelected ? accent : StudioTheme.border,
-                        lineWidth: isSelected ? 2 : StudioMetrics.borderWidth
+                        lineWidth: isSelected ? StudioMetrics.emphasisBorderWidth : StudioMetrics.borderWidth
                     )
             )
             .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
         }
         .buttonStyle(.plain)
-        .help(preview.summary)
+        .help(templateHelp(template))
         .accessibilityLabel("Template \(template.name)")
         .accessibilityValue(isSelected ? "Selected" : "Not selected")
     }
@@ -159,62 +156,65 @@ struct DrumKitTemplateChooserSheet: View {
             .keys
             .sorted()
             .prefix(3)
-            .compactMap { tag -> (String, [Bool])? in
+            .compactMap { tag -> CompactStepPatternRowsPreview.Row? in
                 guard let pattern = template.patterns[tag] else { return nil }
-                return (PatternTemplateApplicationPreview.tagLabel(tag), Array(pattern.prefix(PatternTemplate.stepCount)))
+                return CompactStepPatternRowsPreview.Row(
+                    label: PatternTemplateApplicationPreview.tagLabel(tag),
+                    steps: Array(pattern.prefix(PatternTemplate.stepCount))
+                )
             }
 
         return CompactStepPatternRowsPreview(
-            rows: rows.map { CompactStepPatternRowsPreview.Row(label: $0.0, steps: $0.1) },
-            accent: accent
+            rows: rows,
+            accent: accent,
+            labelWidth: 38,
+            cellSize: 6
         )
     }
 
+    private func templateHelp(_ template: PatternTemplate) -> String {
+        let previews = targetSlotIndexes.map { previewProvider(template, $0) }
+        let fills = stableUnique(previews.flatMap(\.filledPartNames))
+        guard !fills.isEmpty else { return "No matching parts in \(groupName)" }
+        return "Fills \(fills.joined(separator: ", ")) in \(targetLabel)"
+    }
+
     private func requestApply() {
-        guard let template = selectedTemplate, let preview = selectedPreview else { return }
-        if preview.requiresOverwriteConfirmation {
+        guard let template = selectedTemplate, canApplySelection else { return }
+        if selectedPreviews.contains(where: { $0.preview.requiresOverwriteConfirmation }) {
             isConfirmingOverwrite = true
         } else {
-            onApply(template, targetSlotIndex)
+            onApply(template, targetSlotIndexes)
         }
     }
 
-    // MARK: - Confirm step
-
     private func confirmStep(
         template: PatternTemplate,
-        preview: PatternTemplateApplicationPreview
+        previews: [(slotIndex: Int, preview: PatternTemplateApplicationPreview)]
     ) -> some View {
-        VStack(alignment: .leading, spacing: StudioMetrics.Spacing.comfortable) {
-            Text("Applying \(template.name) into P\(targetSlotIndex + 1) will overwrite existing patterns.")
+        let overwritten = stableUnique(previews.flatMap { $0.preview.overwrittenPartNames })
+        let filled = stableUnique(previews.flatMap { $0.preview.filledPartNames })
+        let freshFills = filled.filter { !Set(overwritten).contains($0) }
+        let generatorSkipped = stableUnique(previews.flatMap { $0.preview.generatorSkippedPartNames })
+        let duplicateSkipped = stableUnique(previews.flatMap { $0.preview.duplicateTagSkippedPartNames })
+
+        return VStack(alignment: .leading, spacing: StudioMetrics.Spacing.comfortable) {
+            Text("Apply \(template.name) to \(targetLabel)?")
                 .studioText(.bodyBold)
                 .foregroundStyle(StudioTheme.text)
 
-            confirmList(
-                title: "Overwritten",
-                names: preview.overwrittenPartNames,
-                accent: StudioTheme.warning
-            )
+            confirmList(title: "Overwritten", names: overwritten, accent: StudioTheme.warning)
 
-            let freshFills = preview.filledPartNames.filter { !preview.overwrittenPartNames.contains($0) }
             if !freshFills.isEmpty {
-                confirmList(title: "Filled (empty slot)", names: freshFills, accent: accent)
+                confirmList(title: "Filled", names: freshFills, accent: accent)
             }
 
-            if !preview.generatorSkippedPartNames.isEmpty {
-                confirmList(
-                    title: "Skipped (generator slot)",
-                    names: preview.generatorSkippedPartNames,
-                    accent: StudioTheme.mutedText
-                )
+            if !generatorSkipped.isEmpty {
+                confirmList(title: "Generator skipped", names: generatorSkipped, accent: StudioTheme.mutedText)
             }
 
-            if !preview.duplicateTagSkippedPartNames.isEmpty {
-                confirmList(
-                    title: "Skipped (duplicate tag)",
-                    names: preview.duplicateTagSkippedPartNames,
-                    accent: StudioTheme.mutedText
-                )
+            if !duplicateSkipped.isEmpty {
+                confirmList(title: "Duplicate skipped", names: duplicateSkipped, accent: StudioTheme.mutedText)
             }
 
             Spacer(minLength: 0)
@@ -228,7 +228,7 @@ struct DrumKitTemplateChooserSheet: View {
                 Spacer()
 
                 Button("Overwrite and Apply") {
-                    onApply(template, targetSlotIndex)
+                    onApply(template, targetSlotIndexes)
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(StudioTheme.warning)
@@ -236,17 +236,24 @@ struct DrumKitTemplateChooserSheet: View {
         }
     }
 
+    @ViewBuilder
     private func confirmList(title: String, names: [String], accent: Color) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(title.uppercased())
-                .studioText(.eyebrow)
-                .tracking(0.8)
-                .foregroundStyle(accent)
+        if !names.isEmpty {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title.uppercased())
+                    .studioText(.eyebrow)
+                    .tracking(0.8)
+                    .foregroundStyle(accent)
 
-            Text(names.joined(separator: ", "))
-                .studioText(.body)
-                .foregroundStyle(StudioTheme.text)
-                .fixedSize(horizontal: false, vertical: true)
+                Text(names.joined(separator: ", "))
+                    .studioText(.body)
+                    .foregroundStyle(StudioTheme.text)
+            }
         }
+    }
+
+    private func stableUnique(_ values: [String]) -> [String] {
+        var seen = Set<String>()
+        return values.filter { seen.insert($0).inserted }
     }
 }

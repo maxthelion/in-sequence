@@ -37,8 +37,21 @@ enum TrackSourceMode: String, Codable, CaseIterable, Equatable, Sendable {
 enum GeneratorKind: String, Codable, CaseIterable, Equatable, Sendable {
     case monoGenerator
     case polyGenerator
+    case chordGenerator
+    /// Decode/playback compatibility only. New projects use `chordGenerator`.
     case progressionChordGenerator
     case sliceGenerator
+
+    static let creatableKinds: [GeneratorKind] = [
+        .monoGenerator,
+        .polyGenerator,
+        .chordGenerator,
+        .sliceGenerator,
+    ]
+
+    var isCreatable: Bool {
+        Self.creatableKinds.contains(self)
+    }
 
     var label: String {
         switch self {
@@ -46,6 +59,8 @@ enum GeneratorKind: String, Codable, CaseIterable, Equatable, Sendable {
             return "Mono Generator"
         case .polyGenerator:
             return "Poly Generator"
+        case .chordGenerator:
+            return "Chord Generator"
         case .progressionChordGenerator:
             return "Progression Chords"
         case .sliceGenerator:
@@ -59,6 +74,8 @@ enum GeneratorKind: String, Codable, CaseIterable, Equatable, Sendable {
             return [.monoMelodic]
         case .polyGenerator, .progressionChordGenerator:
             return [.polyMelodic]
+        case .chordGenerator:
+            return [.chord]
         case .sliceGenerator:
             return [.slice]
         }
@@ -68,7 +85,7 @@ enum GeneratorKind: String, Codable, CaseIterable, Equatable, Sendable {
         switch self {
         case .monoGenerator, .polyGenerator:
             return true
-        case .progressionChordGenerator, .sliceGenerator:
+        case .chordGenerator, .progressionChordGenerator, .sliceGenerator:
             return false
         }
     }
@@ -88,6 +105,8 @@ enum GeneratorKind: String, Codable, CaseIterable, Equatable, Sendable {
                 pitches: [.native(.defaultMono)],
                 shape: .default
             )
+        case .chordGenerator:
+            return .chordGenerator(.default)
         case .progressionChordGenerator:
             return .progressionChords(.default)
         case .sliceGenerator:
@@ -96,6 +115,11 @@ enum GeneratorKind: String, Codable, CaseIterable, Equatable, Sendable {
                 sliceIndexes: []
             )
         }
+    }
+
+    func defaultParams(for track: StepSequenceTrack) -> GeneratorParams {
+        guard self == .chordGenerator else { return defaultParams }
+        return .chordGenerator(ChordGeneratorParams.default.seededFromPalette(track.chordPalette))
     }
 }
 
@@ -144,9 +168,9 @@ struct GeneratorPoolEntry: Codable, Equatable, Hashable, Identifiable, Sendable 
         ),
         .makeDefault(
             id: UUID(uuidString: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa3") ?? UUID(),
-            name: "Progression Chords",
-            kind: .progressionChordGenerator,
-            trackType: .polyMelodic
+            name: "Random Chords",
+            kind: .chordGenerator,
+            trackType: .chord
         ),
         .makeDefault(
             id: UUID(uuidString: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa4") ?? UUID(),
@@ -174,6 +198,8 @@ extension GeneratorKind {
             return .monoMelodic
         case .polyGenerator, .progressionChordGenerator:
             return .polyMelodic
+        case .chordGenerator:
+            return .chord
         case .sliceGenerator:
             return .slice
         }
@@ -192,6 +218,11 @@ extension GeneratorParams {
             return .mono(trigger: trigger, pitch: pitch, shape: shape)
         case .polyGenerator:
             return .poly(trigger: trigger, pitches: sharedPitches(defaultingTo: pitch), shape: shape)
+        case .chordGenerator:
+            var params = ChordGeneratorParams.default
+            params.trigger = trigger
+            params.shape = shape
+            return .chordGenerator(params.normalized)
         case .progressionChordGenerator:
             var params = sharedProgressionParams ?? {
                 var seeded = ProgressionChordGeneratorParams.default
@@ -218,6 +249,8 @@ extension GeneratorParams {
         switch self {
         case let .mono(trigger, _, _), let .poly(trigger, _, _), let .slice(trigger, _):
             return trigger
+        case let .chordGenerator(params):
+            return params.normalized.trigger
         case .progressionChords, .drum, .template:
             return nil
         }
@@ -238,7 +271,7 @@ extension GeneratorParams {
                 selection: .balanced,
                 deviation: .none
             ))
-        case .drum, .template, .slice:
+        case .chordGenerator, .drum, .template, .slice:
             return nil
         }
     }
@@ -256,6 +289,8 @@ extension GeneratorParams {
         switch self {
         case let .mono(_, _, shape), let .poly(_, _, shape), let .drum(_, shape):
             return shape
+        case let .chordGenerator(params):
+            return params.normalized.shape
         case let .progressionChords(params):
             return NoteShape(velocity: params.normalized.velocity, gateLength: 4, accent: false)
         case .template, .slice:

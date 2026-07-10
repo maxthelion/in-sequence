@@ -19,6 +19,7 @@ struct TrackSourceSourceTabContent: View {
     let stepGridCoordinator: StepGridCoordinator?
     let generatedSourceInputClips: [ClipPoolEntry]
     let harmonicSidechainClips: [ClipPoolEntry]
+    let chordPalette: ChordPalette
     let onAssignMacroSlot: (Int) -> Void
     let canRandomizeClip: Bool
     let isRandomizePanelVisible: Bool
@@ -91,6 +92,7 @@ struct TrackSourceSourceTabContent: View {
                     generator: selectedGenerator,
                     inputClipChoices: generatedSourceInputClips,
                     harmonicSidechainClipChoices: harmonicSidechainClips,
+                    chordPalette: chordPalette,
                     sourceMode: .generator,
                     accent: accent,
                     layout: .sourceContained,

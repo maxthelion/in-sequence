@@ -39,6 +39,99 @@ final class StudioMixerStripScaffoldTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(StudioMixerStripMetrics.panHeight, 34 + 18)
     }
 
+    func test_stripIdentityUsesStandardBorderAndOnlyEmphasisAddsWeight() {
+        XCTAssertEqual(StudioMixerStripMetrics.identityBorderWidth, StudioMetrics.borderWidth)
+        XCTAssertGreaterThan(
+            StudioMixerStripMetrics.emphasizedBorderWidth,
+            StudioMixerStripMetrics.identityBorderWidth
+        )
+    }
+
+    func test_scrollbarChromeHidesWithoutOverflow() {
+        XCTAssertFalse(StudioScrollbarMetrics.isOverflowing(contentLength: 120, viewportLength: 120))
+        XCTAssertFalse(StudioScrollbarMetrics.isOverflowing(contentLength: 121, viewportLength: 120))
+        XCTAssertEqual(
+            StudioScrollbarMetrics.thumbLength(
+                contentLength: 120,
+                viewportLength: 120,
+                trackLength: 100,
+                minimumLength: 34
+            ),
+            100
+        )
+    }
+
+    func test_scrollbarChromeCalculatesOverflowThumbAndClampsOffset() {
+        XCTAssertTrue(StudioScrollbarMetrics.isOverflowing(contentLength: 400, viewportLength: 100))
+        let thumbLength = StudioScrollbarMetrics.thumbLength(
+            contentLength: 400,
+            viewportLength: 100,
+            trackLength: 100,
+            minimumLength: 20
+        )
+        XCTAssertEqual(thumbLength, 25, accuracy: 0.001)
+        XCTAssertEqual(
+            StudioScrollbarMetrics.thumbOffset(
+                contentLength: 400,
+                viewportLength: 100,
+                contentOffset: 150,
+                trackLength: 100,
+                thumbLength: thumbLength
+            ),
+            37.5,
+            accuracy: 0.001
+        )
+        XCTAssertEqual(
+            StudioScrollbarMetrics.thumbOffset(
+                contentLength: 400,
+                viewportLength: 100,
+                contentOffset: 999,
+                trackLength: 100,
+                thumbLength: thumbLength
+            ),
+            75,
+            accuracy: 0.001
+        )
+    }
+
+    func test_scrollChromeDiscoveryChoosesNestedListOverOuterWorkspace() {
+        let target = NSRect(x: 320, y: 140, width: 320, height: 360)
+        let outerWorkspace = NSRect(x: 24, y: 24, width: 1_040, height: 720)
+        let listViewport = NSRect(x: 320, y: 140, width: 320, height: 360)
+
+        XCTAssertEqual(
+            StudioScrollChromeDiscovery.nearestMatchingCandidate(
+                targetRect: target,
+                candidateRects: [outerWorkspace, listViewport]
+            ),
+            1
+        )
+    }
+
+    func test_scrollChromeDiscoveryRejectsNonOverlappingCandidates() {
+        let target = NSRect(x: 320, y: 140, width: 320, height: 360)
+        let unrelated = NSRect(x: 0, y: 0, width: 280, height: 120)
+
+        XCTAssertNil(
+            StudioScrollChromeDiscovery.nearestMatchingCandidate(
+                targetRect: target,
+                candidateRects: [unrelated]
+            )
+        )
+    }
+
+    func test_scrollChromeDiscoveryRejectsOuterWorkspaceWhenListIsNotReady() {
+        let target = NSRect(x: 320, y: 140, width: 320, height: 360)
+        let outerWorkspace = NSRect(x: 24, y: 24, width: 1_040, height: 720)
+
+        XCTAssertNil(
+            StudioScrollChromeDiscovery.nearestMatchingCandidate(
+                targetRect: target,
+                candidateRects: [outerWorkspace]
+            )
+        )
+    }
+
     // MARK: - dB convergence
 
     func test_dBLabelConvergesOnMasterVocabulary() {
@@ -72,6 +165,23 @@ final class StudioMixerStripScaffoldTests: XCTestCase {
         XCTAssertEqual(StudioSlideControlModel.value(forLocationX: -25, width: 100, range: range), 0)
         XCTAssertEqual(StudioSlideControlModel.value(forLocationX: 160, width: 100, range: range), 1)
         XCTAssertEqual(StudioSlideControlModel.value(forLocationX: 50, width: 0, range: range), 0)
+    }
+
+    func test_slideControlAccessibilityAdjustmentUsesRequestedStepAndClamps() {
+        let range: ClosedRange<Double> = 0...1
+        XCTAssertEqual(
+            StudioSlideControlModel.adjustedValue(0.4, incrementing: true, step: 0.05, range: range),
+            0.45,
+            accuracy: 0.0001
+        )
+        XCTAssertEqual(
+            StudioSlideControlModel.adjustedValue(0.02, incrementing: false, step: 0.05, range: range),
+            0
+        )
+        XCTAssertEqual(
+            StudioSlideControlModel.adjustedValue(0.98, incrementing: true, step: 0.05, range: range),
+            1
+        )
     }
 
     func test_panLabelUsesCompactVocabulary() {

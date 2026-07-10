@@ -1,5 +1,46 @@
 import Foundation
 
+struct PerformanceTrackGroup: Codable, Equatable, Identifiable, Sendable {
+    static let slotCount = 16
+
+    var id: UUID
+    var name: String
+    var color: String
+    var memberIDs: [UUID]
+
+    init(
+        id: UUID = UUID(),
+        name: String,
+        color: String = "#14C8E5",
+        memberIDs: [UUID]
+    ) {
+        self.id = id
+        self.name = name
+        self.color = color
+        self.memberIDs = memberIDs
+    }
+
+    func normalized(validTrackIDs: Set<UUID>) -> PerformanceTrackGroup? {
+        var seen = Set<UUID>()
+        let members = memberIDs.filter { validTrackIDs.contains($0) && seen.insert($0).inserted }
+        guard !members.isEmpty else { return nil }
+        var copy = self
+        copy.memberIDs = members
+        return copy
+    }
+
+    static func normalizedBank(
+        _ groups: [PerformanceTrackGroup?],
+        tracks: [StepSequenceTrack]
+    ) -> [PerformanceTrackGroup?] {
+        let validTrackIDs = Set(tracks.map(\.id))
+        return (0..<slotCount).map { index in
+            guard groups.indices.contains(index), let group = groups[index] else { return nil }
+            return group.normalized(validTrackIDs: validTrackIDs)
+        }
+    }
+}
+
 struct Project: Codable, Equatable {
     enum DestinationWriteTarget: Equatable, Sendable {
         case track(UUID)
@@ -9,6 +50,7 @@ struct Project: Codable, Equatable {
     var version: Int
     var tracks: [StepSequenceTrack]
     var trackGroups: [TrackGroup]
+    var performanceTrackGroups: [PerformanceTrackGroup?]
     var generatorPool: [GeneratorPoolEntry]
     var clipPool: [ClipPoolEntry]
     var layers: [PhraseLayerDefinition]
@@ -30,6 +72,7 @@ struct Project: Codable, Equatable {
         version: Int,
         tracks: [StepSequenceTrack],
         trackGroups: [TrackGroup] = [],
+        performanceTrackGroups: [PerformanceTrackGroup?] = [],
         generatorPool: [GeneratorPoolEntry] = GeneratorPoolEntry.defaultPool,
         clipPool: [ClipPoolEntry] = [],
         layers: [PhraseLayerDefinition] = [],
@@ -61,6 +104,10 @@ struct Project: Codable, Equatable {
         let normalizedBuses = MixerBus.normalizedCollection(buses)
         self.tracks = Self.tracksByClearingMissingOutputBuses(tracks, buses: normalizedBuses)
         self.trackGroups = trackGroups
+        self.performanceTrackGroups = PerformanceTrackGroup.normalizedBank(
+            performanceTrackGroups,
+            tracks: tracks
+        )
         self.generatorPool = generatorPool
         self.clipPool = clipPool
         self.layers = normalized.layers

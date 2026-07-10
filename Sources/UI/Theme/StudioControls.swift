@@ -89,6 +89,143 @@ struct StudioIconActionButton: View {
     }
 }
 
+/// Shared text command chrome for modal and workflow actions. Primary commands
+/// use one solid surface accent; secondary commands remain outline-only, with
+/// an optional accent for contextual utilities such as Normalize.
+struct StudioCommandButton: View {
+    enum Role {
+        case primary
+        case secondary
+    }
+
+    let title: String
+    let systemImage: String
+    var role: Role = .secondary
+    var accent: Color? = nil
+    var fillsWidth = false
+    var isEnabled = true
+    var help: String = ""
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Label(title, systemImage: systemImage)
+                .studioText(.labelBold)
+                .foregroundStyle(foreground)
+                .lineLimit(1)
+                .padding(.horizontal, StudioMetrics.Spacing.comfortable)
+                .frame(maxWidth: fillsWidth ? .infinity : nil, minHeight: StudioMetrics.ControlSize.large)
+                .background(fill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                        .stroke(stroke, lineWidth: StudioMetrics.borderWidth)
+                )
+                .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .disabled(!isEnabled)
+        .help(help)
+        .accessibilityLabel(title)
+    }
+
+    private var resolvedAccent: Color {
+        accent ?? StudioTheme.transportAccent
+    }
+
+    private var foreground: Color {
+        guard isEnabled else { return StudioTheme.mutedText }
+        switch role {
+        case .primary:
+            return StudioTheme.background
+        case .secondary:
+            return accent ?? StudioTheme.text
+        }
+    }
+
+    private var fill: Color {
+        guard isEnabled else { return StudioTheme.disabledSubtleFill }
+        switch role {
+        case .primary:
+            return resolvedAccent
+        case .secondary:
+            return StudioTheme.subtleFill
+        }
+    }
+
+    private var stroke: Color {
+        guard isEnabled else { return StudioTheme.border }
+        switch role {
+        case .primary:
+            return resolvedAccent
+        case .secondary:
+            return accent ?? StudioTheme.border
+        }
+    }
+}
+
+private struct DocumentEditTargetModifier<Revision: Equatable>: ViewModifier {
+    @Environment(SequencerDocumentSession.self) private var session
+    @State private var ownership: DocumentEditCommandController.OwnershipToken?
+
+    let isActive: Bool
+    let revision: Revision
+    let makeTarget: () -> DocumentEditCommandController.Target
+
+    func body(content: Content) -> some View {
+        content
+            .onAppear { synchronizeTarget() }
+            .onChange(of: isActive) { _, _ in synchronizeTarget() }
+            .onChange(of: revision) { _, _ in synchronizeTarget() }
+            .onDisappear { unregisterTarget() }
+    }
+
+    private func synchronizeTarget() {
+        let controller = session.documentEditCommands
+        guard isActive else {
+            unregisterTarget()
+            return
+        }
+
+        let target = makeTarget()
+        if let ownership {
+            if !controller.update(target: target, ownership: ownership) {
+                self.ownership = controller.register(target: target)
+            }
+        } else {
+            ownership = controller.register(target: target)
+        }
+        if let ownership {
+            controller.availabilityDidChange(ownership: ownership)
+        }
+    }
+
+    private func unregisterTarget() {
+        guard let ownership else { return }
+        _ = session.documentEditCommands.unregister(ownership: ownership)
+        self.ownership = nil
+    }
+}
+
+extension View {
+    /// Register the visible surface's real selection with the transport edit
+    /// commands. `revision` refreshes captured closures when local selection or
+    /// target compatibility changes; ownership tokens keep disappearing views
+    /// from unregistering a newer surface.
+    func documentEditTarget<Revision: Equatable>(
+        isActive: Bool,
+        revision: Revision,
+        makeTarget: @escaping () -> DocumentEditCommandController.Target
+    ) -> some View {
+        modifier(
+            DocumentEditTargetModifier(
+                isActive: isActive,
+                revision: revision,
+                makeTarget: makeTarget
+            )
+        )
+    }
+}
+
 /// Vertically stacked increment/decrement buttons (the BPM stepper, layer
 /// cycler, and friends). `symbols` defaults to plus/minus; pass chevrons for
 /// cycling semantics.
@@ -138,6 +275,76 @@ struct StudioCustomVerticalScrollView<Content: View>: NSViewRepresentable {
 
     func updateNSView(_ nsView: StudioCustomScrollContainer<Content>, context: Context) {
         nsView.rootView = content
+    }
+}
+
+enum StudioScrollbarMetrics {
+    static let overflowTolerance: CGFloat = 1
+
+    static func isOverflowing(contentLength: CGFloat, viewportLength: CGFloat) -> Bool {
+        contentLength > viewportLength + overflowTolerance
+    }
+
+    static func thumbLength(
+        contentLength: CGFloat,
+        viewportLength: CGFloat,
+        trackLength: CGFloat,
+        minimumLength: CGFloat
+    ) -> CGFloat {
+        guard isOverflowing(contentLength: contentLength, viewportLength: viewportLength) else {
+            return max(0, trackLength)
+        }
+        let ratio = min(max(viewportLength / max(contentLength, 1), 0), 1)
+        return min(max(minimumLength, trackLength * ratio), max(0, trackLength))
+    }
+
+    static func thumbOffset(
+        contentLength: CGFloat,
+        viewportLength: CGFloat,
+        contentOffset: CGFloat,
+        trackLength: CGFloat,
+        thumbLength: CGFloat
+    ) -> CGFloat {
+        let maximumContentOffset = max(1, contentLength - viewportLength)
+        let availableTrack = max(0, trackLength - thumbLength)
+        let fraction = min(max(contentOffset / maximumContentOffset, 0), 1)
+        return availableTrack * fraction
+    }
+}
+
+enum StudioScrollChromeDiscovery {
+    /// Returns the candidate whose viewport most closely matches the attached
+    /// SwiftUI view. A List's private scroll view is often a sibling of the
+    /// background representable, so ancestry alone can select the outer
+    /// workspace scroll view instead.
+    static func nearestMatchingCandidate(
+        targetRect: NSRect,
+        candidateRects: [NSRect]
+    ) -> Int? {
+        guard targetRect.width > 0, targetRect.height > 0 else { return nil }
+
+        return candidateRects.enumerated()
+            .filter { _, candidateRect in
+                guard candidateRect.width > 0, candidateRect.height > 0 else { return false }
+                let intersection = candidateRect.intersection(targetRect)
+                let widthDelta = abs(candidateRect.width - targetRect.width)
+                let heightDelta = abs(candidateRect.height - targetRect.height)
+                return !intersection.isNull
+                    && intersection.width >= min(targetRect.width, candidateRect.width) * 0.8
+                    && intersection.height >= min(targetRect.height, candidateRect.height) * 0.8
+                    && widthDelta <= max(32, targetRect.width * 0.2)
+                    && heightDelta <= max(32, targetRect.height * 0.2)
+            }
+            .min { lhs, rhs in
+                geometryDistance(targetRect, lhs.element) < geometryDistance(targetRect, rhs.element)
+            }?.offset
+    }
+
+    private static func geometryDistance(_ targetRect: NSRect, _ candidateRect: NSRect) -> CGFloat {
+        abs(targetRect.minX - candidateRect.minX)
+            + abs(targetRect.maxX - candidateRect.maxX)
+            + abs(targetRect.minY - candidateRect.minY)
+            + abs(targetRect.maxY - candidateRect.maxY)
     }
 }
 
@@ -318,7 +525,10 @@ final class StudioScrollbarChromeView: NSView {
         self.contentLength = contentLength
         self.viewportLength = viewportLength
         self.offset = offset
-        isHidden = contentLength <= viewportLength + 1
+        isHidden = !StudioScrollbarMetrics.isOverflowing(
+            contentLength: contentLength,
+            viewportLength: viewportLength
+        )
         needsDisplay = true
     }
 
@@ -383,20 +593,183 @@ final class StudioScrollbarChromeView: NSView {
     }
 
     private func thumbRect(in rail: NSRect) -> NSRect {
-        let ratio = min(max(viewportLength / max(contentLength, 1), 0), 1)
-        let maxOffset = max(1, contentLength - viewportLength)
         switch axis {
         case .vertical:
-            let height = max(34, rail.height * ratio)
-            let available = max(0, rail.height - height)
-            let y = rail.minY + available * min(max(offset / maxOffset, 0), 1)
+            let height = StudioScrollbarMetrics.thumbLength(
+                contentLength: contentLength,
+                viewportLength: viewportLength,
+                trackLength: rail.height,
+                minimumLength: 34
+            )
+            let y = rail.minY + StudioScrollbarMetrics.thumbOffset(
+                contentLength: contentLength,
+                viewportLength: viewportLength,
+                contentOffset: offset,
+                trackLength: rail.height,
+                thumbLength: height
+            )
             return NSRect(x: rail.minX, y: y, width: rail.width, height: height)
         case .horizontal:
-            let width = max(44, rail.width * ratio)
-            let available = max(0, rail.width - width)
-            let x = rail.minX + available * min(max(offset / maxOffset, 0), 1)
+            let width = StudioScrollbarMetrics.thumbLength(
+                contentLength: contentLength,
+                viewportLength: viewportLength,
+                trackLength: rail.width,
+                minimumLength: 44
+            )
+            let x = rail.minX + StudioScrollbarMetrics.thumbOffset(
+                contentLength: contentLength,
+                viewportLength: viewportLength,
+                contentOffset: offset,
+                trackLength: rail.width,
+                thumbLength: width
+            )
             return NSRect(x: x, y: rail.minY, width: width, height: rail.height)
         }
+    }
+}
+
+/// Installs the shared vertical scrollbar chrome on a SwiftUI control that
+/// owns its own AppKit scroll view (notably `List`). The native scrollbar is
+/// hidden, but the original scrolling, focus, accessibility, and `onMove`
+/// implementation remain intact.
+struct StudioAttachedVerticalScrollChrome: NSViewRepresentable {
+    func makeNSView(context: Context) -> StudioScrollChromeAttachmentView {
+        StudioScrollChromeAttachmentView()
+    }
+
+    func updateNSView(_ nsView: StudioScrollChromeAttachmentView, context: Context) {
+        nsView.attachWhenReady()
+    }
+
+    static func dismantleNSView(_ nsView: StudioScrollChromeAttachmentView, coordinator: ()) {
+        nsView.detach()
+    }
+}
+
+final class StudioScrollChromeAttachmentView: NSView {
+    private weak var scrollView: NSScrollView?
+    private let chrome = StudioScrollbarChromeView(axis: .vertical)
+    private var observers: [NSObjectProtocol] = []
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        postsFrameChangedNotifications = true
+        DispatchQueue.main.async { [weak self] in
+            self?.attachWhenReady()
+        }
+    }
+
+    func attachWhenReady() {
+        guard let window else { return }
+        // SwiftUI may install a List background as a sibling of its private
+        // NSScrollView. Always compare every visible candidate so an outer
+        // workspace scroll view cannot win merely because it is an ancestor.
+        let candidate = matchingScrollView(in: window)
+        if let candidate, candidate !== scrollView {
+            attach(to: candidate)
+        }
+        updateChrome()
+    }
+
+    func detach() {
+        observers.forEach(NotificationCenter.default.removeObserver)
+        observers.removeAll()
+        chrome.removeFromSuperview()
+        scrollView = nil
+    }
+
+    private func attach(to scrollView: NSScrollView) {
+        detach()
+        self.scrollView = scrollView
+        scrollView.hasVerticalScroller = false
+        scrollView.autohidesScrollers = true
+        scrollView.contentView.postsBoundsChangedNotifications = true
+        scrollView.postsFrameChangedNotifications = true
+        scrollView.documentView?.postsFrameChangedNotifications = true
+
+        scrollView.addSubview(chrome, positioned: .above, relativeTo: nil)
+        chrome.scrollToFraction = { [weak self] fraction in
+            self?.scroll(to: fraction)
+        }
+
+        observe(NSView.boundsDidChangeNotification, object: scrollView.contentView)
+        observe(NSView.frameDidChangeNotification, object: scrollView)
+        if let documentView = scrollView.documentView {
+            observe(NSView.frameDidChangeNotification, object: documentView)
+        }
+        observeAttachmentFrameChanges()
+        updateChrome()
+    }
+
+    private func matchingScrollView(in window: NSWindow) -> NSScrollView? {
+        guard let contentView = window.contentView else { return nil }
+        let targetRect = convert(bounds, to: nil)
+        let candidates = scrollViews(in: contentView).filter { $0.window === window }
+        let candidateRects = candidates.map { $0.convert($0.bounds, to: nil) }
+        guard let index = StudioScrollChromeDiscovery.nearestMatchingCandidate(
+            targetRect: targetRect,
+            candidateRects: candidateRects
+        ) else { return nil }
+        return candidates[index]
+    }
+
+    private func scrollViews(in root: NSView) -> [NSScrollView] {
+        var matches: [NSScrollView] = []
+        if let scrollView = root as? NSScrollView {
+            matches.append(scrollView)
+        }
+        return root.subviews.reduce(into: matches) { result, subview in
+            result.append(contentsOf: scrollViews(in: subview))
+        }
+    }
+
+    private func observe(_ name: Notification.Name, object: AnyObject) {
+        observers.append(
+            NotificationCenter.default.addObserver(
+                forName: name,
+                object: object,
+                queue: .main
+            ) { [weak self] _ in
+                self?.updateChrome()
+            }
+        )
+    }
+
+    private func observeAttachmentFrameChanges() {
+        observers.append(
+            NotificationCenter.default.addObserver(
+                forName: NSView.frameDidChangeNotification,
+                object: self,
+                queue: .main
+            ) { [weak self] _ in
+                self?.attachWhenReady()
+            }
+        )
+    }
+
+    private func updateChrome() {
+        guard let scrollView, let documentView = scrollView.documentView else { return }
+        chrome.frame = NSRect(
+            x: scrollView.bounds.maxX - 8,
+            y: scrollView.bounds.minY,
+            width: 8,
+            height: scrollView.bounds.height
+        )
+        chrome.update(
+            contentLength: documentView.frame.height,
+            viewportLength: scrollView.contentView.bounds.height,
+            offset: scrollView.contentView.bounds.minY
+        )
+    }
+
+    private func scroll(to fraction: CGFloat) {
+        guard let scrollView, let documentView = scrollView.documentView else { return }
+        let viewportLength = scrollView.contentView.bounds.height
+        let maximumOffset = max(0, documentView.frame.height - viewportLength)
+        let offset = maximumOffset * min(max(fraction, 0), 1)
+        scrollView.contentView.scroll(to: NSPoint(x: scrollView.contentView.bounds.minX, y: offset))
+        scrollView.reflectScrolledClipView(scrollView.contentView)
+        updateChrome()
     }
 }
 

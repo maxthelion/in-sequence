@@ -125,26 +125,45 @@ extension DrumKitMatrixView {
 
     // MARK: - Kit Macros tab (AC23: M1–M8 across the kit / bus)
 
-    /// Macros tab: a styled M1–M8 surface reusing `AUMacroSlotKnob`. It mirrors
-    /// the originating part's macro bindings as a representative kit view.
-    /// STUBBED: full cross-part / bus macro wiring (sweeping one parameter
-    /// across every part at once) is a later slice; the knobs render the kit's
-    /// default mappings but do not yet drive every part — see report.
+    /// Macros tab: the same shared rotary slots used by normal tracks. The kit
+    /// surface edits the originating part's real defaults, which is the same
+    /// representative binding set used to name the kit slots.
     @ViewBuilder
     func kitMacrosTabBody(_ model: DrumKitMatrixModel) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             let slots = kitMacroSlots(model)
+            let values = memberMacroFallbackValues(model.originatingPartID)
             LazyVGrid(columns: Self.macroColumns, alignment: .leading, spacing: 14) {
                 ForEach(slots) { slot in
                     AUMacroSlotKnob(
                         slotIndex: slot.slotIndex,
                         binding: slot.binding,
-                        value: nil,
+                        value: slot.binding.flatMap { values[$0.id] },
                         accent: accent,
                         knobSize: MacroSlotPresentation.workspaceKnobSize,
                         showSlotLabel: false,
-                        onAssign: {},
-                        onChange: { _ in }
+                        onAssign: {
+                            prepareAndPresentMemberMacroPicker(
+                                memberID: model.originatingPartID,
+                                slotIndex: slot.slotIndex
+                            )
+                        },
+                        onChange: { value in
+                            guard let binding = slot.binding else { return }
+                            session.setMacroLayerDefault(
+                                value: value,
+                                bindingID: binding.id,
+                                trackID: model.originatingPartID
+                            )
+                        },
+                        onRemove: slot.binding.map { binding in
+                            {
+                                session.removeAUMacroSlot(
+                                    bindingID: binding.id,
+                                    trackID: model.originatingPartID
+                                )
+                            }
+                        }
                     )
                 }
             }
@@ -188,41 +207,55 @@ extension DrumKitMatrixView {
 
     // MARK: - Kit Mixer tab (AC23: bus output + sends + per-part levels)
 
-    /// Mixer tab: the kit bus output (→ its destination) plus scene routing.
-    /// This mirrors the normal-track mixer grammar without presenting unwired
-    /// Send A/B placeholders as finished controls.
+    /// Mixer tab: the same output / scene / send grammar as a normal track.
+    /// Sends are edited across every member so the kit-level knobs have a real,
+    /// deterministic meaning; mixed member values display their average.
     /// Per-part levels live on each member's accordion mixer mini-tab, not here.
     /// Full bus-strip editing is reachable from the global Mixer.
     @ViewBuilder
     func kitMixerTabBody(_ model: DrumKitMatrixModel) -> some View {
-        HStack(alignment: .top, spacing: 20) {
-            kitBusOutputRow(model)
+        HStack(alignment: .center, spacing: 16) {
+            kitBusOutputControl(model)
             kitSceneMembershipSelector(model)
-            Spacer(minLength: 0)
+            Spacer(minLength: 12)
+            kitSendKnob(.a, model: model)
+            kitSendKnob(.b, model: model)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    func kitBusOutputRow(_ model: DrumKitMatrixModel) -> some View {
+    func kitBusOutputControl(_ model: DrumKitMatrixModel) -> some View {
         let bus = kitBus(model)
-        let outputTitle = bus.map { "→ \($0.name) → Master" } ?? "→ Master"
-        return HStack(spacing: 10) {
-            Text("BUS OUTPUT")
-                .studioText(.eyebrow)
+        let outputTitle = bus.map(\.name) ?? "Master"
+        return VStack(alignment: .leading, spacing: 6) {
+            Text("OUTPUT")
+                .studioText(.micro)
                 .tracking(0.8)
                 .foregroundStyle(StudioTheme.mutedText)
 
-            // Colour identifies, it never floods (ux-canon rule 12): the bus
-            // route is real state, carried by a SOLID accent badge with a dark
-            // glyph — never a translucent accent wash.
-            Text(outputTitle)
-                .studioText(.labelBold)
-                .foregroundStyle(StudioTheme.background)
+            HStack(spacing: 6) {
+                Image(systemName: "arrow.triangle.branch")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(StudioTheme.mutedText)
+                Text(outputTitle)
+                    .studioText(.labelBold)
+                    .foregroundStyle(StudioTheme.text)
+                    .lineLimit(1)
+            }
                 .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .background(accent, in: Capsule())
-
-            Spacer(minLength: 0)
+                .padding(.vertical, 8)
+                .frame(minWidth: 120, alignment: .leading)
+                .background(
+                    StudioTheme.subtleFill,
+                    in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                        .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+                )
         }
+        .help(bus == nil ? "Kit output routes to Master" : "Kit members route through \(outputTitle) to Master")
+        .accessibilityIdentifier("kit-routing-output")
     }
 
     func kitSceneMembershipSelector(_ model: DrumKitMatrixModel) -> some View {
@@ -278,6 +311,49 @@ extension DrumKitMatrixView {
         for track in session.store.tracks where memberIDs.contains(track.id) {
             var mix = track.mix
             mix.sceneMembership = membership
+            session.setTrackMix(trackID: track.id, mix: mix)
+        }
+    }
+
+    enum KitSendSlot {
+        case a
+        case b
+
+        var title: String { self == .a ? "A" : "B" }
+        var keyPath: WritableKeyPath<TrackMixSettings, Double> {
+            self == .a ? \.sendA : \.sendB
+        }
+    }
+
+    func kitSendKnob(_ slot: KitSendSlot, model: DrumKitMatrixModel) -> some View {
+        StudioRotaryKnob(
+            title: "SEND \(slot.title)",
+            value: kitSendValue(slot, model: model),
+            range: TrackMixSettings.sendRange,
+            accent: accent,
+            size: 40,
+            format: { MixerSendDisplayModel.percentLabel(for: $0) },
+            onChange: { commitKitSend(slot, value: $0, model: model) },
+            onLiveChange: { commitKitSend(slot, value: $0, model: model) }
+        )
+        .help("\(model.groupName) Send \(slot.title)")
+        .accessibilityIdentifier("kit-routing-send-\(slot.title.lowercased())")
+    }
+
+    func kitSendValue(_ slot: KitSendSlot, model: DrumKitMatrixModel) -> Double {
+        let memberIDs = Set(model.rows.map(\.memberID))
+        let values = session.store.tracks
+            .filter { memberIDs.contains($0.id) }
+            .map { MixerSendDisplayModel.clamped($0.mix[keyPath: slot.keyPath]) }
+        guard !values.isEmpty else { return 0 }
+        return values.reduce(0, +) / Double(values.count)
+    }
+
+    func commitKitSend(_ slot: KitSendSlot, value: Double, model: DrumKitMatrixModel) {
+        let memberIDs = Set(model.rows.map(\.memberID))
+        for track in session.store.tracks where memberIDs.contains(track.id) {
+            var mix = track.mix
+            mix[keyPath: slot.keyPath] = MixerSendDisplayModel.clamped(value)
             session.setTrackMix(trackID: track.id, mix: mix)
         }
     }

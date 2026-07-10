@@ -109,6 +109,7 @@ enum PitchStageNode: Codable, Equatable, Hashable, Sendable {
 
 enum GeneratedSourcePipelineContent: Codable, Equatable, Hashable, Sendable {
     case melodic(pitches: [PitchStageNode], shape: NoteShape)
+    case chordGenerator(ChordGeneratorParams)
     case progressionChords(ProgressionChordGeneratorParams)
     case drum(triggers: [VoiceTag: TriggerStageNode], shape: NoteShape)
     case slice(sliceIndexes: [Int])
@@ -146,6 +147,14 @@ struct GeneratedSourcePipeline: Codable, Equatable, Hashable, Sendable {
         GeneratedSourcePipeline(
             trigger: nil,
             content: .progressionChords(params.normalized)
+        )
+    }
+
+    static func chordGenerator(_ params: ChordGeneratorParams) -> GeneratedSourcePipeline {
+        let normalized = params.normalized
+        return GeneratedSourcePipeline(
+            trigger: normalized.trigger,
+            content: .chordGenerator(normalized)
         )
     }
 
@@ -250,6 +259,8 @@ extension GeneratorParams {
              let .poly(trigger, _, _),
              let .slice(trigger, _):
             return trigger.stepStage.algo.densityCluster
+        case let .chordGenerator(params):
+            return params.normalized.trigger.stepStage.algo.densityCluster
         case let .drum(triggers, _):
             let clusters = triggers.values.map { $0.stepStage.algo.densityCluster }
             guard !clusters.isEmpty else { return 0 }
@@ -265,6 +276,8 @@ extension GeneratorParams {
             return .melodic(trigger: trigger, pitches: [pitch], shape: shape)
         case let .poly(trigger, pitches, shape):
             return .melodic(trigger: trigger, pitches: pitches, shape: shape)
+        case let .chordGenerator(params):
+            return .chordGenerator(params)
         case let .progressionChords(params):
             return .progressionChords(params)
         case let .drum(triggers, shape):

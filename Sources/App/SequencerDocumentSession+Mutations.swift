@@ -565,6 +565,15 @@ extension SequencerDocumentSession {
         return createdID
     }
 
+    @discardableResult
+    func insertMasterBusSceneCopy(of snapshot: MasterBusScene) -> UUID {
+        var createdID = snapshot.id
+        mutateMasterBus { masterBus in
+            createdID = masterBus.insertSceneCopy(of: snapshot)
+        }
+        return createdID
+    }
+
     func removeMasterBusScene(_ sceneID: UUID) {
         mutateMasterBus { masterBus in
             masterBus.removeScene(id: sceneID)
@@ -863,6 +872,20 @@ extension SequencerDocumentSession {
         guard store.revision > revision else { return }
         guard !isInBatch else { return }
         dispatchImpact(.snapshotOnly)
+    }
+
+    /// Paste a detached phrase snapshot below a currently live target.
+    @discardableResult
+    func insertPhraseCopy(_ snapshot: PhraseModel, below targetPhraseID: UUID) -> UUID? {
+        var project = store.exportToProject()
+        guard let insertedID = project.insertPhraseCopy(snapshot, below: targetPhraseID) else {
+            return nil
+        }
+        store.replacePhrases(project.phrases, selectedPhraseID: insertedID)
+        guard store.revision > revision else { return insertedID }
+        guard !isInBatch else { return insertedID }
+        dispatchImpact(.snapshotOnly)
+        return insertedID
     }
 
     /// Remove phrase by ID (guard: must have >1 phrase). Publishes one snapshot.
@@ -1698,6 +1721,26 @@ extension SequencerDocumentSession {
         tracksSelection.removeAll()
     }
 
+    @discardableResult
+    func setPerformanceTrackGroup(slotIndex: Int, memberIDs: Set<UUID>) -> PerformanceTrackGroup? {
+        guard !memberIDs.isEmpty else { return nil }
+        var created: PerformanceTrackGroup?
+        batch(impact: .snapshotOnly, changed: .none) { store in
+            var project = store.exportToProject()
+            created = project.setPerformanceTrackGroup(slotIndex: slotIndex, memberIDs: memberIDs)
+            store.replacePerformanceTrackGroups(project.performanceTrackGroups)
+        }
+        return created
+    }
+
+    func clearPerformanceTrackGroup(slotIndex: Int) {
+        batch(impact: .snapshotOnly, changed: .none) { store in
+            var project = store.exportToProject()
+            project.clearPerformanceTrackGroup(slotIndex: slotIndex)
+            store.replacePerformanceTrackGroups(project.performanceTrackGroups)
+        }
+    }
+
     /// Duplicate selected navigator tracks. Track copy/paste is a document
     /// mutation, so it uses the same project round-trip as append/remove.
     @discardableResult
@@ -1888,6 +1931,7 @@ private extension LiveSequencerStore {
         clips: Bool = false
     ) {
         replaceTracks(project.tracks)
+        replacePerformanceTrackGroups(project.performanceTrackGroups)
         if trackGroups {
             replaceTrackGroups(project.trackGroups)
         }

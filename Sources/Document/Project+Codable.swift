@@ -13,6 +13,7 @@ struct NormalizedFields {
         case version
         case tracks
         case trackGroups
+        case performanceTrackGroups
         case generatorPool
         case clipPool
         case layers
@@ -127,6 +128,10 @@ static func normalize(
         let decodedTracks = try container.decode([StepSequenceTrack].self, forKey: .tracks)
         let resolvedTracks = decodedTracks.isEmpty ? [StepSequenceTrack.default] : decodedTracks
         let resolvedTrackGroups = try container.decodeIfPresent([TrackGroup].self, forKey: .trackGroups) ?? []
+        let resolvedPerformanceTrackGroups = try container.decodeIfPresent(
+            [PerformanceTrackGroup?].self,
+            forKey: .performanceTrackGroups
+        ) ?? []
         let resolvedGeneratorPool = try container.decodeIfPresent([GeneratorPoolEntry].self, forKey: .generatorPool) ?? GeneratorPoolEntry.defaultPool
         let resolvedClipPool = try container.decodeIfPresent([ClipPoolEntry].self, forKey: .clipPool) ?? []
         let resolvedRoutes = try container.decodeIfPresent([Route].self, forKey: .routes) ?? []
@@ -152,6 +157,10 @@ static func normalize(
         version = resolvedVersion
         tracks = Self.tracksByClearingMissingOutputBuses(resolvedTracks, buses: resolvedBuses)
         trackGroups = resolvedTrackGroups
+        performanceTrackGroups = PerformanceTrackGroup.normalizedBank(
+            resolvedPerformanceTrackGroups,
+            tracks: resolvedTracks
+        )
         generatorPool = resolvedGeneratorPool
         clipPool = resolvedClipPool
         layers = normalized.layers
@@ -176,6 +185,7 @@ static func normalize(
         try container.encode(version, forKey: .version)
         try container.encode(tracks, forKey: .tracks)
         try container.encode(trackGroups, forKey: .trackGroups)
+        try container.encode(performanceTrackGroups, forKey: .performanceTrackGroups)
         try container.encode(generatorPool, forKey: .generatorPool)
         try container.encode(clipPool, forKey: .clipPool)
         try container.encode(layers, forKey: .layers)
@@ -222,6 +232,10 @@ static func normalize(
             }
             return synced
         }
+        performanceTrackGroups = PerformanceTrackGroup.normalizedBank(
+            performanceTrackGroups,
+            tracks: tracks
+        )
         if !phrases.contains(where: { $0.id == selectedPhraseID }) {
             selectedPhraseID = phrases[0].id
         }

@@ -27,6 +27,7 @@ struct TrackRoutingTabContent: View {
     let summary: TrackRoutingPathSummary
     let mode: Mode
     let accent: Color
+    var contentPadding: CGFloat = StudioMetrics.Spacing.standard
 
     private var track: StepSequenceTrack { session.store.selectedTrack }
     private var buses: [MixerBus] { session.store.buses }
@@ -40,7 +41,7 @@ struct TrackRoutingTabContent: View {
                 mixerWell
             }
         }
-        .padding(StudioMetrics.Spacing.standard)
+        .padding(contentPadding)
     }
 
     private var soundSourceWell: some View {

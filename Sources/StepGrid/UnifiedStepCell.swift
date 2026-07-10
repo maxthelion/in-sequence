@@ -66,9 +66,6 @@ struct UnifiedStepCell: View {
         .onLongPressGesture(minimumDuration: UnifiedStepCellGesturePolicy.selectionLongPressDuration) {
             onSelect()
         }
-        .background {
-            UnifiedStepCellRightClickProbe(onSelect: onSelect)
-        }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilityLabel)
         .accessibilityValue(accessibilityValue)
@@ -386,80 +383,6 @@ enum UnifiedStepCellGesturePolicy {
     static func normalizedValue(locationY: CGFloat, height: CGFloat) -> Double {
         guard height > 0 else { return 0 }
         return Double(min(max(1 - (locationY / height), 0), 1))
-    }
-}
-
-private struct UnifiedStepCellRightClickProbe: NSViewRepresentable {
-    let onSelect: () -> Void
-
-    func makeCoordinator() -> Coordinator {
-        Coordinator(onSelect: onSelect)
-    }
-
-    func makeNSView(context: Context) -> ProbeView {
-        let view = ProbeView()
-        context.coordinator.view = view
-        context.coordinator.onSelect = onSelect
-        context.coordinator.installMonitor()
-        return view
-    }
-
-    func updateNSView(_ nsView: ProbeView, context: Context) {
-        context.coordinator.view = nsView
-        context.coordinator.onSelect = onSelect
-        context.coordinator.installMonitor()
-    }
-
-    static func dismantleNSView(_ nsView: ProbeView, coordinator: Coordinator) {
-        _ = nsView
-        coordinator.removeMonitor()
-    }
-
-    final class ProbeView: NSView {
-        override func hitTest(_ point: NSPoint) -> NSView? {
-            _ = point
-            return nil
-        }
-    }
-
-    final class Coordinator {
-        var onSelect: () -> Void
-        weak var view: ProbeView?
-        private var monitor: Any?
-
-        init(onSelect: @escaping () -> Void) {
-            self.onSelect = onSelect
-        }
-
-        deinit {
-            removeMonitor()
-        }
-
-        func installMonitor() {
-            guard monitor == nil else { return }
-            monitor = NSEvent.addLocalMonitorForEvents(matching: [.rightMouseDown]) { [weak self] event in
-                guard let self,
-                      let view,
-                      event.window === view.window
-                else {
-                    return event
-                }
-
-                let point = view.convert(event.locationInWindow, from: nil)
-                if view.bounds.contains(point) {
-                    onSelect()
-                }
-
-                return event
-            }
-        }
-
-        func removeMonitor() {
-            if let monitor {
-                NSEvent.removeMonitor(monitor)
-                self.monitor = nil
-            }
-        }
     }
 }
 

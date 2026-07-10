@@ -87,7 +87,6 @@ extension SequencerDocumentSession: StepGridClipMutating {}
 @Observable
 final class StepGridCoordinator {
     var selection: StepSelectionModel
-    var clipboard: StepClipboard?
     var activeLayer: StepGridLayer
     var editableLayers: [StepGridLayer]
 
@@ -322,20 +321,34 @@ final class StepGridCoordinator {
         }
     }
 
-    func copySelectedSteps(from clip: ClipPoolEntry, track: StepSequenceTrack) {
+    func copySelectedSteps(from clip: ClipPoolEntry, track: StepSequenceTrack) -> StepClipboard? {
+        copySelectedSteps(from: clip, macroBindings: track.macros)
+    }
+
+    func copySelectedSteps(from clip: ClipPoolEntry, macroBindings: [TrackMacroBinding]) -> StepClipboard? {
+        guard clip.id == selection.clipID, isSelectionActive else { return nil }
         let sourceClipID = selection.clipID
         let indexes = selection.selectedStepIndexes.sorted()
-        let macroBindings = track.macros
         let steps = Dictionary(uniqueKeysWithValues: indexes.map { index in
             (index, ClipNoteGridStepEditing.clipboardEntry(at: index, in: clip, macroBindings: macroBindings))
         })
-        clipboard = StepClipboard(sourceClipID: sourceClipID, steps: steps)
+        return StepClipboard(
+            sourceClipID: sourceClipID,
+            sourceTrackType: clip.trackType,
+            sourceContentKind: Self.clipboardContentKind(for: clip.content),
+            steps: steps
+        )
     }
 
     @discardableResult
     func clearSelectedSteps(track: StepSequenceTrack) -> Bool {
+        clearSelectedSteps(macroBindings: track.macros)
+    }
+
+    @discardableResult
+    func clearSelectedSteps(macroBindings: [TrackMacroBinding]) -> Bool {
         let indexes = selection.selectedStepIndexes.sorted()
-        let macroBindings = track.macros
+        guard !indexes.isEmpty else { return false }
 
         let didMutate = commitEdit { entry in
             for index in indexes {
@@ -350,12 +363,21 @@ final class StepGridCoordinator {
 
     @discardableResult
     func pasteClipboard(
+        _ clipboard: StepClipboard,
         track: StepSequenceTrack,
         defaultNote: ClipStepNote = ClipStepNote(pitch: 60, velocity: 100, lengthSteps: 4)
     ) -> Bool {
-        guard let clipboard else { return false }
+        pasteClipboard(clipboard, macroBindings: track.macros, defaultNote: defaultNote)
+    }
+
+    @discardableResult
+    func pasteClipboard(
+        _ clipboard: StepClipboard,
+        macroBindings: [TrackMacroBinding],
+        defaultNote: ClipStepNote = ClipStepNote(pitch: 60, velocity: 100, lengthSteps: 4)
+    ) -> Bool {
+        guard isSelectionActive else { return false }
         let entries = clipboard.steps
-        let macroBindings = track.macros
         let normalizedDefaultNote = defaultNote.normalized
 
         return commitEdit { entry in
@@ -371,12 +393,181 @@ final class StepGridCoordinator {
         }
     }
 
+    /// Adapts this coordinator's transient selection to the session-wide edit
+    /// command controller. The payload is a detached value snapshot; clipboard
+    /// lifetime belongs to `DocumentEditCommandController`, not the grid.
+    func documentEditTarget(
+        track: StepSequenceTrack,
+        macroBindings: [TrackMacroBinding]? = nil,
+        defaultNote: ClipStepNote = ClipStepNote(pitch: 60, velocity: 100, lengthSteps: 4),
+        loadClip: @escaping (ClipID) -> ClipPoolEntry?
+    ) -> DocumentEditCommandController.Target {
+        let targetClipID = selection.clipID
+        let targetTrackType = track.trackType
+        let resolvedMacroBindings = macroBindings ?? track.macros
+
+        return DocumentEditCommandController.Target(
+            canCopy: { [weak self] in
+                self?.isWritableDocumentTarget(
+                    clipID: targetClipID,
+                    trackType: targetTrackType,
+                    loadClip: loadClip
+                ) ?? false
+            },
+            canClear: { [weak self] in
+                self?.isWritableDocumentTarget(
+                    clipID: targetClipID,
+                    trackType: targetTrackType,
+                    loadClip: loadClip
+                ) ?? false
+            },
+            isPasteCompatible: { [weak self] payload in
+                self?.isPasteCompatible(
+                    payload,
+                    targetClipID: targetClipID,
+                    targetTrackType: targetTrackType,
+                    loadClip: loadClip
+                ) ?? false
+            },
+            copy: { [weak self] in
+                guard let self,
+                      let clip = loadClip(targetClipID),
+                      let clipboard = self.copySelectedSteps(
+                          from: clip,
+                          macroBindings: resolvedMacroBindings
+                      )
+                else {
+                    return nil
+                }
+                return DocumentEditCommandController.ClipboardPayload(
+                    domain: .steps,
+                    snapshot: clipboard
+                )
+            },
+            paste: { [weak self] payload in
+                guard let clipboard = payload.value(as: StepClipboard.self) else { return }
+                _ = self?.pasteClipboard(
+                    clipboard,
+                    macroBindings: resolvedMacroBindings,
+                    defaultNote: defaultNote
+                )
+            },
+            clearSelection: { [weak self] in
+                self?.clearSelection()
+            }
+        )
+    }
+
+    func selectedTriggeredStepIndexes(
+        in clip: ClipPoolEntry,
+        noteLane: StepGridNoteLane = .main
+    ) -> [Int] {
+        selection.selectedStepIndexes
+            .filter { ClipNoteGridStepEditing.isTriggered(at: $0, in: clip.content, noteLane: noteLane) }
+            .sorted()
+    }
+
+    func canWritePitch(
+        in clip: ClipPoolEntry,
+        noteLane: StepGridNoteLane = .main
+    ) -> Bool {
+        !selectedTriggeredStepIndexes(in: clip, noteLane: noteLane).isEmpty
+    }
+
+    @discardableResult
+    func writePitchToSelectedTriggeredSteps(
+        _ midiNote: Int,
+        in clip: ClipPoolEntry,
+        noteLane: StepGridNoteLane = .main,
+        defaultNote: ClipStepNote = ClipStepNote(pitch: 60, velocity: 100, lengthSteps: 4)
+    ) -> Bool {
+        let indexes = selectedTriggeredStepIndexes(in: clip, noteLane: noteLane)
+        guard !indexes.isEmpty else { return false }
+        let pitch = min(max(midiNote, 0), 127)
+        let normalizedDefaultNote = defaultNote.normalized
+
+        return commitEdit { entry in
+            for index in indexes {
+                ClipNoteGridStepEditing.setPitchIfTriggered(
+                    pitch,
+                    at: index,
+                    entry: &entry,
+                    noteLane: noteLane,
+                    defaultNote: normalizedDefaultNote
+                )
+            }
+        }
+    }
+
     private func affectedIndexes(for stepIndex: Int) -> [Int] {
         if selection.selectedStepIndexes.contains(stepIndex) {
             return selection.selectedStepIndexes.sorted()
         }
         return [stepIndex]
     }
+
+    private func isWritableDocumentTarget(
+        clipID: ClipID,
+        trackType: TrackType,
+        loadClip: (ClipID) -> ClipPoolEntry?
+    ) -> Bool {
+        guard isSelectionActive,
+              selection.clipID == clipID,
+              let clip = loadClip(clipID),
+              clip.trackType == trackType
+        else {
+            return false
+        }
+        return Self.content(clip.content, isCompatibleWith: trackType)
+    }
+
+    private func isPasteCompatible(
+        _ payload: DocumentEditCommandController.ClipboardPayload,
+        targetClipID: ClipID,
+        targetTrackType: TrackType,
+        loadClip: (ClipID) -> ClipPoolEntry?
+    ) -> Bool {
+        guard payload.domain == .steps,
+              let clipboard = payload.value(as: StepClipboard.self),
+              isWritableDocumentTarget(
+                  clipID: targetClipID,
+                  trackType: targetTrackType,
+                  loadClip: loadClip
+              ),
+              let targetClip = loadClip(targetClipID),
+              clipboard.sourceTrackType == targetTrackType,
+              clipboard.sourceContentKind == Self.clipboardContentKind(for: targetClip.content)
+        else {
+            return false
+        }
+        return true
+    }
+
+    private static func content(_ content: ClipContent, isCompatibleWith trackType: TrackType) -> Bool {
+        switch (trackType, content.normalized) {
+        case (.monoMelodic, .noteGrid), (.polyMelodic, .noteGrid), (.chord, .chordReferences), (.slice, .sliceTriggers):
+            return true
+        case (.audioInput, _), (_, .noteGrid), (_, .chordReferences), (_, .sliceTriggers):
+            return false
+        }
+    }
+
+    private static func clipboardContentKind(for content: ClipContent) -> StepClipboard.ContentKind {
+        switch content.normalized {
+        case .noteGrid:
+            return .noteGrid
+        case .chordReferences:
+            return .chordReferences
+        case .sliceTriggers:
+            return .sliceTriggers
+        }
+    }
+}
+
+struct StepGridDocumentEditTargetRevision: Equatable {
+    let clipID: ClipID?
+    let trackID: UUID?
+    let selectedStepIndexes: Set<Int>
 }
 
 @MainActor

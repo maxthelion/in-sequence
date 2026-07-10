@@ -231,6 +231,7 @@ extension DrumKitMatrixView {
                 StepGridView(
                     stepStates: states,
                     indexOffset: pageOffset,
+                    selectedStepIndexes: selectedStepIndexes(for: row),
                     accent: accent,
                     contentProvider: { index, _ in
                         expandedCellContent(steps: steps, index: index)
@@ -238,6 +239,10 @@ extension DrumKitMatrixView {
                     onValueDrag: selectedLayer == .steps ? nil : { index, fraction in
                         commitDrag(row: row, stepIndex: index, fraction: fraction)
                     },
+                    onSelectStep: { index in
+                        toggleStepSelection(row: row, stepIndex: index)
+                    },
+                    onBackgroundTap: clearDrumStepSelection,
                     advanceStep: { index in
                         commitTap(row: row, stepIndex: index)
                     }
@@ -711,7 +716,7 @@ extension DrumKitMatrixView {
         VStack(alignment: .leading, spacing: 10) {
             kitPartLevelRow(row)
             if let model {
-                kitBusOutputRow(model)
+                kitBusOutputControl(model)
             }
         }
     }

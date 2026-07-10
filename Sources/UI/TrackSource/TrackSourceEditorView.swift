@@ -116,8 +116,6 @@ struct TrackSourceEditorView: View {
     @State private var isRandomizePanelVisible = false
     @State private var randomizeDraft = ClipRandomizeSettings()
     @State private var randomizeAuditionSeed: UInt64?
-    @State private var randomizeOriginalClip: ClipPoolEntry?
-    @State private var randomizeOriginalAddress: PatternSlotAddress?
     @State private var isAddFXPresented = false
 
     private var clipHistoryDestinationMode: Bool {
@@ -291,6 +289,14 @@ struct TrackSourceEditorView: View {
         return false
     }
 
+    private var samplerFillsSoundWell: Bool {
+        guard selectedTab == .sound else { return false }
+        if case .sample = session.store.resolvedDestination(for: track.id).withoutTransientState {
+            return true
+        }
+        return false
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             clipHistoryDestinationPanel
@@ -301,7 +307,10 @@ struct TrackSourceEditorView: View {
             VStack(alignment: .leading, spacing: StudioTabWellGrammar.pillRowToWellGap) {
                 sectionPills
 
-                StudioTabWell(accent: accent) {
+                StudioTabWell(
+                    accent: accent,
+                    contentPadding: samplerFillsSoundWell ? 0 : StudioMetrics.Spacing.loose
+                ) {
                     switch selectedTab {
                     case .stepsClip:
                         sourceTab
@@ -483,10 +492,6 @@ struct TrackSourceEditorView: View {
 
     private func presentRandomizePanel(rollImmediately: Bool = true) {
         guard canRandomizeSelectedClip else { return }
-        if !isRandomizePanelVisible {
-            randomizeOriginalClip = currentClip
-            randomizeOriginalAddress = selectedPatternAddress
-        }
         randomizeDraft = currentClip?.randomizeSettings ?? ClipRandomizeSettings()
         isRandomizePanelVisible = true
         if rollImmediately {
@@ -513,16 +518,6 @@ struct TrackSourceEditorView: View {
     private func closeRandomizePanel() {
         session.clearRandomizeAudition(trackID: track.id)
         isRandomizePanelVisible = false
-        randomizeOriginalClip = nil
-        randomizeOriginalAddress = nil
-    }
-
-    private func cancelRandomizePanel() {
-        if let original = randomizeOriginalClip,
-           let address = randomizeOriginalAddress {
-            session.restoreClipSnapshot(original, at: address)
-        }
-        closeRandomizePanel()
     }
 
     private func nextRandomizeSeed() -> UInt64 {
@@ -558,6 +553,7 @@ struct TrackSourceEditorView: View {
             stepGridCoordinator: stepGridWorkspaceModel.coordinator,
             generatedSourceInputClips: generatedSourceInputClips,
             harmonicSidechainClips: harmonicSidechainClips,
+            chordPalette: track.chordPalette,
             onAssignMacroSlot: prepareAndPresentMacroSlotPicker(slotIndex:),
             canRandomizeClip: canRandomizeSelectedClip,
             isRandomizePanelVisible: isRandomizePanelVisible,
@@ -568,7 +564,6 @@ struct TrackSourceEditorView: View {
                         settings: $randomizeDraft,
                         accent: accent,
                         onReRoll: auditionRandomizeDraft,
-                        onCancel: cancelRandomizePanel,
                         onClose: closeRandomizePanel
                     )
                 )
@@ -715,7 +710,8 @@ struct TrackSourceEditorView: View {
             document: $document,
             summary: routingPathSummary,
             mode: .sound,
-            accent: accent
+            accent: accent,
+            contentPadding: samplerFillsSoundWell ? 0 : StudioMetrics.Spacing.standard
         )
     }
 
@@ -1194,14 +1190,10 @@ struct ClipRandomizeSettingsPanel: View {
     @Binding var settings: ClipRandomizeSettings
     let accent: Color
     let onReRoll: () -> Void
-    let onCancel: () -> Void
     let onClose: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            controls
-            actionRow
-        }
+        controls
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(StudioMetrics.Spacing.standard)
         .background(
@@ -1219,98 +1211,85 @@ struct ClipRandomizeSettingsPanel: View {
     // Rule 6 findings (design review 20b/20c, prototype 12 grammar). One
     // chrome accent (the track accent) across every ring.
     private var controls: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack(alignment: .top, spacing: 22) {
-                RandomizeChoiceMenu(
-                    title: "Root",
-                    selection: Binding(
-                        get: { settings.rootPitchClass },
-                        set: { value in update { $0.rootPitchClass = value } }
-                    ),
-                    options: (0..<12).map { StudioMenuPickerOption(label: rootLabel($0), value: $0) },
-                    width: 82,
-                    accent: accent,
-                    help: "Root note"
-                )
+        HStack(alignment: .top, spacing: 22) {
+            RandomizeChoiceMenu(
+                title: "Root",
+                selection: Binding(
+                    get: { settings.rootPitchClass },
+                    set: { value in update { $0.rootPitchClass = value } }
+                ),
+                options: (0..<12).map { StudioMenuPickerOption(label: rootLabel($0), value: $0) },
+                width: 82,
+                accent: accent,
+                help: "Root note"
+            )
 
-                RandomizeChoiceMenu(
-                    title: "Scale",
-                    selection: Binding(
-                        get: { settings.scaleID },
-                        set: { value in update { $0.scaleID = value } }
-                    ),
-                    options: ScaleID.allCases.map { StudioMenuPickerOption(label: $0.displayName, value: $0) },
-                    width: 172,
-                    accent: accent,
-                    help: "Scale"
-                )
+            RandomizeChoiceMenu(
+                title: "Scale",
+                selection: Binding(
+                    get: { settings.scaleID },
+                    set: { value in update { $0.scaleID = value } }
+                ),
+                options: ScaleID.allCases.map { StudioMenuPickerOption(label: $0.displayName, value: $0) },
+                width: 172,
+                accent: accent,
+                help: "Scale"
+            )
 
-                StudioRotaryKnob(
-                    title: "Density",
-                    value: settings.density * 100,
-                    range: 0...100,
-                    accent: accent,
-                    size: 56,
-                    format: { "\(Int($0.rounded()))%" }
-                ) { value in
-                    update { $0.density = value / 100 }
-                }
-
-                StudioRotaryKnob(
-                    title: "Velocity",
-                    value: settings.velocityVariance * 100,
-                    range: 0...100,
-                    accent: accent,
-                    size: 56,
-                    format: { "\(Int($0.rounded()))%" }
-                ) { value in
-                    update { $0.velocityVariance = value / 100 }
-                }
-
-                StudioRotaryKnob(
-                    title: "Gate",
-                    value: settings.gateVariance * 100,
-                    range: 0...100,
-                    accent: accent,
-                    size: 56,
-                    format: { "\(Int($0.rounded()))%" }
-                ) { value in
-                    update { $0.gateVariance = value / 100 }
-                }
-
-                StudioRotaryKnob(
-                    title: "Octave",
-                    value: Double(settings.octaveCenter),
-                    range: 0...9,
-                    accent: accent,
-                    size: 56
-                ) { value in
-                    update { $0.octaveCenter = Int(value.rounded()) }
-                }
-
-                StudioRotaryKnob(
-                    title: "Span",
-                    value: Double(settings.octaveSpan),
-                    range: 0...4,
-                    accent: accent,
-                    size: 56
-                ) { value in
-                    update { $0.octaveSpan = Int(value.rounded()) }
-                }
-
-                Spacer(minLength: 0)
+            StudioRotaryKnob(
+                title: "Density",
+                value: settings.density * 100,
+                range: 0...100,
+                accent: accent,
+                size: 56,
+                format: { "\(Int($0.rounded()))%" }
+            ) { value in
+                update { $0.density = value / 100 }
             }
-        }
-    }
 
-    private var actionRow: some View {
-        HStack(spacing: 10) {
-            Button(action: onCancel) {
-                Text("Cancel")
-                    .studioText(.labelBold)
+            StudioRotaryKnob(
+                title: "Velocity",
+                value: settings.velocityVariance * 100,
+                range: 0...100,
+                accent: accent,
+                size: 56,
+                format: { "\(Int($0.rounded()))%" }
+            ) { value in
+                update { $0.velocityVariance = value / 100 }
             }
-            .buttonStyle(.plain)
-            .foregroundStyle(StudioTheme.mutedText)
+
+            StudioRotaryKnob(
+                title: "Gate",
+                value: settings.gateVariance * 100,
+                range: 0...100,
+                accent: accent,
+                size: 56,
+                format: { "\(Int($0.rounded()))%" }
+            ) { value in
+                update { $0.gateVariance = value / 100 }
+            }
+
+            StudioRotaryKnob(
+                title: "Octave",
+                value: Double(settings.octaveCenter),
+                range: 0...9,
+                accent: accent,
+                size: 56
+            ) { value in
+                update { $0.octaveCenter = Int(value.rounded()) }
+            }
+
+            StudioRotaryKnob(
+                title: "Span",
+                value: Double(settings.octaveSpan),
+                range: 0...4,
+                accent: accent,
+                size: 56
+            ) { value in
+                update { $0.octaveSpan = Int(value.rounded()) }
+            }
+
+            Spacer(minLength: 0)
 
             Button(action: onReRoll) {
                 Text("Re-Roll")
@@ -1321,13 +1300,15 @@ struct ClipRandomizeSettingsPanel: View {
                     .background(accent, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
             }
             .buttonStyle(.plain)
+            .frame(height: 56, alignment: .center)
 
-            Spacer(minLength: 0)
-
-            Button("Close", action: onClose)
-                .buttonStyle(.plain)
-                .studioText(.labelBold)
-                .foregroundStyle(StudioTheme.mutedText)
+            StudioCircleIconButton(
+                systemName: "xmark",
+                size: StudioMetrics.ControlSize.medium,
+                help: "Close randomize settings",
+                action: onClose
+            )
+            .frame(height: 56, alignment: .top)
         }
     }
 
@@ -1357,13 +1338,7 @@ private struct RandomizeChoiceMenu<Value: Hashable>: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 7) {
-            Text(title.uppercased())
-                .studioText(.eyebrow)
-                // ux-canon-allow: eyebrow captions are structural labels,
-                // not stateful chrome — mutedText is the caption token.
-                .foregroundStyle(StudioTheme.mutedText)
-
+        VStack(alignment: .center, spacing: 6) {
             Button {
                 isOpen.toggle()
             } label: {
@@ -1382,7 +1357,7 @@ private struct RandomizeChoiceMenu<Value: Hashable>: View {
                 }
                 .padding(.horizontal, 11)
                 .frame(width: width)
-                .frame(minHeight: 34)
+                .frame(height: 56)
                 .background(
                     StudioTheme.background,
                     in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
@@ -1399,6 +1374,13 @@ private struct RandomizeChoiceMenu<Value: Hashable>: View {
             }
             .help(help)
             .accessibilityLabel("\(title) \(selectedLabel)")
+
+            Text(title.uppercased())
+                .studioText(.micro)
+                .tracking(0.6)
+                .foregroundStyle(StudioTheme.mutedText)
+                .lineLimit(1)
+                .frame(width: width)
         }
     }
 

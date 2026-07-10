@@ -129,7 +129,7 @@ private struct StepGridCell: View {
         // outline/fill is the control (one less nesting level). Selection
         // alone draws the outer accent line.
         .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
                 .stroke(isSelected ? accent : Color.clear, lineWidth: 2)
         )
         .background {
@@ -139,7 +139,10 @@ private struct StepGridCell: View {
             EmptyView()
             #endif
         }
-        .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
+        .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
+        .studioSelectOnRightClick {
+            selectAction?()
+        }
         .onChange(of: state) { oldValue, newValue in
             #if DEBUG
             StepGridTapDiagnostics.log(
@@ -182,6 +185,228 @@ private struct StepGridCell: View {
         state == .off ? AnyShapeStyle(StudioTheme.mutedText) : AnyShapeStyle(StudioTheme.text)
     }
 
+}
+
+struct StepGridBatchActionAvailability: Equatable, Sendable {
+    let hasSelection: Bool
+    let hasClipboard: Bool
+
+    var canErase: Bool { hasSelection }
+    var canClear: Bool { hasSelection }
+    var canCopy: Bool { hasSelection }
+    var canPaste: Bool { hasSelection && hasClipboard }
+}
+
+struct StepGridBatchActionBar: View {
+    let hasSelection: Bool
+    let canPaste: Bool
+    let onErase: () -> Void
+    let onCopy: (() -> Void)?
+    let onPaste: (() -> Void)?
+
+    init(
+        hasSelection: Bool,
+        canPaste: Bool = false,
+        onErase: (() -> Void)? = nil,
+        onClear: (() -> Void)? = nil,
+        onCopy: (() -> Void)? = nil,
+        onPaste: (() -> Void)? = nil
+    ) {
+        self.hasSelection = hasSelection
+        self.canPaste = canPaste
+        self.onErase = onErase ?? onClear ?? {}
+        self.onCopy = onCopy
+        self.onPaste = onPaste
+    }
+
+    private var availability: StepGridBatchActionAvailability {
+        StepGridBatchActionAvailability(hasSelection: hasSelection, hasClipboard: canPaste)
+    }
+
+    var body: some View {
+        HStack(spacing: StudioMetrics.Spacing.tight) {
+            actionButton("Erase", systemImage: "eraser", isEnabled: availability.canErase, action: onErase)
+            if let onCopy {
+                actionButton("Copy", systemImage: "doc.on.doc", isEnabled: availability.canCopy, action: onCopy)
+            }
+            if let onPaste {
+                actionButton("Paste", systemImage: "doc.on.clipboard", isEnabled: availability.canPaste, action: onPaste)
+            }
+        }
+        .fixedSize()
+        .frame(minHeight: 30)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Step actions")
+    }
+
+    private func actionButton(
+        _ title: String,
+        systemImage: String,
+        isEnabled: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Label(title, systemImage: systemImage)
+                .studioText(.labelBold)
+                .foregroundStyle(isEnabled ? StudioTheme.text : StudioTheme.mutedText)
+                .padding(.horizontal, StudioMetrics.Spacing.compact)
+                .frame(height: 30)
+                .background(
+                    StudioTheme.subtleFill,
+                    in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                        .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+                )
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(!isEnabled)
+        .help(title)
+    }
+}
+
+struct StepPitchKeyboardModel: Equatable, Sendable {
+    static let minimumOctave = -1
+    static let maximumOctave = 9
+
+    var octave: Int
+
+    init(octave: Int) {
+        self.octave = min(max(octave, Self.minimumOctave), Self.maximumOctave)
+    }
+
+    var canSelectLowerOctave: Bool { octave > Self.minimumOctave }
+    var canSelectHigherOctave: Bool { octave < Self.maximumOctave }
+
+    func midiNote(forPitchClass pitchClass: Int) -> Int? {
+        guard (0..<12).contains(pitchClass) else { return nil }
+        let note = (octave + 1) * 12 + pitchClass
+        return (0...127).contains(note) ? note : nil
+    }
+}
+
+struct StepPitchKeyboard: View {
+    @Binding var octave: Int
+    let accent: Color
+    let isEnabled: Bool
+    let onSelectNote: (Int) -> Void
+
+    private let whiteKeyClasses = [0, 2, 4, 5, 7, 9, 11]
+    private let blackKeySpecs: [(pitchClass: Int, boundary: CGFloat)] = [
+        (1, 1), (3, 2), (6, 4), (8, 5), (10, 6)
+    ]
+
+    var body: some View {
+        HStack(alignment: .top, spacing: StudioMetrics.Spacing.standard) {
+            keyboard
+            octaveSelector
+        }
+        .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Step pitch keyboard")
+        .accessibilityValue(isEnabled ? "Octave \(model.octave)" : "Select a triggered step")
+    }
+
+    private var model: StepPitchKeyboardModel {
+        StepPitchKeyboardModel(octave: octave)
+    }
+
+    private var keyboard: some View {
+        GeometryReader { geometry in
+            let whiteWidth = geometry.size.width / CGFloat(whiteKeyClasses.count)
+            let blackWidth = min(44, max(24, whiteWidth * 0.64))
+
+            ZStack(alignment: .topLeading) {
+                HStack(spacing: 2) {
+                    ForEach(whiteKeyClasses, id: \.self) { pitchClass in
+                        keyButton(pitchClass: pitchClass, isBlack: false)
+                            .frame(width: max(1, whiteWidth - 2), height: 72)
+                    }
+                }
+
+                ForEach(blackKeySpecs, id: \.pitchClass) { spec in
+                    keyButton(pitchClass: spec.pitchClass, isBlack: true)
+                        .frame(width: blackWidth, height: 45)
+                        .offset(x: whiteWidth * spec.boundary - blackWidth / 2 - 1)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, minHeight: 72, maxHeight: 72)
+    }
+
+    private func keyButton(pitchClass: Int, isBlack: Bool) -> some View {
+        let midiNote = model.midiNote(forPitchClass: pitchClass)
+        let enabled = isEnabled && midiNote != nil
+        let label = midiNote.flatMap(DAWNoteName.string(forMIDINote:)) ?? ""
+
+        return Button {
+            guard let midiNote else { return }
+            onSelectNote(midiNote)
+        } label: {
+            Text(label)
+                .font(.system(size: isBlack ? 9 : 10, weight: .bold, design: .rounded))
+                .foregroundStyle(isBlack ? StudioTheme.text : StudioTheme.mutedText)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                .padding(.bottom, isBlack ? 5 : 7)
+                .background(isBlack ? StudioTheme.background : StudioTheme.inset)
+                .overlay(
+                    UnevenRoundedRectangle(
+                        topLeadingRadius: 3,
+                        bottomLeadingRadius: 6,
+                        bottomTrailingRadius: 6,
+                        topTrailingRadius: 3,
+                        style: .continuous
+                    )
+                    .stroke(enabled ? accent : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+                )
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(!enabled)
+        .accessibilityLabel(label.isEmpty ? "Unavailable pitch" : label)
+    }
+
+    private var octaveSelector: some View {
+        VStack(spacing: StudioMetrics.Spacing.hairline) {
+            octaveButton(systemImage: "chevron.up", isEnabled: model.canSelectHigherOctave) {
+                octave = min(model.octave + 1, StepPitchKeyboardModel.maximumOctave)
+            }
+
+            Text("OCT \(model.octave)")
+                .studioText(.micro)
+                .foregroundStyle(StudioTheme.text)
+                .frame(width: 54, height: 24)
+
+            octaveButton(systemImage: "chevron.down", isEnabled: model.canSelectLowerOctave) {
+                octave = max(model.octave - 1, StepPitchKeyboardModel.minimumOctave)
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Octave")
+    }
+
+    private func octaveButton(systemImage: String, isEnabled: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(isEnabled ? StudioTheme.text : StudioTheme.mutedText)
+                .frame(width: 54, height: 22)
+                .background(
+                    StudioTheme.subtleFill,
+                    in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                        .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+                )
+        }
+        .buttonStyle(.plain)
+        .disabled(!isEnabled)
+    }
 }
 
 #if DEBUG

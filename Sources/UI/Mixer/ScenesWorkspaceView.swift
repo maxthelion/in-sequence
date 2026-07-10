@@ -10,6 +10,65 @@ struct AddInsertPickerRequest: Identifiable, Equatable {
     let id = UUID()
 }
 
+struct SceneDocumentEditSnapshot: Equatable {
+    let scene: MasterBusScene
+}
+
+@MainActor
+struct SceneDocumentEditCommandTarget {
+    let session: SequencerDocumentSession
+    let sceneID: UUID?
+    let didPaste: (UUID) -> Void
+    let clearSelection: () -> Void
+
+    var target: DocumentEditCommandController.Target {
+        .init(
+            canCopy: { [self] in hasSceneTarget },
+            canClear: { [self] in hasSceneTarget },
+            isPasteCompatible: { [self] payload in
+                hasSceneTarget
+                    && payload.domain == .scenes
+                    && payload.value(as: SceneDocumentEditSnapshot.self) != nil
+            },
+            copy: { [self] in
+                guard let sceneID,
+                      let scene = session.store.masterBus.scene(id: sceneID)
+                else {
+                    return nil
+                }
+                return .init(
+                    domain: .scenes,
+                    snapshot: SceneDocumentEditSnapshot(scene: scene)
+                )
+            },
+            paste: { [self] payload in
+                guard hasSceneTarget,
+                      let snapshot = payload.value(as: SceneDocumentEditSnapshot.self)
+                else {
+                    return
+                }
+                didPaste(session.insertMasterBusSceneCopy(of: snapshot.scene))
+            },
+            clearSelection: { [self] in
+                guard hasSceneTarget else { return }
+                clearSelection()
+            }
+        )
+    }
+
+    private var hasSceneTarget: Bool {
+        sceneID.flatMap { session.store.masterBus.scene(id: $0) } != nil
+    }
+}
+
+enum SceneInsertOrdering {
+    static func reordering(_ ids: [UUID], from source: IndexSet, to destination: Int) -> [UUID] {
+        var reordered = ids
+        reordered.move(fromOffsets: source, toOffset: destination)
+        return reordered
+    }
+}
+
 struct ScenePerformSlotPickerRequest: Identifiable, Equatable {
     enum Slot: String, Equatable {
         case a
@@ -97,6 +156,20 @@ struct ScenesWorkspaceView: View {
         // the borderless scene-browser panel had no outer padding, so it sat
         // tighter to the left/top than the other pages.
         .padding(StudioMetrics.Spacing.workspaceInset)
+        .documentEditTarget(
+            isActive: selectedSceneID != nil,
+            revision: selectedSceneID
+        ) {
+            SceneDocumentEditCommandTarget(
+                session: session,
+                sceneID: selectedSceneID,
+                didPaste: { newSceneID in
+                    selectedSceneID = newSceneID
+                    selectedInsertID = masterBus.scene(id: newSceneID)?.inserts.first?.id
+                },
+                clearSelection: clearSceneSelection
+            ).target
+        }
         .onAppear {
             selectedInsertID = selectedSceneID.flatMap { masterBus.scene(id: $0)?.inserts.first?.id }
         }
@@ -266,6 +339,12 @@ struct ScenesWorkspaceView: View {
             selectedInsertID = firstInsertID
             session.setActiveMasterScene(sceneID)
 
+        case "overflow":
+            let (sceneID, firstInsertID) = populateVisualContentScene(insertCount: 8)
+            selectedSceneID = sceneID
+            selectedInsertID = firstInsertID
+            session.setActiveMasterScene(sceneID)
+
         case "browse-content":
             // Same populated scene, but stay on the browser grid so the
             // per-card FX chips + duplicate/delete cluster are capturable.
@@ -279,15 +358,27 @@ struct ScenesWorkspaceView: View {
         }
     }
 
-    private func populateVisualContentScene() -> (sceneID: UUID, firstInsertID: UUID) {
+    private func populateVisualContentScene(insertCount: Int = 2) -> (sceneID: UUID, firstInsertID: UUID) {
         let sceneID = ensureVisualScene(preferredIndex: 1, name: "Scene With Inserts")
         var filter = MasterBusInsert.filter()
         filter.name = "Visual Filter"
         var bitcrusher = MasterBusInsert.bitcrusher()
         bitcrusher.name = "Visual Crusher"
+        let inserts = (0..<max(2, insertCount)).map { index -> MasterBusInsert in
+            if index == 0 { return filter }
+            if index == 1 { return bitcrusher }
+            if index.isMultiple(of: 2) {
+                var insert = MasterBusInsert.filter()
+                insert.name = "Filter \(index / 2 + 1)"
+                return insert
+            }
+            var insert = MasterBusInsert.bitcrusher()
+            insert.name = "Crusher \(index / 2 + 1)"
+            return insert
+        }
         session.updateMasterBusScene(sceneID) { scene in
             scene.name = "Scene With Inserts"
-            scene.inserts = [filter, bitcrusher]
+            scene.inserts = inserts
             scene.macroBindings = [
                 MasterSceneMacroBinding(
                     slotIndex: 0,
@@ -542,6 +633,15 @@ struct ScenesWorkspaceView: View {
         selectedInsertID = nil
     }
 
+    private func clearSceneSelection() {
+        selectedSceneID = nil
+        selectedInsertID = nil
+        auMacroSlotPickerRequest = nil
+        sceneMacroTargetPickerRequest = nil
+        scenePerformSlotPickerRequest = nil
+        addInsertPickerRequest = nil
+    }
+
     // Only rendered when at least one insert exists (empty scenes use the
     // full-width add-FX tile in `sceneEditor`). The add affordance is an
     // empty-with-plus tile BELOW the list, matching TrackFXChainView's
@@ -560,8 +660,12 @@ struct ScenesWorkspaceView: View {
                 .onMove(perform: moveInserts)
             }
             .listStyle(.plain)
+            .scrollIndicators(.never)
             .scrollContentBackground(.hidden)
             .frame(height: insertListHeight)
+            // Keep List's native scrolling and onMove semantics, but attach
+            // the studio thumb to this fixed insert viewport only.
+            .background(StudioAttachedVerticalScrollChrome())
 
             // Add-FX tile beneath the inserts (same dashed plus-tile grammar as
             // the empty state and the rest of the app).
@@ -1037,8 +1141,11 @@ struct ScenesWorkspaceView: View {
     }
 
     private func moveInserts(from source: IndexSet, to destination: Int) {
-        var ids = selectedScene.inserts.map(\.id)
-        ids.move(fromOffsets: source, toOffset: destination)
+        let ids = SceneInsertOrdering.reordering(
+            selectedScene.inserts.map(\.id),
+            from: source,
+            to: destination
+        )
         session.reorderMasterBusInserts(ids, in: selectedScene.id)
     }
 

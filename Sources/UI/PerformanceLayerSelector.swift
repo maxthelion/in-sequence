@@ -16,15 +16,9 @@ struct PerformanceLayerOptionCell: View {
                 HStack(spacing: 6) {
                     Image(systemName: option.mode.symbolName)
                         .font(.system(size: 12, weight: .bold))
-                        .foregroundStyle(isSelected ? StudioTheme.text : accent)
+                        .foregroundStyle(accent)
 
                     Spacer(minLength: 0)
-
-                    if isSelected {
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundStyle(accent)
-                    }
                 }
 
                 Spacer(minLength: 0)
@@ -64,7 +58,7 @@ struct PerformanceLayerOptionCell: View {
             .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
         }
         .buttonStyle(.plain)
-        .help(option.variantLabel.map { "\(option.mode.label) — \($0). Tap again to return to normal." } ?? option.mode.label)
+        .help(option.variantLabel.map { "\(option.mode.label) — \($0)" } ?? option.mode.label)
         .accessibilityLabel("\(option.mode.label) \(option.variantLabel ?? "")")
         .accessibilityValue(isSelected ? "Selected" : "Not selected")
     }

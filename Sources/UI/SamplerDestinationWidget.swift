@@ -54,11 +54,6 @@ struct SamplerDestinationWidget: View {
             divider
             sampleBody(sample: sample)
         }
-        .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
-        )
     }
 
     /// Side-by-side layout: the waveform browser sits on the left at a flexible
@@ -330,11 +325,6 @@ struct SamplerDestinationWidget: View {
             .help("Choose another sample or remove the destination")
             .padding(StudioMetrics.Spacing.comfortable)
         }
-        .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
-                .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
-        )
     }
 
     private var divider: some View {

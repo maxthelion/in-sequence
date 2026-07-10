@@ -1,5 +1,78 @@
 import Foundation
 
+struct ChordGeneratorParams: Codable, Equatable, Hashable, Sendable {
+    var trigger: TriggerStageNode
+    var enabledSlotIDs: [UUID]
+    var minimumInversion: Int
+    var maximumInversion: Int
+    var shape: NoteShape
+
+    static let `default` = ChordGeneratorParams(
+        trigger: .native(.init(algo: .euclidean(pulses: 4, steps: 16, offset: 0), basePitch: 60)),
+        enabledSlotIDs: ChordPalette.defaultSlots.map(\.id),
+        minimumInversion: 0,
+        maximumInversion: 2,
+        shape: .default
+    )
+
+    var normalized: ChordGeneratorParams {
+        let lower = min(max(minimumInversion, -3), 3)
+        let upper = min(max(maximumInversion, -3), 3)
+        var seen = Set<UUID>()
+        let stableIDs = enabledSlotIDs.filter { seen.insert($0).inserted }
+        return ChordGeneratorParams(
+            trigger: trigger,
+            enabledSlotIDs: stableIDs,
+            minimumInversion: min(lower, upper),
+            maximumInversion: max(lower, upper),
+            shape: NoteShape(
+                velocity: min(max(shape.velocity, 1), 127),
+                gateLength: max(shape.gateLength, 1),
+                accent: shape.accent
+            )
+        )
+    }
+
+    func seededFromPalette(_ palette: ChordPalette) -> ChordGeneratorParams {
+        var copy = self
+        copy.enabledSlotIDs = palette.normalized.slots.map(\.id)
+        return copy.normalized
+    }
+}
+
+struct ResolvedChordGeneratorChoice: Equatable, Hashable, Sendable {
+    let slotID: UUID
+    let minimumInversion: Int
+    let pitchesByInversion: [[Int]]
+
+    func pitches(forInversion inversion: Int) -> [Int] {
+        guard !pitchesByInversion.isEmpty else { return [] }
+        let index = min(max(inversion - minimumInversion, 0), pitchesByInversion.count - 1)
+        return pitchesByInversion[index]
+    }
+}
+
+extension ChordGeneratorParams {
+    func resolvedChoices(in palette: ChordPalette) -> [ResolvedChordGeneratorChoice] {
+        let params = normalized
+        let normalizedPalette = palette.normalized
+        return params.enabledSlotIDs.compactMap { slotID in
+            guard normalizedPalette.slots.contains(where: { $0.id == slotID }) else {
+                return nil
+            }
+            let pitches = (params.minimumInversion...params.maximumInversion).map { inversion in
+                normalizedPalette.voicedPitches(slotID: slotID, inversion: inversion)
+            }
+            guard pitches.contains(where: { !$0.isEmpty }) else { return nil }
+            return ResolvedChordGeneratorChoice(
+                slotID: slotID,
+                minimumInversion: params.minimumInversion,
+                pitchesByInversion: pitches
+            )
+        }
+    }
+}
+
 enum ProgressionChordMode: String, Codable, CaseIterable, Equatable, Hashable, Sendable {
     case major
     case minor

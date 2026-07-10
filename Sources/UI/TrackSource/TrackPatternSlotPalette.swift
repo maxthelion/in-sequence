@@ -12,6 +12,12 @@ struct TrackPatternSlotPalette: View {
         let accent: Color
     }
 
+    struct TargetMode: Equatable {
+        let selectedSlots: Set<Int>
+        let isPrompting: Bool
+        let accent: Color
+    }
+
     @Binding var selectedSlot: Int
     let occupiedSlots: Set<Int>
     let bypassState: BypassState
@@ -21,8 +27,10 @@ struct TrackPatternSlotPalette: View {
     var accent: Color = StudioTheme.transportAccent
     var destinationMode: DestinationMode?
     var onDestinationSelect: (Int) -> Void = { _ in }
+    var targetMode: TargetMode?
+    var onTargetSelect: (Int, Bool) -> Void = { _, _ in }
 
-    @State private var destinationPulse = false
+    @State private var interactionPulse = false
 
     init(
         selectedSlot: Binding<Int>,
@@ -33,7 +41,9 @@ struct TrackPatternSlotPalette: View {
         onPlayingSlotSelect: @escaping (Int) -> Void = { _ in },
         accent: Color = StudioTheme.transportAccent,
         destinationMode: DestinationMode? = nil,
-        onDestinationSelect: @escaping (Int) -> Void = { _ in }
+        onDestinationSelect: @escaping (Int) -> Void = { _ in },
+        targetMode: TargetMode? = nil,
+        onTargetSelect: @escaping (Int, Bool) -> Void = { _, _ in }
     ) {
         self._selectedSlot = selectedSlot
         self.occupiedSlots = occupiedSlots
@@ -44,6 +54,8 @@ struct TrackPatternSlotPalette: View {
         self.accent = accent
         self.destinationMode = destinationMode
         self.onDestinationSelect = onDestinationSelect
+        self.targetMode = targetMode
+        self.onTargetSelect = onTargetSelect
     }
 
     var body: some View {
@@ -53,14 +65,14 @@ struct TrackPatternSlotPalette: View {
             }
         }
         .onAppear {
-            destinationPulse = destinationMode != nil
+            interactionPulse = shouldPulse
         }
-        .onChange(of: destinationMode != nil) { _, isActive in
-            destinationPulse = isActive
+        .onChange(of: shouldPulse) { _, isActive in
+            interactionPulse = isActive
         }
         .animation(
-            destinationMode == nil ? nil : .easeInOut(duration: 0.75).repeatForever(autoreverses: true),
-            value: destinationPulse
+            shouldPulse ? .easeInOut(duration: 0.75).repeatForever(autoreverses: true) : nil,
+            value: interactionPulse
         )
     }
 
@@ -98,7 +110,7 @@ struct TrackPatternSlotPalette: View {
                 )
                 .shadow(
                     color: destinationShadowColor(for: slotIndex),
-                    radius: destinationPulse ? 9 : 2,
+                    radius: interactionPulse ? 9 : 2,
                     x: 0,
                     y: 0
                 )
@@ -114,9 +126,13 @@ struct TrackPatternSlotPalette: View {
             }
             .buttonStyle(.plain)
             .background {
-                TrackPatternSlotRightClickProbe {
+                TrackPatternSlotRightClickProbe { additive in
                     guard destinationMode == nil else { return }
-                    onPlayingSlotSelect(slotIndex)
+                    if targetMode != nil {
+                        onTargetSelect(slotIndex, additive)
+                    } else {
+                        onPlayingSlotSelect(slotIndex)
+                    }
                 }
             }
             .accessibilityLabel(slotAccessibilityLabel(slotIndex: slotIndex, isBypassed: isBypassed, bypassApplicable: bypassApplicable))
@@ -143,6 +159,9 @@ struct TrackPatternSlotPalette: View {
         let slotNumber = slotIndex + 1
         if destinationMode != nil {
             return "Save capture to slot \(slotNumber)"
+        }
+        if targetMode?.selectedSlots.contains(slotIndex) == true {
+            return "Slot \(slotNumber), template target"
         }
         if bypassApplicable {
             return isBypassed
@@ -180,7 +199,15 @@ struct TrackPatternSlotPalette: View {
             if destinationMode.pendingReplaceSlot == slotIndex {
                 return destinationMode.accent
             }
-            return destinationMode.accent.opacity(destinationPulse ? 0.9 : 0.45)
+            return destinationMode.accent.opacity(interactionPulse ? 0.9 : 0.45)
+        }
+        if let targetMode {
+            if targetMode.selectedSlots.contains(slotIndex) {
+                return StudioTheme.text
+            }
+            if targetMode.isPrompting {
+                return interactionPulse ? targetMode.accent : StudioTheme.text
+            }
         }
         if isBypassed {
             return selectedSlot == slotIndex
@@ -201,24 +228,33 @@ struct TrackPatternSlotPalette: View {
     }
 
     private func borderWidth(for slotIndex: Int) -> CGFloat {
-        destinationMode?.pendingReplaceSlot == slotIndex
-            ? StudioMetrics.emphasisBorderWidth
-            : StudioMetrics.borderWidth
+        if destinationMode?.pendingReplaceSlot == slotIndex
+            || targetMode?.selectedSlots.contains(slotIndex) == true {
+            return StudioMetrics.emphasisBorderWidth
+        }
+        return StudioMetrics.borderWidth
     }
 
     private func destinationShadowColor(for slotIndex: Int) -> Color {
-        guard let destinationMode else {
-            return Color.clear
+        if let destinationMode {
+            if destinationMode.pendingReplaceSlot == slotIndex {
+                return destinationMode.accent.opacity(interactionPulse ? 0.38 : 0.12)
+            }
+            return destinationMode.accent.opacity(interactionPulse ? 0.32 : 0.08)
         }
-        if destinationMode.pendingReplaceSlot == slotIndex {
-            return destinationMode.accent.opacity(destinationPulse ? 0.38 : 0.12)
+        if let targetMode, targetMode.isPrompting {
+            return targetMode.accent.opacity(interactionPulse ? 0.32 : 0.08)
         }
-        return destinationMode.accent.opacity(destinationPulse ? 0.32 : 0.08)
+        return Color.clear
+    }
+
+    private var shouldPulse: Bool {
+        destinationMode != nil || targetMode?.isPrompting == true
     }
 }
 
 private struct TrackPatternSlotRightClickProbe: NSViewRepresentable {
-    let action: () -> Void
+    let action: (Bool) -> Void
 
     func makeNSView(context: Context) -> NSView {
         let view = RightClickView()
@@ -232,18 +268,18 @@ private struct TrackPatternSlotRightClickProbe: NSViewRepresentable {
     }
 
     final class RightClickView: NSView {
-        var action: (() -> Void)?
+        var action: ((Bool) -> Void)?
 
         override func mouseDown(with event: NSEvent) {
             if event.type == .rightMouseDown || event.modifierFlags.contains(.control) {
-                action?()
+                action?(event.modifierFlags.contains(.shift))
             } else {
                 super.mouseDown(with: event)
             }
         }
 
         override func rightMouseDown(with event: NSEvent) {
-            action?()
+            action?(event.modifierFlags.contains(.shift))
         }
     }
 }

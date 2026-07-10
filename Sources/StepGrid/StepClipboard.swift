@@ -16,6 +16,26 @@ struct StepClipboardEntry: Equatable, Sendable {
 }
 
 struct StepClipboard: Equatable, Sendable {
+    enum ContentKind: Equatable, Sendable {
+        case noteGrid
+        case chordReferences
+        case sliceTriggers
+    }
+
     var sourceClipID: ClipID
+    var sourceTrackType: TrackType
+    var sourceContentKind: ContentKind
     var steps: [Int: StepClipboardEntry]
+
+    init(
+        sourceClipID: ClipID,
+        sourceTrackType: TrackType = .monoMelodic,
+        sourceContentKind: ContentKind = .noteGrid,
+        steps: [Int: StepClipboardEntry]
+    ) {
+        self.sourceClipID = sourceClipID
+        self.sourceTrackType = sourceTrackType
+        self.sourceContentKind = sourceContentKind
+        self.steps = steps
+    }
 }

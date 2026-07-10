@@ -16,6 +16,84 @@ import SwiftUI
 @MainActor
 final class DrumKitMatrixEditingTests: XCTestCase {
 
+    func test_templateTargetSelection_promptsReplacesAndAdds() {
+        var selection = DrumKitPatternTargetSelection()
+
+        XCTAssertFalse(selection.requestTemplateChooser())
+        XCTAssertTrue(selection.isPrompting)
+
+        selection.select(slotIndex: 2, additive: false)
+        XCTAssertEqual(selection.slotIndexes, [2])
+        XCTAssertFalse(selection.isPrompting)
+        XCTAssertTrue(selection.requestTemplateChooser())
+
+        selection.select(slotIndex: 5, additive: true)
+        XCTAssertEqual(selection.slotIndexes, [2, 5])
+
+        selection.select(slotIndex: 1, additive: false)
+        XCTAssertEqual(selection.slotIndexes, [1])
+
+        selection.clear()
+        XCTAssertTrue(selection.slotIndexes.isEmpty)
+        XCTAssertFalse(selection.isPrompting)
+    }
+
+    func test_fillPresentation_fallsBackToNormalWhenUnavailable() {
+        XCTAssertFalse(
+            DrumKitFillModePresentation(isAvailable: false, requestedFill: true).isFillSelected
+        )
+        XCTAssertTrue(
+            DrumKitFillModePresentation(isAvailable: true, requestedFill: true).isFillSelected
+        )
+    }
+
+    func test_matrixLayerMenuExposesEveryEditableLayerInOrder() {
+        XCTAssertEqual(DrumKitMatrixLayer.allCases.map(\.title), ["Steps", "Velocity", "Length", "Chance"])
+    }
+
+    func test_visualCommandParsesDeterministicStepSelection() {
+        XCTAssertEqual(
+            DrumKitVisualCommand(rawValue: "select-step:0:2"),
+            .selectStep(memberIndex: 0, stepIndex: 2)
+        )
+        XCTAssertNil(DrumKitVisualCommand(rawValue: "select-step:bad:2"))
+    }
+
+    func test_stepClipboardPasteMapsOnlyToSelectedWritableSteps() {
+        let first = StepClipboardEntry(
+            active: true,
+            velocity: 96,
+            length: .steps(2),
+            chance: 0.75,
+            macroOverrides: [:],
+            sliceIndex: nil,
+            sliceMode: nil
+        )
+        let second = StepClipboardEntry(
+            active: false,
+            velocity: nil,
+            length: .natural,
+            chance: nil,
+            macroOverrides: [:],
+            sliceIndex: nil,
+            sliceMode: nil
+        )
+        let clipboard = StepClipboard(
+            sourceClipID: UUID(),
+            steps: [1: first, 6: second]
+        )
+
+        let destinations = DrumKitStepClipboardTransfer.destinations(
+            clipboard: clipboard,
+            selectedStepIndexes: [3, 7, 99],
+            writableStepIndexes: 0..<8
+        )
+
+        XCTAssertEqual(destinations.map(\.stepIndex), [3, 7])
+        XCTAssertEqual(destinations.map(\.entry), [first, second])
+        XCTAssertFalse(destinations.contains(where: { $0.stepIndex == 99 }))
+    }
+
     // MARK: - Helpers
 
     private final class DocumentBox {
@@ -511,6 +589,48 @@ final class DrumKitMatrixEditingTests: XCTestCase {
         XCTAssertEqual(
             noteGridMainStepPattern(try XCTUnwrap(slotContent(session, trackID: memberIDs[1], slotIndex: 0))),
             template.patterns["snare"]
+        )
+    }
+
+    func test_applyPatternTemplate_multiSlotIsAtomicAndLeavesActivePatternUnchanged() throws {
+        let (session, box) = makeSession()
+        let template = DrumKitFixtures.factoryTemplate(named: "808")
+        let groupID = makeDrumGroup(in: session)
+        let memberIDs = try XCTUnwrap(
+            session.store.trackGroups.first(where: { $0.id == groupID })?.memberIDs
+        )
+        session.setDrumGroupSelectedPatternIndex(5, groupID: groupID)
+        session.flushToDocumentSync()
+        let documentBefore = box.document.project
+
+        let changed = session.applyPatternTemplate(
+            template,
+            toGroup: groupID,
+            slotIndexes: [1, 3, 3]
+        )
+
+        XCTAssertTrue(changed)
+        XCTAssertEqual(box.document.project, documentBefore)
+        XCTAssertEqual(
+            memberIDs.map { session.store.selectedPatternIndex(for: $0) },
+            Array(repeating: 5, count: memberIDs.count)
+        )
+
+        for slotIndex in [1, 3] {
+            for (memberID, tag) in zip(memberIDs, ["kick", "snare", "hat-closed"]) {
+                XCTAssertEqual(
+                    noteGridMainStepPattern(
+                        try XCTUnwrap(slotContent(session, trackID: memberID, slotIndex: slotIndex))
+                    ),
+                    template.patterns[tag]
+                )
+            }
+        }
+
+        session.flushToDocumentSync()
+        XCTAssertEqual(
+            memberIDs.map { box.document.project.selectedPatternIndex(for: $0) },
+            Array(repeating: 5, count: memberIDs.count)
         )
     }
 

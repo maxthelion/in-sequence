@@ -198,7 +198,7 @@ struct CreateTrackFlow: View {
         case .sliceSound:
             return 480
         case .drumGroupSound:
-            return 600
+            return nil
         }
     }
 

@@ -20,7 +20,7 @@ enum TrackSourceModifierDisplayState: Equatable {
     }
 
     static func supportsModifierStage(trackType: TrackType) -> Bool {
-        GeneratorKind.allCases.contains {
+        GeneratorKind.creatableKinds.contains {
             $0.compatibleWith.contains(trackType) && $0.supportsModifierStage
         }
     }

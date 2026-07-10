@@ -298,11 +298,7 @@ final class SessionBatchHelperTests: XCTestCase {
 
     // MARK: - Generator kind switching (WS4 AC1: stable identity)
 
-    /// Switching a generator's mode mutates the pool entry IN PLACE: same
-    /// UUID, the pattern-bank slot reference survives untouched, and shared
-    /// params (root/scale basis, velocity) carry across modes — the
-    /// delete+readd shape is gone.
-    func test_switchGeneratorKind_preservesPatternSlotReferenceAndFlushesDocument() throws {
+    func test_switchGeneratorKind_rejects_hidden_legacy_progression_kind() throws {
         var project = makeLiveStoreProject().0
         project.appendTrack(trackType: .polyMelodic)
         let trackID = project.selectedTrackID
@@ -324,25 +320,20 @@ final class SessionBatchHelperTests: XCTestCase {
 
         let (session, _, box) = makeSession(project: project)
 
-        XCTAssertTrue(session.switchGeneratorKind(id: generatorID, to: .progressionChordGenerator))
+        XCTAssertFalse(session.switchGeneratorKind(id: generatorID, to: .progressionChordGenerator))
         let updated = try XCTUnwrap(session.store.generatorEntry(id: generatorID))
         XCTAssertEqual(updated.id, generatorID)
         XCTAssertEqual(updated.name, "Mutable Generator")
-        XCTAssertEqual(updated.kind, .progressionChordGenerator)
+        XCTAssertEqual(updated.kind, .polyGenerator)
         XCTAssertEqual(updated.trackType, .polyMelodic)
         XCTAssertEqual(session.store.patternBank(for: trackID).slot(at: 0).sourceRef.generatorID, generatorID)
         XCTAssertEqual(session.store.patternBank(for: trackID).slot(at: 0).sourceRef.mode, beforeRef.mode)
-        guard case let .progressionChords(params) = updated.params else {
-            return XCTFail("expected progression params")
-        }
-        XCTAssertEqual(params.rootMIDI, 57)
-        XCTAssertEqual(params.mode, .minor)
-        XCTAssertEqual(params.velocity, 77)
+        XCTAssertEqual(updated.params, generator.params)
 
         session.flushToDocumentSync()
 
         let flushed = try XCTUnwrap(box.document.project.generatorEntry(id: generatorID))
-        XCTAssertEqual(flushed.kind, .progressionChordGenerator)
+        XCTAssertEqual(flushed.kind, .polyGenerator)
         XCTAssertEqual(flushed.id, generatorID)
         XCTAssertEqual(box.document.project.patternBank(for: trackID).slot(at: 0).sourceRef.generatorID, generatorID)
 

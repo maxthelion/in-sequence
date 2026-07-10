@@ -1,6 +1,12 @@
 import AVFoundation
 import SwiftUI
 
+private struct TrackPatternEditTargetRevision: Equatable {
+    var sessionRevision: UInt64
+    var trackID: UUID
+    var displayedSlotIndex: Int
+}
+
 struct TrackWorkspaceView: View {
     @Binding var document: SeqAIDocument
     @Environment(SequencerDocumentSession.self) private var session
@@ -121,6 +127,84 @@ struct TrackWorkspaceView: View {
                     break
                 }
             }
+            .documentEditTarget(
+                isActive: kitNavigationState == nil && track.trackType != .audioInput,
+                revision: TrackPatternEditTargetRevision(
+                    sessionRevision: session.revision,
+                    trackID: track.id,
+                    displayedSlotIndex: displayedPatternIndex
+                ),
+                makeTarget: makeDisplayedPatternEditTarget
+            )
+    }
+
+    private func makeDisplayedPatternEditTarget() -> DocumentEditCommandController.Target {
+        let trackID = track.id
+        let slotIndex = displayedPatternIndex
+        return DocumentEditCommandController.Target(
+            canCopy: {
+                session.store.exportToProject().detachedPatternSlotClipboard(
+                    trackIDs: [trackID],
+                    slotIndex: slotIndex,
+                    scope: .singleTrack
+                ) != nil
+            },
+            canClear: { false },
+            isPasteCompatible: { payload in
+                guard payload.domain == .patterns,
+                      let clipboard = payload.value(as: PatternSlotClipboard.self)
+                else {
+                    return false
+                }
+                return session.store.exportToProject().canPastePatternSlotClipboard(
+                    clipboard,
+                    toTrackIDs: [trackID],
+                    slotIndexes: [slotIndex],
+                    targetScope: .singleTrack
+                )
+            },
+            copy: {
+                guard let clipboard = session.store.exportToProject().detachedPatternSlotClipboard(
+                    trackIDs: [trackID],
+                    slotIndex: slotIndex,
+                    scope: .singleTrack
+                ) else {
+                    return nil
+                }
+                return DocumentEditCommandController.ClipboardPayload(
+                    domain: .patterns,
+                    snapshot: clipboard
+                )
+            },
+            paste: { payload in
+                guard payload.domain == .patterns,
+                      let clipboard = payload.value(as: PatternSlotClipboard.self)
+                else {
+                    return
+                }
+                pastePatternClipboard(clipboard, trackID: trackID, slotIndex: slotIndex)
+            },
+            clearSelection: {}
+        )
+    }
+
+    private func pastePatternClipboard(
+        _ clipboard: PatternSlotClipboard,
+        trackID: UUID,
+        slotIndex: Int
+    ) {
+        var project = session.store.exportToProject()
+        guard project.pastePatternSlotClipboard(
+            clipboard,
+            toTrackIDs: [trackID],
+            slotIndexes: [slotIndex],
+            targetScope: .singleTrack
+        ) else {
+            return
+        }
+        session.batch(impact: .fullEngineApply, changed: .full) { store in
+            _ = store.replaceProject(project)
+        }
     }
 
     @ViewBuilder
@@ -579,11 +663,11 @@ private struct AudioInputRuntimePanel: View {
     private var armButtonTitle: String {
         switch runtime?.armState ?? .idle {
         case .armed:
-            return "Armed — next \(recordQuantize == .bar ? "bar" : "phrase")"
+            return "Armed · Cancel"
         case .recording:
-            return "Recording — Cancel"
+            return "Recording"
         case .idle, .hasLoop:
-            return "ARM \(recordBars) bar\(recordBars == 1 ? "" : "s")"
+            return "Record"
         }
     }
 
@@ -688,11 +772,8 @@ private struct AudioInputRuntimePanel: View {
             inputCard
                 .frame(width: 300)
 
-            recordCard
+            recordingWell
                 .frame(minWidth: 0, maxWidth: .infinity)
-
-            writeTargetCard
-                .frame(width: 280)
         }
         .fixedSize(horizontal: false, vertical: true)
     }
@@ -778,13 +859,18 @@ private struct AudioInputRuntimePanel: View {
         .help("Change the device input for this track.")
     }
 
-    private var recordCard: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text("Record")
-                .studioText(.eyebrowBold)
-                .foregroundStyle(StudioTheme.mutedText)
+    @ViewBuilder
+    private var recordingWell: some View {
+        if runtime?.armState == .recording {
+            recordingProgressWell
+        } else {
+            recordingSetupWell
+        }
+    }
 
-            HStack(spacing: 10) {
+    private var recordingSetupWell: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .center, spacing: 12) {
                 Button {
                     if isArmedOrRecording {
                         session.cancelAudioInputArm(trackID: track.id)
@@ -792,14 +878,33 @@ private struct AudioInputRuntimePanel: View {
                         session.armAudioInputTrack(trackID: track.id, quantize: recordQuantize)
                     }
                 } label: {
-                    Label(armButtonTitle, systemImage: isArmedOrRecording ? "stop.circle.fill" : "record.circle")
+                    Label(armButtonTitle, systemImage: isArmedOrRecording ? "xmark" : "record.circle")
                         .studioText(.labelBold)
-                        .frame(minWidth: 112)
+                        .foregroundStyle(isArmedOrRecording ? StudioTheme.text : StudioTheme.background)
+                        .frame(minWidth: 112, minHeight: 34)
+                        .padding(.horizontal, 12)
+                        .background(
+                            isArmedOrRecording ? StudioTheme.subtleFill : accent,
+                            in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                                .stroke(isArmedOrRecording ? StudioTheme.warning : accent, lineWidth: StudioMetrics.borderWidth)
+                        )
+                        .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(isArmedOrRecording ? StudioTheme.warning : accent)
+                .buttonStyle(.plain)
                 .disabled(!canArmInput && !isArmedOrRecording)
                 .help(armHelp)
+
+                writeTargetOption(
+                    title: "Capture Buffer",
+                    isSelected: true,
+                    isEnabled: true,
+                    help: "Each capture replaces the live buffer."
+                )
+
+                Spacer(minLength: 0)
             }
 
             HStack(alignment: .top, spacing: 14) {
@@ -832,22 +937,42 @@ private struct AudioInputRuntimePanel: View {
         )
     }
 
-    private var writeTargetCard: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Write Target")
-                .studioText(.eyebrowBold)
-                .foregroundStyle(StudioTheme.mutedText)
+    private var recordingProgressWell: some View {
+        ZStack(alignment: .topLeading) {
+            AudioInputSignalPanel(runtime: runtime, accent: accent, showsTitle: false)
 
-            writeTargetOption(
-                title: "Capture Buffer",
-                isSelected: true,
-                isEnabled: true,
-                help: "Each capture replaces the live buffer."
-            )
-            writeTargetOption(title: "Replace saved buffer", isSelected: false, isEnabled: false)
-            writeTargetOption(title: "New saved buffer", isSelected: false, isEnabled: false)
+            HStack(spacing: 10) {
+                Text("Recording")
+                    .studioText(.labelBold)
+                    .foregroundStyle(StudioTheme.text)
+
+                Text((runtime?.recordingProgress ?? 0).formatted(.percent.precision(.fractionLength(0))))
+                    .studioText(.eyebrowBold)
+                    .monospacedDigit()
+                    .foregroundStyle(accent)
+
+                Spacer(minLength: 0)
+
+                Button {
+                    session.cancelAudioInputArm(trackID: track.id)
+                } label: {
+                    Label("Cancel", systemImage: "xmark")
+                        .studioText(.microEmphasis)
+                        .foregroundStyle(StudioTheme.text)
+                        .padding(.horizontal, 10)
+                        .frame(height: 30)
+                        .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                                .stroke(StudioTheme.warning, lineWidth: StudioMetrics.borderWidth)
+                        )
+                }
+                .buttonStyle(.plain)
+                .help("Cancel recording")
+                .accessibilityIdentifier("audio-input-recording-cancel")
+            }
+            .padding(StudioMetrics.Spacing.standard)
         }
-        .frame(maxHeight: .infinity, alignment: .top)
         .padding(StudioMetrics.Spacing.standard)
         .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
         .overlay(

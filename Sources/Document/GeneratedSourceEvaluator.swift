@@ -29,6 +29,9 @@ enum GeneratedSourceEvaluator {
         case .melodic:
             guard let trigger = pipeline.trigger else { return 1 }
             return max(triggerCycleLength(trigger, clipChoices: clipChoices), 1)
+        case .chordGenerator:
+            guard let trigger = pipeline.trigger else { return 1 }
+            return max(triggerCycleLength(trigger, clipChoices: clipChoices), 1)
         case let .progressionChords(params):
             return max(params.normalized.lengthSteps, 1)
         case let .drum(triggers, _):
@@ -49,12 +52,14 @@ enum GeneratedSourceEvaluator {
         chordContext: Chord?,
         state: inout GeneratedSourceEvaluationState,
         stateScope: GeneratedSourceEvaluationScope = .primary,
+        chordChoices: [ResolvedChordGeneratorChoice] = [],
         rng: inout R
     ) -> [GeneratedNote] {
         let sourceNotes = evaluateSourceStep(
             for: params,
             stepIndex: stepIndex,
             clipChoices: clipChoices,
+            chordChoices: chordChoices,
             rng: &rng
         )
 
@@ -74,6 +79,7 @@ enum GeneratedSourceEvaluator {
         for params: GeneratorParams,
         stepIndex: Int,
         clipChoices: [ClipPoolEntry],
+        chordChoices: [ResolvedChordGeneratorChoice] = [],
         rng: inout R
     ) -> [GeneratedNote] {
         switch params {
@@ -112,6 +118,34 @@ enum GeneratedSourceEvaluator {
                     velocity: clampMIDI(shape.velocity),
                     length: max(1, shape.gateLength),
                     voiceTag: seed.voiceTag
+                )
+            }
+
+        case let .chordGenerator(params):
+            let normalized = params.normalized
+            let seeds = emittedSeeds(
+                from: normalized.trigger,
+                stepIndex: stepIndex,
+                totalSteps: cycleLength(
+                    for: GeneratedSourcePipeline.chordGenerator(normalized),
+                    clipChoices: clipChoices
+                ),
+                clipChoices: clipChoices,
+                rng: &rng,
+                voiceTag: nil
+            )
+            guard !seeds.isEmpty, !chordChoices.isEmpty else { return [] }
+            let choice = chordChoices[Int.random(in: chordChoices.indices, using: &rng)]
+            let inversion = Int.random(
+                in: normalized.minimumInversion...normalized.maximumInversion,
+                using: &rng
+            )
+            return choice.pitches(forInversion: inversion).map { pitch in
+                GeneratedNote(
+                    pitch: clampMIDI(pitch),
+                    velocity: clampMIDI(normalized.shape.velocity),
+                    length: max(1, normalized.shape.gateLength),
+                    voiceTag: nil
                 )
             }
 
@@ -175,6 +209,7 @@ enum GeneratedSourceEvaluator {
         chordContext: Chord?,
         state: inout GeneratedSourceEvaluationState,
         stateScope: GeneratedSourceEvaluationScope = .primary,
+        chordChoices: [ResolvedChordGeneratorChoice] = [],
         rng: inout R
     ) -> [GeneratedNote] {
         switch pipeline.content {
@@ -206,6 +241,32 @@ enum GeneratedSourceEvaluator {
                         rng: &rng
                     )
                 }
+            }
+
+        case let .chordGenerator(params):
+            guard let trigger = pipeline.trigger else { return [] }
+            let normalized = params.normalized
+            let seeds = emittedSeeds(
+                from: trigger,
+                stepIndex: stepIndex,
+                totalSteps: cycleLength(for: pipeline, clipChoices: clipChoices),
+                clipChoices: clipChoices,
+                rng: &rng,
+                voiceTag: nil
+            )
+            guard !seeds.isEmpty, !chordChoices.isEmpty else { return [] }
+            let choice = chordChoices[Int.random(in: chordChoices.indices, using: &rng)]
+            let inversion = Int.random(
+                in: normalized.minimumInversion...normalized.maximumInversion,
+                using: &rng
+            )
+            return choice.pitches(forInversion: inversion).map { pitch in
+                GeneratedNote(
+                    pitch: clampMIDI(pitch),
+                    velocity: clampMIDI(normalized.shape.velocity),
+                    length: max(1, normalized.shape.gateLength),
+                    voiceTag: nil
+                )
             }
 
         case let .progressionChords(params):
@@ -268,13 +329,15 @@ enum GeneratedSourceEvaluator {
         for params: GeneratorParams,
         clipChoices: [ClipPoolEntry],
         count: Int = 16,
-        chordContext: Chord? = nil
+        chordContext: Chord? = nil,
+        chordChoices: [ResolvedChordGeneratorChoice] = []
     ) -> [[GeneratedNote]] {
         previewNotes(
             for: params.generatedSourcePipeline,
             clipChoices: clipChoices,
             count: count,
-            chordContext: chordContext
+            chordContext: chordContext,
+            chordChoices: chordChoices
         )
     }
 
@@ -282,7 +345,8 @@ enum GeneratedSourceEvaluator {
         for pipeline: GeneratedSourcePipeline,
         clipChoices: [ClipPoolEntry],
         count: Int = 16,
-        chordContext: Chord? = nil
+        chordContext: Chord? = nil,
+        chordChoices: [ResolvedChordGeneratorChoice] = []
     ) -> [[GeneratedNote]] {
         var rng = PreviewRNG()
         var state = GeneratedSourceEvaluationState()
@@ -293,6 +357,7 @@ enum GeneratedSourceEvaluator {
                 clipChoices: clipChoices,
                 chordContext: chordContext,
                 state: &state,
+                chordChoices: chordChoices,
                 rng: &rng
             )
         }
@@ -354,7 +419,8 @@ enum GeneratedSourceEvaluator {
     static func densitySourceHits(
         for params: GeneratorParams,
         stepCount: Int,
-        clipChoices: [ClipPoolEntry]
+        clipChoices: [ClipPoolEntry],
+        chordChoices: [ResolvedChordGeneratorChoice] = []
     ) -> [DensitySourceHit] {
         let count = max(stepCount, 1)
         let cycle = max(cycleLength(for: params, clipChoices: clipChoices), 1)
@@ -367,6 +433,7 @@ enum GeneratedSourceEvaluator {
                 clipChoices: clipChoices,
                 chordContext: nil,
                 state: &state,
+                chordChoices: chordChoices,
                 rng: &rng
             )
             guard let note = notes.first else {
@@ -600,7 +667,7 @@ enum GeneratedSourceEvaluator {
                     rng: &rng
                 )
             }
-        case .progressionChords, .drum, .slice, .template:
+        case .chordGenerator, .progressionChords, .drum, .slice, .template:
             return notes
         }
     }
