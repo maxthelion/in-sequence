@@ -27,7 +27,6 @@ struct PhraseWorkspaceView: View {
     @State private var performanceLayerSelection = PerformanceLayerSelectionState()
     @State private var isPresentingPerformanceLayerSelection = false
     @State private var phraseCellTool: PhraseCellTool = .value
-    @State private var globalApplyScope = TrackPerformSelectionState()
     @State private var isPresentingGlobalApplyTrackSelector = false
     @State private var trackScopeChoice: PhraseTrackScopeChoice = .all
     @State private var phraseSceneSlotPickerRequest: ScenePerformSlotPickerRequest?
@@ -214,6 +213,10 @@ struct PhraseWorkspaceView: View {
         }
         .sheet(item: $phraseSceneSlotPickerRequest) { request in
             phraseSceneSlotPickerSheet(request)
+                .presentationBackground(.clear)
+        }
+        .sheet(isPresented: $isPresentingGlobalApplyTrackSelector) {
+            phraseTrackScopeSheet
                 .presentationBackground(.clear)
         }
         .onAppear {
@@ -582,46 +585,159 @@ struct PhraseWorkspaceView: View {
         }
     }
 
-    // Single toggle for the phrase layer track scope. Its label is the live
-    // selection count; tapping it opens the selector and tapping it again closes
-    // it. Bug 20260622-181714: it now lives in the perform bar, not the top menu.
+    // Track groups are a fixed 16-slot bank, so the trigger opens the same
+    // matrix-style StudioModal used when creating a group rather than falling
+    // back to native macOS menu chrome.
     private var globalApplyTrackScopeButton: some View {
-        StudioMenuPicker(
-            title: nil,
-            selection: Binding(
-                get: { trackScopeChoice },
-                set: { choice in
-                    applyTrackScopeChoice(choice)
-                    postRenderedMatrixVisualState(isVisible: true)
-                }
-            ),
-            options: phraseTrackScopeOptions,
-            help: "Choose a track group",
-            symbolName: "person.3.sequence.fill"
-        )
+        Button {
+            isPresentingGlobalApplyTrackSelector = true
+            postRenderedMatrixVisualState(isVisible: true)
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "person.3.sequence.fill")
+                    .font(.system(size: 10, weight: .bold))
+                Text(phraseTrackScopeLabel)
+                    .studioText(.labelBold)
+                    .lineLimit(1)
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 8, weight: .bold))
+                    .foregroundStyle(StudioTheme.mutedText)
+            }
+            .foregroundStyle(StudioTheme.text)
+            .padding(.horizontal, 10)
+            .frame(minHeight: 28)
+            .background(
+                StudioTheme.subtleFill,
+                in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
+                    .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+            )
+            .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
+        }
+        .buttonStyle(.plain)
         .accessibilityIdentifier("phrase-layer-track-scope-button")
         .help(phraseLayerEditMode == .byTrack ? "Choose the track group visible in By Track" : "Choose the track group receiving By Value changes")
     }
 
-    private var phraseTrackScopeOptions: [StudioMenuPickerOption<PhraseTrackScopeChoice>] {
-        var options: [StudioMenuPickerOption<PhraseTrackScopeChoice>] = [
-            StudioMenuPickerOption(label: "All Tracks", value: PhraseTrackScopeChoice.all)
-        ]
-        if !session.performTrackScope.isEmpty {
-            options.append(StudioMenuPickerOption(label: "Current Selection", value: PhraseTrackScopeChoice.currentSelection))
+    private var phraseTrackScopeLabel: String {
+        switch trackScopeChoice {
+        case .all:
+            return "All Tracks"
+        case .currentSelection:
+            return "Current Selection"
+        case .group(let index):
+            guard session.store.performanceTrackGroups.indices.contains(index),
+                  let group = session.store.performanceTrackGroups[index]
+            else { return "All Tracks" }
+            return "\(index + 1) · \(group.name)"
         }
-        for (index, group) in session.store.performanceTrackGroups.enumerated() {
-            guard let group else { continue }
-            options.append(StudioMenuPickerOption(label: "\(index + 1) · \(group.name)", value: PhraseTrackScopeChoice.group(index)))
-        }
-        return options
     }
 
     private func applyTrackScopeChoice(_ choice: PhraseTrackScopeChoice) {
         trackScopeChoice = choice
         isPresentingGlobalApplyTrackSelector = false
-        globalApplyScope = TrackPerformSelectionState(selectedTrackIDs: Set(phraseLayerTrackScopeIDs))
         trackPage = 0
+        postRenderedMatrixVisualState(isVisible: true)
+    }
+
+    private var phraseTrackScopeSheet: some View {
+        StudioModal(
+            title: "Choose Track Group",
+            accent: StudioTheme.phraseAccent,
+            minWidth: 520,
+            onClose: {
+                isPresentingGlobalApplyTrackSelector = false
+                postRenderedMatrixVisualState(isVisible: true)
+            }
+        ) {
+            VStack(alignment: .leading, spacing: StudioMetrics.Spacing.standard) {
+                HStack(spacing: 10) {
+                    phraseTrackScopeTopChoice(title: "All Tracks", choice: .all)
+                    if !session.performTrackScope.isEmpty {
+                        phraseTrackScopeTopChoice(title: "Current Selection", choice: .currentSelection)
+                    }
+                }
+
+                LazyVGrid(
+                    columns: Array(repeating: GridItem(.flexible(minimum: 86), spacing: 10), count: 4),
+                    spacing: 10
+                ) {
+                    ForEach(0..<PerformanceTrackGroup.slotCount, id: \.self) { index in
+                        phraseTrackScopeSlot(index)
+                    }
+                }
+            }
+            .accessibilityIdentifier("phrase-track-group-slot-matrix")
+        }
+    }
+
+    private func phraseTrackScopeTopChoice(
+        title: String,
+        choice: PhraseTrackScopeChoice
+    ) -> some View {
+        let isSelected = trackScopeChoice == choice
+        return Button {
+            applyTrackScopeChoice(choice)
+        } label: {
+            Text(title)
+                .studioText(.labelBold)
+                .foregroundStyle(isSelected ? StudioTheme.background : StudioTheme.text)
+                .padding(.horizontal, 12)
+                .frame(minHeight: 34)
+                .background(
+                    isSelected ? StudioTheme.phraseAccent : StudioTheme.subtleFill,
+                    in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                        .stroke(isSelected ? Color.clear : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+                )
+                .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func phraseTrackScopeSlot(_ index: Int) -> some View {
+        let group = session.store.performanceTrackGroups[index]
+        let isSelected = trackScopeChoice == .group(index)
+        return Button {
+            guard group != nil else { return }
+            applyTrackScopeChoice(.group(index))
+        } label: {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("\(index + 1)")
+                    .studioText(.eyebrowBold)
+                    .foregroundStyle(isSelected ? StudioTheme.background : StudioTheme.phraseAccent)
+                Text(group?.name ?? "Empty")
+                    .studioText(.labelBold)
+                    .foregroundStyle(isSelected ? StudioTheme.background : group == nil ? StudioTheme.mutedText : StudioTheme.text)
+                    .lineLimit(1)
+                if let group {
+                    Text("\(group.memberIDs.count) track\(group.memberIDs.count == 1 ? "" : "s")")
+                        .studioText(.micro)
+                        .foregroundStyle(isSelected ? StudioTheme.background.opacity(0.75) : StudioTheme.mutedText)
+                }
+            }
+            .padding(StudioMetrics.Spacing.compact)
+            .frame(maxWidth: .infinity, minHeight: 76, alignment: .topLeading)
+            .background(
+                isSelected ? StudioTheme.phraseAccent : StudioTheme.subtleFill,
+                in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                    .stroke(
+                        isSelected ? Color.clear : group == nil ? StudioTheme.border : StudioTheme.phraseAccent,
+                        lineWidth: StudioMetrics.borderWidth
+                    )
+            )
+            .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .disabled(group == nil)
+        .accessibilityIdentifier("phrase-track-group-slot-\(index + 1)")
     }
 
     private var phraseScenesSurface: some View {
@@ -1117,7 +1233,6 @@ struct PhraseWorkspaceView: View {
         // Re-assert the perform scope as the view mounts so it is authoritative
         // for the phrase surfaces regardless of any intervening navigation.
         session.performTrackScope = pending.trackIDs
-        globalApplyScope = TrackPerformSelectionState(selectedTrackIDs: pending.trackIDs)
         let matchingGroupIndex = session.store.performanceTrackGroups.firstIndex { group in
             guard let group else { return false }
             return Set(group.memberIDs) == pending.trackIDs
@@ -1217,9 +1332,9 @@ struct PhraseWorkspaceView: View {
         if command == "global-apply-track-selector:open" {
             phraseTab = .layers
             phraseLayerEditMode = .byValue
-            isPresentingGlobalApplyTrackSelector = false
             trackScopeChoice = session.store.performanceTrackGroups.firstIndex(where: { $0 != nil })
                 .map(PhraseTrackScopeChoice.group) ?? .all
+            isPresentingGlobalApplyTrackSelector = true
             postRenderedMatrixVisualState(isVisible: true)
             return
         }
@@ -1230,21 +1345,13 @@ struct PhraseWorkspaceView: View {
             return
         }
 
-        // QA: preselect the first N tracks into the global-apply scope so a
-        // capture shows phrase-accent selected cells (the empty fixture scope =
-        // all tracks renders nothing selected). Drives the same scope the
-        // selector cells toggle.
+        // QA: scope the Phrase layer surface to the first N tracks.
         if command.hasPrefix("global-apply-select:"),
            let rawCount = command.split(separator: ":").last,
            let count = Int(rawCount) {
             phraseTab = .layers
             phraseLayerEditMode = .byValue
             isPresentingGlobalApplyTrackSelector = false
-            var scope = TrackPerformSelectionState()
-            for track in tracks.prefix(max(0, count)) {
-                scope.add(track.id)
-            }
-            globalApplyScope = scope
             session.performTrackScope = Set(tracks.prefix(max(0, count)).map(\.id))
             trackScopeChoice = .currentSelection
             postRenderedMatrixVisualState(isVisible: true)
@@ -1278,6 +1385,7 @@ struct PhraseWorkspaceView: View {
         }
 
         if command == "phrase-capture:open" {
+            isPresentingGlobalApplyTrackSelector = false
             isPresentingPhraseCapture = session.phrasePerformOverlay.hasLiveCopy
             postRenderedMatrixVisualState(isVisible: true)
             return
@@ -1882,8 +1990,6 @@ struct PhraseWorkspaceView: View {
     // scope bar and layer cards sit directly on the panel like the other tabs.
     private var globalApplySurface: some View {
         VStack(alignment: .leading, spacing: 14) {
-            globalApplyScopeBar
-
             LazyVGrid(columns: globalApplyColumns, alignment: .leading, spacing: 10) {
                 ForEach(globalApplyOptions) { option in
                     globalApplyActionCell(option)
@@ -1891,80 +1997,6 @@ struct PhraseWorkspaceView: View {
             }
         }
         .accessibilityIdentifier("phrase-global-apply-surface")
-    }
-
-    // Bug 20260622-181714: the wide "GLOBAL APPLY / N selected · Phrase" panel is
-    // gone — the count + toggle now live on the perform-bar button. This row only
-    // carries the All / Clear actions, and only WHILE the selector is open (i.e.
-    // while a selection is actually being made).
-    @ViewBuilder
-    private var globalApplyScopeBar: some View {
-        if isPresentingGlobalApplyTrackSelector {
-            HStack(spacing: gridSpacing) {
-                globalApplyScopeBarAction(title: "All", identifier: "phrase-global-apply-select-all") {
-                    selectAllGlobalApplyTracks()
-                }
-                globalApplyScopeBarAction(title: "Clear", identifier: "phrase-global-apply-clear") {
-                    clearGlobalApplyTracks()
-                }
-                Spacer(minLength: 0)
-            }
-        }
-    }
-
-    private func globalApplyScopeBarAction(
-        title: String,
-        identifier: String,
-        action: @escaping () -> Void
-    ) -> some View {
-        Button(action: action) {
-            Text(title)
-                .studioText(.labelBold)
-                .foregroundStyle(StudioTheme.text)
-                .frame(width: 76, height: 30)
-                .background(Color.clear, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous).stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth))
-        }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier(identifier)
-    }
-
-    // Bug 20260622-130446: each track is a single whole-cell toggle. The cell is
-    // the control — tapping anywhere flips membership — and it reads its state
-    // from its FILL: a phrase-accent cell is in the selection, a neutral cell
-    // is not. The standalone radio circle and the redundant "MONO" subtitle
-    // are gone (requirements 1 + 2).
-    private var globalApplyTrackSelector: some View {
-        LazyVGrid(columns: globalApplyColumns, alignment: .leading, spacing: 10) {
-            ForEach(tracks, id: \.id) { track in
-                globalApplyTrackCell(track)
-            }
-        }
-        .accessibilityIdentifier("phrase-global-apply-track-selector")
-    }
-
-    private func globalApplyTrackCell(_ track: StepSequenceTrack) -> some View {
-        let isSelected = globalApplyScope.contains(track.id)
-        let trackAccent = StudioTheme.trackAccent(for: track, groups: session.store.trackGroups)
-        return Button {
-            globalApplyScope.toggle(track.id)
-            postRenderedMatrixVisualState(isVisible: true)
-        } label: {
-            Text(track.name)
-                .studioText(.labelBold)
-                .foregroundStyle(isSelected ? StudioTheme.background : StudioTheme.text)
-                .lineLimit(1)
-                .padding(StudioMetrics.Spacing.compact)
-                .frame(maxWidth: .infinity, minHeight: 56, maxHeight: 56, alignment: .topLeading)
-                .background(isSelected ? trackAccent : Color.clear, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-                        .stroke(trackAccent.opacity(isSelected ? 1 : StudioOpacity.mediumStroke), lineWidth: isSelected ? 2 : StudioMetrics.borderWidth)
-                )
-                .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
-        }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("phrase-global-apply-track-cell-\(track.id.uuidString)")
     }
 
     /// The resolved value across the scoped tracks for a layer, plus whether
@@ -2033,34 +2065,6 @@ struct PhraseWorkspaceView: View {
 
     private var globalApplyScopeTrackIDs: [UUID] {
         phraseLayerTrackScopeIDs
-    }
-
-    private var globalApplyScopeCount: Int {
-        globalApplyScopeTrackIDs.count
-    }
-
-    private var globalApplyScopeTitle: String {
-        if globalApplyScope.isEmpty {
-            return "All \(tracks.count) tracks"
-        }
-        return "\(globalApplyScopeCount) selected"
-    }
-
-    private func selectAllGlobalApplyTracks() {
-        // Explicitly select every track so the count + selected cells read as
-        // "all selected". (The apply path also treats empty as all, but
-        // selecting explicitly keeps the UI honest after a Clear.)
-        var next = TrackPerformSelectionState()
-        for track in tracks {
-            next.add(track.id)
-        }
-        globalApplyScope = next
-        postRenderedMatrixVisualState(isVisible: true)
-    }
-
-    private func clearGlobalApplyTracks() {
-        globalApplyScope.clear()
-        postRenderedMatrixVisualState(isVisible: true)
     }
 
     private func applyGlobalOption(_ option: PerformanceLayerOption) {

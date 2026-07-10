@@ -135,7 +135,7 @@ CAPTURES=$(cat <<'TABLE'
 11-phrase-layer-selector-open|workspace=phrase,phraseWorkspaceTab=layers,phrasePerformLayerSelectorVisible=true|phraseMatrixTrackCount=8;phraseMatrixPhraseCount=8;phraseWorkspaceTab=layers;phrasePerformLayerSelector=open;transport=stop
 # 12 RETIRED: duplicate of the canonical phrase-scenes capture in row 06.
 13-phrase-global-apply|workspace=phrase,phraseWorkspaceTab=globalApply|phraseMatrixTrackCount=8;phraseMatrixPhraseCount=8;phraseWorkspaceTab=globalApply;transport=stop
-13a-phrase-global-apply-track-group|workspace=phrase,phraseWorkspaceTab=globalApply,performanceTrackGroupCount=1|phraseMatrixTrackCount=8;phraseMatrixPhraseCount=8;performanceTrackGroupFixture=0;phraseWorkspaceTab=globalApply;phraseGlobalApplyTrackSelector=open;transport=stop
+13a-phrase-global-apply-track-group|workspace=phrase,phraseWorkspaceTab=globalApply,performanceTrackGroupCount=1,phraseGlobalApplyTrackSelectorVisible=true|phraseMatrixTrackCount=8;phraseMatrixPhraseCount=8;performanceTrackGroupFixture=0;phraseWorkspaceTab=globalApply;phraseGlobalApplyTrackSelector=open;transport=stop
 13b-phrase-perform-capture|workspace=phrase,workspaceMode=perform,phraseCaptureVisible=true|phraseMatrixTrackCount=8;phraseMatrixPhraseCount=8;workspaceMode=perform;phraseWorkspaceTab=layers;phraseCapture=open;transport=stop
 # 14-17 RETIRED: the tracks Perform LAYER surface (TRACK LAYER selector +
 # mute/fill/note-repeat layer cells) was removed. Tracks Perform is now
@@ -337,6 +337,17 @@ run_capture_row() {
   name="$(printf '%s' "$row" | cut -d'|' -f1)"
   waits="$(printf '%s' "$row" | cut -d'|' -f2)"
   payload="$(printf '%s' "$row" | cut -d'|' -f3- | tr ';' '\n')"
+
+  # The track-group chooser is a sheet. Dismiss it in its own acknowledged
+  # command before the following phrase Capture sheet is requested; swapping
+  # two sheets in one SwiftUI update can strand the second presentation.
+  if [ "$name" = "13b-phrase-perform-capture" ]; then
+    write_visual_command "windowFrame=$WB
+phraseGlobalApplyTrackSelector=close
+transport=stop"
+    wait_for_visual_command_ack 10
+    wait_for_status "phraseGlobalApplyTrackSelectorVisible" "false" 10
+  fi
 
   if [[ "$name" == *drum-kit-matrix* ]] &&
      [[ "$payload" != *"drumKitMatrixCommand=openRouting"* ]] &&
