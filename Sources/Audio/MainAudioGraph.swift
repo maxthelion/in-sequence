@@ -835,10 +835,24 @@ final class MainAudioGraph {
 
     func installMixerBuses(_ buses: [MixerBus], effectiveMuteByBusID: [UUID: Bool] = [:]) {
         let normalized = MixerBus.normalizedCollection(buses)
-        let canUseScopedUpdates = performOnMainReturning {
-            self.engine.isRunning && Set(self.mixerBusHosts.keys) == Set(normalized.map(\.id))
-        }
-        if canUseScopedUpdates {
+        let isRunning = performOnMainReturning { self.engine.isRunning }
+        if isRunning {
+            // Fixed-superset live path: add missing hosts, but retain omitted
+            // hosts until a stopped rebuild. Detaching a removed bus while a
+            // track may still feed it violates the ramp-before-disconnect rule.
+            performOnMain {
+                self.lockGraphLock()
+                for bus in normalized where self.mixerBusHosts[bus.id] == nil {
+                    let host = MixerBusHost(id: bus.id)
+                    self.mixerBusHosts[bus.id] = host
+                    host.install(
+                        bus: bus,
+                        in: self,
+                        effectiveMute: effectiveMuteByBusID[bus.id] ?? bus.mix.isMuted
+                    )
+                }
+                self.unlockGraphLock()
+            }
             for bus in normalized {
                 setMixerBusParameters(
                     bus: bus,
@@ -991,7 +1005,7 @@ final class MainAudioGraph {
                         self.beginMixerBusTopologyRamp(busID: busID, host: host, gainStage: gainStage)
                         return
                     }
-                    guard let pending = self.pendingMixerBusTopology.removeValue(forKey: busID) else {
+                    guard let pending = self.pendingMixerBusTopology[busID] else {
                         self.mixerBusTopologyRampsInFlight.remove(busID)
                         self.unlockGraphLock()
                         return
@@ -1010,12 +1024,24 @@ final class MainAudioGraph {
                         DispatchQueue.main.async {
                             MainActor.assumeIsolated {
                                 self.lockGraphLock()
-                                let hasPending = self.pendingMixerBusTopology[busID] != nil
-                                if !hasPending {
+                                guard let latest = self.pendingMixerBusTopology[busID],
+                                      self.mixerBusHosts[busID] === host
+                                else {
+                                    self.mixerBusTopologyRampsInFlight.remove(busID)
+                                    self.unlockGraphLock()
+                                    return
+                                }
+                                let needsAnotherTopologyCycle = host.needsTopologyChange(for: latest.bus)
+                                if !needsAnotherTopologyCycle {
+                                    host.applyParameters(
+                                        bus: latest.bus,
+                                        effectiveMute: latest.effectiveMute
+                                    )
+                                    self.pendingMixerBusTopology.removeValue(forKey: busID)
                                     self.mixerBusTopologyRampsInFlight.remove(busID)
                                 }
                                 self.unlockGraphLock()
-                                if hasPending {
+                                if needsAnotherTopologyCycle {
                                     self.beginMixerBusTopologyRamp(busID: busID, host: host, gainStage: gainStage)
                                 }
                             }
@@ -1050,10 +1076,17 @@ final class MainAudioGraph {
         let normalized = SendBusID.allCases.map { id in
             sendBuses.first(where: { $0.id == id })?.normalized(expectedID: id) ?? SendBusState(id: id)
         }
-        let canUseScopedUpdates = performOnMainReturning {
-            self.engine.isRunning && SendBusID.allCases.allSatisfy { self.sendBusHosts[$0] != nil }
-        }
-        if canUseScopedUpdates {
+        let isRunning = performOnMainReturning { self.engine.isRunning }
+        if isRunning {
+            performOnMain {
+                self.lockGraphLock()
+                for bus in normalized where self.sendBusHosts[bus.id] == nil {
+                    let host = SendBusHost(id: bus.id)
+                    self.sendBusHosts[bus.id] = host
+                    host.install(sendBus: bus, in: self)
+                }
+                self.unlockGraphLock()
+            }
             for bus in normalized {
                 installSendBus(bus)
             }

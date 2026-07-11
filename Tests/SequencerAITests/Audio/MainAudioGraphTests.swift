@@ -531,6 +531,7 @@ final class MainAudioGraphTests: XCTestCase {
             bus: MixerBus(id: busID, name: "Bus", inserts: [.filter()]),
             effectiveMute: false
         )
+        RunLoop.current.run(until: Date().addingTimeInterval(0.018))
         graph.setMixerBusMix(
             busID: busID,
             mix: BusMixSettings(level: 0.35, pan: 0.2, isMuted: false, isSoloed: false),
@@ -572,6 +573,32 @@ final class MainAudioGraphTests: XCTestCase {
             $0.insertNodes.count == 1 && abs($0.outputVolume - 0.7) < 0.001
         })
         XCTAssertEqual(readout.outputVolume, 0.7, accuracy: 0.001)
+    }
+
+    @MainActor
+    func test_liveMixerBusMembershipChangeRetainsExistingGraphSuperset() throws {
+        MainAudioGraph.useManualRenderingForAutomation = true
+        defer { MainAudioGraph.useManualRenderingForAutomation = false }
+
+        let graph = MainAudioGraph()
+        addTeardownBlock { graph.stop() }
+        let first = MixerBus(name: "First", inserts: [.filter()])
+        let second = MixerBus(name: "Second", inserts: [.bitcrusher()])
+        graph.installMixerBuses([first])
+        let firstBefore = try XCTUnwrap(graph.mixerBusReadoutForTesting(busID: first.id))
+        try graph.start()
+
+        graph.installMixerBuses([first, second])
+        let firstAfterAdd = try XCTUnwrap(graph.mixerBusReadoutForTesting(busID: first.id))
+        XCTAssertEqual(firstAfterAdd.topologyRebuildCount, firstBefore.topologyRebuildCount)
+        XCTAssertNotNil(graph.mixerBusReadoutForTesting(busID: second.id))
+
+        graph.installMixerBuses([second])
+        XCTAssertNotNil(
+            graph.mixerBusReadoutForTesting(busID: first.id),
+            "live removal retains the dormant host until a stopped rebuild"
+        )
+        XCTAssertTrue(graph.isEngineRunning)
     }
 
     @MainActor
