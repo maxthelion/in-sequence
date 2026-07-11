@@ -405,9 +405,6 @@ struct ScenesWorkspaceView: View {
     }
 
     private func sceneCard(_ scene: MasterBusScene, sceneNumber: Int) -> some View {
-        // The card body is tap-to-open (contentShape + tap gesture, matching
-        // the Perform slot cards) rather than one big Button so the inline
-        // duplicate/delete cluster stays independently clickable.
         let borderColor = sceneSlotBorderColor(scene.id)
         let borderWidth: CGFloat = sceneHasSlotMembership(scene.id) || scene.id == masterBus.activeSceneID
             ? 2
@@ -425,29 +422,7 @@ struct ScenesWorkspaceView: View {
                     Spacer(minLength: 0)
                     sceneSlotBadges(scene.id)
                 }
-
                 Spacer(minLength: 0)
-
-                HStack(alignment: .bottom, spacing: 8) {
-                    sceneCardFXChips(scene)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-
-                    HStack(spacing: 6) {
-                        StudioIconActionButton(
-                            systemImage: "plus.square.on.square",
-                            help: "New Scene From This"
-                        ) {
-                            duplicateScene(from: scene.id)
-                        }
-                        StudioIconActionButton(
-                            systemImage: "trash",
-                            isDisabled: masterBus.scenes.count <= 2,
-                            help: "Delete Scene"
-                        ) {
-                            session.removeMasterBusScene(scene.id)
-                        }
-                    }
-                }
             }
         }
         .frame(maxWidth: .infinity, minHeight: 132, alignment: .center)
@@ -468,37 +443,6 @@ struct ScenesWorkspaceView: View {
         }
     }
 
-    /// Cross-scene FX visibility: each browser card lists its actual insert
-    /// names/icons so "see all the FX" is one scan over the scene grid, not a
-    /// click into each scene. Long chains stay compact via a "+N more" line.
-    @ViewBuilder
-    private func sceneCardFXChips(_ scene: MasterBusScene) -> some View {
-        if !scene.inserts.isEmpty {
-            let visibleInserts = Array(scene.inserts.prefix(3))
-            VStack(alignment: .leading, spacing: 4) {
-                ForEach(visibleInserts) { insert in
-                    HStack(spacing: 5) {
-                        Image(systemName: iconName(for: insert.kind))
-                            .font(.system(size: 9, weight: .semibold))
-                            .foregroundStyle(StudioTheme.transportAccent)
-                        Text(insert.name)
-                            .studioText(.micro)
-                            .foregroundStyle(StudioTheme.text)
-                            .lineLimit(1)
-                    }
-                    .padding(.horizontal, 7)
-                    .padding(.vertical, 3)
-                    .background(StudioTheme.subtleFill, in: Capsule())
-                    .overlay(Capsule().stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth))
-                }
-                if scene.inserts.count > visibleInserts.count {
-                    Text("+\(scene.inserts.count - visibleInserts.count) more")
-                        .studioText(.micro)
-                        .foregroundStyle(StudioTheme.mutedText)
-                }
-            }
-        }
-    }
 
     /// "Create a new scene from one": whole-scene duplicate through the
     /// session seam (`duplicateMasterBusScene` → `addScene(copyFrom:)`), then

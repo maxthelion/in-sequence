@@ -2831,8 +2831,6 @@ struct SongWorkspaceView: View {
         session.store.layers
     }
 
-    private let phraseColumnWidth: CGFloat = 150
-    private let trackColumnWidth: CGFloat = 126
     private let gridSpacing: CGFloat = 10
 
     /// The pattern layer is the canonical "what plays" surface, mirroring the
@@ -2911,88 +2909,49 @@ struct SongWorkspaceView: View {
     }
 
     private var phraseGrid: some View {
-        // Phrases as ROWS, tracks as COLUMNS — the original phrase×track matrix.
-        // A track-header row sits on top of the body columns; the leading
-        // phrase-label column lines up with the header's leading spacer.
         let activeLayer = matrixLayer
-        let accent = activeLayer.map { layerAccent($0.id) } ?? StudioTheme.phraseAccent
         let defaults = inheritedDefaults
         let selectedPhraseID = session.store.selectedPhraseID
-        let selectedTrackID = session.store.selectedTrackID
 
-        return ScrollView([.horizontal, .vertical]) {
+        return ScrollView(.vertical) {
             VStack(alignment: .leading, spacing: gridSpacing) {
-                // Header row: leading spacer aligned to the phrase-label column,
-                // then one header per track.
-                HStack(spacing: gridSpacing) {
-                    Color.clear
-                        .frame(width: phraseColumnWidth, height: 52)
-
-                    ForEach(tracks, id: \.id) { track in
-                        phraseGridTrackHeaderButton(
-                            track: track,
-                            isSelected: selectedTrackID == track.id,
-                            width: trackColumnWidth
-                        )
-                    }
-                }
-
-                // Body: one row per phrase.
                 ForEach(phrases, id: \.id) { phrase in
                     let displayedPhrase = session.phraseWithPerformOverlay(phrase)
                     let inherited = defaults.resolved(for: phrase.id)
-                    HStack(alignment: .top, spacing: gridSpacing) {
-                        PhraseMatrixPhraseCell(
-                            phrase: phrase,
-                            isSelected: selectedPhraseID == phrase.id,
-                            isPlaying: PhraseButtonControlPresentation.isPlayingBadgeVisible(
-                                phraseID: phrase.id,
-                                engineIsRunning: engineController.isRunning,
-                                currentPhraseID: engineController.currentPhraseID
-                            ),
-                            isQueued: engineController.queuedPhraseID == phrase.id,
-                            onSelect: {
-                                session.setSelectedPhraseID(phrase.id)
-                                onOpenPhrase()
-                            },
-                            onChangeBarCount: { nextBarCount in
-                                session.setPhraseBarCount(nextBarCount, phraseID: phrase.id)
-                            },
-                            onChangeRepeatCount: { nextRepeatCount in
-                                session.setPhraseRepeatCount(nextRepeatCount, phraseID: phrase.id)
-                            }
-                        )
-                        .frame(width: phraseColumnWidth)
-
-                        ForEach(tracks, id: \.id) { track in
-                            let trackAccent = StudioTheme.trackAccent(for: track, groups: session.store.trackGroups)
-                            Group {
-                                if let activeLayer {
-                                    PhraseGridCell(
-                                        layer: activeLayer,
-                                        cell: displayedPhrase.cell(for: activeLayer.id, trackID: track.id),
-                                        phrase: displayedPhrase,
-                                        track: track,
-                                        isSelected: phrase.id == selectedPhraseID && track.id == selectedTrackID,
-                                        accent: accent,
-                                        trackAccent: trackAccent,
-                                        inherited: inherited,
-                                        showsTrackName: false
-                                    )
-                                } else {
-                                    PhraseGridEmptyCell()
+                    GeometryReader { proxy in
+                        HStack(alignment: .top, spacing: gridSpacing) {
+                            PhraseMatrixPhraseCell(
+                                phrase: phrase,
+                                isSelected: selectedPhraseID == phrase.id,
+                                isPlaying: PhraseButtonControlPresentation.isPlayingBadgeVisible(
+                                    phraseID: phrase.id,
+                                    engineIsRunning: engineController.isRunning,
+                                    currentPhraseID: engineController.currentPhraseID
+                                ),
+                                isQueued: engineController.queuedPhraseID == phrase.id,
+                                onSelect: { session.setSelectedPhraseID(phrase.id) },
+                                onChangeBarCount: { nextBarCount in
+                                    session.setPhraseBarCount(nextBarCount, phraseID: phrase.id)
+                                },
+                                onChangeRepeatCount: { nextRepeatCount in
+                                    session.setPhraseRepeatCount(nextRepeatCount, phraseID: phrase.id)
                                 }
-                            }
-                            .frame(width: trackColumnWidth)
-                            .frame(minHeight: PhraseMatrixLayoutPresentation.matrixRowHeight)
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                session.setSelectedPhraseID(phrase.id)
-                                session.setSelectedTrackID(track.id)
-                                onOpenPhrase()
-                            }
+                            )
+                            .frame(width: max(280, proxy.size.width * 0.58))
+
+                            SongPhraseTrackSummary(
+                                phrase: displayedPhrase,
+                                layer: activeLayer,
+                                tracks: tracks,
+                                inherited: inherited,
+                                groups: session.store.trackGroups
+                            )
+                            .frame(maxWidth: .infinity)
                         }
+                        .contentShape(Rectangle())
+                        .onTapGesture { session.setSelectedPhraseID(phrase.id) }
                     }
+                    .frame(height: PhraseMatrixLayoutPresentation.matrixRowHeight)
                 }
             }
             .padding(.vertical, 2)
@@ -3002,23 +2961,60 @@ struct SongWorkspaceView: View {
         .accessibilityIdentifier("song-phrase-grid")
     }
 
-    private func phraseGridTrackHeaderButton(
-        track: StepSequenceTrack,
-        isSelected: Bool,
-        width: CGFloat
-    ) -> some View {
-        Button {
-            session.setSelectedTrackID(track.id)
-        } label: {
-            PhraseMatrixTrackHeaderCell(
-                track: track,
-                isSelected: isSelected,
-                accent: StudioTheme.trackAccent(for: track, groups: session.store.trackGroups)
-            )
+    private struct SongPhraseTrackSummary: View {
+        let phrase: PhraseModel
+        let layer: PhraseLayerDefinition?
+        let tracks: [StepSequenceTrack]
+        let inherited: PhraseInheritedDefaults.Resolved?
+        let groups: [TrackGroup]
+
+        var body: some View {
+            ScrollView(.horizontal) {
+                HStack(spacing: 6) {
+                    ForEach(tracks, id: \.id) { track in
+                        let accent = StudioTheme.trackAccent(for: track, groups: groups)
+                        let cell = layer.map { phrase.cell(for: $0.id, trackID: track.id) }
+                        VStack(spacing: 5) {
+                            Text(valueLabel(trackID: track.id))
+                                .studioText(.labelBold)
+                                .foregroundStyle(StudioTheme.text)
+                                .lineLimit(1)
+                            HStack(spacing: 3) {
+                                Circle()
+                                    .fill(accent)
+                                    .frame(width: 5, height: 5)
+                                if cell?.isAutomated == true {
+                                    Image(systemName: "waveform.path")
+                                        .font(.system(size: 8, weight: .bold))
+                                        .foregroundStyle(accent)
+                                }
+                            }
+                        }
+                        .frame(width: 44, height: 52)
+                        .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                                .stroke(accent.opacity(StudioOpacity.mediumStroke), lineWidth: StudioMetrics.borderWidth)
+                        )
+                        .help("\(track.name): \(valueLabel(trackID: track.id))")
+                    }
+                }
+            }
+            .scrollIndicators(.never)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         }
-        .buttonStyle(.plain)
-        .frame(width: width)
-        .contentShape(Rectangle())
+
+        private func valueLabel(trackID: UUID) -> String {
+            guard let layer else { return "-" }
+            switch phrase.resolvedValue(for: layer, trackID: trackID, stepIndex: 0, inherited: inherited) {
+            case let .bool(value):
+                return value ? "On" : "Off"
+            case let .index(value):
+                return "P\(value + 1)"
+            case let .scalar(value):
+                return String(Int(value.rounded()))
+            }
+        }
     }
 
     private func songActionButton(
