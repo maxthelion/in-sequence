@@ -517,6 +517,64 @@ final class MainAudioGraphTests: XCTestCase {
     }
 
     @MainActor
+    func test_mixerBusTopologyTransactionPreservesConcurrentMixEdit() throws {
+        MainAudioGraph.useManualRenderingForAutomation = true
+        defer { MainAudioGraph.useManualRenderingForAutomation = false }
+
+        let graph = MainAudioGraph()
+        addTeardownBlock { graph.stop() }
+        let busID = UUID()
+        graph.installMixerBuses([MixerBus(id: busID, name: "Bus")])
+        try graph.start()
+
+        graph.setMixerBusParameters(
+            bus: MixerBus(id: busID, name: "Bus", inserts: [.filter()]),
+            effectiveMute: false
+        )
+        graph.setMixerBusMix(
+            busID: busID,
+            mix: BusMixSettings(level: 0.35, pan: 0.2, isMuted: false, isSoloed: false),
+            effectiveMute: false
+        )
+
+        let readout = try XCTUnwrap(waitForMixerBus(graph, busID: busID) {
+            $0.insertNodes.count == 1 && abs($0.outputVolume - 0.35) < 0.001
+        })
+        XCTAssertEqual(readout.outputVolume, 0.35, accuracy: 0.001)
+        XCTAssertEqual(readout.pan, 0.2, accuracy: 0.001)
+    }
+
+    @MainActor
+    func test_mixerBusTopologyEditCanRaisePreviouslySilentBus() throws {
+        MainAudioGraph.useManualRenderingForAutomation = true
+        defer { MainAudioGraph.useManualRenderingForAutomation = false }
+
+        let graph = MainAudioGraph()
+        addTeardownBlock { graph.stop() }
+        let busID = UUID()
+        let silent = MixerBus(
+            id: busID,
+            name: "Bus",
+            mix: BusMixSettings(level: 0, pan: 0, isMuted: false, isSoloed: false)
+        )
+        graph.installMixerBuses([silent])
+        try graph.start()
+
+        let audible = MixerBus(
+            id: busID,
+            name: "Bus",
+            mix: BusMixSettings(level: 0.7, pan: 0, isMuted: false, isSoloed: false),
+            inserts: [.filter()]
+        )
+        graph.setMixerBusParameters(bus: audible, effectiveMute: false)
+
+        let readout = try XCTUnwrap(waitForMixerBus(graph, busID: busID) {
+            $0.insertNodes.count == 1 && abs($0.outputVolume - 0.7) < 0.001
+        })
+        XCTAssertEqual(readout.outputVolume, 0.7, accuracy: 0.001)
+    }
+
+    @MainActor
     func test_mixerBusInlineAUCompletionReentersGatedInstallWithoutDeadlock() throws {
         let graph = MainAudioGraph()
         let busID = UUID()

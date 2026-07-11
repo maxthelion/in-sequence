@@ -47,6 +47,9 @@ final class MixerBusHost {
     private(set) var topologyRebuildCount = 0
     private(set) var parameterApplyCount = 0
 
+    var latestBusForReconciliation: MixerBus? { latestBus }
+    var effectiveMuteForReconciliation: Bool { effectiveMute }
+
     init(id: UUID, factory: AUAudioUnitFactory = AUAudioUnitFactory()) {
         self.id = id
         self.factory = factory
@@ -339,11 +342,7 @@ final class MixerBusHost {
             DispatchQueue.main.async { [weak self] in
                 guard let self else { return }
                 MainActor.assumeIsolated {
-                    guard let audioGraph = self.audioGraph, let latestBus = self.latestBus else { return }
-                    audioGraph.setMixerBusParameters(
-                        bus: latestBus,
-                        effectiveMute: self.effectiveMute
-                    )
+                    self.audioGraph?.reconcileLoadedMixerBusAUEffect(busID: self.id)
                 }
             }
         }
@@ -604,7 +603,7 @@ final class SendBusHost {
             // behind main).
             DispatchQueue.main.async { [weak self] in
                 guard let self, let audioGraph = self.audioGraph else { return }
-                audioGraph.installSendBus(self.appliedStateForTesting)
+                audioGraph.reconcileLoadedSendBusAUEffect(busID: self.id)
             }
         }
     }

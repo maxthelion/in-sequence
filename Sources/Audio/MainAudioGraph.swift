@@ -834,6 +834,19 @@ final class MainAudioGraph {
     }
 
     func installMixerBuses(_ buses: [MixerBus], effectiveMuteByBusID: [UUID: Bool] = [:]) {
+        let normalized = MixerBus.normalizedCollection(buses)
+        let canUseScopedUpdates = performOnMainReturning {
+            self.engine.isRunning && Set(self.mixerBusHosts.keys) == Set(normalized.map(\.id))
+        }
+        if canUseScopedUpdates {
+            for bus in normalized {
+                setMixerBusParameters(
+                    bus: bus,
+                    effectiveMute: effectiveMuteByBusID[bus.id] ?? bus.mix.isMuted
+                )
+            }
+            return
+        }
         performOnMain {
             // Acquired inside the main-thread closure: holding
             // graphLock across DispatchQueue.main.sync is a
@@ -851,6 +864,8 @@ final class MainAudioGraph {
             let nextIDs = Set(buses.map(\.id))
             let removedIDs = self.mixerBusHosts.keys.filter { !nextIDs.contains($0) }
             for busID in removedIDs {
+                self.pendingMixerBusTopology.removeValue(forKey: busID)
+                self.mixerBusTopologyRampsInFlight.remove(busID)
                 self.mixerBusHosts[busID]?.teardown(from: self)
                 self.mixerBusHosts.removeValue(forKey: busID)
             }
@@ -891,6 +906,11 @@ final class MainAudioGraph {
             // lock-order deadlock waiting to happen.
             self.lockGraphLock()
             defer { self.unlockGraphLock() }
+            if var pending = self.pendingMixerBusTopology[busID] {
+                pending.bus.mix = mix
+                pending.effectiveMute = effectiveMute
+                self.pendingMixerBusTopology[busID] = pending
+            }
             self.mixerBusHosts[busID]?.applyMix(mix, effectiveMute: effectiveMute)
         }
     }
@@ -936,7 +956,7 @@ final class MainAudioGraph {
                     host: host,
                     bus: pending.bus,
                     effectiveMute: pending.effectiveMute,
-                    holdOutputAtSilence: true
+                holdOutputAtSilence: false
                 )
                 self.unlockGraphLock()
                 return
@@ -1019,7 +1039,6 @@ final class MainAudioGraph {
             effectiveMute: effectiveMute,
             holdOutputAtSilence: holdOutputAtSilence
         )
-        reconnectMixerBusTerminalsOnMain()
         if let inputMixer = host.destinationNode() {
             installBusMeterTapIfNeeded(busID: bus.id, on: inputMixer)
         }
@@ -1028,6 +1047,18 @@ final class MainAudioGraph {
     }
 
     func installSendBuses(_ sendBuses: [SendBusState]) {
+        let normalized = SendBusID.allCases.map { id in
+            sendBuses.first(where: { $0.id == id })?.normalized(expectedID: id) ?? SendBusState(id: id)
+        }
+        let canUseScopedUpdates = performOnMainReturning {
+            self.engine.isRunning && SendBusID.allCases.allSatisfy { self.sendBusHosts[$0] != nil }
+        }
+        if canUseScopedUpdates {
+            for bus in normalized {
+                installSendBus(bus)
+            }
+            return
+        }
         performOnMain {
             // Acquired inside the main-thread closure: holding
             // graphLock across DispatchQueue.main.sync is a
@@ -1130,11 +1161,35 @@ final class MainAudioGraph {
     private func installSendBusTopologyOnMain(host: SendBusHost, sendBus: SendBusState) {
         sendBusTopologyInstallCountForTesting += 1
         host.install(sendBus: sendBus, in: self)
-        for routing in trackOutputRoutings.values where routing.source.engine === engine {
-            reconnectTrackOutputOnMain(routing)
-        }
         installMasterMeterTapIfNeeded()
         publishAudioInputCaptureFormatsOnMain()
+    }
+
+    func reconcileLoadedMixerBusAUEffect(busID: UUID) {
+        performOnMain {
+            self.lockGraphLock()
+            let desired = self.pendingMixerBusTopology[busID]?.bus
+                ?? self.mixerBusHosts[busID]?.latestBusForReconciliation
+            let effectiveMute = self.pendingMixerBusTopology[busID]?.effectiveMute
+                ?? self.mixerBusHosts[busID]?.effectiveMuteForReconciliation
+                ?? false
+            self.unlockGraphLock()
+            if let desired {
+                self.setMixerBusParameters(bus: desired, effectiveMute: effectiveMute)
+            }
+        }
+    }
+
+    func reconcileLoadedSendBusAUEffect(busID: SendBusID) {
+        performOnMain {
+            self.lockGraphLock()
+            let desired = self.pendingSendBusTopology[busID]
+                ?? self.sendBusHosts[busID]?.appliedStateForTesting
+            self.unlockGraphLock()
+            if let desired {
+                self.installSendBus(desired)
+            }
+        }
     }
 
     @MainActor
