@@ -223,11 +223,54 @@ enum PhrasePerformTimingPolicy {
 struct PerformanceLayerOption: Identifiable, Equatable {
     let mode: TrackPerformLayerMode
     let variantLabel: String?
+    let isAvailable: Bool
+    let unavailableReason: String?
+
+    init(
+        mode: TrackPerformLayerMode,
+        variantLabel: String?,
+        isAvailable: Bool = true,
+        unavailableReason: String? = nil
+    ) {
+        self.mode = mode
+        self.variantLabel = variantLabel
+        self.isAvailable = isAvailable
+        self.unavailableReason = unavailableReason
+    }
 
     var id: String { "\(mode.rawValue):\(variantLabel ?? "-")" }
 
     var title: String {
         variantLabel ?? mode.label
+    }
+
+    static let implicitIdentityStepOrder = PerformanceLayerOption(
+        mode: .stepOrder,
+        variantLabel: "Identity"
+    )
+
+    static let unavailableStepOrder = PerformanceLayerOption(
+        mode: .stepOrder,
+        variantLabel: nil,
+        isAvailable: false,
+        unavailableReason: "16 steps only"
+    )
+
+    func resolvedStepOrderMap(in maps: [StepOrderMap]) -> StepOrderMap? {
+        guard mode == .stepOrder, let variantLabel else { return nil }
+        return maps.first { $0.name == variantLabel && $0.isValid }
+    }
+
+    /// Step Order remains usable before a project has any saved maps. The
+    /// first tap materializes the visible Identity option as a normal pooled
+    /// map; subsequent rendering resolves it through the same path as every
+    /// user-authored map.
+    func materializedStepOrderMap(in maps: [StepOrderMap]) -> StepOrderMap? {
+        if let existing = resolvedStepOrderMap(in: maps) {
+            return existing
+        }
+        guard self == Self.implicitIdentityStepOrder else { return nil }
+        return StepOrderMap(name: "Identity")
     }
 
     static var all: [PerformanceLayerOption] {
@@ -261,8 +304,14 @@ struct PerformanceLayerOption: Identifiable, Equatable {
                     PerformanceLayerOption(mode: mode, variantLabel: $0)
                 }
             case .stepOrder:
-                guard phraseStepCount == StepOrderMap.stepCount else { return [] }
-                return stepOrderMaps.filter(\.isValid).map {
+                guard phraseStepCount == StepOrderMap.stepCount else {
+                    return [Self.unavailableStepOrder]
+                }
+                let validMaps = stepOrderMaps.filter(\.isValid)
+                guard !validMaps.isEmpty else {
+                    return [Self.implicitIdentityStepOrder]
+                }
+                return validMaps.map {
                     PerformanceLayerOption(mode: mode, variantLabel: $0.name)
                 }
             case .mute, .pattern, .fill, .volume, .pan:

@@ -245,14 +245,42 @@ final class TrackPerformSelectionStateTests: XCTestCase {
         XCTAssertFalse(options.contains { $0.mode == .volume || $0.mode == .pan })
     }
 
-    func test_phrasePerformanceOptionsHideStepOrderWhenPhraseLengthIsUnsupported() {
+    func test_phrasePerformanceOptionsExposeMaterializableIdentityWhenNoStepOrderMapsExist() throws {
+        let options = PerformanceLayerOption.phraseOptions(
+            availableLayerIDs: ["mute", "pattern", "fill-flag"],
+            stepOrderMaps: [],
+            phraseStepCount: StepOrderMap.stepCount
+        )
+
+        let option = try XCTUnwrap(options.first { $0.mode == .stepOrder })
+        XCTAssertEqual(option, .implicitIdentityStepOrder)
+        XCTAssertNil(option.resolvedStepOrderMap(in: []))
+
+        let materialized = try XCTUnwrap(option.materializedStepOrderMap(in: []))
+        XCTAssertEqual(materialized.name, "Identity")
+        XCTAssertEqual(materialized.values, StepOrderMap.identityValues)
+        XCTAssertTrue(materialized.isValid)
+    }
+
+    func test_phrasePerformanceStepOrderOptionResolvesExistingMapWithoutDuplicatingIt() throws {
+        let map = StepOrderMap(name: "Break Fold", values: [3, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 0])
+        let option = PerformanceLayerOption(mode: .stepOrder, variantLabel: map.name)
+
+        XCTAssertEqual(option.resolvedStepOrderMap(in: [map]), map)
+        XCTAssertEqual(option.materializedStepOrderMap(in: [map]), map)
+    }
+
+    func test_phrasePerformanceOptionsExposeUnavailableStepOrderWhenPhraseLengthIsUnsupported() throws {
         let options = PerformanceLayerOption.phraseOptions(
             availableLayerIDs: ["mute"],
             stepOrderMaps: [StepOrderMap(name: "Identity")],
             phraseStepCount: StepOrderMap.stepCount * 2
         )
 
-        XCTAssertFalse(options.contains { $0.mode == .stepOrder })
+        let option = try XCTUnwrap(options.first { $0.mode == .stepOrder })
+        XCTAssertEqual(option, .unavailableStepOrder)
+        XCTAssertFalse(option.isAvailable)
+        XCTAssertEqual(option.unavailableReason, "16 steps only")
         XCTAssertTrue(options.contains { $0.mode == .noteRepeat })
     }
 

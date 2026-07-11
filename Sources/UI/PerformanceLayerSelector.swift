@@ -6,12 +6,16 @@ import SwiftUI
 struct PerformanceLayerOptionCell: View {
     let option: PerformanceLayerOption
     let isSelected: Bool
+    var presentsToggleState = false
     let onTap: () -> Void
 
     private var accent: Color { option.mode.phraseAccent }
 
     var body: some View {
-        Button(action: onTap) {
+        Button {
+            guard option.isAvailable else { return }
+            onTap()
+        } label: {
             VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 6) {
                     Image(systemName: option.mode.symbolName)
@@ -19,6 +23,17 @@ struct PerformanceLayerOptionCell: View {
                         .foregroundStyle(accent)
 
                     Spacer(minLength: 0)
+
+                    if presentsToggleState {
+                        HStack(spacing: 4) {
+                            Circle()
+                                .fill(isSelected ? accent : StudioTheme.border)
+                                .frame(width: 6, height: 6)
+                            Text(isSelected ? "ON" : "OFF")
+                                .studioText(.micro)
+                                .foregroundStyle(isSelected ? StudioTheme.text : StudioTheme.mutedText)
+                        }
+                    }
                 }
 
                 Spacer(minLength: 0)
@@ -33,8 +48,8 @@ struct PerformanceLayerOptionCell: View {
                 // variant, e.g. "1/8"). Plain cells carry NO subtitle — the
                 // old "track mute"/"pattern slot"/"runtime fill" lines merely
                 // restated the label (canon Rules 1/3, design review 11).
-                if option.variantLabel != nil {
-                    Text(option.mode.label)
+                if option.variantLabel != nil || option.unavailableReason != nil {
+                    Text(option.unavailableReason ?? option.mode.label)
                         .studioText(.micro)
                         .foregroundStyle(StudioTheme.mutedText)
                         .lineLimit(1)
@@ -58,9 +73,16 @@ struct PerformanceLayerOptionCell: View {
             .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
         }
         .buttonStyle(.plain)
+        .allowsHitTesting(option.isAvailable)
         .help(option.variantLabel.map { "\(option.mode.label) — \($0)" } ?? option.mode.label)
         .accessibilityLabel("\(option.mode.label) \(option.variantLabel ?? "")")
-        .accessibilityValue(isSelected ? "Selected" : "Not selected")
+        .accessibilityValue(
+            !option.isAvailable
+                ? (option.unavailableReason ?? "Unavailable")
+                : presentsToggleState
+                ? (isSelected ? "On" : "Off")
+                : (isSelected ? "Selected" : "Not selected")
+        )
     }
 }
 

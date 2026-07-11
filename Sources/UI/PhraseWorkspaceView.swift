@@ -2233,8 +2233,11 @@ struct PhraseWorkspaceView: View {
         return isSelectedNoteRepeatActive(trackID: trackID) ? "On" : "Off"
     }
 
-    private func toggleNoteRepeat(trackIDs: [UUID]) {
-        guard let interval = selectedNoteRepeatInterval else { return }
+    private func toggleNoteRepeat(
+        trackIDs: [UUID],
+        interval requestedInterval: NoteRepeatInterval? = nil
+    ) {
+        guard let interval = requestedInterval ?? selectedNoteRepeatInterval else { return }
         let availableTrackIDs = trackIDs.filter(session.isNoteRepeatAvailable(trackID:))
         guard !availableTrackIDs.isEmpty else { return }
 
@@ -2254,8 +2257,7 @@ struct PhraseWorkspaceView: View {
     }
 
     private func stepOrderMap(for option: PerformanceLayerOption) -> StepOrderMap? {
-        guard option.mode == .stepOrder, let name = option.variantLabel else { return nil }
-        return session.store.stepOrderMaps.first { $0.name == name && $0.isValid }
+        option.resolvedStepOrderMap(in: session.store.stepOrderMaps)
     }
 
     private func isSelectedStepOrderActive(option: PerformanceLayerOption) -> Bool {
@@ -2271,7 +2273,11 @@ struct PhraseWorkspaceView: View {
     }
 
     private func toggleStepOrder(option: PerformanceLayerOption) {
-        guard let map = stepOrderMap(for: option) else { return }
+        let existingMaps = session.store.stepOrderMaps
+        guard let map = option.materializedStepOrderMap(in: existingMaps) else { return }
+        if option.resolvedStepOrderMap(in: existingMaps) == nil {
+            guard session.appendStepOrderMap(map) else { return }
+        }
         let phrase = selectedPhraseForEditing
         if phrase.stepOrderAssignment?.mapID != map.id {
             guard session.setStepOrderAssignment(phraseID: phrase.id, mapID: map.id, isEnabled: false) else { return }
@@ -2352,12 +2358,14 @@ struct PhraseWorkspaceView: View {
             PerformanceLayerOptionCell(
                 option: option,
                 isSelected: areSelectedNoteRepeatsActive(trackIDs: globalApplyScopeTrackIDs, option: option),
+                presentsToggleState: true,
                 onTap: { applyGlobalOption(option) }
             )
         } else if option.mode == .stepOrder {
             PerformanceLayerOptionCell(
                 option: option,
                 isSelected: isSelectedStepOrderActive(option: option),
+                presentsToggleState: true,
                 onTap: { applyGlobalOption(option) }
             )
         } else {
@@ -2414,9 +2422,13 @@ struct PhraseWorkspaceView: View {
     }
 
     private func applyGlobalOption(_ option: PerformanceLayerOption) {
+        guard option.isAvailable else { return }
         if option.mode == .noteRepeat {
+            guard let label = option.variantLabel,
+                  let interval = NoteRepeatInterval(rawValue: label)
+            else { return }
             selectPerformanceLayerOption(option)
-            toggleNoteRepeat(trackIDs: globalApplyScopeTrackIDs)
+            toggleNoteRepeat(trackIDs: globalApplyScopeTrackIDs, interval: interval)
             return
         }
 
