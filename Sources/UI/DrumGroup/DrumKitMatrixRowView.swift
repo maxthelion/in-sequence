@@ -104,12 +104,16 @@ struct DrumKitMatrixRowView<DetailPanel: View>: View {
                 }
             }
         } label: {
-            Label("\(clipLengthSteps) steps", systemImage: "ruler")
-                .studioText(.micro)
-                .foregroundStyle(StudioTheme.mutedText)
-                .lineLimit(1)
+            StudioDisclosureLabel(
+                title: "\(clipLengthSteps) steps",
+                symbolName: "ruler",
+                minimumWidth: 108
+            )
         }
         .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .foregroundStyle(StudioTheme.text)
+        .tint(StudioTheme.text)
         .fixedSize()
         .help("Set clip length for \(row.partName)")
         .accessibilityIdentifier("kit-row-clip-length")
