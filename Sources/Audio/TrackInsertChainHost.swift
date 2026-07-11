@@ -73,6 +73,11 @@ final class TrackInsertChainHost {
     /// old value. AU-backed inserts only appear here once instantiated.
     var installedInsertNodeCountForTesting: Int { insertNodes.count }
 
+    /// A topology edit has been authored but has not yet reached the live graph.
+    /// Route reconciliation uses this to finish an insert rebuild when its
+    /// original silence ramp was superseded by a newer graph edit.
+    var hasPendingTopologyChange: Bool { pendingShape != nil }
+
     /// True when applying `inserts` would change the node topology (insert
     /// added/removed/reordered or an AU still loading) as opposed to a
     /// value/parameter-only update on the already-installed chain. The graph

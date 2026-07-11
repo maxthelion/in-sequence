@@ -212,6 +212,11 @@ final class MainAudioGraph {
     var trackInsertAUFactoryForTesting: AUAudioUnitFactory?
     private var trackOutputDestinationsForTesting: [ObjectIdentifier: AVAudioNode] = [:]
     private var trackOutputRoutings: [ObjectIdentifier: TrackOutputRouting] = [:]
+    /// Latest graph edit waiting behind each track's silence ramp. Keeping one
+    /// desired operation per gain stage turns rapid add-FX/reroute edits into a
+    /// coalesced transaction instead of competing MixerGainRamp generations.
+    private var pendingTrackGraphEditWork: [ObjectIdentifier: @MainActor () -> Void] = [:]
+    private var trackGraphEditRampsInFlight: Set<ObjectIdentifier> = []
     private var trackSendNodes: [ObjectIdentifier: TrackSendNodes] = [:]
     private var retiredTrackSendNodes: [TrackSendNodes] = []
     private var trackSendDestinationsForTesting: [ObjectIdentifier: TrackSendDestinations] = [:]
@@ -241,6 +246,7 @@ final class MainAudioGraph {
     private var masterRenderURL: URL?
 
     private struct TrackOutputRouting {
+        var trackID: UUID?
         let source: AVAudioNode
         var busID: UUID?
         var sendLevels: TrackSendLevels
@@ -1053,6 +1059,42 @@ final class MainAudioGraph {
         sends sendLevels: TrackSendLevels = .zero,
         ramped: Bool = true
     ) {
+        connectTrackOutput(
+            trackID: nil,
+            source,
+            to: busID,
+            sends: sendLevels,
+            ramped: ramped
+        )
+    }
+
+    /// Canonical track-output registration when the caller owns the track
+    /// identity. Prepared sample/slicer tracks must use this entry point: their
+    /// output source can be connected before meter registration, so recovering
+    /// ownership by scanning meter nodes is inherently racy.
+    func connectTrackOutput(
+        trackID: UUID,
+        _ source: AVAudioNode,
+        to busID: UUID?,
+        sends sendLevels: TrackSendLevels = .zero,
+        ramped: Bool = true
+    ) {
+        connectTrackOutput(
+            trackID: Optional(trackID),
+            source,
+            to: busID,
+            sends: sendLevels,
+            ramped: ramped
+        )
+    }
+
+    private func connectTrackOutput(
+        trackID explicitTrackID: UUID?,
+        _ source: AVAudioNode,
+        to busID: UUID?,
+        sends sendLevels: TrackSendLevels,
+        ramped: Bool
+    ) {
         TickPathMainSyncGuard.assertNotHoldingLifecycleLockForGraphMutation("MainAudioGraph.connectTrackOutput")
         performOnMain {
             // Acquired inside the main-thread closure: holding
@@ -1071,7 +1113,8 @@ final class MainAudioGraph {
             // track is sounding and the engine is live, the gain stage is
             // ramped to 0, the splice happens on silence, then it ramps back —
             // so a live bus reassign no longer hard-cuts a playing node.
-            let routing = TrackOutputRouting(source: source, busID: busID, sendLevels: sendLevels)
+            let trackID = explicitTrackID ?? self.trackMeterSources.first(where: { $0.value === source })?.key
+            let routing = TrackOutputRouting(trackID: trackID, source: source, busID: busID, sendLevels: sendLevels)
             self.trackOutputRoutings[ObjectIdentifier(source)] = routing
             // The synchronous splice (reconnectTrackOutputOnMain) unconditionally
             // disconnects the track's SHARED per-track fanout. The fanout is
@@ -1134,10 +1177,12 @@ final class MainAudioGraph {
     /// input, so the chain voice -> voiceMixer -> busInputMixer -> preMaster is
     /// actually live (same bug, single-track silence).
     func connectPreparedSampleVoiceOutput(
+        trackID: UUID,
         _ source: AVAudioNode,
         toMixerBus busID: UUID
     ) {
         TickPathMainSyncGuard.assertNotHoldingLifecycleLockForGraphMutation("MainAudioGraph.connectPreparedSampleVoiceOutput")
+        connectTrackOutput(trackID: trackID, source, to: busID, ramped: false)
         performOnMain {
             self.lockGraphLock()
             defer { self.unlockGraphLock() }
@@ -1146,17 +1191,6 @@ final class MainAudioGraph {
             else {
                 return
             }
-            // realtime-allow-graph-mutation: prepared sample bus-safe route setup/repair only, not event scheduling. Test: RealtimePathLintTests.
-            self.engine.disconnectNodeOutput(source)
-            // realtime-allow-graph-mutation: prepared sample bus-safe route setup/repair only, not event scheduling. Test: RealtimePathLintTests.
-            self.engine.connect(
-                source,
-                to: destinationMixer,
-                fromBus: 0,
-                toBus: self.inputBus(for: destinationMixer),
-                format: nil
-            )
-            self.trackOutputDestinationsForTesting[ObjectIdentifier(source)] = destinationMixer
             // The bus now has at least one input — (re)assert its output edge to
             // preMaster so the routed signal actually reaches master.
             self.ensureMixerBusTerminalReachesPreMasterOnMain(busID: busID)
@@ -2025,6 +2059,21 @@ final class MainAudioGraph {
             for trackID in trackIDs {
                 self.trackMeterSources[trackID] = node
             }
+            if trackIDs.count == 1,
+               let trackID = trackIDs.first,
+               var routing = self.trackOutputRoutings[ObjectIdentifier(node)]
+            {
+                routing.trackID = trackID
+                self.trackOutputRoutings[ObjectIdentifier(node)] = routing
+            }
+
+            // Source registration is a graph reconciliation point. FX can be
+            // authored before an async AU/sample source exists; retaining the
+            // document chain is not enough unless registration installs it.
+            for trackID in trackIDs {
+                guard let inserts = self.trackInsertChainsByTrackID[trackID] else { continue }
+                self.applyTrackInsertsOnMain(trackID: trackID, inserts: inserts)
+            }
             guard self.areChannelMeterTapsInstalled else { return }
             self.removeChannelMeterTapsIfNeeded()
             self.installChannelMeterTapsIfNeeded()
@@ -2307,10 +2356,9 @@ final class MainAudioGraph {
     ///  - The down-ramp runs on MixerGainRamp's queue. Its completion schedules
     ///    `work` on MAIN (acquiring graphLock there), then kicks the up-ramp.
     ///    graphLock / lifecycleLock are NOT held across the ~12 ms.
-    ///  - Overlapping edits coalesce safely: MixerGainRamp's per-node generation
-    ///    token means a newer ramp supersedes an older one; a superseded
-    ///    down-ramp's completion reports `reachedTarget == false`, so the stale
-    ///    `work` + up-ramp is dropped — the newer request owns the node.
+    ///  - Overlapping edits coalesce safely: the latest graph work replaces the
+    ///    pending closure while one down-ramp owns the gain stage. A value ramp
+    ///    that supersedes it causes a retry against the latest settled level.
     ///
     /// Skips the ramp (runs `work` synchronously under the CALLER's graphLock)
     /// when the engine is not running, no mixer gain stage can be resolved, or
@@ -2364,41 +2412,80 @@ final class MainAudioGraph {
             return
         }
 
-        rampedReconnectCountForTesting += 1
+        let key = ObjectIdentifier(gainStage)
+        pendingTrackGraphEditWork[key] = work
+        guard trackGraphEditRampsInFlight.insert(key).inserted else {
+            return
+        }
+        beginTrackGraphEditRamp(source: source, gainStage: gainStage, key: key)
+    }
 
-        // Ramp the track's gain stage to silence, then — once silence is
-        // actually reached — run the graph edit and ramp back. The completion
-        // fires on MixerGainRamp's background queue, so hop to main and acquire
-        // graphLock there (never held across the ramp wait). The down-ramp is a
-        // TRANSIENT dip (`markSettled: false`) so it does not overwrite the
-        // stage's recorded steady-state target — a concurrent splice that starts
-        // mid-dip still reads the true restore level above.
+    /// Starts one coalesced graph-edit cycle. A newer graph edit only replaces
+    /// `pendingTrackGraphEditWork`; it does not supersede this down-ramp. If a
+    /// non-graph gain change (mute/level) does supersede it, retry while
+    /// preserving that newer settled target.
+    @MainActor
+    private func beginTrackGraphEditRamp(
+        source: AVAudioNode,
+        gainStage: AVAudioMixerNode,
+        key: ObjectIdentifier
+    ) {
+        rampedReconnectCountForTesting += 1
         MixerGainRamp.shared.ramp(gainStage, to: 0, markSettled: false) { [weak self] reachedTarget in
             guard let self else { return }
-            // Superseded by a newer ramp for this node → that newer request now
-            // owns the gain stage and its edit (and restores its settled level).
-            // Drop this stale one.
-            guard reachedTarget else { return }
             // realtime-allow-main-async: ramp-completion graph-edit hop off the ramp queue (not tick/event scheduling), graphLock acquired here. Test: RampBeforeDisconnectTests.
             DispatchQueue.main.async {
                 MainActor.assumeIsolated {
+                    self.lockGraphLock()
+                    guard reachedTarget else {
+                        self.trackGraphEditRampsInFlight.remove(key)
+                        let shouldRetry = self.pendingTrackGraphEditWork[key] != nil
+                            && source.engine === self.engine
+                            && gainStage.engine === self.engine
+                        if shouldRetry {
+                            self.trackGraphEditRampsInFlight.insert(key)
+                            self.beginTrackGraphEditRamp(source: source, gainStage: gainStage, key: key)
+                        }
+                        self.unlockGraphLock()
+                        return
+                    }
+
                     guard source.engine === self.engine else {
-                        // Source was detached/torn down before the dip completed
-                        // (e.g. removeTrack). Skip the reconnect — but STILL
-                        // restore the gain stage to its settled level so a
-                        // recycled/persistent stage is never left stuck silent.
-                        DevActivity.trace(DevActivity.audioGraph, "ramp-silence DROP reason=source-detached storedLevel=\(storedLevel)")
+                        self.pendingTrackGraphEditWork.removeValue(forKey: key)
+                        self.trackGraphEditRampsInFlight.remove(key)
+                        self.unlockGraphLock()
+                        let restoreLevel = MixerGainRamp.shared.settledTarget(for: gainStage) ?? gainStage.outputVolume
                         if gainStage.engine === self.engine {
-                            MixerGainRamp.shared.ramp(gainStage, to: storedLevel)
+                            MixerGainRamp.shared.ramp(gainStage, to: restoreLevel)
                         }
                         return
                     }
-                    self.lockGraphLock()
-                    work()
+
+                    let latestWork = self.pendingTrackGraphEditWork.removeValue(forKey: key)
+                    latestWork?()
                     self.unlockGraphLock()
-                    // Ramp the gain stage back to its pre-edit (settled) level on
-                    // silence — a normal ramp, re-recording the settled target.
-                    MixerGainRamp.shared.ramp(gainStage, to: storedLevel)
+
+                    // Restore the latest steady-state target, which may have
+                    // changed while the transient dip was running.
+                    let restoreLevel = MixerGainRamp.shared.settledTarget(for: gainStage) ?? 1
+                    MixerGainRamp.shared.ramp(gainStage, to: restoreLevel) { [weak self] _ in
+                        guard let self else { return }
+                        // realtime-allow-main-async: gain-ramp completion schedules the next graph-control transaction, never tick/event work. Test: RampBeforeDisconnectTests.
+                        DispatchQueue.main.async {
+                            MainActor.assumeIsolated {
+                                self.lockGraphLock()
+                                self.trackGraphEditRampsInFlight.remove(key)
+                                let hasMoreWork = self.pendingTrackGraphEditWork[key] != nil
+                                    && source.engine === self.engine
+                                    && gainStage.engine === self.engine
+                                if hasMoreWork {
+                                    self.trackGraphEditRampsInFlight.insert(key)
+                                    self.beginTrackGraphEditRamp(source: source, gainStage: gainStage, key: key)
+                                }
+                                self.unlockGraphLock()
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -2426,6 +2513,18 @@ final class MainAudioGraph {
         let source = routing.source
         let dryDestination = routing.busID.flatMap { mixerBusHosts[$0]?.destinationNode() } ?? preMasterMixer
 
+        // A newer routing ramp can supersede the ramp that originally owned an
+        // insert rebuild. The winning route operation must also finish the
+        // latest authored topology, otherwise TrackInsertChainHost.pendingShape
+        // remains set forever and future edits are misclassified as value-only.
+        if let trackID = routing.trackID,
+           let host = trackInsertChainHosts[trackID],
+           host.hasPendingTopologyChange,
+           let inserts = trackInsertChainsByTrackID[trackID]
+        {
+            host.rebuild(inserts: inserts, in: self)
+        }
+
         // Resolve the per-track FX insert chain boundary. The track's output is
         // `source -> [insert chain] -> chainOutput`; every downstream wire (dry
         // destination + send fanout) then feeds from `chainOutput`, so sends are
@@ -2439,7 +2538,8 @@ final class MainAudioGraph {
         // AllocateInputBlock recursion when a track FX insert was added to a
         // send-active track (docs/bugs/20260625-add-second-insert-render-recursion-cycle).
         let chainOutput: AVAudioNode
-        if let host = trackInsertChainHosts[trackID(for: source)],
+        if let trackID = routing.trackID,
+           let host = trackInsertChainHosts[trackID],
            let chainInput = host.inputNode,
            let chainTerminal = host.terminalNode
         {
@@ -2578,14 +2678,6 @@ final class MainAudioGraph {
         }
     }
 
-    /// Resolve the trackID whose registered meter source is `node`, so the
-    /// insert chain (keyed by trackID) can be located from the output source
-    /// node `reconnectTrackOutput` operates on.
-    @MainActor
-    private func trackID(for node: AVAudioNode) -> UUID {
-        trackMeterSources.first(where: { $0.value === node })?.key ?? UUID()
-    }
-
     @MainActor
     private func installAudioInputRoutingOnMain(_ request: AudioInputRoutingRequest) {
         let host = audioInputRoutingHosts[request.trackID] ?? AudioInputRoutingHost(trackID: request.trackID)
@@ -2654,6 +2746,7 @@ final class MainAudioGraph {
 
         let sendLevels = request.mix.graphSendLevels
         let routing = TrackOutputRouting(
+            trackID: request.trackID,
             source: host.outputMixer,
             busID: request.outputBusID,
             sendLevels: sendLevels

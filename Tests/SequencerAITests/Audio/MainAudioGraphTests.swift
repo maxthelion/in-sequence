@@ -948,6 +948,109 @@ final class MasterMeterPublisherTests: XCTestCase {
 
     // MARK: - Track insert chain splice (no render cycle)
 
+    @MainActor
+    func test_retainedTrackInsertsInstallWhenSourceRegistersLater() throws {
+        let graph = MainAudioGraph()
+        let trackID = UUID()
+        let source = AVAudioMixerNode()
+        graph.attach(source)
+
+        let insert = TrackFXInsert.filter()
+        graph.setTrackInserts(trackID: trackID, inserts: [insert])
+        // Mirrors delayed AU registration: output routing exists before the
+        // host publishes its single track identity through meter registration.
+        graph.connectTrackOutput(source, to: nil, ramped: false)
+        XCTAssertEqual(graph.trackInstalledInsertNodeCountForTesting(trackID: trackID), 0)
+
+        graph.setTrackMeterSources(trackIDs: [trackID], node: source)
+
+        XCTAssertEqual(graph.trackInstalledInsertNodeCountForTesting(trackID: trackID), 1)
+        let insertNode = try XCTUnwrap(
+            graph.engine.outputConnectionPoints(for: source, outputBus: 0).first?.node
+        )
+        XCTAssertTrue(insertNode is AVAudioUnitEQ)
+        XCTAssertTrue(
+            graph.trackOutputDestinationForTesting(source) === graph.preMasterMixer,
+            "late source registration must preserve the authored dry destination"
+        )
+    }
+
+    @MainActor
+    func test_preparedBusTrackRoutesThroughTrackInsertChain() throws {
+        let graph = MainAudioGraph()
+        let bus = MixerBus(name: "Prepared Bus")
+        graph.installMixerBuses([bus])
+        let trackID = UUID()
+        let source = AVAudioMixerNode()
+        graph.attach(source)
+        graph.setTrackInserts(trackID: trackID, inserts: [.bitcrusher()])
+
+        graph.connectPreparedSampleVoiceOutput(
+            trackID: trackID,
+            source,
+            toMixerBus: bus.id
+        )
+        graph.setTrackMeterSources(trackIDs: [trackID], node: source)
+
+        XCTAssertEqual(graph.trackInstalledInsertNodeCountForTesting(trackID: trackID), 1)
+        let insertNode = try XCTUnwrap(
+            graph.engine.outputConnectionPoints(for: source, outputBus: 0).first?.node
+        )
+        XCTAssertTrue(insertNode is AVAudioUnitDistortion)
+        let busInput = try XCTUnwrap(graph.mixerBusReadoutForTesting(busID: bus.id)?.inputMixer)
+        XCTAssertTrue(
+            graph.engine.outputConnectionPoints(for: insertNode, outputBus: 0).contains {
+                $0.node === busInput
+            },
+            "prepared sample/slicer output must reach its bus through track FX"
+        )
+    }
+
+    @MainActor
+    func test_supersededInsertRampReconcilesLatestTopology() throws {
+        MainAudioGraph.useManualRenderingForAutomation = true
+        defer { MainAudioGraph.useManualRenderingForAutomation = false }
+
+        let graph = MainAudioGraph()
+        addTeardownBlock { graph.stop() }
+        let bus = MixerBus(name: "Reroute")
+        graph.installMixerBuses([bus])
+        let trackID = UUID()
+        let source = AVAudioMixerNode()
+        graph.attach(source)
+        graph.setTrackMeterSources(trackIDs: [trackID], node: source)
+        graph.connectTrackOutput(trackID: trackID, source, to: nil, ramped: false)
+        try graph.start()
+
+        let first = TrackFXInsert.filter()
+        graph.setTrackInserts(trackID: trackID, inserts: [first])
+        // This starts a newer ramp on the same gain stage before the insert
+        // down-ramp can complete. The winning route must finish the pending FX.
+        graph.connectTrackOutput(trackID: trackID, source, to: bus.id)
+
+        let firstDeadline = Date().addingTimeInterval(1)
+        while Date() < firstDeadline,
+              graph.trackInstalledInsertNodeCountForTesting(trackID: trackID) != 1
+        {
+            RunLoop.current.run(until: Date().addingTimeInterval(0.005))
+        }
+        XCTAssertEqual(graph.trackInstalledInsertNodeCountForTesting(trackID: trackID), 1)
+        XCTAssertTrue(
+            graph.trackOutputDestinationForTesting(source) === graph.mixerBusReadoutForTesting(busID: bus.id)?.inputMixer
+        )
+
+        // A later topology edit proves pendingShape was cleared rather than
+        // merely producing one lucky install during the reroute.
+        graph.setTrackInserts(trackID: trackID, inserts: [first, .bitcrusher()])
+        let secondDeadline = Date().addingTimeInterval(1)
+        while Date() < secondDeadline,
+              graph.trackInstalledInsertNodeCountForTesting(trackID: trackID) != 2
+        {
+            RunLoop.current.run(until: Date().addingTimeInterval(0.005))
+        }
+        XCTAssertEqual(graph.trackInstalledInsertNodeCountForTesting(trackID: trackID), 2)
+    }
+
     /// Walk the engine graph UPSTREAM from `start` (via per-input-bus
     /// connection points, which never trip AVAudioEngine's output-splitter
     /// precondition) and assert no node is reachable from itself. A feedback

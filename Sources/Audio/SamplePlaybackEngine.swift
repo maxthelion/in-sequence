@@ -1725,6 +1725,7 @@ final class SamplePlaybackEngine: SamplePlaybackSink {
             // routed to the same bus cannot collide. The bus input mixer SUMS these
             // per-track outputs — the bus meters that sum (#59).
             audioGraph.connectPreparedSampleVoiceOutput(
+                trackID: trackID,
                 trackSumMixer,
                 toMixerBus: busID
             )

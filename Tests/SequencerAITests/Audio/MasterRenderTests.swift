@@ -695,6 +695,7 @@ final class MasterRenderTests: XCTestCase {
             audioGraph.attach(voiceFilters[index].avNode)
             audioGraph.engine.connect(players[index], to: voiceFilters[index].avNode, fromBus: 0, toBus: 0, format: nil)
             audioGraph.connectPreparedSampleVoiceOutput(
+                trackID: UUID(),
                 voiceFilters[index].avNode,
                 toMixerBus: bus.id
             )
@@ -744,6 +745,7 @@ final class MasterRenderTests: XCTestCase {
         for index in players.indices {
             audioGraph.attach(players[index])
             audioGraph.connectPreparedSampleVoiceOutput(
+                trackID: UUID(),
                 players[index],
                 toMixerBus: bus.id
             )
@@ -799,6 +801,7 @@ final class MasterRenderTests: XCTestCase {
             voiceMixers[index].outputVolume = 1
             voiceMixers[index].pan = 0
             audioGraph.connectPreparedSampleVoiceOutput(
+                trackID: UUID(),
                 voiceMixers[index],
                 toMixerBus: bus.id
             )
@@ -854,6 +857,7 @@ final class MasterRenderTests: XCTestCase {
             voiceMixers[index].outputVolume = 1
             voiceMixers[index].pan = 0
             audioGraph.connectPreparedSampleVoiceOutput(
+                trackID: UUID(),
                 voiceMixers[index],
                 toMixerBus: bus.id
             )
