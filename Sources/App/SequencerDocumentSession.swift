@@ -532,7 +532,7 @@ final class SequencerDocumentSession {
             bus.inserts.append(insert.normalized())
         }
         guard changed else { return }
-        applyDocumentModelMutation()
+        applyMixerBusTopologyMutation(busID: busID)
     }
 
     func updateMixerBusInsert(_ insertID: UUID, busID: UUID, edit: (inout MixerBusInsert) -> Void) {
@@ -553,7 +553,7 @@ final class SequencerDocumentSession {
             applyMixerBusInsertPerformanceMutation(busID: busID)
             return
         }
-        applyDocumentModelMutation()
+        applyMixerBusTopologyMutation(busID: busID)
     }
 
     func removeMixerBusInsert(_ insertID: UUID, busID: UUID) {
@@ -561,7 +561,7 @@ final class SequencerDocumentSession {
             bus.inserts.removeAll { $0.id == insertID }
         }
         guard changed else { return }
-        applyDocumentModelMutation()
+        applyMixerBusTopologyMutation(busID: busID)
     }
 
     func reorderMixerBusInserts(_ ids: [UUID], busID: UUID) {
@@ -572,7 +572,7 @@ final class SequencerDocumentSession {
             bus.inserts = reordered
         }
         guard changed else { return }
-        applyDocumentModelMutation()
+        applyMixerBusTopologyMutation(busID: busID)
     }
 
     func setTrackOutputBus(trackID: UUID, busID: UUID?) {
@@ -630,6 +630,13 @@ final class SequencerDocumentSession {
     }
 
     private func applyMixerBusInsertPerformanceMutation(busID: UUID) {
+        guard let bus = store.buses.first(where: { $0.id == busID }) else { return }
+        revision = store.revision
+        dispatchScopedRuntimeUpdate(.mixerBusParameters(busID: busID, bus: bus))
+        scheduleFlushToDocument()
+    }
+
+    private func applyMixerBusTopologyMutation(busID: UUID) {
         guard let bus = store.buses.first(where: { $0.id == busID }) else { return }
         revision = store.revision
         dispatchScopedRuntimeUpdate(.mixerBusParameters(busID: busID, bus: bus))

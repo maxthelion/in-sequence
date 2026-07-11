@@ -140,11 +140,14 @@ A hard-disconnect of a sounding node is a finding even though the literal
 `disconnect` token is "owned" by `MainAudioGraph`.
 
 **Sanctioned (not flagged):** `engine.stop()/start()` at the annotated lifecycle
-sites (`routing-lint-allow:` — transport, HAL renegotiation full-rebuild,
-master-chain setup); synchronous disconnect on an engine-stopped / already-muted
+sites (`routing-lint-allow:` — transport and HAL/device renegotiation
+full-rebuild only); synchronous disconnect on an engine-stopped / already-muted
 track (verify the gating proves silence); structural add/remove that ramps to
 silence before disconnect (ramp-before-disconnect / fast-path-ready gating).
 Shared with the fixed-superset routing plan.
+
+Master and mixer-bus insert topology is not lifecycle. It must keep the render
+timeline running and rewire only behind a persistent, host-local gain gate.
 
 ## Validation (proven discriminating, not vacuously passing)
 

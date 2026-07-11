@@ -226,6 +226,32 @@ final class WarmEnginePhase1Tests: XCTestCase {
         )
     }
 
+    /// Audible silence must be requested before `TickClock.stop()` joins its
+    /// serial queue. Otherwise a long-running tick turns scheduler cleanup into
+    /// user-visible Stop-button latency.
+    func test_transportStop_silencesVoicesBeforeJoiningClockQueue() throws {
+        let repoRoot = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let source = try String(
+            contentsOf: repoRoot.appendingPathComponent("Sources/Engine/EngineController.swift"),
+            encoding: .utf8
+        )
+        let stopStart = try XCTUnwrap(source.range(of: "    func stop() {"))
+        let stopTail = source[stopStart.lowerBound...]
+        let nextFunction = stopTail.range(of: "\n    func ", options: [], range: stopTail.index(after: stopTail.startIndex)..<stopTail.endIndex)
+        let stopBody = nextFunction.map { stopTail[..<$0.lowerBound] } ?? stopTail[...]
+
+        let hostSilence = try XCTUnwrap(stopBody.range(of: "hosts.forEach { $0.stop() }"))
+        let sampleSilence = try XCTUnwrap(stopBody.range(of: "sampleEngine.stopVoicesKeepingEngineWarm()"))
+        let clockJoin = try XCTUnwrap(stopBody.range(of: "clock.stop()"))
+
+        XCTAssertLessThan(hostSilence.lowerBound, clockJoin.lowerBound)
+        XCTAssertLessThan(sampleSilence.lowerBound, clockJoin.lowerBound)
+    }
+
     /// NEGATIVE CONTROL for invariant 1 (proves the warm-engine assertion is not
     /// "engine can never stop"): `shutdown()` IS a sanctioned stop point, so it
     /// must tear the engine down. If this passed even when stop() also kept the

@@ -7,8 +7,8 @@ import XCTest
 ///
 /// The mutation under test is the exact live path the Scenes workspace drives:
 /// `MasterBusHost.apply` with a scene-insert topology change →
-/// `MainAudioGraph.installMasterChains` (which stop()/start()s a RUNNING
-/// engine). The AU-branch stand-in is an `AVAudioSourceNode` sine feeding an
+/// `MainAudioGraph.installMasterChains` while the engine remains running behind
+/// its dedicated topology gate. The AU-branch stand-in is an `AVAudioSourceNode` sine feeding an
 /// output mixer routed exactly like `AudioInstrumentHost`'s (`connectTrackOutput`
 /// through the persistent send fanout) — like a real AU it has no play() state,
 /// so it keeps rendering across the restart.
@@ -16,12 +16,16 @@ import XCTest
 /// These assertions pin the GAIN/WIRING half of the bug space: after the
 /// insert is added and after it is removed, no gain stage on the AU branch may
 /// be left attenuated and the branch must still reach master (rendered RMS).
-/// The unified-clock half (the live-HAL render-timeline reset that made AU
-/// note STAMPS unschedulable — the actual owner-heard mechanism) cannot
-/// reproduce offline (`manualRenderingSampleTime` is continuous across
-/// stop()/start(), measured 2026-07-02) and is covered deterministically by
-/// `AudioMasterClockRenderTimelineResetTests`.
+/// The live-HAL render timeline must not reset for this mutation; the routing
+/// lint enforces that master topology changes contain no engine stop/start.
 final class SceneFXMutationAUBranchTests: XCTestCase {
+    private func waitUntil(timeout: TimeInterval = 1, condition: () -> Bool) {
+        let deadline = Date().addingTimeInterval(timeout)
+        while !condition(), Date() < deadline {
+            RunLoop.current.run(until: Date().addingTimeInterval(0.005))
+        }
+    }
+
     private func tmpURL() -> URL {
         FileManager.default.temporaryDirectory
             .appendingPathComponent("scene-fx-au-branch-\(UUID().uuidString).wav")
@@ -76,7 +80,7 @@ final class SceneFXMutationAUBranchTests: XCTestCase {
         masterBusHost.attach(to: graph)
 
         // AU-branch stand-in: a render-block sine (no play() state — survives
-        // the engine restart, like a real AU) → the host-style output mixer.
+        // a live topology edit, like a real AU) → the host-style output mixer.
         let format = AVAudioFormat(standardFormatWithSampleRate: 44_100, channels: 2)!
         var phase: Double = 0
         let increment = 2.0 * Double.pi * 220.0 / 44_100.0
@@ -110,13 +114,17 @@ final class SceneFXMutationAUBranchTests: XCTestCase {
         }
 
         // THE MUTATION (owner repro step 2): add an FX insert to Scene A while
-        // the engine runs. Topology change → installMasterChains stop/rebuild/
-        // restart on the live engine.
+        // the engine runs. Topology change is gated, rebuilt, and restored
+        // without resetting the live render timeline.
         var state = MasterBusState.default
         state.addInsert(.filter(), sceneID: state.activeSceneID)
         masterBusHost.apply(state)
+        waitUntil {
+            graph.masterBranchesForTesting.contains { !$0.nodes.isEmpty }
+        }
 
-        XCTAssertTrue(graph.isEngineRunning, "engine must come back up after the master-chain rebuild")
+        XCTAssertTrue(graph.isEngineRunning, "master-chain rebuild must leave the engine running")
+        XCTAssertTrue(graph.masterBranchesForTesting.contains { !$0.nodes.isEmpty })
         XCTAssertEqual(
             auOutputMixer.outputVolume, 0.8, accuracy: 0.001,
             "the AU host's output mixer gain (the track's routing gain stage) must be untouched by a master-bus mutation"
@@ -131,8 +139,13 @@ final class SceneFXMutationAUBranchTests: XCTestCase {
         // Owner repro step 4: REMOVE the FX — the level must be fully restored
         // (the bug left the attenuation sticky until transport restart).
         masterBusHost.apply(.default)
+        waitUntil {
+            !graph.masterBranchesForTesting.isEmpty &&
+                graph.masterBranchesForTesting.allSatisfy(\.nodes.isEmpty)
+        }
 
-        XCTAssertTrue(graph.isEngineRunning, "engine must come back up after the insert removal rebuild")
+        XCTAssertTrue(graph.isEngineRunning, "insert removal must leave the engine running")
+        XCTAssertTrue(graph.masterBranchesForTesting.allSatisfy(\.nodes.isEmpty))
         XCTAssertEqual(
             auOutputMixer.outputVolume, 0.8, accuracy: 0.001,
             "insert removal must leave the AU output mixer gain at its settled level — no sticky attenuation"

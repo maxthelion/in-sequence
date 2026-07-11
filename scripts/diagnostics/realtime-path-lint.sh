@@ -35,6 +35,7 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 rg_bin="${RG_BIN:-$(command -v rg || true)}"
 if [[ -z "$rg_bin" ]]; then
   for candidate in \
+    "/Applications/ChatGPT.app/Contents/Resources/rg" \
     "/Applications/Codex.app/Contents/Resources/rg" \
     "/opt/homebrew/bin/rg" \
     "/usr/local/bin/rg"
@@ -134,8 +135,9 @@ for file in "${files[@]}"; do
   # Rule 5 (Audio Engine Hard Rules): never engine.stop()/start() to change
   # topology during playback. MainAudioGraph owns the graph and has a handful of
   # LEGITIMATE engine lifecycle sites (transport start/stop, device-change
-  # recovery, one-time master-chain setup, the audio-input full-rebuild
-  # fallback). Each of those is annotated with a `routing-lint-allow:` comment.
+  # recovery, and the audio-input full-rebuild fallback). Master, bus, insert,
+  # send, and scene topology edits must keep the engine running behind a stable
+  # gain gate. Each lifecycle site is annotated with a `routing-lint-allow:` comment.
   # Any engine.stop()/start() that is NOT annotated — e.g. a new one slipped
   # into a per-track/per-bus routing edit function — fails the lint.
   case "$file" in
@@ -147,7 +149,7 @@ for file in "${files[@]}"; do
         /engine\.(stop|start)\(/ {
           if ($0 ~ /^[[:space:]]*\/\//) { previous = $0; next }
           if (!has_allow($0) && !has_allow(previous)) {
-            printf "%s:%d: routing guardrail (Rule 5) violated: unannotated engine.stop()/start() — only transport start/stop, device recovery, master-chain setup, and audio-input full-rebuild may call these; annotate legitimate sites with `// routing-lint-allow: <reason>`: %s\n", file, NR, $0 > "/dev/stderr"
+            printf "%s:%d: routing guardrail (Rule 5) violated: unannotated engine.stop()/start() — only transport start/stop, device recovery, and audio-input full-rebuild may call these; master/bus/insert/send/scene edits must keep the engine running behind a stable gain gate; annotate legitimate lifecycle sites with `// routing-lint-allow: <reason>`: %s\n", file, NR, $0 > "/dev/stderr"
             failed = 1
           }
         }

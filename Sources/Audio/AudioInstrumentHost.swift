@@ -343,6 +343,11 @@ final class AudioInstrumentHost: TrackPlaybackSink {
     }
 
     func stop() {
+        // Audible stop must not wait behind already-queued host work. Cancel
+        // sounding and future-stamped AU notes from the lock-protected live
+        // snapshot immediately; the queue hop below only serializes the host's
+        // transport-intent flag and repeats the panic defensively.
+        silenceSnapshotInstrumentNotes()
         queue.async { [weak self] in
             guard let self else {
                 return
@@ -913,6 +918,14 @@ final class AudioInstrumentHost: TrackPlaybackSink {
     private func silenceSnapshotInstrumentNotes() {
         guard let instrument = withSnapshot({ snapshotAudioUnit as? AVAudioUnitMIDIInstrument }) else {
             return
+        }
+
+        if let scheduleMIDI = instrument.auAudioUnit.scheduleMIDIEventBlock {
+            auMutationLock.lock()
+            if withSnapshot({ snapshotAudioUnit })?.auAudioUnit === instrument.auAudioUnit {
+                Self.scheduleAllNotesOff(using: scheduleMIDI)
+            }
+            auMutationLock.unlock()
         }
 
         Self.stopAllNotes(on: instrument, performOnMain: performOnMainAsync)

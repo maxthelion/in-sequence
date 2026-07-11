@@ -17,7 +17,8 @@ enum ScopedRuntimeUpdate: Sendable {
     case trackInserts(trackID: UUID, inserts: [TrackFXInsert])
     /// Update bus mix state without rebuilding the document-model pipeline.
     case mixerBusMix(busID: UUID, mix: BusMixSettings)
-    /// Update installed bus-host parameters without rebuilding mixer-bus topology.
+    /// Update one bus host's parameters or insert topology without rebuilding
+    /// unrelated document/runtime state.
     case mixerBusParameters(busID: UUID, bus: MixerBus)
     /// Update fixed send-bus authored state without rebuilding the document-model pipeline.
     case sendBus(SendBusState)

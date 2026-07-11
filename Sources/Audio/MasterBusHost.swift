@@ -242,9 +242,8 @@ final class MasterBusHost: MasterBusHosting {
         let nextShape = Self.graphShape(for: state)
 
         // Gain and crossfade are VALUE updates — they must never reinstall
-        // master chains (installMasterChains stops/starts the engine, an
-        // audible dropout mid-gesture; mixer-latency cause for the master
-        // fader release and the first crossfader tick).
+        // master chains. Structural changes use the graph's dedicated topology
+        // gate; gestures stay on the parameter-only path.
         //
         // Fast path 1: nothing installed and nothing needs installing (no
         // enabled inserts anywhere). The default pass-through wiring already

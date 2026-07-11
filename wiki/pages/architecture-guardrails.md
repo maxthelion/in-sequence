@@ -158,6 +158,11 @@ The target architecture and the migration are in
 - **NEVER** `engine.stop()`/`start()` to change topology during playback, and
   **NEVER** `disconnect`/`detach` a node that is currently producing audio
   (ramp it to silence first, cut on silence).
+- Master, mixer-bus, insert, send, and scene edits must be **scoped to the
+  affected host** and performed behind a persistent gain gate: ramp the stable
+  gate to silence, rewire only that host, restore its meter/capture taps, then
+  ramp back. Do not route an insert edit through a broad document/graph apply;
+  unrelated live branches must retain their node identity and render timeline.
 
 ### 6. The render thread is sacred
 

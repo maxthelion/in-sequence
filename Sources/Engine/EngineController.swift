@@ -1497,6 +1497,14 @@ final class EngineController: RouterDispatcher {
 
         clearAllNoteRepeats(now: now)
         flushAllPendingMIDINoteOffs(now: now)
+        // Silence first, then join scheduler/control queues. A long-running tick
+        // or accumulated AU host work must never become audible stop latency.
+        // The transport generation was invalidated above, so no newly drained
+        // event can legitimately re-arm these voices.
+        let hosts = withStateLock { Array(trackRuntime.audioOutputsByTrackID.values) }
+        hosts.forEach { $0.stop() }
+        sampleEngine.stopVoicesKeepingEngineWarm()
+        mainAudioGraph.resetMetersToSilence()
         DevActivity.trace(DevActivity.clock, "TickClock.stop requested (joins tick queue)")
         clock.stop()
         DevActivity.trace(DevActivity.clock, "TickClock.stop returned")
@@ -1504,8 +1512,6 @@ final class EngineController: RouterDispatcher {
         // Reset only after the tick queue is joined so stop cannot race an
         // in-flight dispatch reading or refreshing that correlation.
         audioMasterClock.reset()
-        let hosts = withStateLock { Array(trackRuntime.audioOutputsByTrackID.values) }
-        hosts.forEach { $0.stop() }
         setTransportRunning(false)
         lastNoteTriggerUptime = 0
         lastNoteTriggerCount = 0
@@ -1514,11 +1520,8 @@ final class EngineController: RouterDispatcher {
         // session, so the render origin stays valid for look-ahead and the next
         // start() is not a cold start. The engine is torn down only on
         // shutdown() (and other sanctioned events), which calls sampleEngine.stop().
-        sampleEngine.stopVoicesKeepingEngineWarm()
-        // Stopped audio means no more meter taps fire; snap every mixer
-        // meter (master + channels + buses) to zero so they don't freeze on
-        // their last value.
-        mainAudioGraph.resetMetersToSilence()
+        // Voices and meters were silenced before the scheduler join above so
+        // the user hears stop immediately. The warm graph remains running.
         // Hygiene, not correctness: dispatchTick already gates every drain on
         // the current transport generation (advanceTransportGeneration()
         // above), so a stale-generation event left in the queue is already

@@ -53,24 +53,46 @@ final class MixerBusHost {
     }
 
     @MainActor
-    func install(bus: MixerBus, in audioGraph: MainAudioGraph, effectiveMute: Bool) {
+    func install(
+        bus: MixerBus,
+        in audioGraph: MainAudioGraph,
+        effectiveMute: Bool,
+        holdOutputAtSilence: Bool = false
+    ) {
         latestBus = bus.normalized(fallbackName: bus.name)
         self.audioGraph = audioGraph
         let nextShape = Self.graphShape(for: bus)
         if inputMixer == nil || installedShape != nextShape {
-            rebuild(bus: bus, in: audioGraph, effectiveMute: effectiveMute)
+            rebuild(
+                bus: bus,
+                in: audioGraph,
+                effectiveMute: effectiveMute,
+                holdOutputAtSilence: holdOutputAtSilence
+            )
         } else {
             configureInstalledNodes(for: bus)
-            applyMix(bus.mix, effectiveMute: effectiveMute)
+            applyMix(
+                bus.mix,
+                effectiveMute: effectiveMute,
+                outputLevelOverride: holdOutputAtSilence ? 0 : nil
+            )
         }
     }
 
+    func needsTopologyChange(for bus: MixerBus) -> Bool {
+        inputMixer == nil || installedShape != Self.graphShape(for: bus)
+    }
+
     @MainActor
-    func applyMix(_ mix: BusMixSettings, effectiveMute: Bool) {
+    func applyMix(
+        _ mix: BusMixSettings,
+        effectiveMute: Bool,
+        outputLevelOverride: Float? = nil
+    ) {
         guard let inputMixer else { return }
         let normalized = mix.normalized()
         self.effectiveMute = effectiveMute
-        inputMixer.outputVolume = effectiveMute ? 0 : Float(normalized.level)
+        inputMixer.outputVolume = outputLevelOverride ?? (effectiveMute ? 0 : Float(normalized.level))
         inputMixer.pan = Float(normalized.pan)
         parameterApplyCount += 1
     }
@@ -160,7 +182,12 @@ final class MixerBusHost {
     }
 
     @MainActor
-    private func rebuild(bus: MixerBus, in audioGraph: MainAudioGraph, effectiveMute: Bool) {
+    private func rebuild(
+        bus: MixerBus,
+        in audioGraph: MainAudioGraph,
+        effectiveMute: Bool,
+        holdOutputAtSilence: Bool
+    ) {
         let mixer = inputMixer ?? AVAudioMixerNode()
         if inputMixer == nil {
             inputMixer = mixer
@@ -205,7 +232,11 @@ final class MixerBusHost {
         // equal, takes the configure-in-place path, and the AU never wires in.
         installedShape = Self.graphShape(for: bus, includingOnly: Set(nextNodesByInsertID.keys))
         topologyRebuildCount += 1
-        applyMix(bus.mix, effectiveMute: effectiveMute)
+        applyMix(
+            bus.mix,
+            effectiveMute: effectiveMute,
+            outputLevelOverride: holdOutputAtSilence ? 0 : nil
+        )
     }
 
     @MainActor
@@ -309,7 +340,12 @@ final class MixerBusHost {
                 guard let self else { return }
                 MainActor.assumeIsolated {
                     guard let audioGraph = self.audioGraph, let latestBus = self.latestBus else { return }
-                    self.rebuild(bus: latestBus, in: audioGraph, effectiveMute: self.effectiveMute)
+                    self.rebuild(
+                        bus: latestBus,
+                        in: audioGraph,
+                        effectiveMute: self.effectiveMute,
+                        holdOutputAtSilence: false
+                    )
                 }
             }
         }

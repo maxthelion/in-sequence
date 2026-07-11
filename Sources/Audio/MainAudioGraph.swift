@@ -184,6 +184,10 @@ final class MainAudioGraph {
     }
     private var audioInputCaptureHandler: ((UUID, AVAudioPCMBuffer) -> Void)?
     private let postBlendMixer = AVAudioMixerNode()
+    /// Persistent silence gate for live master-chain topology edits. Separate
+    /// from `finalOutputMixer` so a simultaneous master-fader move cannot
+    /// supersede the topology ramp's generation token.
+    private let masterTopologyGateMixer = AVAudioMixerNode()
     private let finalOutputMixer = AVAudioMixerNode()
     private var managedMasterNodes: [AVAudioNode] = []
     private var managedMasterGainMixers: [AVAudioMixerNode] = []
@@ -341,9 +345,11 @@ final class MainAudioGraph {
 
             self.engine.attach(self.preMasterMixer)
             self.engine.attach(self.postBlendMixer)
+            self.engine.attach(self.masterTopologyGateMixer)
             self.engine.attach(self.finalOutputMixer)
             self.engine.connect(self.preMasterMixer, to: self.postBlendMixer, format: nil)
-            self.engine.connect(self.postBlendMixer, to: self.finalOutputMixer, format: nil)
+            self.engine.connect(self.postBlendMixer, to: self.masterTopologyGateMixer, format: nil)
+            self.engine.connect(self.masterTopologyGateMixer, to: self.finalOutputMixer, format: nil)
             self.engine.connect(self.finalOutputMixer, to: self.engine.mainMixerNode, format: nil)
             self.engine.prepare()
             self.installMasterMeterTapIfNeeded()
@@ -884,9 +890,78 @@ final class MainAudioGraph {
             // graphLock across DispatchQueue.main.sync is a
             // lock-order deadlock waiting to happen.
             self.lockGraphLock()
-            defer { self.unlockGraphLock() }
-            self.mixerBusHosts[bus.id]?.applyParameters(bus: bus, effectiveMute: effectiveMute)
+            guard let host = self.mixerBusHosts[bus.id] else {
+                self.unlockGraphLock()
+                return
+            }
+
+            guard host.needsTopologyChange(for: bus) else {
+                host.applyParameters(bus: bus, effectiveMute: effectiveMute)
+                self.unlockGraphLock()
+                return
+            }
+
+            guard self.engine.isRunning,
+                  let gainStage = host.destinationNode() as? AVAudioMixerNode,
+                  gainStage.outputVolume > 0.0005
+            else {
+                self.installMixerBusTopologyOnMain(
+                    host: host,
+                    bus: bus,
+                    effectiveMute: effectiveMute,
+                    holdOutputAtSilence: false
+                )
+                self.unlockGraphLock()
+                return
+            }
+
+            let restoreLevel = effectiveMute ? Float(0) : Float(bus.mix.normalized().level)
+            self.unlockGraphLock()
+            MixerGainRamp.shared.ramp(gainStage, to: 0, markSettled: false) { [weak self, weak host] reachedTarget in
+                guard reachedTarget, let self, let host else { return }
+                // realtime-allow-main-async: bus topology edit after a control-path silence ramp, never tick scheduling. Test: MixerBusLiveInsertTests.
+                DispatchQueue.main.async {
+                    MainActor.assumeIsolated {
+                        self.lockGraphLock()
+                        guard self.mixerBusHosts[bus.id] === host,
+                              gainStage.engine === self.engine
+                        else {
+                            self.unlockGraphLock()
+                            return
+                        }
+                        self.installMixerBusTopologyOnMain(
+                            host: host,
+                            bus: bus,
+                            effectiveMute: effectiveMute,
+                            holdOutputAtSilence: true
+                        )
+                        self.unlockGraphLock()
+                        MixerGainRamp.shared.ramp(gainStage, to: restoreLevel)
+                    }
+                }
+            }
         }
+    }
+
+    @MainActor
+    private func installMixerBusTopologyOnMain(
+        host: MixerBusHost,
+        bus: MixerBus,
+        effectiveMute: Bool,
+        holdOutputAtSilence: Bool
+    ) {
+        host.install(
+            bus: bus,
+            in: self,
+            effectiveMute: effectiveMute,
+            holdOutputAtSilence: holdOutputAtSilence
+        )
+        reconnectMixerBusTerminalsOnMain()
+        if let inputMixer = host.destinationNode() {
+            installBusMeterTapIfNeeded(busID: bus.id, on: inputMixer)
+        }
+        installMasterMeterTapIfNeeded()
+        publishAudioInputCaptureFormatsOnMain()
     }
 
     func installSendBuses(_ sendBuses: [SendBusState]) {
@@ -1452,34 +1527,66 @@ final class MainAudioGraph {
         postBlendMasterNodes: [AVAudioNode] = [],
         masterOutputGain: Double = 1
     ) {
+        installMasterChains(
+            chains,
+            postBlendMasterNodes: postBlendMasterNodes,
+            masterOutputGain: masterOutputGain,
+            rampIfRunning: true
+        )
+    }
+
+    private func installMasterChains(
+        _ chains: [MasterChain],
+        postBlendMasterNodes: [AVAudioNode],
+        masterOutputGain: Double,
+        rampIfRunning: Bool
+    ) {
         performOnMain {
+            let clampedMasterOutputGain = Self.clampedMasterOutputGain(masterOutputGain)
+            if rampIfRunning,
+               self.engine.isRunning,
+               self.finalOutputMixer.outputVolume > 0.0005,
+               self.masterTopologyGateMixer.outputVolume > 0.0005
+            {
+                MixerGainRamp.shared.ramp(
+                    self.masterTopologyGateMixer,
+                    to: 0,
+                    markSettled: false
+                ) { [weak self] reachedTarget in
+                    guard reachedTarget, let self else { return }
+                    // realtime-allow-main-async: master topology edit after a control-path silence ramp, never tick scheduling. Test: SceneFXMutationAUBranchTests.
+                    DispatchQueue.main.async {
+                        MainActor.assumeIsolated {
+                            self.installMasterChains(
+                                chains,
+                                postBlendMasterNodes: postBlendMasterNodes,
+                                masterOutputGain: masterOutputGain,
+                                rampIfRunning: false
+                            )
+                            MixerGainRamp.shared.ramp(
+                                self.masterTopologyGateMixer,
+                                to: 1
+                            )
+                        }
+                    }
+                }
+                return
+            }
+
             // Acquired inside the main-thread closure: holding
             // graphLock across DispatchQueue.main.sync is a
             // lock-order deadlock waiting to happen.
             self.lockGraphLock()
             defer { self.unlockGraphLock() }
-            let clampedMasterOutputGain = Self.clampedMasterOutputGain(masterOutputGain)
             let wasRunning = self.engine.isRunning
-            self.removeMasterMeterTapIfNeeded()
-            if wasRunning {
-                // NOTE: a LIVE stop() here resets the output node's render
-                // timeline on the HAL; the unified master clock detects the
-                // reset and rebases its frame origin
-                // (AudioMasterClock.rebaseFrameOriginIfRenderTimelineReset) so
-                // AU note stamps stay schedulable (the scene-FX AU-attenuation
-                // bug, docs/bugs/20260702-143000).
-                DevActivity.trace(
-                    DevActivity.audioGraph,
-                    "installMasterChains STOP live engine for master-chain rebuild chains=\(chains.count) postBlendNodes=\(postBlendMasterNodes.count)"
-                )
-                // routing-lint-allow: installMasterChains one-time master-chain topology setup
-                self.engine.stop()
+            if !wasRunning {
+                self.removeMasterMeterTapIfNeeded()
             }
 
             self.engine.disconnectNodeOutput(self.preMasterMixer)
             self.engine.disconnectNodeInput(self.postBlendMixer)
             self.engine.disconnectNodeOutput(self.postBlendMixer)
-            self.engine.disconnectNodeInput(self.finalOutputMixer)
+            self.engine.disconnectNodeInput(self.masterTopologyGateMixer)
             for node in self.managedMasterNodes {
                 if node.engine === self.engine {
                     self.engine.disconnectNodeInput(node)
@@ -1546,13 +1653,18 @@ final class MainAudioGraph {
                 for (source, destination) in zip(resolvedPostBlendNodes, resolvedPostBlendNodes.dropFirst()) {
                     self.engine.connect(source, to: destination, format: nil)
                 }
-                self.engine.connect(resolvedPostBlendNodes.last ?? firstMasterNode, to: self.finalOutputMixer, format: nil)
+                self.engine.connect(resolvedPostBlendNodes.last ?? firstMasterNode, to: self.masterTopologyGateMixer, format: nil)
             } else {
-                self.engine.connect(self.postBlendMixer, to: self.finalOutputMixer, format: nil)
+                self.engine.connect(self.postBlendMixer, to: self.masterTopologyGateMixer, format: nil)
             }
 
             self.masterBranchesForTesting = branchReadouts
             self.postBlendMasterInsertNodesForTesting = resolvedPostBlendNodes
+            // A live call with `rampIfRunning == false` arrived after the
+            // dedicated topology gate reached silence. Keep it at zero through
+            // the entire rewire; the caller performs the up-ramp. The actual
+            // master fader remains independent and can update concurrently.
+            self.masterTopologyGateMixer.outputVolume = wasRunning && !rampIfRunning ? 0 : 1
             self.finalOutputMixer.outputVolume = clampedMasterOutputGain
             self.masterOutputGainForTesting = clampedMasterOutputGain
             if let destination = firstDestinations.first,
@@ -1569,18 +1681,10 @@ final class MainAudioGraph {
             } else {
                 self.engine.connect(self.preMasterMixer, to: firstDestinations, fromBus: 0, format: nil)
             }
-            self.engine.prepare()
-            self.installMasterMeterTapIfNeeded()
-
-            if wasRunning {
-                // routing-lint-allow: installMasterChains one-time master-chain topology setup
-                try? self.engine.start()
-                self.isStarted = self.engine.isRunning
-                DevActivity.trace(
-                    DevActivity.audioGraph,
-                    "installMasterChains RESTART live engine after master-chain rebuild running=\(self.engine.isRunning)"
-                )
+            if !wasRunning {
+                self.engine.prepare()
             }
+            self.installMasterMeterTapIfNeeded()
         }
     }
 

@@ -3,6 +3,23 @@ import XCTest
 @testable import SequencerAI
 
 final class MainAudioGraphTests: XCTestCase {
+    @MainActor
+    private func waitForMixerBus(
+        _ graph: MainAudioGraph,
+        busID: UUID,
+        timeout: TimeInterval = 1,
+        condition: (MixerBusHost.Readout) -> Bool
+    ) -> MixerBusHost.Readout? {
+        let deadline = Date().addingTimeInterval(timeout)
+        var readout: MixerBusHost.Readout?
+        while Date() < deadline {
+            readout = graph.mixerBusReadoutForTesting(busID: busID)
+            if let readout, condition(readout) { return readout }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.005))
+        }
+        return readout
+    }
+
     /// Steady-state send-level changes now RAMP on a background queue (R4), so a
     /// readback immediately after `setTrackSendLevels` can be stale mid-ramp.
     /// Spin the main run loop until the live send gains settle (or time out).
@@ -403,6 +420,46 @@ final class MainAudioGraphTests: XCTestCase {
         graph.installMixerBuses([MixerBus(id: busID, name: "Drums", inserts: [bypassedInsert, extraInsert])])
         let afterShapeChange = try XCTUnwrap(graph.mixerBusReadoutForTesting(busID: busID))
         XCTAssertEqual(afterShapeChange.topologyRebuildCount, initialReadout.topologyRebuildCount + 1)
+    }
+
+    @MainActor
+    func test_setMixerBusParameters_rebuildsOnlyThatBusBehindStableGainWhileRunning() throws {
+        MainAudioGraph.useManualRenderingForAutomation = true
+        defer { MainAudioGraph.useManualRenderingForAutomation = false }
+
+        let graph = MainAudioGraph()
+        addTeardownBlock { graph.stop() }
+        let busID = UUID()
+        let original = MixerBus(id: busID, name: "Drums")
+        graph.installMixerBuses([original])
+        let initial = try XCTUnwrap(graph.mixerBusReadoutForTesting(busID: busID))
+        try graph.start()
+
+        let insert = MixerBusInsert(
+            name: "Filter",
+            kind: .nativeFilter(MasterFilterSettings(mode: .lowPass, cutoffHz: 1_200, resonance: 0.2))
+        )
+        graph.setMixerBusParameters(
+            bus: MixerBus(id: busID, name: "Drums", inserts: [insert]),
+            effectiveMute: false
+        )
+
+        let inserted = try XCTUnwrap(waitForMixerBus(graph, busID: busID) {
+            $0.insertNodes.count == 1 && abs($0.outputVolume - 1) < 0.001
+        })
+        XCTAssertTrue(graph.isEngineRunning)
+        XCTAssertTrue(inserted.inputMixer === initial.inputMixer, "the persistent bus gain/meter node must survive topology edits")
+        XCTAssertEqual(inserted.outputVolume, 1, accuracy: 0.001)
+        XCTAssertTrue(inserted.terminalOutputNode === graph.preMasterMixer)
+
+        graph.setMixerBusParameters(bus: original, effectiveMute: false)
+        let removed = try XCTUnwrap(waitForMixerBus(graph, busID: busID) {
+            $0.insertNodes.isEmpty && abs($0.outputVolume - 1) < 0.001
+        })
+        XCTAssertTrue(graph.isEngineRunning)
+        XCTAssertTrue(removed.inputMixer === initial.inputMixer)
+        XCTAssertEqual(removed.outputVolume, 1, accuracy: 0.001)
+        XCTAssertTrue(removed.terminalOutputNode === graph.preMasterMixer)
     }
 
     @MainActor
