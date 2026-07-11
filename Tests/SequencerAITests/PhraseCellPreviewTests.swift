@@ -98,6 +98,10 @@ final class PhraseCellPreviewTests: XCTestCase {
             String(describing: StudioTheme.violet)
         )
         XCTAssertNotEqual(String(describing: preview.slotFill(for: 2)), String(describing: preview.slotFill(for: 3)))
+        XCTAssertEqual(
+            String(describing: preview.slotStroke(for: 2)),
+            String(describing: StudioTheme.violet)
+        )
     }
 
     @MainActor

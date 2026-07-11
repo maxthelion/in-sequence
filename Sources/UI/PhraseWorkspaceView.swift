@@ -529,21 +529,24 @@ struct PhraseWorkspaceView: View {
             // at the well's right edge, deforming the label into a vertical
             // letter stack (Rule 7, design review 08–11). The pill keeps its
             // natural width; flexible siblings compress instead.
-            Text(session.workspaceMode == .perform ? "Perform On" : "Perform Off")
+            Text("Perform")
                 .fixedSize()
                 .studioText(.labelBold)
                 .foregroundStyle(session.workspaceMode == .perform ? StudioTheme.background : StudioTheme.text)
                 .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .background(session.workspaceMode == .perform ? StudioTheme.phraseAccent : StudioTheme.subtleFill, in: Capsule())
+                .frame(height: StudioMetrics.ControlSize.large)
+                .background(
+                    session.workspaceMode == .perform ? StudioTheme.phraseAccent : StudioTheme.subtleFill,
+                    in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                )
                 .overlay(
-                    Capsule()
+                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
                         .stroke(
                             session.workspaceMode == .perform ? Color.clear : StudioTheme.border,
                             lineWidth: StudioMetrics.borderWidth
                         )
                 )
-                .contentShape(Capsule())
+                .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("phrase-perform-toggle")
@@ -742,9 +745,7 @@ struct PhraseWorkspaceView: View {
             postRenderedMatrixVisualState(isVisible: true)
         } label: {
             HStack(spacing: 6) {
-                Image(systemName: "person.3.sequence.fill")
-                    .font(.system(size: 10, weight: .bold))
-                Text(phraseTrackScopeLabel)
+                Text("Track Group")
                     .studioText(.labelBold)
                     .lineLimit(1)
                 Image(systemName: "chevron.down")
@@ -753,19 +754,20 @@ struct PhraseWorkspaceView: View {
             }
             .foregroundStyle(StudioTheme.text)
             .padding(.horizontal, 10)
-            .frame(minHeight: 28)
+            .frame(height: StudioMetrics.ControlSize.large)
             .background(
                 StudioTheme.subtleFill,
-                in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
+                in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
             )
             .overlay(
-                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
                     .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
             )
-            .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("phrase-layer-track-scope-button")
+        .accessibilityValue(phraseTrackScopeLabel)
         .help(phraseTab == .layers ? "Choose the tracks visible in Layer" : "Choose the tracks receiving Values changes")
     }
 
@@ -1311,7 +1313,7 @@ struct PhraseWorkspaceView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 10)
-                .padding(.vertical, 8)
+                .frame(height: StudioMetrics.ControlSize.large)
                 .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
@@ -2059,6 +2061,7 @@ struct PhraseWorkspaceView: View {
                                 detail: track.name,
                                 isAvailable: session.isNoteRepeatAvailable(trackID: track.id),
                                 isActive: isSelectedNoteRepeatActive(trackID: track.id),
+                                isSelected: cellIsSelected,
                                 accent: accent,
                                 trackAccent: trackAccent
                             )
@@ -2351,6 +2354,7 @@ struct PhraseWorkspaceView: View {
                     detail: selectedPhraseForEditing.name,
                     isAvailable: stepOrderMap(for: option) != nil,
                     isActive: isActive,
+                    isSelected: false,
                     accent: activeLayerAccent,
                     trackAccent: StudioTheme.phraseAccent
                 )
@@ -3512,7 +3516,7 @@ private struct PhraseGridCell: View {
             if showsTrackName {
                 Text(track.name)
                     .studioText(.labelBold)
-                    .foregroundStyle(isSelected ? trackAccent : StudioTheme.text)
+                    .foregroundStyle(isSelected ? StudioTheme.background : StudioTheme.text)
                     .lineLimit(1)
                     .truncationMode(.tail)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -3526,12 +3530,12 @@ private struct PhraseGridCell: View {
         // Bold-flat pass: no container fill — the value preview is the block,
         // and the container border is always visible so every matrix cell has
         // the same readable boundary.
-        .background((isSelected ? StudioTheme.subtleFill : Color.clear), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
+        .background((isSelected ? trackAccent : Color.clear), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
                 .stroke(
-                    isSelected ? Color.white : trackAccent.opacity(StudioOpacity.mediumStroke),
-                    lineWidth: isSelected ? 2 : StudioMetrics.borderWidth
+                    trackAccent.opacity(isSelected ? 1 : StudioOpacity.mediumStroke),
+                    lineWidth: isSelected ? StudioMetrics.emphasisBorderWidth : StudioMetrics.borderWidth
                 )
         )
         .help(isInherited ? "Follows the layer default. Click to set its own value; Option-click to push a value into this and the following phrases." : "")
@@ -3543,7 +3547,7 @@ private struct PhraseGridCell: View {
             PatternIndexCellPreview(
                 layer: layer,
                 resolvedValue: resolvedValue,
-                accent: trackAccent,
+                accent: isSelected ? StudioTheme.background : trackAccent,
                 summary: valueLabel(resolvedValue, layer: layer),
                 isMixed: false,
                 metrics: .matrix,
@@ -3554,7 +3558,7 @@ private struct PhraseGridCell: View {
                 layer: layer,
                 cell: cell,
                 resolvedValue: resolvedValue,
-                accent: layer.valueType == .boolean ? trackAccent : accent,
+                accent: isSelected ? StudioTheme.background : layer.valueType == .boolean ? trackAccent : accent,
                 summary: valueLabel(resolvedValue, layer: layer),
                 metrics: .matrix
             )
@@ -3583,6 +3587,7 @@ private struct PhrasePerformanceToggleCell: View {
     let detail: String
     let isAvailable: Bool
     let isActive: Bool
+    let isSelected: Bool
     let accent: Color
     let trackAccent: Color
 
@@ -3590,22 +3595,25 @@ private struct PhrasePerformanceToggleCell: View {
         VStack(spacing: 6) {
             Text(stateLabel.uppercased())
                 .studioText(.title)
-                .foregroundStyle(isActive ? accent : isAvailable ? StudioTheme.text : StudioTheme.mutedText)
+                .foregroundStyle(isSelected ? StudioTheme.background : isActive ? accent : isAvailable ? StudioTheme.text : StudioTheme.mutedText)
                 .lineLimit(1)
                 .minimumScaleFactor(0.72)
 
             Text(detail)
                 .studioText(.micro)
-                .foregroundStyle(StudioTheme.mutedText)
+                .foregroundStyle(isSelected ? StudioTheme.background : StudioTheme.mutedText)
                 .lineLimit(1)
                 .minimumScaleFactor(0.72)
         }
         .frame(maxWidth: .infinity, minHeight: 96, alignment: .center)
         .padding(StudioMetrics.Spacing.compact)
-        .background(isActive ? StudioTheme.subtleFill : Color.clear, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
+        .background(isSelected ? trackAccent : isActive ? StudioTheme.subtleFill : Color.clear, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                .stroke(isActive ? accent : trackAccent, lineWidth: isActive ? 2 : StudioMetrics.borderWidth)
+                .stroke(
+                    isSelected ? trackAccent : isActive ? accent : trackAccent,
+                    lineWidth: isSelected || isActive ? StudioMetrics.emphasisBorderWidth : StudioMetrics.borderWidth
+                )
         )
         .opacity(isAvailable ? 1 : StudioOpacity.inheritedContent)
         .accessibilityLabel("\(detail), \(stateLabel)")

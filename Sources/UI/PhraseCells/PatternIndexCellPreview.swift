@@ -73,8 +73,8 @@ struct PatternIndexCellPreview: View {
         Color.clear
     }
 
-    /// Bold-flat pass: the active slot is a fully solid surface-accent block;
-    /// inactive slots are outline-only on the ground.
+    /// The card supplies either its track accent or the dark inverse accent
+    /// when selected, so every mini-cell follows the same selection grammar.
     func slotFill(for index: Int) -> Color {
         guard let activeIndex, !isMixed, index == activeIndex else {
             return Color.clear
@@ -83,12 +83,7 @@ struct PatternIndexCellPreview: View {
     }
 
     func slotStroke(for index: Int) -> Color {
-        guard let activeIndex, !isMixed else {
-            return StudioTheme.border.opacity(StudioOpacity.softStroke)
-        }
-        return index == activeIndex
-            ? accent
-            : StudioTheme.border.opacity(StudioOpacity.softStroke)
+        accent
     }
 
     @ViewBuilder
