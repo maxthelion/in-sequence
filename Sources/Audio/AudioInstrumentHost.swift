@@ -8,10 +8,12 @@ protocol TrackPlaybackSink: AnyObject {
     var availableInstruments: [AudioInstrumentChoice] { get }
     var selectedInstrument: AudioInstrumentChoice { get }
     var currentAudioUnit: AVAudioUnit? { get }
+    var loadFailure: AudioInstrumentLoadFailure? { get }
     /// True when this sink can accept the first transport tick without silently
     /// dropping it. AU hosts report false while a plugin is still instantiating.
     var isReadyForTransportStart: Bool { get }
     func prepareIfNeeded()
+    func retryLoad()
     func preparePresetBrowser()
     func startIfNeeded()
     func stop()
@@ -50,11 +52,19 @@ protocol TrackPlaybackSink: AnyObject {
 }
 
 extension TrackPlaybackSink {
+    var loadFailure: AudioInstrumentLoadFailure? {
+        nil
+    }
+
     var isReadyForTransportStart: Bool {
         true
     }
 
     func preparePresetBrowser() {
+        prepareIfNeeded()
+    }
+
+    func retryLoad() {
         prepareIfNeeded()
     }
 
@@ -77,6 +87,18 @@ extension TrackPlaybackSink {
         sampleRate: Double
     ) {
         play(noteEvents: noteEvents, bpm: bpm, stepsPerBar: stepsPerBar)
+    }
+}
+
+struct AudioInstrumentLoadFailure: Equatable, Sendable {
+    let componentID: AudioComponentID
+    let instrumentName: String
+    let domain: String
+    let code: Int
+    let message: String
+
+    var diagnosticSummary: String {
+        "\(domain) \(code): \(message)"
     }
 }
 
@@ -145,6 +167,7 @@ final class AudioInstrumentHost: TrackPlaybackSink {
     private var snapshotChoice: AudioInstrumentChoice
     private var snapshotAudioUnit: AVAudioUnit?
     private var snapshotAvailable = false
+    private var snapshotLoadFailure: AudioInstrumentLoadFailure?
     /// Snapshot of the output routing (mixer presence + bus) for the test
     /// readouts. Published under `snapshotLock` whenever `outputMixer` /
     /// `currentOutputBusID` change, so `current*ForTesting()` can read engine-
@@ -156,6 +179,7 @@ final class AudioInstrumentHost: TrackPlaybackSink {
     /// 2026-06-26 real-AU verification pass). Same rationale as `snapshotAudioUnit`.
     private var snapshotOutputMixer: AVAudioMixerNode?
     private var snapshotOutputBusID: UUID?
+    private var failedLoadGeneration: UInt64?
 
     private func log(_ message: String) {
         NSLog("[AudioInstrumentHost] \(message)")
@@ -267,6 +291,10 @@ final class AudioInstrumentHost: TrackPlaybackSink {
         withSnapshot { snapshotAudioUnit }
     }
 
+    var loadFailure: AudioInstrumentLoadFailure? {
+        withSnapshot { snapshotLoadFailure }
+    }
+
     var isReadyForTransportStart: Bool {
         withSnapshot { snapshotAvailable }
     }
@@ -281,6 +309,15 @@ final class AudioInstrumentHost: TrackPlaybackSink {
                 return
             }
             self.log("prepareIfNeeded destination=\(self.currentDestination.summary) choice=\(self.currentChoice.displayName)")
+            self.ensureInstrumentLoadedIfNeeded()
+        }
+    }
+
+    func retryLoad() {
+        queue.async { [weak self] in
+            guard let self, !self.isShutdown else { return }
+            self.failedLoadGeneration = nil
+            self.updateSnapshotLoadFailure(nil)
             self.ensureInstrumentLoadedIfNeeded()
         }
     }
@@ -423,6 +460,8 @@ final class AudioInstrumentHost: TrackPlaybackSink {
             }
 
             self.currentDestination = destination
+            self.failedLoadGeneration = nil
+            self.updateSnapshotLoadFailure(nil)
             self.log("setDestination \(destination.summary)")
             switch destination {
             case let .auInstrument(componentID, _):
@@ -917,20 +956,44 @@ final class AudioInstrumentHost: TrackPlaybackSink {
                 else {
                     if case let .failure(error) = result {
                         self.log("instantiate failed choice=\(choice.displayName) generation=\(generation) error=\(String(describing: error))")
+                        self.handleLoadFailure(
+                            Self.loadFailure(for: choice, factoryError: error),
+                            generation: generation
+                        )
                     } else {
                         self.log("instantiate returned non-MIDI instrument choice=\(choice.displayName) generation=\(generation)")
+                        self.handleLoadFailure(
+                            AudioInstrumentLoadFailure(
+                                componentID: choice.audioComponentID,
+                                instrumentName: choice.displayName,
+                                domain: "InSequence.AudioInstrumentHost",
+                                code: -2,
+                                message: "Audio Unit is not a MIDI instrument"
+                            ),
+                            generation: generation
+                        )
                     }
-                    self.handleLoadFailure(for: choice, generation: generation)
                     return
                 }
 
                 if let attachedEngine = instrument.engine, attachedEngine !== self.audioGraph.engine {
                     self.log("instantiate returned instrument already attached to another engine choice=\(choice.displayName)")
-                    self.handleLoadFailure(for: choice, generation: generation)
+                    self.handleLoadFailure(
+                        AudioInstrumentLoadFailure(
+                            componentID: choice.audioComponentID,
+                            instrumentName: choice.displayName,
+                            domain: "InSequence.AudioInstrumentHost",
+                            code: -3,
+                            message: "Audio Unit is already attached to another engine"
+                        ),
+                        generation: generation
+                    )
                     return
                 }
 
                 self.log("instantiate success choice=\(choice.displayName) generation=\(generation)")
+                self.failedLoadGeneration = nil
+                self.updateSnapshotLoadFailure(nil)
                 self.connectLoadedInstrument(instrument)
             }
         }
@@ -992,29 +1055,52 @@ final class AudioInstrumentHost: TrackPlaybackSink {
             log("ensureInstrumentLoadedIfNeeded load already pending generation=\(instantiationGeneration)")
             return
         }
+        guard failedLoadGeneration != instantiationGeneration else {
+            log("ensureInstrumentLoadedIfNeeded waiting for explicit retry generation=\(instantiationGeneration)")
+            return
+        }
 
         instantiate(choice: currentChoice, stateBlob: stateBlob, generation: instantiationGeneration)
     }
 
-    private func handleLoadFailure(for choice: AudioInstrumentChoice, generation: UInt64) {
+    private func handleLoadFailure(_ failure: AudioInstrumentLoadFailure, generation: UInt64) {
         guard generation == instantiationGeneration else {
             return
         }
 
         pendingLoadGeneration = nil
+        failedLoadGeneration = generation
         disconnectCurrentInstrument()
-        log("handleLoadFailure choice=\(choice.displayName) generation=\(generation)")
-        guard choice != .builtInSynth,
-              let fallbackChoice = instrumentChoices.first(where: { $0 == .builtInSynth })
-        else {
-            return
-        }
+        updateSnapshotLoadFailure(failure)
+        log("handleLoadFailure choice=\(failure.instrumentName) generation=\(generation) error=\(failure.diagnosticSummary)")
+        DevActivity.trace(
+            DevActivity.audioGraph,
+            "AU instrument load FAILED choice=\(failure.instrumentName) component=\(failure.componentID.displayKey) error=\(failure.diagnosticSummary)"
+        )
+    }
 
-        currentChoice = fallbackChoice
-        updateSnapshotChoice(fallbackChoice)
-        currentDestination = .auInstrument(componentID: fallbackChoice.audioComponentID, stateBlob: nil)
-        instantiationGeneration &+= 1
-        instantiate(choice: fallbackChoice, stateBlob: nil, generation: instantiationGeneration)
+    private static func loadFailure(
+        for choice: AudioInstrumentChoice,
+        factoryError: AUAudioUnitFactory.FactoryError
+    ) -> AudioInstrumentLoadFailure {
+        switch factoryError {
+        case let .instantiationFailed(domain, code, description):
+            return AudioInstrumentLoadFailure(
+                componentID: choice.audioComponentID,
+                instrumentName: choice.displayName,
+                domain: domain,
+                code: code,
+                message: description
+            )
+        case .stateDecodeFailed:
+            return AudioInstrumentLoadFailure(
+                componentID: choice.audioComponentID,
+                instrumentName: choice.displayName,
+                domain: "InSequence.AUAudioUnitFactory",
+                code: -4,
+                message: "Saved Audio Unit state could not be decoded"
+            )
+        }
     }
 
     private func disconnectCurrentInstrument() {
@@ -1370,6 +1456,12 @@ final class AudioInstrumentHost: TrackPlaybackSink {
         snapshotLock.lock()
         snapshotAudioUnit = instrument
         snapshotAvailable = instrument != nil
+        snapshotLock.unlock()
+    }
+
+    private func updateSnapshotLoadFailure(_ failure: AudioInstrumentLoadFailure?) {
+        snapshotLock.lock()
+        snapshotLoadFailure = failure
         snapshotLock.unlock()
     }
 

@@ -9,6 +9,7 @@ struct TrackDestinationEditor: View {
     @State private var showingPresetBrowser = false
     @State private var macroSlotPickerRequest: MacroSlotPickerRequest?
     @State private var presetReadoutState: PresetReadout?
+    @State private var audioInstrumentLoadFailure: AudioInstrumentLoadFailure?
     @State private var presetReadoutGeneration: UInt64 = 0
     @State private var presetLoadFailed = false
     @State private var presetStepInFlight = false
@@ -256,44 +257,49 @@ struct TrackDestinationEditor: View {
             Divider()
                 .overlay(StudioTheme.border.opacity(0.7))
 
-            presetSelectorButton
-                .padding(StudioMetrics.Spacing.comfortable)
+            if let audioInstrumentLoadFailure {
+                auLoadFailureView(audioInstrumentLoadFailure)
+                    .padding(StudioMetrics.Spacing.comfortable)
+            } else {
+                presetSelectorButton
+                    .padding(StudioMetrics.Spacing.comfortable)
 
-            Divider()
-                .overlay(StudioTheme.border.opacity(0.7))
+                Divider()
+                    .overlay(StudioTheme.border.opacity(0.7))
 
-            LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 58, maximum: 64), spacing: 8, alignment: .top)],
-                alignment: .leading,
-                spacing: 12
-            ) {
-                ForEach(auMacroSlots) { slot in
-                    AUMacroSlotKnob(
-                        slotIndex: slot.slotIndex,
-                        binding: slot.binding,
-                        value: slot.binding.map { macroValue(for: $0) },
-                        onAssign: {
-                            prepareAndPresentMacroSlotPicker(slotIndex: slot.slotIndex)
-                        },
-                        onChange: { newValue in
-                            guard let binding = slot.binding else {
-                                return
+                LazyVGrid(
+                    columns: [GridItem(.adaptive(minimum: 58, maximum: 64), spacing: 8, alignment: .top)],
+                    alignment: .leading,
+                    spacing: 12
+                ) {
+                    ForEach(auMacroSlots) { slot in
+                        AUMacroSlotKnob(
+                            slotIndex: slot.slotIndex,
+                            binding: slot.binding,
+                            value: slot.binding.map { macroValue(for: $0) },
+                            onAssign: {
+                                prepareAndPresentMacroSlotPicker(slotIndex: slot.slotIndex)
+                            },
+                            onChange: { newValue in
+                                guard let binding = slot.binding else {
+                                    return
+                                }
+                                session.setMacroLayerDefault(
+                                    value: newValue,
+                                    bindingID: binding.id,
+                                    trackID: track.id
+                                )
+                            },
+                            onRemove: slot.binding.map { binding in
+                                {
+                                    removeMacroSlot(bindingID: binding.id)
+                                }
                             }
-                            session.setMacroLayerDefault(
-                                value: newValue,
-                                bindingID: binding.id,
-                                trackID: track.id
-                            )
-                        },
-                        onRemove: slot.binding.map { binding in
-                            {
-                                removeMacroSlot(bindingID: binding.id)
-                            }
-                        }
-                    )
+                        )
+                    }
                 }
+                .padding(StudioMetrics.Spacing.comfortable)
             }
-            .padding(StudioMetrics.Spacing.comfortable)
 
             if macroSlotFull {
                 Text("All macro slots are full")
@@ -310,6 +316,43 @@ struct TrackDestinationEditor: View {
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
                 .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
         )
+    }
+
+    private func auLoadFailureView(_ failure: AudioInstrumentLoadFailure) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Label("Plug-in unavailable", systemImage: "exclamationmark.triangle.fill")
+                .studioText(.bodyEmphasis)
+                .foregroundStyle(StudioTheme.danger) // ux-canon-allow: AU load failure is a true danger/error state
+
+            Text(failure.diagnosticSummary)
+                .studioText(.micro)
+                .foregroundStyle(StudioTheme.mutedText)
+                .lineLimit(2)
+                .help(failure.message)
+
+            HStack(spacing: 8) {
+                StudioCommandButton(
+                    title: "Retry",
+                    systemImage: "arrow.clockwise",
+                    role: .primary,
+                    accent: accent
+                ) {
+                    retryCurrentAudioInstrument()
+                }
+
+                if failure.componentID != AudioInstrumentChoice.builtInSynth.audioComponentID {
+                    StudioCommandButton(
+                        title: "Use DLS Synth",
+                        systemImage: "pianokeys",
+                        role: .secondary
+                    ) {
+                        useBuiltInSynth()
+                    }
+                }
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("\(failure.instrumentName) failed to load")
     }
 
     private var presetSelectorButton: some View {
@@ -460,6 +503,7 @@ struct TrackDestinationEditor: View {
         guard case .auInstrument = editedDestination else {
             presetReadoutGeneration &+= 1
             presetReadoutState = nil
+            audioInstrumentLoadFailure = nil
             return
         }
 
@@ -474,7 +518,7 @@ struct TrackDestinationEditor: View {
         requestPresetReadout(
             trackID: trackID,
             generation: generation,
-            attemptsRemaining: 12
+            attemptsRemaining: 120
         )
     }
 
@@ -485,6 +529,7 @@ struct TrackDestinationEditor: View {
     ) {
         DispatchQueue.global(qos: .userInitiated).async {
             let readout = engineController.presetReadout(for: trackID)
+            let loadFailure = engineController.audioInstrumentLoadFailure(for: trackID)
 
             Task { @MainActor in
                 guard generation == presetReadoutGeneration else {
@@ -495,15 +540,22 @@ struct TrackDestinationEditor: View {
                       track.id == trackID
                 else {
                     presetReadoutState = nil
+                    audioInstrumentLoadFailure = nil
                     return
                 }
 
                 if let readout {
                     presetReadoutState = readout
+                    audioInstrumentLoadFailure = nil
                     return
                 }
 
                 presetReadoutState = nil
+                audioInstrumentLoadFailure = loadFailure
+
+                if loadFailure != nil {
+                    return
+                }
 
                 guard attemptsRemaining > 1 else {
                     return
@@ -521,6 +573,23 @@ struct TrackDestinationEditor: View {
                 )
             }
         }
+    }
+
+    private func retryCurrentAudioInstrument() {
+        audioInstrumentLoadFailure = nil
+        engineController.retryAudioUnit(for: track.id)
+        refreshPresetReadout()
+    }
+
+    private func useBuiltInSynth() {
+        audioInstrumentLoadFailure = nil
+        let destination = Destination.auInstrument(
+            componentID: AudioInstrumentChoice.builtInSynth.audioComponentID,
+            stateBlob: nil
+        )
+        session.setEditedDestination(destination, for: track.id)
+        engineController.prepareAudioUnit(for: track.id)
+        refreshPresetReadout()
     }
 
     private var currentPresetDescriptor: AUPresetDescriptor? {

@@ -308,6 +308,11 @@ if [[ "$app_path" != "$distribution_app_path" ]]; then
 fi
 
 codesign --verify --deep --strict --verbose=2 "$app_path"
+if ! codesign -d --entitlements :- "$app_path" 2>&1 \
+  | grep -q '<key>com.apple.security.cs.disable-library-validation</key>'; then
+  printf 'Exported app is missing the third-party plug-in library-validation entitlement.\n' >&2
+  exit 67
+fi
 ditto -c -k --sequesterRsrc --keepParent "$app_path" "$notary_zip"
 
 if ((skip_notarize == 0)); then

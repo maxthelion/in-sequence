@@ -36,6 +36,9 @@ extension EngineController {
             guard let host else {
                 return "Audio instrument unavailable"
             }
+            if let failure = host.loadFailure {
+                return "Audio unavailable: \(failure.instrumentName) (\(failure.domain) \(failure.code))"
+            }
             return host.isAvailable
                 ? "Audio: \(host.displayName) via Main Mixer\(selectedTrack.mix.isMuted ? " (Muted)" : "")"
                 : "Audio instrument unavailable"

@@ -4,7 +4,7 @@ import Foundation
 
 final class AUAudioUnitFactory {
     enum FactoryError: Error, Equatable {
-        case instantiationFailed(Int32)
+        case instantiationFailed(domain: String, code: Int, description: String)
         case stateDecodeFailed
     }
 
@@ -53,12 +53,21 @@ final class AUAudioUnitFactory {
             instantiateAudioUnit(description) { audioUnit, error in
                 self.performOnMain {
                     if let error {
-                        completion(.failure(.instantiationFailed(Int32((error as NSError).code))))
+                        let nsError = error as NSError
+                        completion(.failure(.instantiationFailed(
+                            domain: nsError.domain,
+                            code: nsError.code,
+                            description: nsError.localizedDescription
+                        )))
                         return
                     }
 
                     guard let audioUnit else {
-                        completion(.failure(.instantiationFailed(-1)))
+                        completion(.failure(.instantiationFailed(
+                            domain: "InSequence.AUAudioUnitFactory",
+                            code: -1,
+                            description: "Audio Unit instantiation returned no unit"
+                        )))
                         return
                     }
 

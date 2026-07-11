@@ -2269,6 +2269,12 @@ final class EngineController: RouterDispatcher {
         }
     }
 
+    func audioInstrumentLoadFailure(for trackID: UUID) -> AudioInstrumentLoadFailure? {
+        withStateLock {
+            trackRuntime.audioOutputsByTrackID[trackID]?.loadFailure
+        }
+    }
+
     // MARK: - Engine-truth routing readouts (routing-stress gate honesty)
     //
     // The routing-stress gate previously re-derived post-conditions from the
@@ -2346,6 +2352,17 @@ final class EngineController: RouterDispatcher {
         let host = withStateLock { trackRuntime.audioOutputsByTrackID[trackID] }
         log("prepareAudioUnit hostFound=\(host != nil)")
         host?.preparePresetBrowser()
+    }
+
+    func retryAudioUnit(for trackID: UUID) {
+        log("retryAudioUnit trackID=\(trackID)")
+        if let host = withStateLock({ trackRuntime.audioOutputsByTrackID[trackID] }) {
+            host.retryLoad()
+            return
+        }
+
+        syncAudioOutputs(for: currentDocumentModel)
+        withStateLock { trackRuntime.audioOutputsByTrackID[trackID] }?.retryLoad()
     }
 
     /// Returns the live AU's preset readout for the given track, or `nil` if no AU

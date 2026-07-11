@@ -91,6 +91,8 @@ After packaging, verify the exported app and final DMG before sharing:
 
 ```sh
 codesign --verify --deep --strict --verbose=2 "/path/to/export/In Sequence.app"
+codesign -d --entitlements :- "/path/to/export/In Sequence.app" 2>&1 \
+  | grep 'com.apple.security.cs.disable-library-validation'
 xcrun stapler validate "/path/to/export/In Sequence.app"
 spctl --assess --type execute --verbose=4 "/path/to/export/In Sequence.app"
 codesign --verify --verbose=2 "/path/to/InSequence-COMMIT-developer-id.dmg"
@@ -99,6 +101,22 @@ spctl --assess --type open --context context:primary-signature --verbose=4 "/pat
 ```
 
 The expected `spctl` result is `accepted` with `source=Notarized Developer ID`.
+The entitlement check must print
+`com.apple.security.cs.disable-library-validation`; the packaging script also
+fails export when this entitlement is absent.
+
+For a release that changes Audio Unit hosting, smoke-test the packaged app on a
+Mac other than the build machine:
+
+1. Select a third-party AU instrument such as Pigments and allow the macOS
+   sandbox-access prompt. The selected AU must load and remain the track's
+   displayed instrument.
+2. Repeat after denying the prompt. The selected AU must remain authored on the
+   track, the Sound panel must show `Plug-in unavailable`, and no Apple DLS
+   instrument may be substituted automatically.
+3. Use `Retry` after granting access, then verify the selected AU loads. Use
+   `Use DLS Synth` separately and verify that the document changes only after
+   this explicit action.
 
 ## Useful Options
 

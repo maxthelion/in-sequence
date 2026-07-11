@@ -78,6 +78,44 @@ final class AudioInstrumentHostTests: XCTestCase {
     }
 
     @MainActor
+    func test_failed_instrument_stays_selected_until_explicit_retry() {
+        let loader = PendingAudioUnitLoader()
+        let host = AudioInstrumentHost(
+            instrumentChoices: [.builtInSynth, .testInstrument],
+            initialInstrument: .testInstrument,
+            autoStartEngine: false,
+            instantiateAudioUnit: loader.load
+        )
+
+        host.prepareIfNeeded()
+        waitUntil(timeout: 1) { loader.pendingCount == 1 }
+        loader.fail(
+            at: 0,
+            with: NSError(
+                domain: "AudioComponentInstance",
+                code: -10875,
+                userInfo: [NSLocalizedDescriptionKey: "Plug-in was rejected"]
+            )
+        )
+        waitUntil(timeout: 1) { host.loadFailure != nil }
+
+        XCTAssertEqual(host.selectedInstrument, .testInstrument)
+        XCTAssertEqual(host.loadFailure?.componentID, AudioInstrumentChoice.testInstrument.audioComponentID)
+        XCTAssertEqual(host.loadFailure?.domain, "AudioComponentInstance")
+        XCTAssertEqual(host.loadFailure?.code, -10875)
+        XCTAssertEqual(loader.pendingCount, 1, "A failed explicit choice must not enqueue the DLS synth")
+
+        host.prepareIfNeeded()
+        waitForQueueDrain()
+        XCTAssertEqual(loader.pendingCount, 1, "Normal engine sync must not hammer a failed plug-in")
+
+        host.retryLoad()
+        waitUntil(timeout: 1) { loader.pendingCount == 2 }
+        XCTAssertNil(host.loadFailure)
+        XCTAssertEqual(host.selectedInstrument, .testInstrument)
+    }
+
+    @MainActor
     func test_stale_async_instrument_completion_is_ignored() throws {
         throw XCTSkip("AVAudioUnitMIDIInstrument lifecycle is unstable under xcodebuild's macOS test host; destination/window/controller coverage exercises the supported path.")
         let loader = PendingAudioUnitLoader()
@@ -116,7 +154,7 @@ final class AudioInstrumentHostTests: XCTestCase {
     }
 
     @MainActor
-    func test_pre_attached_audio_unit_falls_back_to_built_in_synth() throws {
+    func test_pre_attached_audio_unit_preserves_selection_and_records_failure() throws {
         throw XCTSkip("Pre-attached AVAudioUnit handoff restarts the XCTest host before assertions run; keep this as a manual smoke scenario instead.")
         let loader = PendingAudioUnitLoader()
         let host = AudioInstrumentHost(
@@ -137,14 +175,12 @@ final class AudioInstrumentHostTests: XCTestCase {
         loader.complete(at: 0, with: foreignInstrument)
         waitForQueueDrain()
 
-        XCTAssertEqual(loader.pendingCount, 2)
+        waitUntil(timeout: 1) { host.loadFailure != nil }
 
-        loader.complete(at: 1, with: AVAudioUnitSampler())
-        waitUntil(timeout: 1) { host.isAvailable }
-
-        XCTAssertTrue(host.isAvailable)
-        XCTAssertEqual(host.selectedInstrument, .builtInSynth)
-        XCTAssertEqual(host.displayName, AudioInstrumentChoice.builtInSynth.displayName)
+        XCTAssertFalse(host.isAvailable)
+        XCTAssertEqual(loader.pendingCount, 1)
+        XCTAssertEqual(host.selectedInstrument, .testInstrument)
+        XCTAssertEqual(host.displayName, AudioInstrumentChoice.testInstrument.displayName)
     }
 
     private func waitForQueueDrain() {
@@ -189,5 +225,18 @@ private final class PendingAudioUnitLoader {
         lock.unlock()
 
         completion?(audioUnit, nil)
+    }
+
+    func fail(at index: Int, with error: Error) {
+        let completion: (@Sendable (AVAudioUnit?, Error?) -> Void)?
+        lock.lock()
+        if completions.indices.contains(index) {
+            completion = completions[index]
+        } else {
+            completion = nil
+        }
+        lock.unlock()
+
+        completion?(nil, error)
     }
 }

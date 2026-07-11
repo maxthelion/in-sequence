@@ -74,6 +74,8 @@ Top-level blocks:
 `Sources/Resources/SequencerAI.entitlements`:
 
 - `com.apple.security.app-sandbox` — required for macOS App Store distribution and general hygiene
+- `com.apple.security.temporary-exception.audio-unit-host` — prompts before loading Audio Units that are not declared sandbox-safe
+- `com.apple.security.cs.disable-library-validation` — permits the hardened Developer ID build to load Audio Units signed by third-party vendors
 - `com.apple.security.files.user-selected.read-write` — Document-based app needs this to open/save `.seqai` files via NSOpenPanel / NSSavePanel
 - `com.apple.security.files.bookmarks.app-scope` — for restoring recent-files across launches
 - `com.apple.security.device.audio-input` — reserved for future audio-side work
