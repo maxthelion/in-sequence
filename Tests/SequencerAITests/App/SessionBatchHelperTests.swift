@@ -298,6 +298,27 @@ final class SessionBatchHelperTests: XCTestCase {
 
     // MARK: - Generator kind switching (WS4 AC1: stable identity)
 
+    func test_createBlankGeneratorSource_installsSourceInPlaybackSnapshotImmediately() throws {
+        let (project, trackID, _) = makeLiveStoreProject()
+        let (session, engine, _) = makeSession(project: project)
+
+        let generator = try XCTUnwrap(
+            session.createBlankGeneratorSource(trackID: trackID, slotIndex: 0)
+        )
+        let snapshot = engine.currentPlaybackSnapshotForTesting
+
+        XCTAssertEqual(snapshot.generatorEntry(id: generator.id), generator)
+        guard case let .generator(generatorID, _, _)? = snapshot
+            .sourceProgram(for: trackID)?
+            .slotProgram(at: 0)
+        else {
+            return XCTFail("Created generator must become the slot's live playback source")
+        }
+        XCTAssertEqual(generatorID, generator.id)
+
+        SequencerDocumentSessionRegistry.unregister(session)
+    }
+
     func test_switchGeneratorKind_rejects_hidden_legacy_progression_kind() throws {
         var project = makeLiveStoreProject().0
         project.appendTrack(trackType: .polyMelodic)

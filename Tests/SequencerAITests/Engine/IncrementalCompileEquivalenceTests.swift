@@ -146,6 +146,86 @@ final class IncrementalCompileEquivalenceTests: XCTestCase {
         XCTAssertEqual(incremental, expected)
     }
 
+    func test_newGeneratorAndPatternAssignment_matchesFullCompileOracle() throws {
+        let (project, trackID, _) = makeLiveStoreProject()
+        let store = LiveSequencerStore(project: project)
+        let previous = SequencerSnapshotCompiler.compile(state: store.compileInput())
+        let generator = GeneratorPoolEntry(
+            id: UUID(uuidString: "eeeeeeee-1111-2222-3333-444444444444")!,
+            name: "New Mono Generator",
+            trackType: .monoMelodic,
+            kind: .monoGenerator,
+            params: .defaultMono
+        )
+
+        store.appendGenerator(generator)
+        store.mutatePatternBank(trackID: trackID) { bank in
+            bank.setSlot(
+                TrackPatternSlot(slotIndex: 0, sourceRef: .generator(generator.id)),
+                at: 0
+            )
+        }
+
+        let state = store.compileInput()
+        let expected = SequencerSnapshotCompiler.compile(state: state)
+        let incremental = SequencerSnapshotCompiler.compile(
+            changed: .generator(generator.id).union(.patternBank(trackID)),
+            previous: previous,
+            state: state
+        )
+
+        XCTAssertEqual(incremental, expected)
+        XCTAssertEqual(incremental.generatorEntry(id: generator.id), generator)
+        guard case let .generator(generatorID, _, _)? = incremental
+            .sourceProgram(for: trackID)?
+            .slotProgram(at: 0)
+        else {
+            return XCTFail("New generator must be installed as the slot's playback source")
+        }
+        XCTAssertEqual(generatorID, generator.id)
+    }
+
+    func test_newClipAndPatternAssignment_matchesFullCompileOracle() throws {
+        let (project, trackID, _) = makeLiveStoreProject()
+        let store = LiveSequencerStore(project: project)
+        let previous = SequencerSnapshotCompiler.compile(state: store.compileInput())
+        let clip = ClipPoolEntry(
+            id: UUID(uuidString: "ffffffff-1111-2222-3333-444444444444")!,
+            name: "New Clip",
+            trackType: .monoMelodic,
+            content: .noteGrid(
+                lengthSteps: 1,
+                steps: [ClipStep(
+                    main: ClipLane(
+                        chance: 1,
+                        notes: [ClipStepNote(pitch: 72, velocity: 100, lengthSteps: 4)]
+                    ),
+                    fill: nil
+                )]
+            )
+        )
+
+        store.appendClip(clip)
+        store.mutatePatternBank(trackID: trackID) { bank in
+            bank.setSlot(
+                TrackPatternSlot(slotIndex: 0, sourceRef: .clip(clip.id)),
+                at: 0
+            )
+        }
+
+        let state = store.compileInput()
+        let expected = SequencerSnapshotCompiler.compile(state: state)
+        let incremental = SequencerSnapshotCompiler.compile(
+            changed: .clip(clip.id).union(.patternBank(trackID)),
+            previous: previous,
+            state: state
+        )
+
+        XCTAssertEqual(incremental, expected)
+        XCTAssertEqual(incremental.clipEntry(id: clip.id), clip)
+        XCTAssertNotNil(incremental.clipBuffersByID[clip.id])
+    }
+
     func test_trackMetadataChange_matchesFullCompileOracle() throws {
         let (project, trackID, _) = makeLiveStoreProject()
         let store = LiveSequencerStore(project: project)

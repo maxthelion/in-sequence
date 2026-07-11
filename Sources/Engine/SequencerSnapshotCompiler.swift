@@ -593,18 +593,12 @@ enum SequencerSnapshotCompiler {
         from state: LiveSequencerStoreState,
         changedClipIDs: Set<UUID>
     ) -> [ClipPoolEntry] {
-        guard !changedClipIDs.isEmpty else {
-            return previous
-        }
-
-        let updatedByID = Dictionary(uniqueKeysWithValues: state.clipPool.map { ($0.id, $0) })
-        var clips = previous
-        for index in clips.indices where changedClipIDs.contains(clips[index].id) {
-            if let updated = updatedByID[clips[index].id] {
-                clips[index] = updated
-            }
-        }
-        return clips
+        replacingPoolEntries(
+            in: previous,
+            from: state.clipPool,
+            changedIDs: changedClipIDs,
+            id: \.id
+        )
     }
 
     private static func replacingGenerators(
@@ -612,18 +606,12 @@ enum SequencerSnapshotCompiler {
         from state: LiveSequencerStoreState,
         changedGeneratorIDs: Set<UUID>
     ) -> [GeneratorPoolEntry] {
-        guard !changedGeneratorIDs.isEmpty else {
-            return previous
-        }
-
-        let updatedByID = Dictionary(uniqueKeysWithValues: state.generatorPool.map { ($0.id, $0) })
-        var generators = previous
-        for index in generators.indices where changedGeneratorIDs.contains(generators[index].id) {
-            if let updated = updatedByID[generators[index].id] {
-                generators[index] = updated
-            }
-        }
-        return generators
+        replacingPoolEntries(
+            in: previous,
+            from: state.generatorPool,
+            changedIDs: changedGeneratorIDs,
+            id: \.id
+        )
     }
 
     private static func replacingSliceSets(
@@ -631,23 +619,36 @@ enum SequencerSnapshotCompiler {
         from state: LiveSequencerStoreState,
         changedSliceSetIDs: Set<UUID>
     ) -> [SliceSet] {
-        guard !changedSliceSetIDs.isEmpty else {
+        replacingPoolEntries(
+            in: previous,
+            from: state.sliceSetPool,
+            changedIDs: changedSliceSetIDs,
+            id: \.id
+        )
+    }
+
+    /// Preserve unchanged values while reconciling pool membership and order
+    /// against the live store. Newly-created entries must be inserted into the
+    /// playback snapshot immediately; otherwise a newly assigned source program
+    /// can point at an ID that playback cannot resolve until a later full rebuild.
+    private static func replacingPoolEntries<Element, ID: Hashable>(
+        in previous: [Element],
+        from current: [Element],
+        changedIDs: Set<ID>,
+        id: KeyPath<Element, ID>
+    ) -> [Element] {
+        guard !changedIDs.isEmpty else {
             return previous
         }
 
-        let updatedByID = Dictionary(uniqueKeysWithValues: state.sliceSetPool.map { ($0.id, $0) })
-        var sliceSets = previous
-        for sliceSetID in changedSliceSetIDs {
-            guard let updated = updatedByID[sliceSetID] else {
-                return state.sliceSetPool
+        let previousByID = Dictionary(uniqueKeysWithValues: previous.map { ($0[keyPath: id], $0) })
+        return current.map { entry in
+            let entryID = entry[keyPath: id]
+            if changedIDs.contains(entryID) {
+                return entry
             }
-            if let index = sliceSets.firstIndex(where: { $0.id == sliceSetID }) {
-                sliceSets[index] = updated
-            } else {
-                sliceSets.append(updated)
-            }
+            return previousByID[entryID] ?? entry
         }
-        return sliceSets
     }
 }
 
