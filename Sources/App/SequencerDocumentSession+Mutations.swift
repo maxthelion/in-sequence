@@ -1909,7 +1909,7 @@ extension SequencerDocumentSession {
         let changed = store.upsertRoute(route)
         guard changed else { return }
         guard !isInBatch else { return }
-        dispatchImpact(.snapshotOnly)
+        dispatchImpact(.scopedRuntime(update: .routes(store.routes)), changed: .none)
     }
 
     /// Remove a route rule by ID.
@@ -1917,7 +1917,7 @@ extension SequencerDocumentSession {
         let changed = store.removeRoute(id: id)
         guard changed else { return }
         guard !isInBatch else { return }
-        dispatchImpact(.snapshotOnly)
+        dispatchImpact(.scopedRuntime(update: .routes(store.routes)), changed: .none)
     }
 }
 

@@ -30,6 +30,12 @@ final class MIDIRouter {
         lock.unlock()
     }
 
+    var routeCountForTesting: Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return routes.count
+    }
+
     func tick(_ inputs: [RouterTickInput]) {
         guard let dispatcher else {
             return

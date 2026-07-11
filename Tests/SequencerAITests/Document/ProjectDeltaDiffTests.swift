@@ -69,6 +69,25 @@ final class ProjectDeltaDiffTests: XCTestCase {
         )
     }
 
+    func test_trackFXChange_producesTrackParameterChanged() {
+        let before = Project.empty
+        var after = before
+        let trackID = after.selectedTrack.id
+        after.tracks[after.selectedTrackIndex].fxInserts = [.filter()]
+
+        XCTAssertEqual(
+            after.deltas(from: before),
+            [.trackParameterChanged(trackID: trackID)]
+        )
+
+        var bypassed = after
+        bypassed.tracks[bypassed.selectedTrackIndex].fxInserts[0].bypassed = true
+        XCTAssertEqual(
+            bypassed.deltas(from: after),
+            [.trackParameterChanged(trackID: trackID)]
+        )
+    }
+
     func test_track_insertion_produces_tracksInsertedOrRemoved() {
         let before = Project.empty
         var after = before

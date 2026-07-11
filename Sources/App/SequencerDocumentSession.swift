@@ -418,6 +418,8 @@ final class SequencerDocumentSession {
             engineController.apply(sendBus: sendBus)
         case let .masterBus(masterBus):
             engineController.apply(masterBus: masterBus)
+        case let .routes(routes):
+            engineController.apply(routes: routes)
         case let .macroLayerDefault(trackID, bindingID, value):
             engineController.setMacroLayerDefaultOverride(
                 trackID: trackID,

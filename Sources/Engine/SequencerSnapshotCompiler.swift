@@ -79,11 +79,29 @@ enum SequencerSnapshotCompiler {
 
         let clipOwnerByID = makeClipOwnerMap(patternBanks: state.patternBanksByTrackID)
         var clipBuffersByID = previous.clipBuffersByID
-        for clipID in changed.clipIDs {
-            guard let clip = state.clipEntry(id: clipID) else {
-                return compile(state: state)
+        if !changed.patternBankTrackIDs.isEmpty {
+            // Pattern reassignment changes clip ownership. Ownership affects
+            // chord-palette and macro-lane compilation, so recompiling only the
+            // source program can leave an existing clip buffered for its old
+            // owner. Source assignment is structural and infrequent; rebuild
+            // the resident clip buffers to preserve full-compile equivalence.
+            clipBuffersByID = Dictionary(uniqueKeysWithValues: state.clipPool.map { clip in
+                (
+                    clip.id,
+                    compileClipBuffer(
+                        for: clip,
+                        tracks: tracks,
+                        ownerTrackID: clipOwnerByID[clip.id]
+                    )
+                )
+            })
+        } else {
+            for clipID in changed.clipIDs {
+                guard let clip = state.clipEntry(id: clipID) else {
+                    return compile(state: state)
+                }
+                clipBuffersByID[clipID] = compileClipBuffer(for: clip, tracks: tracks, ownerTrackID: clipOwnerByID[clip.id])
             }
-            clipBuffersByID[clipID] = compileClipBuffer(for: clip, tracks: tracks, ownerTrackID: clipOwnerByID[clip.id])
         }
         if !changed.trackIDs.isEmpty {
             for trackID in changed.trackIDs {
@@ -184,7 +202,7 @@ enum SequencerSnapshotCompiler {
             chordGeneratorChoicesByKey: chordGeneratorChoices,
             tracks: tracks,
             resolvedDestinationsByTrackID: resolvedDestinations,
-            trackOrder: previous.trackOrder,
+            trackOrder: tracks.map(\.id),
             phraseOrder: state.phraseOrder,
             clipBuffersByID: clipBuffersByID,
             trackProgramsByTrackID: trackProgramsByTrackID,
@@ -578,14 +596,12 @@ enum SequencerSnapshotCompiler {
             return previous
         }
 
-        let updatedByID = Dictionary(uniqueKeysWithValues: state.tracks.map { ($0.id, $0) })
-        var tracks = previous
-        for index in tracks.indices where changedTrackIDs.contains(tracks[index].id) {
-            if let updated = updatedByID[tracks[index].id] {
-                tracks[index] = updated
-            }
-        }
-        return tracks
+        return replacingPoolEntries(
+            in: previous,
+            from: state.tracks,
+            changedIDs: changedTrackIDs,
+            id: \.id
+        )
     }
 
     private static func replacingClips(

@@ -453,6 +453,30 @@ final class SessionBatchHelperTests: XCTestCase {
         SequencerDocumentSessionRegistry.unregister(session)
     }
 
+    func test_routeMutations_updateLiveRouterWithoutSnapshotRecompile() throws {
+        let (project, trackID, _) = makeLiveStoreProject()
+        let (session, engine, _) = makeSession(project: project)
+        let snapshotsBefore = engine.applyPlaybackSnapshotCallCount
+        let route = Route(
+            source: .track(trackID),
+            destination: .midi(
+                port: .sequencerAIOut,
+                channel: 0,
+                noteOffset: 0
+            )
+        )
+
+        session.upsertRoute(route)
+        XCTAssertEqual(engine.appliedRouteCountForTesting, 1)
+        XCTAssertEqual(engine.applyPlaybackSnapshotCallCount, snapshotsBefore)
+
+        session.removeRoute(id: route.id)
+        XCTAssertEqual(engine.appliedRouteCountForTesting, 0)
+        XCTAssertEqual(engine.applyPlaybackSnapshotCallCount, snapshotsBefore)
+
+        SequencerDocumentSessionRegistry.unregister(session)
+    }
+
     func test_drumGroupMappingMutations_publishSnapshotWithoutDocumentApply() throws {
         let groupID = UUID()
         let memberID = UUID()

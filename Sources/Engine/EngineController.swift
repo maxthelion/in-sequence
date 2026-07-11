@@ -1719,6 +1719,28 @@ final class EngineController: RouterDispatcher {
         apply(deltas: deltas, documentModel: documentModel)
     }
 
+    /// Scoped route-table replacement. Routes are runtime router state, not
+    /// playback-snapshot data, so a snapshot-only mutation cannot make them
+    /// audible. Flush destinations removed by the edit before swapping the
+    /// router's immutable table.
+    func apply(routes: [Route]) {
+        var nextDocument = currentDocumentModel
+        nextDocument.routes = routes
+        // realtime-allow-midi-host: route-edit control path flushes detached
+        // MIDI note-offs; this wall-clock value never schedules sounding time.
+        flushDetachedMIDINoteOffs(
+            from: currentDocumentModel,
+            to: nextDocument,
+            now: ProcessInfo.processInfo.systemUptime
+        )
+        currentDocumentModel.routes = routes
+        router.applyRoutesSnapshot(routes)
+    }
+
+    var appliedRouteCountForTesting: Int {
+        router.routeCountForTesting
+    }
+
     func apply(playbackSnapshot: PlaybackSnapshot) {
         applyPlaybackSnapshotCallCountAtomic.increment()
         tickState.installPlaybackSnapshot(

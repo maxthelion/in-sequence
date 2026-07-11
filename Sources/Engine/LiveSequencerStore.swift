@@ -24,6 +24,8 @@ enum ScopedRuntimeUpdate: Sendable {
     case sendBus(SendBusState)
     /// Update master bus scene/end-of-chain state without rebuilding playback.
     case masterBus(MasterBusState)
+    /// Replace the live MIDI/chord routing table without rebuilding audio.
+    case routes([Route])
     /// Live macro-knob drag: update one track-macro layer default in the engine
     /// without a snapshot install. Track macros are dispatch-time only (sampler/
     /// filter params, AU params) — they never change compiled note data, so a

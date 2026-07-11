@@ -98,6 +98,55 @@ final class IncrementalCompileEquivalenceTests: XCTestCase {
         XCTAssertEqual(incremental, expected)
     }
 
+    func test_patternBankOwnerChange_recompilesOwnerSensitiveClipBuffers() throws {
+        let (baseProject, trackID, clipID) = makeLiveStoreProject()
+        var project = baseProject
+        let firstBinding = TrackMacroBinding(descriptor: Self.testMacroDescriptor())
+        project.tracks[project.selectedTrackIndex].macros = [firstBinding]
+        project.appendTrack(trackType: .monoMelodic)
+        let secondTrackID = project.selectedTrackID
+        let secondDescriptor = TrackMacroDescriptor(
+            id: UUID(uuidString: "88888888-8888-8888-8888-888888888888")!,
+            displayName: "Second Macro",
+            minValue: 0,
+            maxValue: 1,
+            defaultValue: 0.5,
+            valueType: .scalar,
+            source: .auParameter(address: 8, identifier: "second")
+        )
+        let secondBinding = TrackMacroBinding(descriptor: secondDescriptor)
+        project.tracks[project.selectedTrackIndex].macros = [secondBinding]
+        project.clipPool[0].macroLanes = [
+            firstBinding.id: MacroLane(values: [0.75]),
+            secondBinding.id: MacroLane(values: [0.25]),
+        ]
+
+        let store = LiveSequencerStore(project: project)
+        let previous = SequencerSnapshotCompiler.compile(state: store.compileInput())
+        XCTAssertEqual(previous.clipBuffersByID[clipID]?.macroBindingOrder, [firstBinding.id])
+
+        store.mutatePatternBank(trackID: trackID) { bank in
+            bank.setSlot(TrackPatternSlot(slotIndex: 0, sourceRef: .clip(nil)), at: 0)
+        }
+        store.mutatePatternBank(trackID: secondTrackID) { bank in
+            bank.setSlot(
+                TrackPatternSlot(slotIndex: 0, sourceRef: .clip(clipID)),
+                at: 0
+            )
+        }
+
+        let state = store.compileInput()
+        let expected = SequencerSnapshotCompiler.compile(state: state)
+        let incremental = SequencerSnapshotCompiler.compile(
+            changed: .patternBank(trackID).union(.patternBank(secondTrackID)),
+            previous: previous,
+            state: state
+        )
+
+        XCTAssertEqual(incremental, expected)
+        XCTAssertEqual(incremental.clipBuffersByID[clipID]?.macroBindingOrder, [secondBinding.id])
+    }
+
     func test_selectedPhraseChange_reusesExistingBuffers() throws {
         let (baseProject, _, _) = makeLiveStoreProject()
         var project = baseProject

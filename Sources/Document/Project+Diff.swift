@@ -113,7 +113,8 @@ private extension StepSequenceTrack {
         gateLength != previous.gateLength ||
         recordBarLength != previous.recordBarLength ||
         inputChannel != previous.inputChannel ||
-        noteRepeatInterval != previous.noteRepeatInterval
+        noteRepeatInterval != previous.noteRepeatInterval ||
+        fxInserts != previous.fxInserts
     }
 }
 
