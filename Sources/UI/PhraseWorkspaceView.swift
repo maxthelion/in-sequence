@@ -1519,6 +1519,11 @@ struct PhraseWorkspaceView: View {
             return
         }
 
+        if command == "open-selected-cell-automation" {
+            openAutomationForSelectedCells()
+            return
+        }
+
         if command == "global-apply-track-selector:open" {
             phraseTab = .values
             phraseLayerEditMode = .byValue
