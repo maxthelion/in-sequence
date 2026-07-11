@@ -680,14 +680,6 @@ struct DrumKitMatrixView: View {
 
                 barPager(model)
 
-                StudioCommandButton(
-                    title: "Erase",
-                    systemImage: "trash",
-                    isEnabled: selectedDrumRow(in: model) != nil && !selectedDrumStepIndexes.isEmpty,
-                    help: "Erase selected drum steps",
-                    action: { eraseSelectedDrumSteps(in: model) }
-                )
-
                 Spacer(minLength: 0)
 
                 addPartButton(model)

@@ -28,6 +28,20 @@ struct DrumKitPatternTargetSelection: Equatable {
         isPrompting = false
     }
 
+    /// Handles the primary click requested by the Apply Template prompt. A
+    /// normal palette click remains pattern navigation at every other time.
+    @discardableResult
+    mutating func selectPromptedTarget(slotIndex: Int) -> Bool {
+        guard isPrompting,
+              (0..<TrackPatternBank.slotCount).contains(slotIndex)
+        else {
+            return false
+        }
+        slotIndexes = [slotIndex]
+        isPrompting = false
+        return true
+    }
+
     /// Returns whether the chooser should open now.
     @discardableResult
     mutating func requestTemplateChooser() -> Bool {
@@ -42,6 +56,18 @@ struct DrumKitPatternTargetSelection: Equatable {
     mutating func clear() {
         slotIndexes = []
         isPrompting = false
+    }
+}
+
+enum DrumKitClipLength {
+    static let options = [16, 32, 64, 128]
+
+    static func resizedContent(to lengthSteps: Int, currentSteps: [ClipStep]) -> ClipContent? {
+        guard options.contains(lengthSteps) else { return nil }
+        let resizedSteps = (0..<lengthSteps).map { index in
+            currentSteps.indices.contains(index) ? currentSteps[index] : .empty
+        }
+        return .noteGrid(lengthSteps: lengthSteps, steps: resizedSteps)
     }
 }
 

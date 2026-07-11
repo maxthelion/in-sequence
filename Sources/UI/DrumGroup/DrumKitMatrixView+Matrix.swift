@@ -35,6 +35,11 @@ extension DrumKitMatrixView {
             get: { model.groupSelectedSlotIndex ?? -1 },
             set: { newValue in
                 guard (0..<TrackPatternBank.slotCount).contains(newValue) else { return }
+                if patternTemplateTargets.selectPromptedTarget(slotIndex: newValue) {
+                    clearDrumStepSelection()
+                    isPresentingTemplateChooser = true
+                    return
+                }
                 displayedPatternSlotIndex = newValue
             }
         )
@@ -219,6 +224,9 @@ extension DrumKitMatrixView {
                             toggleStepSelection(row: row, stepIndex: stepIndex)
                         },
                         onClearSelection: clearDrumStepSelection,
+                        onSetClipLength: { lengthSteps in
+                            setClipLength(lengthSteps, for: row)
+                        },
                         onToggleExpand: {
                             toggleExpand(memberID: row.memberID)
                         },
@@ -297,6 +305,33 @@ extension DrumKitMatrixView {
             }
         }
         clearDrumStepSelection()
+    }
+
+    func setClipLength(_ lengthSteps: Int, for row: DrumKitMatrixModel.Row) {
+        guard case .editable = row.content,
+              DrumKitClipLength.options.contains(lengthSteps)
+        else {
+            return
+        }
+        session.ensureClipAndMutate(
+            at: PatternSlotAddress(trackID: row.memberID, slotIndex: row.patternSlotIndex)
+        ) { _, entry in
+            guard case let .noteGrid(_, liveSteps) = entry.content.normalized,
+                  let content = DrumKitClipLength.resizedContent(
+                      to: lengthSteps,
+                      currentSteps: liveSteps
+                  )
+            else {
+                return
+            }
+            entry.content = content
+        }
+
+        guard selectedStepMemberID == row.memberID else { return }
+        selectedDrumStepIndexes = selectedDrumStepIndexes.filter { $0 < lengthSteps }
+        if selectedDrumStepIndexes.isEmpty {
+            selectedStepMemberID = nil
+        }
     }
 
     func canPasteDrumStepClipboard(_ clipboard: StepClipboard, in model: DrumKitMatrixModel) -> Bool {
@@ -433,7 +468,8 @@ extension DrumKitMatrixView {
             },
             clearSelection: {
                 if !selectedDrumStepIndexes.isEmpty {
-                    clearDrumStepSelection()
+                    guard let model else { return }
+                    eraseSelectedDrumSteps(in: model)
                 } else {
                     patternTemplateTargets.clear()
                 }

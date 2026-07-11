@@ -50,6 +50,45 @@ final class DrumKitMatrixEditingTests: XCTestCase {
         XCTAssertFalse(selection.isPrompting)
     }
 
+    func test_templatePrompt_primarySelectionTargetsSlotAndCompletesPrompt() {
+        var selection = DrumKitPatternTargetSelection()
+
+        XCTAssertFalse(selection.selectPromptedTarget(slotIndex: 4))
+        XCTAssertFalse(selection.requestTemplateChooser())
+        XCTAssertTrue(selection.selectPromptedTarget(slotIndex: 4))
+        XCTAssertEqual(selection.slotIndexes, [4])
+        XCTAssertFalse(selection.isPrompting)
+        XCTAssertFalse(selection.selectPromptedTarget(slotIndex: 6))
+        XCTAssertEqual(selection.slotIndexes, [4])
+    }
+
+    func test_clipLengthResize_preservesPrefixAndPadsOrTruncates() throws {
+        var source = Array(repeating: ClipStep.empty, count: 16)
+        source[15].main = ClipLane(
+            chance: 0.75,
+            notes: [ClipStepNote(pitch: 36, velocity: 111, lengthSteps: 2)]
+        )
+
+        let expanded = try XCTUnwrap(DrumKitClipLength.resizedContent(to: 32, currentSteps: source))
+        guard case let .noteGrid(expandedLength, expandedSteps) = expanded else {
+            return XCTFail("Expected a note grid")
+        }
+        XCTAssertEqual(expandedLength, 32)
+        XCTAssertEqual(expandedSteps.count, 32)
+        XCTAssertEqual(expandedSteps[15], source[15])
+        XCTAssertEqual(expandedSteps[16], .empty)
+
+        let truncated = try XCTUnwrap(
+            DrumKitClipLength.resizedContent(to: 16, currentSteps: expandedSteps)
+        )
+        guard case let .noteGrid(truncatedLength, truncatedSteps) = truncated else {
+            return XCTFail("Expected a note grid")
+        }
+        XCTAssertEqual(truncatedLength, 16)
+        XCTAssertEqual(truncatedSteps, source)
+        XCTAssertNil(DrumKitClipLength.resizedContent(to: 24, currentSteps: source))
+    }
+
     func test_fillPresentation_fallsBackToNormalWhenUnavailable() {
         XCTAssertFalse(
             DrumKitFillModePresentation(isAvailable: false, requestedFill: true).isFillSelected
@@ -104,6 +143,34 @@ final class DrumKitMatrixEditingTests: XCTestCase {
         XCTAssertEqual(destinations.map(\.stepIndex), [3, 7])
         XCTAssertEqual(destinations.map(\.entry), [first, second])
         XCTAssertFalse(destinations.contains(where: { $0.stepIndex == 99 }))
+    }
+
+    func test_stepClipboardPasteMapsCopiedStepToNewSingleSelection() throws {
+        let copiedLayers = StepClipboardEntry(
+            active: true,
+            velocity: 0.82,
+            length: .steps(3),
+            chance: 0.64,
+            macroOverrides: [UUID(): 0.35],
+            sliceIndex: nil,
+            sliceMode: nil
+        )
+        let clipboard = StepClipboard(
+            sourceClipID: UUID(),
+            steps: [2: copiedLayers]
+        )
+
+        let destination = try XCTUnwrap(
+            DrumKitStepClipboardTransfer.destinations(
+                clipboard: clipboard,
+                selectedStepIndexes: [11],
+                writableStepIndexes: 0..<16
+            ).first
+        )
+
+        XCTAssertEqual(destination.stepIndex, 11)
+        XCTAssertEqual(destination.entry, copiedLayers)
+        XCTAssertEqual(clipboard.steps[2], copiedLayers, "Paste keeps the detached clipboard intact")
     }
 
     // MARK: - Helpers

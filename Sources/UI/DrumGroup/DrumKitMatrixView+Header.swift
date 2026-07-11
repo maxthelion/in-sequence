@@ -246,7 +246,7 @@ extension DrumKitMatrixView {
                     } label: {
                         RoundedRectangle(cornerRadius: 3, style: .continuous)
                             .fill(barIndicatorFill(indicator.state))
-                            .frame(width: 18, height: 7)
+                            .frame(width: 7, height: 18)
                     }
                     .buttonStyle(.plain)
                     .disabled(indicator.state == .unavailable)

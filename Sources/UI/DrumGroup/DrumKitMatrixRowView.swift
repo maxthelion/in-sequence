@@ -22,6 +22,7 @@ struct DrumKitMatrixRowView<DetailPanel: View>: View {
     let onDragStep: (Int, Double) -> Void
     let onSelectStep: (Int) -> Void
     let onClearSelection: () -> Void
+    let onSetClipLength: (Int) -> Void
     /// Toggle the inline accordion for this row (the name button / chevron).
     let onToggleExpand: () -> Void
     /// The inline detail panel content (mini-tabs), owned by the parent so it
@@ -80,9 +81,38 @@ struct DrumKitMatrixRowView<DetailPanel: View>: View {
             .accessibilityIdentifier(isExpanded ? "kit-row-collapse" : "kit-row-expand")
             .accessibilityLabel(isExpanded ? "Collapse \(row.partName)" : "Expand \(row.partName)")
 
-            readOnlyBadge
+            if let clipLengthSteps = row.clipLengthSteps {
+                clipLengthMenu(clipLengthSteps)
+            } else {
+                readOnlyBadge
+            }
         }
         .frame(width: 132, alignment: .leading)
+    }
+
+    private func clipLengthMenu(_ clipLengthSteps: Int) -> some View {
+        Menu {
+            ForEach(DrumKitClipLength.options, id: \.self) { option in
+                Button {
+                    onSetClipLength(option)
+                } label: {
+                    if option == clipLengthSteps {
+                        Label("\(option) steps", systemImage: "checkmark")
+                    } else {
+                        Text("\(option) steps")
+                    }
+                }
+            }
+        } label: {
+            Label("\(clipLengthSteps) steps", systemImage: "ruler")
+                .studioText(.micro)
+                .foregroundStyle(StudioTheme.mutedText)
+                .lineLimit(1)
+        }
+        .menuStyle(.borderlessButton)
+        .fixedSize()
+        .help("Set clip length for \(row.partName)")
+        .accessibilityIdentifier("kit-row-clip-length")
     }
 
     @ViewBuilder
