@@ -247,7 +247,10 @@ struct LiveWorkspaceView: View {
         case let .bars(values):
             guard !values.isEmpty else { return }
             var nextValues = values
-            let index = min(currentBarIndexInPhrase, nextValues.count - 1)
+            let index = PhraseBarAutomation.loopIndex(
+                barIndex: currentBarIndexInPhrase,
+                valueCount: nextValues.count
+            )
             nextValues[index] = cycleLiveValue(nextValues[index])
             session.setPhraseCell(
                 .bars(nextValues),

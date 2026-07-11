@@ -155,6 +155,51 @@ final class ProjectTests: XCTestCase {
         XCTAssertEqual(sampled, .scalar(1.0))
     }
 
+    func test_phrase_bar_automation_loops_over_authored_length() {
+        let track = StepSequenceTrack.default
+        let layer = PhraseLayerDefinition.defaultSet(for: [track]).first(where: { $0.id == "intensity" })!
+        var phrase = PhraseModel.default(tracks: [track], layers: [layer])
+        phrase.lengthBars = 4
+        phrase.setCell(.bars([.scalar(0.2), .scalar(0.8)]), for: layer.id, trackID: track.id)
+
+        XCTAssertEqual(phrase.resolvedValue(for: layer, trackID: track.id, stepIndex: 0), .scalar(0.2))
+        XCTAssertEqual(phrase.resolvedValue(for: layer, trackID: track.id, stepIndex: 16), .scalar(0.8))
+        XCTAssertEqual(phrase.resolvedValue(for: layer, trackID: track.id, stepIndex: 32), .scalar(0.2))
+        XCTAssertEqual(phrase.resolvedValue(for: layer, trackID: track.id, stepIndex: 48), .scalar(0.8))
+    }
+
+    func test_bar_automation_loop_index_is_shared_and_stable() {
+        XCTAssertEqual((0...3).map { PhraseBarAutomation.loopIndex(barIndex: $0, valueCount: 2) }, [0, 1, 0, 1])
+        XCTAssertEqual(PhraseBarAutomation.loopIndex(barIndex: -1, valueCount: 2), 0)
+        XCTAssertEqual(PhraseBarAutomation.loopIndex(barIndex: 8, valueCount: 0), 0)
+    }
+
+    func test_phrase_step_automation_keeps_legacy_clamp_semantics() {
+        let track = StepSequenceTrack.default
+        let layer = PhraseLayerDefinition.defaultSet(for: [track]).first(where: { $0.id == "intensity" })!
+        var phrase = PhraseModel.default(tracks: [track], layers: [layer])
+        phrase.setCell(.steps([.scalar(0.2), .scalar(0.8)]), for: layer.id, trackID: track.id)
+
+        XCTAssertEqual(phrase.resolvedValue(for: layer, trackID: track.id, stepIndex: 0), .scalar(0.2))
+        XCTAssertEqual(phrase.resolvedValue(for: layer, trackID: track.id, stepIndex: 1), .scalar(0.8))
+        XCTAssertEqual(phrase.resolvedValue(for: layer, trackID: track.id, stepIndex: 2), .scalar(0.8))
+    }
+
+    func test_default_curve_automation_has_start_and_end_points() {
+        let track = StepSequenceTrack.default
+        let layer = PhraseLayerDefinition.defaultSet(for: [track]).first(where: { $0.id == "intensity" })!
+
+        let cell = PhraseCell.makeDefault(
+            mode: .curve,
+            layer: layer,
+            defaultValue: .scalar(0.5),
+            stepCount: 64,
+            barCount: 4
+        )
+
+        XCTAssertEqual(cell, .curve([0.5, 0.5]))
+    }
+
     func test_phrase_cell_address_reads_and_writes_cell_values() {
         let track = StepSequenceTrack.default
         let layer = PhraseLayerDefinition.defaultSet(for: [track]).first(where: { $0.id == "intensity" })!

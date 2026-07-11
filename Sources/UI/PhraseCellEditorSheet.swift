@@ -27,11 +27,39 @@ struct PhraseCellEditorTarget: Identifiable, Equatable {
     }
 }
 
+enum PhraseAutomationSurfaceMode: String, CaseIterable, Hashable {
+    case single
+    case perBar
+    case points
+
+    var title: String {
+        switch self {
+        case .single: "Single"
+        case .perBar: "Per Bar"
+        case .points: "Points"
+        }
+    }
+
+    func isAvailable(for editorKind: PhraseLayerEditorKind) -> Bool {
+        self != .points || editorKind == .continuousScalar
+    }
+
+    static func mode(for cell: PhraseCell) -> PhraseAutomationSurfaceMode {
+        switch cell {
+        case .inheritDefault, .single:
+            return .single
+        case .bars:
+            return .perBar
+        case .steps, .curve:
+            return .points
+        }
+    }
+}
+
 struct PhraseCellEditorSheet: View {
     let target: PhraseCellEditorTarget
     let accent: Color
 
-    @State private var selectedBarPage = 0
     @Environment(SequencerDocumentSession.self) private var session
     @Environment(EngineController.self) private var engineController
     @Environment(\.dismiss) private var dismiss
@@ -102,32 +130,32 @@ struct PhraseCellEditorSheet: View {
 
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 8) {
-                ForEach(availableModes(phrase: phrase, track: track, layer: layer), id: \.self) { mode in
-                    Button {
-                        setCellMode(mode, phrase: phrase, track: track, layer: layer)
-                    } label: {
-                        Text(mode.label)
-                            .studioText(.labelBold)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
-                            // Colour identifies, it never floods (ux-canon rule
-                            // 12): the selected mode is a fully solid accent
-                            // thumb with a dark glyph, never a translucent wash.
-                            .background(
-                                cell.editMode == mode ? accent : StudioTheme.subtleFill,
-                                in: Capsule()
-                            )
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(cell.editMode == mode ? StudioTheme.background : StudioTheme.mutedText)
-                }
+                StudioSegmentedControl(
+                    title: nil,
+                    selection: Binding(
+                        get: { PhraseAutomationSurfaceMode.mode(for: cell) },
+                        set: { setSurfaceMode($0, phrase: phrase, track: track, layer: layer) }
+                    ),
+                    segments: PhraseAutomationSurfaceMode.allCases.map { mode in
+                        StudioSegment(
+                            title: mode.title,
+                            value: mode,
+                            isEnabled: mode.isAvailable(for: layer.editorKind),
+                            help: mode == .points && layer.editorKind != .continuousScalar
+                                ? "Points are available for continuous values"
+                                : nil
+                        )
+                    },
+                    accent: accent,
+                    layout: .init(fillsWidth: false, minWidth: 76)
+                )
 
                 Spacer(minLength: 10)
 
                 Button {
                     clearAutomation(phrase: phrase, track: track, layer: layer)
                 } label: {
-                    Text("Clear Automation")
+                    Label("Clear", systemImage: "xmark")
                         .studioText(.labelBold)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 8)
@@ -142,17 +170,18 @@ struct PhraseCellEditorSheet: View {
 
             switch cell {
             case .inheritDefault:
-                StudioPlaceholderTile(
-                    title: "Using Track Default",
-                    detail: cellSummary(cell, layer: layer, phrase: phrase),
-                    accent: accent
+                singleValueEditor(
+                    value: layer.defaultValue(for: track.id),
+                    phrase: phrase,
+                    track: track,
+                    layer: layer
                 )
             case let .single(value):
                 singleValueEditor(value: value, phrase: phrase, track: track, layer: layer)
             case let .bars(values):
                 barsEditor(values: values, phrase: phrase, track: track, layer: layer)
             case let .steps(values):
-                stepsEditor(values: values, phrase: phrase, track: track, layer: layer)
+                legacyStepsEditor(values: values, phrase: phrase, track: track, layer: layer)
             case let .curve(points):
                 curveEditor(points: points, phrase: phrase, track: track, layer: layer)
             }
@@ -216,14 +245,53 @@ struct PhraseCellEditorSheet: View {
         layer: PhraseLayerDefinition
     ) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            ForEach(Array(values.enumerated()), id: \.offset) { index, value in
-                HStack(spacing: 12) {
-                    Text("Bar \(index + 1)")
-                        .font(.system(size: 12, weight: .semibold, design: .rounded))
-                        .foregroundStyle(StudioTheme.mutedText)
-                        .frame(width: 44, alignment: .leading)
+            HStack(spacing: 8) {
+                Text("LOOP")
+                    .studioText(.eyebrow)
+                    .foregroundStyle(StudioTheme.mutedText)
 
-                    valueEditor(for: value, layer: layer) { newValue in
+                Text("\(values.count) bars")
+                    .studioText(.labelBold)
+                    .monospacedDigit()
+                    .foregroundStyle(StudioTheme.text)
+
+                StudioStepperButtons(
+                    upHelp: "Add automation bar",
+                    downHelp: "Remove automation bar",
+                    isUpEnabled: values.count < phrase.lengthBars,
+                    isDownEnabled: values.count > 1,
+                    onUp: {
+                        resizeBarAutomation(
+                            values: values,
+                            count: min(values.count + 1, phrase.lengthBars),
+                            phrase: phrase,
+                            track: track,
+                            layer: layer
+                        )
+                    },
+                    onDown: {
+                        resizeBarAutomation(
+                            values: values,
+                            count: max(values.count - 1, 1),
+                            phrase: phrase,
+                            track: track,
+                            layer: layer
+                        )
+                    }
+                )
+
+                Text("Phrase \(phrase.lengthBars) bars")
+                    .studioText(.microEmphasis)
+                    .foregroundStyle(StudioTheme.mutedText)
+            }
+
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: 112), spacing: 8)],
+                alignment: .leading,
+                spacing: 8
+            ) {
+                ForEach(Array(values.enumerated()), id: \.offset) { index, value in
+                    barValueCell(index: index, value: value, layer: layer) { newValue in
                         var nextValues = values
                         nextValues[index] = newValue
                         setCell(.bars(nextValues), phrase: phrase, track: track, layer: layer)
@@ -234,61 +302,76 @@ struct PhraseCellEditorSheet: View {
     }
 
     @ViewBuilder
-    private func stepsEditor(
-        values: [PhraseCellValue],
-        phrase: PhraseModel,
-        track: StepSequenceTrack,
-        layer: PhraseLayerDefinition
+    private func barValueCell(
+        index: Int,
+        value: PhraseCellValue,
+        layer: PhraseLayerDefinition,
+        onChange: @escaping (PhraseCellValue) -> Void
     ) -> some View {
-        let pageCount = max(1, phrase.lengthBars)
-        let activePage = min(selectedBarPage, pageCount - 1)
-        let start = activePage * phrase.stepsPerBar
-        let end = min(start + phrase.stepsPerBar, values.count)
+        VStack(alignment: .leading, spacing: 8) {
+            Text("BAR \(index + 1)")
+                .studioText(.eyebrow)
+                .foregroundStyle(StudioTheme.mutedText)
 
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 8) {
-                ForEach(0..<pageCount, id: \.self) { index in
-                    Button {
-                        selectedBarPage = index
-                    } label: {
-                        Text("Bar \(index + 1)")
-                            .studioText(.eyebrowBold)
-                            .foregroundStyle(index == activePage ? StudioTheme.background : StudioTheme.text)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
-                            .background(index == activePage ? accent : StudioTheme.subtleFill, in: Capsule())
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-
-            LazyVGrid(columns: StudioMetrics.Grid.matrixColumns(spacing: 8), spacing: 8) {
-                ForEach(start..<end, id: \.self) { stepIndex in
-                    Button {
-                        var nextValues = values
-                        nextValues[stepIndex] = cycledValue(nextValues[stepIndex], for: layer)
-                        setCell(.steps(nextValues), phrase: phrase, track: track, layer: layer)
-                    } label: {
-                        VStack(spacing: 6) {
-                            Text("\(stepIndex - start + 1)")
-                                .studioText(.micro)
-                                .foregroundStyle(StudioTheme.mutedText)
-                            Text(valueLabel(values[stepIndex], layer: layer))
-                                .studioText(.subtitle)
-                                .foregroundStyle(StudioTheme.text)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
-                        .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
-                                .stroke(accent.opacity(0.25), lineWidth: StudioMetrics.borderWidth)
+            switch layer.valueType {
+            case .boolean:
+                let isOn = value.normalized(for: layer) == .bool(true)
+                Button {
+                    onChange(.bool(!isOn))
+                } label: {
+                    Text(isOn ? "On" : "Off")
+                        .studioText(.labelBold)
+                        .foregroundStyle(isOn ? StudioTheme.background : StudioTheme.text)
+                        .frame(maxWidth: .infinity, minHeight: 30)
+                        .background(
+                            isOn ? accent : StudioTheme.subtleFill,
+                            in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
                         )
-                    }
-                    .buttonStyle(.plain)
                 }
+                .buttonStyle(.plain)
+            case .patternIndex:
+                let indexValue: Int = {
+                    if case let .index(value) = value.normalized(for: layer) { return value }
+                    return 0
+                }()
+                Button {
+                    onChange(.index((indexValue + 1) % TrackPatternBank.slotCount))
+                } label: {
+                    Text("P\(indexValue + 1)")
+                        .studioText(.labelBold)
+                        .foregroundStyle(StudioTheme.background)
+                        .frame(maxWidth: .infinity, minHeight: 30)
+                        .background(accent, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+                }
+                .buttonStyle(.plain)
+                .help("Cycle pattern for bar \(index + 1)")
+            case .scalar:
+                let scalarValue: Double = {
+                    if case let .scalar(value) = value.normalized(for: layer) { return value }
+                    return layer.minValue
+                }()
+                Text(valueLabel(value, layer: layer))
+                    .studioText(.microEmphasis)
+                    .foregroundStyle(accent)
+                StudioSlideControl(
+                    value: scalarValue,
+                    range: layer.scalarRange,
+                    fillStyle: .fromLeading,
+                    chrome: .roundedRectangle,
+                    accent: accent,
+                    help: "Bar \(index + 1) \(layer.name)",
+                    onChange: { onChange(.scalar($0)) }
+                )
+                .frame(height: 28)
             }
         }
+        .padding(10)
+        .frame(maxWidth: .infinity, minHeight: 84, alignment: .topLeading)
+        .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+        )
     }
 
     private func curveEditor(
@@ -298,17 +381,94 @@ struct PhraseCellEditorSheet: View {
         layer: PhraseLayerDefinition
     ) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 8) {
+            HStack(spacing: 10) {
+                Text("POINTS")
+                    .studioText(.eyebrow)
+                    .foregroundStyle(StudioTheme.mutedText)
+
+                Text("\(points.count)")
+                    .studioText(.labelBold)
+                    .monospacedDigit()
+                    .foregroundStyle(StudioTheme.text)
+
+                StudioStepperButtons(
+                    upHelp: "Add automation point",
+                    downHelp: "Remove automation point",
+                    isUpEnabled: points.count < 8,
+                    isDownEnabled: points.count > 2,
+                    onUp: {
+                        guard points.count < 8 else { return }
+                        setCell(.curve(addingCurvePoint(to: points)), phrase: phrase, track: track, layer: layer)
+                    },
+                    onDown: {
+                        guard points.count > 2 else { return }
+                        var next = points
+                        next.remove(at: max(1, next.count - 2))
+                        setCell(.curve(next), phrase: phrase, track: track, layer: layer)
+                    }
+                )
+
+                Spacer(minLength: 8)
+
                 ForEach(PhraseCurvePreset.allCases, id: \.self) { preset in
                     Button(preset.label) {
                         setCell(.curve(preset.points(in: layer.scalarRange)), phrase: phrase, track: track, layer: layer)
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(.plain)
+                    .studioText(.labelBold)
+                    .foregroundStyle(StudioTheme.text)
+                    .padding(.horizontal, 10)
+                    .frame(height: 30)
+                    .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                            .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+                    )
                 }
             }
 
+            PhraseAutomationPointEditor(
+                points: points,
+                range: layer.scalarRange,
+                accent: accent,
+                onChange: { setCell(.curve($0), phrase: phrase, track: track, layer: layer) }
+            )
+            .frame(height: 220)
+        }
+    }
+
+    private func legacyStepsEditor(
+        values: [PhraseCellValue],
+        phrase: PhraseModel,
+        track: StepSequenceTrack,
+        layer: PhraseLayerDefinition
+    ) -> some View {
+        let points = pointValues(fromLegacySteps: values, phrase: phrase, layer: layer)
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 10) {
+                Text("LEGACY STEPS")
+                    .studioText(.eyebrow)
+                    .foregroundStyle(StudioTheme.mutedText)
+                Text("\(values.count)")
+                    .studioText(.labelBold)
+                    .monospacedDigit()
+                    .foregroundStyle(StudioTheme.text)
+                Spacer(minLength: 8)
+                Button {
+                    setCell(.curve(points), phrase: phrase, track: track, layer: layer)
+                } label: {
+                    Label("Convert to Points", systemImage: "point.3.connected.trianglepath.dotted")
+                        .studioText(.labelBold)
+                        .foregroundStyle(StudioTheme.background)
+                        .padding(.horizontal, 10)
+                        .frame(height: 30)
+                        .background(accent, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+                }
+                .buttonStyle(.plain)
+            }
+
             PhraseCurvePreview(points: points, range: layer.scalarRange, accent: accent)
-                .frame(height: 120)
+                .frame(height: 180)
         }
     }
 
@@ -354,6 +514,60 @@ struct PhraseCellEditorSheet: View {
         }
     }
 
+    private func setSurfaceMode(
+        _ mode: PhraseAutomationSurfaceMode,
+        phrase: PhraseModel,
+        track: StepSequenceTrack,
+        layer: PhraseLayerDefinition
+    ) {
+        switch mode {
+        case .single:
+            clearAutomation(phrase: phrase, track: track, layer: layer)
+        case .perBar:
+            seedMode(.bars, phrase: phrase, layer: layer)
+        case .points:
+            guard layer.editorKind == .continuousScalar else { return }
+            seedMode(.curve, phrase: phrase, layer: layer)
+        }
+    }
+
+    private func resizeBarAutomation(
+        values: [PhraseCellValue],
+        count: Int,
+        phrase: PhraseModel,
+        track: StepSequenceTrack,
+        layer: PhraseLayerDefinition
+    ) {
+        let safeCount = min(max(count, 1), max(1, phrase.lengthBars))
+        let seed = values.isEmpty ? layer.defaultValue(for: track.id) : values[0]
+        let resized = (0..<safeCount).map { index in
+            values.isEmpty ? seed : values[index % values.count]
+        }
+        setCell(.bars(resized), phrase: phrase, track: track, layer: layer)
+    }
+
+    private func pointValues(
+        fromLegacySteps values: [PhraseCellValue],
+        phrase: PhraseModel,
+        layer: PhraseLayerDefinition
+    ) -> [Double] {
+        let source = values.isEmpty ? [layer.defaultValue(for: target.trackID)] : values
+        return (0..<max(2, phrase.stepCount)).map { index -> Double in
+            let value = source[min(index, source.count - 1)]
+            if case let .scalar(scalar) = value.normalized(for: layer) { return scalar }
+            return layer.minValue
+        }
+    }
+
+    private func addingCurvePoint(to points: [Double]) -> [Double] {
+        guard let end = points.last else { return [0, 0] }
+        guard points.count >= 2 else { return [end, end] }
+        var next = points
+        let previous = points[points.count - 2]
+        next.insert((previous + end) / 2, at: points.count - 1)
+        return next
+    }
+
     private func setCell(
         _ cell: PhraseCell,
         phrase: PhraseModel,
@@ -368,17 +582,25 @@ struct PhraseCellEditorSheet: View {
         )
     }
 
-    private func setCellMode(
+    private func seedMode(
         _ mode: PhraseCellEditMode,
         phrase: PhraseModel,
-        track: StepSequenceTrack,
         layer: PhraseLayerDefinition
     ) {
+        let stepIndex = PhrasePlayhead(
+            phrase: phrase,
+            transportTickIndex: engineController.transportTickIndex
+        ).stepIndex
         for trackID in target.trackIDs {
+            let seed = phrase.resolvedValue(
+                for: layer,
+                trackID: trackID,
+                stepIndex: stepIndex
+            )
             let cell = PhraseCell.makeDefault(
                 mode: mode,
                 layer: layer,
-                defaultValue: layer.defaultValue(for: trackID),
+                defaultValue: seed,
                 stepCount: phrase.stepCount,
                 barCount: phrase.lengthBars
             )
@@ -410,26 +632,4 @@ struct PhraseCellEditorSheet: View {
         }
     }
 
-    /// Inherit is only offered when this cell follows a phrase whose same
-    /// track/layer cell has an explicit value to inherit from.
-    private func availableModes(
-        phrase: PhraseModel,
-        track: StepSequenceTrack,
-        layer: PhraseLayerDefinition
-    ) -> [PhraseCellEditMode] {
-        var modes = layer.availableModes
-        let phrases = session.store.phrases
-        let hasPredecessorValue: Bool = {
-            guard let index = phrases.firstIndex(where: { $0.id == phrase.id }), index > 0 else {
-                return false
-            }
-            return target.trackIDs.allSatisfy {
-                phrases[index - 1].cell(for: layer.id, trackID: $0).editMode != .inheritDefault
-            }
-        }()
-        if !hasPredecessorValue {
-            modes.removeAll { $0 == .inheritDefault }
-        }
-        return modes
-    }
 }

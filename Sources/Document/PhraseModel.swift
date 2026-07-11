@@ -262,7 +262,10 @@ struct PhraseModel: Codable, Equatable, Sendable, Identifiable {
             return value.normalized(for: layer)
         case let .bars(values):
             guard !values.isEmpty else { return fallback }
-            let barIndex = min(max(clampedStep / stepsPerBar, 0), values.count - 1)
+            let barIndex = PhraseBarAutomation.loopIndex(
+                barIndex: max(clampedStep / stepsPerBar, 0),
+                valueCount: values.count
+            )
             return values[barIndex].normalized(for: layer)
         case let .steps(values):
             guard !values.isEmpty else { return fallback }
@@ -716,8 +719,15 @@ enum PhraseCell: Codable, Equatable, Sendable {
             case let .bool(isOn):
                 base = isOn ? layer.maxValue : layer.minValue
             }
-            return .curve([base, base, base, base])
+            return .curve([base, base])
         }
+    }
+}
+
+enum PhraseBarAutomation {
+    static func loopIndex(barIndex: Int, valueCount: Int) -> Int {
+        guard valueCount > 0 else { return 0 }
+        return max(0, barIndex) % valueCount
     }
 }
 

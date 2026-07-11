@@ -333,7 +333,14 @@ extension SequencerDocumentSession {
             phrase: displayedPhrase,
             transportTickIndex: startTick
         ).barIndex
-        var barValues = (0..<displayedPhrase.lengthBars).map { barIndex in
+        let authoredLoopCount: Int = {
+            if case let .bars(values) = displayedPhrase.cell(for: layerID, trackID: trackID),
+               !values.isEmpty {
+                return min(values.count, displayedPhrase.lengthBars)
+            }
+            return displayedPhrase.lengthBars
+        }()
+        var barValues = (0..<authoredLoopCount).map { barIndex in
             displayedPhrase.resolvedValue(
                 for: layer,
                 trackID: trackID,
@@ -342,12 +349,13 @@ extension SequencerDocumentSession {
             .normalized(for: layer)
         }
 
-        let endBarIndex = min(displayedPhrase.lengthBars, startBarIndex + max(1, lengthBars))
-        guard startBarIndex < endBarIndex else {
-            return
-        }
-        for barIndex in startBarIndex..<endBarIndex {
-            barValues[barIndex] = value.normalized(for: layer)
+        let affectedBarCount = min(max(1, lengthBars), displayedPhrase.lengthBars)
+        for offset in 0..<affectedBarCount {
+            let loopIndex = PhraseBarAutomation.loopIndex(
+                barIndex: startBarIndex + offset,
+                valueCount: barValues.count
+            )
+            barValues[loopIndex] = value.normalized(for: layer)
         }
 
         stagePhrasePerformCell(

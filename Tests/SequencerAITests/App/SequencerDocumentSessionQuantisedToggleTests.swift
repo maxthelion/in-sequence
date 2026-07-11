@@ -272,6 +272,40 @@ final class SequencerDocumentSessionQuantisedToggleTests: XCTestCase {
         XCTAssertTrue(engine.quantisedMuteOverridesForTesting.isEmpty)
     }
 
+    func test_committedLengthLimitedMute_preservesAuthoredShortLoopLength() throws {
+        let (session, engine, _) = makeSession()
+        defer { SequencerDocumentSessionRegistry.unregister(session) }
+
+        let phraseID = session.store.selectedPhrase.id
+        XCTAssertTrue(session.setPhraseBarCount(4, phraseID: phraseID))
+        let trackID = session.store.tracks[0].id
+        session.setPhraseCell(
+            .bars([.bool(false), .bool(false)]),
+            layerID: muteLayerID,
+            trackIDs: [trackID],
+            phraseID: phraseID
+        )
+        session.workspaceMode = .perform
+
+        session.applyCommittedQuantisedToggles([
+            .lengthLimitedMute(
+                trackID: trackID,
+                muted: true,
+                basisPhraseID: phraseID,
+                lengthBars: 1,
+                startTick: 16
+            )
+        ])
+
+        let staged = try XCTUnwrap(session.performOverlayCell(
+            phraseID: phraseID,
+            layerID: muteLayerID,
+            trackID: trackID
+        ))
+        XCTAssertEqual(staged, .bars([.bool(false), .bool(true)]))
+        XCTAssertTrue(engine.quantisedMuteOverridesForTesting.isEmpty)
+    }
+
     func test_committedFillFlagStagesTheOverlayCellAndRetiresTheEngineOverride() {
         let (session, engine, _) = makeSession()
         session.workspaceMode = .perform

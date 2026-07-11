@@ -1730,6 +1730,22 @@ struct PhraseWorkspaceView: View {
             return
         }
 
+        if command.hasPrefix("open-automation-layer:") {
+            let layerID = String(command.dropFirst("open-automation-layer:".count))
+            guard session.store.layer(id: layerID) != nil,
+                  let trackID = session.store.tracks.first?.id
+            else { return }
+            let phraseID = session.store.selectedPhraseID
+            session.setSelectedPhraseAndTrackID(phraseID: phraseID, trackID: trackID)
+            editingCellTarget = PhraseCellEditorTarget(
+                phraseID: phraseID,
+                trackID: trackID,
+                layerID: layerID
+            )
+            postRenderedMatrixVisualState(isVisible: true)
+            return
+        }
+
         if command == "global-apply-track-selector:open" {
             phraseTab = .values
             phraseLayerEditMode = .byValue
@@ -1838,6 +1854,14 @@ struct PhraseWorkspaceView: View {
     private func postRenderedMatrixVisualState(isVisible: Bool) {
         let layout = matrixLayout
         let activeLayer = activeMatrixLayer
+        let automationMode: String = {
+            guard let target = editingCellTarget,
+                  let phrase = session.store.phrases.first(where: { $0.id == target.phraseID })
+            else { return "none" }
+            return PhraseAutomationSurfaceMode.mode(
+                for: phrase.cell(for: target.layerID, trackID: target.trackID)
+            ).rawValue
+        }()
         NotificationCenter.default.post(
             name: .phraseMatrixRenderedVisualState,
             object: nil,
@@ -1860,6 +1884,8 @@ struct PhraseWorkspaceView: View {
                 "workspaceTab": isVisible ? legacyVisualWorkspaceTab : "none",
                 "phraseLayerEditMode": isVisible ? phraseLayerEditMode.rawValue : "none",
                 "cellTool": isVisible ? phraseCellTool.rawValue : "none",
+                "automationModalVisible": isVisible && editingCellTarget != nil,
+                "automationModalMode": isVisible ? automationMode : "none",
                 "globalApplyTrackSelectorVisible": isVisible && isPresentingGlobalApplyTrackSelector,
                 "captureVisible": isVisible && isPresentingPhraseCapture,
                 "sceneSelectVisible": isVisible && phraseSceneSlotPickerRequest != nil,
@@ -2096,6 +2122,7 @@ struct PhraseWorkspaceView: View {
 
         session.setSelectedPhraseAndTrackID(phraseID: phraseID, trackID: firstTrackID)
         editingCellTarget = target
+        postRenderedMatrixVisualState(isVisible: true)
     }
 
     private var usesPhraseCellDocumentEditTarget: Bool {

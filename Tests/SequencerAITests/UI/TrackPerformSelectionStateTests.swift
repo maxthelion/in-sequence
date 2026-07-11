@@ -4,6 +4,20 @@ import XCTest
 
 @MainActor
 final class TrackPerformSelectionStateTests: XCTestCase {
+    func test_automation_surface_exposes_single_perBar_and_points() {
+        XCTAssertEqual(PhraseAutomationSurfaceMode.allCases.map(\.title), ["Single", "Per Bar", "Points"])
+        XCTAssertTrue(PhraseAutomationSurfaceMode.points.isAvailable(for: .continuousScalar))
+        XCTAssertFalse(PhraseAutomationSurfaceMode.points.isAvailable(for: .toggleBoolean))
+        XCTAssertFalse(PhraseAutomationSurfaceMode.points.isAvailable(for: .indexedChoice))
+    }
+
+    func test_legacy_steps_present_as_points_without_mutating_the_cell() {
+        let cell = PhraseCell.steps([.scalar(0.2), .scalar(0.8)])
+
+        XCTAssertEqual(PhraseAutomationSurfaceMode.mode(for: cell), .points)
+        XCTAssertEqual(cell, .steps([.scalar(0.2), .scalar(0.8)]))
+    }
+
     private final class DocumentBox {
         var document: SeqAIDocument
 

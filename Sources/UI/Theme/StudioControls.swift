@@ -233,18 +233,20 @@ struct StudioStepperButtons: View {
     var symbols: (up: String, down: String) = ("plus", "minus")
     var upHelp: String = "Increase"
     var downHelp: String = "Decrease"
+    var isUpEnabled = true
+    var isDownEnabled = true
     let onUp: () -> Void
     let onDown: () -> Void
 
     var body: some View {
         VStack(spacing: 0) {
-            stepButton(systemName: symbols.up, help: upHelp, action: onUp)
+            stepButton(systemName: symbols.up, help: upHelp, isEnabled: isUpEnabled, action: onUp)
 
             Rectangle()
                 .fill(StudioTheme.border)
                 .frame(height: 1)
 
-            stepButton(systemName: symbols.down, help: downHelp, action: onDown)
+            stepButton(systemName: symbols.down, help: downHelp, isEnabled: isDownEnabled, action: onDown)
         }
         .frame(width: 18)
         .background(
@@ -258,15 +260,21 @@ struct StudioStepperButtons: View {
         .clipShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.mini, style: .continuous))
     }
 
-    private func stepButton(systemName: String, help: String, action: @escaping () -> Void) -> some View {
+    private func stepButton(
+        systemName: String,
+        help: String,
+        isEnabled: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
         Button(action: action) {
             Image(systemName: systemName)
                 .font(.system(size: 8, weight: .black))
-                .foregroundStyle(StudioTheme.text)
+                .foregroundStyle(isEnabled ? StudioTheme.text : StudioTheme.mutedText)
                 .frame(width: 18, height: 13)
                 .contentShape(Rectangle())
         }
         .buttonStyle(StudioStepperSegmentButtonStyle())
+        .disabled(!isEnabled)
         .help(help)
         .accessibilityLabel(help)
     }

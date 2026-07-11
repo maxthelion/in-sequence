@@ -51,6 +51,8 @@ enum VisualScenarioCommandRunner {
     private static var phraseSceneViewModeState = PhraseSceneViewMode.macros.rawValue
     private static var phraseWorkspaceTab = "layers"
     private static var phraseCellTool = "value"
+    private static var phraseAutomationModalVisible = false
+    private static var phraseAutomationModalMode = "none"
     private static var phraseGlobalApplyTrackSelectorVisible = false
     private static var phraseSceneSelectVisible = false
     private static var phraseCaptureVisible = false
@@ -347,6 +349,8 @@ enum VisualScenarioCommandRunner {
                 phrasePerformLayerVariant = userInfo["performLayerVariant"] as? String ?? "none"
                 phraseWorkspaceTab = userInfo["workspaceTab"] as? String ?? "layers"
                 phraseCellTool = userInfo["cellTool"] as? String ?? "value"
+                phraseAutomationModalVisible = userInfo["automationModalVisible"] as? Bool ?? false
+                phraseAutomationModalMode = userInfo["automationModalMode"] as? String ?? "none"
                 phraseGlobalApplyTrackSelectorVisible = userInfo["globalApplyTrackSelectorVisible"] as? Bool ?? false
                 phraseSceneSelectVisible = userInfo["sceneSelectVisible"] as? Bool ?? false
                 phraseCaptureVisible = userInfo["captureVisible"] as? Bool ?? false
@@ -1268,6 +1272,8 @@ enum VisualScenarioCommandRunner {
         phraseMatrixNextOccupancy=\(phraseMatrixNextOccupancy)
         phraseMatrixSelectedLayerID=\(phraseMatrixSelectedLayerID)
         phraseMatrixSelectedLayerName=\(phraseMatrixSelectedLayerName)
+        phraseAutomationModalVisible=\(phraseAutomationModalVisible)
+        phraseAutomationModalMode=\(phraseAutomationModalMode)
         phraseMatrixSelectorWidth=\(phraseMatrixSelectorWidth)
         phraseMatrixTrackGridWidth=\(phraseMatrixTrackGridWidth)
         phrasePerformLayerMode=\(phrasePerformLayerMode)
@@ -1584,6 +1590,8 @@ enum VisualScenarioCommandRunner {
               command["phraseCellTool"] != nil ||
               command["phraseLayerSelect"] != nil ||
               command["phraseLayerAutomation"] != nil ||
+              command["phraseLayerAutomationTarget"] != nil ||
+              command["phraseAutomationFixture"] != nil ||
               command["phraseDensityValue"] != nil ||
               command["phraseGlobalApplyTrackSelector"] != nil ||
               command["phraseGlobalApplySelect"] != nil ||
@@ -1631,6 +1639,43 @@ enum VisualScenarioCommandRunner {
                 guard !missing.isEmpty else { return }
                 project.layers.append(contentsOf: missing)
                 store.importFromProject(project)
+            }
+        }
+
+        if let fixture = command["phraseAutomationFixture"],
+           let layerID = command["phraseLayerAutomationTarget"] ?? command["phraseMatrixLayerID"],
+           let layer = session.store.layer(id: layerID) {
+            let selectedCount = Int(command["phraseLayerSelect"] ?? "1") ?? 1
+            let trackIDs = Array(session.store.tracks.prefix(max(1, selectedCount)).map(\.id))
+            switch fixture {
+            case "bars":
+                let count = max(1, min(session.store.selectedPhrase.lengthBars, 8))
+                let values = (0..<count).map { index -> PhraseCellValue in
+                    switch layer.valueType {
+                    case .boolean:
+                        return .bool(index.isMultiple(of: 2))
+                    case .patternIndex:
+                        return .index(index % TrackPatternBank.slotCount)
+                    case .scalar:
+                        let fraction = count > 1 ? Double(index) / Double(count - 1) : 0
+                        return .scalar(layer.minValue + (fraction * (layer.maxValue - layer.minValue)))
+                    }
+                }
+                session.setPhraseCell(
+                    .bars(values),
+                    layerID: layer.id,
+                    trackIDs: trackIDs,
+                    phraseID: session.store.selectedPhraseID
+                )
+            case "points" where layer.editorKind == .continuousScalar:
+                session.setPhraseCell(
+                    .curve(PhraseCurvePreset.swell.points(in: layer.scalarRange)),
+                    layerID: layer.id,
+                    trackIDs: trackIDs,
+                    phraseID: session.store.selectedPhraseID
+                )
+            default:
+                break
             }
         }
 
@@ -1690,11 +1735,10 @@ enum VisualScenarioCommandRunner {
             posts.append("select-cells:\(rawSelectionCount)")
         }
 
-        switch command["phraseLayerAutomation"] {
-        case "open", "visible", "true":
+        if let targetLayerID = command["phraseLayerAutomationTarget"] {
+            posts.append("open-automation-layer:\(targetLayerID)")
+        } else if ["open", "visible", "true"].contains(command["phraseLayerAutomation"] ?? "") {
             posts.append("open-selected-cell-automation")
-        default:
-            break
         }
 
         // WS5 capture vocabulary (rows 10a/10b): write a density value into

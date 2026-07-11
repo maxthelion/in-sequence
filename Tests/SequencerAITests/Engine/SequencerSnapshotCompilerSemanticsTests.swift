@@ -51,6 +51,22 @@ final class SequencerSnapshotCompilerSemanticsTests: XCTestCase {
         XCTAssertEqual(Array(trackState.patternSlotIndex.prefix(2)), [0, 1])
     }
 
+    func test_compiler_loops_short_perBar_pattern_map_across_phrase() throws {
+        var (project, trackID, _) = makeLiveStoreProject(clipPitch: 60)
+        project.setPhraseCell(
+            .bars([.index(0), .index(1)]),
+            layerID: "pattern",
+            trackIDs: [trackID],
+            phraseID: project.selectedPhraseID
+        )
+
+        let snapshot = SequencerSnapshotCompiler.compile(project: project)
+        let phraseBuffer = try XCTUnwrap(snapshot.phraseBuffersByID[project.selectedPhraseID])
+        let trackState = try XCTUnwrap(phraseBuffer.trackState(for: trackID))
+
+        XCTAssertEqual([0, 16, 32, 48].map { trackState.patternSlotIndex[$0] }, [0, 1, 0, 1])
+    }
+
     // MARK: - WS5: density compiles into the typed generation-affecting buffer
 
     func test_compiler_carries_phraseDensityAsGenerationAffectingTrackValue() throws {
