@@ -19,30 +19,52 @@ struct TrackFXChainView: View {
 
     @State private var selectedInsertID: UUID?
 
+    @ViewBuilder
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            if inserts.isEmpty {
-                emptyState
-            } else {
-                ViewThatFits(in: .horizontal) {
-                    HStack(alignment: .top, spacing: 18) {
-                        chainList
-                            .frame(minWidth: 300, maxWidth: 380, alignment: .topLeading)
-                        insertEditor
-                            .frame(maxWidth: .infinity, alignment: .topLeading)
-                    }
+        if inheritsSharedAU {
+            StudioEmptyWell(
+                title: "Kit FX",
+                systemImage: "link",
+                accent: accent,
+                minHeight: 132,
+                help: "This part shares its AU output. Use the kit FX tab for audio effects."
+            )
+            .padding(StudioMetrics.Spacing.standard)
+        } else {
+            VStack(alignment: .leading, spacing: 10) {
+                if inserts.isEmpty {
+                    emptyState
+                } else {
+                    ViewThatFits(in: .horizontal) {
+                        HStack(alignment: .top, spacing: 18) {
+                            chainList
+                                .frame(minWidth: 300, maxWidth: 380, alignment: .topLeading)
+                            insertEditor
+                                .frame(maxWidth: .infinity, alignment: .topLeading)
+                        }
 
-                    VStack(alignment: .leading, spacing: 18) {
-                        chainList
-                        insertEditor
+                        VStack(alignment: .leading, spacing: 18) {
+                            chainList
+                            insertEditor
+                        }
                     }
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(StudioMetrics.Spacing.standard)
+            .onAppear { syncSelection() }
+            .onChange(of: inserts.map(\.id)) { syncSelection() }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(StudioMetrics.Spacing.standard)
-        .onAppear { syncSelection() }
-        .onChange(of: inserts.map(\.id)) { syncSelection() }
+    }
+
+    private var inheritsSharedAU: Bool {
+        guard let track = session.store.tracks.first(where: { $0.id == trackID }),
+              track.destination == .inheritGroup
+        else { return false }
+        if case .auInstrument = session.store.resolvedDestination(for: trackID).withoutTransientState {
+            return true
+        }
+        return false
     }
 
     // MARK: - Empty state
