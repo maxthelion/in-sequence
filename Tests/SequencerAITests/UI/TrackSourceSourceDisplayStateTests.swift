@@ -320,6 +320,31 @@ final class TrackSourceSourceDisplayStateTests: XCTestCase {
         XCTAssertTrue(historyCell.contains("ClipHistoryCellPresentation.accessibilityLabel"))
     }
 
+    func test_patternNavigationRetargetsPasteAndRandomizeToTheViewedSlot() throws {
+        let workspace = try String(
+            contentsOf: repoRoot.appendingPathComponent("Sources/UI/Track/TrackWorkspaceView.swift"),
+            encoding: .utf8
+        )
+        let editor = try String(
+            contentsOf: repoRoot.appendingPathComponent("Sources/UI/TrackSource/TrackSourceEditorView.swift"),
+            encoding: .utf8
+        )
+        let displayBinding = try sourceSection(
+            workspace,
+            from: "private var displayedPatternIndexBinding",
+            to: "private var selectedPatternSlotIndexes"
+        )
+        let randomizeCommit = try sourceSection(
+            editor,
+            from: "private func commitRandomizeDraft",
+            to: "private func closeRandomizePanel"
+        )
+
+        XCTAssertTrue(displayBinding.contains("selectedPatternSlotsByTrackID[track.id] = []"))
+        XCTAssertTrue(randomizeCommit.contains("bakeRandomizedClip(at: selectedPatternAddress"))
+        XCTAssertFalse(randomizeCommit.contains("bakeRandomizedSelectedClip"))
+    }
+
     private func sourceSection(_ source: String, from start: String, to end: String) throws -> Substring {
         let startRange = try XCTUnwrap(source.range(of: start))
         let endRange = try XCTUnwrap(source.range(of: end, range: startRange.upperBound..<source.endIndex))

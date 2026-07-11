@@ -47,9 +47,10 @@ struct TrackWorkspaceView: View {
 
     private var occupiedPatternSlots: Set<Int> {
         let bank = session.store.patternBank(for: track.id)
-        return Set(bank.slots.compactMap { slot in
-            slot.sourceRef.isEmpty ? nil : slot.slotIndex
-        })
+        return bank.occupiedSlotIndexes(
+            clipPool: session.store.clipPool,
+            generatorPool: session.store.generatorPool
+        )
     }
 
     private var displayedPatternIndex: Int {
@@ -61,6 +62,7 @@ struct TrackWorkspaceView: View {
             get: { displayedPatternIndex },
             set: { newValue in
                 displayedPatternSlotsByTrackID[track.id] = min(max(newValue, 0), TrackPatternBank.slotCount - 1)
+                selectedPatternSlotsByTrackID[track.id] = []
             }
         )
     }
@@ -677,14 +679,10 @@ private struct AudioInputRuntimePanel: View {
 
     private var occupiedPatternSlots: Set<Int> {
         let bank = session.store.patternBank(for: track.id)
-        return Set(bank.slots.compactMap { slot in
-            guard let clip = session.store.clipEntry(id: slot.sourceRef.clipID),
-                  !clipIsEmpty(clip.content)
-            else {
-                return nil
-            }
-            return slot.slotIndex
-        })
+        return bank.occupiedSlotIndexes(
+            clipPool: session.store.clipPool,
+            generatorPool: session.store.generatorPool
+        )
     }
 
     private var selectedPatternIndexBinding: Binding<Int> {

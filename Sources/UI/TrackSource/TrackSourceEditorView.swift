@@ -141,9 +141,10 @@ struct TrackSourceEditorView: View {
     }
     private var selectedPattern: TrackPatternSlot { bank.slot(at: selectedPatternIndex) }
     private var occupiedPatternSlots: Set<Int> {
-        Set(bank.slots.compactMap { slot in
-            slot.sourceRef.isEmpty ? nil : slot.slotIndex
-        })
+        bank.occupiedSlotIndexes(
+            clipPool: session.store.clipPool,
+            generatorPool: session.store.generatorPool
+        )
     }
     private var selectedSourceMode: TrackSourceMode { selectedPattern.sourceRef.mode }
     private var compatibleClips: [ClipPoolEntry] { session.store.compatibleClips(for: track) }
@@ -505,7 +506,7 @@ struct TrackSourceEditorView: View {
         var persisted = randomizeDraft.normalized
         persisted.lastSeed = seed
         randomizeDraft = persisted
-        _ = session.bakeRandomizedSelectedClip(trackID: track.id, settings: persisted, seed: seed)
+        _ = session.bakeRandomizedClip(at: selectedPatternAddress, settings: persisted, seed: seed)
         session.clearRandomizeAudition(trackID: track.id)
         isRandomizePanelVisible = keepPanelOpen
     }

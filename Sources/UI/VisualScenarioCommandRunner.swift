@@ -1158,6 +1158,13 @@ enum VisualScenarioCommandRunner {
             phrases.first { $0.id == phraseID }?.name
         }
         let selectedPattern = session.store.selectedPattern(for: session.store.selectedTrackID)
+        let selectedTrackOccupiedPatternCount = session.store
+            .patternBank(for: session.store.selectedTrackID)
+            .occupiedSlotIndexes(
+                clipPool: session.store.clipPool,
+                generatorPool: session.store.generatorPool
+            )
+            .count
         let selectedSlicer = selectedSlicerStatus(session: session)
         let selectedNoteRepeatSnapshot = engineController.noteRepeatRuntimeSnapshot(for: session.store.selectedTrackID)
         let activeNoteRepeatTrackNames = session.store.tracks.compactMap { track in
@@ -1343,6 +1350,7 @@ enum VisualScenarioCommandRunner {
         selectedPatternSourceMode=\(selectedPattern.sourceRef.mode.rawValue)
         selectedPatternHasClip=\(session.store.clipEntry(id: selectedPattern.sourceRef.clipID) != nil)
         selectedPatternHasGenerator=\(session.store.generatorEntry(id: selectedPattern.sourceRef.generatorID) != nil)
+        selectedTrackOccupiedPatternCount=\(selectedTrackOccupiedPatternCount)
         chordTrackFixture=\(chordTrackFixtureState)
         chordTrackTab=\(chordTrackTabState)
         chordTrackLayer=\(chordTrackLayerState)
@@ -3476,6 +3484,7 @@ enum VisualScenarioCommandRunner {
               command["trackFillSource"] != nil ||
               command["trackFillSelectedTrackIndex"] != nil ||
               command["trackFillEngaged"] != nil ||
+              command["trackPatternOccupancyFixture"] != nil ||
               command["trackFillEnsureSecondClipTrack"] == "true"
         else { return }
 
@@ -3494,6 +3503,24 @@ enum VisualScenarioCommandRunner {
 
         if let sourceState = command["trackFillSource"] {
             applyTrackFillSource(sourceState, session: session)
+        }
+
+        if command["trackPatternOccupancyFixture"] == "mixed" {
+            let trackID = session.store.selectedTrackID
+            session.setSelectedPatternIndex(0, for: trackID)
+            applyTrackFillSource("clip", session: session)
+            if let clipID = session.store.selectedPattern(for: trackID).sourceRef.clipID {
+                session.mutateClip(id: clipID) { entry in
+                    entry.content = .stepSequence(
+                        stepPattern: [true, false, false, false, true, false, false, false],
+                        pitches: [60]
+                    )
+                    entry.randomizeSettings = nil
+                }
+            }
+            for slotIndex in 1...4 {
+                _ = session.createBlankClipSource(trackID: trackID, slotIndex: slotIndex)
+            }
         }
 
         switch command["trackFillPreview"] {

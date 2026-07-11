@@ -91,14 +91,10 @@ struct SliceTrackWorkspaceView: View {
     }
 
     private var occupiedPatternSlots: Set<Int> {
-        Set(bank.slots.compactMap { slot in
-            guard let clip = session.store.clipEntry(id: slot.sourceRef.clipID),
-                  !clipIsEmpty(clip.content)
-            else {
-                return nil
-            }
-            return slot.slotIndex
-        })
+        bank.occupiedSlotIndexes(
+            clipPool: session.store.clipPool,
+            generatorPool: session.store.generatorPool
+        )
     }
 
     var body: some View {

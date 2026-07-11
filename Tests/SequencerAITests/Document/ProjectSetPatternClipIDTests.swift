@@ -254,3 +254,51 @@ final class ProjectPatternSlotClipboardTests: XCTestCase {
         )
     }
 }
+
+final class TrackPatternSlotOccupancyTests: XCTestCase {
+    func test_occupancyRequiresAuthoredClipOrValidGeneratorData() {
+        let emptyClip = ClipPoolEntry(
+            id: UUID(),
+            name: "Blank",
+            trackType: .monoMelodic,
+            content: .emptyNoteGrid(lengthSteps: 16)
+        )
+        let populatedClip = ClipPoolEntry(
+            id: UUID(),
+            name: "Notes",
+            trackType: .monoMelodic,
+            content: .stepSequence(stepPattern: [true, false], pitches: [60])
+        )
+        let randomizedSilence = ClipPoolEntry(
+            id: UUID(),
+            name: "Authored Silence",
+            trackType: .monoMelodic,
+            content: .emptyNoteGrid(lengthSteps: 16),
+            randomizeSettings: ClipRandomizeSettings(density: 0)
+        )
+        let generator = GeneratorPoolEntry.makeDefault(
+            id: UUID(),
+            name: "Generator",
+            kind: .monoGenerator,
+            trackType: .monoMelodic
+        )
+        let bank = TrackPatternBank(
+            trackID: UUID(),
+            slots: [
+                TrackPatternSlot(slotIndex: 0, sourceRef: .clip(emptyClip.id)),
+                TrackPatternSlot(slotIndex: 1, sourceRef: .clip(populatedClip.id)),
+                TrackPatternSlot(slotIndex: 2, sourceRef: .clip(randomizedSilence.id)),
+                TrackPatternSlot(slotIndex: 3, sourceRef: .generator(generator.id)),
+                TrackPatternSlot(slotIndex: 4, sourceRef: .clip(nil)),
+            ]
+        )
+
+        XCTAssertEqual(
+            bank.occupiedSlotIndexes(
+                clipPool: [emptyClip, populatedClip, randomizedSilence],
+                generatorPool: [generator]
+            ),
+            [1, 2, 3]
+        )
+    }
+}

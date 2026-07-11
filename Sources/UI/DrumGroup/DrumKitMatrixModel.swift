@@ -233,7 +233,8 @@ struct DrumKitMatrixModel: Equatable {
         self.occupiedSlotIndexes = Self.occupiedSlots(
             members: orderedMembers,
             patternBanks: patternBanks,
-            clipPool: clipPool
+            clipPool: clipPool,
+            generatorPool: generatorPool
         )
     }
 
@@ -294,26 +295,18 @@ struct DrumKitMatrixModel: Equatable {
     private static func occupiedSlots(
         members: [StepSequenceTrack],
         patternBanks: [TrackPatternBank],
-        clipPool: [ClipPoolEntry]
+        clipPool: [ClipPoolEntry],
+        generatorPool: [GeneratorPoolEntry]
     ) -> Set<Int> {
-        let clipsByID = Dictionary(uniqueKeysWithValues: clipPool.map { ($0.id, $0) })
         var occupied: Set<Int> = []
         for member in members {
             let bank = patternBank(for: member, patternBanks: patternBanks, clipPool: clipPool)
-            for slot in bank.slots where !occupied.contains(slot.slotIndex) {
-                switch slot.sourceRef.mode {
-                case .generator:
-                    if slot.sourceRef.generatorID != nil {
-                        occupied.insert(slot.slotIndex)
-                    }
-                case .clip:
-                    if let clipID = slot.sourceRef.clipID,
-                       let clip = clipsByID[clipID],
-                       !clipIsEmpty(clip.content) {
-                        occupied.insert(slot.slotIndex)
-                    }
-                }
-            }
+            occupied.formUnion(
+                bank.occupiedSlotIndexes(
+                    clipPool: clipPool,
+                    generatorPool: generatorPool
+                )
+            )
         }
         return occupied
     }

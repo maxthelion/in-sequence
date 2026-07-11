@@ -975,4 +975,35 @@ struct TrackPatternSlot: Codable, Equatable, Identifiable, Sendable {
         let trimmed = name?.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed?.isEmpty == true ? nil : trimmed
     }
+
+    func containsAuthoredData(
+        clipPool: [ClipPoolEntry],
+        generatorPool: [GeneratorPoolEntry]
+    ) -> Bool {
+        switch sourceRef.mode {
+        case .clip:
+            guard let clipID = sourceRef.clipID,
+                  let clip = clipPool.first(where: { $0.id == clipID })
+            else { return false }
+            return !clipIsEmpty(clip.content)
+                || !clip.macroLanes.isEmpty
+                || clip.randomizeSettings != nil
+        case .generator:
+            guard let generatorID = sourceRef.generatorID else { return false }
+            return generatorPool.contains(where: { $0.id == generatorID })
+        }
+    }
+}
+
+extension TrackPatternBank {
+    func occupiedSlotIndexes(
+        clipPool: [ClipPoolEntry],
+        generatorPool: [GeneratorPoolEntry]
+    ) -> Set<Int> {
+        Set(slots.compactMap { slot in
+            slot.containsAuthoredData(clipPool: clipPool, generatorPool: generatorPool)
+                ? slot.slotIndex
+                : nil
+        })
+    }
 }
