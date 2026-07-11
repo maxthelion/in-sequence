@@ -34,11 +34,15 @@ Status: RESOLVED
 
 Pattern, Note Repeat, and Step Order now share a grouped value-picker grammar:
 
-- Each layer is collapsed to its current value by default.
-- The current value carries one expand/collapse control.
+- With no pins, each layer collapses to its first value.
+- With pins, collapsed mode shows only the pinned values.
+- Every value card's layer header expands or collapses the whole group.
 - Expanded mode shows every backed value as a full cell.
-- Every available value has an independent pin toggle.
-- Pinned values remain beside the current value after the layer is collapsed.
+- Every available value has an independent pin toggle while expanded; pins are
+  hidden in collapsed mode.
+- Collapsed groups show only pinned values, or the first value when none are pinned.
+- Applying a value changes only its toggle fill; it never changes which cells
+  are visible.
 - Pattern exposes P1-P16 and applies the chosen slot exactly across the active
   track scope, including through the quantised pattern-selection path.
 
@@ -47,3 +51,18 @@ Acceptance evidence is covered by the QA rows:
 - `13-phrase-global-apply` (default collapsed state)
 - `13d-phrase-global-apply-pattern-expanded-pinned` (P1-P16, P1/P2/P3 pinned)
 - `13e-phrase-global-apply-pattern-pinned-collapsed` (P1/P2/P3 retained)
+
+## FOLLOW-UP: PHRASE LAYER SELECTION
+
+- Right-click now toggles direct cell selection without opening a context menu.
+- Shift-click adds or removes cells through the same shared selection contract.
+- Selected cells use a white border and track-accent title text; ordinary track
+  focus is no longer drawn as selection.
+- An `Automate` action appears in the Layer bar for a selection and edits every
+  selected cell in one automation sheet.
+- QA row `10-phrase-layer-selected-cells` records two selected cells and the
+  visible batch Automation action.
+
+Verification:
+- 62 focused selection, grouped-value, and shared-step tests passed.
+- `scripts/diagnostics/ux-canon-lint.sh`: 0 violations.

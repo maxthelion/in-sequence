@@ -1260,15 +1260,26 @@ struct PhraseWorkspaceView: View {
         session.setSelectedPhraseID(phrases[visualControlsOpenIndex].id)
     }
 
-    // Compact layer controls that live INSIDE the orange perform-copy bar on
-    // the LAYERS tab. The selected layer pill carries the value context; copy /
-    // paste / automation live on the cells' right-click menu.
+    // Compact layer controls that live inside the perform-copy bar on the
+    // Layers tab. Selection is direct; automation applies to selected cells.
     @ViewBuilder
     private var shellLayerControls: some View {
         if phraseTab == .layers {
             HStack(spacing: 8) {
                 phraseLayerSelectorButton
                     .frame(width: 132)
+
+                if !phraseLayerSelection.isEmpty {
+                    StudioCommandButton(
+                        title: "Automate",
+                        systemImage: "point.topleft.down.curvedto.point.bottomright.up",
+                        role: .secondary,
+                        accent: activeLayerAccent,
+                        help: "Edit automation for selected cells",
+                        action: openAutomationForSelectedCells
+                    )
+                    .accessibilityIdentifier("phrase-layer-automate-selection")
+                }
             }
             .fixedSize(horizontal: true, vertical: false)
         }
@@ -1487,6 +1498,25 @@ struct PhraseWorkspaceView: View {
             return
         }
 
+        if command.hasPrefix("select-cells:"),
+           let rawCount = command.split(separator: ":").last,
+           let count = Int(rawCount),
+           let activeMatrixLayer {
+            phraseTab = .layers
+            phraseLayerEditMode = .byTrack
+            phraseLayerSelection.clear()
+            for track in scopedLayerTracks.prefix(max(0, count)) {
+                phraseLayerSelection.select(
+                    phraseID: session.store.selectedPhraseID,
+                    layerID: activeMatrixLayer.id,
+                    trackID: track.id,
+                    additive: true
+                )
+            }
+            postRenderedMatrixVisualState(isVisible: true)
+            return
+        }
+
         if command == "global-apply-track-selector:open" {
             phraseTab = .values
             phraseLayerEditMode = .byValue
@@ -1621,10 +1651,12 @@ struct PhraseWorkspaceView: View {
         }
 
         let phraseExists = phrases.contains(where: { $0.id == editingCellTarget.phraseID })
-        let trackExists = tracks.contains(where: { $0.id == editingCellTarget.trackID })
+        let tracksExist = editingCellTarget.trackIDs.allSatisfy { trackID in
+            tracks.contains(where: { $0.id == trackID })
+        }
         let layerExists = layers.contains(where: { $0.id == editingCellTarget.layerID })
 
-        if !(phraseExists && trackExists && layerExists) {
+        if !(phraseExists && tracksExist && layerExists) {
             self.editingCellTarget = nil
         }
     }
@@ -1823,21 +1855,30 @@ struct PhraseWorkspaceView: View {
         )
     }
 
+    private func openAutomationForSelectedCells() {
+        guard let activeMatrixLayer else { return }
+        let phraseID = session.store.selectedPhraseID
+        let trackIDs = phraseLayerSelection.matchingTrackIDs(
+            phraseID: phraseID,
+            layerID: activeMatrixLayer.id,
+            liveTrackIDs: scopedLayerTracks.map(\.id)
+        )
+        guard let firstTrackID = trackIDs.first,
+              let target = PhraseCellEditorTarget(
+                  phraseID: phraseID,
+                  trackIDs: trackIDs,
+                  layerID: activeMatrixLayer.id
+              )
+        else { return }
+
+        session.setSelectedPhraseAndTrackID(phraseID: phraseID, trackID: firstTrackID)
+        editingCellTarget = target
+    }
+
     private var usesPhraseCellDocumentEditTarget: Bool {
         phraseTab == .layers
             && activeMatrixLayer != nil
             && !phraseLayerSelection.isEmpty
-    }
-
-    private func selectPhraseLayerTrack(_ trackID: UUID, additive: Bool) {
-        guard let activeMatrixLayer else { return }
-        phraseLayerSelection.select(
-            phraseID: session.store.selectedPhraseID,
-            layerID: activeMatrixLayer.id,
-            trackID: trackID,
-            additive: additive
-        )
-        session.setSelectedTrackID(trackID)
     }
 
     private func applyPhraseLayerSelectionGesture(
@@ -1852,16 +1893,6 @@ struct PhraseWorkspaceView: View {
             trackID: trackID
         )
         session.setSelectedTrackID(trackID)
-    }
-
-    private func phraseLayerSingleSelectionID(fallbackTrackID: UUID) -> UUID? {
-        if phraseLayerSelection.count == 1 {
-            return phraseLayerSelection.first
-        }
-        if phraseLayerSelection.isEmpty {
-            return fallbackTrackID
-        }
-        return nil
     }
 
     private func reconcilePhraseCellSelection() {
@@ -2011,7 +2042,6 @@ struct PhraseWorkspaceView: View {
         // the Song view's phrase matrix, not this (bug 20260623-134959).
         let activeLayer = activeMatrixLayer
         let accent = activeLayerAccent
-        let selectedTrackID = session.store.selectedTrackID
         let displayedPhrase = selectedPhraseForEditing
         let rowInherited = inheritedDefaults(for: displayedPhrase.id)
         // Standard 8-column matrix grid (always 8 columns, full or not).
@@ -2020,7 +2050,7 @@ struct PhraseWorkspaceView: View {
             LazyVGrid(columns: columns, alignment: .leading, spacing: gridSpacing) {
                 ForEach(scopedLayerTracks, id: \.id) { track in
                     let renderedCell = activeLayer.map { displayedPhrase.cell(for: $0.id, trackID: track.id) }
-                    let cellIsSelected = phraseLayerSelection.contains(track.id) || track.id == selectedTrackID
+                    let cellIsSelected = phraseLayerSelection.contains(track.id)
                     let trackAccent = StudioTheme.trackAccent(for: track, groups: session.store.trackGroups)
                     Group {
                         if performanceLayerSelection.mode == .noteRepeat {
@@ -2071,25 +2101,6 @@ struct PhraseWorkspaceView: View {
                         }
                         applyPhraseLayerSelectionGesture(gesture, trackID: track.id)
                         session.setSelectedPhraseAndTrackID(phraseID: displayedPhrase.id, trackID: track.id)
-                    }
-                    .contextMenu {
-                        if activeLayer != nil {
-                            Button("Select") {
-                                selectPhraseLayerTrack(track.id, additive: false)
-                            }
-                            Button("Add to Selection") {
-                                selectPhraseLayerTrack(track.id, additive: true)
-                            }
-                            if phraseLayerSingleSelectionID(fallbackTrackID: track.id) != nil {
-                                Divider()
-                                Button("Automation") {
-                                    openCellEditor(
-                                        phraseID: displayedPhrase.id,
-                                        trackID: phraseLayerSingleSelectionID(fallbackTrackID: track.id) ?? track.id
-                                    )
-                                }
-                            }
-                        }
                     }
                 }
             }
@@ -2391,13 +2402,12 @@ struct PhraseWorkspaceView: View {
 
     private func globalApplyValueActionCell(_ option: PerformanceLayerOption) -> some View {
         let allOptions = allGlobalApplyValueOptions(for: option.mode)
-        let currentOption = currentGlobalApplyValueOption(for: option.mode, options: allOptions)
         return GlobalApplyValueOptionCell(
             option: option,
             isSelected: isGlobalApplyValueOptionSelected(option),
             isPinned: globalApplyValueVisibility.isPinned(option),
             isExpanded: globalApplyValueVisibility.isExpanded(option.mode),
-            showsExpansionControl: allOptions.count > 1 && option.id == currentOption?.id,
+            isGroupExpandable: allOptions.count > 1,
             onApply: { applyGlobalOption(option) },
             onToggleExpansion: {
                 globalApplyValueVisibility.toggleExpanded(option.mode)
@@ -2450,8 +2460,7 @@ struct PhraseWorkspaceView: View {
                 let allOptions = allGlobalApplyValueOptions(for: mode)
                 return globalApplyValueVisibility.visibleOptions(
                     for: mode,
-                    allOptions: allOptions,
-                    currentOption: currentGlobalApplyValueOption(for: mode, options: allOptions)
+                    allOptions: allOptions
                 )
             }
             return phraseLocalPerformanceLayerOptions.filter { $0.mode == mode }
@@ -2470,35 +2479,6 @@ struct PhraseWorkspaceView: View {
             return phraseLocalPerformanceLayerOptions.filter { $0.mode == mode }
         case .mute, .fill, .volume, .pan:
             return []
-        }
-    }
-
-    private func currentGlobalApplyValueOption(
-        for mode: TrackPerformLayerMode,
-        options: [PerformanceLayerOption]
-    ) -> PerformanceLayerOption? {
-        switch mode {
-        case .pattern:
-            guard let layerID = mode.phraseLayerID,
-                  let layer = layers.first(where: { $0.id == layerID })
-            else { return options.first }
-            let consensus = globalApplyConsensus(for: layer)
-            guard case let .index(index) = consensus.value.normalized(for: layer) else {
-                return options.first
-            }
-            return options.first { $0.patternSlotIndex == index } ?? options.first
-        case .noteRepeat:
-            return options.first {
-                areSelectedNoteRepeatsActive(trackIDs: globalApplyScopeTrackIDs, option: $0)
-            } ?? options.first
-        case .stepOrder:
-            let assignment = selectedPhraseForEditing.stepOrderAssignment
-            let mapName = assignment.flatMap { assignment in
-                session.store.stepOrderMaps.first { $0.id == assignment.mapID && $0.isValid }?.name
-            }
-            return options.first { $0.variantLabel == mapName } ?? options.first
-        case .mute, .fill, .volume, .pan:
-            return nil
         }
     }
 
@@ -3532,7 +3512,7 @@ private struct PhraseGridCell: View {
             if showsTrackName {
                 Text(track.name)
                     .studioText(.labelBold)
-                    .foregroundStyle(StudioTheme.text)
+                    .foregroundStyle(isSelected ? trackAccent : StudioTheme.text)
                     .lineLimit(1)
                     .truncationMode(.tail)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -3550,8 +3530,8 @@ private struct PhraseGridCell: View {
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
                 .stroke(
-                    trackAccent.opacity(StudioOpacity.mediumStroke),
-                    lineWidth: StudioMetrics.borderWidth
+                    isSelected ? Color.white : trackAccent.opacity(StudioOpacity.mediumStroke),
+                    lineWidth: isSelected ? 2 : StudioMetrics.borderWidth
                 )
         )
         .help(isInherited ? "Follows the layer default. Click to set its own value; Option-click to push a value into this and the following phrases." : "")

@@ -87,33 +87,46 @@ struct GlobalApplyValueOptionCell: View {
     let isSelected: Bool
     let isPinned: Bool
     let isExpanded: Bool
-    let showsExpansionControl: Bool
+    let isGroupExpandable: Bool
     let onApply: () -> Void
     let onToggleExpansion: () -> Void
     let onTogglePin: () -> Void
 
     private var accent: Color { option.mode.phraseAccent }
+    private var valueLabel: String { option.unavailableReason ?? option.title }
 
     var body: some View {
-        ZStack(alignment: .topTrailing) {
-            PerformanceLayerOptionCell(
-                option: option,
-                isSelected: isSelected,
-                presentsToggleState: true,
-                onTap: onApply
-            )
-
+        VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 4) {
-                if showsExpansionControl {
-                    accessoryButton(
-                        systemName: isExpanded ? "chevron.up" : "chevron.down",
-                        isActive: isExpanded,
-                        help: isExpanded ? "Collapse \(option.mode.label) values" : "Expand \(option.mode.label) values",
-                        action: onToggleExpansion
-                    )
-                }
+                Button(action: onToggleExpansion) {
+                    HStack(spacing: 6) {
+                        Image(systemName: option.mode.symbolName)
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundStyle(accent)
 
-                if option.isAvailable {
+                        Text(option.mode.label.uppercased())
+                            .studioText(.labelBold)
+                            .foregroundStyle(StudioTheme.text)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.62)
+
+                        Spacer(minLength: 0)
+
+                        if isGroupExpandable {
+                            Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundStyle(isExpanded ? accent : StudioTheme.text)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 24)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .allowsHitTesting(isGroupExpandable)
+                .help(isExpanded ? "Collapse \(option.mode.label) values" : "Expand \(option.mode.label) values")
+                .accessibilityLabel(isExpanded ? "Collapse \(option.mode.label) values" : "Expand \(option.mode.label) values")
+
+                if option.isAvailable && isExpanded {
                     accessoryButton(
                         systemName: isPinned ? "pin.fill" : "pin",
                         isActive: isPinned,
@@ -122,8 +135,38 @@ struct GlobalApplyValueOptionCell: View {
                     )
                 }
             }
-            .padding(6)
+
+            Button {
+                guard option.isAvailable else { return }
+                onApply()
+            } label: {
+                Text(valueLabel)
+                    .studioText(.title)
+                    .foregroundStyle(isSelected ? StudioTheme.background : option.isAvailable ? StudioTheme.text : StudioTheme.mutedText)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.62)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(
+                        isSelected ? accent : Color.clear,
+                        in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                            .stroke(isSelected ? accent : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+                    )
+                    .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
+            }
+            .buttonStyle(.plain)
+            .allowsHitTesting(option.isAvailable)
+            .accessibilityLabel("\(option.mode.label) \(valueLabel)")
+            .accessibilityValue(option.isAvailable ? (isSelected ? "On" : "Off") : "Unavailable")
         }
+        .padding(StudioMetrics.Spacing.compact)
+        .frame(maxWidth: .infinity, minHeight: 130, maxHeight: 130, alignment: .topLeading)
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+        )
     }
 
     private func accessoryButton(

@@ -27,6 +27,21 @@ final class TrackPerformSelectionStateTests: XCTestCase {
         return session
     }
 
+    func test_phraseCellEditorTargetKeepsOrderedUniqueBatchSelection() {
+        let phraseID = UUID()
+        let firstTrackID = UUID()
+        let secondTrackID = UUID()
+        let target = PhraseCellEditorTarget(
+            phraseID: phraseID,
+            trackIDs: [secondTrackID, firstTrackID, secondTrackID],
+            layerID: "pattern"
+        )
+
+        XCTAssertEqual(target?.trackIDs, [secondTrackID, firstTrackID])
+        XCTAssertEqual(target?.trackID, secondTrackID)
+        XCTAssertNil(PhraseCellEditorTarget(phraseID: phraseID, trackIDs: [], layerID: "pattern"))
+    }
+
     private func makeSessionWithEngine(project: Project) -> (SequencerDocumentSession, EngineController) {
         let documentBox = DocumentBox(document: SeqAIDocument(project: project))
         let engine = EngineController(client: nil, endpoint: nil, audioOutput: CountingAudioSink())
@@ -238,27 +253,27 @@ final class TrackPerformSelectionStateTests: XCTestCase {
         XCTAssertNil(PerformanceLayerOption(mode: .pattern, variantLabel: nil).patternSlotIndex)
     }
 
-    func test_globalApplyValueVisibilityCollapsesToCurrentAndPinnedValues() {
+    func test_globalApplyValueVisibilityCollapsesToFirstValueUntilPinsExist() {
         let options = PerformanceLayerOption.patternValues
         var state = GlobalApplyValueVisibilityState()
 
         XCTAssertEqual(
-            state.visibleOptions(for: .pattern, allOptions: options, currentOption: options[3]),
-            [options[3]]
+            state.visibleOptions(for: .pattern, allOptions: options),
+            [options[0]]
         )
 
         state.togglePinned(options[0])
         state.togglePinned(options[1])
         state.togglePinned(options[2])
         XCTAssertEqual(
-            state.visibleOptions(for: .pattern, allOptions: options, currentOption: options[3]),
-            [options[3], options[0], options[1], options[2]]
+            state.visibleOptions(for: .pattern, allOptions: options),
+            [options[0], options[1], options[2]]
         )
 
         state.togglePinned(options[1])
         XCTAssertEqual(
-            state.visibleOptions(for: .pattern, allOptions: options, currentOption: options[3]),
-            [options[3], options[0], options[2]]
+            state.visibleOptions(for: .pattern, allOptions: options),
+            [options[0], options[2]]
         )
     }
 
@@ -271,16 +286,29 @@ final class TrackPerformSelectionStateTests: XCTestCase {
         XCTAssertTrue(state.isExpanded(.pattern))
         XCTAssertTrue(state.isPinned(options[2]))
         XCTAssertEqual(
-            state.visibleOptions(for: .pattern, allOptions: options, currentOption: options[0]),
+            state.visibleOptions(for: .pattern, allOptions: options),
             options
         )
 
         state.toggleExpanded(.pattern)
         XCTAssertFalse(state.isExpanded(.pattern))
         XCTAssertEqual(
-            state.visibleOptions(for: .pattern, allOptions: options, currentOption: options[0]),
-            [options[0], options[2]]
+            state.visibleOptions(for: .pattern, allOptions: options),
+            [options[2]]
         )
+    }
+
+    func test_globalApplyValueVisibilityDoesNotChangeWhenAValueBecomesSelected() {
+        let options = PerformanceLayerOption.patternValues
+        var state = GlobalApplyValueVisibilityState()
+        state.togglePinned(options[0])
+        state.togglePinned(options[2])
+        let beforeSelection = state.visibleOptions(for: .pattern, allOptions: options)
+
+        // Selection is deliberately not an input to visibility. Applying P2
+        // can change its fill state, but cannot add/remove/reorder cells.
+        let afterSelection = state.visibleOptions(for: .pattern, allOptions: options)
+        XCTAssertEqual(afterSelection, beforeSelection)
     }
 
     func test_globalApplyValueVisibilityDoesNotPinUnavailableValues() {

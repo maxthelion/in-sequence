@@ -1574,6 +1574,7 @@ enum VisualScenarioCommandRunner {
               command["phrasePerformLayerVariant"] != nil ||
               command["phraseWorkspaceTab"] != nil ||
               command["phraseCellTool"] != nil ||
+              command["phraseLayerSelect"] != nil ||
               command["phraseDensityValue"] != nil ||
               command["phraseGlobalApplyTrackSelector"] != nil ||
               command["phraseGlobalApplySelect"] != nil ||
@@ -1672,6 +1673,11 @@ enum VisualScenarioCommandRunner {
 
         if let rawTool = command["phraseCellTool"] {
             posts.append("cell-tool:\(rawTool)")
+        }
+
+        if let rawSelectionCount = command["phraseLayerSelect"],
+           Int(rawSelectionCount) != nil {
+            posts.append("select-cells:\(rawSelectionCount)")
         }
 
         // WS5 capture vocabulary (rows 10a/10b): write a density value into

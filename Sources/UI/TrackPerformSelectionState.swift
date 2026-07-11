@@ -368,20 +368,15 @@ struct GlobalApplyValueVisibilityState: Equatable {
 
     func visibleOptions(
         for mode: TrackPerformLayerMode,
-        allOptions: [PerformanceLayerOption],
-        currentOption: PerformanceLayerOption?
+        allOptions: [PerformanceLayerOption]
     ) -> [PerformanceLayerOption] {
         guard !allOptions.isEmpty else { return [] }
         if isExpanded(mode) {
             return allOptions
         }
 
-        let current = currentOption.flatMap { candidate in
-            allOptions.first { $0.id == candidate.id }
-        } ?? allOptions[0]
-        return [current] + allOptions.filter {
-            $0.id != current.id && pinnedOptionIDs.contains($0.id)
-        }
+        let pinned = allOptions.filter { pinnedOptionIDs.contains($0.id) }
+        return pinned.isEmpty ? [allOptions[0]] : pinned
     }
 }
 

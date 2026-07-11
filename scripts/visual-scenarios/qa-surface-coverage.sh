@@ -134,9 +134,7 @@ CAPTURES=$(cat <<'TABLE'
 07-library|workspace=library|workspace=library;transport=stop
 08-phrase-layers-pattern|workspace=phrase,phraseWorkspaceTab=layers,phraseMatrixSelectedLayerID=pattern,phraseCellTool=value|phraseMatrixTrackCount=8;phraseMatrixPhraseCount=8;phraseWorkspaceTab=layers;phraseCellTool=value;phraseMatrixLayerID=pattern;transport=stop
 09-phrase-layers-mute|workspace=phrase,phraseWorkspaceTab=layers,phraseMatrixSelectedLayerID=mute|phraseMatrixTrackCount=8;phraseMatrixPhraseCount=8;phraseWorkspaceTab=layers;phraseMatrixLayerID=mute;transport=stop
-# 10 RETIRED: the old visible VALUE/AUTOMATION tool pills were removed. Cell
-# automation now lives in the context menu for a single phrase-layer selection,
-# so this command no longer creates a distinct screenshot from row 08.
+10-phrase-layer-selected-cells|workspace=phrase,phraseWorkspaceTab=layers,phraseMatrixSelectedLayerID=pattern|phraseMatrixTrackCount=8;phraseMatrixPhraseCount=8;phraseWorkspaceTab=layers;phraseMatrixLayerID=pattern;phraseLayerSelect=2;transport=stop
 # 10a/10b RETIRED: density is no longer a phrase perform layer exposed by the
 # current matrix surface. The old command wrote density data but the visible
 # layer stayed pattern, producing misleading duplicates.

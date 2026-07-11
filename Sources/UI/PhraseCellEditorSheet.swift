@@ -2,11 +2,28 @@ import SwiftUI
 
 struct PhraseCellEditorTarget: Identifiable, Equatable {
     let phraseID: UUID
-    let trackID: UUID
+    let trackIDs: [UUID]
     let layerID: String
 
+    init(phraseID: UUID, trackID: UUID, layerID: String) {
+        self.phraseID = phraseID
+        self.trackIDs = [trackID]
+        self.layerID = layerID
+    }
+
+    init?(phraseID: UUID, trackIDs: [UUID], layerID: String) {
+        var seenTrackIDs: Set<UUID> = []
+        let uniqueTrackIDs = trackIDs.filter { seenTrackIDs.insert($0).inserted }
+        guard !uniqueTrackIDs.isEmpty else { return nil }
+        self.phraseID = phraseID
+        self.trackIDs = uniqueTrackIDs
+        self.layerID = layerID
+    }
+
+    var trackID: UUID { trackIDs[0] }
+
     var id: String {
-        "\(phraseID.uuidString):\(trackID.uuidString):\(layerID)"
+        "\(phraseID.uuidString):\(trackIDs.map(\.uuidString).joined(separator: ",")):\(layerID)"
     }
 }
 
@@ -27,12 +44,18 @@ struct PhraseCellEditorSheet: View {
         session.store.tracks.first(where: { $0.id == target.trackID })
     }
 
+    private var targetTracks: [StepSequenceTrack] {
+        target.trackIDs.compactMap { trackID in
+            session.store.tracks.first(where: { $0.id == trackID })
+        }
+    }
+
     private var layer: PhraseLayerDefinition? {
         session.store.layer(id: target.layerID)
     }
 
     private var isTargetAvailable: Bool {
-        phrase != nil && track != nil && layer != nil
+        phrase != nil && track != nil && layer != nil && targetTracks.count == target.trackIDs.count
     }
 
     var body: some View {
@@ -40,7 +63,7 @@ struct PhraseCellEditorSheet: View {
             if let phrase, let track, let layer {
                 StudioModal(
                     title: "Automation",
-                    subtitle: "\(phrase.name) • \(track.name) • \(layer.name)",
+                    subtitle: automationSubtitle(phrase: phrase, track: track, layer: layer),
                     accent: accent,
                     minWidth: 680,
                     minHeight: 420,
@@ -62,6 +85,15 @@ struct PhraseCellEditorSheet: View {
                 dismiss()
             }
         }
+    }
+
+    private func automationSubtitle(
+        phrase: PhraseModel,
+        track: StepSequenceTrack,
+        layer: PhraseLayerDefinition
+    ) -> String {
+        let trackLabel = target.trackIDs.count == 1 ? track.name : "\(target.trackIDs.count) cells"
+        return "\(phrase.name) • \(trackLabel) • \(layer.name)"
     }
 
     @ViewBuilder
@@ -331,7 +363,7 @@ struct PhraseCellEditorSheet: View {
         session.setPhraseCell(
             cell,
             layerID: layer.id,
-            trackIDs: [track.id],
+            trackIDs: target.trackIDs,
             phraseID: phrase.id
         )
     }
@@ -342,14 +374,21 @@ struct PhraseCellEditorSheet: View {
         track: StepSequenceTrack,
         layer: PhraseLayerDefinition
     ) {
-        let cell = PhraseCell.makeDefault(
-            mode: mode,
-            layer: layer,
-            defaultValue: layer.defaultValue(for: track.id),
-            stepCount: phrase.stepCount,
-            barCount: phrase.lengthBars
-        )
-        setCell(cell, phrase: phrase, track: track, layer: layer)
+        for trackID in target.trackIDs {
+            let cell = PhraseCell.makeDefault(
+                mode: mode,
+                layer: layer,
+                defaultValue: layer.defaultValue(for: trackID),
+                stepCount: phrase.stepCount,
+                barCount: phrase.lengthBars
+            )
+            session.setPhraseCell(
+                cell,
+                layerID: layer.id,
+                trackIDs: [trackID],
+                phraseID: phrase.id
+            )
+        }
     }
 
     private func clearAutomation(
@@ -361,12 +400,14 @@ struct PhraseCellEditorSheet: View {
             phrase: phrase,
             transportTickIndex: engineController.transportTickIndex
         ).stepIndex
-        setCell(
-            phrase.clearingAutomation(for: layer, trackID: track.id, stepIndex: stepIndex),
-            phrase: phrase,
-            track: track,
-            layer: layer
-        )
+        for trackID in target.trackIDs {
+            session.setPhraseCell(
+                phrase.clearingAutomation(for: layer, trackID: trackID, stepIndex: stepIndex),
+                layerID: layer.id,
+                trackIDs: [trackID],
+                phraseID: phrase.id
+            )
+        }
     }
 
     /// Inherit is only offered when this cell follows a phrase whose same
@@ -382,7 +423,9 @@ struct PhraseCellEditorSheet: View {
             guard let index = phrases.firstIndex(where: { $0.id == phrase.id }), index > 0 else {
                 return false
             }
-            return phrases[index - 1].cell(for: layer.id, trackID: track.id).editMode != .inheritDefault
+            return target.trackIDs.allSatisfy {
+                phrases[index - 1].cell(for: layer.id, trackID: $0).editMode != .inheritDefault
+            }
         }()
         if !hasPredecessorValue {
             modes.removeAll { $0 == .inheritDefault }
