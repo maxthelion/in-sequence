@@ -16,6 +16,7 @@ struct TrackWorkspaceView: View {
     @State private var stepGridWorkspaceModel = TrackStepGridWorkspaceModel()
     @State private var displayedPatternSlotsByTrackID: [UUID: Int] = [:]
     @State private var selectedPatternSlotsByTrackID: [UUID: Set<Int>] = [:]
+    @State private var isTrackCaptureOpen = false
     @State private var draftTrackName = ""
     /// Drives the delete-track confirmation on the single-track detail header.
     @State private var isConfirmingTrackDelete = false
@@ -112,6 +113,7 @@ struct TrackWorkspaceView: View {
                     draftTrackName = ""
                 }
                 stepGridWorkspaceModel.reset()
+                isTrackCaptureOpen = false
             }
             .onChange(of: kitNavigationState) {
                 if kitNavigationState == nil {
@@ -289,7 +291,8 @@ struct TrackWorkspaceView: View {
                         document: $document,
                         accent: sourceAccent,
                         displayedPatternIndex: displayedPatternIndex,
-                        stepGridWorkspaceModel: stepGridWorkspaceModel
+                        stepGridWorkspaceModel: stepGridWorkspaceModel,
+                        isCaptureOpen: $isTrackCaptureOpen
                     )
                         .frame(minWidth: 0, maxWidth: .infinity, alignment: .topLeading)
 
@@ -323,6 +326,12 @@ struct TrackWorkspaceView: View {
         } trailing: {
             HStack(spacing: 10) {
                 if track.trackType == .monoMelodic || track.trackType == .polyMelodic {
+                    TrackCaptureHeaderButton(
+                        isOpen: $isTrackCaptureOpen,
+                        accent: sourceAccent,
+                        help: "Capture: open this track's history surface"
+                    )
+
                     TrackFillPreviewControl(
                         presentation: fillPreviewPresentation,
                         accent: sourceAccent,
@@ -545,6 +554,38 @@ struct TrackPerformHeaderButton: View {
         .help("Perform: open the phrase perform UI scoped to this track")
         .accessibilityIdentifier("track-perform")
         .accessibilityLabel("Perform track")
+    }
+}
+
+/// Shared Capture control for single-track and drum-kit detail headers.
+struct TrackCaptureHeaderButton: View {
+    @Binding var isOpen: Bool
+    var accent: Color
+    var help: String
+
+    var body: some View {
+        Button {
+            isOpen.toggle()
+        } label: {
+            Label("Capture", systemImage: "smallcircle.filled.circle")
+                .studioText(.labelBold)
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(isOpen ? StudioTheme.background : StudioTheme.text)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
+        .background(
+            isOpen ? accent : StudioTheme.subtleFill,
+            in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                .stroke(isOpen ? Color.clear : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+        )
+        .help(help)
+        .accessibilityIdentifier("track-capture")
+        .accessibilityLabel("Capture track history")
+        .accessibilityValue(isOpen ? "Open" : "Closed")
     }
 }
 

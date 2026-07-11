@@ -170,28 +170,13 @@ extension DrumKitMatrixView {
     /// replaces the tab content while the Patterns row stays visible. When
     /// open it reads as selected (accent fill).
     var captureButton: some View {
-        Button {
-            isCaptureOpen.toggle()
-        } label: {
-            Label("Capture", systemImage: "smallcircle.filled.circle")
-                .studioText(.labelBold)
-        }
-        .buttonStyle(.plain)
-        .foregroundStyle(isCaptureOpen ? StudioTheme.background : StudioTheme.text)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 7)
-        .background(
-            isCaptureOpen ? accent : StudioTheme.subtleFill,
-            in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+        TrackCaptureHeaderButton(
+            isOpen: $isCaptureOpen,
+            accent: accent,
+            help: "Capture: open the kit history surface to save a coordinated clip set"
         )
-        .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                .stroke(isCaptureOpen ? Color.clear : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
-        )
-        .help("Capture: open the kit history surface to save a coordinated clip set")
         .accessibilityIdentifier("kit-capture")
         .accessibilityLabel("Capture kit history")
-        .accessibilityValue(isCaptureOpen ? "Open" : "Closed")
     }
 
     /// Perform header button (AC13/AC22). Posts `.drumKitPerformRequested` with

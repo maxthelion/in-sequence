@@ -106,6 +106,7 @@ struct TrackSourceEditorView: View {
     let accent: Color
     let displayedPatternIndex: Int
     let stepGridWorkspaceModel: TrackStepGridWorkspaceModel
+    @Binding var isCaptureOpen: Bool
 
     @State private var selectedTab: TrackSourceEditorTab = .stepsClip
     @State private var sourcePickerStep: TrackSourceContainedSourcePickerStep?
@@ -364,7 +365,15 @@ struct TrackSourceEditorView: View {
                 modifierPickerStep = nil
             }
             resetClipHistoryModel()
+            isCaptureOpen = newValue == .history
             postRenderedVisualState()
+        }
+        .onChange(of: isCaptureOpen) { _, open in
+            if open {
+                openClipHistory()
+            } else if selectedTab == .history {
+                selectedTab = .stepsClip
+            }
         }
         .onChange(of: track.id) { _, _ in
             session.clearTrackFillPreview(reason: .selectedTrackChanged)
@@ -589,6 +598,7 @@ struct TrackSourceEditorView: View {
     }
 
     private func openClipHistory() {
+        isCaptureOpen = true
         selectedTab = .history
         updateClipHistoryLiveSnapshot()
     }
