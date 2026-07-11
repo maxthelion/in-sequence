@@ -249,7 +249,7 @@ final class MasterBusHost: MasterBusHosting {
         // enabled inserts anywhere). The default pass-through wiring already
         // carries audio; master gain rides finalOutputMixer.outputVolume and
         // a crossfade between two insert-less scenes is audibly a no-op.
-        if installedShape == nil, Self.hasNoEnabledInserts(nextShape) {
+        if installedShape == nil, Self.hasNoInserts(nextShape) {
             audioGraph.setMasterOutputGain(state.masterOutputGain)
             return
         }
@@ -281,7 +281,7 @@ final class MasterBusHost: MasterBusHosting {
         }
     }
 
-    private static func hasNoEnabledInserts(_ shape: MasterBusGraphShape) -> Bool {
+    private static func hasNoInserts(_ shape: MasterBusGraphShape) -> Bool {
         shape.masterInserts.isEmpty && shape.branches.allSatisfy { $0.inserts.isEmpty }
     }
 
@@ -312,7 +312,6 @@ final class MasterBusHost: MasterBusHosting {
         nodesByInsertID: inout [UUID: AVAudioNode]
     ) -> MainAudioGraph.MasterChain {
         let nodes = scene.inserts.compactMap { insert -> AVAudioNode? in
-            guard insert.isEnabled else { return nil }
             let node = node(for: insert)
             if let node {
                 nodesByInsertID[insert.id] = node
@@ -329,7 +328,6 @@ final class MasterBusHost: MasterBusHosting {
         nodesByInsertID: inout [UUID: AVAudioNode]
     ) -> [AVAudioNode] {
         inserts.compactMap { insert -> AVAudioNode? in
-            guard insert.isEnabled else { return nil }
             let node = node(for: insert)
             if let node {
                 nodesByInsertID[insert.id] = node
@@ -424,12 +422,12 @@ final class MasterBusHost: MasterBusHosting {
             let branches = Self.branches(for: state)
             audioGraph.setMasterBranchGains(branches.map(\.gain))
             for branch in branches {
-                for insert in branch.scene.inserts where insert.isEnabled {
+                for insert in branch.scene.inserts {
                     guard let node = nodesByInsertID[insert.id] else { continue }
                     self.configureExistingNode(node, for: insert, in: branch.scene)
                 }
             }
-            for insert in state.masterInserts where insert.isEnabled {
+            for insert in state.masterInserts {
                 guard let node = nodesByInsertID[insert.id] else { continue }
                 self.configureExistingMasterNode(node, for: insert)
             }
@@ -440,10 +438,11 @@ final class MasterBusHost: MasterBusHosting {
     private func configureExistingNode(_ node: AVAudioNode, for insert: MasterBusInsert, in scene: MasterBusScene) {
         switch (node, insert.kind) {
         case let (eq as AVAudioUnitEQ, .nativeFilter(settings)):
-            configureFilterNode(eq, settings: settings, wetDry: insert.wetDry)
+            configureFilterNode(eq, settings: settings, wetDry: insert.isEnabled ? insert.wetDry : 0)
         case let (distortion as AVAudioUnitDistortion, .nativeBitcrusher(settings)):
-            configureLoFiNode(distortion, settings: settings, wetDry: insert.wetDry)
+            configureLoFiNode(distortion, settings: settings, wetDry: insert.isEnabled ? insert.wetDry : 0)
         case let (unit as AVAudioUnit, .auEffect):
+            unit.auAudioUnit.shouldBypassEffect = !insert.isEnabled
             applyAUMacroValues(to: unit, insertID: insert.id, scene: scene)
         default:
             return
@@ -454,9 +453,11 @@ final class MasterBusHost: MasterBusHosting {
     private func configureExistingMasterNode(_ node: AVAudioNode, for insert: MasterBusInsert) {
         switch (node, insert.kind) {
         case let (eq as AVAudioUnitEQ, .nativeFilter(settings)):
-            configureFilterNode(eq, settings: settings, wetDry: insert.wetDry)
+            configureFilterNode(eq, settings: settings, wetDry: insert.isEnabled ? insert.wetDry : 0)
         case let (distortion as AVAudioUnitDistortion, .nativeBitcrusher(settings)):
-            configureLoFiNode(distortion, settings: settings, wetDry: insert.wetDry)
+            configureLoFiNode(distortion, settings: settings, wetDry: insert.isEnabled ? insert.wetDry : 0)
+        case let (unit as AVAudioUnit, .auEffect):
+            unit.auAudioUnit.shouldBypassEffect = !insert.isEnabled
         default:
             return
         }
@@ -465,12 +466,12 @@ final class MasterBusHost: MasterBusHosting {
     @MainActor
     private func configureInstalledNodes(for state: MasterBusState, nodesByInsertID: [UUID: AVAudioNode]) {
         for branch in Self.branches(for: state) {
-            for insert in branch.scene.inserts where insert.isEnabled {
+            for insert in branch.scene.inserts {
                 guard let node = nodesByInsertID[insert.id] else { continue }
                 configureExistingNode(node, for: insert, in: branch.scene)
             }
         }
-        for insert in state.masterInserts where insert.isEnabled {
+        for insert in state.masterInserts {
             guard let node = nodesByInsertID[insert.id] else { continue }
             configureExistingMasterNode(node, for: insert)
         }
@@ -527,7 +528,6 @@ final class MasterBusHost: MasterBusHosting {
         includingOnly insertIDs: Set<UUID>? = nil
     ) -> MasterBusGraphShape {
         func shape(for insert: MasterBusInsert) -> MasterBusInsertShape? {
-            guard insert.isEnabled else { return nil }
             if let insertIDs, !insertIDs.contains(insert.id) {
                 return nil
             }

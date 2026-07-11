@@ -285,6 +285,29 @@ final class MasterBusHostTests: XCTestCase {
     }
 
     @MainActor
+    func test_bypassUpdatesResidentMasterInsertWithoutReinstall() throws {
+        let graph = MainAudioGraph()
+        let host = MasterBusHost()
+        var insert = MasterBusInsert(name: "Filter", kind: .nativeFilter(.default))
+        let scene = MasterBusScene(name: "A", inserts: [insert])
+        host.attach(to: graph)
+        host.apply(MasterBusState(scenes: [scene], activeSceneID: scene.id))
+
+        let nodeBefore = try XCTUnwrap(graph.masterBranchesForTesting.first?.nodes.first as? AVAudioUnitEQ)
+        let tapRemovals = graph.masterMeterTapRemoveCountForTesting
+        XCTAssertFalse(nodeBefore.bands[0].bypass)
+
+        insert.isEnabled = false
+        let bypassedScene = MasterBusScene(id: scene.id, name: scene.name, inserts: [insert])
+        host.apply(MasterBusState(scenes: [bypassedScene], activeSceneID: bypassedScene.id))
+
+        let nodeAfter = try XCTUnwrap(graph.masterBranchesForTesting.first?.nodes.first as? AVAudioUnitEQ)
+        XCTAssertTrue(nodeBefore === nodeAfter)
+        XCTAssertTrue(nodeAfter.bands[0].bypass)
+        XCTAssertEqual(graph.masterMeterTapRemoveCountForTesting, tapRemovals)
+    }
+
+    @MainActor
     func test_tickPathMasterApplyDefersGraphRebuildWithoutMainSync() throws {
         let graph = MainAudioGraph()
         let host = MasterBusHost()
