@@ -238,6 +238,38 @@ struct PerformanceLayerOption: Identifiable, Equatable {
             return [PerformanceLayerOption(mode: mode, variantLabel: nil)]
         }
     }
+
+    /// Phrase performance only advertises options with a real interaction
+    /// path. Document layers are available when present, note repeat is an
+    /// engine-backed per-track gesture, and step order is backed by the
+    /// document's valid maps for a 16-step phrase.
+    static func phraseOptions(
+        availableLayerIDs: Set<String>,
+        stepOrderMaps: [StepOrderMap],
+        phraseStepCount: Int
+    ) -> [PerformanceLayerOption] {
+        TrackPerformLayerMode.allCases.flatMap { mode -> [PerformanceLayerOption] in
+            if let layerID = mode.phraseLayerID {
+                return availableLayerIDs.contains(layerID)
+                    ? [PerformanceLayerOption(mode: mode, variantLabel: nil)]
+                    : []
+            }
+
+            switch mode {
+            case .noteRepeat:
+                return mode.inlineVariantLabels.map {
+                    PerformanceLayerOption(mode: mode, variantLabel: $0)
+                }
+            case .stepOrder:
+                guard phraseStepCount == StepOrderMap.stepCount else { return [] }
+                return stepOrderMaps.filter(\.isValid).map {
+                    PerformanceLayerOption(mode: mode, variantLabel: $0.name)
+                }
+            case .mute, .pattern, .fill, .volume, .pan:
+                return []
+            }
+        }
+    }
 }
 
 struct PerformanceLayerSelectionState: Equatable {
@@ -254,13 +286,19 @@ struct PerformanceLayerSelectionState: Equatable {
         return "\(mode.label)\(suffix)"
     }
 
-    mutating func select(_ mode: TrackPerformLayerMode, variantLabel: String?) {
+    mutating func select(
+        _ mode: TrackPerformLayerMode,
+        variantLabel: String?,
+        availableVariantLabels: [String]? = nil
+    ) {
         self.mode = mode
-        self.variantLabel = mode.inlineVariantLabels.contains(variantLabel ?? "") ? variantLabel : nil
+        let validLabels = availableVariantLabels ?? mode.inlineVariantLabels
+        self.variantLabel = validLabels.contains(variantLabel ?? "") ? variantLabel : nil
     }
 
-    mutating func reconcileVariant() {
-        if !mode.inlineVariantLabels.contains(variantLabel ?? "") {
+    mutating func reconcileVariant(availableVariantLabels: [String]? = nil) {
+        let validLabels = availableVariantLabels ?? mode.inlineVariantLabels
+        if !validLabels.contains(variantLabel ?? "") {
             variantLabel = nil
         }
     }

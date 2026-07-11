@@ -21,8 +21,10 @@ final class PhrasePerformOverlaySessionTests: XCTestCase {
         XCTAssertEqual(fixture.session.pendingPhrasePerform?.trackIDs, scopedTrackIDs)
     }
 
-    func test_phraseTabsKeepLayerEditModesInsideLayers() {
-        XCTAssertEqual(PhraseWorkspaceTab.allCases, [.layers, .scenes])
+    func test_phraseTabsPromoteLayerAndValuesToTopLevelDestinations() {
+        XCTAssertEqual(PhraseWorkspaceTab.allCases, [.layers, .values, .scenes])
+        XCTAssertEqual(PhraseWorkspaceTab.layers.label, "Layer")
+        XCTAssertEqual(PhraseWorkspaceTab.values.label, "Values")
         XCTAssertEqual(PhraseLayerEditMode.allCases, [.byTrack, .byValue])
     }
 

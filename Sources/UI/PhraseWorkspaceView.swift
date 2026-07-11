@@ -266,10 +266,7 @@ struct PhraseWorkspaceView: View {
     }
 
     private var legacyVisualWorkspaceTab: String {
-        if phraseTab == .layers, phraseLayerEditMode == .byValue {
-            return "globalApply"
-        }
-        return phraseTab.rawValue
+        phraseTab == .values ? "globalApply" : phraseTab.rawValue
     }
 
     private var phraseCellSelectionContext: PhraseCellSelectionContext {
@@ -277,7 +274,7 @@ struct PhraseWorkspaceView: View {
             phraseID: session.store.selectedPhraseID,
             layerID: activeMatrixLayer?.id,
             liveTrackIDs: scopedLayerTracks.map(\.id),
-            isCellSurfaceVisible: phraseTab == .layers && phraseLayerEditMode == .byTrack
+            isCellSurfaceVisible: phraseTab == .layers
         )
     }
 
@@ -294,29 +291,7 @@ struct PhraseWorkspaceView: View {
     var body: some View {
         // The top-nav pill already names this page; the panel renders no
         // header of its own (ux-canon rule 1).
-        let content = StudioPanel(
-            title: "Phrase Matrix",
-            accent: activeLayerAccent,
-            showsHeader: false,
-            contentPadding: 0
-        ) {
-            VStack(alignment: .leading, spacing: 8) {
-                // Navigation remains stable while a value chooser is open.
-                phraseTabBar
-                phrasePerformanceShell
-                switch phraseTab {
-                case .layers:
-                    switch phraseLayerEditMode {
-                    case .byTrack:
-                        selectedPhraseLayerMatrix
-                    case .byValue:
-                        globalApplySurface
-                    }
-                case .scenes:
-                    phraseScenesSurface
-                }
-            }
-        }
+        let content = phraseWorkspacePanel
         // Standard workspace surface inset (matches Tracks/Mixer/Track/Drum):
         // every page roots its content at the shared workspace inset so the
         // left/top/bottom gap from the nav chrome is identical across surfaces.
@@ -412,15 +387,7 @@ struct PhraseWorkspaceView: View {
             reconcilePhraseCellSelection()
             postRenderedMatrixVisualState(isVisible: true)
         }
-        .onChange(of: performanceLayerSelection.mode) {
-            if let layerID = performanceLayerSelection.mode.phraseLayerID,
-               matrixSelectableLayers.contains(where: { $0.id == layerID }) {
-                selectedLayerID = layerID
-            }
-            performanceLayerSelection.reconcileVariant()
-            reconcilePhraseCellSelection()
-            postRenderedMatrixVisualState(isVisible: true)
-        }
+        .onChange(of: performanceLayerSelection.mode, handlePerformanceLayerModeChange)
         .onChange(of: performanceLayerSelection.variantLabel) {
             postRenderedMatrixVisualState(isVisible: true)
         }
@@ -447,6 +414,47 @@ struct PhraseWorkspaceView: View {
         )
     }
 
+    private var phraseWorkspacePanel: some View {
+        StudioPanel(
+            title: "Phrase Matrix",
+            accent: activeLayerAccent,
+            showsHeader: false,
+            contentPadding: 0
+        ) {
+            VStack(alignment: .leading, spacing: 8) {
+                phraseTabBar
+                phrasePerformanceShell
+                phraseTabContent
+            }
+        }
+    }
+
+    private func handlePerformanceLayerModeChange() {
+        if let layerID = performanceLayerSelection.mode.phraseLayerID,
+           matrixSelectableLayers.contains(where: { $0.id == layerID }) {
+            selectedLayerID = layerID
+        }
+        performanceLayerSelection.reconcileVariant(
+            availableVariantLabels: phraseLocalPerformanceLayerOptions
+                .filter { $0.mode == performanceLayerSelection.mode }
+                .compactMap(\.variantLabel)
+        )
+        reconcilePhraseCellSelection()
+        postRenderedMatrixVisualState(isVisible: true)
+    }
+
+    @ViewBuilder
+    private var phraseTabContent: some View {
+        switch phraseTab {
+        case .layers:
+            selectedPhraseLayerMatrix
+        case .values:
+            globalApplySurface
+        case .scenes:
+            phraseScenesSurface
+        }
+    }
+
     private func makeDocumentEditTarget() -> DocumentEditCommandController.Target {
         usesPhraseCellDocumentEditTarget
             ? phraseCellDocumentEditTarget()
@@ -462,10 +470,6 @@ struct PhraseWorkspaceView: View {
         // connection to the PATTERN/layer button stays clear.
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .center, spacing: 10) {
-                if phraseTab == .layers {
-                    phraseLayerModeControl
-                }
-
                 if phraseTab == .scenes {
                     phraseSceneViewModeControl
                 }
@@ -477,7 +481,7 @@ struct PhraseWorkspaceView: View {
                 // The track scope is useful in both layer orientations: By
                 // Track filters which tracks are shown; By Value chooses which
                 // tracks receive the same value.
-                if phraseTab == .layers {
+                if phraseTab == .layers || phraseTab == .values {
                     globalApplyTrackScopeButton
                 }
 
@@ -678,6 +682,8 @@ struct PhraseWorkspaceView: View {
             ForEach(PhraseWorkspaceTab.allCases) { tab in
                 Button {
                     phraseTab = tab
+                    if tab == .layers { phraseLayerEditMode = .byTrack }
+                    if tab == .values { phraseLayerEditMode = .byValue }
                     isPresentingPerformanceLayerSelection = false
                 } label: {
                     HStack(spacing: 8) {
@@ -701,29 +707,6 @@ struct PhraseWorkspaceView: View {
             }
 
             Spacer(minLength: 0)
-        }
-    }
-
-    private var phraseLayerModeControl: some View {
-        StudioModeSegmentedPill(
-            segments: PhraseLayerEditMode.allCases.map { mode in
-                StudioModeSegmentedPillSegment(
-                    mode: mode,
-                    symbolName: mode.symbolName,
-                    label: mode.label,
-                    help: mode.help,
-                    accessibilityIdentifier: "phrase-layer-edit-mode-\(mode.rawValue)"
-                )
-            },
-            selection: phraseLayerEditMode,
-            accent: StudioTheme.phraseAccent,
-            accessibilityIdentifier: "phrase-layer-edit-mode-control"
-        ) { mode in
-            phraseLayerEditMode = mode
-            isPresentingPerformanceLayerSelection = false
-            isPresentingGlobalApplyTrackSelector = false
-            clampTrackPage()
-            postRenderedMatrixVisualState(isVisible: true)
         }
     }
 
@@ -782,7 +765,7 @@ struct PhraseWorkspaceView: View {
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("phrase-layer-track-scope-button")
-        .help(phraseLayerEditMode == .byTrack ? "Choose the track group visible in By Track" : "Choose the track group receiving By Value changes")
+        .help(phraseTab == .layers ? "Choose the tracks visible in Layer" : "Choose the tracks receiving Values changes")
     }
 
     private var phraseTrackScopeLabel: String {
@@ -1281,7 +1264,7 @@ struct PhraseWorkspaceView: View {
     // paste / automation live on the cells' right-click menu.
     @ViewBuilder
     private var shellLayerControls: some View {
-        if phraseLayerEditMode == .byTrack {
+        if phraseTab == .layers {
             HStack(spacing: 8) {
                 phraseLayerSelectorButton
                     .frame(width: 132)
@@ -1397,8 +1380,9 @@ struct PhraseWorkspaceView: View {
         phraseTab = pending.tab
         if let layerEditMode = pending.layerEditMode {
             phraseLayerEditMode = layerEditMode
+            phraseTab = layerEditMode == .byTrack ? .layers : .values
         }
-        if pending.tab != .layers {
+        if phraseTab != .layers {
             isPresentingPerformanceLayerSelection = false
         }
         // Re-assert the perform scope as the view mounts so it is authoritative
@@ -1477,12 +1461,14 @@ struct PhraseWorkspaceView: View {
         if command.hasPrefix("tab:") {
             let rawTab = String(command.dropFirst("tab:".count))
             if rawTab == "globalApply" {
-                phraseTab = .layers
+                phraseTab = .values
                 phraseLayerEditMode = .byValue
                 isPresentingPerformanceLayerSelection = false
                 postRenderedMatrixVisualState(isVisible: true)
             } else if let tab = PhraseWorkspaceTab(rawValue: rawTab) {
                 phraseTab = tab
+                if tab == .layers { phraseLayerEditMode = .byTrack }
+                if tab == .values { phraseLayerEditMode = .byValue }
                 if tab != .layers {
                     isPresentingPerformanceLayerSelection = false
                 }
@@ -1501,7 +1487,7 @@ struct PhraseWorkspaceView: View {
         }
 
         if command == "global-apply-track-selector:open" {
-            phraseTab = .layers
+            phraseTab = .values
             phraseLayerEditMode = .byValue
             trackScopeChoice = session.store.performanceTrackGroups.firstIndex(where: { $0 != nil })
                 .map(PhraseTrackScopeChoice.group) ?? .all
@@ -1520,7 +1506,7 @@ struct PhraseWorkspaceView: View {
         if command.hasPrefix("global-apply-select:"),
            let rawCount = command.split(separator: ":").last,
            let count = Int(rawCount) {
-            phraseTab = .layers
+            phraseTab = .values
             phraseLayerEditMode = .byValue
             isPresentingGlobalApplyTrackSelector = false
             session.performTrackScope = Set(tracks.prefix(max(0, count)).map(\.id))
@@ -1649,7 +1635,11 @@ struct PhraseWorkspaceView: View {
             return
         }
 
-        handleSingleTap(on: phraseID, trackID: trackID)
+        if performanceLayerSelection.mode == .noteRepeat {
+            toggleNoteRepeat(trackIDs: [trackID])
+        } else {
+            handleSingleTap(on: phraseID, trackID: trackID)
+        }
     }
 
     private func selectPatternSlot(_ slotIndex: Int, phraseID: UUID, trackID: UUID) {
@@ -1807,7 +1797,6 @@ struct PhraseWorkspaceView: View {
 
     private var usesPhraseCellDocumentEditTarget: Bool {
         phraseTab == .layers
-            && phraseLayerEditMode == .byTrack
             && activeMatrixLayer != nil
             && !phraseLayerSelection.isEmpty
     }
@@ -1971,6 +1960,9 @@ struct PhraseWorkspaceView: View {
         if isPresentingPerformanceLayerSelection {
             performanceLayerSelectionGrid
                 .frame(maxWidth: .infinity, minHeight: 280, alignment: .topLeading)
+        } else if performanceLayerSelection.mode == .stepOrder {
+            phraseStepOrderToggleSurface
+                .frame(maxWidth: .infinity, minHeight: 280, alignment: .topLeading)
         } else {
             // Size the track columns to the width the panel actually hands us
             // so a full page of columns fits inside the page without a clipped
@@ -2003,7 +1995,16 @@ struct PhraseWorkspaceView: View {
                     let cellIsSelected = phraseLayerSelection.contains(track.id) || track.id == selectedTrackID
                     let trackAccent = StudioTheme.trackAccent(for: track, groups: session.store.trackGroups)
                     Group {
-                        if let activeLayer {
+                        if performanceLayerSelection.mode == .noteRepeat {
+                            PhrasePerformanceToggleCell(
+                                stateLabel: noteRepeatStateLabel(trackID: track.id),
+                                detail: track.name,
+                                isAvailable: session.isNoteRepeatAvailable(trackID: track.id),
+                                isActive: isSelectedNoteRepeatActive(trackID: track.id),
+                                accent: accent,
+                                trackAccent: trackAccent
+                            )
+                        } else if let activeLayer {
                             PhraseGridCell(
                                 layer: activeLayer,
                                 cell: renderedCell ?? .inheritDefault,
@@ -2017,22 +2018,14 @@ struct PhraseWorkspaceView: View {
                                     selectPatternSlot(slotIndex, phraseID: displayedPhrase.id, trackID: track.id)
                                 }
                             )
-                        } else {
-                            PhrasePerformancePlaceholderCell(
-                                selection: performanceLayerSelection,
-                                phrase: displayedPhrase,
-                                track: track,
-                                isSelected: cellIsSelected,
-                                accent: accent,
-                                trackAccent: trackAccent
-                            )
                         }
                     }
                     .frame(maxWidth: .infinity)
                     .contentShape(Rectangle())
                     .modifier(
                         PhraseGridCellTapModifier(
-                            isEnabled: activeLayer.map(TrackPerformPatternMiniCellInteraction.shouldCycleFromCardBackground) ?? true
+                            isEnabled: performanceLayerSelection.mode == .noteRepeat
+                                || activeLayer.map(TrackPerformPatternMiniCellInteraction.shouldCycleFromCardBackground) == true
                         ) {
                             handlePhraseLayerCellTap(on: displayedPhrase.id, trackID: track.id)
                         }
@@ -2042,7 +2035,8 @@ struct PhraseWorkspaceView: View {
                     )
                     .studioSelectionGesture { gesture in
                         guard activeLayer != nil else {
-                            if gesture == .singleSelection {
+                            if gesture == .singleSelection,
+                               performanceLayerSelection.mode != .noteRepeat {
                                 openFiniteChoicePicker(phraseID: displayedPhrase.id, trackID: track.id)
                             }
                             return
@@ -2209,6 +2203,119 @@ struct PhraseWorkspaceView: View {
         )
     }
 
+    private var selectedNoteRepeatInterval: NoteRepeatInterval? {
+        performanceLayerSelection.variantLabel.flatMap(NoteRepeatInterval.init(rawValue:))
+    }
+
+    private func isSelectedNoteRepeatActive(trackID: UUID) -> Bool {
+        guard let interval = selectedNoteRepeatInterval,
+              let snapshot = engineController.noteRepeatRuntimeSnapshot(for: trackID)
+        else { return false }
+        return snapshot.interval == interval
+    }
+
+    private func areSelectedNoteRepeatsActive(
+        trackIDs: [UUID],
+        option: PerformanceLayerOption
+    ) -> Bool {
+        guard let label = option.variantLabel,
+              let interval = NoteRepeatInterval(rawValue: label)
+        else { return false }
+        let availableTrackIDs = trackIDs.filter(session.isNoteRepeatAvailable(trackID:))
+        guard !availableTrackIDs.isEmpty else { return false }
+        return availableTrackIDs.allSatisfy {
+            engineController.noteRepeatRuntimeSnapshot(for: $0)?.interval == interval
+        }
+    }
+
+    private func noteRepeatStateLabel(trackID: UUID) -> String {
+        guard session.isNoteRepeatAvailable(trackID: trackID) else { return "No Clip" }
+        return isSelectedNoteRepeatActive(trackID: trackID) ? "On" : "Off"
+    }
+
+    private func toggleNoteRepeat(trackIDs: [UUID]) {
+        guard let interval = selectedNoteRepeatInterval else { return }
+        let availableTrackIDs = trackIDs.filter(session.isNoteRepeatAvailable(trackID:))
+        guard !availableTrackIDs.isEmpty else { return }
+
+        if availableTrackIDs.allSatisfy({
+            engineController.noteRepeatRuntimeSnapshot(for: $0)?.interval == interval
+        }) {
+            availableTrackIDs.forEach { session.releaseNoteRepeat(trackID: $0) }
+            return
+        }
+
+        availableTrackIDs.forEach {
+            _ = session.setTrackNoteRepeatInterval(interval, trackID: $0)
+        }
+        availableTrackIDs.forEach {
+            _ = session.engageNoteRepeat(trackID: $0)
+        }
+    }
+
+    private func stepOrderMap(for option: PerformanceLayerOption) -> StepOrderMap? {
+        guard option.mode == .stepOrder, let name = option.variantLabel else { return nil }
+        return session.store.stepOrderMaps.first { $0.name == name && $0.isValid }
+    }
+
+    private func isSelectedStepOrderActive(option: PerformanceLayerOption) -> Bool {
+        guard let map = stepOrderMap(for: option),
+              selectedPhraseForEditing.stepOrderAssignment?.mapID == map.id
+        else { return false }
+        switch session.stepOrderToggleState(phraseID: selectedPhraseForEditing.id) {
+        case .on, .pendingOn:
+            return true
+        case .off, .pendingOff, .unavailable:
+            return false
+        }
+    }
+
+    private func toggleStepOrder(option: PerformanceLayerOption) {
+        guard let map = stepOrderMap(for: option) else { return }
+        let phrase = selectedPhraseForEditing
+        if phrase.stepOrderAssignment?.mapID != map.id {
+            guard session.setStepOrderAssignment(phraseID: phrase.id, mapID: map.id, isEnabled: false) else { return }
+            _ = session.requestPhraseStepOrderEnabled(true, phraseID: phrase.id)
+            return
+        }
+
+        let shouldEnable: Bool
+        switch session.stepOrderToggleState(phraseID: phrase.id) {
+        case .on, .pendingOn:
+            shouldEnable = false
+        case .off, .pendingOff:
+            shouldEnable = true
+        case .unavailable:
+            return
+        }
+        _ = session.requestPhraseStepOrderEnabled(shouldEnable, phraseID: phrase.id)
+    }
+
+    private var phraseStepOrderToggleSurface: some View {
+        let option = PerformanceLayerOption(
+            mode: .stepOrder,
+            variantLabel: performanceLayerSelection.variantLabel
+        )
+        let isActive = isSelectedStepOrderActive(option: option)
+        return LazyVGrid(columns: globalApplyColumns, alignment: .leading, spacing: 10) {
+            Button {
+                toggleStepOrder(option: option)
+            } label: {
+                PhrasePerformanceToggleCell(
+                    stateLabel: isActive ? "On" : "Off",
+                    detail: selectedPhraseForEditing.name,
+                    isAvailable: stepOrderMap(for: option) != nil,
+                    isActive: isActive,
+                    accent: activeLayerAccent,
+                    trackAccent: StudioTheme.phraseAccent
+                )
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("phrase-step-order-toggle")
+        }
+        .padding(.vertical, 2)
+    }
+
     // Bug 20260620-140815: the orange wrapper + its padding are gone — the
     // scope bar and layer cards sit directly on the panel like the other tabs.
     private var globalApplySurface: some View {
@@ -2241,6 +2348,18 @@ struct PhraseWorkspaceView: View {
         if let layerID = option.mode.phraseLayerID,
            let layer = layers.first(where: { $0.id == layerID }) {
             globalApplyInteractiveCell(option, layer: layer)
+        } else if option.mode == .noteRepeat {
+            PerformanceLayerOptionCell(
+                option: option,
+                isSelected: areSelectedNoteRepeatsActive(trackIDs: globalApplyScopeTrackIDs, option: option),
+                onTap: { applyGlobalOption(option) }
+            )
+        } else if option.mode == .stepOrder {
+            PerformanceLayerOptionCell(
+                option: option,
+                isSelected: isSelectedStepOrderActive(option: option),
+                onTap: { applyGlobalOption(option) }
+            )
         } else {
             EmptyView()
         }
@@ -2272,9 +2391,13 @@ struct PhraseWorkspaceView: View {
 
 
     private var phraseLocalPerformanceLayerOptions: [PerformanceLayerOption] {
-        PerformanceLayerOption.all.filter { option in
-            guard let layerID = option.mode.phraseLayerID else { return true }
-            return matrixSelectableLayers.contains { $0.id == layerID }
+        PerformanceLayerOption.phraseOptions(
+            availableLayerIDs: Set(matrixSelectableLayers.map(\.id)),
+            stepOrderMaps: session.store.stepOrderMaps,
+            phraseStepCount: selectedPhraseForEditing.stepCount
+        ).filter { option in
+            option.mode != .noteRepeat
+                || scopedLayerTracks.contains { session.isNoteRepeatAvailable(trackID: $0.id) }
         }
     }
 
@@ -2291,6 +2414,18 @@ struct PhraseWorkspaceView: View {
     }
 
     private func applyGlobalOption(_ option: PerformanceLayerOption) {
+        if option.mode == .noteRepeat {
+            selectPerformanceLayerOption(option)
+            toggleNoteRepeat(trackIDs: globalApplyScopeTrackIDs)
+            return
+        }
+
+        if option.mode == .stepOrder {
+            selectPerformanceLayerOption(option)
+            toggleStepOrder(option: option)
+            return
+        }
+
         guard let layerID = option.mode.phraseLayerID,
               let layer = layers.first(where: { $0.id == layerID }),
               let seedTrackID = globalApplyScopeTrackIDs.first
@@ -2298,7 +2433,7 @@ struct PhraseWorkspaceView: View {
             return
         }
 
-        performanceLayerSelection.select(option.mode, variantLabel: option.variantLabel)
+        selectPerformanceLayerOption(option)
         selectedLayerID = layer.id
 
         let phrase = selectedPhraseForEditing
@@ -2371,7 +2506,7 @@ struct PhraseWorkspaceView: View {
     }
 
     private func choosePerformanceLayer(_ option: PerformanceLayerOption) {
-        performanceLayerSelection.select(option.mode, variantLabel: option.variantLabel)
+        selectPerformanceLayerOption(option)
         if let layerID = performanceLayerSelection.mode.phraseLayerID,
            matrixSelectableLayers.contains(where: { $0.id == layerID }) {
             selectedLayerID = layerID
@@ -2383,13 +2518,34 @@ struct PhraseWorkspaceView: View {
     /// Idempotent variant used by visual automation commands: always selects,
     /// never toggles off.
     private func setPerformanceLayer(_ mode: TrackPerformLayerMode, variantLabel: String?) {
-        performanceLayerSelection.select(mode, variantLabel: variantLabel)
+        guard phraseLocalPerformanceLayerOptions.contains(where: {
+            $0.mode == mode && $0.variantLabel == variantLabel
+        }) else { return }
+        let availableLabels = phraseLocalPerformanceLayerOptions
+            .filter { $0.mode == mode }
+            .compactMap(\.variantLabel)
+        performanceLayerSelection.select(
+            mode,
+            variantLabel: variantLabel,
+            availableVariantLabels: availableLabels.isEmpty ? nil : availableLabels
+        )
         if let layerID = performanceLayerSelection.mode.phraseLayerID,
            matrixSelectableLayers.contains(where: { $0.id == layerID }) {
             selectedLayerID = layerID
         }
         isPresentingPerformanceLayerSelection = false
         postRenderedMatrixVisualState(isVisible: true)
+    }
+
+    private func selectPerformanceLayerOption(_ option: PerformanceLayerOption) {
+        let availableLabels = phraseLocalPerformanceLayerOptions
+            .filter { $0.mode == option.mode }
+            .compactMap(\.variantLabel)
+        performanceLayerSelection.select(
+            option.mode,
+            variantLabel: option.variantLabel,
+            availableVariantLabels: availableLabels.isEmpty ? nil : availableLabels
+        )
     }
 }
 
@@ -2891,6 +3047,7 @@ enum PhraseSceneViewMode: String, CaseIterable, Identifiable {
 
 enum PhraseWorkspaceTab: String, CaseIterable, Identifiable {
     case layers
+    case values
     case scenes
 
     var id: String { rawValue }
@@ -2898,7 +3055,9 @@ enum PhraseWorkspaceTab: String, CaseIterable, Identifiable {
     var label: String {
         switch self {
         case .layers:
-            return "Layers"
+            return "Layer"
+        case .values:
+            return "Values"
         case .scenes:
             return "Scenes"
         }
@@ -2908,6 +3067,8 @@ enum PhraseWorkspaceTab: String, CaseIterable, Identifiable {
         switch self {
         case .layers:
             return "square.grid.3x3"
+        case .values:
+            return "scope"
         case .scenes:
             return "square.2.layers.3d"
         }
@@ -2915,7 +3076,7 @@ enum PhraseWorkspaceTab: String, CaseIterable, Identifiable {
 
     var accent: Color {
         switch self {
-        case .layers:
+        case .layers, .values:
             return StudioTheme.phraseAccent
         case .scenes:
             return StudioTheme.phraseAccent
@@ -2926,6 +3087,8 @@ enum PhraseWorkspaceTab: String, CaseIterable, Identifiable {
         switch self {
         case .layers:
             return "Edit phrase layer values by track"
+        case .values:
+            return "Apply values to the selected track scope"
         case .scenes:
             return "Edit phrase scene values"
         }
@@ -3276,52 +3439,37 @@ private struct PhraseGridCellTapModifier: ViewModifier {
     }
 }
 
-private struct PhrasePerformancePlaceholderCell: View {
-    let selection: PerformanceLayerSelectionState
-    let phrase: PhraseModel
-    let track: StepSequenceTrack
-    let isSelected: Bool
+private struct PhrasePerformanceToggleCell: View {
+    let stateLabel: String
+    let detail: String
+    let isAvailable: Bool
+    let isActive: Bool
     let accent: Color
     let trackAccent: Color
 
-    private var detail: String {
-        switch selection.mode {
-        case .noteRepeat:
-            return "Repeat target"
-        case .stepOrder:
-            return "Step map"
-        case .pan:
-            return "Pan target"
-        case .mute, .pattern, .fill, .volume:
-            return "\(phrase.name) / \(track.name)"
-        }
-    }
-
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            // The active layer is named once in the matrix header; cells only
-            // carry the layer icon and their own target identity.
-            Image(systemName: selection.mode.symbolName)
-                .font(.system(size: 11, weight: .bold))
-                .foregroundStyle(accent)
+        VStack(spacing: 6) {
+            Text(stateLabel.uppercased())
+                .studioText(.title)
+                .foregroundStyle(isActive ? accent : isAvailable ? StudioTheme.text : StudioTheme.mutedText)
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
 
             Text(detail)
-                .studioText(.labelBold)
-                .foregroundStyle(StudioTheme.text)
+                .studioText(.micro)
+                .foregroundStyle(StudioTheme.mutedText)
                 .lineLimit(1)
-                .truncationMode(.tail)
+                .minimumScaleFactor(0.72)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .frame(maxWidth: .infinity, minHeight: 96, alignment: .center)
         .padding(StudioMetrics.Spacing.compact)
-        // Colour identifies, it never floods (ux-canon rule 12): outline-only
-        // cell — border-grey line when idle, solid accent line when selected,
-        // body on the neutral step.
-        .background((isSelected ? StudioTheme.subtleFill : Color.clear), in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
+        .background(isActive ? StudioTheme.subtleFill : Color.clear, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
-                .stroke(trackAccent.opacity(StudioOpacity.mediumStroke), lineWidth: StudioMetrics.borderWidth)
+                .stroke(isActive ? accent : trackAccent, lineWidth: isActive ? 2 : StudioMetrics.borderWidth)
         )
-        .accessibilityLabel("\(phrase.name), \(track.name), \(selection.activeLabel), selection only")
+        .opacity(isAvailable ? 1 : StudioOpacity.inheritedContent)
+        .accessibilityLabel("\(detail), \(stateLabel)")
     }
 }
 

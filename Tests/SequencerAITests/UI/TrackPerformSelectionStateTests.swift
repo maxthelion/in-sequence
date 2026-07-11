@@ -228,6 +228,34 @@ final class TrackPerformSelectionStateTests: XCTestCase {
         XCTAssertEqual(plainModes, [.mute, .pattern, .fill, .volume, .pan])
     }
 
+    func test_phrasePerformanceOptionsExposeOnlyBackedLayersAndRuntimeToggles() {
+        let validMap = StepOrderMap(name: "Break Fold")
+        let invalidMap = StepOrderMap(name: "Broken", values: [0, 1])
+
+        let options = PerformanceLayerOption.phraseOptions(
+            availableLayerIDs: ["mute", "pattern", "fill-flag"],
+            stepOrderMaps: [validMap, invalidMap],
+            phraseStepCount: StepOrderMap.stepCount
+        )
+
+        XCTAssertTrue(options.contains(PerformanceLayerOption(mode: .mute, variantLabel: nil)))
+        XCTAssertTrue(options.contains(PerformanceLayerOption(mode: .noteRepeat, variantLabel: "1/32")))
+        XCTAssertTrue(options.contains(PerformanceLayerOption(mode: .stepOrder, variantLabel: "Break Fold")))
+        XCTAssertFalse(options.contains(PerformanceLayerOption(mode: .stepOrder, variantLabel: "Broken")))
+        XCTAssertFalse(options.contains { $0.mode == .volume || $0.mode == .pan })
+    }
+
+    func test_phrasePerformanceOptionsHideStepOrderWhenPhraseLengthIsUnsupported() {
+        let options = PerformanceLayerOption.phraseOptions(
+            availableLayerIDs: ["mute"],
+            stepOrderMaps: [StepOrderMap(name: "Identity")],
+            phraseStepCount: StepOrderMap.stepCount * 2
+        )
+
+        XCTAssertFalse(options.contains { $0.mode == .stepOrder })
+        XCTAssertTrue(options.contains { $0.mode == .noteRepeat })
+    }
+
     func test_performanceLayerSelectionStateKeepsOnlyValidInlineVariants() {
         var selection = PerformanceLayerSelectionState(mode: .pattern, variantLabel: "P4")
         XCTAssertEqual(selection.mode, .pattern)
