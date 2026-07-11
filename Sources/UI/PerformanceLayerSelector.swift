@@ -10,6 +10,13 @@ struct PerformanceLayerOptionCell: View {
     let onTap: () -> Void
 
     private var accent: Color { option.mode.phraseAccent }
+    private var usesSolidToggleFill: Bool { presentsToggleState && isSelected }
+    private var primaryForeground: Color {
+        usesSolidToggleFill ? StudioTheme.background : StudioTheme.text
+    }
+    private var secondaryForeground: Color {
+        usesSolidToggleFill ? StudioTheme.background : StudioTheme.mutedText
+    }
 
     var body: some View {
         Button {
@@ -20,27 +27,16 @@ struct PerformanceLayerOptionCell: View {
                 HStack(spacing: 6) {
                     Image(systemName: option.mode.symbolName)
                         .font(.system(size: 12, weight: .bold))
-                        .foregroundStyle(accent)
+                        .foregroundStyle(usesSolidToggleFill ? StudioTheme.background : accent)
 
                     Spacer(minLength: 0)
-
-                    if presentsToggleState {
-                        HStack(spacing: 4) {
-                            Circle()
-                                .fill(isSelected ? accent : StudioTheme.border)
-                                .frame(width: 6, height: 6)
-                            Text(isSelected ? "ON" : "OFF")
-                                .studioText(.micro)
-                                .foregroundStyle(isSelected ? StudioTheme.text : StudioTheme.mutedText)
-                        }
-                    }
                 }
 
                 Spacer(minLength: 0)
 
                 Text(option.title.uppercased())
                     .studioText(.labelBold)
-                    .foregroundStyle(StudioTheme.text)
+                    .foregroundStyle(primaryForeground)
                     .lineLimit(1)
                     .minimumScaleFactor(0.62)
 
@@ -51,19 +47,17 @@ struct PerformanceLayerOptionCell: View {
                 if option.variantLabel != nil || option.unavailableReason != nil {
                     Text(option.unavailableReason ?? option.mode.label)
                         .studioText(.micro)
-                        .foregroundStyle(StudioTheme.mutedText)
+                        .foregroundStyle(secondaryForeground)
                         .lineLimit(1)
                         .minimumScaleFactor(0.72)
                 }
             }
             .padding(StudioMetrics.Spacing.compact)
             .frame(maxWidth: .infinity, minHeight: 78, alignment: .topLeading)
-            // Colour identifies, it never floods (ux-canon rule 12):
-            // unselected cells are outline-only on the ground; selection
-            // reads from the solid accent outline and check badge, with the
-            // cell body on the neutral step.
             .background(
-                isSelected ? StudioTheme.subtleFill : Color.clear,
+                usesSolidToggleFill
+                    ? accent
+                    : isSelected ? StudioTheme.subtleFill : Color.clear,
                 in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
             )
             .overlay(

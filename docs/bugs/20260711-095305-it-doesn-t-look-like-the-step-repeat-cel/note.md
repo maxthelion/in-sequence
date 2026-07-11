@@ -13,7 +13,8 @@ runtime toggle state was not explicit. Step Order options were generated only
 from valid saved maps and only for 16-step phrases, causing the entire control
 to disappear when either condition was unmet.
 
-- Note Repeat and Step Order action cards now show explicit ON/OFF state.
+- Note Repeat and Step Order action cards now use solid accent fill when active
+  and an outline-only body when inactive, matching Mute and Fill.
 - Clicking a Note Repeat card dispatches its own interval directly instead of
   relying on a just-mutated selection state.
 - A 16-step phrase with no saved maps exposes a functional Identity option and
@@ -24,7 +25,7 @@ to disappear when either condition was unmet.
 Verification:
 - `TrackPerformSelectionStateTests`: 26 passed, 0 failed.
 - `scripts/diagnostics/ux-canon-lint.sh`: 0 violations.
-- Fresh focused `13-phrase-global-apply` visual capture confirms explicit OFF
-  states and the visible Step Order constraint.
+- Fresh focused `13-phrase-global-apply` visual capture confirms the clean
+  outline-only inactive state and the visible Step Order constraint.
 
 Status: RESOLVED
