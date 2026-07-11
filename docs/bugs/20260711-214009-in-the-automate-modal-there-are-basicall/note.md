@@ -8,4 +8,6 @@ Capture references:
 
 Status: RESOLVED e543efa9
 
-The modal now has Single, Per Bar, and Points surfaces. Per Bar controls an actual looping bar map; Points provides draggable start/end points, add/remove controls, and curve presets. Clear collapses automation to a single value, and legacy step automation requires an explicit sample-preserving conversion.
+The modal now exposes Per Bar and Points automation surfaces; an unautomated cell has no selected automation mode and uses its ordinary single value. Per Bar defaults to the phrase length, loops over the chosen bar count, and presents eight compact layer-style value cells per row. Points provides draggable start/end points, add/remove controls, and curve presets. Clear removes automation, and legacy step automation requires an explicit sample-preserving conversion.
+
+Refined: 31348884
