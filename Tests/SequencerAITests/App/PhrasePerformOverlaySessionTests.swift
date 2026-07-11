@@ -22,9 +22,10 @@ final class PhrasePerformOverlaySessionTests: XCTestCase {
     }
 
     func test_phraseTabsPromoteLayerAndValuesToTopLevelDestinations() {
-        XCTAssertEqual(PhraseWorkspaceTab.allCases, [.layers, .values, .scenes])
+        XCTAssertEqual(PhraseWorkspaceTab.allCases, [.layers, .values, .scenes, .palette])
         XCTAssertEqual(PhraseWorkspaceTab.layers.label, "Layer")
         XCTAssertEqual(PhraseWorkspaceTab.values.label, "Values")
+        XCTAssertEqual(PhraseWorkspaceTab.palette.label, "Perform Palette")
         XCTAssertEqual(PhraseLayerEditMode.allCases, [.byTrack, .byValue])
     }
 

@@ -41,6 +41,30 @@ struct PerformanceTrackGroup: Codable, Equatable, Identifiable, Sendable {
     }
 }
 
+struct PhrasePerformPaletteEntry: Codable, Equatable, Sendable {
+    static let slotCount = 64
+
+    var sourceTrackName: String
+    var sourceAccentHex: String?
+    var layerID: String
+    var layerName: String
+    var payload: PhrasePerformCellPayload
+
+    static func normalizedBank(_ entries: [PhrasePerformPaletteEntry?]) -> [PhrasePerformPaletteEntry?] {
+        (0..<slotCount).map { entries.indices.contains($0) ? entries[$0] : nil }
+    }
+}
+
+enum PhrasePerformCellPayload: Codable, Equatable, Sendable {
+    case authored(PhraseCell)
+    case noteRepeat(interval: NoteRepeatInterval, isActive: Bool)
+
+    var isAutomated: Bool {
+        guard case let .authored(cell) = self else { return false }
+        return cell.isAutomated
+    }
+}
+
 struct Project: Codable, Equatable {
     enum DestinationWriteTarget: Equatable, Sendable {
         case track(UUID)
@@ -51,6 +75,7 @@ struct Project: Codable, Equatable {
     var tracks: [StepSequenceTrack]
     var trackGroups: [TrackGroup]
     var performanceTrackGroups: [PerformanceTrackGroup?]
+    var phrasePerformPalette: [PhrasePerformPaletteEntry?]
     var generatorPool: [GeneratorPoolEntry]
     var clipPool: [ClipPoolEntry]
     var layers: [PhraseLayerDefinition]
@@ -73,6 +98,7 @@ struct Project: Codable, Equatable {
         tracks: [StepSequenceTrack],
         trackGroups: [TrackGroup] = [],
         performanceTrackGroups: [PerformanceTrackGroup?] = [],
+        phrasePerformPalette: [PhrasePerformPaletteEntry?] = [],
         generatorPool: [GeneratorPoolEntry] = GeneratorPoolEntry.defaultPool,
         clipPool: [ClipPoolEntry] = [],
         layers: [PhraseLayerDefinition] = [],
@@ -108,6 +134,7 @@ struct Project: Codable, Equatable {
             performanceTrackGroups,
             tracks: tracks
         )
+        self.phrasePerformPalette = PhrasePerformPaletteEntry.normalizedBank(phrasePerformPalette)
         self.generatorPool = generatorPool
         self.clipPool = clipPool
         self.layers = normalized.layers

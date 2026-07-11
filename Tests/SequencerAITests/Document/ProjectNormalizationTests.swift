@@ -243,6 +243,39 @@ final class ProjectNormalizationTests: XCTestCase {
         XCTAssertTrue(project.performanceTrackGroups.allSatisfy { $0 == nil })
     }
 
+    func test_phrasePerformPalette_normalizesAndPreservesAutomatedCells() throws {
+        var project = Project.empty
+        let entry = PhrasePerformPaletteEntry(
+            sourceTrackName: project.tracks[0].name,
+            sourceAccentHex: TrackPalette.identityHex(for: project.tracks[0].id),
+            layerID: "pattern",
+            layerName: "Pattern",
+            payload: .authored(.bars([.index(1), .index(3), .index(5)]))
+        )
+        let repeatEntry = PhrasePerformPaletteEntry(
+            sourceTrackName: "Kick",
+            sourceAccentHex: "#FF6600",
+            layerID: "runtime-note-repeat",
+            layerName: "Note Repeat",
+            payload: .noteRepeat(interval: .oneThirtySecond, isActive: true)
+        )
+        project.phrasePerformPalette = PhrasePerformPaletteEntry.normalizedBank([entry, repeatEntry])
+
+        let decoded = try JSONDecoder().decode(Project.self, from: JSONEncoder().encode(project))
+
+        XCTAssertEqual(decoded.phrasePerformPalette.count, PhrasePerformPaletteEntry.slotCount)
+        XCTAssertEqual(decoded.phrasePerformPalette[0], entry)
+        XCTAssertEqual(decoded.phrasePerformPalette[1], repeatEntry)
+        XCTAssertTrue(decoded.phrasePerformPalette.dropFirst(2).allSatisfy { $0 == nil })
+    }
+
+    func test_legacyDecodeWithoutPhrasePerformPalette_createsEmptyBank() throws {
+        let project = try JSONDecoder().decode(Project.self, from: Data("{\"version\":1,\"tracks\":[]}".utf8))
+
+        XCTAssertEqual(project.phrasePerformPalette.count, PhrasePerformPaletteEntry.slotCount)
+        XCTAssertTrue(project.phrasePerformPalette.allSatisfy { $0 == nil })
+    }
+
     private func generatorPoolJSON() throws -> String {
         try jsonString(for: GeneratorPoolEntry.defaultPool)
     }

@@ -63,6 +63,17 @@ A pattern slot says what a track can play. A phrase says which slot, mute state,
 
 This lets one set of per-track pattern slots be reused across phrases without duplicating every clip or generator.
 
+### Phrase Perform Palette
+
+Phrase Perform includes a persistent 8x8 palette for reusable authored cells.
+A Layer cell can be selected and copied into a palette slot; the stored entry
+keeps snapshot track/layer labels for identification plus the typed performance
+payload. Authored cells retain the complete `PhraseCell` value and automation
+shape; Note Repeat cells retain their interval and on/off state. Pasting from
+the palette into another Layer cell writes only that payload. It never changes
+the target track or layer identity, and a Layer paste is enabled only when the
+stored and target layer IDs match.
+
 ### Destination Versus Routing
 
 A destination is the track's default sink. Routing is additive fan-out from one track's output to other destinations or contexts.

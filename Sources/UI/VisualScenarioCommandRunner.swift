@@ -1589,6 +1589,7 @@ enum VisualScenarioCommandRunner {
               command["phraseGlobalApplySelect"] != nil ||
               command["phraseGlobalApplyExpanded"] != nil ||
               command["phraseGlobalApplyPins"] != nil ||
+              command["phrasePerformPaletteFixture"] != nil ||
               command["phraseSceneSelect"] != nil ||
               command["phraseSceneViewMode"] != nil ||
               command["phraseSceneMembershipFixture"] != nil ||
@@ -1737,6 +1738,42 @@ enum VisualScenarioCommandRunner {
 
         if let rawPins = command["phraseGlobalApplyPins"] {
             posts.append("global-apply-pins:\(rawPins)")
+        }
+
+        if command["phrasePerformPaletteFixture"] == "populated" {
+            let fixtureEntries: [PhrasePerformPaletteEntry] = [
+                PhrasePerformPaletteEntry(
+                    sourceTrackName: session.store.tracks.first?.name ?? "Main Track",
+                    sourceAccentHex: session.store.tracks.first.map {
+                        StudioTheme.trackAccentHex(for: $0, groups: session.store.trackGroups)
+                    },
+                    layerID: "pattern",
+                    layerName: "Pattern",
+                    payload: .authored(.single(.index(2)))
+                ),
+                PhrasePerformPaletteEntry(
+                    sourceTrackName: session.store.tracks.dropFirst().first?.name ?? "Mono 2",
+                    sourceAccentHex: session.store.tracks.dropFirst().first.map {
+                        StudioTheme.trackAccentHex(for: $0, groups: session.store.trackGroups)
+                    },
+                    layerID: "mute",
+                    layerName: "Mute",
+                    payload: .authored(.single(.bool(true)))
+                ),
+                PhrasePerformPaletteEntry(
+                    sourceTrackName: session.store.tracks.first?.name ?? "Main Track",
+                    sourceAccentHex: session.store.tracks.first.map {
+                        StudioTheme.trackAccentHex(for: $0, groups: session.store.trackGroups)
+                    },
+                    layerID: "pattern",
+                    layerName: "Pattern",
+                    payload: .authored(.bars([.index(0), .index(3), .index(1), .index(3)]))
+                )
+            ]
+            for (index, entry) in fixtureEntries.enumerated() {
+                session.setPhrasePerformPaletteEntry(entry, slotIndex: index)
+            }
+            posts.append("palette-select:3")
         }
 
         // Macros | Slots view mode on the SCENES perform surface (the

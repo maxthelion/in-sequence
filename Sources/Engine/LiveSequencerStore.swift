@@ -110,6 +110,10 @@ final class LiveSequencerStore {
         repeating: nil,
         count: PerformanceTrackGroup.slotCount
     )
+    private var storePhrasePerformPalette: [PhrasePerformPaletteEntry?] = Array(
+        repeating: nil,
+        count: PhrasePerformPaletteEntry.slotCount
+    )
 
     /// Generator pool indexed by ID. `storeGeneratorOrder` preserves insertion order.
     private var storeGeneratorsByID: [UUID: GeneratorPoolEntry] = [:]
@@ -173,6 +177,7 @@ final class LiveSequencerStore {
         storeTracks = project.tracks
         storeTrackGroups = project.trackGroups
         storePerformanceTrackGroups = project.performanceTrackGroups
+        storePhrasePerformPalette = project.phrasePerformPalette
         storeLayers = project.layers
         storeRoutes = project.routes
         storeBuses = MixerBus.normalizedCollection(project.buses)
@@ -242,6 +247,7 @@ final class LiveSequencerStore {
             tracks: storeTracks,
             trackGroups: storeTrackGroups,
             performanceTrackGroups: storePerformanceTrackGroups,
+            phrasePerformPalette: storePhrasePerformPalette,
             generatorPool: orderedGenerators,
             clipPool: orderedClips,
             layers: storeLayers,
@@ -622,6 +628,13 @@ final class LiveSequencerStore {
         revision &+= 1
     }
 
+    func replacePhrasePerformPalette(_ entries: [PhrasePerformPaletteEntry?]) {
+        let normalized = PhrasePerformPaletteEntry.normalizedBank(entries)
+        guard normalized != storePhrasePerformPalette else { return }
+        storePhrasePerformPalette = normalized
+        revision &+= 1
+    }
+
     @discardableResult
     func appendMixerBus(name: String? = nil, color: String? = nil) -> UUID {
         var project = exportToProject()
@@ -775,6 +788,7 @@ final class LiveSequencerStore {
     var tracks: [StepSequenceTrack] { storeTracks }
     var trackGroups: [TrackGroup] { storeTrackGroups }
     var performanceTrackGroups: [PerformanceTrackGroup?] { storePerformanceTrackGroups }
+    var phrasePerformPalette: [PhrasePerformPaletteEntry?] { storePhrasePerformPalette }
     var layers: [PhraseLayerDefinition] { storeLayers }
     var routes: [Route] { storeRoutes }
     var buses: [MixerBus] { storeBuses }

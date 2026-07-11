@@ -12,10 +12,83 @@ struct PhraseDocumentEditClipboard: Equatable {
 
 struct PhraseCellDocumentEditClipboard: Equatable {
     let layerID: String
-    let cell: PhraseCell
+    let payload: PhrasePerformCellPayload
+    let sourceTrackName: String
+    let sourceAccentHex: String?
+    let layerName: String
+
+    init(
+        layerID: String,
+        cell: PhraseCell,
+        sourceTrackName: String = "Cell",
+        sourceAccentHex: String? = nil,
+        layerName: String? = nil
+    ) {
+        self.layerID = layerID
+        self.payload = .authored(cell)
+        self.sourceTrackName = sourceTrackName
+        self.sourceAccentHex = sourceAccentHex
+        self.layerName = layerName ?? layerID
+    }
+
+    init(
+        layerID: String,
+        payload: PhrasePerformCellPayload,
+        sourceTrackName: String,
+        sourceAccentHex: String?,
+        layerName: String
+    ) {
+        self.layerID = layerID
+        self.payload = payload
+        self.sourceTrackName = sourceTrackName
+        self.sourceAccentHex = sourceAccentHex
+        self.layerName = layerName
+    }
+
+    var cell: PhraseCell? {
+        guard case let .authored(cell) = payload else { return nil }
+        return cell
+    }
 
     func isCompatible(with layerID: String) -> Bool {
         self.layerID == layerID
+    }
+
+    static func copying(
+        phrase: PhraseModel,
+        layer: PhraseLayerDefinition,
+        track: StepSequenceTrack,
+        groups: [TrackGroup] = []
+    ) -> PhraseCellDocumentEditClipboard {
+        PhraseCellDocumentEditClipboard(
+            layerID: layer.id,
+            cell: phrase.cell(for: layer.id, trackID: track.id),
+            sourceTrackName: track.name,
+            sourceAccentHex: StudioTheme.trackAccentHex(for: track, groups: groups),
+            layerName: layer.name
+        )
+    }
+}
+
+extension PhrasePerformPaletteEntry {
+    init(clipboard: PhraseCellDocumentEditClipboard) {
+        self.init(
+            sourceTrackName: clipboard.sourceTrackName,
+            sourceAccentHex: clipboard.sourceAccentHex,
+            layerID: clipboard.layerID,
+            layerName: clipboard.layerName,
+            payload: clipboard.payload
+        )
+    }
+
+    var documentEditClipboard: PhraseCellDocumentEditClipboard {
+        PhraseCellDocumentEditClipboard(
+            layerID: layerID,
+            payload: payload,
+            sourceTrackName: sourceTrackName,
+            sourceAccentHex: sourceAccentHex,
+            layerName: layerName
+        )
     }
 }
 
@@ -88,6 +161,11 @@ private struct PhraseDocumentEditRevision: Equatable {
     let activeLayerID: String?
     let cellSelection: PhraseCellDocumentSelection
     let usesCellTarget: Bool
+    let phraseTab: PhraseWorkspaceTab
+    let paletteSelection: Set<Int>
+    let paletteEntries: [PhrasePerformPaletteEntry?]
+    let performanceLayerMode: TrackPerformLayerMode
+    let performanceLayerVariant: String?
 }
 
 private struct PhraseCellSelectionContext: Equatable {
@@ -162,6 +240,7 @@ struct PhraseWorkspaceView: View {
     @State private var scalarDragBase: (phraseID: UUID, trackID: UUID, value: Double)?
     @State private var phraseLayerSelection = PhraseCellDocumentSelection()
     @State private var globalApplyValueVisibility = GlobalApplyValueVisibilityState()
+    @State private var phrasePerformPaletteSelection: Set<Int> = []
 
     private let phraseColumnWidth: CGFloat = 118
     private let trackColumnWidth: CGFloat = 126
@@ -214,6 +293,12 @@ struct PhraseWorkspaceView: View {
 
         return matrixSelectableLayers.first { $0.id == layerID }
             ?? layers.first { $0.id == layerID }
+    }
+
+    private var activeCellSelectionLayerID: String? {
+        if let activeMatrixLayer { return activeMatrixLayer.id }
+        if performanceLayerSelection.mode == .noteRepeat { return "runtime-note-repeat" }
+        return nil
     }
 
     private var activeLayerAccent: Color {
@@ -273,7 +358,7 @@ struct PhraseWorkspaceView: View {
     private var phraseCellSelectionContext: PhraseCellSelectionContext {
         PhraseCellSelectionContext(
             phraseID: session.store.selectedPhraseID,
-            layerID: activeMatrixLayer?.id,
+            layerID: activeCellSelectionLayerID,
             liveTrackIDs: scopedLayerTracks.map(\.id),
             isCellSurfaceVisible: phraseTab == .layers
         )
@@ -285,7 +370,12 @@ struct PhraseWorkspaceView: View {
             phraseIDs: phrases.map(\.id),
             activeLayerID: activeMatrixLayer?.id,
             cellSelection: phraseLayerSelection,
-            usesCellTarget: usesPhraseCellDocumentEditTarget
+            usesCellTarget: usesPhraseCellDocumentEditTarget,
+            phraseTab: phraseTab,
+            paletteSelection: phrasePerformPaletteSelection,
+            paletteEntries: session.store.phrasePerformPalette,
+            performanceLayerMode: performanceLayerSelection.mode,
+            performanceLayerVariant: performanceLayerSelection.variantLabel
         )
     }
 
@@ -453,11 +543,16 @@ struct PhraseWorkspaceView: View {
             globalApplySurface
         case .scenes:
             phraseScenesSurface
+        case .palette:
+            phrasePerformPaletteSurface
         }
     }
 
     private func makeDocumentEditTarget() -> DocumentEditCommandController.Target {
-        usesPhraseCellDocumentEditTarget
+        if phraseTab == .palette {
+            return phrasePerformPaletteDocumentEditTarget()
+        }
+        return usesPhraseCellDocumentEditTarget
             ? phraseCellDocumentEditTarget()
             : phraseDocumentEditTarget(session: session)
     }
@@ -890,6 +985,117 @@ struct PhraseWorkspaceView: View {
         .accessibilityIdentifier("phrase-track-group-slot-\(index + 1)")
     }
 
+    private var phrasePerformPaletteSurface: some View {
+        _ = session.store.revision
+        return LazyVGrid(
+            columns: Array(repeating: GridItem(.flexible(minimum: 92), spacing: 6), count: 8),
+            spacing: 6
+        ) {
+            ForEach(0..<PhrasePerformPaletteEntry.slotCount, id: \.self) { index in
+                phrasePerformPaletteSlot(index)
+            }
+        }
+        .padding(StudioMetrics.Spacing.compact)
+        .background(Color.clear)
+        .accessibilityIdentifier("phrase-perform-palette")
+    }
+
+    private func phrasePerformPaletteSlot(_ index: Int) -> some View {
+        let entry = session.store.phrasePerformPalette.indices.contains(index)
+            ? session.store.phrasePerformPalette[index]
+            : nil
+        let isSelected = phrasePerformPaletteSelection.contains(index)
+        let accent = entry?.sourceAccentHex.flatMap(StudioTheme.color(hex:)) ?? StudioTheme.phraseAccent
+
+        return Button {
+            phrasePerformPaletteSelection = phrasePerformPaletteSelection == [index] ? [] : [index]
+        } label: {
+            VStack(alignment: .leading, spacing: 5) {
+                HStack(spacing: 5) {
+                    Text("\(index + 1)")
+                        .studioText(.microEmphasis)
+                        .foregroundStyle(isSelected ? accent : StudioTheme.mutedText)
+                    Spacer(minLength: 0)
+                    if entry?.payload.isAutomated == true {
+                        Image(systemName: "point.topleft.down.curvedto.point.bottomright.up")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(accent)
+                    }
+                }
+
+                if let entry {
+                    Text(entry.sourceTrackName)
+                        .studioText(.labelBold)
+                        .foregroundStyle(isSelected ? accent : StudioTheme.text)
+                        .lineLimit(1)
+                    Text("\(entry.layerName.uppercased()) · \(phrasePerformPaletteValueLabel(entry))")
+                        .studioText(.micro)
+                        .foregroundStyle(accent)
+                        .lineLimit(1)
+                } else {
+                    Text("Empty")
+                        .studioText(.micro)
+                        .foregroundStyle(StudioTheme.mutedText)
+                }
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+            .frame(maxWidth: .infinity, minHeight: 54, alignment: .topLeading)
+            .background(Color.clear, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
+                    .stroke(
+                        isSelected ? StudioTheme.text : entry == nil ? StudioTheme.border : accent,
+                        style: StrokeStyle(
+                            lineWidth: isSelected ? 2 : StudioMetrics.borderWidth,
+                            dash: entry == nil ? [5, 4] : []
+                        )
+                    )
+            )
+            .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .studioSelectionGesture { gesture in
+            phrasePerformPaletteSelection = gesture.selection(
+                targeting: index,
+                in: phrasePerformPaletteSelection
+            )
+        }
+        .accessibilityIdentifier("phrase-perform-palette-slot-\(index + 1)")
+        .help(entry == nil ? "Select this empty palette slot" : "Select \(entry?.sourceTrackName ?? "cell") \(entry?.layerName ?? "value")")
+    }
+
+    private func phrasePerformPaletteValueLabel(_ entry: PhrasePerformPaletteEntry) -> String {
+        switch entry.payload {
+        case let .authored(cell):
+            switch cell {
+            case .inheritDefault:
+                return "Inherit"
+            case let .single(value):
+                return phrasePerformPaletteValueLabel(value, layerID: entry.layerID)
+            case let .bars(values):
+                return "\(values.count) bars"
+            case let .steps(values):
+                return "\(values.count) steps"
+            case .curve:
+                return "Curve"
+            }
+        case let .noteRepeat(interval, isActive):
+            return "\(interval.rawValue) · \(isActive ? "On" : "Off")"
+        }
+    }
+
+    private func phrasePerformPaletteValueLabel(_ value: PhraseCellValue, layerID: String) -> String {
+        switch value {
+        case let .bool(isOn):
+            return isOn ? "On" : "Off"
+        case let .index(index):
+            return layerID == "pattern" ? "P\(index + 1)" : "\(index + 1)"
+        case let .scalar(value):
+            return String(format: "%.2f", value)
+        }
+    }
+
     private var phraseScenesSurface: some View {
         let sceneState = session.resolvedPhraseSceneState(for: session.store.selectedPhrase)
         let sceneA = session.store.masterBus.scene(id: sceneState.sceneAID) ?? session.store.masterBus.activeScene
@@ -1271,7 +1477,7 @@ struct PhraseWorkspaceView: View {
                 phraseLayerSelectorButton
                     .frame(width: 132)
 
-                if !phraseLayerSelection.isEmpty {
+                if !phraseLayerSelection.isEmpty, activeMatrixLayer != nil {
                     StudioCommandButton(
                         title: "Automate",
                         systemImage: "point.topleft.down.curvedto.point.bottomright.up",
@@ -1580,6 +1786,16 @@ struct PhraseWorkspaceView: View {
             return
         }
 
+        if command.hasPrefix("palette-select:"),
+           let rawSlot = command.split(separator: ":").last,
+           let oneBasedSlot = Int(rawSlot),
+           (1...PhrasePerformPaletteEntry.slotCount).contains(oneBasedSlot) {
+            phraseTab = .palette
+            phrasePerformPaletteSelection = [oneBasedSlot - 1]
+            postRenderedMatrixVisualState(isVisible: true)
+            return
+        }
+
         // QA: switch the SCENES perform surface between Macros | Slots view
         // modes (the perform-bar segmented pill).
         if command.hasPrefix("scene-view-mode:") {
@@ -1884,7 +2100,7 @@ struct PhraseWorkspaceView: View {
 
     private var usesPhraseCellDocumentEditTarget: Bool {
         phraseTab == .layers
-            && activeMatrixLayer != nil
+            && activeCellSelectionLayerID != nil
             && !phraseLayerSelection.isEmpty
     }
 
@@ -1892,11 +2108,11 @@ struct PhraseWorkspaceView: View {
         _ gesture: StudioSelectionGesture,
         trackID: UUID
     ) {
-        guard let activeMatrixLayer else { return }
+        guard let activeCellSelectionLayerID else { return }
         phraseLayerSelection.applySelectionGesture(
             gesture,
             phraseID: session.store.selectedPhraseID,
-            layerID: activeMatrixLayer.id,
+            layerID: activeCellSelectionLayerID,
             trackID: trackID
         )
         session.setSelectedTrackID(trackID)
@@ -1905,78 +2121,156 @@ struct PhraseWorkspaceView: View {
     private func reconcilePhraseCellSelection() {
         phraseLayerSelection.reconcile(
             phraseID: session.store.selectedPhraseID,
-            layerID: activeMatrixLayer?.id,
+            layerID: activeCellSelectionLayerID,
             liveTrackIDs: scopedLayerTracks.map(\.id)
+        )
+    }
+
+    private func phrasePerformPaletteDocumentEditTarget() -> DocumentEditCommandController.Target {
+        .init(
+            canCopy: {
+                guard phrasePerformPaletteSelection.count == 1,
+                      let index = phrasePerformPaletteSelection.first
+                else { return false }
+                return session.store.phrasePerformPalette.indices.contains(index)
+                    && session.store.phrasePerformPalette[index] != nil
+            },
+            canClear: { !phrasePerformPaletteSelection.isEmpty },
+            isPasteCompatible: { payload in
+                payload.domain == .phraseCells
+                    && payload.value(as: PhraseCellDocumentEditClipboard.self) != nil
+                    && !phrasePerformPaletteSelection.isEmpty
+            },
+            copy: {
+                guard let index = phrasePerformPaletteSelection.sorted().first(where: {
+                    session.store.phrasePerformPalette.indices.contains($0)
+                        && session.store.phrasePerformPalette[$0] != nil
+                }),
+                let entry = session.store.phrasePerformPalette[index]
+                else { return nil }
+                return .init(
+                    domain: .phraseCells,
+                    snapshot: entry.documentEditClipboard
+                )
+            },
+            paste: { payload in
+                guard let clipboard = payload.value(as: PhraseCellDocumentEditClipboard.self) else { return }
+                let entry = PhrasePerformPaletteEntry(clipboard: clipboard)
+                for index in phrasePerformPaletteSelection.sorted() {
+                    session.setPhrasePerformPaletteEntry(entry, slotIndex: index)
+                }
+            },
+            clearSelection: {
+                phrasePerformPaletteSelection.removeAll()
+            }
         )
     }
 
     private func phraseCellDocumentEditTarget() -> DocumentEditCommandController.Target {
         .init(
             canCopy: {
-                guard let activeMatrixLayer else { return false }
-                return !phraseLayerSelection.matchingTrackIDs(
+                guard let activeCellSelectionLayerID else { return false }
+                let selectedIDs = phraseLayerSelection.matchingTrackIDs(
                     phraseID: session.store.selectedPhraseID,
-                    layerID: activeMatrixLayer.id,
+                    layerID: activeCellSelectionLayerID,
                     liveTrackIDs: scopedLayerTracks.map(\.id)
-                ).isEmpty
+                )
+                guard selectedIDs.count == 1 else { return false }
+                return performanceLayerSelection.mode != .noteRepeat
+                    || selectedIDs.allSatisfy(session.isNoteRepeatAvailable(trackID:))
             },
             canClear: { !phraseLayerSelection.isEmpty },
             isPasteCompatible: { payload in
                 guard payload.domain == .phraseCells,
                       let clipboard = payload.value(as: PhraseCellDocumentEditClipboard.self),
-                      let activeMatrixLayer,
-                      clipboard.isCompatible(with: activeMatrixLayer.id)
+                      let activeCellSelectionLayerID,
+                      clipboard.isCompatible(with: activeCellSelectionLayerID)
                 else { return false }
-                return !phraseLayerSelection.matchingTrackIDs(
+                let targetIDs = phraseLayerSelection.matchingTrackIDs(
                     phraseID: session.store.selectedPhraseID,
-                    layerID: activeMatrixLayer.id,
+                    layerID: activeCellSelectionLayerID,
                     liveTrackIDs: scopedLayerTracks.map(\.id)
-                ).isEmpty
+                )
+                guard !targetIDs.isEmpty else { return false }
+                return performanceLayerSelection.mode != .noteRepeat
+                    || targetIDs.allSatisfy(session.isNoteRepeatAvailable(trackID:))
             },
             copy: {
-                guard let activeMatrixLayer,
+                guard let activeCellSelectionLayerID,
                       let phrase = session.store.phrases.first(where: { $0.id == session.store.selectedPhraseID })
                 else { return nil }
                 let matchingIDs = phraseLayerSelection.matchingTrackIDs(
                     phraseID: phrase.id,
-                    layerID: activeMatrixLayer.id,
+                    layerID: activeCellSelectionLayerID,
                     liveTrackIDs: scopedLayerTracks.map(\.id)
                 )
-                guard let trackID = matchingIDs.first else { return nil }
-                let inherited = inheritedDefaults(for: phrase.id)
+                guard matchingIDs.count == 1, let trackID = matchingIDs.first else { return nil }
+                guard let track = tracks.first(where: { $0.id == trackID }) else { return nil }
+                if performanceLayerSelection.mode == .noteRepeat,
+                   session.isNoteRepeatAvailable(trackID: trackID),
+                   let interval = selectedNoteRepeatInterval {
+                    let runtimeInterval = engineController.noteRepeatRuntimeSnapshot(for: trackID)?.interval
+                    return .init(
+                        domain: .phraseCells,
+                        snapshot: PhraseCellDocumentEditClipboard(
+                            layerID: activeCellSelectionLayerID,
+                            payload: .noteRepeat(
+                                interval: interval,
+                                isActive: runtimeInterval == interval
+                            ),
+                            sourceTrackName: track.name,
+                            sourceAccentHex: StudioTheme.trackAccentHex(
+                                for: track,
+                                groups: session.store.trackGroups
+                            ),
+                            layerName: "Note Repeat"
+                        )
+                    )
+                }
+                guard let activeMatrixLayer else { return nil }
+                let authoredPhrase = session.phraseWithPerformOverlay(phrase)
                 return .init(
                     domain: .phraseCells,
-                    snapshot: PhraseCellDocumentEditClipboard(
-                        layerID: activeMatrixLayer.id,
-                        cell: .single(
-                            phrase.resolvedValue(
-                                for: activeMatrixLayer,
-                                trackID: trackID,
-                                stepIndex: 0,
-                                inherited: inherited
-                            )
-                        )
+                    snapshot: PhraseCellDocumentEditClipboard.copying(
+                        phrase: authoredPhrase,
+                        layer: activeMatrixLayer,
+                        track: track,
+                        groups: session.store.trackGroups
                     )
                 )
             },
             paste: { payload in
                 guard let clipboard = payload.value(as: PhraseCellDocumentEditClipboard.self),
-                      let activeMatrixLayer,
-                      clipboard.isCompatible(with: activeMatrixLayer.id)
+                      let activeCellSelectionLayerID,
+                      clipboard.isCompatible(with: activeCellSelectionLayerID)
                 else { return }
                 let phraseID = session.store.selectedPhraseID
                 let targetIDs = phraseLayerSelection.matchingTrackIDs(
                     phraseID: phraseID,
-                    layerID: activeMatrixLayer.id,
+                    layerID: activeCellSelectionLayerID,
                     liveTrackIDs: scopedLayerTracks.map(\.id)
                 )
                 guard !targetIDs.isEmpty else { return }
-                session.setPhraseCell(
-                    clipboard.cell,
-                    layerID: activeMatrixLayer.id,
-                    trackIDs: targetIDs,
-                    phraseID: phraseID
-                )
+                switch clipboard.payload {
+                case let .authored(cell):
+                    guard let activeMatrixLayer else { return }
+                    session.setPhraseCell(
+                        cell,
+                        layerID: activeMatrixLayer.id,
+                        trackIDs: targetIDs,
+                        phraseID: phraseID
+                    )
+                case let .noteRepeat(interval, isActive):
+                    guard targetIDs.allSatisfy(session.isNoteRepeatAvailable(trackID:)) else { return }
+                    targetIDs.forEach { trackID in
+                        _ = session.setTrackNoteRepeatInterval(interval, trackID: trackID)
+                        if isActive {
+                            _ = session.engageNoteRepeat(trackID: trackID)
+                        } else {
+                            session.releaseNoteRepeat(trackID: trackID)
+                        }
+                    }
+                }
             },
             clearSelection: {
                 phraseLayerSelection.clear()
@@ -2100,9 +2394,8 @@ struct PhraseWorkspaceView: View {
                         scalarDragGesture(phrase: displayedPhrase, track: track, layer: activeLayer)
                     )
                     .studioSelectionGesture { gesture in
-                        guard activeLayer != nil else {
-                            if gesture == .singleSelection,
-                               performanceLayerSelection.mode != .noteRepeat {
+                        guard activeCellSelectionLayerID != nil else {
+                            if gesture == .singleSelection {
                                 openFiniteChoicePicker(phraseID: displayedPhrase.id, trackID: track.id)
                             }
                             return
@@ -2871,7 +3164,12 @@ struct SongWorkspaceView: View {
                 phraseIDs: phrases.map(\.id),
                 activeLayerID: nil,
                 cellSelection: PhraseCellDocumentSelection(),
-                usesCellTarget: false
+                usesCellTarget: false,
+                phraseTab: .layers,
+                paletteSelection: [],
+                paletteEntries: [],
+                performanceLayerMode: .pattern,
+                performanceLayerVariant: nil
             ),
             makeTarget: { phraseDocumentEditTarget(session: session) }
         )
@@ -3193,6 +3491,7 @@ enum PhraseWorkspaceTab: String, CaseIterable, Identifiable {
     case layers
     case values
     case scenes
+    case palette
 
     var id: String { rawValue }
 
@@ -3204,6 +3503,8 @@ enum PhraseWorkspaceTab: String, CaseIterable, Identifiable {
             return "Values"
         case .scenes:
             return "Scenes"
+        case .palette:
+            return "Perform Palette"
         }
     }
 
@@ -3215,12 +3516,14 @@ enum PhraseWorkspaceTab: String, CaseIterable, Identifiable {
             return "scope"
         case .scenes:
             return "square.2.layers.3d"
+        case .palette:
+            return "square.grid.3x3.topleft.filled"
         }
     }
 
     var accent: Color {
         switch self {
-        case .layers, .values:
+        case .layers, .values, .palette:
             return StudioTheme.phraseAccent
         case .scenes:
             return StudioTheme.phraseAccent
@@ -3235,6 +3538,8 @@ enum PhraseWorkspaceTab: String, CaseIterable, Identifiable {
             return "Apply values to the selected track scope"
         case .scenes:
             return "Edit phrase scene values"
+        case .palette:
+            return "Store reusable phrase cells"
         }
     }
 }

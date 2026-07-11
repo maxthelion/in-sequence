@@ -145,6 +145,7 @@ CAPTURES=$(cat <<'TABLE'
 13a-phrase-global-apply-track-group|workspace=phrase,phraseWorkspaceTab=globalApply,performanceTrackGroupCount=1,phraseGlobalApplyTrackSelectorVisible=true|phraseMatrixTrackCount=8;phraseMatrixPhraseCount=8;performanceTrackGroupFixture=0;phraseWorkspaceTab=globalApply;phraseGlobalApplyTrackSelector=open;transport=stop
 13d-phrase-global-apply-pattern-expanded-pinned|workspace=phrase,phraseWorkspaceTab=globalApply|phraseMatrixTrackCount=8;phraseMatrixPhraseCount=8;phraseWorkspaceTab=globalApply;phraseGlobalApplyExpanded=pattern;phraseGlobalApplyPins=pattern:P1,P2,P3;transport=stop
 13e-phrase-global-apply-pattern-pinned-collapsed|workspace=phrase,phraseWorkspaceTab=globalApply|phraseMatrixTrackCount=8;phraseMatrixPhraseCount=8;phraseWorkspaceTab=globalApply;phraseGlobalApplyPins=pattern:P1,P2,P3;transport=stop
+13f-phrase-perform-palette|workspace=phrase,phraseWorkspaceTab=palette|phraseMatrixTrackCount=8;phraseMatrixPhraseCount=8;phraseWorkspaceTab=palette;phrasePerformPaletteFixture=populated;transport=stop
 13b-phrase-perform-capture|workspace=phrase,workspaceMode=perform,phraseCaptureVisible=true|phraseMatrixTrackCount=8;phraseMatrixPhraseCount=8;workspaceMode=perform;phraseWorkspaceTab=layers;phraseCapture=open;transport=stop
 # 14-17 RETIRED: the tracks Perform LAYER surface (TRACK LAYER selector +
 # mute/fill/note-repeat layer cells) was removed. Tracks Perform is now

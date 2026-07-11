@@ -299,6 +299,84 @@ final class DocumentEditCommandControllerTests: XCTestCase {
         XCTAssertTrue(controller.availability.canPaste)
     }
 
+    func testPhraseCellClipboardCopiesAuthoredAutomationWithoutFlattening() throws {
+        var track = StepSequenceTrack.default
+        let group = TrackGroup(name: "Kit", color: "#12AB34", memberIDs: [track.id])
+        track.groupID = group.id
+        let layer = try XCTUnwrap(PhraseLayerDefinition.defaultSet(for: [track]).first { $0.id == "pattern" })
+        var phrase = PhraseModel.default(
+            tracks: [track],
+            layers: [layer],
+            generatorPool: GeneratorPoolEntry.defaultPool,
+            clipPool: []
+        )
+        let automated: PhraseCell = .bars([.index(1), .index(4), .index(2)])
+        phrase.setCell(automated, for: layer.id, trackID: track.id)
+
+        let clipboard = PhraseCellDocumentEditClipboard.copying(
+            phrase: phrase,
+            layer: layer,
+            track: track,
+            groups: [group]
+        )
+
+        XCTAssertEqual(clipboard.cell, automated)
+        XCTAssertEqual(clipboard.sourceTrackName, track.name)
+        XCTAssertEqual(clipboard.sourceAccentHex, group.color)
+        XCTAssertEqual(clipboard.layerID, layer.id)
+    }
+
+    func testPhrasePerformPaletteRoundTripPastesOnlyPayloadIntoTargetAddress() throws {
+        var tracks = [StepSequenceTrack.default]
+        var targetTrack = StepSequenceTrack.default
+        targetTrack.id = UUID()
+        targetTrack.name = "Target"
+        tracks.append(targetTrack)
+        let layers = PhraseLayerDefinition.defaultSet(for: tracks)
+        let pattern = try XCTUnwrap(layers.first { $0.id == "pattern" })
+        let mute = try XCTUnwrap(layers.first { $0.id == "mute" })
+        var phrase = PhraseModel.default(
+            tracks: tracks,
+            layers: layers,
+            generatorPool: GeneratorPoolEntry.defaultPool,
+            clipPool: []
+        )
+        let automated: PhraseCell = .bars([.index(1), .index(4), .index(2)])
+        phrase.setCell(automated, for: pattern.id, trackID: tracks[0].id)
+        let source = PhraseCellDocumentEditClipboard.copying(
+            phrase: phrase,
+            layer: pattern,
+            track: tracks[0]
+        )
+        let paletteEntry = PhrasePerformPaletteEntry(clipboard: source)
+        let pasted = paletteEntry.documentEditClipboard
+
+        guard case let .authored(cell) = pasted.payload else {
+            return XCTFail("Expected authored phrase-cell payload")
+        }
+        phrase.setCell(cell, for: pattern.id, trackID: tracks[1].id)
+
+        XCTAssertEqual(phrase.cell(for: pattern.id, trackID: tracks[1].id), automated)
+        XCTAssertEqual(phrase.cell(for: mute.id, trackID: tracks[1].id), .inheritDefault)
+        XCTAssertEqual(pasted.layerID, pattern.id)
+        XCTAssertEqual(paletteEntry.sourceTrackName, tracks[0].name)
+    }
+
+    func testNoteRepeatPalettePayloadDoesNotCarryTrackIdentity() {
+        let clipboard = PhraseCellDocumentEditClipboard(
+            layerID: "runtime-note-repeat",
+            payload: .noteRepeat(interval: .oneThirtySecond, isActive: true),
+            sourceTrackName: "Kick",
+            sourceAccentHex: "#FF6600",
+            layerName: "Note Repeat"
+        )
+
+        let decoded = PhrasePerformPaletteEntry(clipboard: clipboard).documentEditClipboard
+
+        XCTAssertEqual(decoded.payload, .noteRepeat(interval: .oneThirtySecond, isActive: true))
+        XCTAssertEqual(decoded.layerID, "runtime-note-repeat")
+    }
+
     func testPhraseCellSelectionLifecycleScopesAdditiveSelectionAndClear() {
         let phraseID = UUID()
         let otherPhraseID = UUID()

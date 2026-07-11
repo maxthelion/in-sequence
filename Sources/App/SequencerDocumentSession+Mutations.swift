@@ -1741,6 +1741,17 @@ extension SequencerDocumentSession {
         }
     }
 
+    func setPhrasePerformPaletteEntry(_ entry: PhrasePerformPaletteEntry?, slotIndex: Int) {
+        guard (0..<PhrasePerformPaletteEntry.slotCount).contains(slotIndex) else { return }
+        var entries = store.phrasePerformPalette
+        entries[slotIndex] = entry
+        let revisionBefore = store.revision
+        store.replacePhrasePerformPalette(entries)
+        guard store.revision != revisionBefore else { return }
+        revision = store.revision
+        scheduleFlushToDocument()
+    }
+
     /// Duplicate selected navigator tracks. Track copy/paste is a document
     /// mutation, so it uses the same project round-trip as append/remove.
     @discardableResult

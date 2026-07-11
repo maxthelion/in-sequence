@@ -14,6 +14,7 @@ struct NormalizedFields {
         case tracks
         case trackGroups
         case performanceTrackGroups
+        case phrasePerformPalette
         case generatorPool
         case clipPool
         case layers
@@ -132,6 +133,10 @@ static func normalize(
             [PerformanceTrackGroup?].self,
             forKey: .performanceTrackGroups
         ) ?? []
+        let resolvedPhrasePerformPalette = try container.decodeIfPresent(
+            [PhrasePerformPaletteEntry?].self,
+            forKey: .phrasePerformPalette
+        ) ?? []
         let resolvedGeneratorPool = try container.decodeIfPresent([GeneratorPoolEntry].self, forKey: .generatorPool) ?? GeneratorPoolEntry.defaultPool
         let resolvedClipPool = try container.decodeIfPresent([ClipPoolEntry].self, forKey: .clipPool) ?? []
         let resolvedRoutes = try container.decodeIfPresent([Route].self, forKey: .routes) ?? []
@@ -161,6 +166,7 @@ static func normalize(
             resolvedPerformanceTrackGroups,
             tracks: resolvedTracks
         )
+        phrasePerformPalette = PhrasePerformPaletteEntry.normalizedBank(resolvedPhrasePerformPalette)
         generatorPool = resolvedGeneratorPool
         clipPool = resolvedClipPool
         layers = normalized.layers
@@ -186,6 +192,7 @@ static func normalize(
         try container.encode(tracks, forKey: .tracks)
         try container.encode(trackGroups, forKey: .trackGroups)
         try container.encode(performanceTrackGroups, forKey: .performanceTrackGroups)
+        try container.encode(phrasePerformPalette, forKey: .phrasePerformPalette)
         try container.encode(generatorPool, forKey: .generatorPool)
         try container.encode(clipPool, forKey: .clipPool)
         try container.encode(layers, forKey: .layers)

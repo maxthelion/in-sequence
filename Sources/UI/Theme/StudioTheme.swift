@@ -134,10 +134,16 @@ enum StudioTheme {
     }
 
     static func trackAccent(for track: StepSequenceTrack, groups: [TrackGroup] = []) -> Color {
+        color(hex: trackAccentHex(for: track, groups: groups)) ?? transportAccent
+    }
+
+    static func trackAccentHex(for track: StepSequenceTrack, groups: [TrackGroup] = []) -> String {
         if let groupID = track.groupID,
            let group = groups.first(where: { $0.id == groupID }) {
-            return groupAccent(for: group)
+            return TrackPalette.isValidHex(group.color)
+                ? group.color
+                : TrackPalette.identityHex(for: group.id)
         }
-        return identityAccent(for: track.id)
+        return TrackPalette.identityHex(for: track.id)
     }
 }
