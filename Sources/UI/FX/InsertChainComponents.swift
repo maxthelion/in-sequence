@@ -8,6 +8,42 @@ import SwiftUI
 /// `MixerBusInsert` / `MasterBusInsert`) and mutation wiring (session APIs), and
 /// passes the resolved presentation values + callbacks here.
 
+// MARK: - Compact insert button
+
+/// Name-only insert button used by narrow mixer strips. The label and the
+/// button both claim the available row width so taps anywhere inside the tile
+/// open the editor, not just taps on the rendered text.
+struct CompactFXInsertButton: View {
+    let title: String
+    let isEnabled: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .studioText(.label)
+                .foregroundStyle(isEnabled ? StudioTheme.text : StudioTheme.mutedText)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, StudioMetrics.Spacing.snug)
+                .padding(.vertical, 7)
+                .background(StudioTheme.subtleFill, in: rowShape)
+                .overlay(rowShape.stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth))
+                .contentShape(rowShape)
+        }
+        .buttonStyle(.plain)
+        .frame(maxWidth: .infinity)
+        .contentShape(rowShape)
+        .help(title)
+        .accessibilityLabel(title)
+    }
+
+    private var rowShape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
+    }
+}
+
 // MARK: - Insert row
 
 /// One insert row: drag handle + accent icon well + name/subtitle + bypass
@@ -140,6 +176,7 @@ struct InsertChainRow: View {
                 .stroke(strokeColor, lineWidth: StudioMetrics.borderWidth)
         )
         .frame(minHeight: 56)
+        .frame(maxWidth: .infinity)
         .opacity(isBypassed ? 0.55 : 1)
         .modifier(SelectableRowModifier(isEnabled: showsSelection, onSelect: onSelect))
     }

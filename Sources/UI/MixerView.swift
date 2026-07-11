@@ -669,26 +669,12 @@ struct MixerInsertChainView: View {
     // the slim strip width. Tapping opens the standard StudioModal FX editor
     // sheet holding the parameter editor, enable/bypass, reorder, and remove.
     private func insertRow(_ insert: MasterBusInsert) -> some View {
-        Button {
+        CompactFXInsertButton(
+            title: insert.name,
+            isEnabled: insert.isEnabled
+        ) {
             editingInsert = EditingInsert(id: insert.id)
-        } label: {
-            Text(insert.name)
-                .studioText(.label)
-                .foregroundStyle(insert.isEnabled ? StudioTheme.text : StudioTheme.mutedText)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, StudioMetrics.Spacing.snug)
-                .padding(.vertical, 7)
-                .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous)
-                        .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
-                )
-                .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.tile, style: .continuous))
         }
-        .buttonStyle(.plain)
-        .help(insert.name)
     }
 
     @ViewBuilder

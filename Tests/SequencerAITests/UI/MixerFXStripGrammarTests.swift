@@ -8,7 +8,8 @@ final class MixerFXStripGrammarTests: XCTestCase {
         let source = try Self.source(named: "Sources/UI/MixerView.swift")
         let row = try XCTUnwrap(Self.functionBody(named: "insertRow", in: source))
 
-        XCTAssertTrue(row.contains("Text(insert.name)"))
+        XCTAssertTrue(row.contains("CompactFXInsertButton("))
+        XCTAssertTrue(row.contains("title: insert.name"))
         XCTAssertTrue(row.contains("editingInsert = EditingInsert(id: insert.id)"))
         XCTAssertFalse(row.contains("Image(systemName: \"chevron"))
         XCTAssertFalse(row.contains("Circle()"))
@@ -44,6 +45,29 @@ final class MixerFXStripGrammarTests: XCTestCase {
         XCTAssertTrue(editor.contains("onMove:"))
         XCTAssertTrue(editor.contains("onRemove:"))
         XCTAssertTrue(editor.contains("session.removeSendBusInsert"))
+    }
+
+    func test_compactFXRowsClaimTheWholeTileHitArea() throws {
+        let source = try Self.source(named: "Sources/UI/FX/InsertChainComponents.swift")
+        let button = try XCTUnwrap(Self.body(after: "struct CompactFXInsertButton", in: source))
+        let selectableRow = try XCTUnwrap(Self.body(after: "struct SelectableRowModifier", in: source))
+
+        XCTAssertTrue(button.contains("Button(action: action)"))
+        XCTAssertGreaterThanOrEqual(button.components(separatedBy: ".frame(maxWidth: .infinity").count - 1, 2)
+        XCTAssertGreaterThanOrEqual(button.components(separatedBy: ".contentShape(rowShape)").count - 1, 2)
+        XCTAssertTrue(selectableRow.contains(".contentShape(RoundedRectangle"))
+        XCTAssertTrue(selectableRow.contains(".onTapGesture { onSelect?() }"))
+    }
+
+    func test_fxEditorUsesCanonicalIconRemoveControl() throws {
+        let source = try Self.source(named: "Sources/UI/FX/FXInsertEditorSheet.swift")
+        let footer = try XCTUnwrap(Self.propertyBody(named: "footerActions", in: source))
+
+        XCTAssertTrue(footer.contains("StudioCircleIconButton("))
+        XCTAssertTrue(footer.contains("systemName: \"xmark\""))
+        XCTAssertTrue(footer.contains("help: \"Remove insert\""))
+        XCTAssertFalse(footer.contains("Label(\"Remove\""))
+        XCTAssertFalse(footer.contains("systemImage: \"trash\""))
     }
 
     func test_fxEditorModalKeepsLongTitlesFromPushingOutControls() throws {

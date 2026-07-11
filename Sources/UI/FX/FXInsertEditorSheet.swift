@@ -149,15 +149,12 @@ struct FXInsertEditorSheet: View {
             moveButton(systemName: "arrow.up", delta: -1, isEnabled: canMoveUp)
             moveButton(systemName: "arrow.down", delta: 1, isEnabled: canMoveDown)
             Spacer(minLength: 8)
-            Button(role: .destructive) {
-                onRemove()
-            } label: {
-                Label("Remove", systemImage: "trash")
-                    .studioText(.label)
-            }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
-            .help("Remove insert")
+            StudioCircleIconButton(
+                systemName: "xmark",
+                size: StudioMetrics.ControlSize.small,
+                help: "Remove insert",
+                action: onRemove
+            )
         }
     }
 
