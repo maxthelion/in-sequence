@@ -28,13 +28,11 @@ struct PhraseCellEditorTarget: Identifiable, Equatable {
 }
 
 enum PhraseAutomationSurfaceMode: String, CaseIterable, Hashable {
-    case single
     case perBar
     case points
 
     var title: String {
         switch self {
-        case .single: "Single"
         case .perBar: "Per Bar"
         case .points: "Points"
         }
@@ -44,10 +42,10 @@ enum PhraseAutomationSurfaceMode: String, CaseIterable, Hashable {
         self != .points || editorKind == .continuousScalar
     }
 
-    static func mode(for cell: PhraseCell) -> PhraseAutomationSurfaceMode {
+    static func mode(for cell: PhraseCell) -> PhraseAutomationSurfaceMode? {
         switch cell {
         case .inheritDefault, .single:
-            return .single
+            return nil
         case .bars:
             return .perBar
         case .steps, .curve:
@@ -134,12 +132,15 @@ struct PhraseCellEditorSheet: View {
                     title: nil,
                     selection: Binding(
                         get: { PhraseAutomationSurfaceMode.mode(for: cell) },
-                        set: { setSurfaceMode($0, phrase: phrase, track: track, layer: layer) }
+                        set: { mode in
+                            guard let mode else { return }
+                            setSurfaceMode(mode, phrase: phrase, track: track, layer: layer)
+                        }
                     ),
                     segments: PhraseAutomationSurfaceMode.allCases.map { mode in
-                        StudioSegment(
+                        StudioSegment<PhraseAutomationSurfaceMode?>(
                             title: mode.title,
-                            value: mode,
+                            value: .some(mode),
                             isEnabled: mode.isAvailable(for: layer.editorKind),
                             help: mode == .points && layer.editorKind != .continuousScalar
                                 ? "Points are available for continuous values"
@@ -169,15 +170,8 @@ struct PhraseCellEditorSheet: View {
             }
 
             switch cell {
-            case .inheritDefault:
-                singleValueEditor(
-                    value: layer.defaultValue(for: track.id),
-                    phrase: phrase,
-                    track: track,
-                    layer: layer
-                )
-            case let .single(value):
-                singleValueEditor(value: value, phrase: phrase, track: track, layer: layer)
+            case .inheritDefault, .single:
+                Color.clear.frame(height: 1)
             case let .bars(values):
                 barsEditor(values: values, phrase: phrase, track: track, layer: layer)
             case let .steps(values):
@@ -185,55 +179,6 @@ struct PhraseCellEditorSheet: View {
             case let .curve(points):
                 curveEditor(points: points, phrase: phrase, track: track, layer: layer)
             }
-        }
-    }
-
-    @ViewBuilder
-    private func singleValueEditor(
-        value: PhraseCellValue,
-        phrase: PhraseModel,
-        track: StepSequenceTrack,
-        layer: PhraseLayerDefinition
-    ) -> some View {
-        switch layer.valueType {
-        case .boolean:
-            Toggle("Enabled", isOn: Binding(
-                get: {
-                    if case let .bool(isOn) = value.normalized(for: layer) { return isOn }
-                    return false
-                },
-                set: { newValue in
-                    setCell(.single(.bool(newValue)), phrase: phrase, track: track, layer: layer)
-                }
-            ))
-            .toggleStyle(.switch)
-        case .patternIndex:
-            PatternIndexPicker(
-                selectedIndex: Binding(
-                    get: {
-                        if case let .index(index) = value.normalized(for: layer) { return index }
-                        return 0
-                    },
-                    set: { newIndex in
-                        setCell(.single(.index(newIndex)), phrase: phrase, track: track, layer: layer)
-                    }
-                ),
-                accent: accent
-            )
-        case .scalar:
-            ScalarValueEditor(
-                title: layer.name,
-                range: layer.scalarRange,
-                value: Binding(
-                    get: {
-                        if case let .scalar(scalar) = value.normalized(for: layer) { return scalar }
-                        return layer.minValue
-                    },
-                    set: { newValue in
-                        setCell(.single(.scalar(newValue)), phrase: phrase, track: track, layer: layer)
-                    }
-                )
-            )
         }
     }
 
@@ -286,9 +231,9 @@ struct PhraseCellEditorSheet: View {
             }
 
             LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 112), spacing: 8)],
+                columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 8),
                 alignment: .leading,
-                spacing: 8
+                spacing: 6
             ) {
                 ForEach(Array(values.enumerated()), id: \.offset) { index, value in
                     barValueCell(index: index, value: value, layer: layer) { newValue in
@@ -308,10 +253,13 @@ struct PhraseCellEditorSheet: View {
         layer: PhraseLayerDefinition,
         onChange: @escaping (PhraseCellValue) -> Void
     ) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("BAR \(index + 1)")
+        let metrics = CellPreviewMetrics(booleanHeight: 58, valueHeight: 58)
+
+        VStack(alignment: .leading, spacing: 5) {
+            Text("\(index + 1)")
                 .studioText(.eyebrow)
                 .foregroundStyle(StudioTheme.mutedText)
+                .frame(maxWidth: .infinity, alignment: .leading)
 
             switch layer.valueType {
             case .boolean:
@@ -319,58 +267,53 @@ struct PhraseCellEditorSheet: View {
                 Button {
                     onChange(.bool(!isOn))
                 } label: {
-                    Text(isOn ? "On" : "Off")
-                        .studioText(.labelBold)
-                        .foregroundStyle(isOn ? StudioTheme.background : StudioTheme.text)
-                        .frame(maxWidth: .infinity, minHeight: 30)
-                        .background(
-                            isOn ? accent : StudioTheme.subtleFill,
-                            in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                        )
+                    BooleanCellPreview(
+                        layer: layer,
+                        resolvedValue: value,
+                        accent: accent,
+                        isMixed: false,
+                        metrics: metrics
+                    )
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .help(isOn ? "Turn bar \(index + 1) off" : "Turn bar \(index + 1) on")
             case .patternIndex:
-                let indexValue: Int = {
-                    if case let .index(value) = value.normalized(for: layer) { return value }
-                    return 0
-                }()
-                Button {
-                    onChange(.index((indexValue + 1) % TrackPatternBank.slotCount))
-                } label: {
-                    Text("P\(indexValue + 1)")
-                        .studioText(.labelBold)
-                        .foregroundStyle(StudioTheme.background)
-                        .frame(maxWidth: .infinity, minHeight: 30)
-                        .background(accent, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
-                }
-                .buttonStyle(.plain)
-                .help("Cycle pattern for bar \(index + 1)")
-            case .scalar:
-                let scalarValue: Double = {
-                    if case let .scalar(value) = value.normalized(for: layer) { return value }
-                    return layer.minValue
-                }()
-                Text(valueLabel(value, layer: layer))
-                    .studioText(.microEmphasis)
-                    .foregroundStyle(accent)
-                StudioSlideControl(
-                    value: scalarValue,
-                    range: layer.scalarRange,
-                    fillStyle: .fromLeading,
-                    chrome: .roundedRectangle,
+                PatternIndexCellPreview(
+                    layer: layer,
+                    resolvedValue: value,
                     accent: accent,
-                    help: "Bar \(index + 1) \(layer.name)",
-                    onChange: { onChange(.scalar($0)) }
+                    summary: valueLabel(value, layer: layer),
+                    isMixed: false,
+                    metrics: metrics,
+                    onSelectSlot: { onChange(.index($0)) }
                 )
-                .frame(height: 28)
+            case .scalar:
+                ScalarCellPreview(
+                    layer: layer,
+                    cell: .single(value),
+                    resolvedValue: value,
+                    accent: accent,
+                    summary: valueLabel(value, layer: layer),
+                    isMixed: false,
+                    metrics: metrics
+                )
+                .contentShape(Rectangle())
+                .gesture(
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { drag in
+                            let fraction = Double(1 - min(max(drag.location.y / metrics.valueHeight, 0), 1))
+                            onChange(.scalar(layer.minValue + (fraction * (layer.maxValue - layer.minValue))))
+                        }
+                )
             }
         }
-        .padding(10)
-        .frame(maxWidth: .infinity, minHeight: 84, alignment: .topLeading)
-        .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+        .padding(6)
+        .frame(maxWidth: .infinity, minHeight: 82, alignment: .topLeading)
+        .background(Color.clear, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.panel, style: .continuous)
+                .stroke(accent.opacity(StudioOpacity.mediumStroke), lineWidth: StudioMetrics.borderWidth)
         )
     }
 
@@ -472,48 +415,6 @@ struct PhraseCellEditorSheet: View {
         }
     }
 
-    @ViewBuilder
-    private func valueEditor(
-        for value: PhraseCellValue,
-        layer: PhraseLayerDefinition,
-        onChange: @escaping (PhraseCellValue) -> Void
-    ) -> some View {
-        switch layer.valueType {
-        case .boolean:
-            Toggle("", isOn: Binding(
-                get: {
-                    if case let .bool(isOn) = value.normalized(for: layer) { return isOn }
-                    return false
-                },
-                set: { onChange(.bool($0)) }
-            ))
-            .labelsHidden()
-        case .patternIndex:
-            PatternIndexPicker(
-                selectedIndex: Binding(
-                    get: {
-                        if case let .index(index) = value.normalized(for: layer) { return index }
-                        return 0
-                    },
-                    set: { onChange(.index($0)) }
-                ),
-                accent: accent
-            )
-        case .scalar:
-            ScalarValueEditor(
-                title: nil,
-                range: layer.scalarRange,
-                value: Binding(
-                    get: {
-                        if case let .scalar(scalar) = value.normalized(for: layer) { return scalar }
-                        return layer.minValue
-                    },
-                    set: { onChange(.scalar($0)) }
-                )
-            )
-        }
-    }
-
     private func setSurfaceMode(
         _ mode: PhraseAutomationSurfaceMode,
         phrase: PhraseModel,
@@ -521,8 +422,6 @@ struct PhraseCellEditorSheet: View {
         layer: PhraseLayerDefinition
     ) {
         switch mode {
-        case .single:
-            clearAutomation(phrase: phrase, track: track, layer: layer)
         case .perBar:
             seedMode(.bars, phrase: phrase, layer: layer)
         case .points:

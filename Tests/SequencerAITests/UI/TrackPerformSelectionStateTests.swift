@@ -4,11 +4,16 @@ import XCTest
 
 @MainActor
 final class TrackPerformSelectionStateTests: XCTestCase {
-    func test_automation_surface_exposes_single_perBar_and_points() {
-        XCTAssertEqual(PhraseAutomationSurfaceMode.allCases.map(\.title), ["Single", "Per Bar", "Points"])
+    func test_automation_surface_exposes_perBar_and_points() {
+        XCTAssertEqual(PhraseAutomationSurfaceMode.allCases.map(\.title), ["Per Bar", "Points"])
         XCTAssertTrue(PhraseAutomationSurfaceMode.points.isAvailable(for: .continuousScalar))
         XCTAssertFalse(PhraseAutomationSurfaceMode.points.isAvailable(for: .toggleBoolean))
         XCTAssertFalse(PhraseAutomationSurfaceMode.points.isAvailable(for: .indexedChoice))
+    }
+
+    func test_single_value_has_no_selected_automation_surface() {
+        XCTAssertNil(PhraseAutomationSurfaceMode.mode(for: .single(.scalar(0.5))))
+        XCTAssertNil(PhraseAutomationSurfaceMode.mode(for: .inheritDefault))
     }
 
     func test_legacy_steps_present_as_points_without_mutating_the_cell() {

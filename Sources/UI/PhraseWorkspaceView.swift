@@ -1860,7 +1860,7 @@ struct PhraseWorkspaceView: View {
             else { return "none" }
             return PhraseAutomationSurfaceMode.mode(
                 for: phrase.cell(for: target.layerID, trackID: target.trackID)
-            ).rawValue
+            )?.rawValue ?? "none"
         }()
         NotificationCenter.default.post(
             name: .phraseMatrixRenderedVisualState,
