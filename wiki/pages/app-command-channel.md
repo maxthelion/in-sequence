@@ -129,7 +129,11 @@ safe.
   HAL-running bugs (live `engine.connect` reconfig deadlocks) that offline mode
   hides.
 - **Fixture:** `docs/fixtures/audio-rich-routing-sampleonly.seqai` (sample/native
-  only) + `SEQUENCER_AI_MATERIALIZE_FIXTURE_SAMPLES=1`.
+  only) + `SEQUENCER_AI_MATERIALIZE_FIXTURE_SAMPLES=1`. The rig opens the
+  copied fixture through Launch Services so the sandbox receives normal
+  document access and SwiftUI mounts exactly one command runner. It also sets
+  `SEQUENCER_AI_SKIP_AUDIO_COMPONENT_SCAN=1`: this native/sample-only gate must
+  not enumerate third-party AUs or HAL drivers during startup.
 - **Watchdog:** after each command it checks pid-alive + status freshness; on a
   stall it `sample`s the process and logs the blocked stacks (HANG), captures
   `.ips` faulting frames (CRASH), and reads the audio metrics (SILENCE / CLICK).

@@ -45,6 +45,12 @@ class AudioInstrumentChoiceCache {
             condition.unlock()
             return
         }
+        if ProcessInfo.processInfo.environment["SEQUENCER_AI_SKIP_AUDIO_COMPONENT_SCAN"] == "1" {
+            cacheState = .ready([.builtInSynth])
+            condition.broadcast()
+            condition.unlock()
+            return
+        }
         cacheState = .warming(previous: nil)
         condition.unlock()
 

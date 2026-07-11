@@ -99,8 +99,23 @@ cleanup() {
     kill -9 "$APP_PID" 2>/dev/null || true
   fi
   pkill -9 -x "$APP_NAME" 2>/dev/null || true
+  clear_launch_env
 }
 trap cleanup EXIT
+
+clear_launch_env() {
+  local key
+  for key in \
+    SEQUENCER_AI_VISUAL_COMMAND_FILE \
+    SEQUENCER_AI_NEW_DOCUMENT_FIXTURE \
+    SEQUENCER_AI_MATERIALIZE_FIXTURE_SAMPLES \
+    SEQUENCER_AI_SKIP_AUDIO_COMPONENT_SCAN \
+    SEQUENCER_AI_HEADLESS_REAL_HAL \
+    SEQUENCER_AI_DISABLE_ROUTING_RAMP
+  do
+    launchctl unsetenv "$key" >/dev/null 2>&1 || true
+  done
+}
 
 # --- locate the built executable -------------------------------------------
 resolve_exe() {
@@ -508,17 +523,39 @@ wait_for_first_status() {
 # (used to set SEQUENCER_AI_DISABLE_ROUTING_RAMP=1 for the positive-control run).
 launch_app() {
   local fixture="$1"; shift
+  local app_bundle env_assignment env_key env_value pid_deadline
   cp -f "$fixture" "$FIXTURE_DST"
   rm -f "$CMD_FILE" "$STATUS_FILE"
   pkill -9 -x "$APP_NAME" 2>/dev/null || true
   sleep 0.5
-  env "$@" \
-    SEQUENCER_AI_VISUAL_COMMAND_FILE="$CMD_FILE" \
-    SEQUENCER_AI_NEW_DOCUMENT_FIXTURE="$FIXTURE_DST" \
-    SEQUENCER_AI_MATERIALIZE_FIXTURE_SAMPLES=1 \
-    SEQUENCER_AI_HEADLESS_REAL_HAL=1 \
-    "$EXE" >"$APP_LOG" 2>&1 &
-  APP_PID=$!
+  app_bundle="$(dirname "$(dirname "$(dirname "$EXE")")")"
+  clear_launch_env
+  launchctl setenv SEQUENCER_AI_VISUAL_COMMAND_FILE "$CMD_FILE"
+  launchctl setenv SEQUENCER_AI_NEW_DOCUMENT_FIXTURE "$FIXTURE_DST"
+  launchctl setenv SEQUENCER_AI_MATERIALIZE_FIXTURE_SAMPLES 1
+  launchctl setenv SEQUENCER_AI_SKIP_AUDIO_COMPONENT_SCAN 1
+  launchctl setenv SEQUENCER_AI_HEADLESS_REAL_HAL 1
+  for env_assignment in "$@"; do
+    env_key="${env_assignment%%=*}"
+    env_value="${env_assignment#*=}"
+    launchctl setenv "$env_key" "$env_value"
+  done
+  : > "$APP_LOG"
+  open -na "$app_bundle" "$FIXTURE_DST" --args \
+    -ApplePersistenceIgnoreState YES \
+    -NSQuitAlwaysKeepsWindows NO \
+    >>"$APP_LOG" 2>&1
+  APP_PID=""
+  pid_deadline=$((SECONDS + 10))
+  while [ "$SECONDS" -lt "$pid_deadline" ]; do
+    APP_PID="$(pgrep -n -x "$APP_NAME" 2>/dev/null || true)"
+    [ -n "$APP_PID" ] && break
+    sleep 0.2
+  done
+  if [ -z "$APP_PID" ]; then
+    log "FATAL: Launch Services did not start $APP_NAME"
+    return 1
+  fi
   log "  pid: $APP_PID (fixture: $(basename "$fixture") extra-env: $*)"
   if ! wait_for_first_status; then
     log "FATAL: app did not produce a status file (see $APP_LOG)"
@@ -540,6 +577,7 @@ stop_app() {
     kill -9 "$APP_PID" 2>/dev/null || true
   fi
   pkill -9 -x "$APP_NAME" 2>/dev/null || true
+  clear_launch_env
   APP_PID=""
 }
 
