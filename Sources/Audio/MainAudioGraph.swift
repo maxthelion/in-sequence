@@ -77,6 +77,7 @@ final class MainAudioGraph {
     private(set) var masterMeterTapPointForTesting: MasterMeterTapPoint?
     private(set) var masterMeterTapInstallCountForTesting = 0
     private(set) var masterMeterTapRemoveCountForTesting = 0
+    private(set) var masterSpineReconnectCountForTesting = 0
     private(set) var audioInputFullRoutingSyncCountForTesting = 0
     private(set) var audioInputScopedRoutingUpdateCountForTesting = 0
     /// Counts installSendBuses passes that actually changed topology (engine
@@ -1579,14 +1580,26 @@ final class MainAudioGraph {
             self.lockGraphLock()
             defer { self.unlockGraphLock() }
             let wasRunning = self.engine.isRunning
+            let resolvedPostBlendNodes = postBlendMasterNodes.filter { node in
+                node.engine == nil || node.engine === self.engine
+            }
+            // Scene-branch edits terminate at postBlendMixer and do not alter
+            // the post-blend master-insert shape. Preserve that live spine
+            // wholesale; reconnecting an unchanged running edge is both wider
+            // than necessary and unsafe on the real HAL.
+            let rewiresPostBlendSpine =
+                !self.postBlendMasterInsertNodesForTesting.isEmpty ||
+                !resolvedPostBlendNodes.isEmpty
             if !wasRunning {
                 self.removeMasterMeterTapIfNeeded()
             }
 
             self.engine.disconnectNodeOutput(self.preMasterMixer)
             self.engine.disconnectNodeInput(self.postBlendMixer)
-            self.engine.disconnectNodeOutput(self.postBlendMixer)
-            self.engine.disconnectNodeInput(self.masterTopologyGateMixer)
+            if rewiresPostBlendSpine {
+                self.engine.disconnectNodeOutput(self.postBlendMixer)
+                self.engine.disconnectNodeInput(self.masterTopologyGateMixer)
+            }
             for node in self.managedMasterNodes {
                 if node.engine === self.engine {
                     self.engine.disconnectNodeInput(node)
@@ -1598,9 +1611,6 @@ final class MainAudioGraph {
             self.managedMasterGainMixers = []
 
             let resolvedChains = chains.isEmpty ? [MasterChain(nodes: [], gain: 1)] : chains
-            let resolvedPostBlendNodes = postBlendMasterNodes.filter { node in
-                node.engine == nil || node.engine === self.engine
-            }
             let usesDirectSingleBranch = resolvedChains.count == 1 && resolvedChains[0].nodes.isEmpty
             var firstDestinations: [AVAudioConnectionPoint] = []
             var branchReadouts: [MasterBranchReadout] = []
@@ -1648,14 +1658,17 @@ final class MainAudioGraph {
             }
             self.managedMasterNodes.append(contentsOf: resolvedPostBlendNodes)
 
-            if let firstMasterNode = resolvedPostBlendNodes.first {
-                self.engine.connect(self.postBlendMixer, to: firstMasterNode, format: nil)
-                for (source, destination) in zip(resolvedPostBlendNodes, resolvedPostBlendNodes.dropFirst()) {
-                    self.engine.connect(source, to: destination, format: nil)
+            if rewiresPostBlendSpine {
+                self.masterSpineReconnectCountForTesting += 1
+                if let firstMasterNode = resolvedPostBlendNodes.first {
+                    self.engine.connect(self.postBlendMixer, to: firstMasterNode, format: nil)
+                    for (source, destination) in zip(resolvedPostBlendNodes, resolvedPostBlendNodes.dropFirst()) {
+                        self.engine.connect(source, to: destination, format: nil)
+                    }
+                    self.engine.connect(resolvedPostBlendNodes.last ?? firstMasterNode, to: self.masterTopologyGateMixer, format: nil)
+                } else {
+                    self.engine.connect(self.postBlendMixer, to: self.masterTopologyGateMixer, format: nil)
                 }
-                self.engine.connect(resolvedPostBlendNodes.last ?? firstMasterNode, to: self.masterTopologyGateMixer, format: nil)
-            } else {
-                self.engine.connect(self.postBlendMixer, to: self.masterTopologyGateMixer, format: nil)
             }
 
             self.masterBranchesForTesting = branchReadouts

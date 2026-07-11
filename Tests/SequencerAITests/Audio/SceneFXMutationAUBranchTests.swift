@@ -107,6 +107,7 @@ final class SceneFXMutationAUBranchTests: XCTestCase {
         // output mixer itself — the same node a splice dip would ramp.
         let gainStage = try XCTUnwrap(graph.trackGainStageForTesting(auOutputMixer))
         XCTAssertTrue(gainStage === auOutputMixer)
+        let initialMasterSpineReconnectCount = graph.masterSpineReconnectCountForTesting
 
         let baselineRMSOrNil = try renderedRMS(graph: graph, frames: 22_050)
         if let baseline = baselineRMSOrNil {
@@ -125,6 +126,11 @@ final class SceneFXMutationAUBranchTests: XCTestCase {
 
         XCTAssertTrue(graph.isEngineRunning, "master-chain rebuild must leave the engine running")
         XCTAssertTrue(graph.masterBranchesForTesting.contains { !$0.nodes.isEmpty })
+        XCTAssertEqual(
+            graph.masterSpineReconnectCountForTesting,
+            initialMasterSpineReconnectCount,
+            "scene-only inserts must preserve the stable post-blend master spine"
+        )
         XCTAssertEqual(
             auOutputMixer.outputVolume, 0.8, accuracy: 0.001,
             "the AU host's output mixer gain (the track's routing gain stage) must be untouched by a master-bus mutation"
@@ -146,6 +152,11 @@ final class SceneFXMutationAUBranchTests: XCTestCase {
 
         XCTAssertTrue(graph.isEngineRunning, "insert removal must leave the engine running")
         XCTAssertTrue(graph.masterBranchesForTesting.allSatisfy(\.nodes.isEmpty))
+        XCTAssertEqual(
+            graph.masterSpineReconnectCountForTesting,
+            initialMasterSpineReconnectCount,
+            "scene-only removal must preserve the stable post-blend master spine"
+        )
         XCTAssertEqual(
             auOutputMixer.outputVolume, 0.8, accuracy: 0.001,
             "insert removal must leave the AU output mixer gain at its settled level — no sticky attenuation"
