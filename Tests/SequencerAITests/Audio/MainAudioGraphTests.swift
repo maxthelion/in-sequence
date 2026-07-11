@@ -239,6 +239,32 @@ final class MainAudioGraphTests: XCTestCase {
     }
 
     @MainActor
+    func test_installSendBus_gatesRunningTopologyEditAndConvergesOnLatestChain() throws {
+        MainAudioGraph.useManualRenderingForAutomation = true
+        defer { MainAudioGraph.useManualRenderingForAutomation = false }
+
+        let graph = MainAudioGraph()
+        addTeardownBlock { graph.stop() }
+        graph.installSendBuses([.sendA, .sendB])
+        let inputMixer = try XCTUnwrap(graph.sendBusReadoutForTesting(busID: .sendA)?.inputMixer)
+        try graph.start()
+
+        graph.installSendBus(SendBusState(id: .sendA, inserts: [.filter()]))
+        graph.installSendBus(SendBusState(id: .sendA, inserts: [.filter(), .bitcrusher()]))
+
+        let deadline = Date().addingTimeInterval(1)
+        while Date() < deadline {
+            let readout = graph.sendBusReadoutForTesting(busID: .sendA)
+            if readout?.insertNodes.count == 2, abs(inputMixer.outputVolume - 1) < 0.001 { break }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.005))
+        }
+        let readout = try XCTUnwrap(graph.sendBusReadoutForTesting(busID: .sendA))
+        XCTAssertEqual(readout.insertNodes.count, 2)
+        XCTAssertEqual(inputMixer.outputVolume, 1, accuracy: 0.001)
+        XCTAssertTrue(graph.isEngineRunning)
+    }
+
+    @MainActor
     func test_installSendBus_inlineAUInstantiationCompletesWithoutDeadlockAndWiresNode() throws {
         // Regression pin for the live-sampled "+ Add FX" self-deadlock: an AU
         // factory that completes INLINE (synchronously, on main) used to
@@ -460,6 +486,59 @@ final class MainAudioGraphTests: XCTestCase {
         XCTAssertTrue(removed.inputMixer === initial.inputMixer)
         XCTAssertEqual(removed.outputVolume, 1, accuracy: 0.001)
         XCTAssertTrue(removed.terminalOutputNode === graph.preMasterMixer)
+    }
+
+    @MainActor
+    func test_setMixerBusParameters_rapidTopologyEditsConvergeOnLatestChain() throws {
+        MainAudioGraph.useManualRenderingForAutomation = true
+        defer { MainAudioGraph.useManualRenderingForAutomation = false }
+
+        let graph = MainAudioGraph()
+        addTeardownBlock { graph.stop() }
+        let busID = UUID()
+        graph.installMixerBuses([MixerBus(id: busID, name: "Drums")])
+        try graph.start()
+
+        graph.setMixerBusParameters(
+            bus: MixerBus(id: busID, name: "Drums", inserts: [.filter()]),
+            effectiveMute: false
+        )
+        graph.setMixerBusParameters(
+            bus: MixerBus(id: busID, name: "Drums", inserts: [.filter(), .bitcrusher()]),
+            effectiveMute: false
+        )
+
+        let readout = try XCTUnwrap(waitForMixerBus(graph, busID: busID) {
+            $0.insertNodes.count == 2 && abs($0.outputVolume - 1) < 0.001
+        })
+        XCTAssertEqual(readout.insertNodes.count, 2)
+        XCTAssertEqual(readout.outputVolume, 1, accuracy: 0.001)
+        XCTAssertTrue(graph.isEngineRunning)
+    }
+
+    @MainActor
+    func test_mixerBusInlineAUCompletionReentersGatedInstallWithoutDeadlock() throws {
+        let graph = MainAudioGraph()
+        let busID = UUID()
+        let effect = AVAudioUnitEQ(numberOfBands: 1)
+        let factory = AUAudioUnitFactory { _, completion in
+            completion(effect, nil)
+        }
+        graph.installMixerBusHostForTesting(MixerBusHost(id: busID, factory: factory))
+        let insert = MixerBusInsert(
+            name: "AU FX",
+            kind: .auEffect(
+                componentID: AudioEffectChoice.testEffect.audioComponentID,
+                stateBlob: nil
+            )
+        )
+
+        graph.installMixerBuses([MixerBus(id: busID, name: "Bus", inserts: [insert])])
+
+        let readout = try XCTUnwrap(waitForMixerBus(graph, busID: busID) {
+            $0.insertNodes.count == 1
+        })
+        XCTAssertTrue(readout.insertNodes.first === effect)
     }
 
     @MainActor

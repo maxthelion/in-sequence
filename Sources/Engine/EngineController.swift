@@ -1726,11 +1726,10 @@ final class EngineController: RouterDispatcher {
     func apply(routes: [Route]) {
         var nextDocument = currentDocumentModel
         nextDocument.routes = routes
-        // realtime-allow-midi-host: route-edit control path flushes detached
-        // MIDI note-offs; this wall-clock value never schedules sounding time.
         flushDetachedMIDINoteOffs(
             from: currentDocumentModel,
             to: nextDocument,
+            // realtime-allow-midi-host: route-edit control path flushes detached note-offs; it never schedules sounding time. Test: SessionBatchHelperTests.test_routeMutations_updateLiveRouterWithoutSnapshotRecompile
             now: ProcessInfo.processInfo.systemUptime
         )
         currentDocumentModel.routes = routes

@@ -340,11 +340,9 @@ final class MixerBusHost {
                 guard let self else { return }
                 MainActor.assumeIsolated {
                     guard let audioGraph = self.audioGraph, let latestBus = self.latestBus else { return }
-                    self.rebuild(
+                    audioGraph.setMixerBusParameters(
                         bus: latestBus,
-                        in: audioGraph,
-                        effectiveMute: self.effectiveMute,
-                        holdOutputAtSilence: false
+                        effectiveMute: self.effectiveMute
                     )
                 }
             }

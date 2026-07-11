@@ -194,6 +194,10 @@ final class MainAudioGraph {
     private var managedMasterGainMixers: [AVAudioMixerNode] = []
     private var mixerBusHosts: [UUID: MixerBusHost] = [:]
     private var sendBusHosts: [SendBusID: SendBusHost] = [:]
+    private var pendingMixerBusTopology: [UUID: (bus: MixerBus, effectiveMute: Bool)] = [:]
+    private var mixerBusTopologyRampsInFlight: Set<UUID> = []
+    private var pendingSendBusTopology: [SendBusID: SendBusState] = [:]
+    private var sendBusTopologyRampsInFlight: Set<SendBusID> = []
     /// Per-track FX insert chains, keyed by trackID. Spliced between a track's
     /// output source node and its dry/sends destinations in
     /// `reconnectTrackOutputOnMain`. The source node is resolved via
@@ -909,8 +913,7 @@ final class MainAudioGraph {
             }
 
             guard self.engine.isRunning,
-                  let gainStage = host.destinationNode() as? AVAudioMixerNode,
-                  gainStage.outputVolume > 0.0005
+                  let gainStage = host.destinationNode() as? AVAudioMixerNode
             else {
                 self.installMixerBusTopologyOnMain(
                     host: host,
@@ -922,28 +925,81 @@ final class MainAudioGraph {
                 return
             }
 
-            let restoreLevel = effectiveMute ? Float(0) : Float(bus.mix.normalized().level)
+            self.pendingMixerBusTopology[bus.id] = (bus, effectiveMute)
+            if self.mixerBusTopologyRampsInFlight.contains(bus.id) {
+                self.unlockGraphLock()
+                return
+            }
+            guard gainStage.outputVolume > 0.0005 else {
+                let pending = self.pendingMixerBusTopology.removeValue(forKey: bus.id)!
+                self.installMixerBusTopologyOnMain(
+                    host: host,
+                    bus: pending.bus,
+                    effectiveMute: pending.effectiveMute,
+                    holdOutputAtSilence: true
+                )
+                self.unlockGraphLock()
+                return
+            }
+            guard self.mixerBusTopologyRampsInFlight.insert(bus.id).inserted else {
+                self.unlockGraphLock()
+                return
+            }
             self.unlockGraphLock()
-            MixerGainRamp.shared.ramp(gainStage, to: 0, markSettled: false) { [weak self, weak host] reachedTarget in
-                guard reachedTarget, let self, let host else { return }
-                // realtime-allow-main-async: bus topology edit after a control-path silence ramp, never tick scheduling. Test: MixerBusLiveInsertTests.
-                DispatchQueue.main.async {
-                    MainActor.assumeIsolated {
-                        self.lockGraphLock()
-                        guard self.mixerBusHosts[bus.id] === host,
-                              gainStage.engine === self.engine
-                        else {
-                            self.unlockGraphLock()
-                            return
-                        }
-                        self.installMixerBusTopologyOnMain(
-                            host: host,
-                            bus: bus,
-                            effectiveMute: effectiveMute,
-                            holdOutputAtSilence: true
-                        )
+            self.beginMixerBusTopologyRamp(busID: bus.id, host: host, gainStage: gainStage)
+        }
+    }
+
+    @MainActor
+    private func beginMixerBusTopologyRamp(busID: UUID, host: MixerBusHost, gainStage: AVAudioMixerNode) {
+        MixerGainRamp.shared.ramp(gainStage, to: 0, markSettled: false) { [weak self, weak host] reachedTarget in
+            guard let self, let host else { return }
+            // realtime-allow-main-async: bus topology edit after a control-path silence ramp, never tick scheduling. Test: MixerBusLiveInsertTests.
+            DispatchQueue.main.async {
+                MainActor.assumeIsolated {
+                    self.lockGraphLock()
+                    guard self.mixerBusHosts[busID] === host,
+                          gainStage.engine === self.engine
+                    else {
+                        self.pendingMixerBusTopology.removeValue(forKey: busID)
+                        self.mixerBusTopologyRampsInFlight.remove(busID)
                         self.unlockGraphLock()
-                        MixerGainRamp.shared.ramp(gainStage, to: restoreLevel)
+                        return
+                    }
+                    guard reachedTarget else {
+                        self.unlockGraphLock()
+                        self.beginMixerBusTopologyRamp(busID: busID, host: host, gainStage: gainStage)
+                        return
+                    }
+                    guard let pending = self.pendingMixerBusTopology.removeValue(forKey: busID) else {
+                        self.mixerBusTopologyRampsInFlight.remove(busID)
+                        self.unlockGraphLock()
+                        return
+                    }
+                    self.installMixerBusTopologyOnMain(
+                        host: host,
+                        bus: pending.bus,
+                        effectiveMute: pending.effectiveMute,
+                        holdOutputAtSilence: true
+                    )
+                    self.unlockGraphLock()
+                    let restoreLevel = pending.effectiveMute ? Float(0) : Float(pending.bus.mix.normalized().level)
+                    MixerGainRamp.shared.ramp(gainStage, to: restoreLevel) { [weak self, weak host] _ in
+                        guard let self, let host else { return }
+                        // realtime-allow-main-async: gain-ramp completion advances a bus graph-control transaction, never tick/event work. Test: MainAudioGraphTests.test_setMixerBusParameters_rapidTopologyEditsConvergeOnLatestChain
+                        DispatchQueue.main.async {
+                            MainActor.assumeIsolated {
+                                self.lockGraphLock()
+                                let hasPending = self.pendingMixerBusTopology[busID] != nil
+                                if !hasPending {
+                                    self.mixerBusTopologyRampsInFlight.remove(busID)
+                                }
+                                self.unlockGraphLock()
+                                if hasPending {
+                                    self.beginMixerBusTopologyRamp(busID: busID, host: host, gainStage: gainStage)
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -1025,20 +1081,110 @@ final class MainAudioGraph {
     }
 
     func installSendBus(_ sendBus: SendBusState) {
-        let existing = performOnMainReturning {
+        performOnMain {
             // Acquired inside the main-thread closure: holding
             // graphLock across DispatchQueue.main.sync is a
             // lock-order deadlock waiting to happen.
             self.lockGraphLock()
-            defer { self.unlockGraphLock() }
-            return SendBusID.allCases.map { id in
-                if id == sendBus.id {
-                    return sendBus
+            guard let host = self.sendBusHosts[sendBus.id] else {
+                self.unlockGraphLock()
+                self.installSendBuses([sendBus])
+                return
+            }
+
+            let normalized = sendBus.normalized(expectedID: sendBus.id)
+            guard host.needsTopologyChange(for: normalized) else {
+                host.install(sendBus: normalized, in: self)
+                self.unlockGraphLock()
+                return
+            }
+            guard self.engine.isRunning,
+                  let gainStage = host.destinationNode() as? AVAudioMixerNode
+            else {
+                self.installSendBusTopologyOnMain(host: host, sendBus: normalized)
+                self.unlockGraphLock()
+                return
+            }
+
+            self.pendingSendBusTopology[sendBus.id] = normalized
+            if self.sendBusTopologyRampsInFlight.contains(sendBus.id) {
+                self.unlockGraphLock()
+                return
+            }
+            guard gainStage.outputVolume > 0.0005 else {
+                let pending = self.pendingSendBusTopology.removeValue(forKey: sendBus.id)!
+                self.installSendBusTopologyOnMain(host: host, sendBus: pending)
+                self.unlockGraphLock()
+                return
+            }
+            guard self.sendBusTopologyRampsInFlight.insert(sendBus.id).inserted else {
+                self.unlockGraphLock()
+                return
+            }
+            self.unlockGraphLock()
+            self.beginSendBusTopologyRamp(busID: sendBus.id, host: host, gainStage: gainStage)
+        }
+    }
+
+    @MainActor
+    private func installSendBusTopologyOnMain(host: SendBusHost, sendBus: SendBusState) {
+        sendBusTopologyInstallCountForTesting += 1
+        host.install(sendBus: sendBus, in: self)
+        for routing in trackOutputRoutings.values where routing.source.engine === engine {
+            reconnectTrackOutputOnMain(routing)
+        }
+        installMasterMeterTapIfNeeded()
+        publishAudioInputCaptureFormatsOnMain()
+    }
+
+    @MainActor
+    private func beginSendBusTopologyRamp(busID: SendBusID, host: SendBusHost, gainStage: AVAudioMixerNode) {
+        MixerGainRamp.shared.ramp(gainStage, to: 0, markSettled: false) { [weak self, weak host] reachedTarget in
+            guard let self, let host else { return }
+            // realtime-allow-main-async: send-FX topology edit after a control-path silence ramp, never tick scheduling. Test: MainAudioGraphTests.
+            DispatchQueue.main.async {
+                MainActor.assumeIsolated {
+                    self.lockGraphLock()
+                    guard self.sendBusHosts[busID] === host,
+                          gainStage.engine === self.engine
+                    else {
+                        self.pendingSendBusTopology.removeValue(forKey: busID)
+                        self.sendBusTopologyRampsInFlight.remove(busID)
+                        self.unlockGraphLock()
+                        return
+                    }
+                    guard reachedTarget else {
+                        self.unlockGraphLock()
+                        self.beginSendBusTopologyRamp(busID: busID, host: host, gainStage: gainStage)
+                        return
+                    }
+                    guard let pending = self.pendingSendBusTopology.removeValue(forKey: busID) else {
+                        self.sendBusTopologyRampsInFlight.remove(busID)
+                        self.unlockGraphLock()
+                        return
+                    }
+                    self.installSendBusTopologyOnMain(host: host, sendBus: pending)
+                    self.unlockGraphLock()
+                    MixerGainRamp.shared.ramp(gainStage, to: 1) { [weak self, weak host] _ in
+                        guard let self, let host else { return }
+                        // realtime-allow-main-async: gain-ramp completion advances a send graph-control transaction, never tick/event work. Test: MainAudioGraphTests.test_installSendBus_gatesRunningTopologyEditAndConvergesOnLatestChain
+                        DispatchQueue.main.async {
+                            MainActor.assumeIsolated {
+                                self.lockGraphLock()
+                                let hasPending = self.pendingSendBusTopology[busID] != nil
+                                if !hasPending {
+                                    self.sendBusTopologyRampsInFlight.remove(busID)
+                                }
+                                self.unlockGraphLock()
+                                if hasPending {
+                                    self.beginSendBusTopologyRamp(busID: busID, host: host, gainStage: gainStage)
+                                }
+                            }
+                        }
+                    }
                 }
-                return self.sendBusHosts[id]?.appliedStateForTesting ?? SendBusState(id: id)
             }
         }
-        installSendBuses(existing)
     }
 
     /// - Parameter ramped: when `true` (the default — the LIVE single-track
@@ -1759,6 +1905,14 @@ final class MainAudioGraph {
             self.lockGraphLock()
             defer { self.unlockGraphLock() }
             return self.mixerBusHosts[busID]?.readout()
+        }
+    }
+
+    func installMixerBusHostForTesting(_ host: MixerBusHost) {
+        performOnMain {
+            self.lockGraphLock()
+            defer { self.unlockGraphLock() }
+            self.mixerBusHosts[host.id] = host
         }
     }
 
