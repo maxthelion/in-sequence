@@ -209,79 +209,14 @@ extension DrumKitMatrixView {
     func barPager(_ model: DrumKitMatrixModel) -> some View {
         let longest = longestRowLength(model)
         let pageCount = barPageCount(longestRowLength: longest)
-        let current = clampedPage(longestRowLength: longest)
-        let indicators = DrumKitBarPaging.indicators(pageCount: pageCount, currentPage: current)
-        let previousBank = DrumKitBarPaging.previousBankPage(currentPage: current)
-        let nextBank = DrumKitBarPaging.nextBankPage(pageCount: pageCount, currentPage: current)
-
-        return HStack(spacing: 6) {
-            Text("BAR")
-                .studioText(.eyebrow)
-                .tracking(0.8)
-                .foregroundStyle(StudioTheme.mutedText)
-
-            if pageCount > DrumKitBarPaging.indicatorCount {
-                barBankButton(systemImage: "chevron.left", targetPage: previousBank)
-            }
-
-            HStack(spacing: 4) {
-                ForEach(indicators, id: \.page) { indicator in
-                    Button {
-                        barPage = indicator.page
-                    } label: {
-                        RoundedRectangle(cornerRadius: 3, style: .continuous)
-                            .fill(barIndicatorFill(indicator.state))
-                            .frame(width: 7, height: 18)
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(indicator.state == .unavailable)
-                    .help(indicator.state == .unavailable
-                        ? "Bar \(indicator.page + 1) is unavailable"
-                        : "Show bar \(indicator.page + 1)")
-                    .accessibilityLabel("Bar \(indicator.page + 1)")
-                    .accessibilityValue(barIndicatorAccessibilityValue(indicator.state))
-                }
-            }
-
-            if pageCount > DrumKitBarPaging.indicatorCount {
-                barBankButton(systemImage: "chevron.right", targetPage: nextBank)
-            }
-        }
-    }
-
-    private func barIndicatorFill(_ state: DrumKitBarPaging.Indicator.State) -> Color {
-        switch state {
-        case .current:
-            return accent
-        case .available:
-            return StudioTheme.neutral
-        case .unavailable:
-            return StudioTheme.disabledSubtleFill
-        }
-    }
-
-    private func barIndicatorAccessibilityValue(_ state: DrumKitBarPaging.Indicator.State) -> String {
-        switch state {
-        case .current:
-            return "Current"
-        case .available:
-            return "Available"
-        case .unavailable:
-            return "Unavailable"
-        }
-    }
-
-    private func barBankButton(systemImage: String, targetPage: Int?) -> some View {
-        Button {
-            if let targetPage { barPage = targetPage }
-        } label: {
-            Image(systemName: systemImage)
-                .font(.system(size: 9, weight: .bold))
-                .frame(width: 16, height: 16)
-        }
-        .buttonStyle(.plain)
-        .foregroundStyle(targetPage == nil ? StudioTheme.mutedText : StudioTheme.text)
-        .disabled(targetPage == nil)
-        .help(systemImage == "chevron.left" ? "Previous eight bars" : "Next eight bars")
+        return ClipBarSelector(
+            pageCount: pageCount,
+            currentPage: Binding(
+                get: { clampedPage(longestRowLength: longest) },
+                set: { barPage = $0 }
+            ),
+            accent: accent,
+            playingPage: nil
+        )
     }
 }

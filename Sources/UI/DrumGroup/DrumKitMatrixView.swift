@@ -369,7 +369,7 @@ struct DrumKitMatrixView: View {
     }
 
     /// Number of 16-step bar pages, at least one. Delegates the page math to
-    /// the testable `DrumKitBarPaging` value type.
+    /// the testable `ClipBarPaging` value type.
     func barPageCount(_ model: DrumKitMatrixModel) -> Int {
         barPageCount(longestRowLength: longestRowLength(model))
     }
@@ -378,21 +378,21 @@ struct DrumKitMatrixView: View {
     /// `longestRowLength` once per render and reuse it for both paging helpers
     /// instead of re-scanning every row 3–4× per render.
     func barPageCount(longestRowLength: Int) -> Int {
-        DrumKitBarPaging.pageCount(
+        ClipBarPaging.pageCount(
             length: longestRowLength,
             stepsPerBar: Self.stepsPerBar
         )
     }
 
     /// `barPage` clamped to the valid range for the current model. Delegates the
-    /// clamp to the testable `DrumKitBarPaging` value type.
+    /// clamp to the testable `ClipBarPaging` value type.
     func clampedPage(_ model: DrumKitMatrixModel) -> Int {
         clampedPage(longestRowLength: longestRowLength(model))
     }
 
     /// Clamped page from a pre-computed longest-row length (see `barPageCount`).
     func clampedPage(longestRowLength: Int) -> Int {
-        DrumKitBarPaging.clampedPage(
+        ClipBarPaging.clampedPage(
             barPage,
             length: longestRowLength,
             stepsPerBar: Self.stepsPerBar

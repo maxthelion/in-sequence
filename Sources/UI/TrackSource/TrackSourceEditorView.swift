@@ -574,7 +574,6 @@ struct TrackSourceEditorView: View {
                 )
             },
             onRandomizeClip: randomizeSelectedClipNow,
-            onOpenHistory: openClipHistory,
             onToggleRandomizePanel: {
                 if isRandomizePanelVisible {
                     closeRandomizePanel()

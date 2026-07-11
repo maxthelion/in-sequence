@@ -9,7 +9,7 @@ import Foundation
 /// after the row length (and therefore the page count) shrinks.
 ///
 /// No SwiftUI import: this is plain integer arithmetic the view delegates to.
-enum DrumKitBarPaging {
+enum ClipBarPaging {
     static let indicatorCount = 8
 
     struct Indicator: Equatable {

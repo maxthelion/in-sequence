@@ -3216,95 +3216,236 @@ struct SongWorkspaceView: View {
         let defaults = inheritedDefaults
         let selectedPhraseID = session.store.selectedPhraseID
 
-        return ScrollView(.vertical) {
+        return ViewThatFits(in: .horizontal) {
+            HStack(alignment: .top, spacing: gridSpacing) {
+                songPhraseList(selectedPhraseID: selectedPhraseID)
+                    .frame(minWidth: 300, idealWidth: 340, maxWidth: 390)
+                songInspector(activeLayer: activeLayer, defaults: defaults)
+                    .frame(minWidth: 360, maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            }
+
+            VStack(alignment: .leading, spacing: gridSpacing) {
+                songPhraseList(selectedPhraseID: selectedPhraseID)
+                    .frame(maxWidth: .infinity, maxHeight: 230)
+                songInspector(activeLayer: activeLayer, defaults: defaults)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            }
+        }
+        .frame(minHeight: 280)
+        .accessibilityIdentifier("song-phrase-grid")
+    }
+
+    private func songPhraseList(selectedPhraseID: UUID) -> some View {
+        ScrollView(.vertical) {
             VStack(alignment: .leading, spacing: gridSpacing) {
                 ForEach(phrases, id: \.id) { phrase in
-                    let displayedPhrase = session.phraseWithPerformOverlay(phrase)
-                    let inherited = defaults.resolved(for: phrase.id)
-                    GeometryReader { proxy in
-                        HStack(alignment: .top, spacing: gridSpacing) {
-                            PhraseMatrixPhraseCell(
-                                phrase: phrase,
-                                isSelected: selectedPhraseID == phrase.id,
-                                isPlaying: PhraseButtonControlPresentation.isPlayingBadgeVisible(
-                                    phraseID: phrase.id,
-                                    engineIsRunning: engineController.isRunning,
-                                    currentPhraseID: engineController.currentPhraseID
-                                ),
-                                isQueued: engineController.queuedPhraseID == phrase.id,
-                                onSelect: { session.setSelectedPhraseID(phrase.id) },
-                                onChangeBarCount: { nextBarCount in
-                                    session.setPhraseBarCount(nextBarCount, phraseID: phrase.id)
-                                },
-                                onChangeRepeatCount: { nextRepeatCount in
-                                    session.setPhraseRepeatCount(nextRepeatCount, phraseID: phrase.id)
-                                }
-                            )
-                            .frame(width: max(280, proxy.size.width * 0.58))
-
-                            SongPhraseTrackSummary(
-                                phrase: displayedPhrase,
-                                layer: activeLayer,
-                                tracks: tracks,
-                                inherited: inherited,
-                                groups: session.store.trackGroups
-                            )
-                            .frame(maxWidth: .infinity)
-                        }
-                        .contentShape(Rectangle())
-                        .onTapGesture { session.setSelectedPhraseID(phrase.id) }
-                    }
+                    PhraseMatrixPhraseCell(
+                        phrase: phrase,
+                        isSelected: selectedPhraseID == phrase.id,
+                        isPlaying: PhraseButtonControlPresentation.isPlayingBadgeVisible(
+                            phraseID: phrase.id,
+                            engineIsRunning: engineController.isRunning,
+                            currentPhraseID: engineController.currentPhraseID
+                        ),
+                        isQueued: engineController.queuedPhraseID == phrase.id,
+                        onSelect: { session.setSelectedPhraseID(phrase.id) },
+                        onChangeBarCount: { session.setPhraseBarCount($0, phraseID: phrase.id) },
+                        onChangeRepeatCount: { session.setPhraseRepeatCount($0, phraseID: phrase.id) }
+                    )
                     .frame(height: PhraseMatrixLayoutPresentation.matrixRowHeight)
                 }
             }
             .padding(.vertical, 2)
         }
         .scrollIndicators(.never)
-        .frame(minHeight: 280)
-        .accessibilityIdentifier("song-phrase-grid")
     }
 
-    private struct SongPhraseTrackSummary: View {
+    private func songInspector(
+        activeLayer: PhraseLayerDefinition?,
+        defaults: PhraseInheritedDefaults
+    ) -> some View {
+        let state = session.resolvedPhraseSceneState(for: selectedPhrase)
+        let hasAuthoredState = selectedPhrase.sceneState != nil
+            || session.performOverlaySceneState(phraseID: selectedPhrase.id) != nil
+
+        return SongPhraseInspector(
+            phrase: session.phraseWithPerformOverlay(selectedPhrase),
+            layer: activeLayer,
+            tracks: tracks,
+            inherited: defaults.resolved(for: selectedPhrase.id),
+            groups: session.store.trackGroups,
+            sceneState: state,
+            sceneAName: sceneName(id: state.sceneAID),
+            sceneBName: sceneName(id: state.sceneBID),
+            hasAuthoredSceneState: hasAuthoredState,
+            onSetCrossfader: { value in
+                let nextState = PhraseSceneState(
+                    sceneAID: state.sceneAID,
+                    sceneBID: state.sceneBID,
+                    crossfader: value
+                )
+                session.setPhraseSceneState(nextState, phraseID: selectedPhrase.id)
+                engineController.auditionMasterABSelection(
+                    MasterBusABSelection(
+                        sceneAID: nextState.sceneAID,
+                        sceneBID: nextState.sceneBID,
+                        crossfader: nextState.crossfader
+                    )
+                )
+                engineController.setLiveMasterCrossfader(nextState.crossfader)
+            }
+        )
+    }
+
+    private func sceneName(id: UUID) -> String {
+        session.store.masterBus.scene(id: id)?.name ?? "Empty"
+    }
+
+    private struct SongPhraseInspector: View {
         let phrase: PhraseModel
         let layer: PhraseLayerDefinition?
         let tracks: [StepSequenceTrack]
         let inherited: PhraseInheritedDefaults.Resolved?
         let groups: [TrackGroup]
+        let sceneState: PhraseSceneState
+        let sceneAName: String
+        let sceneBName: String
+        let hasAuthoredSceneState: Bool
+        let onSetCrossfader: (Double) -> Void
 
         var body: some View {
-            ScrollView(.horizontal) {
-                HStack(spacing: 6) {
-                    ForEach(tracks, id: \.id) { track in
-                        let accent = StudioTheme.trackAccent(for: track, groups: groups)
-                        let cell = layer.map { phrase.cell(for: $0.id, trackID: track.id) }
-                        VStack(spacing: 5) {
-                            Text(valueLabel(trackID: track.id))
-                                .studioText(.labelBold)
-                                .foregroundStyle(StudioTheme.text)
-                                .lineLimit(1)
-                            HStack(spacing: 3) {
-                                Circle()
-                                    .fill(accent)
-                                    .frame(width: 5, height: 5)
-                                if cell?.isAutomated == true {
-                                    Image(systemName: "waveform.path")
-                                        .font(.system(size: 8, weight: .bold))
-                                        .foregroundStyle(accent)
-                                }
-                            }
-                        }
-                        .frame(width: 44, height: 52)
-                        .background(StudioTheme.subtleFill, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
-                                .stroke(accent.opacity(StudioOpacity.mediumStroke), lineWidth: StudioMetrics.borderWidth)
-                        )
-                        .help("\(track.name): \(valueLabel(trackID: track.id))")
+            ScrollView(.vertical) {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack(alignment: .firstTextBaseline) {
+                        Text(phrase.name)
+                            .studioText(.subtitle)
+                            .foregroundStyle(StudioTheme.text)
+                        Spacer(minLength: 8)
+                        Text(layer?.name.uppercased() ?? "VALUES")
+                            .studioText(.eyebrow)
+                            .foregroundStyle(StudioTheme.phraseAccent)
                     }
+
+                    LazyVGrid(
+                        columns: [GridItem(.adaptive(minimum: 180), spacing: 8)],
+                        alignment: .leading,
+                        spacing: 8
+                    ) {
+                        ForEach(tracks, id: \.id) { track in
+                            trackValue(track)
+                        }
+                    }
+
+                    sceneStrip
                 }
+                .padding(12)
             }
             .scrollIndicators(.never)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+            .background(
+                StudioTheme.subtleFill,
+                in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.subPanel, style: .continuous)
+                    .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+            )
+            .accessibilityIdentifier("song-selected-phrase-inspector")
+        }
+
+        private func trackValue(_ track: StepSequenceTrack) -> some View {
+            let accent = StudioTheme.trackAccent(for: track, groups: groups)
+            let cell = layer.map { phrase.cell(for: $0.id, trackID: track.id) }
+
+            return HStack(spacing: 9) {
+                RoundedRectangle(cornerRadius: 2, style: .continuous)
+                    .fill(accent)
+                    .frame(width: 7, height: 28)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(track.name)
+                        .studioText(.labelBold)
+                        .foregroundStyle(StudioTheme.text)
+                        .lineLimit(1)
+                    Text(valueLabel(trackID: track.id))
+                        .studioText(.microEmphasis)
+                        .foregroundStyle(accent)
+                }
+
+                Spacer(minLength: 4)
+
+                if cell?.isAutomated == true {
+                    Image(systemName: "waveform.path")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(accent)
+                        .accessibilityLabel("Automated")
+                }
+            }
+            .padding(.horizontal, 10)
+            .frame(minHeight: 48)
+            .background(StudioTheme.background, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                    .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+            )
+            .help("\(track.name): \(valueLabel(trackID: track.id))")
+        }
+
+        private var sceneStrip: some View {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("SCENES")
+                        .studioText(.eyebrow)
+                        .foregroundStyle(StudioTheme.mutedText)
+                    Spacer(minLength: 8)
+                    Text(hasAuthoredSceneState ? "PHRASE" : "INHERITED")
+                        .studioText(.microEmphasis)
+                        .foregroundStyle(hasAuthoredSceneState ? StudioTheme.phraseAccent : StudioTheme.mutedText)
+                }
+
+                HStack(spacing: 10) {
+                    sceneSlot("A", name: sceneAName)
+
+                    VStack(spacing: 4) {
+                        Text("\(Int((sceneState.crossfader * 100).rounded()))%")
+                            .studioText(.microEmphasis)
+                            .monospacedDigit()
+                            .foregroundStyle(StudioTheme.text)
+                        StudioSlideControl(
+                            value: sceneState.crossfader,
+                            range: 0...1,
+                            fillStyle: .fromLeading,
+                            chrome: .roundedRectangle,
+                            accent: StudioTheme.phraseAccent,
+                            help: "Phrase scene crossfader",
+                            accessibilityStep: 0.05,
+                            onChange: onSetCrossfader
+                        )
+                        .frame(height: 30)
+                    }
+                    .frame(maxWidth: .infinity)
+
+                    sceneSlot("B", name: sceneBName)
+                }
+            }
+            .padding(10)
+            .background(StudioTheme.background, in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
+                    .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
+            )
+        }
+
+        private func sceneSlot(_ slot: String, name: String) -> some View {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(slot)
+                    .studioText(.eyebrowBold)
+                    .foregroundStyle(StudioTheme.phraseAccent)
+                Text(name)
+                    .studioText(.microEmphasis)
+                    .foregroundStyle(StudioTheme.text)
+                    .lineLimit(1)
+            }
+            .frame(width: 96, alignment: .leading)
         }
 
         private func valueLabel(trackID: UUID) -> String {

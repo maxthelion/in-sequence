@@ -583,7 +583,7 @@ final class TracksPageInvalidationTests: XCTestCase {
         )
     }
 
-    func test_clipCaptureHistoryIsReachableFromToolbarAndCaptureRow() throws {
+    func test_clipCaptureHistoryIsReachableFromSingleHeaderButton() throws {
         let editor = try String(
             contentsOf: repoRoot.appendingPathComponent("Sources/UI/TrackSource/TrackSourceEditorView.swift"),
             encoding: .utf8
@@ -594,6 +594,10 @@ final class TracksPageInvalidationTests: XCTestCase {
         )
         let clipPreview = try String(
             contentsOf: repoRoot.appendingPathComponent("Sources/UI/TrackSource/Clip/ClipContentPreview.swift"),
+            encoding: .utf8
+        )
+        let trackWorkspace = try String(
+            contentsOf: repoRoot.appendingPathComponent("Sources/UI/Track/TrackWorkspaceView.swift"),
             encoding: .utf8
         )
         let qaScript = try String(
@@ -610,8 +614,12 @@ final class TracksPageInvalidationTests: XCTestCase {
             "History should not remain a visible peer tab; Capture opens it as a workflow surface."
         )
         XCTAssertTrue(
+            trackWorkspace.contains("TrackCaptureHeaderButton") && trackWorkspace.contains("isCaptureOpen"),
+            "The track header should expose the single Capture workflow entry point."
+        )
+        XCTAssertFalse(
             clipPreview.contains("Label(\"Capture\", systemImage: \"waveform.path.ecg\")"),
-            "The clip toolbar should expose a Capture button that opens history."
+            "The Steps/Clip toolbar must not duplicate the header Capture button."
         )
         XCTAssertFalse(
             clipPreview.contains("Label(\"Assign Macro\""),
@@ -721,7 +729,7 @@ final class TracksPageInvalidationTests: XCTestCase {
         )
     }
 
-    func test_drumKitRowHeaderKeepsPartNameTopAlignedAndRemovesLengthSubtext() throws {
+    func test_drumKitRowHeaderKeepsPartNameTopAlignedAndUsesLengthMenu() throws {
         let source = try String(
             contentsOf: repoRoot.appendingPathComponent("Sources/UI/DrumGroup/DrumKitMatrixRowView.swift"),
             encoding: .utf8
@@ -743,9 +751,9 @@ final class TracksPageInvalidationTests: XCTestCase {
             nameColumn.contains("clipLengthLabel"),
             "The compact grey clip-length subtext should not render beneath the drum-part name."
         )
-        XCTAssertFalse(
-            nameColumn.contains("kit-row-clip-length"),
-            "The removed clip-length subtext should not leave an accessibility target behind."
+        XCTAssertTrue(
+            source.contains("clipLengthMenu(clipLengthSteps)") && source.contains("kit-row-clip-length"),
+            "Editable drum rows should expose clip length as a labelled menu, not passive subtext."
         )
     }
 

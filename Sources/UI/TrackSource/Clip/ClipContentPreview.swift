@@ -175,7 +175,6 @@ struct ClipContentPreview: View {
     let hasSavedRandomizeSettings: Bool
     let randomizePanel: (() -> AnyView)?
     let onRandomize: (() -> Void)?
-    let onOpenHistory: (() -> Void)?
     let onToggleRandomizePanel: (() -> Void)?
     let onRemoveSource: (() -> Void)?
     let playingStepIndex: Int?
@@ -202,7 +201,6 @@ struct ClipContentPreview: View {
         hasSavedRandomizeSettings: Bool = false,
         randomizePanel: (() -> AnyView)? = nil,
         onRandomize: (() -> Void)? = nil,
-        onOpenHistory: (() -> Void)? = nil,
         onToggleRandomizePanel: (() -> Void)? = nil,
         onRemoveSource: (() -> Void)? = nil,
         playingStepIndex: Int? = nil
@@ -222,7 +220,6 @@ struct ClipContentPreview: View {
         self.hasSavedRandomizeSettings = hasSavedRandomizeSettings
         self.randomizePanel = randomizePanel
         self.onRandomize = onRandomize
-        self.onOpenHistory = onOpenHistory
         self.onToggleRandomizePanel = onToggleRandomizePanel
         self.onRemoveSource = onRemoveSource
         self.playingStepIndex = playingStepIndex
@@ -396,7 +393,6 @@ struct ClipContentPreview: View {
         VStack(alignment: .leading, spacing: 12) {
             clipHeaderControls(
                 lengthSteps: lengthSteps,
-                steps: steps,
                 page: page,
                 pageCount: pageCount,
                 playheadPage: playheadPage
@@ -739,14 +735,13 @@ struct ClipContentPreview: View {
     // tracks, never bespoke floating capsules or a second chrome accent.
     private func clipHeaderControls(
         lengthSteps: Int,
-        steps: [ClipStep],
         page: Int,
         pageCount: Int,
         playheadPage: Int?
     ) -> some View {
         HStack(alignment: .center, spacing: StudioMetrics.Spacing.standard) {
             StudioSegmentedControl(
-                title: nil,
+                title: "Lane",
                 selection: $selectedLane,
                 segments: ClipEditorLane.allCases.map { lane in
                     StudioSegment(title: lane.title, value: lane)
@@ -757,7 +752,7 @@ struct ClipContentPreview: View {
             )
 
             StudioSegmentedControl(
-                title: nil,
+                title: "Clip Length",
                 selection: Binding(
                     get: { lengthSteps },
                     set: { option in
@@ -780,9 +775,15 @@ struct ClipContentPreview: View {
                 accessibilityLabel: { "Length \($0.title) steps" }
             )
 
-            if pageCount > 1 {
-                pageSelector(lengthSteps: lengthSteps, page: page, pageCount: pageCount, playheadPage: playheadPage)
-            }
+            ClipBarSelector(
+                pageCount: pageCount,
+                currentPage: Binding(
+                    get: { page },
+                    set: { selectedPage = $0 }
+                ),
+                accent: accent,
+                playingPage: playheadPage
+            )
 
             StepLayerQuickSwitchChip(
                 title: "",
@@ -800,8 +801,6 @@ struct ClipContentPreview: View {
             )
 
             randomizeControls
-
-            historyButton
 
             Spacer(minLength: 0)
 
@@ -829,31 +828,6 @@ struct ClipContentPreview: View {
                 )
             }
         )
-    }
-
-    @ViewBuilder
-    private var historyButton: some View {
-        if let onOpenHistory {
-            Button(action: onOpenHistory) {
-                Label("Capture", systemImage: "waveform.path.ecg")
-                    .studioText(.labelBold)
-                    .foregroundStyle(StudioTheme.text)
-                    .lineLimit(1)
-                    .padding(.vertical, 7)
-                    .padding(.horizontal, 10)
-                    .background(
-                        StudioTheme.subtleFill,
-                        in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.control, style: .continuous)
-                            .stroke(StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
-                    )
-            }
-            .buttonStyle(.plain)
-            .help("Open capture history")
-            .accessibilityLabel("Open capture history")
-        }
     }
 
     @ViewBuilder
@@ -947,29 +921,6 @@ struct ClipContentPreview: View {
         } else {
             layerControlRow(lengthSteps: lengthSteps, steps: steps)
         }
-    }
-
-    // BAR-range value selector (inset-track grammar): solid surface-accent
-    // thumb; the green ring is the playhead page — content state, not chrome.
-    private func pageSelector(lengthSteps: Int, page: Int, pageCount: Int, playheadPage: Int?) -> some View {
-        StudioSegmentedControl(
-            title: nil,
-            selection: Binding(
-                get: { page },
-                set: { selectedPage = $0 }
-            ),
-            segments: (0..<pageCount).map { index in
-                let start = index * 16 + 1
-                let end = min((index + 1) * 16, lengthSteps)
-                return StudioSegment(
-                    title: "\(start)-\(end)",
-                    value: index,
-                    indicatorAccent: playheadPage == index ? accent : nil
-                )
-            },
-            accent: accent,
-            layout: .init(fillsWidth: false, minWidth: 44)
-        )
     }
 
     /// Single-line layer selector: chevrons step through trigger/velocity/

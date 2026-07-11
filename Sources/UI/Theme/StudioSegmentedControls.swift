@@ -184,6 +184,102 @@ struct StudioSegmentedControl<Value: Equatable>: View {
     }
 }
 
+/// Shared 16-step bar selector used by drum-kit and melodic clip editors.
+/// The fixed eight-indicator footprint keeps paging stable as clip length
+/// changes, while a separate outline can show a playing bar being viewed from
+/// another page.
+struct ClipBarSelector: View {
+    let pageCount: Int
+    @Binding var currentPage: Int
+    let accent: Color
+    let playingPage: Int?
+
+    private var clampedPage: Int {
+        min(max(0, currentPage), max(1, pageCount) - 1)
+    }
+
+    var body: some View {
+        let indicators = ClipBarPaging.indicators(pageCount: pageCount, currentPage: clampedPage)
+        let previousBank = ClipBarPaging.previousBankPage(currentPage: clampedPage)
+        let nextBank = ClipBarPaging.nextBankPage(pageCount: pageCount, currentPage: clampedPage)
+
+        HStack(spacing: 6) {
+            Text("BAR")
+                .studioText(.eyebrow)
+                .tracking(0.8)
+                .foregroundStyle(StudioTheme.mutedText)
+
+            if pageCount > ClipBarPaging.indicatorCount {
+                bankButton(systemImage: "chevron.left", targetPage: previousBank)
+            }
+
+            HStack(spacing: 4) {
+                ForEach(indicators, id: \.page) { indicator in
+                    Button {
+                        currentPage = indicator.page
+                    } label: {
+                        RoundedRectangle(cornerRadius: 3, style: .continuous)
+                            .fill(fill(for: indicator.state))
+                            .frame(width: 7, height: 18)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 3, style: .continuous)
+                                    .stroke(stroke(for: indicator), lineWidth: playingPage == indicator.page ? 2 : StudioMetrics.borderWidth)
+                            )
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(indicator.state == .unavailable)
+                    .help(indicator.state == .unavailable
+                        ? "Bar \(indicator.page + 1) is unavailable"
+                        : "Show bar \(indicator.page + 1)")
+                    .accessibilityLabel("Bar \(indicator.page + 1)")
+                    .accessibilityValue(accessibilityValue(for: indicator))
+                }
+            }
+
+            if pageCount > ClipBarPaging.indicatorCount {
+                bankButton(systemImage: "chevron.right", targetPage: nextBank)
+            }
+        }
+    }
+
+    private func fill(for state: ClipBarPaging.Indicator.State) -> Color {
+        switch state {
+        case .current: accent
+        case .available: StudioTheme.neutral
+        case .unavailable: StudioTheme.disabledSubtleFill
+        }
+    }
+
+    private func stroke(for indicator: ClipBarPaging.Indicator) -> Color {
+        if playingPage == indicator.page { return StudioTheme.text }
+        return indicator.state == .unavailable ? StudioTheme.border : Color.clear
+    }
+
+    private func accessibilityValue(for indicator: ClipBarPaging.Indicator) -> String {
+        let base: String
+        switch indicator.state {
+        case .current: base = "Current"
+        case .available: base = "Available"
+        case .unavailable: base = "Unavailable"
+        }
+        return playingPage == indicator.page ? "\(base), playing" : base
+    }
+
+    private func bankButton(systemImage: String, targetPage: Int?) -> some View {
+        Button {
+            if let targetPage { currentPage = targetPage }
+        } label: {
+            Image(systemName: systemImage)
+                .font(.system(size: 9, weight: .bold))
+                .frame(width: 16, height: 16)
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(targetPage == nil ? StudioTheme.mutedText : StudioTheme.text)
+        .disabled(targetPage == nil)
+        .help(systemImage == "chevron.left" ? "Previous eight bars" : "Next eight bars")
+    }
+}
+
 private extension View {
     /// Conditionally apply a modifier while keeping a single concrete return
     /// type, used so an optional accessibilityIdentifier doesn't fork the view.

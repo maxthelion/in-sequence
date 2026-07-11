@@ -164,20 +164,21 @@ struct StepLayerQuickSwitchOptions<Value: Hashable>: View {
                     isOpen = false
                 } label: {
                     Text(option.title)
-                        .studioText(.micro)
+                        .studioText(.labelBold)
                         .foregroundStyle(option.value == selection ? StudioTheme.background : StudioTheme.text)
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 5)
+                        .frame(minWidth: 56, minHeight: 30)
+                        .padding(.horizontal, 10)
                         .background(
                             option.value == selection ? accent : StudioTheme.subtleFill,
-                            in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
+                            in: RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
                         )
                         .overlay(
-                            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.chip, style: .continuous)
+                            RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous)
                                 .stroke(option.value == selection ? Color.clear : StudioTheme.border, lineWidth: StudioMetrics.borderWidth)
                         )
+                        .contentShape(RoundedRectangle(cornerRadius: StudioMetrics.CornerRadius.badge, style: .continuous))
                 }
                 .buttonStyle(.plain)
             }
