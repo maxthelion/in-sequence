@@ -80,6 +80,78 @@ struct PerformanceLayerOptionCell: View {
     }
 }
 
+/// A value button in Phrase Values. Expansion and pin controls are siblings
+/// of the main button so every hit target remains independent and full-size.
+struct GlobalApplyValueOptionCell: View {
+    let option: PerformanceLayerOption
+    let isSelected: Bool
+    let isPinned: Bool
+    let isExpanded: Bool
+    let showsExpansionControl: Bool
+    let onApply: () -> Void
+    let onToggleExpansion: () -> Void
+    let onTogglePin: () -> Void
+
+    private var accent: Color { option.mode.phraseAccent }
+
+    var body: some View {
+        ZStack(alignment: .topTrailing) {
+            PerformanceLayerOptionCell(
+                option: option,
+                isSelected: isSelected,
+                presentsToggleState: true,
+                onTap: onApply
+            )
+
+            HStack(spacing: 4) {
+                if showsExpansionControl {
+                    accessoryButton(
+                        systemName: isExpanded ? "chevron.up" : "chevron.down",
+                        isActive: isExpanded,
+                        help: isExpanded ? "Collapse \(option.mode.label) values" : "Expand \(option.mode.label) values",
+                        action: onToggleExpansion
+                    )
+                }
+
+                if option.isAvailable {
+                    accessoryButton(
+                        systemName: isPinned ? "pin.fill" : "pin",
+                        isActive: isPinned,
+                        help: isPinned ? "Unpin \(option.title)" : "Pin \(option.title)",
+                        action: onTogglePin
+                    )
+                }
+            }
+            .padding(6)
+        }
+    }
+
+    private func accessoryButton(
+        systemName: String,
+        isActive: Bool,
+        help: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Image(systemName: systemName)
+                .font(.system(size: 10, weight: .bold))
+                .foregroundStyle(isActive ? accent : StudioTheme.text)
+                .frame(width: 24, height: 24)
+                .background(StudioTheme.background, in: Circle())
+                .overlay(
+                    Circle().stroke(
+                        isActive ? accent : StudioTheme.border,
+                        lineWidth: StudioMetrics.borderWidth
+                    )
+                )
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .help(help)
+        .accessibilityLabel(help)
+    }
+}
+
 extension TrackPerformLayerMode {
     var phraseAccent: Color {
         StudioTheme.phraseAccent

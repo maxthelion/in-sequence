@@ -161,6 +161,7 @@ struct PhraseWorkspaceView: View {
     @State private var phraseLatchLengthBars: Int?
     @State private var scalarDragBase: (phraseID: UUID, trackID: UUID, value: Double)?
     @State private var phraseLayerSelection = PhraseCellDocumentSelection()
+    @State private var globalApplyValueVisibility = GlobalApplyValueVisibilityState()
 
     private let phraseColumnWidth: CGFloat = 118
     private let trackColumnWidth: CGFloat = 126
@@ -1515,6 +1516,33 @@ struct PhraseWorkspaceView: View {
             return
         }
 
+        if command.hasPrefix("global-apply-expand:"),
+           let rawMode = command.split(separator: ":").last,
+           let mode = TrackPerformLayerMode(rawValue: String(rawMode)),
+           isGroupedGlobalApplyMode(mode) {
+            if !globalApplyValueVisibility.isExpanded(mode) {
+                globalApplyValueVisibility.toggleExpanded(mode)
+            }
+            postRenderedMatrixVisualState(isVisible: true)
+            return
+        }
+
+        if command.hasPrefix("global-apply-pins:") {
+            let payload = String(command.dropFirst("global-apply-pins:".count))
+            let parts = payload.split(separator: ":", maxSplits: 1).map(String.init)
+            guard parts.count == 2,
+                  let mode = TrackPerformLayerMode(rawValue: parts[0]),
+                  isGroupedGlobalApplyMode(mode)
+            else { return }
+            let requestedLabels = Set(parts[1].split(separator: ",").map(String.init))
+            for option in allGlobalApplyValueOptions(for: mode)
+            where requestedLabels.contains(option.title) && !globalApplyValueVisibility.isPinned(option) {
+                globalApplyValueVisibility.togglePinned(option)
+            }
+            postRenderedMatrixVisualState(isVisible: true)
+            return
+        }
+
         // QA: switch the SCENES perform surface between Macros | Slots view
         // modes (the perform-bar segmented pill).
         if command.hasPrefix("scene-view-mode:") {
@@ -2351,26 +2379,33 @@ struct PhraseWorkspaceView: View {
 
     @ViewBuilder
     private func globalApplyActionCell(_ option: PerformanceLayerOption) -> some View {
-        if let layerID = option.mode.phraseLayerID,
+        if isGroupedGlobalApplyMode(option.mode) {
+            globalApplyValueActionCell(option)
+        } else if let layerID = option.mode.phraseLayerID,
            let layer = layers.first(where: { $0.id == layerID }) {
             globalApplyInteractiveCell(option, layer: layer)
-        } else if option.mode == .noteRepeat {
-            PerformanceLayerOptionCell(
-                option: option,
-                isSelected: areSelectedNoteRepeatsActive(trackIDs: globalApplyScopeTrackIDs, option: option),
-                presentsToggleState: true,
-                onTap: { applyGlobalOption(option) }
-            )
-        } else if option.mode == .stepOrder {
-            PerformanceLayerOptionCell(
-                option: option,
-                isSelected: isSelectedStepOrderActive(option: option),
-                presentsToggleState: true,
-                onTap: { applyGlobalOption(option) }
-            )
         } else {
             EmptyView()
         }
+    }
+
+    private func globalApplyValueActionCell(_ option: PerformanceLayerOption) -> some View {
+        let allOptions = allGlobalApplyValueOptions(for: option.mode)
+        let currentOption = currentGlobalApplyValueOption(for: option.mode, options: allOptions)
+        return GlobalApplyValueOptionCell(
+            option: option,
+            isSelected: isGlobalApplyValueOptionSelected(option),
+            isPinned: globalApplyValueVisibility.isPinned(option),
+            isExpanded: globalApplyValueVisibility.isExpanded(option.mode),
+            showsExpansionControl: allOptions.count > 1 && option.id == currentOption?.id,
+            onApply: { applyGlobalOption(option) },
+            onToggleExpansion: {
+                globalApplyValueVisibility.toggleExpanded(option.mode)
+            },
+            onTogglePin: {
+                globalApplyValueVisibility.togglePinned(option)
+            }
+        )
     }
 
     // Bug 20260620-140815 / consistency pass: the global-apply card renders its
@@ -2410,7 +2445,85 @@ struct PhraseWorkspaceView: View {
     }
 
     private var globalApplyOptions: [PerformanceLayerOption] {
-        phraseLocalPerformanceLayerOptions
+        TrackPerformLayerMode.allCases.flatMap { mode -> [PerformanceLayerOption] in
+            if isGroupedGlobalApplyMode(mode) {
+                let allOptions = allGlobalApplyValueOptions(for: mode)
+                return globalApplyValueVisibility.visibleOptions(
+                    for: mode,
+                    allOptions: allOptions,
+                    currentOption: currentGlobalApplyValueOption(for: mode, options: allOptions)
+                )
+            }
+            return phraseLocalPerformanceLayerOptions.filter { $0.mode == mode }
+        }
+    }
+
+    private func isGroupedGlobalApplyMode(_ mode: TrackPerformLayerMode) -> Bool {
+        mode == .pattern || mode == .noteRepeat || mode == .stepOrder
+    }
+
+    private func allGlobalApplyValueOptions(for mode: TrackPerformLayerMode) -> [PerformanceLayerOption] {
+        switch mode {
+        case .pattern:
+            return PerformanceLayerOption.patternValues
+        case .noteRepeat, .stepOrder:
+            return phraseLocalPerformanceLayerOptions.filter { $0.mode == mode }
+        case .mute, .fill, .volume, .pan:
+            return []
+        }
+    }
+
+    private func currentGlobalApplyValueOption(
+        for mode: TrackPerformLayerMode,
+        options: [PerformanceLayerOption]
+    ) -> PerformanceLayerOption? {
+        switch mode {
+        case .pattern:
+            guard let layerID = mode.phraseLayerID,
+                  let layer = layers.first(where: { $0.id == layerID })
+            else { return options.first }
+            let consensus = globalApplyConsensus(for: layer)
+            guard case let .index(index) = consensus.value.normalized(for: layer) else {
+                return options.first
+            }
+            return options.first { $0.patternSlotIndex == index } ?? options.first
+        case .noteRepeat:
+            return options.first {
+                areSelectedNoteRepeatsActive(trackIDs: globalApplyScopeTrackIDs, option: $0)
+            } ?? options.first
+        case .stepOrder:
+            let assignment = selectedPhraseForEditing.stepOrderAssignment
+            let mapName = assignment.flatMap { assignment in
+                session.store.stepOrderMaps.first { $0.id == assignment.mapID && $0.isValid }?.name
+            }
+            return options.first { $0.variantLabel == mapName } ?? options.first
+        case .mute, .fill, .volume, .pan:
+            return nil
+        }
+    }
+
+    private func isGlobalApplyValueOptionSelected(_ option: PerformanceLayerOption) -> Bool {
+        switch option.mode {
+        case .pattern:
+            guard let slotIndex = option.patternSlotIndex,
+                  let layerID = option.mode.phraseLayerID,
+                  let layer = layers.first(where: { $0.id == layerID })
+            else { return false }
+            let consensus = globalApplyConsensus(for: layer)
+            guard !consensus.isDivergent,
+                  case let .index(index) = consensus.value.normalized(for: layer)
+            else { return false }
+            return index == slotIndex
+        case .noteRepeat:
+            return areSelectedNoteRepeatsActive(
+                trackIDs: globalApplyScopeTrackIDs,
+                option: option
+            )
+        case .stepOrder:
+            return isSelectedStepOrderActive(option: option)
+        case .mute, .fill, .volume, .pan:
+            return false
+        }
     }
 
     private var globalApplyColumns: [GridItem] {
@@ -2423,6 +2536,10 @@ struct PhraseWorkspaceView: View {
 
     private func applyGlobalOption(_ option: PerformanceLayerOption) {
         guard option.isAvailable else { return }
+        if option.mode == .pattern, let slotIndex = option.patternSlotIndex {
+            applyGlobalPattern(slotIndex: slotIndex, option: option)
+            return
+        }
         if option.mode == .noteRepeat {
             guard let label = option.variantLabel,
                   let interval = NoteRepeatInterval(rawValue: label)
@@ -2489,6 +2606,36 @@ struct PhraseWorkspaceView: View {
         session.setPhraseCell(
             .single(nextValue),
             layerID: layer.id,
+            trackIDs: globalApplyScopeTrackIDs,
+            phraseID: phrase.id
+        )
+    }
+
+    private func applyGlobalPattern(slotIndex: Int, option: PerformanceLayerOption) {
+        guard let layerID = option.mode.phraseLayerID,
+              layers.contains(where: { $0.id == layerID })
+        else { return }
+
+        selectPerformanceLayerOption(option)
+        selectedLayerID = layerID
+        let phrase = selectedPhraseForEditing
+        if PhrasePerformTimingPolicy.usesQuantisedLayerArming(
+            layerID: layerID,
+            latchMode: phraseLatchMode,
+            sessionArmingActive: session.isQuantisedPerformToggleArmingActive
+        ) {
+            session.selectQuantisedPatternIndex(
+                slotIndex: slotIndex,
+                trackIDs: globalApplyScopeTrackIDs,
+                basisPhrase: phrase,
+                lengthBars: phraseLatchLengthBars
+            )
+            return
+        }
+
+        session.setPhraseCell(
+            .single(.index(slotIndex)),
+            layerID: layerID,
             trackIDs: globalApplyScopeTrackIDs,
             phraseID: phrase.id
         )

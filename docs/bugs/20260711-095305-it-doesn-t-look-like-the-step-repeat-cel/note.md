@@ -29,3 +29,21 @@ Verification:
   outline-only inactive state and the visible Step Order constraint.
 
 Status: RESOLVED
+
+## FOLLOW-UP: GROUPED VALUES + PINS
+
+Pattern, Note Repeat, and Step Order now share a grouped value-picker grammar:
+
+- Each layer is collapsed to its current value by default.
+- The current value carries one expand/collapse control.
+- Expanded mode shows every backed value as a full cell.
+- Every available value has an independent pin toggle.
+- Pinned values remain beside the current value after the layer is collapsed.
+- Pattern exposes P1-P16 and applies the chosen slot exactly across the active
+  track scope, including through the quantised pattern-selection path.
+
+Acceptance evidence is covered by the QA rows:
+
+- `13-phrase-global-apply` (default collapsed state)
+- `13d-phrase-global-apply-pattern-expanded-pinned` (P1-P16, P1/P2/P3 pinned)
+- `13e-phrase-global-apply-pattern-pinned-collapsed` (P1/P2/P3 retained)

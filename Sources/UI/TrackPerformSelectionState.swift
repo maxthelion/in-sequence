@@ -244,6 +244,22 @@ struct PerformanceLayerOption: Identifiable, Equatable {
         variantLabel ?? mode.label
     }
 
+    static var patternValues: [PerformanceLayerOption] {
+        (0..<TrackPatternBank.slotCount).map {
+            PerformanceLayerOption(mode: .pattern, variantLabel: "P\($0 + 1)")
+        }
+    }
+
+    var patternSlotIndex: Int? {
+        guard mode == .pattern,
+              let variantLabel,
+              variantLabel.first == "P",
+              let oneBased = Int(variantLabel.dropFirst()),
+              (1...TrackPatternBank.slotCount).contains(oneBased)
+        else { return nil }
+        return oneBased - 1
+    }
+
     static let implicitIdentityStepOrder = PerformanceLayerOption(
         mode: .stepOrder,
         variantLabel: "Identity"
@@ -317,6 +333,54 @@ struct PerformanceLayerOption: Identifiable, Equatable {
             case .mute, .pattern, .fill, .volume, .pan:
                 return []
             }
+        }
+    }
+}
+
+struct GlobalApplyValueVisibilityState: Equatable {
+    private(set) var expandedModes: Set<TrackPerformLayerMode> = []
+    private(set) var pinnedOptionIDs: Set<String> = []
+
+    func isExpanded(_ mode: TrackPerformLayerMode) -> Bool {
+        expandedModes.contains(mode)
+    }
+
+    func isPinned(_ option: PerformanceLayerOption) -> Bool {
+        pinnedOptionIDs.contains(option.id)
+    }
+
+    mutating func toggleExpanded(_ mode: TrackPerformLayerMode) {
+        if expandedModes.contains(mode) {
+            expandedModes.remove(mode)
+        } else {
+            expandedModes.insert(mode)
+        }
+    }
+
+    mutating func togglePinned(_ option: PerformanceLayerOption) {
+        guard option.isAvailable else { return }
+        if pinnedOptionIDs.contains(option.id) {
+            pinnedOptionIDs.remove(option.id)
+        } else {
+            pinnedOptionIDs.insert(option.id)
+        }
+    }
+
+    func visibleOptions(
+        for mode: TrackPerformLayerMode,
+        allOptions: [PerformanceLayerOption],
+        currentOption: PerformanceLayerOption?
+    ) -> [PerformanceLayerOption] {
+        guard !allOptions.isEmpty else { return [] }
+        if isExpanded(mode) {
+            return allOptions
+        }
+
+        let current = currentOption.flatMap { candidate in
+            allOptions.first { $0.id == candidate.id }
+        } ?? allOptions[0]
+        return [current] + allOptions.filter {
+            $0.id != current.id && pinnedOptionIDs.contains($0.id)
         }
     }
 }

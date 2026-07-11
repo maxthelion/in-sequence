@@ -1577,6 +1577,8 @@ enum VisualScenarioCommandRunner {
               command["phraseDensityValue"] != nil ||
               command["phraseGlobalApplyTrackSelector"] != nil ||
               command["phraseGlobalApplySelect"] != nil ||
+              command["phraseGlobalApplyExpanded"] != nil ||
+              command["phraseGlobalApplyPins"] != nil ||
               command["phraseSceneSelect"] != nil ||
               command["phraseSceneViewMode"] != nil ||
               command["phraseSceneMembershipFixture"] != nil ||
@@ -1704,6 +1706,15 @@ enum VisualScenarioCommandRunner {
         if let rawSelect = command["phraseGlobalApplySelect"],
            let count = Int(rawSelect) {
             posts.append("global-apply-select:\(count)")
+        }
+
+        if let rawMode = command["phraseGlobalApplyExpanded"],
+           let mode = TrackPerformLayerMode(rawValue: rawMode) {
+            posts.append("global-apply-expand:\(mode.rawValue)")
+        }
+
+        if let rawPins = command["phraseGlobalApplyPins"] {
+            posts.append("global-apply-pins:\(rawPins)")
         }
 
         // Macros | Slots view mode on the SCENES perform surface (the

@@ -228,6 +228,68 @@ final class TrackPerformSelectionStateTests: XCTestCase {
         XCTAssertEqual(plainModes, [.mute, .pattern, .fill, .volume, .pan])
     }
 
+    func test_patternValueOptionsExposeEveryExactSlot() {
+        let options = PerformanceLayerOption.patternValues
+
+        XCTAssertEqual(options.count, TrackPatternBank.slotCount)
+        XCTAssertEqual(options.map(\.title), (1...TrackPatternBank.slotCount).map { "P\($0)" })
+        XCTAssertEqual(options.compactMap(\.patternSlotIndex), Array(0..<TrackPatternBank.slotCount))
+        XCTAssertNil(PerformanceLayerOption(mode: .pattern, variantLabel: "P17").patternSlotIndex)
+        XCTAssertNil(PerformanceLayerOption(mode: .pattern, variantLabel: nil).patternSlotIndex)
+    }
+
+    func test_globalApplyValueVisibilityCollapsesToCurrentAndPinnedValues() {
+        let options = PerformanceLayerOption.patternValues
+        var state = GlobalApplyValueVisibilityState()
+
+        XCTAssertEqual(
+            state.visibleOptions(for: .pattern, allOptions: options, currentOption: options[3]),
+            [options[3]]
+        )
+
+        state.togglePinned(options[0])
+        state.togglePinned(options[1])
+        state.togglePinned(options[2])
+        XCTAssertEqual(
+            state.visibleOptions(for: .pattern, allOptions: options, currentOption: options[3]),
+            [options[3], options[0], options[1], options[2]]
+        )
+
+        state.togglePinned(options[1])
+        XCTAssertEqual(
+            state.visibleOptions(for: .pattern, allOptions: options, currentOption: options[3]),
+            [options[3], options[0], options[2]]
+        )
+    }
+
+    func test_globalApplyValueVisibilityExpansionShowsEveryValueAndRetainsPins() {
+        let options = PerformanceLayerOption.patternValues
+        var state = GlobalApplyValueVisibilityState()
+        state.togglePinned(options[2])
+        state.toggleExpanded(.pattern)
+
+        XCTAssertTrue(state.isExpanded(.pattern))
+        XCTAssertTrue(state.isPinned(options[2]))
+        XCTAssertEqual(
+            state.visibleOptions(for: .pattern, allOptions: options, currentOption: options[0]),
+            options
+        )
+
+        state.toggleExpanded(.pattern)
+        XCTAssertFalse(state.isExpanded(.pattern))
+        XCTAssertEqual(
+            state.visibleOptions(for: .pattern, allOptions: options, currentOption: options[0]),
+            [options[0], options[2]]
+        )
+    }
+
+    func test_globalApplyValueVisibilityDoesNotPinUnavailableValues() {
+        var state = GlobalApplyValueVisibilityState()
+        state.togglePinned(.unavailableStepOrder)
+
+        XCTAssertFalse(state.isPinned(.unavailableStepOrder))
+    }
+
     func test_phrasePerformanceOptionsExposeOnlyBackedLayersAndRuntimeToggles() {
         let validMap = StepOrderMap(name: "Break Fold")
         let invalidMap = StepOrderMap(name: "Broken", values: [0, 1])
